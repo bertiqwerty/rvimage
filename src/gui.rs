@@ -20,6 +20,8 @@ pub(crate) struct Framework {
 struct Gui {
     /// Only show the egui window when true.
     window_open: bool,
+    mouse_pos: (usize, usize),
+    rgb: [u8; 3],
 }
 
 impl Framework {
@@ -105,12 +107,24 @@ impl Framework {
             None,
         )
     }
+    pub fn set_gui_state(&mut self, mouse_pos: (usize, usize), rgb: [u8; 3]) {
+        self.gui.set(mouse_pos, rgb);
+    }
 }
 
 impl Gui {
     /// Create a `Gui`.
     fn new() -> Self {
-        Self { window_open: true }
+        Self {
+            window_open: true,
+            mouse_pos: (0, 0),
+            rgb: [0, 0, 0],
+        }
+    }
+
+    fn set(&mut self, mouse_pos: (usize, usize), rgb: [u8; 3]) {
+        self.mouse_pos = mouse_pos;
+        self.rgb = rgb;
     }
 
     /// Create the UI using egui.
@@ -131,7 +145,11 @@ impl Gui {
             .show(ctx, |ui| {
                 ui.label("This example demonstrates using egui with pixels.");
                 ui.label("Made with 💖 in San Francisco!");
-
+                let rgb = self.rgb;
+                ui.label(format!(
+                    "{} {} -> [{}, {}, {}]",
+                    self.mouse_pos.0, self.mouse_pos.1, rgb[0], rgb[1], rgb[2]
+                ));
                 ui.separator();
 
                 ui.horizontal(|ui| {
