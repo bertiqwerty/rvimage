@@ -1,7 +1,23 @@
+use std::{fs, io::Error, path::PathBuf};
+
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
+
+pub fn read_images_paths(path: &PathBuf) -> Result<Vec<PathBuf>, Error> {
+    fs::read_dir(path)?
+        .into_iter()
+        .map(|p| Ok(p?.path()))
+        .filter(|p| match p {
+            Err(_) => true,
+            Ok(p_) => match p_.extension() {
+                Some(ext) => ext == "png" || ext == "jpg",
+                None => false,
+            },
+        })
+        .collect::<Result<Vec<PathBuf>, Error>>()
+}
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub(crate) struct Framework {
@@ -22,6 +38,9 @@ struct Gui {
     window_open: bool,
     mouse_pos: (usize, usize),
     rgb: [u8; 3],
+    file_paths: Vec<PathBuf>,
+    folder_path: Option<PathBuf>,
+    file_selected: Option<PathBuf>,
 }
 
 impl Framework {
@@ -108,7 +127,11 @@ impl Framework {
         )
     }
     pub fn set_gui_state(&mut self, mouse_pos: (usize, usize), rgb: [u8; 3]) {
-        self.gui.set(mouse_pos, rgb);
+        self.gui.mouse_pos = mouse_pos;
+        self.gui.rgb = rgb;
+    }
+    pub fn file_selected(&self) -> &Option<PathBuf> {
+        &self.gui.file_selected
     }
 }
 
@@ -119,39 +142,45 @@ impl Gui {
             window_open: true,
             mouse_pos: (0, 0),
             rgb: [0, 0, 0],
+            file_paths: vec![],
+            folder_path: None,
+            file_selected: None,
         }
-    }
-
-    fn set(&mut self, mouse_pos: (usize, usize), rgb: [u8; 3]) {
-        self.mouse_pos = mouse_pos;
-        self.rgb = rgb;
     }
 
     /// Create the UI using egui.
     fn ui(&mut self, ctx: &CtxRef) {
-        egui::TopBottomPanel::top("menubar_container").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("About...").clicked() {
-                        self.window_open = true;
-                        ui.close_menu();
-                    }
-                })
-            });
-        });
-
-        egui::Window::new("Hello, egui!")
+        egui::Window::new("Rimview")
             .open(&mut self.window_open)
             .show(ctx, |ui| {
-                ui.label("This example demonstrates using egui with pixels.");
-                ui.label("Made with 💖 in San Francisco!");
                 let rgb = self.rgb;
                 ui.label(format!(
                     "{} {} -> [{}, {}, {}]",
                     self.mouse_pos.0, self.mouse_pos.1, rgb[0], rgb[1], rgb[2]
                 ));
                 ui.separator();
-
+                if ui.button("Open Folder...").clicked() {
+                    if let Some(sf) = rfd::FileDialog::new().pick_folder() {
+                        let image_paths = read_images_paths(&sf);
+                        match image_paths {
+                            Ok(ip) => self.file_paths = ip,
+                            Err(e) => println!("{:?}", e),
+                        }
+                        self.folder_path = Some(sf);
+                    }
+                }
+                ui.label(match &self.folder_path {
+                    Some(sf) => sf.to_str().unwrap_or("could not convert path to str"),
+                    None => "no folder selected",
+                });
+                for p in &self.file_paths {
+                    if ui
+                        .selectable_label(false, p.file_name().unwrap().to_str().unwrap())
+                        .clicked()
+                    {
+                        self.file_selected = Some(p.clone())
+                    };
+                }
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x /= 2.0;
                     ui.label("Learn more about egui at");

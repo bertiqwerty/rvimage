@@ -48,13 +48,10 @@ fn main() -> Result<(), Error> {
 
         (pixels, framework)
     };
-
-    let image = image::io::Reader::open("c:/Users/ShafeiB/Desktop/paprika.png")
-        .unwrap()
-        .decode()
-        .unwrap();
-    let image = image.into_rgb8();
+    let image = ImageBuffer::new(WIDTH, HEIGHT);
     let mut world = World::new(image);
+
+    let mut file_selected = None;
 
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
@@ -64,14 +61,33 @@ fn main() -> Result<(), Error> {
                 *control_flow = ControlFlow::Exit;
                 return;
             }
+
+            if input.mouse_released(0) {                
+                let framework_file_selected = framework.file_selected();
+                println!("{:?} - {:?}", framework_file_selected, file_selected);
+                if &file_selected != framework_file_selected {
+                    if let Some(path) = &framework_file_selected {
+                        file_selected = framework_file_selected.clone();
+                        let image_tmp = image::io::Reader::open(path)
+                            .unwrap()
+                            .decode()
+                            .unwrap();
+                        let image = image_tmp.into_rgb8();
+                        pixels.resize_surface(image.width(), image.height());
+                        world = World::new(image);
+
+                    } 
+                }
+            }
+
             let mouse_pos = pixels.window_pos_to_pixel(match input.mouse() {
                 Some(pos) => pos,
                 None => (0.0, 0.0),
             });
             match mouse_pos {
                 Ok(p) => world.set_mouse_pos(p.0, p.1),
-                _ => ()
-            };            
+                _ => (),
+            };
 
             // Update the scale factor
             if let Some(scale_factor) = input.scale_factor() {
@@ -153,6 +169,8 @@ impl World {
         let y = self.mouse_y as u32;
         if x < WIDTH && y < HEIGHT {
             self.rgb = self.image.get_pixel(x, y).0;
+        } else {
+            self.rgb = [0, 0, 0];
         }
     }
     /// Draw the `World` state to the frame buffer.
