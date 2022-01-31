@@ -2,7 +2,8 @@
 #![forbid(unsafe_code)]
 
 use crate::gui::Framework;
-use image::{ImageBuffer, Rgb};
+use image::imageops::FilterType;
+use image::{imageops, ImageBuffer, Rgb};
 use log::error;
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
@@ -42,8 +43,10 @@ fn main() -> Result<(), Error> {
 
     // application state in to create pixels buffer, i.e., everything not part of framework.gui()
     let mut image = ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT);
+    let mut image_for_display = image.clone();
     let mut file_selected = None;
-
+    let mut w_display = image.width();
+    let mut h_display = image.height();
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
         if input.update(&event) {
@@ -59,7 +62,25 @@ fn main() -> Result<(), Error> {
                     file_selected = gui_file_selected.clone();
                     let image_tmp = image::io::Reader::open(path).unwrap().decode().unwrap();
                     image = image_tmp.into_rgb8();
-                    pixels.resize_buffer(image.width(), image.height());
+                    let resize_data = resize_to_surface(
+                        &image,
+                        window.inner_size().width,
+                        window.inner_size().height,
+                    );
+                    match resize_data {
+                        Some((im, w, h)) => {
+                            image_for_display = im;
+                            pixels.resize_buffer(w, h);
+                            w_display = w;
+                            h_display = h;
+                        }
+                        None => {
+                            image_for_display = image.clone();
+                            w_display = image.width();
+                            h_display = image.height();
+                            pixels.resize_buffer(image.width(), image.height());
+                        }
+                    }
                 }
             }
 
@@ -77,15 +98,35 @@ fn main() -> Result<(), Error> {
 
             // Resize the window
             if let Some(size) = input.window_resized() {
+                let resize_data = resize_to_surface(&image, size.width, size.height);
+                match resize_data {
+                    Some((im, w, h)) => {
+                        image_for_display = im;
+                        pixels.resize_buffer(w, h);
+                        w_display = w;
+                        h_display = h;
+                    }
+                    None => (),
+                }
                 pixels.resize_surface(size.width, size.height);
                 framework.resize(size.width, size.height);
             }
             if framework.gui().file_selected().is_some() {
+                let convert_coord = |x: usize, n_display: u32, n_total: u32| {
+                    (x as f64 / n_display as f64 * n_total as f64) as usize
+                };
+                let pos_in_image = match mouse_pos {
+                    Some((x, y)) if x < w_display as usize && y < h_display as usize => Some((
+                        convert_coord(x, w_display, image.width()),
+                        convert_coord(y, h_display, image.height()),
+                    )),
+                    _ => None,
+                };
                 framework.gui().set_state(
-                    mouse_pos,
-                    match mouse_pos {
+                    pos_in_image,
+                    match pos_in_image {
                         Some((x, y)) => image.get_pixel(x as u32, y as u32).0,
-                        None => [0, 0, 0],
+                        _ => [0, 0, 0],
                     },
                     (image.width(), image.height()),
                 );
@@ -103,7 +144,7 @@ fn main() -> Result<(), Error> {
             // Draw the current frame
             Event::RedrawRequested(_) => {
                 // Draw the world
-                draw(pixels.get_frame(), &image);
+                draw(pixels.get_frame(), &image_for_display);
 
                 // Prepare egui
                 framework.prepare(&window);
@@ -130,6 +171,24 @@ fn main() -> Result<(), Error> {
             _ => (),
         }
     });
+}
+
+fn resize_to_surface(
+    image: &ImageBuffer<Rgb<u8>, Vec<u8>>,
+    surf_w: u32,
+    surf_h: u32,
+) -> Option<(ImageBuffer<Rgb<u8>, Vec<u8>>, u32, u32)> {
+    if image.width() > surf_w || image.height() > surf_h {
+        let w_ratio = image.width() as f64 / surf_w as f64;
+        let h_ratio = image.height() as f64 / surf_h as f64;
+        let ratio = w_ratio.max(h_ratio);
+        let w_new = (image.width() as f64 / ratio) as u32;
+        let h_new = (image.height() as f64 / ratio) as u32;
+        let im_resized = imageops::resize(image, w_new, h_new, FilterType::Nearest);
+        Some((im_resized, w_new, h_new))
+    } else {
+        None
+    }
 }
 
 /// Draw the image to the frame buffer.
