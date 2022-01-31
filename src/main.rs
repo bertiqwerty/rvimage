@@ -40,8 +40,7 @@ fn main() -> Result<(), Error> {
         (pixels, framework)
     };
 
-    // application state
-    // framework.gui()
+    // application state in to create pixels buffer, i.e., everything not part of framework.gui()
     let mut image = ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT);
     let mut file_selected = None;
 
