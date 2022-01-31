@@ -173,7 +173,8 @@ impl Gui {
 
     /// Create the UI using egui.
     fn ui(&mut self, ctx: &CtxRef) {
-        egui::Window::new("Rimview")
+        egui::Window::new("menu")
+            .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
                 let rgb = self.rgb;
