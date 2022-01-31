@@ -62,21 +62,14 @@ fn main() -> Result<(), Error> {
                 return;
             }
 
-            if input.mouse_released(0) {                
-                let framework_file_selected = framework.file_selected();
-                println!("{:?} - {:?}", framework_file_selected, file_selected);
-                if &file_selected != framework_file_selected {
-                    if let Some(path) = &framework_file_selected {
-                        file_selected = framework_file_selected.clone();
-                        let image_tmp = image::io::Reader::open(path)
-                            .unwrap()
-                            .decode()
-                            .unwrap();
-                        let image = image_tmp.into_rgb8();
-                        pixels.resize_surface(image.width(), image.height());
-                        world = World::new(image);
-
-                    } 
+            let framework_file_selected = framework.file_selected();
+            if &file_selected != framework_file_selected {
+                if let Some(path) = &framework_file_selected {
+                    file_selected = framework_file_selected.clone();
+                    let image_tmp = image::io::Reader::open(path).unwrap().decode().unwrap();
+                    let image = image_tmp.into_rgb8();
+                    pixels.resize_buffer(image.width(), image.height());
+                    world = World::new(image);
                 }
             }
 
@@ -99,7 +92,11 @@ fn main() -> Result<(), Error> {
                 pixels.resize_surface(size.width, size.height);
                 framework.resize(size.width, size.height);
             }
-            framework.set_gui_state(world.mouse_pos(), world.rgb());
+            if framework.file_selected().is_some() {
+                framework.set_gui_state(world.mouse_pos(), world.rgb());
+            } else {
+                framework.set_gui_state((0, 0), [0, 0, 0]);
+            }
             // Update internal state and request a redraw
             world.update();
             window.request_redraw();
@@ -178,20 +175,11 @@ impl World {
     /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
     fn draw(&self, frame: &mut [u8]) {
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let x = (i % WIDTH as usize) as i16;
-            let y = (i / WIDTH as usize) as i16;
+            let x = (i % self.image.width() as usize) as i16;
+            let y = (i / self.image.width() as usize) as i16;
             let rgb = self.image.get_pixel(x as u32, y as u32).0;
             let rgba = [rgb[0], rgb[1], rgb[2], 0xff];
-            // let inside_the_box = x >= self.box_x
-            //     && x < self.box_x + BOX_SIZE
-            //     && y >= self.box_y
-            //     && y < self.box_y + BOX_SIZE;
-
-            // let rgba = if inside_the_box {
-            //     [0x5e, 0x48, 0xe8, 0xff]
-            // } else {
-            //     [0x48, 0xb2, 0xe8, 0xff]
-            // };
+            
             pixel.copy_from_slice(&rgba);
         }
     }
