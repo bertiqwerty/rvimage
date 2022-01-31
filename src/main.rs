@@ -13,8 +13,8 @@ use winit_input_helper::WinitInputHelper;
 
 mod gui;
 
-const WIDTH: u32 = 256;
-const HEIGHT: u32 = 256;
+const START_WIDTH: u32 = 512;
+const START_HEIGHT: u32 = 512;
 
 /// Representation of the application state. In this example, a box will bounce around the screen.
 struct World {
@@ -29,9 +29,9 @@ fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
     let window = {
-        let size = LogicalSize::new(WIDTH as f64, HEIGHT as f64);
+        let size = LogicalSize::new(START_WIDTH as f64, START_HEIGHT as f64);
         WindowBuilder::new()
-            .with_title("Hello Pixels + egui")
+            .with_title("Rimview")
             .with_inner_size(size)
             .with_min_inner_size(size)
             .build(&event_loop)
@@ -42,13 +42,13 @@ fn main() -> Result<(), Error> {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor() as f32;
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
-        let pixels = Pixels::new(WIDTH, HEIGHT, surface_texture)?;
+        let pixels = Pixels::new(START_WIDTH, START_HEIGHT, surface_texture)?;
         let framework =
             Framework::new(window_size.width, window_size.height, scale_factor, &pixels);
 
         (pixels, framework)
     };
-    let image = ImageBuffer::new(WIDTH, HEIGHT);
+    let image = ImageBuffer::new(START_WIDTH, START_HEIGHT);
     let mut world = World::new(image);
 
     let mut file_selected = None;
@@ -164,7 +164,7 @@ impl World {
     fn update(&mut self) {
         let x = self.mouse_x as u32;
         let y = self.mouse_y as u32;
-        if x < WIDTH && y < HEIGHT {
+        if x < self.image.width() && y < self.image.height() {
             self.rgb = self.image.get_pixel(x, y).0;
         } else {
             self.rgb = [0, 0, 0];
