@@ -1,4 +1,8 @@
-use std::{fs, io::Error, path::PathBuf};
+use std::{
+    fs,
+    io::Error,
+    path::{Path, PathBuf},
+};
 
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
@@ -33,11 +37,12 @@ pub(crate) struct Framework {
 }
 
 /// Example application state. A real application will need a lot more state than this.
-struct Gui {
+pub struct Gui {
     /// Only show the egui window when true.
     window_open: bool,
-    mouse_pos: (usize, usize),
+    mouse_pos: Option<(usize, usize)>,
     rgb: [u8; 3],
+    buffer_size: (u32, u32),
     file_paths: Vec<PathBuf>,
     folder_path: Option<PathBuf>,
     file_selected: Option<PathBuf>,
@@ -126,13 +131,16 @@ impl Framework {
             None,
         )
     }
-    pub fn set_gui_state(&mut self, mouse_pos: (usize, usize), rgb: [u8; 3]) {
-        self.gui.mouse_pos = mouse_pos;
-        self.gui.rgb = rgb;
+    pub fn gui(&mut self) -> &mut Gui {
+        &mut self.gui
     }
-    pub fn file_selected(&self) -> &Option<PathBuf> {
-        &self.gui.file_selected
-    }
+}
+
+fn to_stem_str<'a>(x: &'a Path) -> &'a str {
+    x.file_stem()
+        .unwrap_or_default()
+        .to_str()
+        .unwrap_or_default()
 }
 
 impl Gui {
@@ -140,12 +148,27 @@ impl Gui {
     fn new() -> Self {
         Self {
             window_open: true,
-            mouse_pos: (0, 0),
+            mouse_pos: None,
             rgb: [0, 0, 0],
+            buffer_size: (0, 0),
             file_paths: vec![],
             folder_path: None,
             file_selected: None,
         }
+    }
+
+    pub fn set_state(
+        &mut self,
+        mouse_pos: Option<(usize, usize)>,
+        rgb: [u8; 3],
+        buffer_size: (u32, u32),
+    ) {
+        self.mouse_pos = mouse_pos;
+        self.rgb = rgb;
+        self.buffer_size = buffer_size;
+    }
+    pub fn file_selected(&self) -> &Option<PathBuf> {
+        &self.file_selected
     }
 
     /// Create the UI using egui.
@@ -155,11 +178,18 @@ impl Gui {
             .show(ctx, |ui| {
                 let rgb = self.rgb;
                 ui.label(format!(
-                    "{} {} -> [{}, {}, {}]",
-                    self.mouse_pos.0, self.mouse_pos.1, rgb[0], rgb[1], rgb[2]
+                    "(width, height) = ({}, {})",
+                    self.buffer_size.0, self.buffer_size.1
                 ));
+                ui.label(match self.mouse_pos {
+                    Some(mp) => format!(
+                        "({}, {}) -> ({}, {}, {})",
+                        mp.0, mp.1, rgb[0], rgb[1], rgb[2]
+                    ),
+                    None => "(x, y) -> (r, g, b)".to_string(),
+                });
                 ui.separator();
-                if ui.button("Open Folder...").clicked() {
+                if ui.button("open folder...").clicked() {
                     if let Some(sf) = rfd::FileDialog::new().pick_folder() {
                         let image_paths = read_images_paths(&sf);
                         match image_paths {
@@ -169,9 +199,20 @@ impl Gui {
                         self.folder_path = Some(sf);
                     }
                 }
+
                 ui.label(match &self.folder_path {
-                    Some(sf) => sf.to_str().unwrap_or("could not convert path to str"),
-                    None => "no folder selected",
+                    Some(sf) => {
+                        let last = sf.ancestors().next();
+                        let one_before_last = sf.ancestors().nth(1);
+                        match (one_before_last, last) {
+                            (Some(obl), Some(l)) => {
+                                format!("{}/{}", to_stem_str(obl), to_stem_str(l),)
+                            }
+                            (None, Some(l)) => to_stem_str(l).to_string(),
+                            _ => "could not convert path to str".to_string(),
+                        }
+                    }
+                    None => "no folder selected".to_string(),
                 });
                 for p in &self.file_paths {
                     if ui

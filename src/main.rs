@@ -16,14 +16,6 @@ mod gui;
 const START_WIDTH: u32 = 512;
 const START_HEIGHT: u32 = 512;
 
-/// Representation of the application state. In this example, a box will bounce around the screen.
-struct World {
-    image: ImageBuffer<Rgb<u8>, Vec<u8>>,
-    mouse_x: usize,
-    mouse_y: usize,
-    rgb: [u8; 3],
-}
-
 fn main() -> Result<(), Error> {
     env_logger::init();
     let event_loop = EventLoop::new();
@@ -45,12 +37,12 @@ fn main() -> Result<(), Error> {
         let pixels = Pixels::new(START_WIDTH, START_HEIGHT, surface_texture)?;
         let framework =
             Framework::new(window_size.width, window_size.height, scale_factor, &pixels);
-
         (pixels, framework)
     };
-    let image = ImageBuffer::new(START_WIDTH, START_HEIGHT);
-    let mut world = World::new(image);
 
+    // application state
+    // framework.gui()
+    let mut image = ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT);
     let mut file_selected = None;
 
     event_loop.run(move |event, _, control_flow| {
@@ -62,25 +54,22 @@ fn main() -> Result<(), Error> {
                 return;
             }
 
-            let framework_file_selected = framework.file_selected();
-            if &file_selected != framework_file_selected {
-                if let Some(path) = &framework_file_selected {
-                    file_selected = framework_file_selected.clone();
+            let gui_file_selected = framework.gui().file_selected();
+            if &file_selected != gui_file_selected {
+                if let Some(path) = &gui_file_selected {
+                    file_selected = gui_file_selected.clone();
                     let image_tmp = image::io::Reader::open(path).unwrap().decode().unwrap();
-                    let image = image_tmp.into_rgb8();
+                    image = image_tmp.into_rgb8();
                     pixels.resize_buffer(image.width(), image.height());
-                    world = World::new(image);
                 }
             }
 
-            let mouse_pos = pixels.window_pos_to_pixel(match input.mouse() {
-                Some(pos) => pos,
-                None => (0.0, 0.0),
-            });
-            match mouse_pos {
-                Ok(p) => world.set_mouse_pos(p.0, p.1),
-                _ => (),
-            };
+            let mouse_pos = pixels
+                .window_pos_to_pixel(match input.mouse() {
+                    Some(pos) => pos,
+                    None => (-1.0, -1.0),
+                })
+                .ok();
 
             // Update the scale factor
             if let Some(scale_factor) = input.scale_factor() {
@@ -92,13 +81,18 @@ fn main() -> Result<(), Error> {
                 pixels.resize_surface(size.width, size.height);
                 framework.resize(size.width, size.height);
             }
-            if framework.file_selected().is_some() {
-                framework.set_gui_state(world.mouse_pos(), world.rgb());
+            if framework.gui().file_selected().is_some() {
+                framework.gui().set_state(
+                    mouse_pos,
+                    match mouse_pos {
+                        Some((x, y)) => image.get_pixel(x as u32, y as u32).0,
+                        None => [0, 0, 0],
+                    },
+                    (image.width(), image.height()),
+                );
             } else {
-                framework.set_gui_state((0, 0), [0, 0, 0]);
+                framework.gui().set_state(None, [0, 0, 0], (0, 0));
             }
-            // Update internal state and request a redraw
-            world.update();
             window.request_redraw();
         }
 
@@ -110,7 +104,7 @@ fn main() -> Result<(), Error> {
             // Draw the current frame
             Event::RedrawRequested(_) => {
                 // Draw the world
-                world.draw(pixels.get_frame());
+                draw(pixels.get_frame(), &image);
 
                 // Prepare egui
                 framework.prepare(&window);
@@ -139,48 +133,16 @@ fn main() -> Result<(), Error> {
     });
 }
 
-impl World {
-    /// Create a new `World` instance that can draw a moving box.
-    fn new(image: ImageBuffer<Rgb<u8>, Vec<u8>>) -> Self {
-        Self {
-            image,
-            mouse_x: 0,
-            mouse_y: 0,
-            rgb: [0, 0, 0],
-        }
-    }
+/// Draw the image to the frame buffer.
+///
+/// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
+fn draw(frame: &mut [u8], image: &ImageBuffer<Rgb<u8>, Vec<u8>>) {
+    for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
+        let x = (i % image.width() as usize) as u32;
+        let y = (i / image.width() as usize) as u32;
+        let rgb = image.get_pixel(x, y).0;
+        let rgba = [rgb[0], rgb[1], rgb[2], 0xff];
 
-    fn set_mouse_pos(&mut self, x: usize, y: usize) {
-        self.mouse_x = x;
-        self.mouse_y = y;
-    }
-    pub fn mouse_pos(&self) -> (usize, usize) {
-        (self.mouse_x, self.mouse_y)
-    }
-    pub fn rgb(&self) -> [u8; 3] {
-        self.rgb
-    }
-    /// Update the `World` internal state; bounce the box around the screen.
-    fn update(&mut self) {
-        let x = self.mouse_x as u32;
-        let y = self.mouse_y as u32;
-        if x < self.image.width() && y < self.image.height() {
-            self.rgb = self.image.get_pixel(x, y).0;
-        } else {
-            self.rgb = [0, 0, 0];
-        }
-    }
-    /// Draw the `World` state to the frame buffer.
-    ///
-    /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
-    fn draw(&self, frame: &mut [u8]) {
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let x = (i % self.image.width() as usize) as i16;
-            let y = (i / self.image.width() as usize) as i16;
-            let rgb = self.image.get_pixel(x as u32, y as u32).0;
-            let rgba = [rgb[0], rgb[1], rgb[2], 0xff];
-            
-            pixel.copy_from_slice(&rgba);
-        }
+        pixel.copy_from_slice(&rgba);
     }
 }
