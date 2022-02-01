@@ -19,14 +19,14 @@ const START_HEIGHT: u32 = 512;
 
 const LEFT_BTN: usize = 0;
 
-const MIN_CROP: usize = 10;
+const MIN_CROP: u32 = 10;
 
 #[derive(Clone, Copy)]
 struct Crop {
-    x: usize,
-    y: usize,
-    w: usize,
-    h: usize,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
 }
 
 /// Everything we need to draw
@@ -59,25 +59,28 @@ impl World {
         }
     }
 
+    fn unscaled_shape(&self) -> (u32, u32) {
+        match self.crop {
+            Some(c) => (c.w as u32, c.h as u32),
+            None => (self.im_orig.width(), self.im_orig.height())
+        }
+    }
+
     fn transform_to_match_surface(&mut self, surf_w: u32, surf_h: u32) -> (u32, u32) {
-        let w_orig = self.im_orig.width();
-        let h_orig = self.im_orig.height();
-        let buffer_size = if w_orig > surf_w || h_orig > surf_h {
-            let w_ratio = w_orig as f64 / surf_w as f64;
-            let h_ratio = h_orig as f64 / surf_h as f64;
+        let (w_unscaled, h_unscaled) = self.unscaled_shape();
+        if w_unscaled > surf_w || h_unscaled > surf_h {
+            let w_ratio = w_unscaled as f64 / surf_w as f64;
+            let h_ratio = h_unscaled as f64 / surf_h as f64;
             let ratio = w_ratio.max(h_ratio);
-            let w_new = (w_orig as f64 / ratio) as u32;
-            let h_new = (h_orig as f64 / ratio) as u32;
+            let w_new = (w_unscaled as f64 / ratio) as u32;
+            let h_new = (h_unscaled as f64 / ratio) as u32;
             self.im_transformed =
                 imageops::resize(&self.im_orig, w_new, h_new, FilterType::Nearest);
             (w_new, h_new)
         } else {
-            (w_orig, h_orig)
-        };
-        match self.crop {
-            Some(c) => (c.h as u32, c.w as u32),
-            None => buffer_size
+            (w_unscaled, h_unscaled)
         }
+        
     }
 
     fn set_crop(
@@ -86,28 +89,35 @@ impl World {
         m_press_y: usize,
         m_release_x: usize,
         m_release_y: usize,
-    ) -> Option<(usize, usize)> {
-        let x_min = m_press_x.min(m_release_x);
-        let y_min = m_press_y.min(m_release_y);
-        let x_max = m_press_x.max(m_release_x);
-        let y_max = m_press_y.max(m_release_y);
+    ) -> Option<(u32, u32)> {
+        let x_min = m_press_x.min(m_release_x) as u32;
+        let y_min = m_press_y.min(m_release_y) as u32;
+        let x_max = m_press_x.max(m_release_x) as u32;
+        let y_max = m_press_y.max(m_release_y) as u32;
         let w = x_max - x_min;
         let h = y_max - y_min;
         if w > MIN_CROP && h > MIN_CROP {
-            let w_transformed = self.im_transformed.width();
-            let h_transformed = self.im_transformed.height();
-            let w_orig = self.im_orig.width();
-            let h_orig = self.im_orig.height();
-            let x_min_t = coord_trans_2_orig(x_min, w_transformed, w_orig);
-            let y_min_t = coord_trans_2_orig(y_min, h_transformed, h_orig);
-            let x_max_t = coord_trans_2_orig(x_max, w_transformed, w_orig);
-            let y_max_t = coord_trans_2_orig(y_max, h_transformed, h_orig);
+            let (x_min_t, y_min_t, x_max_t, y_max_t) = match self.crop {
+                Some(c) => {
+                    (c.x + x_min, c.y + y_min, c.x + x_max, c.y + y_max)
+                }
+                None => {
+                    let w_transformed = self.im_transformed.width();
+                    let h_transformed = self.im_transformed.height();
+                    let w_orig = self.im_orig.width();
+                    let h_orig = self.im_orig.height();
+                    (coord_trans_2_orig(x_min, w_transformed, w_orig),
+                    coord_trans_2_orig(y_min, h_transformed, h_orig),
+                    coord_trans_2_orig(x_max, w_transformed, w_orig),
+                    coord_trans_2_orig(y_max, h_transformed, h_orig))
+                }
+            };
             
             self.crop = Some(Crop {
-                x: x_min_t as usize,
-                y: y_min_t as usize,
-                w: (x_max_t - x_min_t) as usize,
-                h: (y_max_t - y_min_t) as usize,
+                x: x_min_t,
+                y: y_min_t,
+                w: (x_max_t - x_min_t),
+                h: (y_max_t - y_min_t),
             });
             Some((w, h))
         } else {
@@ -118,8 +128,14 @@ impl World {
     /// Draw the image to the frame buffer.
     ///
     /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
-    fn draw(&self, frame: &mut [u8]) {
+    fn draw(&self, pixels: &mut Pixels) {
         let sub_image = self.view();
+        let frame_len = pixels.get_frame().len() as u32;
+        if frame_len != sub_image.width() * sub_image.height() * 4 {
+            pixels.resize_buffer(sub_image.width(), sub_image.height())
+        }
+        let frame = pixels.get_frame();
+
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
             let x = (i % sub_image.width() as usize) as u32;
             let y = (i / sub_image.width() as usize) as u32;
@@ -147,8 +163,8 @@ impl World {
         };
         match mouse_pos {
             Some((x, y)) if x < x_maxp1 as usize && y < y_maxp1 as usize => {
-                let x_orig = x_off + coord_trans_2_orig(x, x_maxp1, self.im_orig.width());
-                let y_orig = y_off + coord_trans_2_orig(y, y_maxp1, self.im_orig.height());
+                let x_orig = x_off + coord_trans_2_orig(x as u32, x_maxp1, self.im_orig.width());
+                let y_orig = y_off + coord_trans_2_orig(y as u32, y_maxp1, self.im_orig.height());
                 Some((
                     x_orig as usize,
                     y_orig as usize,
@@ -160,7 +176,7 @@ impl World {
     }
 }
 
-fn coord_trans_2_orig(x: usize, n_transformed: u32, n_orig: u32) -> u32 {
+fn coord_trans_2_orig(x: u32, n_transformed: u32, n_orig: u32) -> u32 {
     (x as f64 / n_transformed as f64 * n_orig as f64) as u32
 }
 
@@ -277,7 +293,7 @@ fn main() -> Result<(), Error> {
             // Draw the current frame
             Event::RedrawRequested(_) => {
                 // Draw the world
-                world.draw(pixels.get_frame());
+                world.draw(&mut pixels);
 
                 // Prepare egui
                 framework.prepare(&window);
