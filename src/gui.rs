@@ -40,8 +40,7 @@ pub(crate) struct Framework {
 pub struct Gui {
     /// Only show the egui window when true.
     window_open: bool,
-    mouse_pos: Option<(usize, usize)>,
-    rgb: [u8; 3],
+    data_point: Option<(usize, usize, [u8; 3])>,
     buffer_size: (u32, u32),
     file_paths: Vec<PathBuf>,
     folder_path: Option<PathBuf>,
@@ -148,8 +147,7 @@ impl Gui {
     fn new() -> Self {
         Self {
             window_open: true,
-            mouse_pos: None,
-            rgb: [0, 0, 0],
+            data_point: None,
             buffer_size: (0, 0),
             file_paths: vec![],
             folder_path: None,
@@ -159,12 +157,10 @@ impl Gui {
 
     pub fn set_state(
         &mut self,
-        mouse_pos: Option<(usize, usize)>,
-        rgb: [u8; 3],
+        data_point: Option<(usize, usize, [u8; 3])>,
         buffer_size: (u32, u32),
     ) {
-        self.mouse_pos = mouse_pos;
-        self.rgb = rgb;
+        self.data_point = data_point;
         self.buffer_size = buffer_size;
     }
     pub fn file_selected(&self) -> &Option<PathBuf> {
@@ -177,15 +173,14 @@ impl Gui {
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
-                let rgb = self.rgb;
                 ui.label(format!(
                     "(width, height) = ({}, {})",
                     self.buffer_size.0, self.buffer_size.1
                 ));
-                ui.label(match self.mouse_pos {
-                    Some(mp) => format!(
+                ui.label(match self.data_point {
+                    Some((x, y, rgb)) => format!(
                         "({}, {}) -> ({}, {}, {})",
-                        mp.0, mp.1, rgb[0], rgb[1], rgb[2]
+                        x, y, rgb[0], rgb[1], rgb[2]
                     ),
                     None => "(x, y) -> (r, g, b)".to_string(),
                 });
