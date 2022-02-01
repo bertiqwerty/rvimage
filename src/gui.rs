@@ -218,6 +218,11 @@ impl Gui {
                         self.file_selected = Some(p.clone())
                     };
                 }
+                ui.separator();
+                ui.label("crop - left mouse");
+                ui.label("move crop - right mouse");
+                ui.label("uncrop - backspace");
+                ui.separator();
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x /= 2.0;
                     ui.label("Learn more about egui at");
