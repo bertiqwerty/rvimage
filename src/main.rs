@@ -18,6 +18,7 @@ const START_WIDTH: u32 = 512;
 const START_HEIGHT: u32 = 512;
 
 const LEFT_BTN: usize = 0;
+const RIGHT_BTN: usize = 1;
 
 const MIN_CROP: u32 = 10;
 
@@ -62,7 +63,7 @@ impl World {
     fn unscaled_shape(&self) -> (u32, u32) {
         match self.crop {
             Some(c) => (c.w as u32, c.h as u32),
-            None => (self.im_orig.width(), self.im_orig.height())
+            None => (self.im_orig.width(), self.im_orig.height()),
         }
     }
 
@@ -80,10 +81,9 @@ impl World {
         } else {
             (w_unscaled, h_unscaled)
         }
-        
     }
 
-    fn set_crop(
+    fn make_crop(
         &mut self,
         m_press_x: usize,
         m_press_y: usize,
@@ -98,21 +98,21 @@ impl World {
         let h = y_max - y_min;
         if w > MIN_CROP && h > MIN_CROP {
             let (x_min_t, y_min_t, x_max_t, y_max_t) = match self.crop {
-                Some(c) => {
-                    (c.x + x_min, c.y + y_min, c.x + x_max, c.y + y_max)
-                }
+                Some(c) => (c.x + x_min, c.y + y_min, c.x + x_max, c.y + y_max),
                 None => {
                     let w_transformed = self.im_transformed.width();
                     let h_transformed = self.im_transformed.height();
                     let w_orig = self.im_orig.width();
                     let h_orig = self.im_orig.height();
-                    (coord_trans_2_orig(x_min, w_transformed, w_orig),
-                    coord_trans_2_orig(y_min, h_transformed, h_orig),
-                    coord_trans_2_orig(x_max, w_transformed, w_orig),
-                    coord_trans_2_orig(y_max, h_transformed, h_orig))
+                    (
+                        coord_trans_2_orig(x_min, w_transformed, w_orig),
+                        coord_trans_2_orig(y_min, h_transformed, h_orig),
+                        coord_trans_2_orig(x_max, w_transformed, w_orig),
+                        coord_trans_2_orig(y_max, h_transformed, h_orig),
+                    )
                 }
             };
-            
+
             self.crop = Some(Crop {
                 x: x_min_t,
                 y: y_min_t,
@@ -122,6 +122,27 @@ impl World {
             Some((w, h))
         } else {
             None
+        }
+    }
+
+    fn move_crop(&mut self, m_press_x: usize, m_press_y: usize, m_held_x: usize, m_held_y: usize) {
+        if let Some(c) = self.crop {
+            let x_shift: i32 = m_press_x as i32 - m_held_x as i32;
+            let y_shift: i32 = m_press_y as i32 - m_held_y as i32;
+            let x_new = c.x as i32 + x_shift;
+            let y_new = c.y as i32 + y_shift;
+            if x_new >= 0
+                && y_new >= 0
+                && x_new as u32 + c.w < self.im_orig.width()
+                && y_new as u32 + c.h < self.im_orig.height()
+            {
+                self.crop = Some(Crop {
+                    x: x_new as u32,
+                    y: y_new as u32,
+                    w: c.w,
+                    h: c.h,
+                });
+            }
         }
     }
 
@@ -146,7 +167,10 @@ impl World {
         }
     }
 
-    fn get_pixel_on_orig(&self, mouse_pos: Option<(usize, usize)>) -> Option<(usize, usize, [u8; 3])> {
+    fn get_pixel_on_orig(
+        &self,
+        mouse_pos: Option<(usize, usize)>,
+    ) -> Option<(usize, usize, [u8; 3])> {
         let (x_off, y_off, x_maxp1, y_maxp1) = match &self.crop {
             Some(c) => (
                 c.x as u32,
@@ -226,7 +250,7 @@ fn main() -> Result<(), Error> {
                 .ok();
 
             // crop
-            if input.mouse_pressed(LEFT_BTN) {
+            if input.mouse_pressed(LEFT_BTN) || input.mouse_pressed(RIGHT_BTN) {
                 if mouse_pressed_pos.is_none() {
                     if let Some((x, y)) = mouse_pos {
                         mouse_pressed_pos = Some((x, y));
@@ -235,8 +259,8 @@ fn main() -> Result<(), Error> {
             }
             if input.mouse_released(LEFT_BTN) {
                 match (mouse_pressed_pos, mouse_pos) {
-                    (Some((c_x, c_y)), Some((m_x, m_y))) => {
-                        match world.set_crop(c_x, c_y, m_x, m_y) {
+                    (Some((mpp_x, mpp_y)), Some((mrp_x, mrp_y))) => {
+                        match world.make_crop(mpp_x, mpp_y, mrp_x, mrp_y) {
                             Some((w, h)) => pixels.resize_buffer(w as u32, h as u32),
                             None => (),
                         }
@@ -244,6 +268,19 @@ fn main() -> Result<(), Error> {
                     }
                     _ => (),
                 }
+            }
+            // crop move
+            if input.mouse_held(RIGHT_BTN) {
+                match (mouse_pressed_pos, mouse_pos) {
+                    (Some((mpp_x, mpp_y)), Some((mhp_x, mhp_y))) => {
+                        world.move_crop(mpp_x, mpp_y, mhp_x, mhp_y);
+                        mouse_pressed_pos = mouse_pos;
+                    }
+                    _ => (),
+                }
+            }
+            if input.mouse_released(RIGHT_BTN) {
+                mouse_pressed_pos = None;
             }
 
             // load new image
