@@ -56,13 +56,14 @@ fn main() -> Result<(), Error> {
                 return;
             }
 
+            // load new image
             let gui_file_selected = framework.gui().file_selected();
             if &file_selected != gui_file_selected {
                 if let Some(path) = &gui_file_selected {
                     file_selected = gui_file_selected.clone();
                     let image_tmp = image::io::Reader::open(path).unwrap().decode().unwrap();
                     image = image_tmp.into_rgb8();
-                    let resize_data = resize_to_surface(
+                    let resize_data = resize_image_to_surface(
                         &image,
                         window.inner_size().width,
                         window.inner_size().height,
@@ -84,13 +85,6 @@ fn main() -> Result<(), Error> {
                 }
             }
 
-            let mouse_pos = pixels
-                .window_pos_to_pixel(match input.mouse() {
-                    Some(pos) => pos,
-                    None => (-1.0, -1.0),
-                })
-                .ok();
-
             // Update the scale factor
             if let Some(scale_factor) = input.scale_factor() {
                 framework.scale_factor(scale_factor);
@@ -98,7 +92,7 @@ fn main() -> Result<(), Error> {
 
             // Resize the window
             if let Some(size) = input.window_resized() {
-                let resize_data = resize_to_surface(&image, size.width, size.height);
+                let resize_data = resize_image_to_surface(&image, size.width, size.height);
                 match resize_data {
                     Some((im, w, h)) => {
                         image_for_display = im;
@@ -111,7 +105,15 @@ fn main() -> Result<(), Error> {
                 pixels.resize_surface(size.width, size.height);
                 framework.resize(size.width, size.height);
             }
+
+            // show position and rgb value
             if framework.gui().file_selected().is_some() {
+                let mouse_pos = pixels
+                    .window_pos_to_pixel(match input.mouse() {
+                        Some(pos) => pos,
+                        None => (-1.0, -1.0),
+                    })
+                    .ok();
                 let convert_coord = |x: usize, n_display: u32, n_total: u32| {
                     (x as f64 / n_display as f64 * n_total as f64) as usize
                 };
@@ -133,6 +135,7 @@ fn main() -> Result<(), Error> {
             } else {
                 framework.gui().set_state(None, [0, 0, 0], (0, 0));
             }
+
             window.request_redraw();
         }
 
@@ -173,7 +176,7 @@ fn main() -> Result<(), Error> {
     });
 }
 
-fn resize_to_surface(
+fn resize_image_to_surface(
     image: &ImageBuffer<Rgb<u8>, Vec<u8>>,
     surf_w: u32,
     surf_h: u32,
