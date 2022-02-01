@@ -282,6 +282,11 @@ fn main() -> Result<(), Error> {
             if input.mouse_released(RIGHT_BTN) {
                 mouse_pressed_pos = None;
             }
+            // uncrop
+            if input.key_pressed(VirtualKeyCode::Back) {
+                world.crop = None;
+            }
+
 
             // load new image
             let gui_file_selected = framework.gui().file_selected();
