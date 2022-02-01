@@ -171,29 +171,27 @@ impl World {
         &self,
         mouse_pos: Option<(usize, usize)>,
     ) -> Option<(usize, usize, [u8; 3])> {
-        let (x_off, y_off, x_maxp1, y_maxp1) = match &self.crop {
-            Some(c) => (
-                c.x as u32,
-                c.y as u32,
-                (c.x + c.w) as u32,
-                (c.y + c.h) as u32,
-            ),
-            _ => (
-                0,
-                0,
-                self.im_transformed.width(),
-                self.im_transformed.height(),
-            ),
+        let (x_maxp1, y_maxp1) = match &self.crop {
+            Some(c) => (c.w, c.h),
+            _ => (self.im_transformed.width(), self.im_transformed.height()),
+        };
+        let (x_off, y_off) = match &self.crop {
+            Some(c) => (c.x, c.y),
+            _ => (0, 0),
         };
         match mouse_pos {
-            Some((x, y)) if x < x_maxp1 as usize && y < y_maxp1 as usize => {
+            Some((x, y)) => {
                 let x_orig = x_off + coord_trans_2_orig(x as u32, x_maxp1, self.im_orig.width());
                 let y_orig = y_off + coord_trans_2_orig(y as u32, y_maxp1, self.im_orig.height());
-                Some((
-                    x_orig as usize,
-                    y_orig as usize,
-                    self.im_orig.get_pixel(x as u32, y as u32).0,
-                ))
+                if x_orig < self.im_orig.width() && y_orig < self.im_orig.height() {
+                    Some((
+                        x_orig as usize,
+                        y_orig as usize,
+                        self.im_orig.get_pixel(x_orig, y_orig).0,
+                    ))
+                } else {
+                    None
+                }
             }
             _ => None,
         }
@@ -285,8 +283,10 @@ fn main() -> Result<(), Error> {
             // uncrop
             if input.key_pressed(VirtualKeyCode::Back) {
                 world.crop = None;
+                let size = window.inner_size();
+                let (w, h) = world.transform_to_match_surface(size.width, size.height);
+                pixels.resize_buffer(w, h);
             }
-
 
             // load new image
             let gui_file_selected = framework.gui().file_selected();
@@ -296,7 +296,7 @@ fn main() -> Result<(), Error> {
                     let image_tmp = image::io::Reader::open(path).unwrap().decode().unwrap();
                     world = World::new(image_tmp.into_rgb8());
                     let size = window.inner_size();
-                    let (w, h) = world.transform_to_match_surface(size.width, size.width);
+                    let (w, h) = world.transform_to_match_surface(size.width, size.height);
                     pixels.resize_buffer(w, h);
                 }
             }
