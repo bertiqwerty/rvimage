@@ -183,16 +183,13 @@ impl World {
     fn get_pixel_on_orig(
         &self,
         mouse_pos: Option<(usize, usize)>,
-        size_win_inner: PhysicalSize<u32>,
+        size_win_inner: &PhysicalSize<u32>,
     ) -> Option<(usize, usize, [u8; 3])> {
         let (w_unscaled, h_unscaled) = self.shape_unscaled();
         let (w_win_inner, h_win_inner) = (size_win_inner.width, size_win_inner.height);
-        let (w_scaled, h_scaled) = self.shape_scaled(
-            w_unscaled,
-            h_unscaled,
-            w_win_inner as u32,
-            h_win_inner as u32,
-        );
+
+        let (w_scaled, h_scaled) =
+            self.shape_scaled(w_unscaled, h_unscaled, w_win_inner, h_win_inner);
 
         let (x_off, y_off) = match &self.crop {
             Some(c) => (c.x, c.y),
@@ -200,8 +197,8 @@ impl World {
         };
         match mouse_pos {
             Some((x, y)) => {
-                let x_orig = x_off + coord_trans_2_orig(x as u32, w_scaled, self.im_orig.width());
-                let y_orig = y_off + coord_trans_2_orig(y as u32, h_scaled, self.im_orig.height());
+                let x_orig = x_off + coord_trans_2_orig(x as u32, w_scaled, w_unscaled);
+                let y_orig = y_off + coord_trans_2_orig(y as u32, h_scaled, h_unscaled);
                 if x_orig < self.im_orig.width() && y_orig < self.im_orig.height() {
                     Some((
                         x_orig as usize,
@@ -336,7 +333,7 @@ fn main() -> Result<(), Error> {
             // show position and rgb value
             if framework.gui().file_selected().is_some() {
                 framework.gui().set_state(
-                    world.get_pixel_on_orig(mouse_pos, window.inner_size()),
+                    world.get_pixel_on_orig(mouse_pos, &window.inner_size()),
                     (world.im_orig.width(), world.im_orig.height()),
                 );
             } else {
@@ -385,25 +382,20 @@ fn main() -> Result<(), Error> {
 
 #[test]
 fn test_world() {
-    let mut im = ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT);
+    let (w, h) = (100, 100);
+    let mut im = ImageBuffer::<Rgb<u8>, _>::new(w, h);
     im[(10, 10)] = Rgb::<u8>::from([4, 4, 4]);
     im[(20, 30)] = Rgb::<u8>::from([5, 5, 5]);
     let mut world = World::new(im);
-    assert_eq!((START_WIDTH, START_HEIGHT), world.shape_unscaled());
-    assert_eq!(Some((64, 48)), world.make_crop(10, 10, 74, 58));
+    assert_eq!((w, h), world.shape_unscaled());
+    assert_eq!(Some((50, 50)), world.make_crop(10, 10, 60, 60));
     assert_eq!(
         Some((10, 10, [4, 4, 4])),
-        world.get_pixel_on_orig(
-            Some((0, 0)),
-            PhysicalSize::<u32>::new(START_WIDTH, START_HEIGHT)
-        )
+        world.get_pixel_on_orig(Some((0, 0)), &PhysicalSize::<u32>::new(w, h))
     );
     assert_eq!(
         Some((20, 30, [5, 5, 5])),
-        world.get_pixel_on_orig(
-            Some((64, 48)),
-            PhysicalSize::<u32>::new(START_WIDTH, START_HEIGHT)
-        )
+        world.get_pixel_on_orig(Some((20, 40)), &PhysicalSize::<u32>::new(w, h))
     );
-    assert_eq!((30, 50), (world.view().width(), world.view().height()));
+    assert_eq!((50, 50), (world.view().width(), world.view().height()));
 }
