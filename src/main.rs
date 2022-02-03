@@ -3,7 +3,7 @@
 
 use crate::gui::Framework;
 use image::imageops::FilterType;
-use image::{imageops, GenericImage, GenericImageView, ImageBuffer, Rgb, SubImage};
+use image::{imageops, GenericImage, ImageBuffer, Rgb};
 use log::error;
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::{LogicalSize, PhysicalSize};
@@ -33,7 +33,7 @@ struct Crop {
 /// Everything we need to draw
 struct World {
     im_orig: ImageBuffer<Rgb<u8>, Vec<u8>>,
-    im_transformed: ImageBuffer<Rgb<u8>, Vec<u8>>,
+    im_view: ImageBuffer<Rgb<u8>, Vec<u8>>,
     crop: Option<Crop>,
 }
 
@@ -41,18 +41,9 @@ impl World {
     pub fn new(im_orig: ImageBuffer<Rgb<u8>, Vec<u8>>) -> Self {
         Self {
             im_orig: im_orig.clone(),
-            im_transformed: im_orig,
+            im_view: im_orig,
             crop: None,
         }
-    }
-
-    pub fn view<'a>(&'a self) -> SubImage<&'a ImageBuffer<Rgb<u8>, Vec<u8>>> {
-        self.im_transformed.view(
-            0,
-            0,
-            self.im_transformed.width(),
-            self.im_transformed.height(),
-        )
     }
 
     fn shape_unscaled(&self) -> (u32, u32) {
@@ -86,12 +77,12 @@ impl World {
             Some(c) => {
                 let cropped_view = self.im_orig.sub_image(c.x, c.y, c.w, c.h);
                 let im_cropped = cropped_view.to_image();
-                self.im_transformed =
+                self.im_view =
                     imageops::resize(&im_cropped, w_new, h_new, FilterType::Nearest);
             }
             None => {
                 if w_unscaled > w_win_inner || h_unscaled > h_win_inner {
-                    self.im_transformed =
+                    self.im_view =
                         imageops::resize(&self.im_orig, w_new, h_new, FilterType::Nearest);
                 }
             }
@@ -118,8 +109,8 @@ impl World {
             let (x_min_t, y_min_t, x_max_t, y_max_t) = match self.crop {
                 Some(c) => (c.x + x_min, c.y + y_min, c.x + x_max, c.y + y_max),
                 None => {
-                    let w_transformed = self.im_transformed.width();
-                    let h_transformed = self.im_transformed.height();
+                    let w_transformed = self.im_view.width();
+                    let h_transformed = self.im_view.height();
                     (
                         coord_trans_2_orig(x_min, w_transformed, w_unscaled),
                         coord_trans_2_orig(y_min, h_transformed, h_unscaled),
@@ -166,17 +157,16 @@ impl World {
     ///
     /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
     fn draw(&self, pixels: &mut Pixels) {
-        let sub_image = self.view();
         let frame_len = pixels.get_frame().len() as u32;
-        if frame_len != sub_image.width() * sub_image.height() * 4 {
-            pixels.resize_buffer(sub_image.width(), sub_image.height())
+        if frame_len != self.im_view.width() * self.im_view.height() * 4 {
+            pixels.resize_buffer(self.im_view.width(), self.im_view.height())
         }
         let frame = pixels.get_frame();
 
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let x = (i % sub_image.width() as usize) as u32;
-            let y = (i / sub_image.width() as usize) as u32;
-            let rgb = sub_image.get_pixel(x, y).0;
+            let x = (i % self.im_view.width() as usize) as u32;
+            let y = (i / self.im_view.width() as usize) as u32;
+            let rgb = self.im_view.get_pixel(x, y).0;
             let rgba = [rgb[0], rgb[1], rgb[2], 0xff];
 
             pixel.copy_from_slice(&rgba);
@@ -411,7 +401,7 @@ fn test_world() {
             Some((20, 30, [5, 5, 5])),
             world.get_pixel_on_orig(Some((20, 40)), &PhysicalSize::<u32>::new(w, h))
         );
-        assert_eq!((50, 50), (world.view().width(), world.view().height()));
+        assert_eq!((50, 50), (world.im_view.width(), world.im_view.height()));
     }
     {
         // another test on finding pixels in the original image
@@ -436,18 +426,6 @@ fn test_world() {
             Some((11, 22, [0, 0, 0])),
             world.get_pixel_on_orig(Some((20, 40)), &PhysicalSize::<u32>::new(win_w, win_h))
         );
-        assert_eq!(
-            Some((19, 39, [0, 0, 0])),
-            world.get_pixel_on_orig(Some((199, 399)), &PhysicalSize::<u32>::new(win_w, win_h))
-        );
-    }
-    {
-        // crop Some(Crop { x: 228, y: 691, w: 327, h: 305 }) - mp Some((193, 133)) - un 327 305 - win 887 480 - sc 514 480
-        let (win_w, win_h) = (887, 480);
-        let (w_im_o, h_im_o) = (850, 7700);
-        let im = ImageBuffer::<Rgb<u8>, _>::new(w_im_o, h_im_o);
-        let mut world = World::new(im);
-        assert_eq!(Some((10, 20)), world.make_crop(228, 691, 327, 305));
         assert_eq!(
             Some((19, 39, [0, 0, 0])),
             world.get_pixel_on_orig(Some((199, 399)), &PhysicalSize::<u32>::new(win_w, win_h))
