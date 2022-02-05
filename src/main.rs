@@ -35,6 +35,7 @@ struct World {
     im_orig: ImageBuffer<Rgb<u8>, Vec<u8>>,
     im_view: ImageBuffer<Rgb<u8>, Vec<u8>>,
     crop: Option<Crop>,
+    draw_crop: Option<Crop>, // for drawing a crop animation
 }
 
 impl World {
@@ -43,6 +44,7 @@ impl World {
             im_orig: im_orig.clone(),
             im_view: im_orig,
             crop: None,
+            draw_crop: None,
         }
     }
 
@@ -91,15 +93,15 @@ impl World {
     }
 
     fn make_crop(
-        &mut self,
-        m_press_x: usize,
-        m_press_y: usize,
-        m_release_x: usize,
-        m_release_y: usize,
+        &self,
+        mouse_start_x: usize,
+        mouse_start_y: usize,
+        mouse_end_x: usize,
+        mouse_end_y: usize,
         win_inner: &PhysicalSize<u32>,
-    ) -> Option<(u32, u32)> {
-        let prs_orig = self.get_pos_on_orig(Some((m_press_x, m_press_y)), &win_inner);
-        let rel_orig = self.get_pos_on_orig(Some((m_release_x, m_release_y)), &win_inner);
+    ) -> Option<Crop> {
+        let prs_orig = self.get_pos_on_orig(Some((mouse_start_x, mouse_start_y)), &win_inner);
+        let rel_orig = self.get_pos_on_orig(Some((mouse_end_x, mouse_end_y)), &win_inner);
 
         match (prs_orig, rel_orig) {
             (Some((px, py)), Some((rx, ry))) => {
@@ -111,13 +113,12 @@ impl World {
                 let w = x_max - x_min;
                 let h = y_max - y_min;
                 if w >= MIN_CROP && h >= MIN_CROP {
-                    self.crop = Some(Crop {
+                    Some(Crop {
                         x: x_min,
                         y: y_min,
                         w,
                         h,
-                    });
-                    Some((w, h))
+                    })
                 } else {
                     None
                 }
@@ -175,7 +176,18 @@ impl World {
             let x = (i % self.im_view.width() as usize) as u32;
             let y = (i / self.im_view.width() as usize) as u32;
             let rgb = self.im_view.get_pixel(x, y).0;
-            let rgba = [rgb[0], rgb[1], rgb[2], 0xff];
+            let rgb_changed = if let Some(dc) = self.draw_crop {
+                let offset = 50;
+                let change = |x| if 255 - x > offset { x + offset } else { 255 };
+                if x >= dc.x && y >= dc.y && x < dc.x + dc.w && y < dc.y + dc.h {
+                    [change(rgb[0]), change(rgb[1]), change(rgb[2])]
+                } else {
+                    rgb
+                }
+            } else {
+                rgb
+            };
+            let rgba = [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff];
 
             pixel.copy_from_slice(&rgba);
         }
@@ -250,7 +262,7 @@ fn main() -> Result<(), Error> {
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
     let mut world = World::new(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT));
-    let mut mouse_pressed_pos: Option<(usize, usize)> = None;
+    let mut mouse_pressed_start_pos: Option<(usize, usize)> = None;
     let mut file_selected = None;
 
     event_loop.run(move |event, _, control_flow| {
@@ -271,45 +283,62 @@ fn main() -> Result<(), Error> {
 
             // crop
             if input.mouse_pressed(LEFT_BTN) || input.mouse_pressed(RIGHT_BTN) {
-                if mouse_pressed_pos.is_none() {
-                    if let Some((x, y)) = mouse_pos {
-                        mouse_pressed_pos = Some((x, y));
+                match (mouse_pressed_start_pos, mouse_pos) {
+                    (None, Some((m_x, m_y))) => {
+                        mouse_pressed_start_pos = Some((m_x, m_y));
                     }
+                    _ => (),
                 }
             }
             if input.mouse_released(LEFT_BTN) {
-                match (mouse_pressed_pos, mouse_pos) {
-                    (Some((mpp_x, mpp_y)), Some((mrp_x, mrp_y))) => {
-                        match world.make_crop(mpp_x, mpp_y, mrp_x, mrp_y, &window.inner_size()) {
-                            Some(_) => {
-                                let (w, h) = world.scale_to_match_surface(
-                                    window.inner_size().width,
-                                    window.inner_size().height,
-                                );
-                                pixels.resize_buffer(w, h);
-                            }
-                            None => (),
+                match (mouse_pressed_start_pos, mouse_pos) {
+                    (Some((mps_x, mps_y)), Some((mrp_x, mrp_y))) => {
+                        world.crop =
+                            world.make_crop(mps_x, mps_y, mrp_x, mrp_y, &window.inner_size());
+                        if world.crop.is_some() {
+                            let (w, h) = world.scale_to_match_surface(
+                                window.inner_size().width,
+                                window.inner_size().height,
+                            );
+                            pixels.resize_buffer(w, h);
                         }
-                        mouse_pressed_pos = None;
+                        world.draw_crop = None;
+                        mouse_pressed_start_pos = None;
                     }
                     _ => (),
                 }
             }
             // crop move
             if input.mouse_held(RIGHT_BTN) {
-                match (mouse_pressed_pos, mouse_pos) {
+                match (mouse_pressed_start_pos, mouse_pos) {
                     (Some((mpp_x, mpp_y)), Some((mp_x, mp_y))) => {
                         let win_inner = window.inner_size();
 
                         world.move_crop(mpp_x, mpp_y, mp_x, mp_y, &win_inner);
                         world.scale_to_match_surface(win_inner.width, win_inner.height);
-                        mouse_pressed_pos = mouse_pos;
+                        mouse_pressed_start_pos = mouse_pos;
+                    }
+                    _ => (),
+                }
+            } else if input.mouse_held(LEFT_BTN) {
+                match (mouse_pressed_start_pos, mouse_pos) {
+                    (Some((mps_x, mps_y)), Some((m_x, m_y))) => {
+                        let x_min = mps_x.min(m_x);
+                        let y_min = mps_y.min(m_y);
+                        let x_max = mps_x.max(m_x);
+                        let y_max = mps_y.max(m_y);
+                        world.draw_crop = Some(Crop {
+                            x: x_min as u32,
+                            y: y_min as u32,
+                            w: (x_max - x_min) as u32,
+                            h: (y_max - y_min) as u32,
+                        });
                     }
                     _ => (),
                 }
             }
             if input.mouse_released(RIGHT_BTN) {
-                mouse_pressed_pos = None;
+                mouse_pressed_start_pos = None;
             }
             // uncrop
             if input.key_pressed(VirtualKeyCode::Back) {
@@ -403,9 +432,10 @@ fn test_world() {
         let mut im = ImageBuffer::<Rgb<u8>, _>::new(w, h);
         im[(10, 10)] = Rgb::<u8>::from([4, 4, 4]);
         im[(20, 30)] = Rgb::<u8>::from([5, 5, 5]);
-        let mut world = World::new(im);
+        let world = World::new(im);
         assert_eq!((w, h), world.shape_unscaled());
-        assert_eq!(Some((50, 50)), world.make_crop(10, 10, 60, 60, &win_inner));
+        let crop = world.make_crop(10, 10, 60, 60, &win_inner).unwrap();
+        assert_eq!(Some((50, 50)), Some((crop.w, crop.h)));
         assert_eq!(
             Some((10, 10, [4, 4, 4])),
             world.get_pixel_on_orig(Some((0, 0)), &win_inner)
@@ -414,35 +444,16 @@ fn test_world() {
             Some((20, 30, [5, 5, 5])),
             world.get_pixel_on_orig(Some((20, 40)), &win_inner)
         );
-        assert_eq!((50, 50), (world.im_view.width(), world.im_view.height()));
+        assert_eq!((100, 100), (world.im_view.width(), world.im_view.height()));
     }
     {
         // another test on finding pixels in the original image
-        let (win_w, win_h) = (200, 400);
+        let (win_w, win_h) = (200, 100);
         let win_inner = PhysicalSize::<u32>::new(win_w, win_h);
         let (w_im_o, h_im_o) = (100, 50);
         let im = ImageBuffer::<Rgb<u8>, _>::new(w_im_o, h_im_o);
-        let mut world = World::new(im);
-        assert_eq!(Some((10, 20)), world.make_crop(10, 20, 20, 40, &win_inner));
-        assert_eq!(
-            Some((10, 20, [0, 0, 0])),
-            world.get_pixel_on_orig(Some((10, 10)), &PhysicalSize::<u32>::new(win_w, win_h))
-        );
-        assert_eq!(
-            Some((11, 20, [0, 0, 0])),
-            world.get_pixel_on_orig(Some((20, 10)), &PhysicalSize::<u32>::new(win_w, win_h))
-        );
-        assert_eq!(
-            Some((11, 21, [0, 0, 0])),
-            world.get_pixel_on_orig(Some((20, 20)), &PhysicalSize::<u32>::new(win_w, win_h))
-        );
-        assert_eq!(
-            Some((11, 22, [0, 0, 0])),
-            world.get_pixel_on_orig(Some((20, 40)), &PhysicalSize::<u32>::new(win_w, win_h))
-        );
-        assert_eq!(
-            Some((19, 39, [0, 0, 0])),
-            world.get_pixel_on_orig(Some((199, 399)), &PhysicalSize::<u32>::new(win_w, win_h))
-        );
+        let world = World::new(im);
+        let crop = world.make_crop(10, 20, 50, 40, &win_inner).unwrap();
+        assert_eq!(Some((20, 10)), Some((crop.w, crop.h)));
     }
 }
