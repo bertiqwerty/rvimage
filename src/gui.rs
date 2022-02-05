@@ -36,17 +36,6 @@ pub(crate) struct Framework {
     gui: Gui,
 }
 
-/// Example application state. A real application will need a lot more state than this.
-pub struct Gui {
-    /// Only show the egui window when true.
-    window_open: bool,
-    data_point: Option<(usize, usize, [u8; 3])>,
-    buffer_size: (u32, u32),
-    file_paths: Vec<PathBuf>,
-    folder_path: Option<PathBuf>,
-    file_selected: Option<PathBuf>,
-}
-
 impl Framework {
     /// Create egui.
     pub(crate) fn new(width: u32, height: u32, scale_factor: f32, pixels: &pixels::Pixels) -> Self {
@@ -142,6 +131,17 @@ fn to_stem_str<'a>(x: &'a Path) -> &'a str {
         .unwrap_or_default()
 }
 
+/// Example application state. A real application will need a lot more state than this.
+pub struct Gui {
+    /// Only show the egui window when true.
+    window_open: bool,
+    data_point: Option<(usize, usize, [u8; 3])>,
+    buffer_size: (u32, u32),
+    file_paths: Vec<PathBuf>,
+    folder_path: Option<PathBuf>,
+    file_selected_index: Option<usize>,
+}
+
 impl Gui {
     /// Create a `Gui`.
     fn new() -> Self {
@@ -151,10 +151,23 @@ impl Gui {
             buffer_size: (0, 0),
             file_paths: vec![],
             folder_path: None,
-            file_selected: None,
+            file_selected_index: None,
         }
     }
-
+    pub fn next(&mut self) {
+        self.file_selected_index = self.file_selected_index.map(|idx| {
+            if idx < self.file_paths.len() - 1 {
+                idx + 1
+            } else {
+                idx
+            }
+        });
+    }
+    pub fn prev(&mut self) {
+        self.file_selected_index =
+            self.file_selected_index
+                .map(|idx| if idx > 0 { idx - 1 } else { idx });
+    }
     pub fn set_state(
         &mut self,
         data_point: Option<(usize, usize, [u8; 3])>,
@@ -163,8 +176,9 @@ impl Gui {
         self.data_point = data_point;
         self.buffer_size = buffer_size;
     }
-    pub fn file_selected(&self) -> &Option<PathBuf> {
-        &self.file_selected
+    pub fn file_selected(&self) -> Option<PathBuf> {
+        self.file_selected_index
+            .map(|idx| self.file_paths[idx].clone())
     }
 
     /// Create the UI using egui.
@@ -178,10 +192,9 @@ impl Gui {
                     self.buffer_size.0, self.buffer_size.1
                 ));
                 ui.label(match self.data_point {
-                    Some((x, y, rgb)) => format!(
-                        "({}, {}) -> ({}, {}, {})",
-                        x, y, rgb[0], rgb[1], rgb[2]
-                    ),
+                    Some((x, y, rgb)) => {
+                        format!("({}, {}) -> ({}, {}, {})", x, y, rgb[0], rgb[1], rgb[2])
+                    }
                     None => "(x, y) -> (r, g, b)".to_string(),
                 });
                 ui.separator();
@@ -210,12 +223,22 @@ impl Gui {
                     }
                     None => "no folder selected".to_string(),
                 });
-                for p in &self.file_paths {
+                ui.label(match self.file_selected_index {
+                    Some(idx) => self.file_paths[idx]
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string(),
+                    None => "no file selected".to_string(),
+                });
+
+                for (idx, p) in self.file_paths.iter().enumerate() {
                     if ui
                         .selectable_label(false, p.file_name().unwrap().to_str().unwrap())
                         .clicked()
                     {
-                        self.file_selected = Some(p.clone())
+                        self.file_selected_index = Some(idx)
                     };
                 }
                 ui.separator();

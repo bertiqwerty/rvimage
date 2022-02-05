@@ -348,9 +348,23 @@ fn main() -> Result<(), Error> {
                 pixels.resize_buffer(w, h);
             }
 
+            if input.key_pressed(VirtualKeyCode::Right)
+                || input.key_pressed(VirtualKeyCode::Down)
+                || input.key_pressed(VirtualKeyCode::PageDown)
+            {
+                framework.gui().next();
+            }
+
+            if input.key_pressed(VirtualKeyCode::Left)
+                || input.key_pressed(VirtualKeyCode::Up)
+                || input.key_pressed(VirtualKeyCode::PageUp)
+            {
+                framework.gui().prev();
+            }
+
             // load new image
             let gui_file_selected = framework.gui().file_selected();
-            if &file_selected != gui_file_selected {
+            if file_selected != gui_file_selected {
                 if let Some(path) = &gui_file_selected {
                     file_selected = gui_file_selected.clone();
                     let image_tmp = image::io::Reader::open(path).unwrap().decode().unwrap();
