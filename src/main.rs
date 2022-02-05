@@ -354,7 +354,12 @@ fn main() -> Result<(), Error> {
                 if let Some(path) = &gui_file_selected {
                     file_selected = gui_file_selected.clone();
                     let image_tmp = image::io::Reader::open(path).unwrap().decode().unwrap();
+                    let old_crop = world.crop;
+                    let (old_w, old_h) = (world.im_orig.width(), world.im_orig.height());
                     world = World::new(image_tmp.into_rgb8());
+                    if (old_w, old_h) == (world.im_orig.width(), world.im_orig.height()) {
+                        world.crop = old_crop;
+                    }
                     let size = window.inner_size();
                     let (w, h) = world.scale_to_match_surface(size.width, size.height);
                     pixels.resize_buffer(w, h);
