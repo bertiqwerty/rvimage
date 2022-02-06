@@ -113,8 +113,6 @@ where
 {
     /// Only show the egui window when true.
     window_open: bool,
-    data_point: Option<(u32, u32, [u8; 3])>,
-    buffer_size: (u32, u32),
     reader: RIF,
 }
 
@@ -126,8 +124,6 @@ where
     fn new() -> Self {
         Self {
             window_open: true,
-            data_point: None,
-            buffer_size: (0, 0),
             reader: RIF::new(),
         }
     }
@@ -137,10 +133,7 @@ where
     pub fn prev(&mut self) {
         self.reader.prev();
     }
-    pub fn set_state(&mut self, data_point: Option<(u32, u32, [u8; 3])>, buffer_size: (u32, u32)) {
-        self.data_point = data_point;
-        self.buffer_size = buffer_size;
-    }
+    
     pub fn file_selected_idx(&self) -> Option<usize> {
         self.reader.file_selected_idx()
     }
@@ -155,16 +148,6 @@ where
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
-                ui.label(format!(
-                    "(width, height) = ({}, {})",
-                    self.buffer_size.0, self.buffer_size.1
-                ));
-                ui.label(match self.data_point {
-                    Some((x, y, rgb)) => {
-                        format!("({}, {}) -> ({}, {}, {})", x, y, rgb[0], rgb[1], rgb[2])
-                    }
-                    None => "(x, y) -> (r, g, b)".to_string(),
-                });
                 ui.separator();
                 if ui.button("open folder...").clicked() {
                     self.reader.open_folder();

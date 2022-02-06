@@ -10,11 +10,11 @@ use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
-use world::{World, Crop};
+use world::{Crop, World};
 
 mod gui;
-mod world;
 mod read;
+mod world;
 
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
@@ -35,7 +35,6 @@ fn main() -> Result<(), Error> {
             .build(&event_loop)
             .unwrap()
     };
-
     let (mut pixels, mut framework) = {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor() as f32;
@@ -178,12 +177,18 @@ fn main() -> Result<(), Error> {
 
             // show position and rgb value
             if framework.gui().file_selected_idx().is_some() {
-                framework.gui().set_state(
-                    world.get_pixel_on_orig(mouse_pos, &window.inner_size()),
-                    world.shape_orig(),
-                );
-            } else {
-                framework.gui().set_state(None, (0, 0));
+                let data_point = world.get_pixel_on_orig(mouse_pos, &window.inner_size());
+                let (w_orig, h_orig) = world.shape_orig();
+                let s = match data_point {
+                    Some((x, y, rgb)) => {
+                        format!(
+                            "Rimview - {}x{} - ({}, {}) -> ({}, {}, {})",
+                            w_orig, h_orig, x, y, rgb[0], rgb[1], rgb[2]
+                        )
+                    }
+                    None => format!("Rimview - {}x{} - (x, y) -> (r, g, b)", w_orig, h_orig),
+                };
+                window.set_title(s.as_str())
             }
             window.request_redraw();
         }
