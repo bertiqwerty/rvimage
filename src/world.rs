@@ -246,7 +246,7 @@ impl World {
         match self.crop {
             Some(c) => {
                 let cropped_view = self.im_orig.view(c.x, c.y, c.w, c.h);
-                self.im_view = imageops::resize(&cropped_view, w_new, h_new, FilterType::Nearest);
+                self.im_view = imageops::resize(&*cropped_view, w_new, h_new, FilterType::Nearest);
             }
             None => {
                 if w_unscaled > w_win || h_unscaled > h_win {
