@@ -14,6 +14,7 @@ use world::{World, Crop};
 
 mod gui;
 mod world;
+mod read;
 
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
@@ -147,14 +148,13 @@ fn main() -> Result<(), Error> {
             }
 
             // load new image
-            let gui_file_selected = framework.gui().file_selected();
+            let gui_file_selected = framework.gui().file_selected_idx();
             if file_selected != gui_file_selected {
-                if let Some(path) = &gui_file_selected {
+                if let Some(seleceted) = &gui_file_selected {
                     file_selected = gui_file_selected.clone();
-                    let image_tmp = image::io::Reader::open(path).unwrap().decode().unwrap();
                     let old_crop = world.get_crop();
                     let (old_w, old_h) = world.shape_orig();
-                    world = World::new(image_tmp.into_rgb8());
+                    world = World::new(framework.gui().read_image(*seleceted));
                     if (old_w, old_h) == world.shape_orig() {
                         world.apply_crop(&old_crop);
                     }
@@ -178,7 +178,7 @@ fn main() -> Result<(), Error> {
             }
 
             // show position and rgb value
-            if framework.gui().file_selected().is_some() {
+            if framework.gui().file_selected_idx().is_some() {
                 framework.gui().set_state(
                     world.get_pixel_on_orig(mouse_pos, &window.inner_size()),
                     world.shape_orig(),

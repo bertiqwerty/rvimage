@@ -1,27 +1,11 @@
-use std::{
-    fs,
-    io::Error,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
+use crate::read::{FolderReader, ReadImageFiles};
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
+use image::{ImageBuffer, Rgb};
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
-
-pub fn read_images_paths(path: &PathBuf) -> Result<Vec<PathBuf>, Error> {
-    fs::read_dir(path)?
-        .into_iter()
-        .map(|p| Ok(p?.path()))
-        .filter(|p| match p {
-            Err(_) => true,
-            Ok(p_) => match p_.extension() {
-                Some(ext) => ext == "png" || ext == "jpg",
-                None => false,
-            },
-        })
-        .collect::<Result<Vec<PathBuf>, Error>>()
-}
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub(crate) struct Framework {
@@ -33,7 +17,7 @@ pub(crate) struct Framework {
     paint_jobs: Vec<ClippedMesh>,
 
     // State for the GUI
-    gui: Gui,
+    gui: Gui<FolderReader>,
 }
 
 impl Framework {
@@ -119,7 +103,7 @@ impl Framework {
             None,
         )
     }
-    pub fn gui(&mut self) -> &mut Gui {
+    pub fn gui(&mut self) -> &mut Gui<FolderReader> {
         &mut self.gui
     }
 }
@@ -132,53 +116,46 @@ fn to_stem_str<'a>(x: &'a Path) -> &'a str {
 }
 
 /// Example application state. A real application will need a lot more state than this.
-pub struct Gui {
+pub struct Gui<RIF>
+where
+    RIF: ReadImageFiles,
+{
     /// Only show the egui window when true.
     window_open: bool,
     data_point: Option<(u32, u32, [u8; 3])>,
     buffer_size: (u32, u32),
-    file_paths: Vec<PathBuf>,
-    folder_path: Option<PathBuf>,
-    file_selected_index: Option<usize>,
+    reader: RIF,
 }
 
-impl Gui {
+impl<RIF> Gui<RIF>
+where
+    RIF: ReadImageFiles,
+{
     /// Create a `Gui`.
     fn new() -> Self {
         Self {
             window_open: true,
             data_point: None,
             buffer_size: (0, 0),
-            file_paths: vec![],
-            folder_path: None,
-            file_selected_index: None,
+            reader: RIF::new(),
         }
     }
     pub fn next(&mut self) {
-        self.file_selected_index = self.file_selected_index.map(|idx| {
-            if idx < self.file_paths.len() - 1 {
-                idx + 1
-            } else {
-                idx
-            }
-        });
+        self.reader.next();
     }
     pub fn prev(&mut self) {
-        self.file_selected_index =
-            self.file_selected_index
-                .map(|idx| if idx > 0 { idx - 1 } else { idx });
+        self.reader.prev();
     }
-    pub fn set_state(
-        &mut self,
-        data_point: Option<(u32, u32, [u8; 3])>,
-        buffer_size: (u32, u32),
-    ) {
+    pub fn set_state(&mut self, data_point: Option<(u32, u32, [u8; 3])>, buffer_size: (u32, u32)) {
         self.data_point = data_point;
         self.buffer_size = buffer_size;
     }
-    pub fn file_selected(&self) -> Option<PathBuf> {
-        self.file_selected_index
-            .map(|idx| self.file_paths[idx].clone())
+    pub fn file_selected_idx(&self) -> Option<usize> {
+        self.reader.file_selected_idx()
+    }
+
+    pub fn read_image(&self, file_selected: usize) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+        self.reader.read_image(file_selected)
     }
 
     /// Create the UI using egui.
@@ -199,17 +176,10 @@ impl Gui {
                 });
                 ui.separator();
                 if ui.button("open folder...").clicked() {
-                    if let Some(sf) = rfd::FileDialog::new().pick_folder() {
-                        let image_paths = read_images_paths(&sf);
-                        match image_paths {
-                            Ok(ip) => self.file_paths = ip,
-                            Err(e) => println!("{:?}", e),
-                        }
-                        self.folder_path = Some(sf);
-                    }
+                    self.reader.open_folder();
                 }
 
-                ui.label(match &self.folder_path {
+                ui.label(match &self.reader.folder_path() {
                     Some(sf) => {
                         let last = sf.ancestors().next();
                         let one_before_last = sf.ancestors().nth(1);
@@ -223,8 +193,8 @@ impl Gui {
                     }
                     None => "no folder selected".to_string(),
                 });
-                ui.label(match self.file_selected_index {
-                    Some(idx) => self.file_paths[idx]
+                ui.label(match self.reader.file_selected() {
+                    Some(path) => path
                         .file_name()
                         .unwrap_or_default()
                         .to_str()
@@ -233,12 +203,12 @@ impl Gui {
                     None => "no file selected".to_string(),
                 });
 
-                for (idx, p) in self.file_paths.iter().enumerate() {
+                for (idx, p) in self.reader.list_file_paths().iter().enumerate() {
                     if ui
                         .selectable_label(false, p.file_name().unwrap().to_str().unwrap())
                         .clicked()
                     {
-                        self.file_selected_index = Some(idx)
+                        self.reader.selected_file(idx);
                     };
                 }
                 ui.separator();
