@@ -22,6 +22,51 @@ const RIGHT_BTN: usize = 1;
 
 const MIN_CROP: u32 = 10;
 
+/// shape of the image that fits into the window
+fn shape_scaled(shape_unscaled: (u32, u32), shape_win: (u32, u32)) -> (u32, u32) {
+    let (w_unscaled, h_unscaled) = shape_unscaled;
+    let (w_win, h_win) = shape_win;
+    let w_ratio = w_unscaled as f64 / w_win as f64;
+    let h_ratio = h_unscaled as f64 / h_win as f64;
+    let ratio = w_ratio.max(h_ratio);
+    let w_new = (w_unscaled as f64 / ratio) as u32;
+    let h_new = (h_unscaled as f64 / ratio) as u32;
+    (w_new, h_new)
+}
+
+/// shape without scaling according to crop
+fn shape_unscaled(crop: &Option<Crop>, shape_orig: (u32, u32)) -> (u32, u32) {
+    crop.map_or(shape_orig, |c|(c.w, c.h))
+}
+
+/// Converts the mouse position to the coordinates of the original image
+fn mouse_pos_to_orig_pos(
+    mouse_pos: Option<(usize, usize)>,
+    shape_orig: (u32, u32),
+    size_win: &PhysicalSize<u32>,
+    crop: &Option<Crop>,
+) -> Option<(u32, u32)> {
+    let (w_unscaled, h_unscaled) = shape_unscaled(crop, shape_orig);
+    let (w_im_orig, h_im_orig) = shape_orig;
+    let (w_scaled, h_scaled) = shape_scaled((w_unscaled, h_unscaled), (size_win.width, size_win.height));
+
+    let (x_off, y_off) = match crop {
+        Some(c) => (c.x, c.y),
+        _ => (0, 0),
+    };
+    match mouse_pos {
+        Some((x, y)) => {
+            let x_orig = x_off + coord_trans_2_orig(x as u32, w_scaled, w_unscaled);
+            let y_orig = y_off + coord_trans_2_orig(y as u32, h_scaled, h_unscaled);
+            if x_orig < w_im_orig && y_orig < h_im_orig {
+                Some((x_orig, y_orig))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
 #[derive(Clone, Copy, Debug)]
 struct Crop {
     x: u32,
@@ -48,32 +93,9 @@ impl World {
         }
     }
 
-    fn shape_unscaled(&self) -> (u32, u32) {
-        match self.crop {
-            Some(c) => (c.w as u32, c.h as u32),
-            None => (self.im_orig.width(), self.im_orig.height()),
-        }
-    }
-
-    /// shape of the image that fits into the window
-    fn shape_scaled(
-        &self,
-        w_unscaled: u32,
-        h_unscaled: u32,
-        w_win_inner: u32,
-        h_win_inner: u32,
-    ) -> (u32, u32) {
-        let w_ratio = w_unscaled as f64 / w_win_inner as f64;
-        let h_ratio = h_unscaled as f64 / h_win_inner as f64;
-        let ratio = w_ratio.max(h_ratio);
-        let w_new = (w_unscaled as f64 / ratio) as u32;
-        let h_new = (h_unscaled as f64 / ratio) as u32;
-        (w_new, h_new)
-    }
-
-    fn scale_to_match_surface(&mut self, w_win_inner: u32, h_win_inner: u32) -> (u32, u32) {
-        let (w_unscaled, h_unscaled) = self.shape_unscaled();
-        let (w_new, h_new) = self.shape_scaled(w_unscaled, h_unscaled, w_win_inner, h_win_inner);
+    fn scale_to_match_win_inner(&mut self, w_win: u32, h_win: u32) -> (u32, u32) {
+        let (w_unscaled, h_unscaled) = shape_unscaled(&self.crop, self.shape_orig());
+        let (w_new, h_new) = shape_scaled((w_unscaled, h_unscaled), (w_win, h_win));
 
         match self.crop {
             Some(c) => {
@@ -82,7 +104,7 @@ impl World {
                 self.im_view = imageops::resize(&im_cropped, w_new, h_new, FilterType::Nearest);
             }
             None => {
-                if w_unscaled > w_win_inner || h_unscaled > h_win_inner {
+                if w_unscaled > w_win || h_unscaled > h_win {
                     self.im_view =
                         imageops::resize(&self.im_orig, w_new, h_new, FilterType::Nearest);
                 }
@@ -92,16 +114,30 @@ impl World {
         (w_new, h_new)
     }
 
+    fn shape_orig(&self) -> (u32, u32) {
+        (self.im_orig.width(), self.im_orig.height())
+    }
+
     fn make_crop(
         &self,
         mouse_start_x: usize,
         mouse_start_y: usize,
         mouse_end_x: usize,
         mouse_end_y: usize,
-        win_inner: &PhysicalSize<u32>,
+        size_win: &PhysicalSize<u32>,
     ) -> Option<Crop> {
-        let prs_orig = self.get_pos_on_orig(Some((mouse_start_x, mouse_start_y)), &win_inner);
-        let rel_orig = self.get_pos_on_orig(Some((mouse_end_x, mouse_end_y)), &win_inner);
+        let prs_orig = mouse_pos_to_orig_pos(
+            Some((mouse_start_x, mouse_start_y)),
+            self.shape_orig(),
+            &size_win,
+            &self.crop,
+        );
+        let rel_orig = mouse_pos_to_orig_pos(
+            Some((mouse_end_x, mouse_end_y)),
+            self.shape_orig(),
+            &size_win,
+            &self.crop,
+        );
 
         match (prs_orig, rel_orig) {
             (Some((px, py)), Some((rx, ry))) => {
@@ -133,11 +169,21 @@ impl World {
         m_press_y: usize,
         m_held_x: usize,
         m_held_y: usize,
-        win_inner: &PhysicalSize<u32>,
+        size_win: &PhysicalSize<u32>,
     ) {
         if let Some(c) = self.crop {
-            let press_orig = self.get_pos_on_orig(Some((m_press_x, m_press_y)), &win_inner);
-            let held_orig = self.get_pos_on_orig(Some((m_held_x, m_held_y)), &win_inner);
+            let press_orig = mouse_pos_to_orig_pos(
+                Some((m_press_x, m_press_y)),
+                self.shape_orig(),
+                &size_win,
+                &self.crop,
+            );
+            let held_orig = mouse_pos_to_orig_pos(
+                Some((m_held_x, m_held_y)),
+                self.shape_orig(),
+                &size_win,
+                &self.crop,
+            );
             match (press_orig, held_orig) {
                 (Some((px, py)), Some((hx, hy))) => {
                     let x_shift: i32 = px as i32 - hx as i32;
@@ -193,42 +239,18 @@ impl World {
         }
     }
 
-    fn get_pos_on_orig(
-        &self,
-        mouse_pos: Option<(usize, usize)>,
-        size_win_inner: &PhysicalSize<u32>,
-    ) -> Option<(usize, usize)> {
-        let (w_unscaled, h_unscaled) = self.shape_unscaled();
-        let (w_win_inner, h_win_inner) = (size_win_inner.width, size_win_inner.height);
-
-        let (w_scaled, h_scaled) =
-            self.shape_scaled(w_unscaled, h_unscaled, w_win_inner, h_win_inner);
-
-        let (x_off, y_off) = match &self.crop {
-            Some(c) => (c.x, c.y),
-            _ => (0, 0),
-        };
-        match mouse_pos {
-            Some((x, y)) => {
-                let x_orig = x_off + coord_trans_2_orig(x as u32, w_scaled, w_unscaled);
-                let y_orig = y_off + coord_trans_2_orig(y as u32, h_scaled, h_unscaled);
-                if x_orig < self.im_orig.width() && y_orig < self.im_orig.height() {
-                    Some((x_orig as usize, y_orig as usize))
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    }
-
     fn get_pixel_on_orig(
         &self,
         mouse_pos: Option<(usize, usize)>,
-        size_win_inner: &PhysicalSize<u32>,
-    ) -> Option<(usize, usize, [u8; 3])> {
-        let pos = self.get_pos_on_orig(mouse_pos, size_win_inner);
-        pos.map(|(x, y)| (x, y, self.im_orig.get_pixel(x as u32, y as u32).0))
+        size_win: &PhysicalSize<u32>,
+    ) -> Option<(u32, u32, [u8; 3])> {
+        let pos = mouse_pos_to_orig_pos(
+            mouse_pos,
+            self.shape_orig(),
+            &size_win,
+            &self.crop,
+        );
+        pos.map(|(x, y)| (x, y, self.im_orig.get_pixel(x, y).0))
     }
 }
 
@@ -296,7 +318,7 @@ fn main() -> Result<(), Error> {
                         world.crop =
                             world.make_crop(mps_x, mps_y, mrp_x, mrp_y, &window.inner_size());
                         if world.crop.is_some() {
-                            let (w, h) = world.scale_to_match_surface(
+                            let (w, h) = world.scale_to_match_win_inner(
                                 window.inner_size().width,
                                 window.inner_size().height,
                             );
@@ -315,7 +337,7 @@ fn main() -> Result<(), Error> {
                         let win_inner = window.inner_size();
 
                         world.move_crop(mpp_x, mpp_y, mp_x, mp_y, &win_inner);
-                        world.scale_to_match_surface(win_inner.width, win_inner.height);
+                        world.scale_to_match_win_inner(win_inner.width, win_inner.height);
                         mouse_pressed_start_pos = mouse_pos;
                     }
                     _ => (),
@@ -344,7 +366,7 @@ fn main() -> Result<(), Error> {
             if input.key_pressed(VirtualKeyCode::Back) {
                 world.crop = None;
                 let size = window.inner_size();
-                let (w, h) = world.scale_to_match_surface(size.width, size.height);
+                let (w, h) = world.scale_to_match_win_inner(size.width, size.height);
                 pixels.resize_buffer(w, h);
             }
 
@@ -375,7 +397,7 @@ fn main() -> Result<(), Error> {
                         world.crop = old_crop;
                     }
                     let size = window.inner_size();
-                    let (w, h) = world.scale_to_match_surface(size.width, size.height);
+                    let (w, h) = world.scale_to_match_win_inner(size.width, size.height);
                     pixels.resize_buffer(w, h);
                 }
             }
@@ -387,7 +409,7 @@ fn main() -> Result<(), Error> {
 
             // Resize the window
             if let Some(size) = input.window_resized() {
-                let (w, h) = world.scale_to_match_surface(size.width, size.height);
+                let (w, h) = world.scale_to_match_win_inner(size.width, size.height);
                 pixels.resize_buffer(w, h);
                 framework.resize(size.width, size.height);
                 pixels.resize_surface(size.width, size.height);
@@ -451,9 +473,10 @@ fn test_world() {
         let mut im = ImageBuffer::<Rgb<u8>, _>::new(w, h);
         im[(10, 10)] = Rgb::<u8>::from([4, 4, 4]);
         im[(20, 30)] = Rgb::<u8>::from([5, 5, 5]);
-        let world = World::new(im);
-        assert_eq!((w, h), world.shape_unscaled());
-        let crop = world.make_crop(10, 10, 60, 60, &win_inner).unwrap();
+        let mut world = World::new(im);
+        assert_eq!((w, h), shape_unscaled(&world.crop, world.shape_orig()));
+        world.crop = world.make_crop(10, 10, 60, 60, &win_inner);
+        let crop = world.crop.unwrap();
         assert_eq!(Some((50, 50)), Some((crop.w, crop.h)));
         assert_eq!(
             Some((10, 10, [4, 4, 4])),
@@ -471,8 +494,9 @@ fn test_world() {
         let win_inner = PhysicalSize::<u32>::new(win_w, win_h);
         let (w_im_o, h_im_o) = (100, 50);
         let im = ImageBuffer::<Rgb<u8>, _>::new(w_im_o, h_im_o);
-        let world = World::new(im);
-        let crop = world.make_crop(10, 20, 50, 40, &win_inner).unwrap();
+        let mut world = World::new(im);
+        world.crop = world.make_crop(10, 20, 50, 40, &win_inner);
+        let crop = world.crop.unwrap();
         assert_eq!(Some((20, 10)), Some((crop.w, crop.h)));
     }
 }

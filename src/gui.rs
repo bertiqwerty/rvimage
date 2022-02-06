@@ -135,7 +135,7 @@ fn to_stem_str<'a>(x: &'a Path) -> &'a str {
 pub struct Gui {
     /// Only show the egui window when true.
     window_open: bool,
-    data_point: Option<(usize, usize, [u8; 3])>,
+    data_point: Option<(u32, u32, [u8; 3])>,
     buffer_size: (u32, u32),
     file_paths: Vec<PathBuf>,
     folder_path: Option<PathBuf>,
@@ -170,7 +170,7 @@ impl Gui {
     }
     pub fn set_state(
         &mut self,
-        data_point: Option<(usize, usize, [u8; 3])>,
+        data_point: Option<(u32, u32, [u8; 3])>,
         buffer_size: (u32, u32),
     ) {
         self.data_point = data_point;
