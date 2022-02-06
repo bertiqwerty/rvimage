@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::read::{FolderReader, ReadImageFiles};
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
@@ -108,13 +106,6 @@ impl Framework {
     }
 }
 
-fn to_stem_str<'a>(x: &'a Path) -> &'a str {
-    x.file_stem()
-        .unwrap_or_default()
-        .to_str()
-        .unwrap_or_default()
-}
-
 /// Example application state. A real application will need a lot more state than this.
 pub struct Gui<RIF>
 where
@@ -179,33 +170,12 @@ where
                     self.reader.open_folder();
                 }
 
-                ui.label(match &self.reader.folder_path() {
-                    Some(sf) => {
-                        let last = sf.ancestors().next();
-                        let one_before_last = sf.ancestors().nth(1);
-                        match (one_before_last, last) {
-                            (Some(obl), Some(l)) => {
-                                format!("{}/{}", to_stem_str(obl), to_stem_str(l),)
-                            }
-                            (None, Some(l)) => to_stem_str(l).to_string(),
-                            _ => "could not convert path to str".to_string(),
-                        }
-                    }
-                    None => "no folder selected".to_string(),
-                });
-                ui.label(match self.reader.file_selected() {
-                    Some(path) => path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                    None => "no file selected".to_string(),
-                });
+                ui.label(self.reader.folder_label());
+                ui.label(self.reader.file_selected_label());
 
-                for (idx, p) in self.reader.list_file_paths().iter().enumerate() {
+                for (idx, s) in self.reader.list_file_labels().iter().enumerate() {
                     if ui
-                        .selectable_label(false, p.file_name().unwrap().to_str().unwrap())
+                        .selectable_label(false, s)
                         .clicked()
                     {
                         self.reader.selected_file(idx);

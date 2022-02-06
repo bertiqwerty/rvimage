@@ -1,6 +1,6 @@
-use std::fs;
 use std::io::Error;
 use std::path::PathBuf;
+use std::{fs, path::Path};
 
 use image::{ImageBuffer, Rgb};
 
@@ -11,14 +11,14 @@ pub trait ReadImageFiles {
     fn read_image(&self, file_selected: usize) -> ImageBuffer<Rgb<u8>, Vec<u8>>;
     fn file_selected_idx(&self) -> Option<usize>;
     fn selected_file(&mut self, idx: usize);
-    
-    fn list_file_paths(&self) -> Vec<PathBuf>;
+
+    fn list_file_labels(&self) -> Vec<String>;
     fn open_folder(&mut self) -> Vec<PathBuf>;
-    fn folder_path(&self) -> Option<PathBuf>;
-    fn file_selected(&self) -> Option<PathBuf>;
+    fn folder_label(&self) -> String;
+    fn file_selected_label(&self) -> String;
 }
 
-fn read_images_paths(path: &PathBuf) -> Result<Vec<PathBuf>, Error> {
+fn read_image_paths(path: &PathBuf) -> Result<Vec<PathBuf>, Error> {
     fs::read_dir(path)?
         .into_iter()
         .map(|p| Ok(p?.path()))
@@ -30,6 +30,13 @@ fn read_images_paths(path: &PathBuf) -> Result<Vec<PathBuf>, Error> {
             },
         })
         .collect::<Result<Vec<PathBuf>, Error>>()
+}
+
+fn to_stem_str<'a>(x: &'a Path) -> &'a str {
+    x.file_stem()
+        .unwrap_or_default()
+        .to_str()
+        .unwrap_or_default()
 }
 
 pub struct FolderReader {
@@ -72,7 +79,7 @@ impl ReadImageFiles for FolderReader {
     }
     fn open_folder(&mut self) -> Vec<PathBuf> {
         if let Some(sf) = rfd::FileDialog::new().pick_folder() {
-            let image_paths = read_images_paths(&sf);
+            let image_paths = read_image_paths(&sf);
             match image_paths {
                 Ok(ip) => self.file_paths = ip,
                 Err(e) => println!("{:?}", e),
@@ -83,14 +90,44 @@ impl ReadImageFiles for FolderReader {
             vec![]
         }
     }
-    fn list_file_paths(&self) -> Vec<PathBuf> {
-        self.file_paths.clone()
+    fn list_file_labels(&self) -> Vec<String> {
+        self.file_paths
+            .iter()
+            .map(|p| {
+                p.file_name()
+                    .unwrap_or_default()
+                    .to_str()
+                    .unwrap_or_default()
+                    .to_string()
+            })
+            .collect::<Vec<String>>()
     }
-    fn folder_path(&self) -> Option<PathBuf> {
-        self.folder_path.clone()
+    fn folder_label(&self) -> String {
+        match &self.folder_path {
+            Some(sf) => {
+                let last = sf.ancestors().next();
+                let one_before_last = sf.ancestors().nth(1);
+                match (one_before_last, last) {
+                    (Some(obl), Some(l)) => {
+                        format!("{}/{}", to_stem_str(obl), to_stem_str(l),)
+                    }
+                    (None, Some(l)) => to_stem_str(l).to_string(),
+                    _ => "could not convert path to str".to_string(),
+                }
+            }
+            None => "no folder selected".to_string(),
+        }
     }
-    fn file_selected(&self) -> Option<PathBuf> {
-        self.file_selected_idx.map(|idx| self.file_paths[idx].clone())
+    fn file_selected_label(&self) -> String {
+        match self.file_selected_idx {
+            Some(idx) => self.file_paths[idx]
+                .file_name()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or_default()
+                .to_string(),
+            None => "no file selected".to_string(),
+        }
     }
     fn selected_file(&mut self, idx: usize) {
         self.file_selected_idx = Some(idx);
