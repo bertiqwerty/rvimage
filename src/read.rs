@@ -13,7 +13,7 @@ pub trait ReadImageFiles {
     fn selected_file(&mut self, idx: usize);
 
     fn list_file_labels(&self) -> Vec<String>;
-    fn open_folder(&mut self) -> Vec<PathBuf>;
+    fn open_folder(&mut self);
     fn folder_label(&self) -> String;
     fn file_selected_label(&self) -> String;
 }
@@ -77,7 +77,7 @@ impl ReadImageFiles for FolderReader {
     fn file_selected_idx(&self) -> Option<usize> {
         self.file_selected_idx
     }
-    fn open_folder(&mut self) -> Vec<PathBuf> {
+    fn open_folder(&mut self) {
         if let Some(sf) = rfd::FileDialog::new().pick_folder() {
             let image_paths = read_image_paths(&sf);
             match image_paths {
@@ -85,10 +85,8 @@ impl ReadImageFiles for FolderReader {
                 Err(e) => println!("{:?}", e),
             }
             self.folder_path = Some(sf);
-            self.file_paths.clone()
-        } else {
-            vec![]
-        }
+            self.file_selected_idx = None;
+        } 
     }
     fn list_file_labels(&self) -> Vec<String> {
         self.file_paths
