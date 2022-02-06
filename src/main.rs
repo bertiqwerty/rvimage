@@ -98,7 +98,6 @@ fn main() -> Result<(), Error> {
                 match (mouse_pressed_start_pos, mouse_pos) {
                     (Some(mps), Some(mp)) => {
                         let win_inner = window.inner_size();
-
                         world.move_crop(mps, mp, &win_inner);
                         world.scale_to_match_win_inner(win_inner.width, win_inner.height);
                         mouse_pressed_start_pos = mouse_pos;

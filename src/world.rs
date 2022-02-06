@@ -252,6 +252,8 @@ impl World {
                 if w_unscaled > w_win || h_unscaled > h_win {
                     self.im_view =
                         imageops::resize(&self.im_orig, w_new, h_new, FilterType::Nearest);
+                } else if self.im_view.width() !=  self.im_orig.width() || self.im_view.height() !=  self.im_orig.height() {
+                    self.im_view = self.im_orig.clone();
                 }
             }
         }
