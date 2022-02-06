@@ -3,7 +3,7 @@
 
 use crate::gui::Framework;
 use image::imageops::FilterType;
-use image::{imageops, GenericImage, ImageBuffer, Rgb};
+use image::{imageops, GenericImageView, ImageBuffer, Rgb};
 use log::error;
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::{LogicalSize, PhysicalSize};
@@ -36,7 +36,7 @@ fn shape_scaled(shape_unscaled: (u32, u32), shape_win: (u32, u32)) -> (u32, u32)
 
 /// shape without scaling according to crop
 fn shape_unscaled(crop: &Option<Crop>, shape_orig: (u32, u32)) -> (u32, u32) {
-    crop.map_or(shape_orig, |c|(c.w, c.h))
+    crop.map_or(shape_orig, |c| (c.w, c.h))
 }
 
 /// Converts the mouse position to the coordinates of the original image
@@ -48,7 +48,8 @@ fn mouse_pos_to_orig_pos(
 ) -> Option<(u32, u32)> {
     let (w_unscaled, h_unscaled) = shape_unscaled(crop, shape_orig);
     let (w_im_orig, h_im_orig) = shape_orig;
-    let (w_scaled, h_scaled) = shape_scaled((w_unscaled, h_unscaled), (size_win.width, size_win.height));
+    let (w_scaled, h_scaled) =
+        shape_scaled((w_unscaled, h_unscaled), (size_win.width, size_win.height));
 
     let (x_off, y_off) = match crop {
         Some(c) => (c.x, c.y),
@@ -99,9 +100,8 @@ impl World {
 
         match self.crop {
             Some(c) => {
-                let cropped_view = self.im_orig.sub_image(c.x, c.y, c.w, c.h);
-                let im_cropped = cropped_view.to_image();
-                self.im_view = imageops::resize(&im_cropped, w_new, h_new, FilterType::Nearest);
+                let cropped_view = self.im_orig.view(c.x, c.y, c.w, c.h);
+                self.im_view = imageops::resize(&cropped_view, w_new, h_new, FilterType::Nearest);
             }
             None => {
                 if w_unscaled > w_win || h_unscaled > h_win {
@@ -244,12 +244,7 @@ impl World {
         mouse_pos: Option<(usize, usize)>,
         size_win: &PhysicalSize<u32>,
     ) -> Option<(u32, u32, [u8; 3])> {
-        let pos = mouse_pos_to_orig_pos(
-            mouse_pos,
-            self.shape_orig(),
-            &size_win,
-            &self.crop,
-        );
+        let pos = mouse_pos_to_orig_pos(mouse_pos, self.shape_orig(), &size_win, &self.crop);
         pos.map(|(x, y)| (x, y, self.im_orig.get_pixel(x, y).0))
     }
 }
