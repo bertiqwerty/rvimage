@@ -66,6 +66,10 @@ fn main() -> Result<(), Error> {
                 })
                 .ok();
 
+            if input.key_pressed(VirtualKeyCode::M) {
+                framework.gui().open();
+            }
+
             // crop
             if input.mouse_pressed(LEFT_BTN) || input.mouse_pressed(RIGHT_BTN) {
                 match (mouse_pressed_start_pos, mouse_pos) {

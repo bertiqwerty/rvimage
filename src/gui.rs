@@ -133,6 +133,10 @@ where
     pub fn prev(&mut self) {
         self.reader.prev();
     }
+
+    pub fn open(&mut self) {
+        self.window_open = true;
+    }
     
     pub fn file_selected_idx(&self) -> Option<usize> {
         self.reader.file_selected_idx()
@@ -168,12 +172,7 @@ where
                 ui.label("crop - left mouse");
                 ui.label("move crop - right mouse");
                 ui.label("uncrop - backspace");
-                ui.separator();
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x /= 2.0;
-                    ui.label("Learn more about egui at");
-                    ui.hyperlink("https://docs.rs/egui");
-                });
+                ui.label("open this menu - m");
             });
     }
 }
