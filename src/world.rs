@@ -75,9 +75,12 @@ fn mouse_pos_to_orig_pos(
         _ => (0, 0),
     };
 
-    fn coord_trans_2_orig(x: u32, n_transformed: u32, n_orig: u32) -> u32 {
-        (x as f64 / n_transformed as f64 * n_orig as f64) as u32
-    }
+    let coord_trans_2_orig = |x: u32, n_transformed: u32, n_orig: u32| -> u32 {
+        match crop {
+            None if w_im_orig < size_win.width && h_im_orig < size_win.height => x,
+            _ => (x as f64 / n_transformed as f64 * n_orig as f64) as u32,
+        }
+    };
 
     match mouse_pos {
         Some((x, y)) => {
@@ -219,7 +222,7 @@ impl World {
             &self.crop,
         )
     }
-    
+
     pub fn move_crop(
         &mut self,
         mouse_pos_start: (usize, usize),
@@ -252,7 +255,9 @@ impl World {
                 if w_unscaled > w_win || h_unscaled > h_win {
                     self.im_view =
                         imageops::resize(&self.im_orig, w_new, h_new, FilterType::Nearest);
-                } else if self.im_view.width() !=  self.im_orig.width() || self.im_view.height() !=  self.im_orig.height() {
+                } else if self.im_view.width() != self.im_orig.width()
+                    || self.im_view.height() != self.im_orig.height()
+                {
                     self.im_view = self.im_orig.clone();
                 }
             }
