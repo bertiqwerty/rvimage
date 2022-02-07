@@ -90,11 +90,11 @@ fn main() -> Result<(), Error> {
                             );
                             pixels.resize_buffer(w, h);
                         }
-                        world.hide_draw_crop();
-                        mouse_pressed_start_pos = None;
                     }
                     _ => (),
                 }
+                mouse_pressed_start_pos = None;
+                world.hide_draw_crop();
             }
             // crop move
             if input.mouse_held(RIGHT_BTN) {
