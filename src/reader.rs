@@ -1,6 +1,6 @@
 use std::io::Error;
 use std::path::PathBuf;
-use std::{env, fs, path::Path};
+use std::{fs, path::Path};
 
 use image::{ImageBuffer, Rgb};
 
