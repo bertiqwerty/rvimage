@@ -1,22 +1,8 @@
 use std::io::Error;
 use std::path::PathBuf;
-use std::{fs, path::Path};
+use std::{env, fs, path::Path};
 
 use image::{ImageBuffer, Rgb};
-
-pub trait ReadImageFiles {
-    fn new() -> Self;
-    fn next(&mut self);
-    fn prev(&mut self);
-    fn read_image(&self, file_selected: usize) -> ImageBuffer<Rgb<u8>, Vec<u8>>;
-    fn file_selected_idx(&self) -> Option<usize>;
-    fn selected_file(&mut self, idx: usize);
-
-    fn list_file_labels(&self) -> Vec<String>;
-    fn open_folder(&mut self);
-    fn folder_label(&self) -> String;
-    fn file_selected_label(&self) -> String;
-}
 
 fn read_image_paths(path: &PathBuf) -> Result<Vec<PathBuf>, Error> {
     fs::read_dir(path)?
@@ -37,6 +23,20 @@ fn to_stem_str<'a>(x: &'a Path) -> &'a str {
         .unwrap_or_default()
         .to_str()
         .unwrap_or_default()
+}
+
+pub trait ReadImageFiles {
+    fn new() -> Self;
+    fn next(&mut self);
+    fn prev(&mut self);
+    fn read_image(&self, file_selected: usize) -> ImageBuffer<Rgb<u8>, Vec<u8>>;
+    fn file_selected_idx(&self) -> Option<usize>;
+    fn selected_file(&mut self, idx: usize);
+
+    fn list_file_labels(&self) -> Vec<String>;
+    fn open_folder(&mut self);
+    fn folder_label(&self) -> String;
+    fn file_selected_label(&self) -> String;
 }
 
 pub struct FolderReader {
@@ -86,7 +86,7 @@ impl ReadImageFiles for FolderReader {
             }
             self.folder_path = Some(sf);
             self.file_selected_idx = None;
-        } 
+        }
     }
     fn list_file_labels(&self) -> Vec<String> {
         self.file_paths

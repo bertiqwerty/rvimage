@@ -1,4 +1,4 @@
-use crate::read::{FolderReader, ReadImageFiles};
+use crate::reader::{FolderReader, ReadImageFiles};
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use image::{ImageBuffer, Rgb};

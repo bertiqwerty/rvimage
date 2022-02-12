@@ -13,7 +13,7 @@ use winit_input_helper::WinitInputHelper;
 use world::{Crop, World};
 
 mod gui;
-mod read;
+mod reader;
 mod world;
 
 const START_WIDTH: u32 = 640;
