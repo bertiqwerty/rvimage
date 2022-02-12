@@ -143,7 +143,7 @@ where
     }
 
     pub fn read_image(&self, file_selected: usize) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
-        self.reader.read_image(file_selected)
+        self.reader.read_image(file_selected).unwrap()
     }
 
     /// Create the UI using egui.
@@ -154,13 +154,13 @@ where
             .show(ctx, |ui| {
                 ui.separator();
                 if ui.button("open folder...").clicked() {
-                    self.reader.open_folder();
+                    self.reader.open_folder().unwrap();
                 }
 
-                ui.label(self.reader.folder_label());
-                ui.label(self.reader.file_selected_label());
+                ui.label(self.reader.folder_label().unwrap());
+                ui.label(self.reader.file_selected_label().unwrap());
 
-                for (idx, s) in self.reader.list_file_labels().iter().enumerate() {
+                for (idx, s) in self.reader.list_file_labels().unwrap().iter().enumerate() {
                     if ui
                         .selectable_label(false, s)
                         .clicked()
