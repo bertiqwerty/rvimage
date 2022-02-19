@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::io::{self, Error, ErrorKind};
 use std::path::PathBuf;
 use std::{fs, path::Path};
+use std::str::FromStr;
 
 use image::{ImageBuffer, Rgb};
 
@@ -109,7 +110,8 @@ impl ReadImageFiles for FolderReader {
             .collect::<io::Result<Vec<String>>>()
     }
     fn folder_label(&self) -> io::Result<String> {
-        match &self.folder_path {
+        let tmp = Some(PathBuf::from_str("abc").unwrap());
+        match &tmp {
             Some(sf) => {
                 let last = sf.ancestors().next();
                 let one_before_last = sf.ancestors().nth(1);

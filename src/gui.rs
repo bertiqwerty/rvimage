@@ -114,6 +114,20 @@ where
     /// Only show the egui window when true.
     window_open: bool,
     reader: RIF,
+    error_message: Option<String>,
+}
+
+macro_rules! handle_error {
+    ($effect:expr, $result:expr, $self:expr) => {
+        match $result {
+            Ok(r) => {
+                $effect(r);
+            }
+            Err(e) => {
+                $self.error_message = Some(e.to_string());
+            }
+        }
+    };
 }
 
 impl<RIF> Gui<RIF>
@@ -125,6 +139,7 @@ where
         Self {
             window_open: true,
             reader: RIF::new(),
+            error_message: None,
         }
     }
     pub fn next(&mut self) {
@@ -137,13 +152,19 @@ where
     pub fn open(&mut self) {
         self.window_open = true;
     }
-    
+
     pub fn file_selected_idx(&self) -> Option<usize> {
         self.reader.file_selected_idx()
     }
 
-    pub fn read_image(&self, file_selected: usize) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
-        self.reader.read_image(file_selected).unwrap()
+    pub fn read_image(&mut self, file_selected: usize) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+        let mut im_read = ImageBuffer::new(0, 0);
+        handle_error!(
+            |im| { im_read = im },
+            self.reader.read_image(file_selected),
+            self
+        );
+        im_read
     }
 
     /// Create the UI using egui.
@@ -152,19 +173,29 @@ where
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
+                match &self.error_message {
+                    Some(msg) => {
+                        ui.label(format!("❌ {}", msg));
+                    }
+                    None => (),
+                }
                 ui.separator();
                 if ui.button("open folder...").clicked() {
-                    self.reader.open_folder().unwrap();
+                    handle_error!(|_| (), self.reader.open_folder(), self);
                 }
 
-                ui.label(self.reader.folder_label().unwrap());
-                ui.label(self.reader.file_selected_label().unwrap());
+                let mut ui_label = |s| ui.label(s);
+                handle_error!(ui_label, self.reader.folder_label(), self);
+                handle_error!(ui_label, self.reader.file_selected_label(), self);
 
-                for (idx, s) in self.reader.list_file_labels().unwrap().iter().enumerate() {
-                    if ui
-                        .selectable_label(false, s)
-                        .clicked()
-                    {
+                let mut file_labels = vec![];
+                handle_error!(
+                    |v| { file_labels = v },
+                    self.reader.list_file_labels(),
+                    self
+                );
+                for (idx, s) in file_labels.iter().enumerate() {
+                    if ui.selectable_label(false, s).clicked() {
                         self.reader.selected_file(idx);
                     };
                 }
