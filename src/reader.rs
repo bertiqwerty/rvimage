@@ -110,8 +110,7 @@ impl ReadImageFiles for FolderReader {
             .collect::<io::Result<Vec<String>>>()
     }
     fn folder_label(&self) -> io::Result<String> {
-        let tmp = Some(PathBuf::from_str("abc").unwrap());
-        match &tmp {
+        match &self.folder_path {
             Some(sf) => {
                 let last = sf.ancestors().next();
                 let one_before_last = sf.ancestors().nth(1);
