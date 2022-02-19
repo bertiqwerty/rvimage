@@ -31,8 +31,8 @@ fn make_crop(
     size_win: &PhysicalSize<u32>,
     crop: &Option<Crop>,
 ) -> Option<Crop> {
-    let prs_orig = mouse_pos_to_orig_pos(Some(mouse_pos_start), shape_orig, &size_win, &crop);
-    let rel_orig = mouse_pos_to_orig_pos(Some(mouse_pos_end), shape_orig, &size_win, &crop);
+    let prs_orig = mouse_pos_to_orig_pos(Some(mouse_pos_start), shape_orig, size_win, crop);
+    let rel_orig = mouse_pos_to_orig_pos(Some(mouse_pos_end), shape_orig, size_win, crop);
 
     match (prs_orig, rel_orig) {
         (Some((px, py)), Some((rx, ry))) => {
@@ -100,8 +100,8 @@ fn move_crop(
     size_win: &PhysicalSize<u32>,
     crop: &Option<Crop>,
 ) -> Option<Crop> {
-    let press_orig = mouse_pos_to_orig_pos(Some(m_press), shape_orig, &size_win, &crop);
-    let held_orig = mouse_pos_to_orig_pos(Some(m_held), shape_orig, &size_win, &crop);
+    let press_orig = mouse_pos_to_orig_pos(Some(m_press), shape_orig, size_win, crop);
+    let held_orig = mouse_pos_to_orig_pos(Some(m_held), shape_orig, size_win, crop);
     let (w_im_orig, h_im_orig) = shape_orig;
     match (press_orig, held_orig, crop) {
         (Some((px, py)), Some((hx, hy)), Some(c)) => {
@@ -265,7 +265,7 @@ impl World {
         mouse_pos: Option<(usize, usize)>,
         size_win: &PhysicalSize<u32>,
     ) -> Option<(u32, u32, [u8; 3])> {
-        let pos = mouse_pos_to_orig_pos(mouse_pos, self.shape_orig(), &size_win, &self.crop);
+        let pos = mouse_pos_to_orig_pos(mouse_pos, self.shape_orig(), size_win, &self.crop);
         pos.map(|(x, y)| (x, y, self.im_orig.get_pixel(x, y).0))
     }
 

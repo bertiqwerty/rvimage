@@ -60,10 +60,7 @@ fn main() -> Result<(), Error> {
             }
 
             let mouse_pos = pixels
-                .window_pos_to_pixel(match input.mouse() {
-                    Some(pos) => pos,
-                    None => (-1.0, -1.0),
-                })
+                .window_pos_to_pixel(input.mouse().unwrap_or((-1.0, -1.0)))
                 .ok();
 
             if input.key_pressed(VirtualKeyCode::M) {
@@ -72,56 +69,46 @@ fn main() -> Result<(), Error> {
 
             // crop
             if input.mouse_pressed(LEFT_BTN) || input.mouse_pressed(RIGHT_BTN) {
-                match (mouse_pressed_start_pos, mouse_pos) {
-                    (None, Some((m_x, m_y))) => {
-                        mouse_pressed_start_pos = Some((m_x, m_y));
-                    }
-                    _ => (),
+                if let (None, Some((m_x, m_y))) = (mouse_pressed_start_pos, mouse_pos) {
+                    mouse_pressed_start_pos = Some((m_x, m_y));
                 }
             }
             if input.mouse_released(LEFT_BTN) {
-                match (mouse_pressed_start_pos, mouse_pos) {
-                    (Some(mps), Some(mr)) => {
-                        world.crop(mps, mr, &window.inner_size());
-                        if world.get_crop().is_some() {
-                            let (w, h) = world.scale_to_match_win_inner(
-                                window.inner_size().width,
-                                window.inner_size().height,
-                            );
-                            pixels.resize_buffer(w, h);
-                        }
+                if let (Some(mps), Some(mr)) = (mouse_pressed_start_pos, mouse_pos) {
+                    world.crop(mps, mr, &window.inner_size());
+                    if world.get_crop().is_some() {
+                        let (w, h) = world.scale_to_match_win_inner(
+                            window.inner_size().width,
+                            window.inner_size().height,
+                        );
+                        pixels.resize_buffer(w, h);
                     }
-                    _ => (),
                 }
                 mouse_pressed_start_pos = None;
                 world.hide_draw_crop();
             }
             // crop move
             if input.mouse_held(RIGHT_BTN) {
-                match (mouse_pressed_start_pos, mouse_pos) {
-                    (Some(mps), Some(mp)) => {
-                        let win_inner = window.inner_size();
-                        world.move_crop(mps, mp, &win_inner);
-                        world.scale_to_match_win_inner(win_inner.width, win_inner.height);
-                        mouse_pressed_start_pos = mouse_pos;
-                    }
-                    _ => (),
+                if let (Some(mps), Some(mp)) = (mouse_pressed_start_pos, mouse_pos) {
+                    let win_inner = window.inner_size();
+                    world.move_crop(mps, mp, &win_inner);
+                    world.scale_to_match_win_inner(win_inner.width, win_inner.height);
+                    mouse_pressed_start_pos = mouse_pos;
                 }
             } else if input.mouse_held(LEFT_BTN) {
-                match (mouse_pressed_start_pos, mouse_pos) {
-                    (Some((mps_x, mps_y)), Some((m_x, m_y))) => {
-                        let x_min = mps_x.min(m_x);
-                        let y_min = mps_y.min(m_y);
-                        let x_max = mps_x.max(m_x);
-                        let y_max = mps_y.max(m_y);
-                        world.show_draw_crop(Crop {
-                            x: x_min as u32,
-                            y: y_min as u32,
-                            w: (x_max - x_min) as u32,
-                            h: (y_max - y_min) as u32,
-                        });
-                    }
-                    _ => (),
+                if let (Some((mps_x, mps_y)), Some((m_x, m_y))) =
+                    (mouse_pressed_start_pos, mouse_pos)
+                {
+                    let x_min = mps_x.min(m_x);
+                    let y_min = mps_y.min(m_y);
+                    let x_max = mps_x.max(m_x);
+                    let y_max = mps_y.max(m_y);
+                    world.show_draw_crop(Crop {
+                        x: x_min as u32,
+                        y: y_min as u32,
+                        w: (x_max - x_min) as u32,
+                        h: (y_max - y_min) as u32,
+                    });
                 }
             }
             if input.mouse_released(RIGHT_BTN) {
@@ -153,7 +140,7 @@ fn main() -> Result<(), Error> {
             let gui_file_selected = framework.gui().file_selected_idx();
             if file_selected != gui_file_selected {
                 if let Some(seleceted) = &gui_file_selected {
-                    file_selected = gui_file_selected.clone();
+                    file_selected = gui_file_selected;
                     let old_crop = world.get_crop();
                     let (old_w, old_h) = world.shape_orig();
                     world = World::new(framework.gui().read_image(*seleceted));

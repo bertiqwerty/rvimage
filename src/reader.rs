@@ -5,7 +5,7 @@ use std::{fs, path::Path};
 
 use image::{ImageBuffer, Rgb};
 
-fn read_image_paths(path: &PathBuf) -> io::Result<Vec<PathBuf>> {
+fn read_image_paths(path: &Path) -> io::Result<Vec<PathBuf>> {
     fs::read_dir(path)?
         .into_iter()
         .map(|p| Ok(p?.path()))
@@ -24,17 +24,15 @@ where
     F: Fn(&'a Path) -> Option<&'a OsStr>,
 {
     let find_stem = |p_: &'a Path| func(p_)?.to_str();
-    find_stem(p).ok_or(Error::new(
-        ErrorKind::NotFound,
-        format!("stem of {:?} not found", p),
-    ))
+    find_stem(p)
+        .ok_or_else(|| Error::new(ErrorKind::NotFound, format!("stem of {:?} not found", p)))
 }
 
-fn to_stem_str<'a>(p: &'a Path) -> io::Result<&'a str> {
+fn to_stem_str(p: &Path) -> io::Result<&str> {
     path_to_str(p, |p| p.file_stem())
 }
 
-fn to_name_str<'a>(p: &'a Path) -> io::Result<&'a str> {
+fn to_name_str(p: &Path) -> io::Result<&str> {
     path_to_str(p, |p| p.file_name())
 }
 
@@ -86,7 +84,10 @@ impl ReadImageFiles for FolderReader {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::InvalidData,
-                    format!("could not decode image {:?}. {:?}", self.file_paths[file_selected], e),
+                    format!(
+                        "could not decode image {:?}. {:?}",
+                        self.file_paths[file_selected], e
+                    ),
                 )
             })?
             .into_rgb8())
