@@ -2,7 +2,6 @@ use std::ffi::OsStr;
 use std::io::{self, Error, ErrorKind};
 use std::path::PathBuf;
 use std::{fs, path::Path};
-use std::str::FromStr;
 
 use image::{ImageBuffer, Rgb};
 
