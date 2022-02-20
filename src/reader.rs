@@ -66,7 +66,7 @@ pub trait PickFolder {
 }
 
 pub struct DialogPicker;
-impl PickFolder for DialogPicker{
+impl PickFolder for DialogPicker {
     fn pick() -> Option<PathBuf> {
         rfd::FileDialog::new().pick_folder()
     }
@@ -75,13 +75,13 @@ impl PickFolder for DialogPicker{
 pub struct FolderReader<Cache = NoCache, FolderPicker = DialogPicker>
 where
     Cache: Preload,
-    FolderPicker: PickFolder
+    FolderPicker: PickFolder,
 {
     file_paths: Vec<PathBuf>,
     folder_path: Option<PathBuf>,
     file_selected_idx: Option<usize>,
     cache: Cache,
-    pick_phantom: PhantomData<FolderPicker>
+    pick_phantom: PhantomData<FolderPicker>,
 }
 
 pub fn read_image(path: &Path) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
@@ -99,7 +99,7 @@ pub fn read_image(path: &Path) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
 impl<Cache, FolderPicker> ReadImageFiles for FolderReader<Cache, FolderPicker>
 where
     Cache: Preload,
-    FolderPicker: PickFolder
+    FolderPicker: PickFolder,
 {
     fn new() -> Self {
         FolderReader {
@@ -107,7 +107,7 @@ where
             folder_path: None,
             file_selected_idx: None,
             cache: Cache::new(read_image),
-            pick_phantom: PhantomData{}
+            pick_phantom: PhantomData {},
         }
     }
     fn next(&mut self) {
@@ -167,7 +167,6 @@ where
     }
 }
 
-
 #[cfg(test)]
 use std::env;
 #[cfg(test)]
@@ -186,7 +185,7 @@ fn test_folder_reader() -> io::Result<()> {
     let tmp_dir = env::temp_dir().join(TMP_SUBFOLDER);
     match fs::remove_dir_all(&tmp_dir) {
         Ok(_) => (),
-        Err(_) => ()
+        Err(_) => (),
     }
     fs::create_dir(&tmp_dir)?;
     for i in 0..10 {
@@ -194,13 +193,16 @@ fn test_folder_reader() -> io::Result<()> {
         let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));
         im.save(out_path).unwrap();
     }
-    
+
     let mut reader = FolderReader::<NoCache, TmpFolderPicker>::new();
     reader.open_folder()?;
     for (i, label) in reader.list_file_labels()?.iter().enumerate() {
         assert_eq!(label[label.len() - 13..], format!("tmpfile_{}.png", i));
     }
     let folder_label = reader.folder_label()?;
-    assert_eq!(folder_label[(folder_label.len() - TMP_SUBFOLDER.len())..].to_string(), TMP_SUBFOLDER.to_string());
+    assert_eq!(
+        folder_label[(folder_label.len() - TMP_SUBFOLDER.len())..].to_string(),
+        TMP_SUBFOLDER.to_string()
+    );
     Ok(())
 }
