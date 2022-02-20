@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::io::{self, Error, ErrorKind};
+use std::io;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::{fs, path::Path};
@@ -8,35 +8,42 @@ use image::{ImageBuffer, Rgb};
 
 use crate::cache::{NoCache, Preload};
 
-fn read_image_paths(path: &Path) -> io::Result<Vec<PathBuf>> {
+fn read_image_paths(path: &str) -> io::Result<Vec<String>> {
     fs::read_dir(path)?
         .into_iter()
         .map(|p| Ok(p?.path()))
-        .filter(|p| match p {
+        .filter(|p: &io::Result<PathBuf>| match p {
             Err(_) => true,
             Ok(p_) => match p_.extension() {
                 Some(ext) => ext == "png" || ext == "jpg",
                 None => false,
             },
         })
-        .collect::<Result<Vec<PathBuf>, Error>>()
+        .map(|p| Ok(path_to_str(&p?)?.to_string()))
+        .collect::<Result<Vec<String>, io::Error>>()
 }
 
-fn path_to_str<'a, F>(p: &'a Path, func: F) -> io::Result<&'a str>
-where
-    F: Fn(&'a Path) -> Option<&'a OsStr>,
-{
-    let find_stem = |p_: &'a Path| func(p_)?.to_str();
-    find_stem(p)
-        .ok_or_else(|| Error::new(ErrorKind::NotFound, format!("stem of {:?} not found", p)))
+fn osstr_to_str<'a>(p: Option<&'a OsStr>) -> io::Result<&'a str> {
+    p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
+        .to_str()
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{:?} not convertible to unicode", p),
+            )
+        })
 }
 
 fn to_stem_str(p: &Path) -> io::Result<&str> {
-    path_to_str(p, |p| p.file_stem())
+    osstr_to_str(p.file_stem())
 }
 
 fn to_name_str(p: &Path) -> io::Result<&str> {
-    path_to_str(p, |p| p.file_name())
+    osstr_to_str(p.file_name())
+}
+
+fn path_to_str(p: &Path) -> io::Result<&str> {
+    osstr_to_str(Some(p.as_os_str()))
 }
 
 pub trait ReadImageFiles {
@@ -46,7 +53,6 @@ pub trait ReadImageFiles {
     fn read_image(&self, file_selected_idx: usize) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>>;
     fn file_selected_idx(&self) -> Option<usize>;
     fn selected_file(&mut self, idx: usize);
-
     fn list_file_labels(&self) -> io::Result<Vec<String>>;
     fn open_folder(&mut self) -> io::Result<()>;
     fn folder_label(&self) -> io::Result<String>;
@@ -72,19 +78,19 @@ impl PickFolder for DialogPicker {
     }
 }
 
-pub struct FolderReader<Cache = NoCache, FolderPicker = DialogPicker>
+pub struct FolderReader<C = NoCache, FP = DialogPicker>
 where
-    Cache: Preload,
-    FolderPicker: PickFolder,
+    C: Preload,
+    FP: PickFolder,
 {
-    file_paths: Vec<PathBuf>,
-    folder_path: Option<PathBuf>,
+    file_paths: Vec<String>,
+    folder_path: Option<String>,
     file_selected_idx: Option<usize>,
-    cache: Cache,
-    pick_phantom: PhantomData<FolderPicker>,
+    cache: C,
+    pick_phantom: PhantomData<FP>,
 }
 
-pub fn read_image(path: &Path) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+pub fn read_image(path: &str) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
     Ok(image::io::Reader::open(path)?
         .decode()
         .map_err(|e| {
@@ -96,17 +102,17 @@ pub fn read_image(path: &Path) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         .into_rgb8())
 }
 
-impl<Cache, FolderPicker> ReadImageFiles for FolderReader<Cache, FolderPicker>
+impl<C, FP> ReadImageFiles for FolderReader<C, FP>
 where
-    Cache: Preload,
-    FolderPicker: PickFolder,
+    C: Preload,
+    FP: PickFolder,
 {
     fn new() -> Self {
         FolderReader {
             file_paths: vec![],
             folder_path: None,
             file_selected_idx: None,
-            cache: Cache::new(read_image),
+            cache: C::new(read_image),
             pick_phantom: PhantomData {},
         }
     }
@@ -123,9 +129,18 @@ where
         self.file_selected_idx
     }
     fn open_folder(&mut self) -> io::Result<()> {
-        if let Some(sf) = FolderPicker::pick() {
-            self.file_paths = read_image_paths(&sf)?;
-            self.folder_path = Some(sf);
+        if let Some(sf) = FP::pick() {
+            let path_as_string: String = sf
+                .to_str()
+                .ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "could not transfer path to unicode string".to_string(),
+                    )
+                })?
+                .to_string();
+            self.file_paths = read_image_paths(&path_as_string)?;
+            self.folder_path = Some(path_as_string);
             self.file_selected_idx = None;
             self.cache.preload_images(&self.file_paths);
         }
@@ -134,21 +149,22 @@ where
     fn list_file_labels(&self) -> io::Result<Vec<String>> {
         self.file_paths
             .iter()
-            .map(|p| Ok(to_name_str(p)?.to_string()))
+            .map(|p| Ok(to_name_str(Path::new(p))?.to_string()))
             .collect::<io::Result<Vec<String>>>()
     }
     fn folder_label(&self) -> io::Result<String> {
         match &self.folder_path {
             Some(sf) => {
-                let last = sf.ancestors().next();
-                let one_before_last = sf.ancestors().nth(1);
+                let folder_path = Path::new(sf);
+                let last = folder_path.ancestors().next();
+                let one_before_last = folder_path.ancestors().nth(1);
                 match (one_before_last, last) {
                     (Some(obl), Some(l)) => {
                         Ok(format!("{}/{}", to_stem_str(obl)?, to_stem_str(l)?,))
                     }
                     (None, Some(l)) => Ok(to_stem_str(l)?.to_string()),
-                    _ => Err(Error::new(
-                        ErrorKind::InvalidData,
+                    _ => Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
                         format!("could not convert path {:?} to str", self.folder_path),
                     )),
                 }
@@ -158,7 +174,7 @@ where
     }
     fn file_selected_label(&self) -> io::Result<String> {
         Ok(match self.file_selected_idx {
-            Some(idx) => to_name_str(&self.file_paths[idx])?.to_string(),
+            Some(idx) => to_name_str(Path::new(&self.file_paths[idx]))?.to_string(),
             None => "no file selected".to_string(),
         })
     }
