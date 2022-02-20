@@ -142,9 +142,11 @@ where
             error_message: None,
         }
     }
+
     pub fn next(&mut self) {
         self.reader.next();
     }
+
     pub fn prev(&mut self) {
         self.reader.prev();
     }
