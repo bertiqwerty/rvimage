@@ -12,6 +12,7 @@ use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 use world::{Crop, World};
 
+mod cache;
 mod gui;
 mod reader;
 mod world;
