@@ -1,4 +1,3 @@
-use std::ffi::OsStr;
 use std::io;
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -7,6 +6,7 @@ use std::{fs, path::Path};
 use image::{ImageBuffer, Rgb};
 
 use crate::cache::{NoCache, Preload};
+use crate::util;
 
 fn read_image_paths(path: &str) -> io::Result<Vec<String>> {
     fs::read_dir(path)?
@@ -23,34 +23,23 @@ fn read_image_paths(path: &str) -> io::Result<Vec<String>> {
         .collect::<Result<Vec<String>, io::Error>>()
 }
 
-fn osstr_to_str<'a>(p: Option<&'a OsStr>) -> io::Result<&'a str> {
-    p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
-        .to_str()
-        .ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{:?} not convertible to unicode", p),
-            )
-        })
-}
-
 fn to_stem_str(p: &Path) -> io::Result<&str> {
-    osstr_to_str(p.file_stem())
+    util::osstr_to_str(p.file_stem())
 }
 
 fn to_name_str(p: &Path) -> io::Result<&str> {
-    osstr_to_str(p.file_name())
+    util::osstr_to_str(p.file_name())
 }
 
 fn path_to_str(p: &Path) -> io::Result<&str> {
-    osstr_to_str(Some(p.as_os_str()))
+    util::osstr_to_str(Some(p.as_os_str()))
 }
 
 pub trait ReadImageFiles {
     fn new() -> Self;
     fn next(&mut self);
     fn prev(&mut self);
-    fn read_image(&self, file_selected_idx: usize) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+    fn read_image(&mut self, file_selected_idx: usize) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>>;
     fn file_selected_idx(&self) -> Option<usize>;
     fn selected_file(&mut self, idx: usize);
     fn list_file_labels(&self) -> io::Result<Vec<String>>;
@@ -90,7 +79,7 @@ where
     pick_phantom: PhantomData<FP>,
 }
 
-pub fn read_image(path: &str) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+pub fn read_image_from_path(path: &str) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
     Ok(image::io::Reader::open(path)?
         .decode()
         .map_err(|e| {
@@ -112,7 +101,7 @@ where
             file_paths: vec![],
             folder_path: None,
             file_selected_idx: None,
-            cache: C::new(read_image),
+            cache: C::new(read_image_from_path),
             pick_phantom: PhantomData {},
         }
     }
@@ -122,8 +111,8 @@ where
     fn prev(&mut self) {
         self.file_selected_idx = prev(self.file_selected_idx);
     }
-    fn read_image(&self, file_selected: usize) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
-        self.cache.read_image(&self.file_paths[file_selected])
+    fn read_image(&mut self, file_selected: usize) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        self.cache.read_image(file_selected, &self.file_paths)
     }
     fn file_selected_idx(&self) -> Option<usize> {
         self.file_selected_idx
@@ -142,7 +131,6 @@ where
             self.file_paths = read_image_paths(&path_as_string)?;
             self.folder_path = Some(path_as_string);
             self.file_selected_idx = None;
-            self.cache.preload_images(&self.file_paths);
         }
         Ok(())
     }

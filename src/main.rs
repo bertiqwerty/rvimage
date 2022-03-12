@@ -15,8 +15,9 @@ use world::{Crop, World};
 mod cache;
 mod gui;
 mod reader;
+mod threadpool;
+mod util;
 mod world;
-
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 
