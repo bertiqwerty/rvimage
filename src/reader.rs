@@ -1,4 +1,3 @@
-use std::io;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::{fs, path::Path};
@@ -6,13 +5,14 @@ use std::{fs, path::Path};
 use image::{ImageBuffer, Rgb};
 
 use crate::cache::{NoCache, Preload};
-use crate::util;
+use crate::{format_rverr, util};
+use crate::result::{to_rv, RvResult, RvError};
 
-fn read_image_paths(path: &str) -> io::Result<Vec<String>> {
-    fs::read_dir(path)?
+fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
+    fs::read_dir(path).map_err(to_rv)?
         .into_iter()
-        .map(|p| Ok(p?.path()))
-        .filter(|p: &io::Result<PathBuf>| match p {
+        .map(|p| Ok(p.map_err(to_rv)?.path()))
+        .filter(|p: &RvResult<PathBuf>| match p {
             Err(_) => true,
             Ok(p_) => match p_.extension() {
                 Some(ext) => ext == "png" || ext == "jpg",
@@ -20,32 +20,33 @@ fn read_image_paths(path: &str) -> io::Result<Vec<String>> {
             },
         })
         .map(|p| Ok(path_to_str(&p?)?.to_string()))
-        .collect::<Result<Vec<String>, io::Error>>()
+        .collect::<RvResult<Vec<String>>>()
 }
 
-fn to_stem_str(p: &Path) -> io::Result<&str> {
-    util::osstr_to_str(p.file_stem())
+fn to_stem_str(p: &Path) -> RvResult<&str> {
+    util::osstr_to_str(p.file_stem()).map_err(to_rv)
 }
 
-fn to_name_str(p: &Path) -> io::Result<&str> {
-    util::osstr_to_str(p.file_name())
+fn to_name_str(p: &Path) -> RvResult<&str> {
+    util::osstr_to_str(p.file_name()).map_err(to_rv)
 }
 
-fn path_to_str(p: &Path) -> io::Result<&str> {
-    util::osstr_to_str(Some(p.as_os_str()))
+fn path_to_str(p: &Path) -> RvResult<&str> {
+    util::osstr_to_str(Some(p.as_os_str())).map_err(to_rv)
 }
 
 pub trait ReadImageFiles {
     fn new() -> Self;
     fn next(&mut self);
     fn prev(&mut self);
-    fn read_image(&mut self, file_selected_idx: usize) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+    fn read_image(&mut self, file_selected_idx: usize)
+        -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
     fn file_selected_idx(&self) -> Option<usize>;
     fn selected_file(&mut self, idx: usize);
-    fn list_file_labels(&self) -> io::Result<Vec<String>>;
-    fn open_folder(&mut self) -> io::Result<()>;
-    fn folder_label(&self) -> io::Result<String>;
-    fn file_selected_label(&self) -> io::Result<String>;
+    fn list_file_labels(&self) -> RvResult<Vec<String>>;
+    fn open_folder(&mut self) -> RvResult<()>;
+    fn folder_label(&self) -> RvResult<String>;
+    fn file_selected_label(&self) -> RvResult<String>;
 }
 
 pub fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
@@ -79,15 +80,10 @@ where
     pick_phantom: PhantomData<FP>,
 }
 
-pub fn read_image_from_path(path: &str) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
-    Ok(image::io::Reader::open(path)?
+pub fn read_image_from_path(path: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    Ok(image::io::Reader::open(path).map_err(to_rv)?
         .decode()
-        .map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("could not decode image {:?}. {:?}", path, e),
-            )
-        })?
+        .map_err(|e| format_rverr!("could not decode image {:?}. {:?}", path, e))?
         .into_rgb8())
 }
 
@@ -111,20 +107,19 @@ where
     fn prev(&mut self) {
         self.file_selected_idx = prev(self.file_selected_idx);
     }
-    fn read_image(&mut self, file_selected: usize) -> io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    fn read_image(&mut self, file_selected: usize) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         self.cache.read_image(file_selected, &self.file_paths)
     }
     fn file_selected_idx(&self) -> Option<usize> {
         self.file_selected_idx
     }
-    fn open_folder(&mut self) -> io::Result<()> {
+    fn open_folder(&mut self) -> RvResult<()> {
         if let Some(sf) = FP::pick() {
             let path_as_string: String = sf
                 .to_str()
                 .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "could not transfer path to unicode string".to_string(),
+                    RvError::new(
+                        "could not transfer path to unicode string",
                     )
                 })?
                 .to_string();
@@ -134,13 +129,13 @@ where
         }
         Ok(())
     }
-    fn list_file_labels(&self) -> io::Result<Vec<String>> {
+    fn list_file_labels(&self) -> RvResult<Vec<String>> {
         self.file_paths
             .iter()
             .map(|p| Ok(to_name_str(Path::new(p))?.to_string()))
-            .collect::<io::Result<Vec<String>>>()
+            .collect::<RvResult<Vec<String>>>()
     }
-    fn folder_label(&self) -> io::Result<String> {
+    fn folder_label(&self) -> RvResult<String> {
         match &self.folder_path {
             Some(sf) => {
                 let folder_path = Path::new(sf);
@@ -151,16 +146,15 @@ where
                         Ok(format!("{}/{}", to_stem_str(obl)?, to_stem_str(l)?,))
                     }
                     (None, Some(l)) => Ok(to_stem_str(l)?.to_string()),
-                    _ => Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("could not convert path {:?} to str", self.folder_path),
-                    )),
+                    _ => Err(
+                        format_rverr!("could not convert path {:?} to str", self.folder_path),
+                    ),
                 }
             }
             None => Ok("no folder selected".to_string()),
         }
     }
-    fn file_selected_label(&self) -> io::Result<String> {
+    fn file_selected_label(&self) -> RvResult<String> {
         Ok(match self.file_selected_idx {
             Some(idx) => to_name_str(Path::new(&self.file_paths[idx]))?.to_string(),
             None => "no file selected".to_string(),
@@ -185,13 +179,13 @@ impl PickFolder for TmpFolderPicker {
 }
 
 #[test]
-fn test_folder_reader() -> io::Result<()> {
+fn test_folder_reader() -> RvResult<()> {
     let tmp_dir = env::temp_dir().join(TMP_SUBFOLDER);
     match fs::remove_dir_all(&tmp_dir) {
         Ok(_) => (),
         Err(_) => (),
     }
-    fs::create_dir(&tmp_dir)?;
+    fs::create_dir(&tmp_dir).map_err(to_rv)?;
     for i in 0..10 {
         let im = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(10, 10);
         let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));

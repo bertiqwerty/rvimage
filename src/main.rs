@@ -16,6 +16,7 @@ mod cache;
 mod gui;
 mod reader;
 mod threadpool;
+mod result;
 mod util;
 mod world;
 const START_WIDTH: u32 = 640;

@@ -1,17 +1,19 @@
 use std::{
-    collections::{HashMap, HashSet},
-    io,
-    path::{Path, PathBuf},
+    collections::HashMap,
+    path::PathBuf,
     str::FromStr,
-    sync::mpsc::{self, Receiver, Sender},
-    thread,
 };
 
 use image::{ImageBuffer, Rgb};
 
-use crate::util;
+use crate::{
+    format_rverr,
+    result::{to_rv, RvError, RvResult},
+    threadpool::ThreadPool,
+    util,
+};
 
-type ResultImage = io::Result<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+type ResultImage = RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
 
 type DefaultReader = fn(&str) -> ResultImage;
 
@@ -42,86 +44,67 @@ where
     }
 }
 
-pub fn filename_in_tmpdir(path: &str) -> io::Result<PathBuf> {
+pub fn filename_in_tmpdir(path: &str) -> RvResult<String> {
     let path = PathBuf::from_str(path).unwrap();
-    let fname = util::osstr_to_str(path.file_name())?;
-    Ok(std::env::temp_dir().join(fname))
+    let fname = util::osstr_to_str(path.file_name()).map_err(to_rv)?;
+    std::env::temp_dir()
+        .join(fname)
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| format_rverr!("could not transform {:?} to &str", fname))
 }
 
-fn copy<F>(path_or_url: &str, reader: F, target: &Path) -> io::Result<()>
+fn copy<F>(path_or_url: &str, reader: F, target: &str) -> RvResult<()>
 where
     F: Fn(&str) -> ResultImage,
 {
-    let im = reader(path_or_url)?;
-    im.save(&target).map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("could not save image to {:?}. {}", target, e.to_string()),
-        )
-    })?;
+    let im = reader(path_or_url).map_err(to_rv)?;
+    im.save(&target)
+        .map_err(|e| format_rverr!("could not save image to {:?}. {}", target, e.to_string()))?;
     Ok(())
 }
 
-struct PathPair {
-    origin_path_or_url: String,
-    path_in_cache: PathBuf,
-}
-type CopyState = io::Result<PathPair>;
 pub trait ReaderType: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static {}
 impl<T: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static> ReaderType for T {}
 
 fn preload<F: ReaderType>(
     files: &[String],
-    started_copies: &HashSet<String>,
-    tx: &Sender<CopyState>,
+    tp: &mut ThreadPool<RvResult<String>>,
+    cache: &HashMap<String, ThreadResult>,
     reader: &F,
-) -> io::Result<()> {
-    for file in files.iter().filter(|f| !started_copies.contains(*f)) {
-        let tmp_file = filename_in_tmpdir(&file)?;
-        let file = file.clone();
-        let tx = tx.clone();
-        let reader = reader.clone();
-        thread::spawn(move || match copy(&file, reader, &tmp_file) {
-            Ok(_) => tx.send(CopyState::Ok(PathPair {
-                origin_path_or_url: file.clone(),
-                path_in_cache: tmp_file,
-            })),
-            Err(e) => tx.send(CopyState::Err(e)),
-        });
-    }
-    Ok(())
+) -> RvResult<HashMap<String, ThreadResult>> {
+    files
+        .iter()
+        .filter(|file| !cache.contains_key(*file))
+        .map(|file| {
+            let tmp_file = filename_in_tmpdir(&file)?;
+            let file_for_thread = file.clone();
+            let reader = reader.clone();
+            let job = Box::new(move || match copy(&file_for_thread, reader, &tmp_file) {
+                Ok(_) => Ok(tmp_file),
+                Err(e) => Err(e),
+            });
+            Ok((file.clone(), ThreadResult::Running(tp.apply(job)?)))
+        })
+        .collect::<RvResult<HashMap<_, _>>>()
 }
 
-fn update_cache(
-    rx: &mut Receiver<CopyState>,
-    cached_paths: &mut HashMap<String, PathBuf>,
-) -> io::Result<()> {
-    for received in rx.try_iter() {
-        match received {
-            CopyState::Ok(pp) => {
-                cached_paths.insert(pp.origin_path_or_url, pp.path_in_cache);
-            }
-            CopyState::Err(e) => {
-                return Err(e);
-            }
-        }
-    }
-    Ok(())
+enum ThreadResult {
+    Running(usize),
+    Ok(String),
 }
 pub struct FileCache<F = DefaultReader>
 where
     F: ReaderType,
 {
     reader: F,
-    cached_paths: HashMap<String, PathBuf>,
-    started_copies: HashSet<String>,
+    cached_paths: HashMap<String, ThreadResult>,
     half_n_images: usize,
-    tx: Sender<CopyState>,
-    rx: Receiver<CopyState>,
+    tp: ThreadPool<RvResult<String>>,
 }
 impl<F> Preload<F> for FileCache<F>
 where
-    F: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static,
+    F: ReaderType,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
         let start_idx = if selected_file_idx > self.half_n_images {
@@ -135,23 +118,42 @@ where
             files.len() - 1
         };
         let files_to_preload = &files[start_idx..end_idx];
-        for ftp in files_to_preload {
-            self.started_copies.insert(ftp.clone());
-        }
-        preload(files_to_preload, &self.started_copies, &self.tx, &self.reader)?;
-        update_cache(&mut self.rx, &mut self.cached_paths)?;
 
-        (self.reader)(&files[selected_file_idx])
+        let cache = preload(
+            files_to_preload,
+            &mut self.tp,
+            &self.cached_paths,
+            &self.reader,
+        )?;
+        // update cache
+        for elt in cache.into_iter() {
+            let (file, th_res) = elt;
+            self.cached_paths.insert(file, th_res);
+        }
+        let selected_file = &files[selected_file_idx];
+        let selected_file_state = &self.cached_paths[selected_file];
+        match selected_file_state {
+            ThreadResult::Ok(path_in_cache) => (self.reader)(path_in_cache),
+            ThreadResult::Running(job_id) => {
+                let path_in_cache = self
+                    .tp
+                    .poll(*job_id)
+                    .ok_or(format_rverr!("didn't find job {}", job_id))??;
+                let res = (self.reader)(&path_in_cache);
+                *self.cached_paths.get_mut(selected_file).unwrap() =
+                    ThreadResult::Ok(path_in_cache);
+                res
+            }
+        }
     }
     fn new(reader: F) -> Self {
-        let (tx, rx) = mpsc::channel();
+        let half_n_images = 5;
+        let tp = ThreadPool::new(half_n_images);
         Self {
             reader,
             cached_paths: HashMap::new(),
-            started_copies: HashSet::new(),
-            half_n_images: 5,
-            tx,
-            rx,
+            half_n_images: half_n_images,
+            tp,
         }
     }
 }
