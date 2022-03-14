@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{collections::HashMap, path::PathBuf, str::FromStr, fs};
 
 use image::{ImageBuffer, Rgb};
 
@@ -17,9 +13,12 @@ type ResultImage = RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
 
 type DefaultReader = fn(&str) -> ResultImage;
 
+pub trait ReaderType: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static {}
+impl<T: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static> ReaderType for T {}
+
 pub trait Preload<F = DefaultReader>
 where
-    F: Fn(&str) -> ResultImage,
+    F: ReaderType,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage;
     fn new(reader: F) -> Self;
@@ -27,14 +26,14 @@ where
 
 pub struct NoCache<F = DefaultReader>
 where
-    F: Fn(&str) -> ResultImage,
+    F: ReaderType,
 {
     reader: F,
 }
 
 impl<F> Preload<F> for NoCache<F>
 where
-    F: Fn(&str) -> ResultImage,
+    F: ReaderType,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
         (self.reader)(&files[selected_file_idx])
@@ -44,10 +43,12 @@ where
     }
 }
 
-pub fn filename_in_tmpdir(path: &str) -> RvResult<String> {
+fn filename_in_tmpdir(path: &str) -> RvResult<String> {
     let path = PathBuf::from_str(path).unwrap();
     let fname = util::osstr_to_str(path.file_name()).map_err(to_rv)?;
-    std::env::temp_dir()
+    let tmpfolder = std::env::temp_dir().join("rimview");
+    fs::create_dir_all(tmpfolder.clone()).map_err(to_rv)?;
+    tmpfolder
         .join(fname)
         .to_str()
         .map(|s| s.to_string())
@@ -63,9 +64,6 @@ where
         .map_err(|e| format_rverr!("could not save image to {:?}. {}", target, e.to_string()))?;
     Ok(())
 }
-
-pub trait ReaderType: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static {}
-impl<T: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static> ReaderType for T {}
 
 fn preload<F: ReaderType>(
     files: &[String],
@@ -99,7 +97,7 @@ where
 {
     reader: F,
     cached_paths: HashMap<String, ThreadResult>,
-    half_n_images: usize,
+    n_images: usize,
     tp: ThreadPool<RvResult<String>>,
 }
 impl<F> Preload<F> for FileCache<F>
@@ -107,15 +105,17 @@ where
     F: ReaderType,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
-        let start_idx = if selected_file_idx > self.half_n_images {
-            selected_file_idx - self.half_n_images
-        } else {
+        
+        let start_idx = if selected_file_idx == 0 {
             0
-        };
-        let end_idx = if selected_file_idx < files.len() - self.half_n_images {
-            selected_file_idx + self.half_n_images
         } else {
-            files.len() - 1
+            selected_file_idx - 1
+        };
+
+        let end_idx = if files.len() < selected_file_idx + self.n_images {
+            files.len()
+        } else {
+            selected_file_idx + self.n_images
         };
         let files_to_preload = &files[start_idx..end_idx];
 
@@ -152,8 +152,35 @@ where
         Self {
             reader,
             cached_paths: HashMap::new(),
-            half_n_images: half_n_images,
+            n_images: half_n_images,
             tp,
         }
     }
+}
+
+#[cfg(test)]
+use std::{path::Path, thread, time::Duration};
+#[test]
+fn test_file_cache() -> RvResult<()> {
+    fn dummy_read(_: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
+        Ok(dummy_image)
+    }
+
+    let mut cache = FileCache::new(dummy_read);
+    let files = ["1.png", "2.png", "3.png", "4.png"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+    cache.read_image(1, &files)?;
+    thread::sleep(Duration::from_secs(3));
+    for file in files {
+        let f = file.as_str();
+        println!(
+            "filename in tmpdir {:?}",
+            Path::new(filename_in_tmpdir(f)?.as_str())
+        );
+        assert!(Path::new(filename_in_tmpdir(f)?.as_str()).exists());
+    }
+    Ok(())
 }
