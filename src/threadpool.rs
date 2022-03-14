@@ -8,27 +8,36 @@ use std::{
 
 type Job<T> = Box<dyn FnOnce() -> T + Send + 'static>;
 
-fn poll<T, F: FnMut() -> Option<T>>(
-    query_result: &mut F,
+fn poll<T, F1: FnMut() -> Option<T>, F2: Fn() -> bool>(
+    query_result: &mut F1,
     interval_millis: u64,
-    timeout_millis: Option<u128>,
+    predicate: &F2,
 ) -> Option<T> {
     let interval = time::Duration::from_millis(interval_millis);
-    let now = Instant::now();
-    let mut time_out = 0;
-    let predicate: fn(&Instant, u128) -> bool = match timeout_millis {
-        Some(to) => {
-            time_out = to;
-            |now, to: u128| now.elapsed().as_millis() < to
-        }
-        None => |_, _| true,
-    };
     let mut res = query_result();
-    while res.is_none() && predicate(&now, time_out) {
+    while res.is_none() && predicate() {
         thread::sleep(interval);
         res = query_result();
     }
     res
+}
+
+fn poll_timeout<T, F1: FnMut() -> Option<T>>(
+    query_result: &mut F1,
+    interval_millis: u64,
+    timeout_millis: u128,
+) -> Option<T> {
+    let now = Instant::now();
+    let predicate = move || now.elapsed().as_millis() < timeout_millis;
+    poll(query_result, interval_millis, &predicate)
+}
+
+fn poll_until_result<T, F1: FnMut() -> Option<T>>(
+    query_result: &mut F1,
+    interval_millis: u64,
+) -> Option<T> {
+    let predicate = || true;
+    poll(query_result, interval_millis, &predicate)
 }
 
 pub struct ThreadPool<T: Debug + Clone + Send + 'static> {
@@ -119,8 +128,12 @@ impl<T: Debug + Clone + Send + 'static> ThreadPool<T> {
 
     pub fn poll(&mut self, job_id: usize) -> Option<T> {
         let interv = self.interval_millis;
-        let to = self.timeout_millis;
-        poll(&mut || self.result(job_id), interv, to)
+        let timeout = self.timeout_millis;
+        let query_result = &mut || self.result(job_id);
+        match timeout {
+            Some(to) => poll_timeout(query_result, interv, to),
+            None => poll_until_result(query_result, interv)
+        }
     }
 }
 

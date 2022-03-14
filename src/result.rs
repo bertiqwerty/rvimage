@@ -15,9 +15,6 @@ impl RvError {
             msg: msg.to_string(),
         }
     }
-    pub fn msg(&self) -> &str {
-        self.msg.as_str()
-    }
 }
 impl Display for RvError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -32,10 +29,10 @@ pub type RvResult<U> = Result<U, RvError>;
 /// Creates an [`RvError`](RvError) with a formatted message.
 /// ```rust
 /// # use std::error::Error;
-/// use exmex::{format_exerr, RvError};
+/// use crate::result::{format_exerr, RvError};
 /// # fn main() -> Result<(), Box<dyn Error>> {
 /// assert_eq!(format_rverr!("some error {}", 1), RvError::new(format!("some error {}", 1).as_str()));
-/// #     Ok(())
+/// # Ok(())
 /// # }
 /// ```
 #[macro_export]
