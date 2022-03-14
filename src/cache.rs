@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr, fs};
+use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
 
 use image::{ImageBuffer, Rgb};
 
@@ -97,7 +97,8 @@ where
 {
     reader: F,
     cached_paths: HashMap<String, ThreadResult>,
-    n_images: usize,
+    n_prev_images: usize,
+    n_next_images: usize,
     tp: ThreadPool<RvResult<String>>,
 }
 impl<F> Preload<F> for FileCache<F>
@@ -105,20 +106,20 @@ where
     F: ReaderType,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
-        
-        let start_idx = if selected_file_idx == 0 {
+        if files.len() == 0 {
+            return Err(RvError::new("no files to read from"));
+        }
+        let start_idx = if selected_file_idx <= self.n_prev_images {
             0
         } else {
-            selected_file_idx - 1
+            selected_file_idx - self.n_prev_images
         };
-
-        let end_idx = if files.len() < selected_file_idx + self.n_images {
+        let end_idx = if files.len() <= selected_file_idx + self.n_next_images {
             files.len()
         } else {
-            selected_file_idx + self.n_images
+            selected_file_idx + self.n_next_images + 1
         };
         let files_to_preload = &files[start_idx..end_idx];
-
         let cache = preload(
             files_to_preload,
             &mut self.tp,
@@ -147,12 +148,15 @@ where
         }
     }
     fn new(reader: F) -> Self {
-        let half_n_images = 5;
-        let tp = ThreadPool::new(half_n_images);
+        let n_prev_images = 2;
+        let n_next_images = 8;
+        let n_threads = 5;
+        let tp = ThreadPool::new(n_threads);
         Self {
             reader,
             cached_paths: HashMap::new(),
-            n_images: half_n_images,
+            n_prev_images,
+            n_next_images,
             tp,
         }
     }
@@ -162,25 +166,41 @@ where
 use std::{path::Path, thread, time::Duration};
 #[test]
 fn test_file_cache() -> RvResult<()> {
-    fn dummy_read(_: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
-        let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
-        Ok(dummy_image)
-    }
+    fn test(files: &[&str], selected: usize) -> RvResult<()> {
+        fn dummy_read(_: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+            let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
+            Ok(dummy_image)
+        }
 
-    let mut cache = FileCache::new(dummy_read);
-    let files = ["1.png", "2.png", "3.png", "4.png"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-    cache.read_image(1, &files)?;
-    thread::sleep(Duration::from_secs(3));
-    for file in files {
-        let f = file.as_str();
-        println!(
-            "filename in tmpdir {:?}",
-            Path::new(filename_in_tmpdir(f)?.as_str())
-        );
-        assert!(Path::new(filename_in_tmpdir(f)?.as_str()).exists());
+        let mut cache = FileCache::new(dummy_read);
+        let files = files.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        cache.read_image(selected, &files)?;
+        let n_secs = files.len() / 5 + 1;
+        println!("waiting {} secs", n_secs);
+        thread::sleep(Duration::from_secs(n_secs as u64));
+        for file in files {
+            let f = file.as_str();
+            println!(
+                "filename in tmpdir {:?}",
+                Path::new(filename_in_tmpdir(f)?.as_str())
+            );
+            assert!(Path::new(filename_in_tmpdir(f)?.as_str()).exists());
+        }
+        Ok(())
     }
+    assert!(test(&[], 0).is_err());
+    test(&["1.png", "2.png", "3.png", "4.png"], 0)?;
+    test(&["1.png", "2.png", "3.png", "4.png"], 1)?;
+    test(&["1.png", "2.png", "3.png", "4.png"], 2)?;
+    test(&["1.png", "2.png", "3.png", "4.png"], 3)?;
+    let files = (0..50).map(|i| format!("{}.png", i)).collect::<Vec<_>>();
+    let files_str = files.iter().map(|s|s.as_str()).collect::<Vec<_>>();
+    test(&files_str, 16)?;
+    // test(&files_str, 36)?;
+    // for i in (14..27).chain(34..47) {
+    //     let f = format!("{}.png", i);
+    //     assert!(Path::new(filename_in_tmpdir(f.as_str())?.as_str()).exists());
+    // }
+    
     Ok(())
 }
