@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 use image::{ImageBuffer, Rgb};
 
-use crate::cache::{NoCache, Preload};
+use crate::cache::{Preload, FileCache};
 use crate::{format_rverr, util};
 use crate::result::{to_rv, RvResult, RvError};
 
@@ -68,7 +68,7 @@ impl PickFolder for DialogPicker {
     }
 }
 
-pub struct FolderReader<C = NoCache, FP = DialogPicker>
+pub struct FolderReader<C = FileCache, FP = DialogPicker>
 where
     C: Preload,
     FP: PickFolder,
@@ -166,7 +166,7 @@ where
 }
 
 #[cfg(test)]
-use std::env;
+use {std::env, crate::cache::NoCache};
 #[cfg(test)]
 const TMP_SUBFOLDER: &str = "rimview_testdata";
 #[cfg(test)]

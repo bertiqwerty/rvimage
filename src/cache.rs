@@ -150,7 +150,7 @@ where
     fn new(reader: F) -> Self {
         let n_prev_images = 2;
         let n_next_images = 8;
-        let n_threads = 5;
+        let n_threads = 2;
         let tp = ThreadPool::new(n_threads);
         Self {
             reader,
