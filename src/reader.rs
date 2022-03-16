@@ -4,12 +4,13 @@ use std::{fs, path::Path};
 
 use image::{ImageBuffer, Rgb};
 
-use crate::cache::{Preload, FileCache};
+use crate::cache::{file_cache::FileCache, Preload};
+use crate::result::{to_rv, RvError, RvResult};
 use crate::{format_rverr, util};
-use crate::result::{to_rv, RvResult, RvError};
 
 fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
-    fs::read_dir(path).map_err(to_rv)?
+    fs::read_dir(path)
+        .map_err(to_rv)?
         .into_iter()
         .map(|p| Ok(p.map_err(to_rv)?.path()))
         .filter(|p: &RvResult<PathBuf>| match p {
@@ -39,8 +40,7 @@ pub trait ReadImageFiles {
     fn new() -> Self;
     fn next(&mut self);
     fn prev(&mut self);
-    fn read_image(&mut self, file_selected_idx: usize)
-        -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+    fn read_image(&mut self, file_selected_idx: usize) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
     fn file_selected_idx(&self) -> Option<usize>;
     fn selected_file(&mut self, idx: usize);
     fn list_file_labels(&self) -> RvResult<Vec<String>>;
@@ -81,7 +81,8 @@ where
 }
 
 pub fn read_image_from_path(path: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
-    Ok(image::io::Reader::open(path).map_err(to_rv)?
+    Ok(image::io::Reader::open(path)
+        .map_err(to_rv)?
         .decode()
         .map_err(|e| format_rverr!("could not decode image {:?}. {:?}", path, e))?
         .into_rgb8())
@@ -117,11 +118,7 @@ where
         if let Some(sf) = FP::pick() {
             let path_as_string: String = sf
                 .to_str()
-                .ok_or_else(|| {
-                    RvError::new(
-                        "could not transfer path to unicode string",
-                    )
-                })?
+                .ok_or_else(|| RvError::new("could not transfer path to unicode string"))?
                 .to_string();
             self.file_paths = read_image_paths(&path_as_string)?;
             self.folder_path = Some(path_as_string);
@@ -146,9 +143,10 @@ where
                         Ok(format!("{}/{}", to_stem_str(obl)?, to_stem_str(l)?,))
                     }
                     (None, Some(l)) => Ok(to_stem_str(l)?.to_string()),
-                    _ => Err(
-                        format_rverr!("could not convert path {:?} to str", self.folder_path),
-                    ),
+                    _ => Err(format_rverr!(
+                        "could not convert path {:?} to str",
+                        self.folder_path
+                    )),
                 }
             }
             None => Ok("no folder selected".to_string()),
@@ -166,7 +164,7 @@ where
 }
 
 #[cfg(test)]
-use {std::env, crate::cache::NoCache};
+use {crate::cache::NoCache, std::env};
 #[cfg(test)]
 const TMP_SUBFOLDER: &str = "rimview_testdata";
 #[cfg(test)]

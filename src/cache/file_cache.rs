@@ -1,48 +1,12 @@
 use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
 
-use image::{ImageBuffer, Rgb};
-
 use crate::{
+    cache::{DefaultReader, Preload, ReaderType, ResultImage},
     format_rverr,
     result::{to_rv, RvError, RvResult},
     threadpool::ThreadPool,
     util,
 };
-
-type ResultImage = RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
-
-type DefaultReader = fn(&str) -> ResultImage;
-
-pub trait ReaderType: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static {}
-impl<T: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static> ReaderType for T {}
-
-pub trait Preload<F = DefaultReader>
-where
-    F: ReaderType,
-{
-    fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage;
-    fn new(reader: F) -> Self;
-}
-
-pub struct NoCache<F = DefaultReader>
-where
-    F: ReaderType,
-{
-    reader: F,
-}
-
-impl<F> Preload<F> for NoCache<F>
-where
-    F: ReaderType,
-{
-    fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
-        (self.reader)(&files[selected_file_idx])
-    }
-    fn new(reader: F) -> Self {
-        Self { reader }
-    }
-}
-
 fn filename_in_tmpdir(path: &str) -> RvResult<String> {
     let path = PathBuf::from_str(path).unwrap();
     let fname = util::osstr_to_str(path.file_name()).map_err(to_rv)?;
@@ -163,7 +127,10 @@ where
 }
 
 #[cfg(test)]
+use image::{ImageBuffer, Rgb};
+#[cfg(test)]
 use std::{path::Path, thread, time::Duration};
+
 #[test]
 fn test_file_cache() -> RvResult<()> {
     fn test(files: &[&str], selected: usize) -> RvResult<()> {
