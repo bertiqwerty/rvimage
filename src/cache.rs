@@ -75,7 +75,7 @@ fn preload<F: ReaderType>(
         .iter()
         .filter(|file| !cache.contains_key(*file))
         .map(|file| {
-            let tmp_file = filename_in_tmpdir(&file)?;
+            let tmp_file = filename_in_tmpdir(file)?;
             let file_for_thread = file.clone();
             let reader = reader.clone();
             let job = Box::new(move || match copy(&file_for_thread, reader, &tmp_file) {
@@ -106,7 +106,7 @@ where
     F: ReaderType,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
-        if files.len() == 0 {
+        if files.is_empty() {
             return Err(RvError::new("no files to read from"));
         }
         let start_idx = if selected_file_idx <= self.n_prev_images {
@@ -139,7 +139,7 @@ where
                 let path_in_cache = self
                     .tp
                     .poll(*job_id)
-                    .ok_or(format_rverr!("didn't find job {}", job_id))??;
+                    .ok_or_else(|| format_rverr!("didn't find job {}", job_id))??;
                 let res = (self.reader)(&path_in_cache);
                 *self.cached_paths.get_mut(selected_file).unwrap() =
                     ThreadResult::Ok(path_in_cache);
@@ -187,7 +187,7 @@ fn test_file_cache() -> RvResult<()> {
         let n_secs = (max_i - min_i) / 4 + 1;
         println!("waiting {} secs", n_secs);
         thread::sleep(Duration::from_secs(n_secs as u64));
-        
+
         for (_, file) in files
             .iter()
             .enumerate()

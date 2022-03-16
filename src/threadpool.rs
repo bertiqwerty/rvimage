@@ -72,7 +72,7 @@ impl<T: Debug + Clone + Send + 'static> ThreadPool<T> {
                         }
                         Err(_) => {
                             println!("thread {} terminated. receiver gone.", idx_thread);
-                            return ();
+                            return;
                         }
                     }
                 }
@@ -91,7 +91,7 @@ impl<T: Debug + Clone + Send + 'static> ThreadPool<T> {
 
     pub fn result(&mut self, job_id: usize) -> Option<T> {
         self.result_queue
-            .extend(self.rx_from_pool.try_iter().flat_map(|received| received));
+            .extend(self.rx_from_pool.try_iter().flatten());
         let result = self
             .result_queue
             .iter()

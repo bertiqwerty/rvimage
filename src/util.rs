@@ -1,6 +1,6 @@
 use std::{ffi::OsStr, io};
 
-pub fn osstr_to_str<'a>(p: Option<&'a OsStr>) -> io::Result<&'a str> {
+pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
     p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
         .to_str()
         .ok_or_else(|| {
