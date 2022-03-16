@@ -171,14 +171,28 @@ fn test_file_cache() -> RvResult<()> {
             let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
             Ok(dummy_image)
         }
-
         let mut cache = FileCache::new(dummy_read);
+        let min_i = if selected > cache.n_prev_images {
+            selected - cache.n_prev_images
+        } else {
+            0
+        };
+        let max_i = if selected + cache.n_next_images > files.len() {
+            files.len()
+        } else {
+            selected + cache.n_next_images
+        };
         let files = files.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         cache.read_image(selected, &files)?;
-        let n_secs = files.len() / 5 + 1;
+        let n_secs = (max_i - min_i) / 4 + 1;
         println!("waiting {} secs", n_secs);
         thread::sleep(Duration::from_secs(n_secs as u64));
-        for file in files {
+        
+        for (_, file) in files
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| min_i <= *i && *i < max_i)
+        {
             let f = file.as_str();
             println!(
                 "filename in tmpdir {:?}",
@@ -194,13 +208,13 @@ fn test_file_cache() -> RvResult<()> {
     test(&["1.png", "2.png", "3.png", "4.png"], 2)?;
     test(&["1.png", "2.png", "3.png", "4.png"], 3)?;
     let files = (0..50).map(|i| format!("{}.png", i)).collect::<Vec<_>>();
-    let files_str = files.iter().map(|s|s.as_str()).collect::<Vec<_>>();
+    let files_str = files.iter().map(|s| s.as_str()).collect::<Vec<_>>();
     test(&files_str, 16)?;
     // test(&files_str, 36)?;
     // for i in (14..27).chain(34..47) {
     //     let f = format!("{}.png", i);
     //     assert!(Path::new(filename_in_tmpdir(f.as_str())?.as_str()).exists());
     // }
-    
+
     Ok(())
 }
