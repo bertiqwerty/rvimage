@@ -184,9 +184,9 @@ fn test_file_cache() -> RvResult<()> {
         };
         let files = files.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         cache.read_image(selected, &files)?;
-        let n_secs = (max_i - min_i) / 4 + 1;
-        println!("waiting {} secs", n_secs);
-        thread::sleep(Duration::from_secs(n_secs as u64));
+        let n_millis = (max_i - min_i) * 100;
+        println!("waiting {} millis", n_millis);
+        thread::sleep(Duration::from_millis(n_millis as u64));
 
         for (_, file) in files
             .iter()
@@ -210,11 +210,11 @@ fn test_file_cache() -> RvResult<()> {
     let files = (0..50).map(|i| format!("{}.png", i)).collect::<Vec<_>>();
     let files_str = files.iter().map(|s| s.as_str()).collect::<Vec<_>>();
     test(&files_str, 16)?;
-    // test(&files_str, 36)?;
-    // for i in (14..27).chain(34..47) {
-    //     let f = format!("{}.png", i);
-    //     assert!(Path::new(filename_in_tmpdir(f.as_str())?.as_str()).exists());
-    // }
+    test(&files_str, 36)?;
+    for i in (14..25).chain(34..45) {
+        let f = format!("{}.png", i);
+        assert!(Path::new(filename_in_tmpdir(f.as_str())?.as_str()).exists());
+    }
 
     Ok(())
 }
