@@ -8,6 +8,8 @@ use crate::cache::{file_cache::FileCache, Preload};
 use crate::result::{to_rv, RvError, RvResult};
 use crate::{format_rverr, util};
 
+pub mod scp_reader;
+
 fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
     fs::read_dir(path)
         .map_err(to_rv)?
@@ -58,17 +60,19 @@ pub fn prev(file_selected_idx: Option<usize>) -> Option<usize> {
 }
 
 pub trait PickFolder {
-    fn pick() -> Option<PathBuf>;
+    fn pick() -> RvResult<PathBuf>;
 }
 
 pub struct DialogPicker;
 impl PickFolder for DialogPicker {
-    fn pick() -> Option<PathBuf> {
-        rfd::FileDialog::new().pick_folder()
+    fn pick() -> RvResult<PathBuf> {
+        rfd::FileDialog::new()
+            .pick_folder()
+            .ok_or_else(|| RvError::new("Could not pick folder."))
     }
 }
 
-pub struct FolderReader<C = FileCache, FP = DialogPicker>
+pub struct LocalReader<C = FileCache, FP = DialogPicker>
 where
     C: Preload,
     FP: PickFolder,
@@ -88,13 +92,13 @@ pub fn read_image_from_path(path: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>
         .into_rgb8())
 }
 
-impl<C, FP> ReadImageFiles for FolderReader<C, FP>
+impl<C, FP> ReadImageFiles for LocalReader<C, FP>
 where
     C: Preload,
     FP: PickFolder,
 {
     fn new() -> Self {
-        FolderReader {
+        LocalReader {
             file_paths: vec![],
             folder_path: None,
             file_selected_idx: None,
@@ -115,15 +119,15 @@ where
         self.file_selected_idx
     }
     fn open_folder(&mut self) -> RvResult<()> {
-        if let Some(sf) = FP::pick() {
-            let path_as_string: String = sf
-                .to_str()
-                .ok_or_else(|| RvError::new("could not transfer path to unicode string"))?
-                .to_string();
-            self.file_paths = read_image_paths(&path_as_string)?;
-            self.folder_path = Some(path_as_string);
-            self.file_selected_idx = None;
-        }
+        let sf = FP::pick()?;
+        let path_as_string: String = sf
+            .to_str()
+            .ok_or_else(|| RvError::new("could not transfer path to unicode string"))?
+            .to_string();
+        self.file_paths = read_image_paths(&path_as_string)?;
+        self.folder_path = Some(path_as_string);
+        self.file_selected_idx = None;
+
         Ok(())
     }
     fn list_file_labels(&self) -> RvResult<Vec<String>> {
@@ -171,8 +175,8 @@ const TMP_SUBFOLDER: &str = "rimview_testdata";
 struct TmpFolderPicker;
 #[cfg(test)]
 impl PickFolder for TmpFolderPicker {
-    fn pick() -> Option<PathBuf> {
-        Some(env::temp_dir().join(TMP_SUBFOLDER))
+    fn pick() -> RvResult<PathBuf> {
+        Ok(env::temp_dir().join(TMP_SUBFOLDER))
     }
 }
 
@@ -190,7 +194,7 @@ fn test_folder_reader() -> RvResult<()> {
         im.save(out_path).unwrap();
     }
 
-    let mut reader = FolderReader::<NoCache, TmpFolderPicker>::new();
+    let mut reader = LocalReader::<NoCache, TmpFolderPicker>::new();
     reader.open_folder()?;
     for (i, label) in reader.list_file_labels()?.iter().enumerate() {
         assert_eq!(label[label.len() - 13..], format!("tmpfile_{}.png", i));

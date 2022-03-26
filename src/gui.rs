@@ -1,4 +1,8 @@
-use crate::reader::{FolderReader, ReadImageFiles};
+use crate::{
+    cfg::{get_cfg, Connection},
+    reader::{scp_reader::ScpReader, LocalReader, ReadImageFiles},
+    result::RvResult,
+};
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use image::{ImageBuffer, Rgb};
@@ -15,7 +19,7 @@ pub(crate) struct Framework {
     paint_jobs: Vec<ClippedMesh>,
 
     // State for the GUI
-    gui: Gui<FolderReader>,
+    gui: Gui,
 }
 
 impl Framework {
@@ -101,19 +105,81 @@ impl Framework {
             None,
         )
     }
-    pub fn gui(&mut self) -> &mut Gui<FolderReader> {
+    pub fn gui(&mut self) -> &mut Gui {
         &mut self.gui
     }
 }
 
+macro_rules! make_reader_from_config {
+    ($($names:ident),+) => {
+        enum ReaderFromConfig {
+            $($names($names),)+
+        }
+
+        impl ReadImageFiles for ReaderFromConfig {
+            fn new() -> Self {
+                let cfg = get_cfg().unwrap();
+                (match cfg.connection {
+                    $(Connection::$names => ReaderFromConfig::$names($names::new()),)+
+                })
+            }
+            fn next(&mut self) {
+                match self {
+                    $(Self::$names(x) => x.next(),)+
+                }
+            }
+            fn prev(&mut self) {
+                match self {
+                    $(Self::$names(x) => x.prev(),)+
+                }
+            }
+            fn read_image(
+                &mut self,
+                file_selected_idx: usize,
+            ) -> RvResult<image::ImageBuffer<image::Rgb<u8>, Vec<u8>>> {
+                match self {
+                    $(Self::$names(x) => x.read_image(file_selected_idx),)+
+                }
+            }
+            fn open_folder(&mut self) -> RvResult<()> {
+                match self {
+                    $(Self::$names(x) => x.open_folder(),)+
+                }
+            }
+            fn file_selected_idx(&self) -> Option<usize> {
+                match self {
+                    $(Self::$names(x) => x.file_selected_idx(),)+
+                }
+            }
+            fn selected_file(&mut self, idx: usize) {
+                match self {
+                    $(Self::$names(x) => x.selected_file(idx),)+
+                };
+            }
+            fn list_file_labels(&self) -> RvResult<Vec<String>> {
+                match self {
+                    $(Self::$names(x) => x.list_file_labels(),)+
+                }
+            }
+            fn folder_label(&self) -> RvResult<String> {
+                 match self {
+                    $(Self::$names(x) => x.folder_label(),)+
+                }
+            }
+            fn file_selected_label(&self) -> RvResult<String> {
+                  match self {
+                    $(Self::$names(x) => x.file_selected_label(),)+
+                }
+            }
+        }
+    };
+}
+make_reader_from_config!(LocalReader, ScpReader);
 /// Example application state. A real application will need a lot more state than this.
-pub struct Gui<RIF>
-where
-    RIF: ReadImageFiles,
-{
+pub struct Gui {
     /// Only show the egui window when true.
     window_open: bool,
-    reader: RIF,
+    reader: ReaderFromConfig,
     error_message: Option<String>,
 }
 
@@ -130,15 +196,12 @@ macro_rules! handle_error {
     };
 }
 
-impl<RIF> Gui<RIF>
-where
-    RIF: ReadImageFiles,
-{
+impl Gui {
     /// Create a `Gui`.
     fn new() -> Self {
         Self {
             window_open: true,
-            reader: RIF::new(),
+            reader: ReaderFromConfig::new(),
             error_message: None,
         }
     }

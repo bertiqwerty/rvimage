@@ -18,6 +18,7 @@ mod reader;
 mod threadpool;
 mod result;
 mod util;
+mod cfg;
 mod world;
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;

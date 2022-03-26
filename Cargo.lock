@@ -1992,6 +1992,8 @@ dependencies = [
  "log",
  "pixels",
  "rfd",
+ "serde",
+ "toml",
  "winit",
  "winit_input_helper",
 ]
