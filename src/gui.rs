@@ -192,7 +192,7 @@ impl Gui {
                 );
                 for (idx, s) in file_labels.iter().enumerate() {
                     if ui.selectable_label(false, s).clicked() {
-                        self.reader.selected_file(idx);
+                        self.reader.select_file(idx);
                     };
                 }
                 ui.separator();

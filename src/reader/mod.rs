@@ -40,14 +40,23 @@ fn path_to_str(p: &Path) -> RvResult<&str> {
 
 pub trait ReadImageFiles {
     fn new() -> Self;
+    /// select next image
     fn next(&mut self);
+    /// select previous image
     fn prev(&mut self);
+    /// read image with index file_selected_idx  
     fn read_image(&mut self, file_selected_idx: usize) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+    /// get index of selected file
     fn file_selected_idx(&self) -> Option<usize>;
-    fn selected_file(&mut self, idx: usize);
+    /// set index of selected file
+    fn select_file(&mut self, idx: usize);
+    /// list all files in folder
     fn list_file_labels(&self) -> RvResult<Vec<String>>;
+    /// get the user input of a new folder and open it
     fn open_folder(&mut self) -> RvResult<()>;
+    /// get the label of the folder to display
     fn folder_label(&self) -> RvResult<String>;
+    /// get the label of the selected file to display
     fn file_selected_label(&self) -> RvResult<String>;
 }
 

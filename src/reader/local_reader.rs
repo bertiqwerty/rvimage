@@ -103,7 +103,7 @@ where
             None => "no file selected".to_string(),
         })
     }
-    fn selected_file(&mut self, idx: usize) {
+    fn select_file(&mut self, idx: usize) {
         self.file_selected_idx = Some(idx);
     }
 }

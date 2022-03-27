@@ -44,9 +44,9 @@ macro_rules! make_reader_from_config {
                     $(Self::$names(x) => x.file_selected_idx(),)+
                 }
             }
-            fn selected_file(&mut self, idx: usize) {
+            fn select_file(&mut self, idx: usize) {
                 match self {
-                    $(Self::$names(x) => x.selected_file(idx),)+
+                    $(Self::$names(x) => x.select_file(idx),)+
                 };
             }
             fn list_file_labels(&self) -> RvResult<Vec<String>> {
@@ -68,3 +68,9 @@ macro_rules! make_reader_from_config {
     };
 }
 make_reader_from_config!(LocalReader, ScpReader);
+
+#[test]
+fn test_from_cfg() -> RvResult<()> {
+    make_reader_from_config!(LocalReader, ScpReader);
+    Ok(())
+}

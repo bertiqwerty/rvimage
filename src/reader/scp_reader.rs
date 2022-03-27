@@ -36,7 +36,7 @@ impl ReadImageFiles for ScpReader {
     fn file_selected_idx(&self) -> Option<usize> {
         None
     }
-    fn selected_file(&mut self, idx: usize) {}
+    fn select_file(&mut self, idx: usize) {}
     fn list_file_labels(&self) -> RvResult<Vec<String>> {
         Err(RvError::new("not implemented"))
     }
