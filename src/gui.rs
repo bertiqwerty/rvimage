@@ -1,4 +1,7 @@
-use crate::reader::{from_cfg::ReaderFromConfig, ReadImageFiles};
+use crate::{
+    cfg::get_default_cfg,
+    reader::{from_cfg::ReaderFromCfg, ReadImageFiles},
+};
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use image::{ImageBuffer, Rgb};
@@ -106,14 +109,23 @@ impl Framework {
     }
 }
 
+enum Info {
+    Error(String),
+    Warning(String),
+    None,
+}
+
 /// Example application state. A real application will need a lot more state than this.
 pub struct Gui {
     /// Only show the egui window when true.
     window_open: bool,
-    reader: ReaderFromConfig,
-    error_message: Option<String>,
+    reader: ReaderFromCfg,
+    info_message: Info,
 }
 
+// evaluates expression that is expected to return Result,
+// passes unpacked value to effect function in case of Ok,
+// sets according error message in case of Err
 macro_rules! handle_error {
     ($effect:expr, $result:expr, $self:expr) => {
         match $result {
@@ -121,7 +133,7 @@ macro_rules! handle_error {
                 $effect(r);
             }
             Err(e) => {
-                $self.error_message = Some(e.to_string());
+                $self.info_message = Info::Error(e.to_string());
             }
         }
     };
@@ -130,10 +142,18 @@ macro_rules! handle_error {
 impl Gui {
     /// Create a `Gui`.
     fn new() -> Self {
+        let (reader_from_cfg, info) = match ReaderFromCfg::new() {
+            Ok(rfc) => (rfc, Info::None),
+            Err(e) => (
+                ReaderFromCfg::from_cfg(get_default_cfg()),
+                Info::Warning(e.msg().to_string()),
+            ),
+        };
         Self {
             window_open: true,
-            reader: ReaderFromConfig::new(),
-            error_message: None,
+            reader: reader_from_cfg,
+
+            info_message: info,
         }
     }
 
@@ -169,11 +189,14 @@ impl Gui {
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
-                match &self.error_message {
-                    Some(msg) => {
+                match &self.info_message {
+                    Info::Warning(msg) => {
+                        ui.label(format!("❕ {}", msg));
+                    }
+                    Info::Error(msg) => {
                         ui.label(format!("❌ {}", msg));
                     }
-                    None => (),
+                    Info::None => (),
                 }
                 ui.separator();
                 if ui.button("open folder...").clicked() {

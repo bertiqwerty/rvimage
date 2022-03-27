@@ -39,7 +39,6 @@ fn path_to_str(p: &Path) -> RvResult<&str> {
 }
 
 pub trait ReadImageFiles {
-    fn new() -> Self;
     /// select next image
     fn next(&mut self);
     /// select previous image

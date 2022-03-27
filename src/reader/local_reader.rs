@@ -32,13 +32,12 @@ pub fn read_image_from_path(path: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>
         .map_err(|e| format_rverr!("could not decode image {:?}. {:?}", path, e))?
         .into_rgb8())
 }
-
-impl<C, FP> ReadImageFiles for LocalReader<C, FP>
+impl<C, FP> LocalReader<C, FP>
 where
     C: Preload,
     FP: PickFolder,
 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         LocalReader {
             file_paths: vec![],
             folder_path: None,
@@ -47,6 +46,12 @@ where
             pick_phantom: PhantomData {},
         }
     }
+}
+impl<C, FP> ReadImageFiles for LocalReader<C, FP>
+where
+    C: Preload,
+    FP: PickFolder,
+{
     fn next(&mut self) {
         self.file_selected_idx = next(self.file_selected_idx, self.file_paths.len());
     }

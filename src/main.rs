@@ -4,7 +4,7 @@
 use crate::gui::Framework;
 use image::{ImageBuffer, Rgb};
 use log::error;
-use pixels::{Error, Pixels, SurfaceTexture};
+use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -26,7 +26,7 @@ const START_HEIGHT: u32 = 480;
 const LEFT_BTN: usize = 0;
 const RIGHT_BTN: usize = 1;
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<(), pixels::Error> {
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();

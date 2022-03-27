@@ -15,6 +15,9 @@ impl RvError {
             msg: msg.to_string(),
         }
     }
+    pub fn msg(&self) -> &str {
+        &self.msg
+    }
 }
 impl Display for RvError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {

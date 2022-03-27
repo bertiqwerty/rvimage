@@ -1,10 +1,10 @@
 use crate::{
-    cache::file_cache::FileCache,
+    cache::{file_cache::FileCache, Preload},
     cfg,
     result::{to_rv, RvError, RvResult},
 };
-use std::path::PathBuf;
 use std::str::FromStr;
+use std::{marker::PhantomData, path::PathBuf};
 
 use super::{PickFolder, ReadImageFiles};
 
@@ -16,12 +16,15 @@ impl PickFolder for ScpConfigPicker {
     }
 }
 
-pub struct ScpReader;
-
-impl ReadImageFiles for ScpReader {
-    fn new() -> Self {
-        Self
+pub struct ScpReader<C: Preload> {
+    pick_phantom: PhantomData<C>,
+}
+impl<C: Preload> ScpReader<C> {
+    pub fn new() -> Self {
+        Self {pick_phantom: PhantomData{}}
     }
+}
+impl<C: Preload> ReadImageFiles for ScpReader<C> {
     fn next(&mut self) {}
     fn prev(&mut self) {}
     fn read_image(
