@@ -1,7 +1,0 @@
-    connection = "Local"
-    [scp_cfg]
-    remote_folder_path = "a/b/c"
-    address = "10.100.9.8"
-    user = "someuser"
-    ssh_key_file_path = "local/path"
- 
