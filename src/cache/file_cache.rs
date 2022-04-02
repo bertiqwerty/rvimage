@@ -1,18 +1,17 @@
-use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, fs, path::Path, path::PathBuf, str::FromStr};
 
-use crate::{
+use crate::{cfg,
     cache::{DefaultReader, Preload, ReaderType, ResultImage},
     format_rverr,
     result::{to_rv, RvError, RvResult},
     threadpool::ThreadPool,
     util,
 };
-fn filename_in_tmpdir(path: &str) -> RvResult<String> {
+fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
     let path = PathBuf::from_str(path).unwrap();
     let fname = util::osstr_to_str(path.file_name()).map_err(to_rv)?;
-    let tmpfolder = std::env::temp_dir().join("rimview");
-    fs::create_dir_all(tmpfolder.clone()).map_err(to_rv)?;
-    tmpfolder
+    fs::create_dir_all(Path::new(tmpdir)).map_err(to_rv)?;
+    Path::new(tmpdir)
         .join(fname)
         .to_str()
         .map(|s| s.to_string())
@@ -34,12 +33,13 @@ fn preload<F: ReaderType>(
     tp: &mut ThreadPool<RvResult<String>>,
     cache: &HashMap<String, ThreadResult>,
     reader: &F,
+    tmp_dir: &str,
 ) -> RvResult<HashMap<String, ThreadResult>> {
     files
         .iter()
         .filter(|file| !cache.contains_key(*file))
         .map(|file| {
-            let tmp_file = filename_in_tmpdir(file)?;
+            let tmp_file = filename_in_tmpdir(file, tmp_dir)?;
             let file_for_thread = file.clone();
             let reader = reader.clone();
             let job = Box::new(move || match copy(&file_for_thread, reader, &tmp_file) {
@@ -70,6 +70,7 @@ where
     F: ReaderType,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
+        let cfg = cfg::get_cfg()?;
         if files.is_empty() {
             return Err(RvError::new("no files to read from"));
         }
@@ -89,6 +90,7 @@ where
             &mut self.tp,
             &self.cached_paths,
             &self.reader,
+            cfg.tmpdir()?
         )?;
         // update cache
         for elt in cache.into_iter() {
@@ -129,11 +131,12 @@ where
 #[cfg(test)]
 use image::{ImageBuffer, Rgb};
 #[cfg(test)]
-use std::{path::Path, thread, time::Duration};
+use std::{thread, time::Duration};
 
 #[test]
 fn test_file_cache() -> RvResult<()> {
-    fn test(files: &[&str], selected: usize) -> RvResult<()> {
+    let cfg = cfg::get_cfg()?;
+    let test = |files: &[&str], selected: usize| -> RvResult<()> {
         fn dummy_read(_: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
             let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
             Ok(dummy_image)
@@ -163,12 +166,12 @@ fn test_file_cache() -> RvResult<()> {
             let f = file.as_str();
             println!(
                 "filename in tmpdir {:?}",
-                Path::new(filename_in_tmpdir(f)?.as_str())
+                Path::new(filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str())
             );
-            assert!(Path::new(filename_in_tmpdir(f)?.as_str()).exists());
+            assert!(Path::new(filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str()).exists());
         }
         Ok(())
-    }
+    };
     assert!(test(&[], 0).is_err());
     test(&["1.png", "2.png", "3.png", "4.png"], 0)?;
     test(&["1.png", "2.png", "3.png", "4.png"], 1)?;
@@ -180,7 +183,7 @@ fn test_file_cache() -> RvResult<()> {
     test(&files_str, 36)?;
     for i in (14..25).chain(34..45) {
         let f = format!("{}.png", i);
-        assert!(Path::new(filename_in_tmpdir(f.as_str())?.as_str()).exists());
+        assert!(Path::new(filename_in_tmpdir(f.as_str(), cfg.tmpdir()?)?.as_str()).exists());
     }
 
     Ok(())

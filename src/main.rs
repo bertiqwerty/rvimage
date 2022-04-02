@@ -15,6 +15,7 @@ use world::{Crop, World};
 mod cache;
 mod gui;
 mod reader;
+mod ssh;
 mod threadpool;
 mod result;
 mod util;

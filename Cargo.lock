@@ -1989,6 +1989,7 @@ dependencies = [
  "egui_wgpu_backend",
  "env_logger",
  "image",
+ "lazy_static",
  "log",
  "pixels",
  "rfd",
