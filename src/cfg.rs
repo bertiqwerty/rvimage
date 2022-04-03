@@ -9,7 +9,7 @@ use std::{
 
 const CFG_TOML_PATH: &str = "cfg.toml";
 const CFG_DEFAULT: &str = r#"
-    connection = "Local" # "Local" or "Scp"
+    connection = "Local" # "Local" or "Ssh"
     cache = "FileCache"  # "NoCache" or "FileCache"
     # tmpdir = 
     [ssh_cfg]
@@ -52,7 +52,7 @@ fn unpack_cmd<'a>(cmd: &Option<&'a str>, default: &'a str) -> &'a str {
 
 #[derive(Deserialize, Debug)]
 pub enum Connection {
-    Scp,
+    Ssh,
     Local,
 }
 #[derive(Deserialize, Debug)]

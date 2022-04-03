@@ -68,7 +68,7 @@ pub fn copy(
     Ok(dst_file_path)
 }
 
-fn make_ls(remote_folder_name: &str, ssh_cfg: &SshCfg) -> RvResult<Command> {
+fn make_ls_cmd(remote_folder_name: &str, ssh_cfg: &SshCfg) -> RvResult<Command> {
     let ssh_cmd_begin = make_ssh_cmd_begin(ssh_cfg.ssh_cmd(), ssh_cfg);
     let cmd_str = format!("{} ls -l {}", ssh_cmd_begin, remote_folder_name);
     str_to_cmd(&cmd_str, ssh_cfg.terminal())
@@ -81,7 +81,7 @@ fn cmd_output_to_vec(mut cmd: Command) -> RvResult<Vec<String>> {
 }
 
 pub fn ssh_ls(remote_folder_name: &str, ssh_cfg: &SshCfg) -> RvResult<Vec<String>> {
-    let cmd = make_ls(remote_folder_name, ssh_cfg)?;
+    let cmd = make_ls_cmd(remote_folder_name, ssh_cfg)?;
     cmd_output_to_vec(cmd)
 }
 
@@ -101,7 +101,7 @@ fn test_commands() -> RvResult<()> {
     );
     assert_eq!(r#"testtmpdir/testfn"#, dst);
     let remote_folder = "/the/remote/folder";
-    let cmd = make_ls(remote_folder, &ssh_cfg)?;
+    let cmd = make_ls_cmd(remote_folder, &ssh_cfg)?;
     let cmd_string = format!("{:?}", cmd);
     assert_eq!(
         r#""cmd" "/C" "ssh" "-i" "local/path" "someuser@73.42.73.42" "ls" "-l" "/the/remote/folder""#,

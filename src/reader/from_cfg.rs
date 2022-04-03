@@ -24,13 +24,13 @@ impl ReaderFromCfg {
                 (Connection::Local, Cache::FileCache) => {
                     Box::new(Reader::<FileCache<ReadImageFromPath>, FileDialogPicker>::new())
                 }
-                (Connection::Scp, Cache::FileCache) => {
+                (Connection::Ssh, Cache::FileCache) => {
                     Box::new(Reader::<FileCache<ReadImageFromSsh>, SshConfigPicker>::new())
                 }
                 (Connection::Local, Cache::NoCache) => {
                     Box::new(Reader::<NoCache<ReadImageFromPath>, FileDialogPicker>::new())
                 }
-                (Connection::Scp, Cache::NoCache) => {
+                (Connection::Ssh, Cache::NoCache) => {
                     Box::new(Reader::<NoCache<ReadImageFromSsh>, SshConfigPicker>::new())
                 }
             },
