@@ -1,12 +1,15 @@
-use std::{collections::HashMap, fs, path::Path, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, fs, path::Path, path::PathBuf, str::FromStr, marker::PhantomData};
 
-use crate::{cfg,
-    cache::{DefaultReader, Preload, ReaderType, ResultImage},
-    format_rverr,
+use crate::{
+    cache::{Preload, ResultImage},
+    cfg, format_rverr,
     result::{to_rv, RvError, RvResult},
     threadpool::ThreadPool,
     util,
 };
+
+use super::ImageReaderFn;
+
 fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
     let path = PathBuf::from_str(path).unwrap();
     let fname = util::osstr_to_str(path.file_name()).map_err(to_rv)?;
@@ -28,11 +31,10 @@ where
     Ok(())
 }
 
-fn preload<F: ReaderType>(
+fn preload<F: ImageReaderFn>(
     files: &[String],
     tp: &mut ThreadPool<RvResult<String>>,
     cache: &HashMap<String, ThreadResult>,
-    reader: &F,
     tmp_dir: &str,
 ) -> RvResult<HashMap<String, ThreadResult>> {
     files
@@ -41,8 +43,7 @@ fn preload<F: ReaderType>(
         .map(|file| {
             let tmp_file = filename_in_tmpdir(file, tmp_dir)?;
             let file_for_thread = file.clone();
-            let reader = reader.clone();
-            let job = Box::new(move || match copy(&file_for_thread, reader, &tmp_file) {
+            let job = Box::new(move || match copy(&file_for_thread, F::read, &tmp_file) {
                 Ok(_) => Ok(tmp_file),
                 Err(e) => Err(e),
             });
@@ -55,19 +56,24 @@ enum ThreadResult {
     Running(usize),
     Ok(String),
 }
-pub struct FileCache<F = DefaultReader>
+pub struct FileCache<F>
 where
-    F: ReaderType,
+    F: ImageReaderFn,
 {
-    reader: F,
     cached_paths: HashMap<String, ThreadResult>,
     n_prev_images: usize,
     n_next_images: usize,
     tp: ThreadPool<RvResult<String>>,
+    reader_phantom: PhantomData<F>
 }
-impl<F> Preload<F> for FileCache<F>
+impl<F> FileCache<F>
 where
-    F: ReaderType,
+    F: ImageReaderFn,
+{
+}
+impl<F> Preload for FileCache<F>
+where
+    F: ImageReaderFn,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
         let cfg = cfg::get_cfg()?;
@@ -85,12 +91,11 @@ where
             selected_file_idx + self.n_next_images + 1
         };
         let files_to_preload = &files[start_idx..end_idx];
-        let cache = preload(
+        let cache = preload::<F>(
             files_to_preload,
             &mut self.tp,
             &self.cached_paths,
-            &self.reader,
-            cfg.tmpdir()?
+            cfg.tmpdir()?,
         )?;
         // update cache
         for elt in cache.into_iter() {
@@ -100,36 +105,38 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => (self.reader)(path_in_cache),
+            ThreadResult::Ok(path_in_cache) => F::read(path_in_cache),
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self
                     .tp
                     .poll(*job_id)
                     .ok_or_else(|| format_rverr!("didn't find job {}", job_id))??;
-                let res = (self.reader)(&path_in_cache);
+                let res = F::read(&path_in_cache);
                 *self.cached_paths.get_mut(selected_file).unwrap() =
                     ThreadResult::Ok(path_in_cache);
                 res
             }
         }
     }
-    fn new(reader: F) -> Self {
+    fn new() -> Self {
+        
         let n_prev_images = 2;
         let n_next_images = 8;
         let n_threads = 2;
         let tp = ThreadPool::new(n_threads);
         Self {
-            reader,
             cached_paths: HashMap::new(),
             n_prev_images,
             n_next_images,
             tp,
+            reader_phantom: PhantomData{}
         }
     }
+
 }
 
 #[cfg(test)]
-use image::{ImageBuffer, Rgb};
+use {image::{ImageBuffer, Rgb}};
 #[cfg(test)]
 use std::{thread, time::Duration};
 
@@ -137,11 +144,14 @@ use std::{thread, time::Duration};
 fn test_file_cache() -> RvResult<()> {
     let cfg = cfg::get_cfg()?;
     let test = |files: &[&str], selected: usize| -> RvResult<()> {
-        fn dummy_read(_: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
-            let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
-            Ok(dummy_image)
+        struct DummyRead;
+        impl ImageReaderFn for DummyRead {
+            fn read(_: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+                let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
+                Ok(dummy_image)
+            }
         }
-        let mut cache = FileCache::new(dummy_read);
+        let mut cache = FileCache::<DummyRead>::new();
         let min_i = if selected > cache.n_prev_images {
             selected - cache.n_prev_images
         } else {

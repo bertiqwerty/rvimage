@@ -1,39 +1,33 @@
+use std::marker::PhantomData;
+
 use image::{ImageBuffer, Rgb};
 
 use crate::result::RvResult;
 
 pub mod file_cache;
 
-type ResultImage = RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+pub type ResultImage = RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
 
-type DefaultReader = fn(&str) -> ResultImage;
+pub trait ImageReaderFn {
+    //: Send + Sync + Clone + 'static {
+    fn read(local_path: &str) -> ResultImage;
+}
 
-pub trait ReaderType: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static {}
-impl<T: Fn(&str) -> ResultImage + Send + Sync + Clone + 'static> ReaderType for T {}
-
-pub trait Preload<F = DefaultReader>
-where
-    F: ReaderType,
-{
+pub trait Preload {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage;
-    fn new(reader: F) -> Self;
+    fn new() -> Self;
 }
 
-pub struct NoCache<F = DefaultReader>
-where
-    F: ReaderType,
-{
-    reader: F,
+pub struct NoCache<F: ImageReaderFn> {
+    reader_phantom: PhantomData<F>,
 }
-
-impl<F> Preload<F> for NoCache<F>
-where
-    F: ReaderType,
-{
+impl<F: ImageReaderFn> Preload for NoCache<F> {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
-        (self.reader)(&files[selected_file_idx])
+        F::read(&files[selected_file_idx])
     }
-    fn new(reader: F) -> Self {
-        Self { reader }
+    fn new() -> Self {
+        Self {
+            reader_phantom: PhantomData {},
+        }
     }
 }

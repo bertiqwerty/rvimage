@@ -1,8 +1,13 @@
 use crate::{
     cache::{file_cache::FileCache, NoCache},
     cfg::{get_cfg, Cache, Cfg, Connection},
-    reader::{local_reader::LocalReader, scp_reader::ScpReader, ReadImageFiles},
     result::RvResult,
+};
+
+use super::{
+    core::{ReadImageFiles, ReadImageFromPath, Reader},
+    local_reader::FileDialogPicker,
+    ssh_reader::{ReadImageFromSsh, SshConfigPicker},
 };
 
 pub struct ReaderFromCfg {
@@ -16,10 +21,18 @@ impl ReaderFromCfg {
     pub fn from_cfg(cfg: Cfg) -> Self {
         Self {
             reader: match (cfg.connection, cfg.cache) {
-                (Connection::Local, Cache::FileCache) => Box::new(LocalReader::<FileCache>::new()),
-                (Connection::Scp, Cache::FileCache) => Box::new(ScpReader::<FileCache>::new()),
-                (Connection::Local, Cache::NoCache) => Box::new(LocalReader::<NoCache>::new()),
-                (Connection::Scp, Cache::NoCache) => Box::new(ScpReader::<NoCache>::new()),
+                (Connection::Local, Cache::FileCache) => {
+                    Box::new(Reader::<FileCache<ReadImageFromPath>, FileDialogPicker>::new())
+                }
+                (Connection::Scp, Cache::FileCache) => {
+                    Box::new(Reader::<FileCache<ReadImageFromSsh>, SshConfigPicker>::new())
+                }
+                (Connection::Local, Cache::NoCache) => {
+                    Box::new(Reader::<NoCache<ReadImageFromPath>, FileDialogPicker>::new())
+                }
+                (Connection::Scp, Cache::NoCache) => {
+                    Box::new(Reader::<NoCache<ReadImageFromSsh>, SshConfigPicker>::new())
+                }
             },
         }
     }

@@ -31,7 +31,7 @@ fn make_ssh_cmd_begin(cmd: &str, ssh_cfg: &SshCfg) -> String {
     )
 }
 
-fn make_copy(
+fn make_copy_cmd(
     file_name: &str,
     local_dst_folder: &str,
     ssh_cfg: &SshCfg,
@@ -63,7 +63,7 @@ pub fn copy(
     local_dst_folder: &str,
     ssh_cfg: &SshCfg,
 ) -> RvResult<String> {
-    let (mut cmd, dst_file_path) = make_copy(remote_src_file_name, local_dst_folder, ssh_cfg)?;
+    let (mut cmd, dst_file_path) = make_copy_cmd(remote_src_file_name, local_dst_folder, ssh_cfg)?;
     cmd.output().map_err(to_rv)?;
     Ok(dst_file_path)
 }
@@ -93,7 +93,7 @@ fn test_commands() -> RvResult<()> {
     let ssh_cfg = default_cfg.ssh_cfg;
     let tmpdir = "testtmpdir";
     let file_name = "testfn";
-    let (cmd, dst) = make_copy(file_name, tmpdir, &ssh_cfg)?;
+    let (cmd, dst) = make_copy_cmd(file_name, tmpdir, &ssh_cfg)?;
     let cmd_string = format!("{:?}", cmd);
     assert_eq!(
         r#""cmd" "/C" "scp" "-i" "local/path" "someuser@73.42.73.42:a/b/c/testfn" "testtmpdir/testfn""#,
