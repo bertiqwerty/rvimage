@@ -1,5 +1,5 @@
 use crate::{
-    cache::{file_cache::FileCache, NoCache},
+    cache::{FileCache, NoCache},
     cfg::{get_cfg, Cache, Cfg, Connection},
     result::RvResult,
 };

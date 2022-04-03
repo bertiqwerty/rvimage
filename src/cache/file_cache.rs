@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs, path::Path, path::PathBuf, str::FromStr, marker::PhantomData};
 
 use crate::{
-    cache::{Preload, ResultImage},
+    cache::{core::{Preload, ResultImage}},
     cfg, format_rverr,
     result::{to_rv, RvError, RvResult},
     threadpool::ThreadPool,

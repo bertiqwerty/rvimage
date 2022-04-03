@@ -1,6 +1,6 @@
 use crate::{
     cfg::get_default_cfg,
-    reader::{from_cfg::ReaderFromCfg, ReadImageFiles},
+    reader::{ReaderFromCfg, ReadImageFiles},
 };
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
