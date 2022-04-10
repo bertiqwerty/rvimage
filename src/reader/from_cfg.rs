@@ -1,7 +1,7 @@
 use crate::{
-    cache::{FileCache, NoCache},
+    cache::{FileCache, FileCacheArgs, NoCache},
     cfg::{get_cfg, Cache, Cfg, Connection},
-    result::RvResult,
+    result::{RvError, RvResult},
 };
 
 use super::{
@@ -10,31 +10,39 @@ use super::{
     ssh_reader::{ReadImageFromSsh, SshConfigPicker},
 };
 
+fn unwrap_file_cache_args(args: Option<FileCacheArgs>) -> RvResult<FileCacheArgs> {
+    args.ok_or_else(|| RvError::new("cfg with file cache needs file_cache_args"))
+}
+
 pub struct ReaderFromCfg {
     reader: Box<dyn ReadImageFiles>,
 }
 impl ReaderFromCfg {
     pub fn new() -> RvResult<Self> {
         let cfg = get_cfg()?;
-        Ok(Self::from_cfg(cfg))
+        Self::from_cfg(cfg)
     }
-    pub fn from_cfg(cfg: Cfg) -> Self {
-        Self {
+    pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
+        Ok(Self {
             reader: match (cfg.connection, cfg.cache) {
                 (Connection::Local, Cache::FileCache) => {
-                    Box::new(Reader::<FileCache<ReadImageFromPath>, FileDialogPicker>::new())
+                    let args = unwrap_file_cache_args(cfg.file_cache_args)?;
+                    Box::new(
+                        Reader::<FileCache<ReadImageFromPath>, FileDialogPicker, _>::new(args),
+                    )
                 }
                 (Connection::Ssh, Cache::FileCache) => {
-                    Box::new(Reader::<FileCache<ReadImageFromSsh>, SshConfigPicker>::new())
+                    let args = unwrap_file_cache_args(cfg.file_cache_args)?;
+                    Box::new(Reader::<FileCache<ReadImageFromSsh>, SshConfigPicker, _>::new(args))
                 }
                 (Connection::Local, Cache::NoCache) => {
-                    Box::new(Reader::<NoCache<ReadImageFromPath>, FileDialogPicker>::new())
+                    Box::new(Reader::<NoCache<ReadImageFromPath>, FileDialogPicker, _>::new(()))
                 }
                 (Connection::Ssh, Cache::NoCache) => {
-                    Box::new(Reader::<NoCache<ReadImageFromSsh>, SshConfigPicker>::new())
+                    Box::new(Reader::<NoCache<ReadImageFromSsh>, SshConfigPicker, _>::new(()))
                 }
             },
-        }
+        })
     }
 }
 impl ReadImageFiles for ReaderFromCfg {

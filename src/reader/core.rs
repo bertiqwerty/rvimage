@@ -84,9 +84,9 @@ pub trait PickFolder {
     fn pick() -> RvResult<(String, Vec<String>)>;
 }
 
-pub struct Reader<C, FP>
+pub struct Reader<C, FP, A>
 where
-    C: Preload,
+    C: Preload<A>,
     FP: PickFolder,
 {
     file_paths: Vec<String>,
@@ -94,27 +94,29 @@ where
     file_selected_idx: Option<usize>,
     cache: C,
     pick_phantom: PhantomData<FP>,
+    args_phantom: PhantomData<A>,
 }
 
-impl<C, FP> Reader<C, FP>
+impl<C, FP, A> Reader<C, FP, A>
 where
-    C: Preload,
+    C: Preload<A>,
     FP: PickFolder,
 {
-    pub fn new() -> Self {
+    pub fn new(args: A) -> Self {
         Reader {
             file_paths: vec![],
             folder_path: None,
             file_selected_idx: None,
-            cache: C::new(),
+            cache: C::new(args),
             pick_phantom: PhantomData {},
+            args_phantom: PhantomData {},
         }
     }
 }
 
-impl<C, FP> ReadImageFiles for Reader<C, FP>
+impl<C, FP, A> ReadImageFiles for Reader<C, FP, A>
 where
-    C: Preload,
+    C: Preload<A>,
     FP: PickFolder,
 {
     fn next(&mut self) {
@@ -184,7 +186,14 @@ struct TmpFolderPicker;
 impl PickFolder for TmpFolderPicker {
     fn pick() -> RvResult<(String, Vec<String>)> {
         let tmpdir = env::temp_dir();
-        Ok((format!("{}/{}", tmpdir.to_str().ok_or_else(||RvError::new("tmpdir???"))?, TMP_SUBFOLDER), vec![]))
+        Ok((
+            format!(
+                "{}/{}",
+                tmpdir.to_str().ok_or_else(|| format_rverr!("cannot stringify {:?}", tmpdir))?,
+                TMP_SUBFOLDER
+            ),
+            vec![],
+        ))
     }
 }
 
@@ -201,7 +210,7 @@ fn test_folder_reader() -> RvResult<()> {
         let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));
         im.save(out_path).unwrap();
     }
-    let mut reader = Reader::<NoCache<ReadImageFromPath>, TmpFolderPicker>::new();
+    let mut reader = Reader::<NoCache<ReadImageFromPath>, TmpFolderPicker, ()>::new(());
     reader.open_folder()?;
     for (i, label) in reader.list_file_labels()?.iter().enumerate() {
         assert_eq!(label[label.len() - 13..], format!("tmpfile_{}.png", i));

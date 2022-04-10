@@ -1,7 +1,4 @@
-use crate::{
-    cfg::get_default_cfg,
-    reader::{ReaderFromCfg, ReadImageFiles},
-};
+use crate::reader::{ReadImageFiles, ReaderFromCfg};
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use image::{ImageBuffer, Rgb};
@@ -145,7 +142,7 @@ impl Gui {
         let (reader_from_cfg, info) = match ReaderFromCfg::new() {
             Ok(rfc) => (rfc, Info::None),
             Err(e) => (
-                ReaderFromCfg::from_cfg(get_default_cfg()),
+                ReaderFromCfg::new().expect("default cfg broken"),
                 Info::Warning(e.msg().to_string()),
             ),
         };

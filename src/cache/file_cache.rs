@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fs, marker::PhantomData, fmt::Debug, path::Path, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path, path::PathBuf,
+    str::FromStr,
+};
 
 use crate::{
     cache::core::{Preload, ResultImage},
@@ -61,6 +64,14 @@ enum ThreadResult {
     Running(usize),
     Ok(String),
 }
+
+#[derive(Deserialize, Debug)]
+pub struct FileCacheArgs {
+    n_prev_images: usize,
+    n_next_images: usize,
+    n_threads: usize,
+}
+
 pub struct FileCache<IR>
 where
     IR: ImageReaderFn,
@@ -72,7 +83,7 @@ where
     reader_phantom: PhantomData<IR>,
 }
 impl<IR> FileCache<IR> where IR: ImageReaderFn {}
-impl<IR> Preload for FileCache<IR>
+impl<IR> Preload<FileCacheArgs> for FileCache<IR>
 where
     IR: ImageReaderFn,
 {
@@ -113,7 +124,7 @@ where
                     .tp
                     .poll(*job_id)
                     .ok_or_else(|| format_rverr!("didn't find job {}", job_id))??;
-                
+
                 let res = IR::read(&path_in_cache);
                 *self.cached_paths.get_mut(selected_file).unwrap() =
                     ThreadResult::Ok(path_in_cache);
@@ -121,10 +132,8 @@ where
             }
         }
     }
-    fn new() -> Self {
-        let n_prev_images = 2;
-        let n_next_images = 8;
-        let n_threads = 1;
+    fn new(args: FileCacheArgs) -> Self {
+        let FileCacheArgs{n_prev_images, n_next_images, n_threads} = args;
         let tp = ThreadPool::new(n_threads);
         Self {
             cached_paths: HashMap::new(),
@@ -138,6 +147,7 @@ where
 
 #[cfg(test)]
 use image::{ImageBuffer, Rgb};
+use serde::Deserialize;
 #[cfg(test)]
 use std::{thread, time::Duration};
 
@@ -152,7 +162,12 @@ fn test_file_cache() -> RvResult<()> {
                 Ok(dummy_image)
             }
         }
-        let mut cache = FileCache::<DummyRead>::new();
+        let file_cache_args = FileCacheArgs {
+            n_prev_images: 2,
+            n_next_images: 8,
+            n_threads: 2,
+        };
+        let mut cache = FileCache::<DummyRead>::new(file_cache_args);
         let min_i = if selected > cache.n_prev_images {
             selected - cache.n_prev_images
         } else {

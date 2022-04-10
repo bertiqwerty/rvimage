@@ -1,4 +1,4 @@
-use crate::result::{to_rv, RvError, RvResult};
+use crate::{result::{to_rv, RvError, RvResult}, cache::FileCacheArgs};
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::{
@@ -11,6 +11,10 @@ const CFG_TOML_PATH: &str = "cfg.toml";
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
     cache = "FileCache"  # "NoCache" or "FileCache"
+    [file_cache_args]
+    n_prev_images = 2
+    n_next_images = 8
+    n_threads = 2 
     # tmpdir = 
     [ssh_cfg]
     remote_folder_path = "a/b/c"
@@ -111,6 +115,7 @@ impl SshCfg {
 pub struct Cfg {
     pub connection: Connection,
     pub cache: Cache,
+    pub file_cache_args: Option<FileCacheArgs>,
     tmpdir: Option<String>,
     pub ssh_cfg: SshCfg,
 }
