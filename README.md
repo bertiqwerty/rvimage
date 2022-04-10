@@ -1,2 +1,7 @@
 # Are we image?
-Remote image viewer in Rust with SSH connector.
+**R**emote **v**iewer for **image**s in Rust that connects via 
+
+* SSH or
+* mounted folders 
+
+and caches images locally.

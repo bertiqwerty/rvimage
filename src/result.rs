@@ -26,7 +26,7 @@ impl Display for RvError {
 }
 impl Error for RvError {}
 
-/// Rimview's result type with [`RvError`](RvError) as error type.
+/// RV Image's result type with [`RvError`](RvError) as error type.
 pub type RvResult<U> = Result<U, RvError>;
 
 /// Creates an [`RvError`](RvError) with a formatted message.

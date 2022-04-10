@@ -31,7 +31,7 @@ const CFG_DEFAULT: &str = r#"
     "#;
 
 lazy_static! {
-    static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rimview");
+    static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
 }
 
 const SSH_CMD_ARR: [&str; 3] = if cfg!(target_os = "windows") {

@@ -34,7 +34,7 @@ fn main() -> Result<(), pixels::Error> {
     let window = {
         let size = LogicalSize::new(START_WIDTH as f64, START_HEIGHT as f64);
         WindowBuilder::new()
-            .with_title("Rimview")
+            .with_title("RV Image")
             .with_inner_size(size)
             .with_min_inner_size(size)
             .build(&event_loop)
@@ -178,11 +178,11 @@ fn main() -> Result<(), pixels::Error> {
                 let s = match data_point {
                     Some((x, y, rgb)) => {
                         format!(
-                            "Rimview - {}x{} - ({}, {}) -> ({}, {}, {})",
+                            "RV Image - {}x{} - ({}, {}) -> ({}, {}, {})",
                             w_orig, h_orig, x, y, rgb[0], rgb[1], rgb[2]
                         )
                     }
-                    None => format!("Rimview - {}x{} - (x, y) -> (r, g, b)", w_orig, h_orig),
+                    None => format!("RV Image - {}x{} - (x, y) -> (r, g, b)", w_orig, h_orig),
                 };
                 window.set_title(s.as_str())
             }

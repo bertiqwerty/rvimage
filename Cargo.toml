@@ -1,5 +1,5 @@
 [package]
-name = "rimview"
+name = "rvimage"
 version = "0.1.0"
 authors = ["Behrang Shafei"]
 edition = "2021"

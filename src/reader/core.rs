@@ -179,7 +179,7 @@ where
 use {crate::cache::NoCache, std::env};
 
 #[cfg(test)]
-const TMP_SUBFOLDER: &str = "rimview_testdata";
+const TMP_SUBFOLDER: &str = "rvimage_testdata";
 #[cfg(test)]
 struct TmpFolderPicker;
 #[cfg(test)]
