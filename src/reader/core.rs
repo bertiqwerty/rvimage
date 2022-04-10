@@ -151,7 +151,6 @@ where
                 let one_before_last = folder_path.ancestors().nth(1);
                 match (one_before_last, last) {
                     (Some(obl), Some(l)) => {
-                        println!("obl: {:?}; l: {:?}", obl, l);
                         Ok(format!("{}/{}", to_stem_str(obl)?, to_stem_str(l)?,))
                     }
                     (None, Some(l)) => Ok(to_stem_str(l)?.to_string()),

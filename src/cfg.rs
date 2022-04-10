@@ -30,8 +30,20 @@ lazy_static! {
     static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rimview");
 }
 
+const SSH_CMD_ARR: [&str; 3] = if cfg!(target_os = "windows") {
+    ["cmd", "/C", "ssh"]
+} else {
+    ["sh", "-c", "ssh"]
+};
+
+const SCP_CMD_ARR: [&str; 3] = if cfg!(target_os = "windows") {
+    ["cmd", "/C", "scp"]
+} else {
+    ["sh", "-c", "scp"]
+};
+
 pub fn get_default_cfg() -> Cfg {
-    toml::from_str(CFG_DEFAULT).expect("default config broken.")
+    toml::from_str(CFG_DEFAULT).expect("default config broken")
 }
 
 pub fn get_cfg() -> RvResult<Cfg> {
@@ -43,10 +55,28 @@ pub fn get_cfg() -> RvResult<Cfg> {
     }
 }
 
-fn unpack_cmd<'a>(cmd: &Option<&'a str>, default: &'a str) -> &'a str {
+fn to_vec_string(strs: &[&str]) -> Vec<String> {
+    strs.iter().map(|s| s.to_string()).collect::<Vec<_>>()
+}
+
+fn ssh_default_cmd() -> &'static [String] {
+    lazy_static! {
+        pub static ref DEFAULT: Vec<String> = to_vec_string(&SSH_CMD_ARR);
+    }
+    &DEFAULT
+}
+
+fn scp_default_cmd() -> &'static [String] {
+    lazy_static! {
+        pub static ref DEFAULT: Vec<String> = to_vec_string(&SCP_CMD_ARR);
+    }
+    &DEFAULT
+}
+
+fn unpack_cmd<'a>(cmd: &'a Option<Vec<String>>, default_cmd: &'static [String]) -> &'a [String] {
     match cmd {
         Some(s) => s,
-        None => default,
+        None => &default_cmd,
     }
 }
 
@@ -66,28 +96,15 @@ pub struct SshCfg {
     pub address: String,
     pub user: String,
     pub ssh_identity_file_path: String,
-    scp_cmd: Option<String>,
-    ssh_cmd: Option<String>,
-    terminal: Option<String>,
+    scp_cmd: Option<Vec<String>>,
+    ssh_cmd: Option<Vec<String>>,
 }
 impl SshCfg {
-    pub fn ssh_cmd(&self) -> &str {
-        unpack_cmd(&self.ssh_cmd.as_deref(), "ssh")
+    pub fn ssh_cmd(&self) -> &[String] {
+        unpack_cmd(&self.ssh_cmd, ssh_default_cmd())
     }
-    pub fn scp_cmd(&self) -> &str {
-        unpack_cmd(&self.scp_cmd.as_deref(), "scp")
-    }
-    pub fn terminal(&self) -> &str {
-        match &self.terminal {
-            Some(s) => s,
-            None => {
-                if cfg!(target_os = "windows") {
-                    "cmd /C"
-                } else {
-                    "sh -c"
-                }
-            }
-        }
+    pub fn scp_cmd(&self) -> &[String] {
+        unpack_cmd(&self.scp_cmd, scp_default_cmd())
     }
 }
 #[derive(Deserialize, Debug)]
@@ -119,7 +136,12 @@ fn test_cmd() -> RvResult<()> {
     let cfg = get_default_cfg();
     assert_eq!(None, cfg.ssh_cfg.ssh_cmd);
     assert_eq!(None, cfg.ssh_cfg.scp_cmd);
-    assert_eq!("ssh", cfg.ssh_cfg.ssh_cmd());
-    assert_eq!("scp", cfg.ssh_cfg.scp_cmd());
+    if cfg!(target_os = "windows") {
+        assert_eq!(["cmd", "/C", "ssh"], cfg.ssh_cfg.ssh_cmd());
+        assert_eq!(["cmd", "/C", "scp"], cfg.ssh_cfg.scp_cmd());
+    } else {
+        assert_eq!(["sh", "cc", "ssh"], cfg.ssh_cfg.ssh_cmd());
+        assert_eq!(["sh", "-c", "scp"], cfg.ssh_cfg.scp_cmd());
+    }
     Ok(())
 }

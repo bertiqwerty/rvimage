@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fs, path::Path, path::PathBuf, str::FromStr, marker::PhantomData};
+use std::{collections::HashMap, fs, marker::PhantomData, fmt::Debug, path::Path, path::PathBuf, str::FromStr};
 
 use crate::{
-    cache::{core::{Preload, ResultImage}},
+    cache::core::{Preload, ResultImage},
     cfg, format_rverr,
     result::{to_rv, RvError, RvResult},
     threadpool::ThreadPool,
@@ -31,7 +31,7 @@ where
     Ok(())
 }
 
-fn preload<F: ImageReaderFn>(
+fn preload<IR: ImageReaderFn>(
     files: &[String],
     tp: &mut ThreadPool<RvResult<String>>,
     cache: &HashMap<String, ThreadResult>,
@@ -41,39 +41,40 @@ fn preload<F: ImageReaderFn>(
         .iter()
         .filter(|file| !cache.contains_key(*file))
         .map(|file| {
-            let tmp_file = filename_in_tmpdir(file, tmp_dir)?;
+            let dst_file = filename_in_tmpdir(file, tmp_dir)?;
             let file_for_thread = file.clone();
-            let job = Box::new(move || match copy(&file_for_thread, F::read, &tmp_file) {
-                Ok(_) => Ok(tmp_file),
-                Err(e) => Err(e),
-            });
+            let dst_file_for_thread = dst_file.clone();
+            let job =
+                Box::new(
+                    move || match copy(&file_for_thread, IR::read, &dst_file_for_thread) {
+                        Ok(_) => Ok(dst_file_for_thread),
+                        Err(e) => Err(e),
+                    },
+                );
             Ok((file.clone(), ThreadResult::Running(tp.apply(job)?)))
         })
         .collect::<RvResult<HashMap<_, _>>>()
 }
 
+#[derive(Debug)]
 enum ThreadResult {
     Running(usize),
     Ok(String),
 }
-pub struct FileCache<F>
+pub struct FileCache<IR>
 where
-    F: ImageReaderFn,
+    IR: ImageReaderFn,
 {
     cached_paths: HashMap<String, ThreadResult>,
     n_prev_images: usize,
     n_next_images: usize,
     tp: ThreadPool<RvResult<String>>,
-    reader_phantom: PhantomData<F>
+    reader_phantom: PhantomData<IR>,
 }
-impl<F> FileCache<F>
+impl<IR> FileCache<IR> where IR: ImageReaderFn {}
+impl<IR> Preload for FileCache<IR>
 where
-    F: ImageReaderFn,
-{
-}
-impl<F> Preload for FileCache<F>
-where
-    F: ImageReaderFn,
+    IR: ImageReaderFn,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
         let cfg = cfg::get_cfg()?;
@@ -91,7 +92,8 @@ where
             selected_file_idx + self.n_next_images + 1
         };
         let files_to_preload = &files[start_idx..end_idx];
-        let cache = preload::<F>(
+        println!("{:?}", files_to_preload);
+        let cache = preload::<IR>(
             files_to_preload,
             &mut self.tp,
             &self.cached_paths,
@@ -105,13 +107,14 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => F::read(path_in_cache),
+            ThreadResult::Ok(path_in_cache) => IR::read(path_in_cache),
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self
                     .tp
                     .poll(*job_id)
                     .ok_or_else(|| format_rverr!("didn't find job {}", job_id))??;
-                let res = F::read(&path_in_cache);
+                
+                let res = IR::read(&path_in_cache);
                 *self.cached_paths.get_mut(selected_file).unwrap() =
                     ThreadResult::Ok(path_in_cache);
                 res
@@ -119,24 +122,22 @@ where
         }
     }
     fn new() -> Self {
-        
         let n_prev_images = 2;
         let n_next_images = 8;
-        let n_threads = 2;
+        let n_threads = 1;
         let tp = ThreadPool::new(n_threads);
         Self {
             cached_paths: HashMap::new(),
             n_prev_images,
             n_next_images,
             tp,
-            reader_phantom: PhantomData{}
+            reader_phantom: PhantomData {},
         }
     }
-
 }
 
 #[cfg(test)]
-use {image::{ImageBuffer, Rgb}};
+use image::{ImageBuffer, Rgb};
 #[cfg(test)]
 use std::{thread, time::Duration};
 

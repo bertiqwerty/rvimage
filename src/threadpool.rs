@@ -70,8 +70,9 @@ impl<T: Debug + Clone + Send + 'static> ThreadPool<T> {
                         Ok(_) => {
                             println!("thread {} send a result.", idx_thread);
                         }
-                        Err(_) => {
+                        Err(e) => {
                             println!("thread {} terminated. receiver gone.", idx_thread);
+                            println!("error: {:?}", e);
                             return;
                         }
                     }

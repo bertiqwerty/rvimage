@@ -1992,6 +1992,7 @@ dependencies = [
  "lazy_static",
  "log",
  "pixels",
+ "regex",
  "rfd",
  "serde",
  "toml",
