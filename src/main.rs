@@ -144,11 +144,11 @@ fn main() -> Result<(), pixels::Error> {
             // load new image
             let gui_file_selected = framework.gui().file_selected_idx();
             if file_selected != gui_file_selected {
-                if let Some(seleceted) = &gui_file_selected {
+                if let Some(selected) = &gui_file_selected {
                     file_selected = gui_file_selected;
                     let old_crop = world.get_crop();
                     let (old_w, old_h) = world.shape_orig();
-                    world = World::new(framework.gui().read_image(*seleceted));
+                    world = World::new(framework.gui().read_image(*selected));
                     if (old_w, old_h) == world.shape_orig() {
                         world.apply_crop(&old_crop);
                     }
