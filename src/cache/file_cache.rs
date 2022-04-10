@@ -103,7 +103,6 @@ where
             selected_file_idx + self.n_next_images + 1
         };
         let files_to_preload = &files[start_idx..end_idx];
-        println!("{:?}", files_to_preload);
         let cache = preload::<IR>(
             files_to_preload,
             &mut self.tp,

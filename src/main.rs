@@ -10,22 +10,31 @@ use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
-use world::{Crop, World};
+use world::World;
 
 mod cache;
+mod cfg;
 mod gui;
 mod reader;
+mod result;
 mod ssh;
 mod threadpool;
-mod result;
 mod util;
-mod cfg;
 mod world;
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 
 const LEFT_BTN: usize = 0;
 const RIGHT_BTN: usize = 1;
+
+pub fn mouse_pos_transform(
+    pixels: &Pixels,
+    input_pos: Option<(f32, f32)>,
+) -> Option<(usize, usize)> {
+    pixels
+        .window_pos_to_pixel(input_pos.unwrap_or((-1.0, -1.0)))
+        .ok()
+}
 
 fn main() -> Result<(), pixels::Error> {
     env_logger::init();
@@ -51,8 +60,7 @@ fn main() -> Result<(), pixels::Error> {
     };
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
-    let mut world = World::new(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT));
-    let mut mouse_pressed_start_pos: Option<(usize, usize)> = None;
+    let mut world = World::new(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT), None);
     let mut file_selected = None;
 
     event_loop.run(move |event, _, control_flow| {
@@ -64,67 +72,11 @@ fn main() -> Result<(), pixels::Error> {
                 return;
             }
 
-            let mouse_pos = pixels
-                .window_pos_to_pixel(input.mouse().unwrap_or((-1.0, -1.0)))
-                .ok();
+            world.update(&input, &window, &mut pixels);
 
+            let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
             if input.key_pressed(VirtualKeyCode::M) {
                 framework.gui().open();
-            }
-
-            // crop
-            if input.mouse_pressed(LEFT_BTN) || input.mouse_pressed(RIGHT_BTN) {
-                if let (None, Some((m_x, m_y))) = (mouse_pressed_start_pos, mouse_pos) {
-                    mouse_pressed_start_pos = Some((m_x, m_y));
-                }
-            }
-            if input.mouse_released(LEFT_BTN) {
-                if let (Some(mps), Some(mr)) = (mouse_pressed_start_pos, mouse_pos) {
-                    world.crop(mps, mr, &window.inner_size());
-                    if world.get_crop().is_some() {
-                        let (w, h) = world.scale_to_match_win_inner(
-                            window.inner_size().width,
-                            window.inner_size().height,
-                        );
-                        pixels.resize_buffer(w, h);
-                    }
-                }
-                mouse_pressed_start_pos = None;
-                world.hide_draw_crop();
-            }
-            // crop move
-            if input.mouse_held(RIGHT_BTN) {
-                if let (Some(mps), Some(mp)) = (mouse_pressed_start_pos, mouse_pos) {
-                    let win_inner = window.inner_size();
-                    world.move_crop(mps, mp, &win_inner);
-                    world.scale_to_match_win_inner(win_inner.width, win_inner.height);
-                    mouse_pressed_start_pos = mouse_pos;
-                }
-            } else if input.mouse_held(LEFT_BTN) {
-                if let (Some((mps_x, mps_y)), Some((m_x, m_y))) =
-                    (mouse_pressed_start_pos, mouse_pos)
-                {
-                    let x_min = mps_x.min(m_x);
-                    let y_min = mps_y.min(m_y);
-                    let x_max = mps_x.max(m_x);
-                    let y_max = mps_y.max(m_y);
-                    world.show_draw_crop(Crop {
-                        x: x_min as u32,
-                        y: y_min as u32,
-                        w: (x_max - x_min) as u32,
-                        h: (y_max - y_min) as u32,
-                    });
-                }
-            }
-            if input.mouse_released(RIGHT_BTN) {
-                mouse_pressed_start_pos = None;
-            }
-            // uncrop
-            if input.key_pressed(VirtualKeyCode::Back) {
-                world.uncrop();
-                let size = window.inner_size();
-                let (w, h) = world.scale_to_match_win_inner(size.width, size.height);
-                pixels.resize_buffer(w, h);
             }
 
             if input.key_pressed(VirtualKeyCode::Right)
@@ -146,12 +98,7 @@ fn main() -> Result<(), pixels::Error> {
             if file_selected != gui_file_selected {
                 if let Some(selected) = &gui_file_selected {
                     file_selected = gui_file_selected;
-                    let old_crop = world.get_crop();
-                    let (old_w, old_h) = world.shape_orig();
-                    world = World::new(framework.gui().read_image(*selected));
-                    if (old_w, old_h) == world.shape_orig() {
-                        world.apply_crop(&old_crop);
-                    }
+                    world = World::new(framework.gui().read_image(*selected), Some(world.clone()));
                     let size = window.inner_size();
                     let (w, h) = world.scale_to_match_win_inner(size.width, size.height);
                     pixels.resize_buffer(w, h);
