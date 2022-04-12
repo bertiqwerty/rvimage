@@ -216,9 +216,9 @@ impl Gui {
                     };
                 }
                 ui.separator();
-                ui.label("crop - left mouse");
-                ui.label("move crop - right mouse");
-                ui.label("uncrop - backspace");
+                ui.label("zoom - drag left mouse");
+                ui.label("move zoomed area - drag right mouse");
+                ui.label("unzoom - backspace");
                 ui.label("open this menu - m");
             });
     }
