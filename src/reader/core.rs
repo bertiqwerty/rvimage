@@ -7,7 +7,7 @@ use std::{
 use image::{ImageBuffer, Rgb};
 
 use crate::cache::{ImageReaderFn, Preload};
-use crate::result::{to_rv, RvError, RvResult};
+use crate::result::{to_rv, RvError, RvResult, AsyncResultImage};
 use crate::{format_rverr, util};
 
 pub struct ReadImageFromPath;
@@ -57,7 +57,7 @@ pub trait ReadImageFiles {
     /// select previous image
     fn prev(&mut self);
     /// read image with index file_selected_idx  
-    fn read_image(&mut self, file_selected_idx: usize) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+    fn read_image(&mut self, file_selected_idx: usize) -> AsyncResultImage;
     /// get index of selected file
     fn file_selected_idx(&self) -> Option<usize>;
     /// set index of selected file
@@ -125,7 +125,7 @@ where
     fn prev(&mut self) {
         self.file_selected_idx = prev(self.file_selected_idx);
     }
-    fn read_image(&mut self, file_selected: usize) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    fn read_image(&mut self, file_selected: usize) -> AsyncResultImage {
         self.cache.read_image(file_selected, &self.file_paths)
     }
     fn file_selected_idx(&self) -> Option<usize> {

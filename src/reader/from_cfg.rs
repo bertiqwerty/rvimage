@@ -1,7 +1,7 @@
 use crate::{
     cache::{FileCache, FileCacheArgs, NoCache},
     cfg::{get_cfg, Cache, Cfg, Connection},
-    result::{RvError, RvResult},
+    result::{RvError, RvResult, AsyncResultImage},
 };
 
 use super::{
@@ -55,7 +55,7 @@ impl ReadImageFiles for ReaderFromCfg {
     fn read_image(
         &mut self,
         file_selected_idx: usize,
-    ) -> RvResult<image::ImageBuffer<image::Rgb<u8>, Vec<u8>>> {
+    ) -> AsyncResultImage {
         self.reader.read_image(file_selected_idx)
     }
     fn open_folder(&mut self) -> RvResult<()> {

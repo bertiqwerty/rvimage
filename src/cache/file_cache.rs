@@ -4,9 +4,9 @@ use std::{
 };
 
 use crate::{
-    cache::core::{Preload, ResultImage},
+    cache::core::Preload,
     cfg, format_rverr,
-    result::{to_rv, RvError, RvResult},
+    result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult},
     threadpool::ThreadPool,
     util,
 };
@@ -87,7 +87,7 @@ impl<IR> Preload<FileCacheArgs> for FileCache<IR>
 where
     IR: ImageReaderFn,
 {
-    fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> ResultImage {
+    fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
         let cfg = cfg::get_cfg()?;
         if files.is_empty() {
             return Err(RvError::new("no files to read from"));
@@ -117,22 +117,28 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => IR::read(path_in_cache),
+            ThreadResult::Ok(path_in_cache) => IR::read(path_in_cache).map(|im| Some(im)),
             ThreadResult::Running(job_id) => {
-                let path_in_cache = self
-                    .tp
-                    .poll(*job_id)
-                    .ok_or_else(|| format_rverr!("didn't find job {}", job_id))??;
-
-                let res = IR::read(&path_in_cache);
-                *self.cached_paths.get_mut(selected_file).unwrap() =
-                    ThreadResult::Ok(path_in_cache);
-                res
+                let path_in_cache = self.tp.result(*job_id);
+                match path_in_cache {
+                    Some(pic) => {
+                        let pic = pic?;
+                        let res = IR::read(&pic);
+                        *self.cached_paths.get_mut(selected_file).unwrap() =
+                            ThreadResult::Ok(pic);
+                        res.map(|im| Some(im))
+                    }
+                    None => Ok(None),
+                }
             }
         }
     }
     fn new(args: FileCacheArgs) -> Self {
-        let FileCacheArgs{n_prev_images, n_next_images, n_threads} = args;
+        let FileCacheArgs {
+            n_prev_images,
+            n_next_images,
+            n_threads,
+        } = args;
         let tp = ThreadPool::new(n_threads);
         Self {
             cached_paths: HashMap::new(),

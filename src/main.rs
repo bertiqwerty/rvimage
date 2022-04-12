@@ -1,6 +1,9 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
+use std::thread;
+use std::time::Duration;
+
 use crate::gui::Framework;
 use image::{ImageBuffer, Rgb};
 use log::error;
@@ -60,9 +63,11 @@ fn main() -> Result<(), pixels::Error> {
     };
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
-    let mut world = World::new(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT), None);
+    let mut world = World::new(
+        ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT),
+        None,
+    );
     let mut file_selected = None;
-
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
         if input.update(&event) {
@@ -97,8 +102,26 @@ fn main() -> Result<(), pixels::Error> {
             let gui_file_selected = framework.gui().file_selected_idx();
             if file_selected != gui_file_selected {
                 if let Some(selected) = &gui_file_selected {
-                    file_selected = gui_file_selected;
-                    world = World::new(framework.gui().read_image(*selected), Some(world.clone()));
+                    let im_read = match framework.gui().read_image(*selected) {
+                        Some(ri) => {
+                            file_selected = gui_file_selected;
+                            ri
+                        }
+                        None => {
+                            let (w, h) = world.shape_orig();
+                            let im_loading = ImageBuffer::from_fn(w, h, |x, _| {
+                                if x % 2 == 0 {
+                                    image::Rgb([0u8, 0u8, 0u8])
+                                } else {
+                                    image::Rgb([255u8, 255u8, 255u8])
+                                }
+                            });
+                            thread::sleep(Duration::from_millis(20));
+                            im_loading
+                        }
+                    };
+
+                    world = World::new(im_read, Some(world.clone()));
                     let size = window.inner_size();
                     let (w, h) = world.scale_to_match_win_inner(size.width, size.height);
                     pixels.resize_buffer(w, h);

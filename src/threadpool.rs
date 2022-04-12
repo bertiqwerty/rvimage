@@ -1,4 +1,5 @@
 use crate::result::{RvError, RvResult};
+
 use std::{
     fmt::Debug,
     sync::mpsc::{self, Receiver, Sender},
@@ -8,6 +9,7 @@ use std::{
 
 type Job<T> = Box<dyn FnOnce() -> T + Send + 'static>;
 
+#[allow(dead_code)]
 fn poll<T, F1: FnMut() -> Option<T>, F2: Fn() -> bool>(
     query_result: &mut F1,
     interval_millis: u64,
@@ -22,6 +24,7 @@ fn poll<T, F1: FnMut() -> Option<T>, F2: Fn() -> bool>(
     res
 }
 
+#[allow(dead_code)]
 fn poll_timeout<T, F1: FnMut() -> Option<T>>(
     query_result: &mut F1,
     interval_millis: u64,
@@ -32,6 +35,7 @@ fn poll_timeout<T, F1: FnMut() -> Option<T>>(
     poll(query_result, interval_millis, &predicate)
 }
 
+#[allow(dead_code)]
 fn poll_until_result<T, F1: FnMut() -> Option<T>>(
     query_result: &mut F1,
     interval_millis: u64,
@@ -40,6 +44,7 @@ fn poll_until_result<T, F1: FnMut() -> Option<T>>(
     poll(query_result, interval_millis, &predicate)
 }
 
+#[allow(dead_code)]
 pub struct ThreadPool<T: Debug + Clone + Send + 'static> {
     txs_to_pool: Vec<Sender<(usize, Job<T>)>>,
     rx_from_pool: Receiver<RvResult<(usize, T)>>,
@@ -126,14 +131,14 @@ impl<T: Debug + Clone + Send + 'static> ThreadPool<T> {
 
         Ok(self.job_id)
     }
-
+    #[allow(dead_code)]
     pub fn poll(&mut self, job_id: usize) -> Option<T> {
         let interv = self.interval_millis;
         let timeout = self.timeout_millis;
         let query_result = &mut || self.result(job_id);
         match timeout {
             Some(to) => poll_timeout(query_result, interv, to),
-            None => poll_until_result(query_result, interv)
+            None => poll_until_result(query_result, interv),
         }
     }
 }
