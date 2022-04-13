@@ -46,14 +46,10 @@ fn preload<IR: ImageReaderFn>(
         .map(|file| {
             let dst_file = filename_in_tmpdir(file, tmp_dir)?;
             let file_for_thread = file.clone();
-            let dst_file_for_thread = dst_file.clone();
-            let job =
-                Box::new(
-                    move || match copy(&file_for_thread, IR::read, &dst_file_for_thread) {
-                        Ok(_) => Ok(dst_file_for_thread),
-                        Err(e) => Err(e),
-                    },
-                );
+            let job = Box::new(move || match copy(&file_for_thread, IR::read, &dst_file) {
+                Ok(_) => Ok(dst_file),
+                Err(e) => Err(e),
+            });
             Ok((file.clone(), ThreadResult::Running(tp.apply(job)?)))
         })
         .collect::<RvResult<HashMap<_, _>>>()
@@ -117,16 +113,15 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => IR::read(path_in_cache).map(|im| Some(im)),
+            ThreadResult::Ok(path_in_cache) => IR::read(path_in_cache).map(Some),
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self.tp.result(*job_id);
                 match path_in_cache {
                     Some(pic) => {
                         let pic = pic?;
                         let res = IR::read(&pic);
-                        *self.cached_paths.get_mut(selected_file).unwrap() =
-                            ThreadResult::Ok(pic);
-                        res.map(|im| Some(im))
+                        *self.cached_paths.get_mut(selected_file).unwrap() = ThreadResult::Ok(pic);
+                        res.map(Some)
                     }
                     None => Ok(None),
                 }

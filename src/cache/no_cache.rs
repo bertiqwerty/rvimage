@@ -9,7 +9,7 @@ pub struct NoCache<F: ImageReaderFn> {
 }
 impl<F: ImageReaderFn> Preload<()> for NoCache<F> {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
-        F::read(&files[selected_file_idx]).map(|im| Some(im))
+        F::read(&files[selected_file_idx]).map(Some)
     }
     fn new(_: ()) -> Self {
         Self {

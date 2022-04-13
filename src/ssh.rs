@@ -8,7 +8,7 @@ use crate::{
 };
 use regex::Regex;
 fn get_sep(path_to_foler: &str) -> &'static str {
-    if path_to_foler.ends_with("/") {
+    if path_to_foler.ends_with('/') {
         ""
     } else {
         "/"
@@ -18,7 +18,7 @@ fn get_sep(path_to_foler: &str) -> &'static str {
 fn make_cmd<'a, I: Iterator<Item = &'a str>>(mut cmd_iter: I) -> RvResult<Command> {
     let terminal = cmd_iter
         .next()
-        .ok_or(RvError::new("couldn't unpack terminal"))?;
+        .ok_or_else(||RvError::new("couldn't unpack terminal"))?;
     let mut cmd = Command::new(terminal);
     cmd.args(cmd_iter);
     Ok(cmd)
@@ -53,7 +53,7 @@ fn make_copy_cmd(src_file_name: &str, dst_path: &str, ssh_cfg: &SshCfg) -> RvRes
         .iter()
         .chain(ssh_args.iter())
         .map(|s| s.as_str())
-        .chain(src_dst.iter().map(|s| *s));
+        .chain(src_dst.iter().copied());
 
     make_cmd(scp_cmd_iter)
 }

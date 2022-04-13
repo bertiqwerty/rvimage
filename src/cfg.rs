@@ -80,7 +80,7 @@ fn scp_default_cmd() -> &'static [String] {
 fn unpack_cmd<'a>(cmd: &'a Option<Vec<String>>, default_cmd: &'static [String]) -> &'a [String] {
     match cmd {
         Some(s) => s,
-        None => &default_cmd,
+        None => default_cmd,
     }
 }
 
@@ -125,7 +125,7 @@ impl Cfg {
             Some(td) => Ok(td.as_str()),
             None => DEFAULT_TMPDIR
                 .to_str()
-                .ok_or(RvError::new("could not get tmpdir")),
+                .ok_or_else(||RvError::new("could not get tmpdir")),
         }
     }
 }
