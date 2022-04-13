@@ -15,7 +15,7 @@ pub struct SshConfigPicker;
 impl PickFolder for SshConfigPicker {
     fn pick() -> RvResult<(String, Vec<String>)> {
         let cfg = cfg::get_cfg()?;
-        let folder = cfg.ssh_cfg.remote_folder_path;
+        let folder = cfg.ssh_cfg.remote_folder_path.replace(" ", r"\ ");
         let ssh_cfg = cfg::get_cfg()?.ssh_cfg;
         let image_paths = ssh::ssh_ls(folder.as_str(), &ssh_cfg)?;
         Ok((folder, image_paths))

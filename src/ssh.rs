@@ -1,10 +1,12 @@
 use std::{path::Path, process::Command};
 
+use lazy_static::lazy_static;
+
 use crate::{
     cfg::SshCfg,
     result::{to_rv, RvError, RvResult},
 };
-
+use regex::Regex;
 fn get_sep(path_to_foler: &str) -> &'static str {
     if path_to_foler.ends_with("/") {
         ""
@@ -27,13 +29,21 @@ fn make_ssh_auth_args(ssh_cfg: &SshCfg) -> [String; 2] {
 }
 
 fn make_copy_cmd(src_file_name: &str, dst_path: &str, ssh_cfg: &SshCfg) -> RvResult<Command> {
-    let src = format!(
-        "{}@{}:{}{}{}",
-        ssh_cfg.user,
-        ssh_cfg.address,
+    lazy_static! {
+        static ref SPACES_RE: Regex = Regex::new(r"(?P<space>[ ]+)").unwrap();
+    }
+    let remote_file_path = format!(
+        "{}{}{}",
         ssh_cfg.remote_folder_path,
         get_sep(&ssh_cfg.remote_folder_path),
         src_file_name
+    );
+    let escaped_remote_filepath = SPACES_RE
+        .replace_all(&remote_file_path, "'${space}'")
+        .to_string();
+    let src = format!(
+        "{}@{}:{}",
+        ssh_cfg.user, ssh_cfg.address, escaped_remote_filepath
     );
 
     let ssh_args = make_ssh_auth_args(ssh_cfg);

@@ -4,4 +4,4 @@
 * SSH or
 * mounted folders 
 
-and caches images locally.
+and caches images locally. So far only tested on Windows 10.
