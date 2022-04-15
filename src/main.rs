@@ -8,6 +8,7 @@ use crate::gui::Framework;
 use image::{ImageBuffer, Rgb};
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
+use util::{mouse_pos_transform, Shape};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -22,6 +23,7 @@ mod reader;
 mod result;
 mod ssh;
 mod threadpool;
+mod tools;
 mod util;
 mod world;
 const START_WIDTH: u32 = 640;
@@ -29,15 +31,6 @@ const START_HEIGHT: u32 = 480;
 
 const LEFT_BTN: usize = 0;
 const RIGHT_BTN: usize = 1;
-
-pub fn mouse_pos_transform(
-    pixels: &Pixels,
-    input_pos: Option<(f32, f32)>,
-) -> Option<(usize, usize)> {
-    pixels
-        .window_pos_to_pixel(input_pos.unwrap_or((-1.0, -1.0)))
-        .ok()
-}
 
 fn main() -> Result<(), pixels::Error> {
     env_logger::init();
@@ -108,8 +101,8 @@ fn main() -> Result<(), pixels::Error> {
                             ri
                         }
                         None => {
-                            let (w, h) = world.shape_orig();
-                            let im_loading = ImageBuffer::from_fn(w, h, |x, _| {
+                            let shape = world.shape_orig();
+                            let im_loading = ImageBuffer::from_fn(shape.w, shape.h, |x, _| {
                                 if x % 2 == 0 {
                                     image::Rgb([0u8, 0u8, 0u8])
                                 } else {
@@ -121,9 +114,12 @@ fn main() -> Result<(), pixels::Error> {
                         }
                     };
 
-                    world = World::new(im_read, Some(world.clone()));
+                    world = World::new(im_read, Some(&world));
                     let size = window.inner_size();
-                    let (w, h) = world.scale_to_match_win_inner(size.width, size.height);
+                    let Shape { w, h } = world.scale_to_shape(Shape {
+                        w: size.width,
+                        h: size.height,
+                    });
                     pixels.resize_buffer(w, h);
                 }
             }
@@ -135,7 +131,10 @@ fn main() -> Result<(), pixels::Error> {
 
             // Resize the window
             if let Some(size) = input.window_resized() {
-                let (w, h) = world.scale_to_match_win_inner(size.width, size.height);
+                let Shape { w, h } = world.scale_to_shape(Shape {
+                    w: size.width,
+                    h: size.height,
+                });
                 pixels.resize_buffer(w, h);
                 framework.resize(size.width, size.height);
                 pixels.resize_surface(size.width, size.height);
@@ -144,15 +143,15 @@ fn main() -> Result<(), pixels::Error> {
             // show position and rgb value
             if framework.gui().file_selected_idx().is_some() {
                 let data_point = world.get_pixel_on_orig(mouse_pos, &window.inner_size());
-                let (w_orig, h_orig) = world.shape_orig();
+                let shape = world.shape_orig();
                 let s = match data_point {
                     Some((x, y, rgb)) => {
                         format!(
                             "RV Image - {}x{} - ({}, {}) -> ({}, {}, {})",
-                            w_orig, h_orig, x, y, rgb[0], rgb[1], rgb[2]
+                            shape.w, shape.h, x, y, rgb[0], rgb[1], rgb[2]
                         )
                     }
-                    None => format!("RV Image - {}x{} - (x, y) -> (r, g, b)", w_orig, h_orig),
+                    None => format!("RV Image - {}x{} - (x, y) -> (r, g, b)", shape.w, shape.h),
                 };
                 window.set_title(s.as_str())
             }
