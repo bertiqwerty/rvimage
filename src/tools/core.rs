@@ -1,5 +1,4 @@
 use pixels::Pixels;
-use winit::{dpi::PhysicalSize, window::Window};
 use winit_input_helper::WinitInputHelper;
 
 use crate::{util::Shape, world::World};
@@ -14,7 +13,7 @@ pub trait Tool {
     fn events_transform(
         &mut self,
         input_event: &WinitInputHelper,
-        window: &Window,
+        window_shape: Shape,
         pixels: &mut Pixels,
         world: &mut World,
     );
@@ -24,6 +23,6 @@ pub trait Tool {
         &self,
         world: &World,
         mouse_pos: Option<(usize, usize)>,
-        size_win: &PhysicalSize<u32>,
+        shape_win: Shape,
     ) -> Option<(u32, u32, [u8; 3])>;
 }

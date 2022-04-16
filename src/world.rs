@@ -3,8 +3,6 @@ use crate::tools::{Tool, ToolWrapper};
 use crate::util::Shape;
 use image::{ImageBuffer, Rgb};
 use pixels::Pixels;
-use winit::dpi::PhysicalSize;
-use winit::window::Window;
 use winit_input_helper::WinitInputHelper;
 
 /// Everything we need to draw
@@ -24,13 +22,13 @@ impl World {
     pub fn update(
         &mut self,
         input_events: &WinitInputHelper,
-        window: &Window,
+        shape_win: Shape,
         tools: &mut Vec<ToolWrapper>,
         pixels: &mut Pixels,
     ) {
         
         for tool in tools {
-            apply_tool_method_mut!(tool, events_transform, input_events, window, pixels, self);
+            apply_tool_method_mut!(tool, events_transform, input_events, shape_win, pixels, self);
             // apply_tool_mut(tool, |t| t.events_transform(input_events, window, pixels, self));
         }
     }
@@ -53,13 +51,13 @@ impl World {
     pub fn get_pixel_on_orig(
         &self,
         mouse_pos: Option<(usize, usize)>,
-        size_win: &PhysicalSize<u32>,
+        shape_win: Shape,
         tools: &Vec<ToolWrapper>,
     ) -> Option<(u32, u32, [u8; 3])> {
         let mut mp = mouse_pos;
         let mut res = None;
         for tool in tools {
-            let pos_rgb = apply_tool_method!(tool, get_pixel_on_orig, self, mp, size_win);
+            let pos_rgb = apply_tool_method!(tool, get_pixel_on_orig, self, mp, shape_win);
             if let Some(prgb) = pos_rgb {
                 mp = Some((prgb.0 as usize, prgb.1 as usize));
                 res = pos_rgb;
@@ -84,39 +82,3 @@ impl World {
     }
 }
 
-// #[test]
-// fn test_world() {
-//     {
-//         // some general basic tests
-//         let (w, h) = (100, 100);
-//         let size_win = PhysicalSize::<u32>::new(w, h);
-//         let mut im = ImageBuffer::<Rgb<u8>, _>::new(w, h);
-//         im[(10, 10)] = Rgb::<u8>::from([4, 4, 4]);
-//         im[(20, 30)] = Rgb::<u8>::from([5, 5, 5]);
-//         let mut world = World::new(im, None);
-//         assert_eq!((w, h), shape_unscaled(&world.zoom, world.shape_orig()));
-//         world.zoom = make_zoom((10, 10), (60, 60), (w, h), &size_win, &None);
-//         let zoom = world.zoom.unwrap();
-//         assert_eq!(Some((50, 50)), Some((zoom.w, zoom.h)));
-//         assert_eq!(
-//             Some((10, 10, [4, 4, 4])),
-//             world.get_pixel_on_orig(Some((0, 0)), &size_win)
-//         );
-//         assert_eq!(
-//             Some((20, 30, [5, 5, 5])),
-//             world.get_pixel_on_orig(Some((20, 40)), &size_win)
-//         );
-//         assert_eq!((100, 100), (world.im_view.width(), world.im_view.height()));
-//     }
-//     {
-//         // another test on finding pixels in the original image
-//         let (win_w, win_h) = (200, 100);
-//         let size_win = PhysicalSize::<u32>::new(win_w, win_h);
-//         let (w_im_o, h_im_o) = (100, 50);
-//         let im = ImageBuffer::<Rgb<u8>, _>::new(w_im_o, h_im_o);
-//         let mut world = World::new(im, None);
-//         world.zoom = make_zoom((10, 20), (50, 40), (w_im_o, h_im_o), &size_win, &None);
-//         let zoom = world.zoom.unwrap();
-//         assert_eq!(Some((20, 10)), Some((zoom.w, zoom.h)));
-//     }
-// }

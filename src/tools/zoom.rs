@@ -5,7 +5,7 @@ use image::{
     GenericImageView, ImageBuffer, Rgb,
 };
 use pixels::Pixels;
-use winit::{dpi::PhysicalSize, event::VirtualKeyCode, window::Window};
+use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
@@ -22,11 +22,11 @@ fn make_zoom_on_release(
     mouse_pos_start: (usize, usize),
     mouse_pos_end: (usize, usize),
     shape_orig: Shape,
-    size_win: &PhysicalSize<u32>,
+    shape_win: Shape,
     zoom_box: Option<BB>,
 ) -> Option<BB> {
-    let prs_orig = mouse_pos_to_orig_pos(Some(mouse_pos_start), shape_orig, size_win, &zoom_box);
-    let rel_orig = mouse_pos_to_orig_pos(Some(mouse_pos_end), shape_orig, size_win, &zoom_box);
+    let prs_orig = mouse_pos_to_orig_pos(Some(mouse_pos_start), shape_orig, shape_win, &zoom_box);
+    let rel_orig = mouse_pos_to_orig_pos(Some(mouse_pos_end), shape_orig, shape_win, &zoom_box);
 
     match (prs_orig, rel_orig) {
         (Some((px, py)), Some((rx, ry))) => {
@@ -56,11 +56,11 @@ fn move_zoom_box(
     m_press: (usize, usize),
     m_held: (usize, usize),
     shape_orig: Shape,
-    size_win: &PhysicalSize<u32>,
+    shape_win: Shape,
     zoom_box: Option<BB>,
 ) -> Option<BB> {
-    let press_orig = mouse_pos_to_orig_pos(Some(m_press), shape_orig, size_win, &zoom_box);
-    let held_orig = mouse_pos_to_orig_pos(Some(m_held), shape_orig, size_win, &zoom_box);
+    let press_orig = mouse_pos_to_orig_pos(Some(m_press), shape_orig, shape_win, &zoom_box);
+    let held_orig = mouse_pos_to_orig_pos(Some(m_held), shape_orig, shape_win, &zoom_box);
     match (press_orig, held_orig, zoom_box) {
         (Some((px, py)), Some((hx, hy)), Some(c)) => {
             let x_shift: i32 = px as i32 - hx as i32;
@@ -178,12 +178,12 @@ impl Tool for Zoom {
     fn events_transform(
         &mut self,
         input_event: &WinitInputHelper,
-        window: &Window,
+        shape_win: Shape,
         pixels: &mut Pixels,
         world: &mut World,
     ) {
-        let w_win = window.inner_size().width;
-        let h_win = window.inner_size().height;
+        let w_win = shape_win.w;
+        let h_win = shape_win.h;
         let bx = self.bx;
         let shape_orig = world.shape_orig();
         let mut scale_world = |w, h| scale_world_to_match_win(world, bx, shape_orig, w, h);
@@ -197,7 +197,7 @@ impl Tool for Zoom {
         }
         if input_event.mouse_released(LEFT_BTN) {
             if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
-                self.bx = make_zoom_on_release(mps, mr, shape_orig, &window.inner_size(), self.bx);
+                self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
                 if self.bx.is_some() {
                     let shape = scale_world(w_win, h_win);
                     pixels.resize_buffer(shape.w, shape.h);
@@ -211,12 +211,15 @@ impl Tool for Zoom {
         // zoom move
         if input_event.mouse_held(RIGHT_BTN) {
             if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
-                let win_inner = window.inner_size();
-                self.bx = move_zoom_box(mps, mp, shape_orig, &win_inner, self.bx);
+                self.bx = move_zoom_box(mps, mp, shape_orig, shape_win, self.bx);
                 scale_world(w_win, h_win);
                 match mouse_pos {
-                    Some(mp) => {self.set_mouse_start(mp);},
-                    None => {self.unset_mouse_start();}
+                    Some(mp) => {
+                        self.set_mouse_start(mp);
+                    }
+                    None => {
+                        self.unset_mouse_start();
+                    }
                 }
             }
         // define zoom
@@ -245,9 +248,7 @@ impl Tool for Zoom {
         // unzoom
         if input_event.key_pressed(VirtualKeyCode::Back) {
             self.bx = None;
-            let size = window.inner_size();
-            let shape = scale_world(size.width, size.height);
-            pixels.resize_buffer(shape.w, shape.h);
+            pixels.resize_buffer(shape_win.w, shape_win.h);
         }
     }
     fn draw(&self, world: &World, pixels: &mut Pixels) {
@@ -267,9 +268,9 @@ impl Tool for Zoom {
         &self,
         world: &World,
         mouse_pos: Option<(usize, usize)>,
-        size_win: &PhysicalSize<u32>,
+        shape_win: Shape,
     ) -> Option<(u32, u32, [u8; 3])> {
-        let pos = mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), size_win, &self.bx);
+        let pos = mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, &self.bx);
         pos.map(|(x, y)| (x, y, world.im_orig().get_pixel(x, y).0))
     }
 }

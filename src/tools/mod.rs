@@ -33,13 +33,6 @@ macro_rules! apply_tool_method_mut {
         }
     };
 }
-
-// pub fn apply_tool_mut<F: FnOnce(Zoom)>(tool: &mut ToolWrapper, f: F) {
-    // match tool {
-        // ToolWrapper::Zoom(t) => f(t)
-    // }
-// }
-
 #[macro_export]
 macro_rules! apply_tool_method {
     ($tool:expr, $f:ident, $($args:expr),*) => {

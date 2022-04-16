@@ -1,7 +1,6 @@
 use std::{ffi::OsStr, io};
 
 use pixels::Pixels;
-use winit::dpi::PhysicalSize;
 
 pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
     p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
@@ -13,7 +12,6 @@ pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
             )
         })
 }
-
 
 pub fn mouse_pos_transform(
     pixels: &Pixels,
@@ -27,7 +25,7 @@ pub fn mouse_pos_transform(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Shape {
     pub w: u32,
-    pub h: u32
+    pub h: u32,
 }
 
 /// shape without scaling according to zoom
@@ -55,18 +53,12 @@ pub struct BB {
 pub fn mouse_pos_to_orig_pos(
     mouse_pos: Option<(usize, usize)>,
     shape_orig: Shape,
-    size_win: &PhysicalSize<u32>,
+    shape_win: Shape,
     zoom_box: &Option<BB>,
 ) -> Option<(u32, u32)> {
     let unscaled = shape_unscaled(zoom_box, shape_orig);
     let orig = shape_orig;
-    let scaled = shape_scaled(
-        unscaled,
-        Shape {
-            w: size_win.width,
-            h: size_win.height,
-        },
-    );
+    let scaled = shape_scaled(unscaled, shape_win);
 
     let (x_off, y_off) = match zoom_box {
         Some(c) => (c.x, c.y),
