@@ -1,3 +1,4 @@
+use image::{ImageBuffer, Rgb};
 use pixels::Pixels;
 use winit_input_helper::WinitInputHelper;
 
@@ -21,7 +22,7 @@ pub trait Tool {
 
     fn get_pixel_on_orig(
         &self,
-        world: &World,
+        im_orig: &ImageBuffer<Rgb<u8>, Vec<u8>>,
         mouse_pos: Option<(usize, usize)>,
         shape_win: Shape,
     ) -> Option<(u32, u32, [u8; 3])>;

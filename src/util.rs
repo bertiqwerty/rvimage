@@ -30,7 +30,7 @@ pub struct Shape {
 
 /// shape without scaling according to zoom
 pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
-    zoom_box.map_or(shape_orig, |z| Shape { w: z.w, h: z.h })
+    zoom_box.map_or(shape_orig, |z| z.shape())
 }
 
 /// shape of the image that fits into the window
@@ -42,12 +42,20 @@ pub fn shape_scaled(shape_unscaled: Shape, shape_win: Shape) -> Shape {
     let h_new = (shape_unscaled.h as f64 / ratio) as u32;
     Shape { w: w_new, h: h_new }
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BB {
     pub x: u32,
     pub y: u32,
     pub w: u32,
     pub h: u32,
+}
+impl BB {
+    pub fn shape(&self) -> Shape {
+        Shape {
+            w: self.w,
+            h: self.h,
+        }
+    }
 }
 /// Converts the mouse position to the coordinates of the original image
 pub fn mouse_pos_to_orig_pos(
@@ -81,4 +89,36 @@ pub fn mouse_pos_to_orig_pos(
         }
         _ => None,
     }
+}
+
+#[test]
+fn test_to_orig_pos() {
+    let orig_pos = mouse_pos_to_orig_pos(
+        Some((0, 0)),
+        Shape { w: 120, h: 120 },
+        Shape { w: 120, h: 120 },
+        &None,
+    );
+    assert_eq!(Some((0, 0)), orig_pos);
+    let orig_pos = mouse_pos_to_orig_pos(
+        Some((0, 0)),
+        Shape { w: 120, h: 120 },
+        Shape { w: 20, h: 20 },
+        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
+    );
+    assert_eq!(Some((10, 10)), orig_pos);
+    let orig_pos = mouse_pos_to_orig_pos(
+        Some((19, 19)),
+        Shape { w: 120, h: 120 },
+        Shape { w: 20, h: 20 },
+        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
+    );
+    assert_eq!(Some((29, 29)), orig_pos);
+    let orig_pos = mouse_pos_to_orig_pos(
+        Some((10, 10)),
+        Shape { w: 120, h: 120 },
+        Shape { w: 20, h: 20 },
+        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
+    );
+    assert_eq!(Some((20, 20)), orig_pos);
 }

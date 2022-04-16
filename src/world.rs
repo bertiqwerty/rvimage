@@ -57,7 +57,7 @@ impl World {
         let mut mp = mouse_pos;
         let mut res = None;
         for tool in tools {
-            let pos_rgb = apply_tool_method!(tool, get_pixel_on_orig, self, mp, shape_win);
+            let pos_rgb = apply_tool_method!(tool, get_pixel_on_orig, self.im_orig(), mp, shape_win);
             if let Some(prgb) = pos_rgb {
                 mp = Some((prgb.0 as usize, prgb.1 as usize));
                 res = pos_rgb;
