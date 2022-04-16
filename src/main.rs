@@ -8,6 +8,7 @@ use crate::gui::Framework;
 use image::{ImageBuffer, Rgb};
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
+use tools::make_tool_vec;
 use util::{mouse_pos_transform, Shape};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
@@ -15,7 +16,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 use world::World;
-
+use tools::{ToolWrapper, Tool};
 mod cache;
 mod cfg;
 mod gui;
@@ -56,10 +57,8 @@ fn main() -> Result<(), pixels::Error> {
     };
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
-    let mut world = World::new(
-        ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT),
-        None,
-    );
+    let mut world = World::new(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT));
+    let mut tools = make_tool_vec();
     let mut file_selected = None;
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
@@ -70,7 +69,7 @@ fn main() -> Result<(), pixels::Error> {
                 return;
             }
 
-            world.update(&input, &window, &mut pixels);
+            world.update(&input, &window, &mut tools, &mut pixels);
 
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
             if input.key_pressed(VirtualKeyCode::M) {
@@ -113,13 +112,20 @@ fn main() -> Result<(), pixels::Error> {
                             im_loading
                         }
                     };
-
-                    world = World::new(im_read, Some(&world));
+                    println!("creating new world.");
+                    world = World::new(im_read);
+                    tools = tools
+                        .iter()
+                        .map(|t| map_tool_method!(t, old_to_new,))
+                        .collect::<Vec<_>>();
                     let size = window.inner_size();
-                    let Shape { w, h } = world.scale_to_shape(Shape {
-                        w: size.width,
-                        h: size.height,
-                    });
+                    let Shape { w, h } = world.scale_to_shape(
+                        Shape {
+                            w: size.width,
+                            h: size.height,
+                        },
+                        &tools,
+                    );
                     pixels.resize_buffer(w, h);
                 }
             }
@@ -131,10 +137,13 @@ fn main() -> Result<(), pixels::Error> {
 
             // Resize the window
             if let Some(size) = input.window_resized() {
-                let Shape { w, h } = world.scale_to_shape(Shape {
-                    w: size.width,
-                    h: size.height,
-                });
+                let Shape { w, h } = world.scale_to_shape(
+                    Shape {
+                        w: size.width,
+                        h: size.height,
+                    },
+                    &tools,
+                );
                 pixels.resize_buffer(w, h);
                 framework.resize(size.width, size.height);
                 pixels.resize_surface(size.width, size.height);
@@ -142,7 +151,7 @@ fn main() -> Result<(), pixels::Error> {
 
             // show position and rgb value
             if framework.gui().file_selected_idx().is_some() {
-                let data_point = world.get_pixel_on_orig(mouse_pos, &window.inner_size());
+                let data_point = world.get_pixel_on_orig(mouse_pos, &window.inner_size(), &tools);
                 let shape = world.shape_orig();
                 let s = match data_point {
                     Some((x, y, rgb)) => {
@@ -166,7 +175,7 @@ fn main() -> Result<(), pixels::Error> {
             // Draw the current frame
             Event::RedrawRequested(_) => {
                 // Draw the world
-                world.draw(&mut pixels);
+                world.draw(&mut pixels, &tools);
 
                 // Prepare egui
                 framework.prepare(&window);

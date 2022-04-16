@@ -1,6 +1,6 @@
-use crate::tools::{make_tool_vec, Tool, ToolWrapper};
+use crate::{apply_tool_method_mut, apply_tool_method};
+use crate::tools::{Tool, ToolWrapper};
 use crate::util::Shape;
-use crate::{apply_tool_method, apply_tool_method_mut, map_tool_method};
 use image::{ImageBuffer, Rgb};
 use pixels::Pixels;
 use winit::dpi::PhysicalSize;
@@ -11,33 +11,27 @@ use winit_input_helper::WinitInputHelper;
 pub struct World {
     im_orig: ImageBuffer<Rgb<u8>, Vec<u8>>,
     im_view: ImageBuffer<Rgb<u8>, Vec<u8>>,
-    tools: Vec<ToolWrapper>,
 }
 
 impl World {
-    pub fn new(im_orig: ImageBuffer<Rgb<u8>, Vec<u8>>, old_world: Option<&World>) -> Self {
-        let tools = match old_world {
-            None => make_tool_vec(),
-            Some(ow) => ow
-                .tools
-                .iter()
-                .map(|tool| map_tool_method!(tool, old_to_new,))
-                .collect::<Vec<ToolWrapper>>(),
-        };
+    pub fn new(im_orig: ImageBuffer<Rgb<u8>, Vec<u8>>) -> Self {
+        
         Self {
             im_orig: im_orig.clone(),
             im_view: im_orig,
-            tools,
         }
     }
     pub fn update(
         &mut self,
         input_events: &WinitInputHelper,
         window: &Window,
+        tools: &mut Vec<ToolWrapper>,
         pixels: &mut Pixels,
     ) {
-        for tool in self.tools.clone() {
+        
+        for tool in tools {
             apply_tool_method_mut!(tool, events_transform, input_events, window, pixels, self);
+            // apply_tool_mut(tool, |t| t.events_transform(input_events, window, pixels, self));
         }
     }
     pub fn im_view(&self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
@@ -60,10 +54,11 @@ impl World {
         &self,
         mouse_pos: Option<(usize, usize)>,
         size_win: &PhysicalSize<u32>,
+        tools: &Vec<ToolWrapper>,
     ) -> Option<(u32, u32, [u8; 3])> {
         let mut mp = mouse_pos;
         let mut res = None;
-        for tool in self.tools.clone() {
+        for tool in tools {
             let pos_rgb = apply_tool_method!(tool, get_pixel_on_orig, self, mp, size_win);
             if let Some(prgb) = pos_rgb {
                 mp = Some((prgb.0 as usize, prgb.1 as usize));
@@ -72,9 +67,9 @@ impl World {
         }
         res
     }
-    pub fn scale_to_shape(&mut self, shape: Shape) -> Shape {
+    pub fn scale_to_shape(&mut self, shape: Shape, tools: &Vec<ToolWrapper>) -> Shape {
         let mut new_shape = shape;
-        for tool in self.tools.clone() {
+        for tool in tools {
             let tmp_shape = apply_tool_method!(tool, scale_to_shape, self, &new_shape);
             if let Some(ts) = tmp_shape {
                 new_shape = ts;
@@ -82,9 +77,9 @@ impl World {
         }
         new_shape
     }
-    pub fn draw(&self, pixels: &mut Pixels) {
-        for tool in self.tools.clone() {
-            apply_tool_method!(tool, draw, self, pixels);
+    pub fn draw(&self, pixels: &mut Pixels, tools: &Vec<ToolWrapper>) {
+        for tool in tools {
+            apply_tool_method!(tool, draw,self, pixels);
         }
     }
 }

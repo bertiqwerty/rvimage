@@ -147,22 +147,29 @@ pub fn scale_world_to_match_win(
     new
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Zoom {
-    pub bx: Option<BB>,
-    pub draw_bx: Option<BB>,
+    bx: Option<BB>,
+    draw_bx: Option<BB>,
     mouse_pressed_start_pos: Option<(usize, usize)>,
 }
-
+impl Zoom {
+    fn set_mouse_start(&mut self, mp: (usize, usize)) {
+        self.mouse_pressed_start_pos = Some(mp);
+    }
+    fn unset_mouse_start(&mut self) {
+        self.mouse_pressed_start_pos = None;
+    }
+}
 impl Tool for Zoom {
     fn new() -> Zoom {
+        println!("new zoom");
         Zoom {
             bx: None,
             draw_bx: None,
             mouse_pressed_start_pos: None,
         }
     }
-
     fn old_to_new(self) -> Self {
         // zoom keeps everything identical when transforming from old to new
         self
@@ -185,7 +192,7 @@ impl Tool for Zoom {
         let mouse_pos = mouse_pos_transform(pixels, input_event.mouse());
         if input_event.mouse_pressed(LEFT_BTN) || input_event.mouse_pressed(RIGHT_BTN) {
             if let (None, Some((m_x, m_y))) = (self.mouse_pressed_start_pos, mouse_pos) {
-                self.mouse_pressed_start_pos = Some((m_x, m_y));
+                self.set_mouse_start((m_x, m_y));
             }
         }
         if input_event.mouse_released(LEFT_BTN) {
@@ -196,7 +203,9 @@ impl Tool for Zoom {
                     pixels.resize_buffer(shape.w, shape.h);
                 }
             }
-            self.mouse_pressed_start_pos = None;
+            println!("noonining start");
+            self.unset_mouse_start();
+            println!("draw box to None");
             self.draw_bx = None;
         }
         // zoom move
@@ -205,7 +214,10 @@ impl Tool for Zoom {
                 let win_inner = window.inner_size();
                 self.bx = move_zoom_box(mps, mp, shape_orig, &win_inner, self.bx);
                 scale_world(w_win, h_win);
-                self.mouse_pressed_start_pos = mouse_pos;
+                match mouse_pos {
+                    Some(mp) => {self.set_mouse_start(mp);},
+                    None => {self.unset_mouse_start();}
+                }
             }
         // define zoom
         } else if input_event.mouse_held(LEFT_BTN) {
@@ -222,10 +234,13 @@ impl Tool for Zoom {
                     w: (x_max - x_min) as u32,
                     h: (y_max - y_min) as u32,
                 });
+                println!("set drawbox to {:?}", self.draw_bx);
             }
+            println!("mstartpos {:?}", self.mouse_pressed_start_pos);
         }
         if input_event.mouse_released(RIGHT_BTN) {
-            self.mouse_pressed_start_pos = None;
+            println!("noonining start");
+            self.unset_mouse_start();
         }
         // unzoom
         if input_event.key_pressed(VirtualKeyCode::Back) {
