@@ -253,14 +253,8 @@ impl Tool for Zoom {
             pixel.copy_from_slice(&rgba);
         }
     }
-    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<Shape> {
-        let im_view = scale_to_win(world.im_orig(), self.bx, shape.w, shape.h);
-        let shape = Shape {
-            w: im_view.width(),
-            h: im_view.height(),
-        };
-        world.set_im_view(im_view);
-        Some(shape)
+    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        Some(scale_to_win(world.im_orig(), self.bx, shape.w, shape.h))
     }
 
     fn get_pixel_on_orig(

@@ -22,7 +22,7 @@ pub trait Tool {
         world: &mut World,
     ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
     
-    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<Shape>;
+    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
 
     fn get_pixel_on_orig(
         &self,

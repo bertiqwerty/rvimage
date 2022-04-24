@@ -37,7 +37,7 @@ impl Tool for Rot90 {
         None
     }
 
-    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<Shape> {
+    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         None
     }
 
