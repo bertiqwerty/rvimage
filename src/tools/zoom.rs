@@ -4,7 +4,6 @@ use image::{
     imageops::{self, FilterType},
     GenericImageView, ImageBuffer, Rgb,
 };
-use pixels::Pixels;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
@@ -86,31 +85,6 @@ fn move_zoom_box(
     }
 }
 
-/// Draw the image to the frame buffer.
-///
-/// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
-fn pixels_rgba_at(
-    i: usize,
-    im_view: &ImageBuffer<Rgb<u8>, Vec<u8>>,
-    draw_zoom_box: &Option<BB>,
-) -> [u8; 4] {
-    let x = (i % im_view.width() as usize) as u32;
-    let y = (i / im_view.width() as usize) as u32;
-    let rgb = im_view.get_pixel(x, y).0;
-    let rgb_changed = if let Some(dc) = draw_zoom_box {
-        let offset = 50;
-        let change = |x| if 255 - x > offset { x + offset } else { 255 };
-        if x >= dc.x && y >= dc.y && x < dc.x + dc.w && y < dc.y + dc.h {
-            [change(rgb[0]), change(rgb[1]), change(rgb[2])]
-        } else {
-            rgb
-        }
-    } else {
-        rgb
-    };
-    [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
-}
-
 pub fn scale_to_win(
     im_orig: &ImageBuffer<Rgb<u8>, Vec<u8>>,
     zoom_box: Option<BB>,
@@ -166,7 +140,7 @@ impl Tool for Zoom {
         input_event: &WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &World,
+        world: &mut World,
     ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         let w_win = shape_win.w;
         let h_win = shape_win.h;
@@ -219,12 +193,21 @@ impl Tool for Zoom {
                 let y_min = mps_y.min(m_y);
                 let x_max = mps_x.max(m_x);
                 let y_max = mps_y.max(m_y);
-                self.draw_bx = Some(BB {
+                let draw_bx = BB {
                     x: x_min as u32,
                     y: y_min as u32,
                     w: (x_max - x_min) as u32,
                     h: (y_max - y_min) as u32,
-                });
+                };
+                let offset = 50;
+                let change = |x| if 255 - x > offset { x + offset } else { 255 };
+                let im_view = world.im_view();
+                for y in draw_bx.y..(draw_bx.y + draw_bx.h) {
+                    for x in draw_bx.x..(draw_bx.x + draw_bx.w) {
+                        let rgb = im_view.get_pixel_mut(x, y);
+                        *rgb = Rgb([change(rgb[0]), change(rgb[1]), change(rgb[2])]);
+                    }
+                }
             }
             None
         } else if input_event.mouse_released(RIGHT_BTN) {
@@ -239,21 +222,11 @@ impl Tool for Zoom {
             None
         }
     }
-    fn draw(&self, world: &World, pixels: &mut Pixels) {
-        let frame_len = pixels.get_frame().len() as u32;
-        let w_view = world.im_view().width();
-        let h_view = world.im_view().height();
-        if frame_len != w_view * h_view * 4 {
-            pixels.resize_buffer(w_view, h_view);
-        }
-        let frame = pixels.get_frame();
-
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let rgba = pixels_rgba_at(i, world.im_view(), &self.draw_bx);
-            pixel.copy_from_slice(&rgba);
-        }
-    }
-    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    fn scale_to_shape(
+        &self,
+        world: &mut World,
+        shape: &Shape,
+    ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         Some(scale_to_win(world.im_orig(), self.bx, shape.w, shape.h))
     }
 
@@ -319,23 +292,6 @@ fn test_move_zoom() -> RvResult<()> {
     }
     test((4, 4), (12, 8), mk_z(12, 16, 40, 40), mk_z(4, 12, 40, 40));
     Ok(())
-}
-#[test]
-fn test_rgba() {
-    let mut im_test = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(64, 64);
-    im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
-    assert_eq!(pixels_rgba_at(0, &im_test, &None), [23, 23, 23, 255]);
-    im_test.put_pixel(0, 1, Rgb([23, 23, 23]));
-    assert_eq!(pixels_rgba_at(64, &im_test, &None), [23, 23, 23, 255]);
-    im_test.put_pixel(7, 11, Rgb([23, 23, 23]));
-    assert_eq!(
-        pixels_rgba_at(11 * 64 + 7, &im_test, &None),
-        [23, 23, 23, 255]
-    );
-    assert_eq!(
-        pixels_rgba_at(11 * 64 + 7, &im_test, &mk_z(5, 10, 24, 24)),
-        [73, 73, 73, 255]
-    );
 }
 #[test]
 fn test_scale_to_win() {

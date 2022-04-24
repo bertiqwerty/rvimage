@@ -181,7 +181,7 @@ fn main() -> Result<(), pixels::Error> {
             // Draw the current frame
             Event::RedrawRequested(_) => {
                 // Draw the world
-                world.draw(&mut pixels, &tools);
+                world.draw(&mut pixels);
 
                 // Prepare egui
                 framework.prepare(&window);

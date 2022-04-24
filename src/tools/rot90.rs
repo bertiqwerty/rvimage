@@ -1,5 +1,4 @@
 use image::{ImageBuffer, Rgb, imageops};
-use pixels::Pixels;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{util::Shape, world::World};
@@ -17,7 +16,6 @@ fn rot90(im: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
 }
 
 impl Tool for Rot90 {
-    fn draw(&self, world: &World, pixels: &mut Pixels) {}
     fn new() -> Self {
         Self { n_rots: 0 }
     }
@@ -32,7 +30,7 @@ impl Tool for Rot90 {
         input_event: &WinitInputHelper,
         window_shape: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &World,
+        world: &mut World,
     ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         None
     }
