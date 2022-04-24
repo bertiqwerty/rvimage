@@ -1,6 +1,6 @@
 use crate::{apply_tool_method_mut, apply_tool_method};
 use crate::tools::{Tool, ToolWrapper};
-use crate::util::Shape;
+use crate::util::{Shape, mouse_pos_transform};
 use image::{ImageBuffer, Rgb};
 use pixels::Pixels;
 use winit_input_helper::WinitInputHelper;
@@ -21,14 +21,18 @@ impl World {
     }
     pub fn update(
         &mut self,
-        input_events: &WinitInputHelper,
+        input_event: &WinitInputHelper,
         shape_win: Shape,
         tools: &mut Vec<ToolWrapper>,
         pixels: &mut Pixels,
     ) {
         
+        let mouse_pos = mouse_pos_transform(pixels, input_event.mouse());
         for tool in tools {
-            apply_tool_method_mut!(tool, events_transform, input_events, shape_win, pixels, self);
+            let new_buffer_shape = apply_tool_method_mut!(tool, events_transform, input_event, shape_win, mouse_pos, self);
+            if let Some((w, h)) = new_buffer_shape {
+                pixels.resize_buffer(w, h);
+            }
             // apply_tool_mut(tool, |t| t.events_transform(input_events, window, pixels, self));
         }
     }

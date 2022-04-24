@@ -115,7 +115,6 @@ fn main() -> Result<(), pixels::Error> {
                             im_loading
                         }
                     };
-                    println!("creating new world.");
                     world = World::new(im_read);
                     tools = tools
                         .iter()

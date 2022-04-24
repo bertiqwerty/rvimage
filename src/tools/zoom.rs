@@ -9,7 +9,7 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
-    util::{mouse_pos_to_orig_pos, mouse_pos_transform, shape_scaled, shape_unscaled, Shape, BB},
+    util::{mouse_pos_to_orig_pos, shape_scaled, shape_unscaled, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
@@ -165,34 +165,36 @@ impl Tool for Zoom {
         &mut self,
         input_event: &WinitInputHelper,
         shape_win: Shape,
-        pixels: &mut Pixels,
+        mouse_pos: Option<(usize, usize)>,
         world: &mut World,
-    ) {
+    ) -> Option<(u32, u32)>{
         let w_win = shape_win.w;
         let h_win = shape_win.h;
         let shape_orig = world.shape_orig();
 
         // zoom
-        let mouse_pos = mouse_pos_transform(pixels, input_event.mouse());
         if input_event.mouse_pressed(LEFT_BTN) || input_event.mouse_pressed(RIGHT_BTN) {
             if let (None, Some((m_x, m_y))) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.set_mouse_start((m_x, m_y));
             }
+            None
         }
-        if input_event.mouse_released(LEFT_BTN) {
+        else if input_event.mouse_released(LEFT_BTN) {
+            let mut new_pixels_size = None;
             if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
                 if self.bx.is_some() {
                     let im_view = scale_to_win(world.im_orig(), self.bx, w_win, h_win);
                     world.set_im_view(im_view);
-                    pixels.resize_buffer(world.im_view().width(), world.im_view().height());
+                    new_pixels_size = Some((world.im_view().width(), world.im_view().height()));
                 }
             }
             self.unset_mouse_start();
             self.draw_bx = None;
+            new_pixels_size
         }
         // zoom move
-        if input_event.mouse_held(RIGHT_BTN) {
+        else if input_event.mouse_held(RIGHT_BTN) {
             if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx = move_zoom_box(mps, mp, shape_orig, shape_win, self.bx);
                 let im_view = scale_to_win(world.im_orig(), self.bx, w_win, h_win);
@@ -206,6 +208,7 @@ impl Tool for Zoom {
                     }
                 }
             }
+            None
         // define zoom
         } else if input_event.mouse_held(LEFT_BTN) {
             if let (Some((mps_x, mps_y)), Some((m_x, m_y))) =
@@ -222,15 +225,19 @@ impl Tool for Zoom {
                     h: (y_max - y_min) as u32,
                 });
             }
+            None
         }
-        if input_event.mouse_released(RIGHT_BTN) {
+        else if input_event.mouse_released(RIGHT_BTN) {
             self.unset_mouse_start();
+            None
         }
         // unzoom
-        if input_event.key_pressed(VirtualKeyCode::Back) {
+        else if input_event.key_pressed(VirtualKeyCode::Back) {
             self.bx = None;            
             world.set_im_view(scale_to_win(world.im_orig(), self.bx, w_win, h_win));
-            pixels.resize_buffer(shape_win.w, shape_win.h);
+            Some((shape_win.w, shape_win.h))
+        } else {
+            None
         }
     }
     fn draw(&self, world: &World, pixels: &mut Pixels) {

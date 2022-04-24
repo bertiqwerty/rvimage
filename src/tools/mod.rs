@@ -1,8 +1,10 @@
 mod core;
 mod zoom;
+mod rot90;
 use std::fmt::Debug;
 pub use self::core::Tool;
 pub use zoom::Zoom;
+pub use rot90::Rot90;
 
 macro_rules! make_tools {
 ($($tool:ident),+) => {

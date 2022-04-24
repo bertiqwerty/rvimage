@@ -10,14 +10,18 @@ pub trait Tool {
     fn new() -> Self
     where
         Self: Sized;
+
+    /// what should happen to the state of this tool when a new image is loaded
     fn old_to_new(self) -> Self;
+   
     fn events_transform(
         &mut self,
         input_event: &WinitInputHelper,
         window_shape: Shape,
-        pixels: &mut Pixels,
+        mouse_pos_on_pixels: Option<(usize, usize)>,
         world: &mut World,
-    );
+    ) -> Option<(u32, u32)>;
+    
     fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<Shape>;
 
     fn get_pixel_on_orig(
