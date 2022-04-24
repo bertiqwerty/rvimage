@@ -52,7 +52,7 @@ impl World {
         &self,
         mouse_pos: Option<(usize, usize)>,
         shape_win: Shape,
-        tools: &Vec<ToolWrapper>,
+        tools: &[ToolWrapper],
     ) -> Option<(u32, u32, [u8; 3])> {
         let mut mp = mouse_pos;
         let mut res = None;
@@ -65,7 +65,7 @@ impl World {
         }
         res
     }
-    pub fn scale_to_shape(&mut self, shape: Shape, tools: &Vec<ToolWrapper>) -> Shape {
+    pub fn scale_to_shape(&mut self, shape: Shape, tools: &[ToolWrapper]) -> Shape {
         let mut new_shape = shape;
         for tool in tools {
             let tmp_shape = apply_tool_method!(tool, scale_to_shape, self, &new_shape);
@@ -75,7 +75,7 @@ impl World {
         }
         new_shape
     }
-    pub fn draw(&self, pixels: &mut Pixels, tools: &Vec<ToolWrapper>) {
+    pub fn draw(&self, pixels: &mut Pixels, tools: &[ToolWrapper]) {
         for tool in tools {
             apply_tool_method!(tool, draw,self, pixels);
         }
