@@ -29,18 +29,18 @@ impl World {
         
         let mouse_pos = mouse_pos_transform(pixels, input_event.mouse());
         for tool in tools {
-            let new_buffer_shape = apply_tool_method_mut!(tool, events_transform, input_event, shape_win, mouse_pos, self);
-            if let Some((w, h)) = new_buffer_shape {
-                pixels.resize_buffer(w, h);
+            let im_view_new = apply_tool_method_mut!(tool, events_transform, input_event, shape_win, mouse_pos, self);
+            if let Some(ivn) = im_view_new {
+                pixels.resize_buffer(ivn.width(), ivn.height());
+                self.im_view = ivn;
             }
-            // apply_tool_mut(tool, |t| t.events_transform(input_events, window, pixels, self));
         }
-    }
-    pub fn im_view(&self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
-        &self.im_view
     }
     pub fn set_im_view(&mut self, im_view: ImageBuffer<Rgb<u8>, Vec<u8>>) {
         self.im_view = im_view;
+    }
+    pub fn im_view(&self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
+        &self.im_view
     }
     pub fn im_orig(&self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
         &self.im_orig

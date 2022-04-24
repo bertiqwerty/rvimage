@@ -20,7 +20,7 @@ pub trait Tool {
         window_shape: Shape,
         mouse_pos_on_pixels: Option<(usize, usize)>,
         world: &mut World,
-    ) -> Option<(u32, u32)>;
+    ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
     
     fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<Shape>;
 

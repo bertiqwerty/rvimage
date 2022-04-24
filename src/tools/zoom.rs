@@ -167,7 +167,7 @@ impl Tool for Zoom {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         world: &mut World,
-    ) -> Option<(u32, u32)>{
+    ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         let w_win = shape_win.w;
         let h_win = shape_win.h;
         let shape_orig = world.shape_orig();
@@ -178,27 +178,26 @@ impl Tool for Zoom {
                 self.set_mouse_start((m_x, m_y));
             }
             None
-        }
-        else if input_event.mouse_released(LEFT_BTN) {
-            let mut new_pixels_size = None;
-            if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
+        } else if input_event.mouse_released(LEFT_BTN) {
+            let im_view = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
                 if self.bx.is_some() {
-                    let im_view = scale_to_win(world.im_orig(), self.bx, w_win, h_win);
-                    world.set_im_view(im_view);
-                    new_pixels_size = Some((world.im_view().width(), world.im_view().height()));
+                    Some(scale_to_win(world.im_orig(), self.bx, w_win, h_win))
+                } else {
+                    None
                 }
-            }
+            } else {
+                None
+            };
             self.unset_mouse_start();
             self.draw_bx = None;
-            new_pixels_size
+            im_view
         }
         // zoom move
         else if input_event.mouse_held(RIGHT_BTN) {
             if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx = move_zoom_box(mps, mp, shape_orig, shape_win, self.bx);
                 let im_view = scale_to_win(world.im_orig(), self.bx, w_win, h_win);
-                world.set_im_view(im_view);
                 match mouse_pos {
                     Some(mp) => {
                         self.set_mouse_start(mp);
@@ -207,8 +206,10 @@ impl Tool for Zoom {
                         self.unset_mouse_start();
                     }
                 }
+                Some(im_view)
+            } else {
+                None
             }
-            None
         // define zoom
         } else if input_event.mouse_held(LEFT_BTN) {
             if let (Some((mps_x, mps_y)), Some((m_x, m_y))) =
@@ -226,16 +227,14 @@ impl Tool for Zoom {
                 });
             }
             None
-        }
-        else if input_event.mouse_released(RIGHT_BTN) {
+        } else if input_event.mouse_released(RIGHT_BTN) {
             self.unset_mouse_start();
             None
         }
         // unzoom
         else if input_event.key_pressed(VirtualKeyCode::Back) {
-            self.bx = None;            
-            world.set_im_view(scale_to_win(world.im_orig(), self.bx, w_win, h_win));
-            Some((shape_win.w, shape_win.h))
+            self.bx = None;
+            Some(scale_to_win(world.im_orig(), self.bx, w_win, h_win))
         } else {
             None
         }
