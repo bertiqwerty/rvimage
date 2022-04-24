@@ -166,7 +166,7 @@ impl Tool for Zoom {
         input_event: &WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &mut World,
+        world: &World,
     ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         let w_win = shape_win.w;
         let h_win = shape_win.h;

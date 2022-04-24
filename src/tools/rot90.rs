@@ -32,7 +32,7 @@ impl Tool for Rot90 {
         input_event: &WinitInputHelper,
         window_shape: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &mut World,
+        world: &World,
     ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         None
     }
