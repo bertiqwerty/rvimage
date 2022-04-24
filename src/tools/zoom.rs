@@ -150,7 +150,6 @@ impl Zoom {
 }
 impl Tool for Zoom {
     fn new() -> Zoom {
-        println!("new zoom");
         Zoom {
             bx: None,
             draw_bx: None,
@@ -171,7 +170,6 @@ impl Tool for Zoom {
     ) {
         let w_win = shape_win.w;
         let h_win = shape_win.h;
-        let bx = self.bx;
         let shape_orig = world.shape_orig();
 
         // zoom
@@ -185,21 +183,19 @@ impl Tool for Zoom {
             if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
                 if self.bx.is_some() {
-                    let im_view = scale_to_win(world.im_orig(), bx, w_win, h_win);
+                    let im_view = scale_to_win(world.im_orig(), self.bx, w_win, h_win);
                     world.set_im_view(im_view);
                     pixels.resize_buffer(world.im_view().width(), world.im_view().height());
                 }
             }
-            println!("noonining start");
             self.unset_mouse_start();
-            println!("draw box to None");
             self.draw_bx = None;
         }
         // zoom move
         if input_event.mouse_held(RIGHT_BTN) {
             if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx = move_zoom_box(mps, mp, shape_orig, shape_win, self.bx);
-                let im_view = scale_to_win(world.im_orig(), bx, w_win, h_win);
+                let im_view = scale_to_win(world.im_orig(), self.bx, w_win, h_win);
                 world.set_im_view(im_view);
                 match mouse_pos {
                     Some(mp) => {
@@ -225,17 +221,15 @@ impl Tool for Zoom {
                     w: (x_max - x_min) as u32,
                     h: (y_max - y_min) as u32,
                 });
-                println!("set drawbox to {:?}", self.draw_bx);
             }
-            println!("mstartpos {:?}", self.mouse_pressed_start_pos);
         }
         if input_event.mouse_released(RIGHT_BTN) {
-            println!("noonining start");
             self.unset_mouse_start();
         }
         // unzoom
         if input_event.key_pressed(VirtualKeyCode::Back) {
-            self.bx = None;
+            self.bx = None;            
+            world.set_im_view(scale_to_win(world.im_orig(), self.bx, w_win, h_win));
             pixels.resize_buffer(shape_win.w, shape_win.h);
         }
     }
@@ -277,6 +271,7 @@ impl Tool for Zoom {
         pos.map(|(x, y)| (x, y, im_orig.get_pixel(x, y).0))
     }
 }
+
 #[cfg(test)]
 use crate::result::RvResult;
 #[cfg(test)]
