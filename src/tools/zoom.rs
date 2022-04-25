@@ -1,4 +1,7 @@
-use std::fmt::Debug;
+use std::{
+    fmt::Debug,
+    time::{Instant},
+};
 
 use image::{
     imageops::{self, FilterType},
@@ -111,23 +114,33 @@ pub fn scale_to_win(
 #[derive(Clone, Debug)]
 pub struct Zoom {
     bx: Option<BB>,
-    draw_bx: Option<BB>,
+    mouse_pressed_start_time: Option<Instant>,
     mouse_pressed_start_pos: Option<(usize, usize)>,
+    im_prev_view: Option<ImageBuffer<Rgb<u8>, Vec<u8>>>,
 }
 impl Zoom {
-    fn set_mouse_start(&mut self, mp: (usize, usize)) {
+    fn set_mouse_start(
+        &mut self,
+        mp: (usize, usize),
+        im_view: Option<ImageBuffer<Rgb<u8>, Vec<u8>>>,
+    ) {
         self.mouse_pressed_start_pos = Some(mp);
+        self.mouse_pressed_start_time = Some(Instant::now());
+        self.im_prev_view = im_view;
     }
     fn unset_mouse_start(&mut self) {
         self.mouse_pressed_start_pos = None;
+        self.mouse_pressed_start_time = None;
+        self.im_prev_view = None;
     }
 }
 impl Tool for Zoom {
     fn new() -> Zoom {
         Zoom {
             bx: None,
-            draw_bx: None,
+            mouse_pressed_start_time: None,
             mouse_pressed_start_pos: None,
+            im_prev_view: None,
         }
     }
     fn old_to_new(self) -> Self {
@@ -149,22 +162,17 @@ impl Tool for Zoom {
         // zoom
         if input_event.mouse_pressed(LEFT_BTN) || input_event.mouse_pressed(RIGHT_BTN) {
             if let (None, Some((m_x, m_y))) = (self.mouse_pressed_start_pos, mouse_pos) {
-                self.set_mouse_start((m_x, m_y));
+                self.set_mouse_start((m_x, m_y), Some(world.im_view().clone()));
             }
             None
         } else if input_event.mouse_released(LEFT_BTN) {
             let im_view = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
-                if self.bx.is_some() {
-                    Some(scale_to_win(world.im_orig(), self.bx, w_win, h_win))
-                } else {
-                    None
-                }
+                Some(scale_to_win(world.im_orig(), self.bx, w_win, h_win))
             } else {
-                None
+                Some(scale_to_win(world.im_orig(), self.bx, w_win, h_win))
             };
             self.unset_mouse_start();
-            self.draw_bx = None;
             im_view
         }
         // zoom move
@@ -174,7 +182,7 @@ impl Tool for Zoom {
                 let im_view = scale_to_win(world.im_orig(), self.bx, w_win, h_win);
                 match mouse_pos {
                     Some(mp) => {
-                        self.set_mouse_start(mp);
+                        self.set_mouse_start(mp, None);
                     }
                     None => {
                         self.unset_mouse_start();
@@ -186,9 +194,12 @@ impl Tool for Zoom {
             }
         // define zoom
         } else if input_event.mouse_held(LEFT_BTN) {
-            if let (Some((mps_x, mps_y)), Some((m_x, m_y))) =
-                (self.mouse_pressed_start_pos, mouse_pos)
-            {
+            if let (Some((mps_x, mps_y)), Some((m_x, m_y)), Some(start_time), Some(im_prev_view)) = (
+                self.mouse_pressed_start_pos,
+                mouse_pos,
+                self.mouse_pressed_start_time,
+                &self.im_prev_view,
+            ) {
                 let x_min = mps_x.min(m_x);
                 let y_min = mps_y.min(m_y);
                 let x_max = mps_x.max(m_x);
@@ -199,13 +210,32 @@ impl Tool for Zoom {
                     w: (x_max - x_min) as u32,
                     h: (y_max - y_min) as u32,
                 };
-                let offset = 50;
-                let change = |x| if 255 - x > offset { x + offset } else { 255 };
+                let max_offset = 100;
+                let offset = (start_time.elapsed().as_millis() as f64 / 250.0).min(max_offset as f64) as u8;
+
+                let change = |v, v_prev| {
+                    let upper_bound = if v_prev >= 255 - max_offset as u8 {
+                        255
+                    } else {
+                        v_prev + max_offset as u8
+                    };
+                    let upper_bound = upper_bound.max(offset);
+                    if v < upper_bound - offset {
+                        v + offset
+                    } else {
+                        upper_bound
+                    }
+                };
                 let im_view = world.im_view();
                 for y in draw_bx.y..(draw_bx.y + draw_bx.h) {
                     for x in draw_bx.x..(draw_bx.x + draw_bx.w) {
                         let rgb = im_view.get_pixel_mut(x, y);
-                        *rgb = Rgb([change(rgb[0]), change(rgb[1]), change(rgb[2])]);
+                        let rgb_prev = im_prev_view.get_pixel(x, y);
+                        *rgb = Rgb([
+                            change(rgb[0], rgb_prev[0]),
+                            change(rgb[1], rgb_prev[1]),
+                            change(rgb[2], rgb_prev[2]),
+                        ]);
                     }
                 }
             }
