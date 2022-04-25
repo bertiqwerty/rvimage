@@ -8,10 +8,7 @@ use winit_input_helper::WinitInputHelper;
 /// Draw the image to the frame buffer.
 ///
 /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
-fn pixels_rgba_at(
-    i: usize,
-    im_view: &ImageBuffer<Rgb<u8>, Vec<u8>>,
-) -> [u8; 4] {
+fn pixels_rgba_at(i: usize, im_view: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> [u8; 4] {
     let x = (i % im_view.width() as usize) as u32;
     let y = (i / im_view.width() as usize) as u32;
     let rgb = im_view.get_pixel(x, y).0;
@@ -25,6 +22,7 @@ pub struct World {
 }
 
 impl World {
+
     pub fn draw(&self, pixels: &mut Pixels) {
         let frame_len = pixels.get_frame().len() as u32;
         let w_view = self.im_view.width();
@@ -68,7 +66,10 @@ impl World {
             }
         }
     }
-    pub fn im_view(&mut self) -> &mut ImageBuffer<Rgb<u8>, Vec<u8>> {
+    pub fn im_view(&self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
+        &self.im_view
+    }
+    pub fn im_view_mut(&mut self) -> &mut ImageBuffer<Rgb<u8>, Vec<u8>> {
         &mut self.im_view
     }
     pub fn im_orig(&self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
@@ -119,12 +120,9 @@ impl World {
 fn test_rgba() {
     let mut im_test = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(64, 64);
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
-    assert_eq!(pixels_rgba_at(0, &im_test ), [23, 23, 23, 255]);
+    assert_eq!(pixels_rgba_at(0, &im_test), [23, 23, 23, 255]);
     im_test.put_pixel(0, 1, Rgb([23, 23, 23]));
-    assert_eq!(pixels_rgba_at(64, &im_test ), [23, 23, 23, 255]);
+    assert_eq!(pixels_rgba_at(64, &im_test), [23, 23, 23, 255]);
     im_test.put_pixel(7, 11, Rgb([23, 23, 23]));
-    assert_eq!(
-        pixels_rgba_at(11 * 64 + 7, &im_test),
-        [23, 23, 23, 255]
-    );
+    assert_eq!(pixels_rgba_at(11 * 64 + 7, &im_test), [23, 23, 23, 255]);
 }

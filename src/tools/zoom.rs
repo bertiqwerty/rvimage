@@ -1,7 +1,4 @@
-use std::{
-    fmt::Debug,
-    time::{Instant},
-};
+use std::{fmt::Debug, time::Instant};
 
 use image::{
     imageops::{self, FilterType},
@@ -111,6 +108,8 @@ pub fn scale_to_win(
     }
 }
 
+type EventResult = Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+
 #[derive(Clone, Debug)]
 pub struct Zoom {
     bx: Option<BB>,
@@ -132,6 +131,49 @@ impl Zoom {
         self.mouse_pressed_start_pos = None;
         self.mouse_pressed_start_time = None;
         self.im_prev_view = None;
+    }
+    fn on_mouse_pressed(
+        &mut self,
+        _btn: usize,
+        _shape_win: Shape,
+        mouse_pos: Option<(usize, usize)>,
+        world: &World,
+    ) -> EventResult {
+        if let (None, Some((m_x, m_y))) = (self.mouse_pressed_start_pos, mouse_pos) {
+            self.set_mouse_start((m_x, m_y), Some(world.im_view().clone()));
+        }
+        None
+    }
+    fn on_mouse_released(
+        &mut self,
+        btn: usize,
+        shape_win: Shape,
+        mouse_pos: Option<(usize, usize)>,
+        world: &World,
+    ) -> EventResult {
+        if btn == LEFT_BTN {
+            let shape_orig = world.shape_orig();
+            let im_view = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
+                self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
+                Some(scale_to_win(
+                    world.im_orig(),
+                    self.bx,
+                    shape_win.w,
+                    shape_win.h,
+                ))
+            } else {
+                Some(scale_to_win(
+                    world.im_orig(),
+                    self.bx,
+                    shape_win.w,
+                    shape_win.h,
+                ))
+            };
+            self.unset_mouse_start();
+            im_view
+        } else {
+            None
+        }
     }
 }
 impl Tool for Zoom {
@@ -160,20 +202,12 @@ impl Tool for Zoom {
         let shape_orig = world.shape_orig();
 
         // zoom
-        if input_event.mouse_pressed(LEFT_BTN) || input_event.mouse_pressed(RIGHT_BTN) {
-            if let (None, Some((m_x, m_y))) = (self.mouse_pressed_start_pos, mouse_pos) {
-                self.set_mouse_start((m_x, m_y), Some(world.im_view().clone()));
-            }
-            None
+        if input_event.mouse_pressed(LEFT_BTN) {
+            self.on_mouse_pressed(LEFT_BTN, shape_win, mouse_pos, world)
+        } else if input_event.mouse_pressed(RIGHT_BTN) {
+            self.on_mouse_pressed(RIGHT_BTN, shape_win, mouse_pos, world)
         } else if input_event.mouse_released(LEFT_BTN) {
-            let im_view = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
-                self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
-                Some(scale_to_win(world.im_orig(), self.bx, w_win, h_win))
-            } else {
-                Some(scale_to_win(world.im_orig(), self.bx, w_win, h_win))
-            };
-            self.unset_mouse_start();
-            im_view
+            self.on_mouse_released(LEFT_BTN, shape_win, mouse_pos, world)
         }
         // zoom move
         else if input_event.mouse_held(RIGHT_BTN) {
@@ -211,7 +245,8 @@ impl Tool for Zoom {
                     h: (y_max - y_min) as u32,
                 };
                 let max_offset = 100;
-                let offset = (start_time.elapsed().as_millis() as f64 / 250.0).min(max_offset as f64) as u8;
+                let offset =
+                    (start_time.elapsed().as_millis() as f64 / 250.0).min(max_offset as f64) as u8;
 
                 let change = |v, v_prev| {
                     let upper_bound = if v_prev >= 255 - max_offset as u8 {
@@ -226,7 +261,7 @@ impl Tool for Zoom {
                         upper_bound
                     }
                 };
-                let im_view = world.im_view();
+                let im_view = world.im_view_mut();
                 for y in draw_bx.y..(draw_bx.y + draw_bx.h) {
                     for x in draw_bx.x..(draw_bx.x + draw_bx.w) {
                         let rgb = im_view.get_pixel_mut(x, y);
@@ -332,4 +367,52 @@ fn test_scale_to_win() {
     assert_eq!(im_scaled.get_pixel(0, 0).0, [23, 23, 23]);
     assert_eq!(im_scaled.get_pixel(20, 20).0, [23, 23, 23]);
     assert_eq!(im_scaled.get_pixel(70, 70).0, [0, 0, 0]);
+}
+#[cfg(test)]
+fn shape_from_im(im: &ImageBuffer::<Rgb<u8>, Vec<u8>>) -> Shape {
+    Shape {
+        w: im.width(),
+        h: im.height()
+    }
+}
+#[test]
+fn test_on_mouse_pressed() {
+    let shape_win = Shape { w: 250, h: 500 };
+    let mouse_pos = Some((30, 45));
+    let im_orig = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(250, 500);
+    let mouse_btn = LEFT_BTN;
+    let mut z = Zoom::new();
+    let world = World::new(im_orig);
+
+    let res = z.on_mouse_pressed(mouse_btn, shape_win, mouse_pos, &world);
+    assert_eq!(res, None);
+    assert_eq!(&z.im_prev_view.unwrap(), world.im_view());
+    assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
+}
+
+#[test]
+fn test_on_mouse_released() {
+    let shape_win = Shape { w: 250, h: 500 };
+    let mouse_pos = Some((30, 45));
+    let im_orig = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(250, 500);
+    let mouse_btn = LEFT_BTN;
+    let mut z = Zoom::new();
+    let world = World::new(im_orig);
+    z.set_mouse_start((40, 80), Some(world.im_view().clone()));
+
+    let res = z.on_mouse_released(mouse_btn, shape_win, mouse_pos, &world);
+    let im_view_new = res.unwrap();
+    let shape_scaled_to_win = shape_scaled(z.bx.unwrap().shape(), shape_win);
+    assert_eq!(shape_scaled_to_win, shape_from_im(&im_view_new));
+    assert_eq!(
+        z.bx,
+        Some(BB {
+            x: 30,
+            y: 45,
+            w: 10,
+            h: 35
+        })
+    );
+    assert_eq!(z.im_prev_view, None);
+    assert_eq!(z.mouse_pressed_start_pos, None);
 }
