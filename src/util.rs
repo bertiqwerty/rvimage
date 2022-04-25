@@ -2,6 +2,8 @@ use std::{ffi::OsStr, io};
 
 use pixels::Pixels;
 
+use crate::ImageType;
+
 pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
     p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
         .to_str()
@@ -91,6 +93,12 @@ pub fn mouse_pos_to_orig_pos(
     }
 }
 
+pub fn shape_from_im(im: &ImageType) -> Shape {
+    Shape {
+        w: im.width(),
+        h: im.height(),
+    }
+}
 #[test]
 fn test_to_orig_pos() {
     let orig_pos = mouse_pos_to_orig_pos(

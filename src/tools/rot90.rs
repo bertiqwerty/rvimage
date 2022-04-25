@@ -29,9 +29,9 @@ impl Tool for Rot90 {
         input_event: &WinitInputHelper,
         window_shape: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &mut World,
-    ) -> Option<ImageType> {
-        None
+        world: World,
+    ) -> World {
+        world
     }
 
     fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageType> {

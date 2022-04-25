@@ -1,13 +1,13 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use std::thread;
-use std::time::Duration;
-
 use crate::gui::Framework;
 use image::{ImageBuffer, Rgb};
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
+use std::mem;
+use std::thread;
+use std::time::Duration;
 use tools::make_tool_vec;
 use tools::{Tool, ToolWrapper};
 use util::{mouse_pos_transform, Shape};
@@ -74,7 +74,8 @@ fn main() -> Result<(), pixels::Error> {
                 w: window.inner_size().width,
                 h: window.inner_size().height,
             };
-            world.update(&input, shape_win, &mut tools, &mut pixels);
+            // we need mem::take since we cannot move directly out of a shared reference 
+            world = mem::take(&mut world).update(&input, shape_win, &mut tools, &mut pixels);
 
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
             if input.key_pressed(VirtualKeyCode::M) {

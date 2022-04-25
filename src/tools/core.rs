@@ -16,8 +16,8 @@ pub trait Tool {
         input_event: &WinitInputHelper,
         window_shape: Shape,
         mouse_pos_on_pixels: Option<(usize, usize)>,
-        world: &mut World,
-    ) -> Option<ImageType>;
+        world: World,
+    ) -> World;
 
     fn scale_to_shape(
         &self,

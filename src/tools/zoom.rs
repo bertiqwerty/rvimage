@@ -8,7 +8,7 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
-    util::{mouse_pos_to_orig_pos, shape_scaled, shape_unscaled, Shape, BB},
+    util::{mouse_pos_to_orig_pos, shape_from_im, shape_scaled, shape_unscaled, Shape, BB},
     world::World,
     ImageType, LEFT_BTN, RIGHT_BTN,
 };
@@ -142,8 +142,6 @@ fn draw_bx_on_view(
     }
 }
 
-type EventResult = Option<ImageType>;
-
 #[derive(Clone, Debug)]
 pub struct Zoom {
     bx: Option<BB>,
@@ -162,57 +160,102 @@ impl Zoom {
         self.mouse_pressed_start_time = None;
         self.im_prev_view = None;
     }
-    fn on_mouse_pressed(
+    fn mouse_pressed(
         &mut self,
         _btn: usize,
         _shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &World,
-    ) -> EventResult {
+        world: World,
+    ) -> World {
         if let (None, Some((m_x, m_y))) = (self.mouse_pressed_start_pos, mouse_pos) {
             self.set_mouse_start((m_x, m_y), Some(world.im_view().clone()));
         }
-        None
+        world
     }
-    fn on_mouse_released(
+    fn mouse_released(
         &mut self,
         btn: usize,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &World,
-    ) -> EventResult {
+        mut world: World,
+    ) -> World {
         if btn == LEFT_BTN {
             let shape_orig = world.shape_orig();
             let im_view = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
-                Some(scale_to_win(
-                    world.im_orig(),
-                    self.bx,
-                    shape_win.w,
-                    shape_win.h,
-                ))
+                scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h)
             } else {
-                Some(scale_to_win(
-                    world.im_orig(),
-                    self.bx,
-                    shape_win.w,
-                    shape_win.h,
-                ))
+                scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h)
             };
             self.unset_mouse_start();
-            im_view
+            *world.im_view_mut() = im_view;
+            world
+        } else if btn == RIGHT_BTN {
+            self.unset_mouse_start();
+            world
         } else {
-            None
+            world
         }
     }
-    fn on_mouse_held(
+    fn mouse_held(
         &mut self,
         btn: usize,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &World,
-    ) -> EventResult {
-        None
+        mut world: World,
+    ) -> World {
+        if btn == RIGHT_BTN {
+            if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
+                self.bx =
+                    move_zoom_box(mps, mp, shape_from_im(world.im_orig()), shape_win, self.bx);
+                let im_view = scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h);
+                match mouse_pos {
+                    Some(mp) => {
+                        self.set_mouse_start(mp, None);
+                    }
+                    None => {
+                        self.unset_mouse_start();
+                    }
+                }
+                *world.im_view_mut() = im_view;
+            }
+            world
+        } else if btn == LEFT_BTN {
+            if let (Some((mps_x, mps_y)), Some((m_x, m_y)), Some(start_time), Some(im_prev_view)) = (
+                self.mouse_pressed_start_pos,
+                mouse_pos,
+                self.mouse_pressed_start_time,
+                &self.im_prev_view,
+            ) {
+                let x_min = mps_x.min(m_x);
+                let y_min = mps_y.min(m_y);
+                let x_max = mps_x.max(m_x);
+                let y_max = mps_y.max(m_y);
+                let draw_bx = BB {
+                    x: x_min as u32,
+                    y: y_min as u32,
+                    w: (x_max - x_min) as u32,
+                    h: (y_max - y_min) as u32,
+                };
+                draw_bx_on_view(im_prev_view, world.im_view_mut(), start_time, draw_bx);
+            }
+            world
+        } else {
+            world
+        }
+    }
+    fn key_pressed(
+        &mut self,
+        key: VirtualKeyCode,
+        shape_win: Shape,
+        _mouse_pos: Option<(usize, usize)>,
+        mut world: World,
+    ) -> World {
+        if key == VirtualKeyCode::Back {
+            self.bx = None;
+            *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h);
+        }
+        world
     }
 }
 impl Tool for Zoom {
@@ -234,70 +277,27 @@ impl Tool for Zoom {
         input_event: &WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: &mut World,
-    ) -> Option<ImageType> {
-        let w_win = shape_win.w;
-        let h_win = shape_win.h;
-        let shape_orig = world.shape_orig();
-
-        // zoom
+        world: World,
+    ) -> World {
         if input_event.mouse_pressed(LEFT_BTN) {
-            self.on_mouse_pressed(LEFT_BTN, shape_win, mouse_pos, world)
+            self.mouse_pressed(LEFT_BTN, shape_win, mouse_pos, world)
         } else if input_event.mouse_pressed(RIGHT_BTN) {
-            self.on_mouse_pressed(RIGHT_BTN, shape_win, mouse_pos, world)
+            self.mouse_pressed(RIGHT_BTN, shape_win, mouse_pos, world)
         } else if input_event.mouse_released(LEFT_BTN) {
-            self.on_mouse_released(LEFT_BTN, shape_win, mouse_pos, world)
-        }
-        // zoom move
-        else if input_event.mouse_held(RIGHT_BTN) {
-            if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
-                self.bx = move_zoom_box(mps, mp, shape_orig, shape_win, self.bx);
-                let im_view = scale_to_win(world.im_orig(), self.bx, w_win, h_win);
-                match mouse_pos {
-                    Some(mp) => {
-                        self.set_mouse_start(mp, None);
-                    }
-                    None => {
-                        self.unset_mouse_start();
-                    }
-                }
-                Some(im_view)
-            } else {
-                None
-            }
-        // define zoom
+            self.mouse_released(LEFT_BTN, shape_win, mouse_pos, world)
+        } else if input_event.mouse_held(RIGHT_BTN) {
+            self.mouse_held(RIGHT_BTN, shape_win, mouse_pos, world)
         } else if input_event.mouse_held(LEFT_BTN) {
-            if let (Some((mps_x, mps_y)), Some((m_x, m_y)), Some(start_time), Some(im_prev_view)) = (
-                self.mouse_pressed_start_pos,
-                mouse_pos,
-                self.mouse_pressed_start_time,
-                &self.im_prev_view,
-            ) {
-                let x_min = mps_x.min(m_x);
-                let y_min = mps_y.min(m_y);
-                let x_max = mps_x.max(m_x);
-                let y_max = mps_y.max(m_y);
-                let draw_bx = BB {
-                    x: x_min as u32,
-                    y: y_min as u32,
-                    w: (x_max - x_min) as u32,
-                    h: (y_max - y_min) as u32,
-                };
-                draw_bx_on_view(im_prev_view, world.im_view_mut(), start_time, draw_bx);
-            }
-            None
+            self.mouse_held(LEFT_BTN, shape_win, mouse_pos, world)
         } else if input_event.mouse_released(RIGHT_BTN) {
-            self.unset_mouse_start();
-            None
-        }
-        // unzoom
-        else if input_event.key_pressed(VirtualKeyCode::Back) {
-            self.bx = None;
-            Some(scale_to_win(world.im_orig(), self.bx, w_win, h_win))
+            self.mouse_released(RIGHT_BTN, shape_win, mouse_pos, world)
+        } else if input_event.key_pressed(VirtualKeyCode::Back) {
+            self.key_pressed(VirtualKeyCode::Back, shape_win, mouse_pos, world)
         } else {
-            None
+            world
         }
     }
+    
     fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageType> {
         Some(scale_to_win(world.im_orig(), self.bx, shape.w, shape.h))
     }
@@ -375,13 +375,6 @@ fn test_scale_to_win() {
     assert_eq!(im_scaled.get_pixel(20, 20).0, [23, 23, 23]);
     assert_eq!(im_scaled.get_pixel(70, 70).0, [0, 0, 0]);
 }
-#[cfg(test)]
-fn shape_from_im(im: &ImageType) -> Shape {
-    Shape {
-        w: im.width(),
-        h: im.height(),
-    }
-}
 #[test]
 fn test_on_mouse_pressed() {
     let shape_win = Shape { w: 250, h: 500 };
@@ -390,10 +383,10 @@ fn test_on_mouse_pressed() {
     let mouse_btn = LEFT_BTN;
     let mut z = Zoom::new();
     let world = World::new(im_orig);
-
-    let res = z.on_mouse_pressed(mouse_btn, shape_win, mouse_pos, &world);
-    assert_eq!(res, None);
-    assert_eq!(&z.im_prev_view.unwrap(), world.im_view());
+    let old_world = world.clone();
+    let res = z.mouse_pressed(mouse_btn, shape_win, mouse_pos, world);
+    assert_eq!(res, old_world);
+    assert_eq!(&z.im_prev_view.unwrap(), old_world.im_view());
     assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
 }
 
@@ -407,10 +400,9 @@ fn test_on_mouse_released() {
     let world = World::new(im_orig);
     z.set_mouse_start((40, 80), Some(world.im_view().clone()));
 
-    let res = z.on_mouse_released(mouse_btn, shape_win, mouse_pos, &world);
-    let im_view_new = res.unwrap();
+    let res = z.mouse_released(mouse_btn, shape_win, mouse_pos, world);
     let shape_scaled_to_win = shape_scaled(z.bx.unwrap().shape(), shape_win);
-    assert_eq!(shape_scaled_to_win, shape_from_im(&im_view_new));
+    assert_eq!(shape_scaled_to_win, shape_from_im(&res.im_view()));
     assert_eq!(
         z.bx,
         Some(BB {

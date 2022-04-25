@@ -1,5 +1,5 @@
 use crate::tools::{Tool, ToolWrapper};
-use crate::util::{mouse_pos_transform, Shape};
+use crate::util::{mouse_pos_transform, Shape, shape_from_im};
 use crate::{apply_tool_method, apply_tool_method_mut, ImageType};
 use pixels::Pixels;
 use winit_input_helper::WinitInputHelper;
@@ -15,6 +15,7 @@ fn pixels_rgba_at(i: usize, im_view: &ImageType) -> [u8; 4] {
     [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
 }
 /// Everything we need to draw
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct World {
     im_orig: ImageType,
     im_view: ImageType,
@@ -43,15 +44,16 @@ impl World {
         }
     }
     pub fn update(
-        &mut self,
+        mut self,
         input_event: &WinitInputHelper,
         shape_win: Shape,
         tools: &mut Vec<ToolWrapper>,
         pixels: &mut Pixels,
-    ) {
+    ) -> Self {
         let mouse_pos = mouse_pos_transform(pixels, input_event.mouse());
         for tool in tools {
-            let im_view_new = apply_tool_method_mut!(
+            let old_shape = shape_from_im(self.im_view());
+            self = apply_tool_method_mut!(
                 tool,
                 events_transform,
                 input_event,
@@ -59,11 +61,12 @@ impl World {
                 mouse_pos,
                 self
             );
-            if let Some(ivn) = im_view_new {
-                pixels.resize_buffer(ivn.width(), ivn.height());
-                self.im_view = ivn;
+            let new_shape = shape_from_im(self.im_view());
+            if old_shape != new_shape {
+                pixels.resize_buffer(new_shape.w, new_shape.h);
             }
         }
+        self
     }
     pub fn im_view(&self) -> &ImageType {
         &self.im_view
