@@ -1,7 +1,6 @@
-use image::{ImageBuffer, Rgb};
 use winit_input_helper::WinitInputHelper;
 
-use crate::{util::Shape, world::World};
+use crate::{util::Shape, world::World, ImageType};
 
 pub trait Tool {
 
@@ -18,17 +17,17 @@ pub trait Tool {
         window_shape: Shape,
         mouse_pos_on_pixels: Option<(usize, usize)>,
         world: &mut World,
-    ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+    ) -> Option<ImageType>;
 
     fn scale_to_shape(
         &self,
         world: &mut World,
         shape: &Shape,
-    ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+    ) -> Option<ImageType>;
 
     fn get_pixel_on_orig(
         &self,
-        im_orig: &ImageBuffer<Rgb<u8>, Vec<u8>>,
+        im_orig: &ImageType,
         mouse_pos: Option<(usize, usize)>,
         shape_win: Shape,
     ) -> Option<(u32, u32, [u8; 3])>;

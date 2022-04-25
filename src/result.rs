@@ -1,9 +1,9 @@
 use std::{
     error::Error,
-    fmt::{self, Display, Formatter, Debug},
+    fmt::{self, Debug, Display, Formatter},
 };
 
-use image::{ImageBuffer, Rgb};
+use crate::ImageType;
 
 /// This will be thrown at you if the somehting within Exmex went wrong. Ok, obviously it is not an
 /// exception, so thrown needs to be understood figuratively.
@@ -51,6 +51,6 @@ pub fn to_rv<E: Debug>(e: E) -> RvError {
     format_rverr!("{:?}", e)
 }
 
-pub type ResultImage = RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+pub type ResultImage = RvResult<ImageType>;
 
-pub type AsyncResultImage = RvResult<Option<ImageBuffer<Rgb<u8>, Vec<u8>>>>;
+pub type AsyncResultImage = RvResult<Option<ImageType>>;

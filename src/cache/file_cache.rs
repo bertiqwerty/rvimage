@@ -11,6 +11,8 @@ use crate::{
     util,
 };
 
+use serde::Deserialize;
+
 use super::ImageReaderFn;
 
 fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
@@ -146,10 +148,11 @@ where
 }
 
 #[cfg(test)]
-use image::{ImageBuffer, Rgb};
-use serde::Deserialize;
-#[cfg(test)]
-use std::{thread, time::Duration};
+use {
+    crate::ImageType,
+    image::{ImageBuffer, Rgb},
+    std::{thread, time::Duration},
+};
 
 #[test]
 fn test_file_cache() -> RvResult<()> {
@@ -157,7 +160,7 @@ fn test_file_cache() -> RvResult<()> {
     let test = |files: &[&str], selected: usize| -> RvResult<()> {
         struct DummyRead;
         impl ImageReaderFn for DummyRead {
-            fn read(_: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+            fn read(_: &str) -> RvResult<ImageType> {
                 let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
                 Ok(dummy_image)
             }

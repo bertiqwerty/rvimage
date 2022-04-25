@@ -1,7 +1,9 @@
-use crate::reader::{ReadImageFiles, ReaderFromCfg};
+use crate::{
+    reader::{ReadImageFiles, ReaderFromCfg},
+    ImageType,
+};
 use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
-use image::{ImageBuffer, Rgb};
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
@@ -170,7 +172,7 @@ impl Gui {
         self.reader.file_selected_idx()
     }
 
-    pub fn read_image(&mut self, file_selected: usize) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    pub fn read_image(&mut self, file_selected: usize) -> Option<ImageType> {
         let mut im_read = None;
         handle_error!(
             |im| { im_read = im },

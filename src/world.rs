@@ -1,14 +1,13 @@
 use crate::tools::{Tool, ToolWrapper};
 use crate::util::{mouse_pos_transform, Shape};
-use crate::{apply_tool_method, apply_tool_method_mut};
-use image::{ImageBuffer, Rgb};
+use crate::{apply_tool_method, apply_tool_method_mut, ImageType};
 use pixels::Pixels;
 use winit_input_helper::WinitInputHelper;
 
 /// Draw the image to the frame buffer.
 ///
 /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
-fn pixels_rgba_at(i: usize, im_view: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> [u8; 4] {
+fn pixels_rgba_at(i: usize, im_view: &ImageType) -> [u8; 4] {
     let x = (i % im_view.width() as usize) as u32;
     let y = (i / im_view.width() as usize) as u32;
     let rgb = im_view.get_pixel(x, y).0;
@@ -17,8 +16,8 @@ fn pixels_rgba_at(i: usize, im_view: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> [u8; 4] 
 }
 /// Everything we need to draw
 pub struct World {
-    im_orig: ImageBuffer<Rgb<u8>, Vec<u8>>,
-    im_view: ImageBuffer<Rgb<u8>, Vec<u8>>,
+    im_orig: ImageType,
+    im_view: ImageType,
 }
 
 impl World {
@@ -37,7 +36,7 @@ impl World {
             pixel.copy_from_slice(&rgba);
         }
     }
-    pub fn new(im_orig: ImageBuffer<Rgb<u8>, Vec<u8>>) -> Self {
+    pub fn new(im_orig: ImageType) -> Self {
         Self {
             im_orig: im_orig.clone(),
             im_view: im_orig,
@@ -66,13 +65,13 @@ impl World {
             }
         }
     }
-    pub fn im_view(&self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
+    pub fn im_view(&self) -> &ImageType {
         &self.im_view
     }
-    pub fn im_view_mut(&mut self) -> &mut ImageBuffer<Rgb<u8>, Vec<u8>> {
+    pub fn im_view_mut(&mut self) -> &mut ImageType {
         &mut self.im_view
     }
-    pub fn im_orig(&self) -> &ImageBuffer<Rgb<u8>, Vec<u8>> {
+    pub fn im_orig(&self) -> &ImageType {
         &self.im_orig
     }
     pub fn shape_orig(&self) -> Shape {
@@ -115,10 +114,11 @@ impl World {
         new_shape
     }
 }
-
+#[cfg(test)]
+use image::Rgb;
 #[test]
 fn test_rgba() {
-    let mut im_test = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(64, 64);
+    let mut im_test = ImageType::new(64, 64);
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     assert_eq!(pixels_rgba_at(0, &im_test), [23, 23, 23, 255]);
     im_test.put_pixel(0, 1, Rgb([23, 23, 23]));

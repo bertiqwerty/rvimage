@@ -1,7 +1,7 @@
-use image::{ImageBuffer, Rgb, imageops};
+use image::imageops;
 use winit_input_helper::WinitInputHelper;
 
-use crate::{util::Shape, world::World};
+use crate::{util::Shape, world::World, ImageType};
 
 use super::Tool;
 
@@ -9,9 +9,8 @@ pub struct Rot90 {
     n_rots: u8,
 }
 
-
 /// rotate 90 degrees counter clockwise
-fn rot90(im: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+fn rot90(im: &ImageType) -> ImageType {
     imageops::rotate270(im)
 }
 
@@ -31,24 +30,25 @@ impl Tool for Rot90 {
         window_shape: Shape,
         mouse_pos: Option<(usize, usize)>,
         world: &mut World,
-    ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    ) -> Option<ImageType> {
         None
     }
 
-    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageType> {
         None
     }
 
     fn get_pixel_on_orig(
         &self,
-        im_orig: &ImageBuffer<Rgb<u8>, Vec<u8>>,
+        im_orig: &ImageType,
         mouse_pos: Option<(usize, usize)>,
         shape_win: Shape,
     ) -> Option<(u32, u32, [u8; 3])> {
         None
     }
 }
-
+#[cfg(test)]
+use image::Rgb;
 #[test]
 fn test_rot90_new() {
     let rot_tool = Rot90::new();
@@ -56,7 +56,7 @@ fn test_rot90_new() {
 }
 #[test]
 fn test_rotate() {
-    let mut im = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(16, 8);
+    let mut im = ImageType::new(16, 8);
     im.put_pixel(1, 1, Rgb([2u8, 2u8, 2u8]));
     let im_rotated = rot90(&im);
     assert_eq!((im_rotated.width(), im_rotated.height()), (8, 16));

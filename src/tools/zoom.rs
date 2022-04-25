@@ -2,7 +2,7 @@ use std::{fmt::Debug, time::Instant};
 
 use image::{
     imageops::{self, FilterType},
-    GenericImageView, ImageBuffer, Rgb,
+    GenericImageView, Rgb,
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
@@ -10,7 +10,7 @@ use winit_input_helper::WinitInputHelper;
 use crate::{
     util::{mouse_pos_to_orig_pos, shape_scaled, shape_unscaled, Shape, BB},
     world::World,
-    LEFT_BTN, RIGHT_BTN,
+    ImageType, LEFT_BTN, RIGHT_BTN,
 };
 
 use super::Tool;
@@ -86,11 +86,11 @@ fn move_zoom_box(
 }
 
 pub fn scale_to_win(
-    im_orig: &ImageBuffer<Rgb<u8>, Vec<u8>>,
+    im_orig: &ImageType,
     zoom_box: Option<BB>,
     w_win: u32,
     h_win: u32,
-) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+) -> ImageType {
     let shape_orig = Shape {
         w: im_orig.width(),
         h: im_orig.height(),
@@ -108,21 +108,51 @@ pub fn scale_to_win(
     }
 }
 
-type EventResult = Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+fn draw_bx_on_view(
+    im_prev_view: &ImageType,
+    im_view: &mut ImageType,
+    start_time: Instant,
+    draw_bx: BB,
+) {
+    let max_offset = 100;
+    let offset = (start_time.elapsed().as_millis() as f64 / 250.0).min(max_offset as f64) as u8;
+    let change = |v, v_prev| {
+        let upper_bound = if v_prev >= 255 - max_offset as u8 {
+            255
+        } else {
+            v_prev + max_offset as u8
+        };
+        let upper_bound = upper_bound.max(offset);
+        if v < upper_bound - offset {
+            v + offset
+        } else {
+            upper_bound
+        }
+    };
+    for y in draw_bx.y..(draw_bx.y + draw_bx.h) {
+        for x in draw_bx.x..(draw_bx.x + draw_bx.w) {
+            let rgb = im_view.get_pixel_mut(x, y);
+            let rgb_prev = im_prev_view.get_pixel(x, y);
+            *rgb = Rgb([
+                change(rgb[0], rgb_prev[0]),
+                change(rgb[1], rgb_prev[1]),
+                change(rgb[2], rgb_prev[2]),
+            ]);
+        }
+    }
+}
+
+type EventResult = Option<ImageType>;
 
 #[derive(Clone, Debug)]
 pub struct Zoom {
     bx: Option<BB>,
     mouse_pressed_start_time: Option<Instant>,
     mouse_pressed_start_pos: Option<(usize, usize)>,
-    im_prev_view: Option<ImageBuffer<Rgb<u8>, Vec<u8>>>,
+    im_prev_view: Option<ImageType>,
 }
 impl Zoom {
-    fn set_mouse_start(
-        &mut self,
-        mp: (usize, usize),
-        im_view: Option<ImageBuffer<Rgb<u8>, Vec<u8>>>,
-    ) {
+    fn set_mouse_start(&mut self, mp: (usize, usize), im_view: Option<ImageType>) {
         self.mouse_pressed_start_pos = Some(mp);
         self.mouse_pressed_start_time = Some(Instant::now());
         self.im_prev_view = im_view;
@@ -175,6 +205,15 @@ impl Zoom {
             None
         }
     }
+    fn on_mouse_held(
+        &mut self,
+        btn: usize,
+        shape_win: Shape,
+        mouse_pos: Option<(usize, usize)>,
+        world: &World,
+    ) -> EventResult {
+        None
+    }
 }
 impl Tool for Zoom {
     fn new() -> Zoom {
@@ -196,7 +235,7 @@ impl Tool for Zoom {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         world: &mut World,
-    ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    ) -> Option<ImageType> {
         let w_win = shape_win.w;
         let h_win = shape_win.h;
         let shape_orig = world.shape_orig();
@@ -244,35 +283,7 @@ impl Tool for Zoom {
                     w: (x_max - x_min) as u32,
                     h: (y_max - y_min) as u32,
                 };
-                let max_offset = 100;
-                let offset =
-                    (start_time.elapsed().as_millis() as f64 / 250.0).min(max_offset as f64) as u8;
-
-                let change = |v, v_prev| {
-                    let upper_bound = if v_prev >= 255 - max_offset as u8 {
-                        255
-                    } else {
-                        v_prev + max_offset as u8
-                    };
-                    let upper_bound = upper_bound.max(offset);
-                    if v < upper_bound - offset {
-                        v + offset
-                    } else {
-                        upper_bound
-                    }
-                };
-                let im_view = world.im_view_mut();
-                for y in draw_bx.y..(draw_bx.y + draw_bx.h) {
-                    for x in draw_bx.x..(draw_bx.x + draw_bx.w) {
-                        let rgb = im_view.get_pixel_mut(x, y);
-                        let rgb_prev = im_prev_view.get_pixel(x, y);
-                        *rgb = Rgb([
-                            change(rgb[0], rgb_prev[0]),
-                            change(rgb[1], rgb_prev[1]),
-                            change(rgb[2], rgb_prev[2]),
-                        ]);
-                    }
-                }
+                draw_bx_on_view(im_prev_view, world.im_view_mut(), start_time, draw_bx);
             }
             None
         } else if input_event.mouse_released(RIGHT_BTN) {
@@ -287,17 +298,13 @@ impl Tool for Zoom {
             None
         }
     }
-    fn scale_to_shape(
-        &self,
-        world: &mut World,
-        shape: &Shape,
-    ) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageType> {
         Some(scale_to_win(world.im_orig(), self.bx, shape.w, shape.h))
     }
 
     fn get_pixel_on_orig(
         &self,
-        im_orig: &ImageBuffer<Rgb<u8>, Vec<u8>>,
+        im_orig: &ImageType,
         mouse_pos: Option<(usize, usize)>,
         shape_win: Shape,
     ) -> Option<(u32, u32, [u8; 3])> {
@@ -360,7 +367,7 @@ fn test_move_zoom() -> RvResult<()> {
 }
 #[test]
 fn test_scale_to_win() {
-    let mut im_test = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(64, 64);
+    let mut im_test = ImageType::new(64, 64);
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     im_test.put_pixel(10, 10, Rgb([23, 23, 23]));
     let im_scaled = scale_to_win(&im_test, None, 128, 128);
@@ -369,17 +376,17 @@ fn test_scale_to_win() {
     assert_eq!(im_scaled.get_pixel(70, 70).0, [0, 0, 0]);
 }
 #[cfg(test)]
-fn shape_from_im(im: &ImageBuffer::<Rgb<u8>, Vec<u8>>) -> Shape {
+fn shape_from_im(im: &ImageType) -> Shape {
     Shape {
         w: im.width(),
-        h: im.height()
+        h: im.height(),
     }
 }
 #[test]
 fn test_on_mouse_pressed() {
     let shape_win = Shape { w: 250, h: 500 };
     let mouse_pos = Some((30, 45));
-    let im_orig = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(250, 500);
+    let im_orig = ImageType::new(250, 500);
     let mouse_btn = LEFT_BTN;
     let mut z = Zoom::new();
     let world = World::new(im_orig);
@@ -394,7 +401,7 @@ fn test_on_mouse_pressed() {
 fn test_on_mouse_released() {
     let shape_win = Shape { w: 250, h: 500 };
     let mouse_pos = Some((30, 45));
-    let im_orig = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(250, 500);
+    let im_orig = ImageType::new(250, 500);
     let mouse_btn = LEFT_BTN;
     let mut z = Zoom::new();
     let world = World::new(im_orig);
@@ -416,3 +423,6 @@ fn test_on_mouse_released() {
     assert_eq!(z.im_prev_view, None);
     assert_eq!(z.mouse_pressed_start_pos, None);
 }
+
+#[test]
+fn test_on_mouse_held() {}

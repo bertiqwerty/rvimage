@@ -33,6 +33,8 @@ const START_HEIGHT: u32 = 480;
 const LEFT_BTN: usize = 0;
 const RIGHT_BTN: usize = 1;
 
+type ImageType = ImageBuffer<Rgb<u8>, Vec<u8>>;
+
 fn main() -> Result<(), pixels::Error> {
     env_logger::init();
     let event_loop = EventLoop::new();

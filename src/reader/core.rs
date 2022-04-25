@@ -4,15 +4,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use image::{ImageBuffer, Rgb};
-
 use crate::cache::{ImageReaderFn, Preload};
 use crate::result::{to_rv, RvError, RvResult, AsyncResultImage};
-use crate::{format_rverr, util};
+use crate::{format_rverr, util, ImageType};
 
 pub struct ReadImageFromPath;
 impl ImageReaderFn for ReadImageFromPath {
-    fn read(path: &str) -> RvResult<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    fn read(path: &str) -> RvResult<ImageType> {
         Ok(image::io::Reader::open(path)
             .map_err(to_rv)?
             .decode()
@@ -206,7 +204,7 @@ fn test_folder_reader() -> RvResult<()> {
     }
     fs::create_dir(&tmp_dir).map_err(to_rv)?;
     for i in 0..10 {
-        let im = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(10, 10);
+        let im = ImageType::new(10, 10);
         let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));
         im.save(out_path).unwrap();
     }
