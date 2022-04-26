@@ -8,6 +8,7 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
+    make_event_handler_if_elses,
     util::{mouse_pos_to_orig_pos, shape_from_im, shape_scaled, shape_unscaled, Shape, BB},
     world::World,
     ImageType, LEFT_BTN, RIGHT_BTN,
@@ -279,25 +280,17 @@ impl Tool for Zoom {
         mouse_pos: Option<(usize, usize)>,
         world: World,
     ) -> World {
-        if input_event.mouse_pressed(LEFT_BTN) {
-            self.mouse_pressed(LEFT_BTN, shape_win, mouse_pos, world)
-        } else if input_event.mouse_pressed(RIGHT_BTN) {
-            self.mouse_pressed(RIGHT_BTN, shape_win, mouse_pos, world)
-        } else if input_event.mouse_released(LEFT_BTN) {
-            self.mouse_released(LEFT_BTN, shape_win, mouse_pos, world)
-        } else if input_event.mouse_held(RIGHT_BTN) {
-            self.mouse_held(RIGHT_BTN, shape_win, mouse_pos, world)
-        } else if input_event.mouse_held(LEFT_BTN) {
-            self.mouse_held(LEFT_BTN, shape_win, mouse_pos, world)
-        } else if input_event.mouse_released(RIGHT_BTN) {
-            self.mouse_released(RIGHT_BTN, shape_win, mouse_pos, world)
-        } else if input_event.key_pressed(VirtualKeyCode::Back) {
-            self.key_pressed(VirtualKeyCode::Back, shape_win, mouse_pos, world)
-        } else {
-            world
-        }
+        make_event_handler_if_elses!(
+            self,
+            input_event,
+            shape_win,
+            mouse_pos,
+            world,
+            [mouse_pressed, mouse_released, mouse_held],
+            [VirtualKeyCode::Back]
+        )
     }
-    
+
     fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageType> {
         Some(scale_to_win(world.im_orig(), self.bx, shape.w, shape.h))
     }

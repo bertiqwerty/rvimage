@@ -1,11 +1,10 @@
 mod core;
-mod zoom;
 mod rot90;
-use std::fmt::Debug;
+mod zoom;
 pub use self::core::Tool;
-pub use zoom::Zoom;
 pub use rot90::Rot90;
-
+use std::fmt::Debug;
+pub use zoom::Zoom;
 macro_rules! make_tools {
 ($($tool:ident),+) => {
         #[derive(Clone, Debug)]
@@ -36,3 +35,22 @@ macro_rules! apply_tool_method {
     };
 }
 
+#[macro_export]
+macro_rules! make_event_handler_if_elses {
+    ($self:expr, $input_event:expr, $shape_win:expr, $mouse_pos:expr, $world:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
+        if false {
+            $world
+        }
+        $(else if $input_event.$mouse_event(LEFT_BTN) {
+            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $world)
+        } else if $input_event.$mouse_event(RIGHT_BTN) {
+            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $world)
+        })*
+        $(else if $input_event.key_pressed($key_event) {
+            $self.key_pressed($key_event, $shape_win, $mouse_pos, $world)
+        })*
+        else {
+            $world
+        }
+    };
+}
