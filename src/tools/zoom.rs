@@ -276,19 +276,17 @@ impl Tool for Zoom {
         self
     }
 
-    fn events_transform(
-        &mut self,
-        input_event: &WinitInputHelper,
+    fn events_transform<'a>(
+        &'a mut self,
+        input_event: &'a WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: World,
-    ) -> World {
+    ) -> Box::<dyn 'a + FnMut(World) -> World> {
         make_event_handler_if_elses!(
             self,
             input_event,
             shape_win,
             mouse_pos,
-            world,
             [mouse_pressed, mouse_released, mouse_held],
             [VirtualKeyCode::Back]
         )

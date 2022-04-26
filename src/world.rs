@@ -53,14 +53,14 @@ impl World {
         let mouse_pos = mouse_pos_transform(pixels, input_event.mouse());
         for tool in tools {
             let old_shape = shape_from_im(self.im_view());
-            self = apply_tool_method!(
+            let mut transform = apply_tool_method!(
                 tool,
                 events_transform,
                 input_event,
                 shape_win,
-                mouse_pos,
-                self
+                mouse_pos
             );
+            self = transform(self);
             let new_shape = shape_from_im(self.im_view());
             if old_shape != new_shape {
                 pixels.resize_buffer(new_shape.w, new_shape.h);

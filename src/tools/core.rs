@@ -11,13 +11,12 @@ pub trait Tool {
     /// what should happen to the state of this tool when a new image is loaded
     fn old_to_new(self) -> Self;
 
-    fn events_transform(
-        &mut self,
-        input_event: &WinitInputHelper,
+    fn events_transform<'a>(
+        &'a mut self,
+        input_event: &'a WinitInputHelper,
         window_shape: Shape,
         mouse_pos_on_pixels: Option<(usize, usize)>,
-        world: World,
-    ) -> World;
+    ) -> Box::<dyn 'a + FnMut(World) -> World>;
 
     fn scale_to_shape(
         &self,

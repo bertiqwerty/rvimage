@@ -5,15 +5,16 @@ pub use self::core::Tool;
 pub use rot90::Rot90;
 use std::fmt::Debug;
 pub use zoom::Zoom;
+
 macro_rules! make_tools {
 ($($tool:ident),+) => {
         #[derive(Clone, Debug)]
         pub enum ToolWrapper {
             $($tool($tool)),+
         }
-        pub fn make_tool_vec() -> Vec<ToolWrapper> {
-                vec![$(ToolWrapper::$tool($tool::new())),+]
-        }
+         pub fn make_tool_vec() -> Vec<ToolWrapper> {
+                 vec![ToolWrapper::Zoom(Zoom::new())]
+         }
     };
 }
 make_tools!(Zoom);
@@ -37,20 +38,21 @@ macro_rules! apply_tool_method {
 
 #[macro_export]
 macro_rules! make_event_handler_if_elses {
-    ($self:expr, $input_event:expr, $shape_win:expr, $mouse_pos:expr, $world:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
+    ($self:expr, $input_event:expr, $shape_win:expr, $mouse_pos:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
+        Box::new(move |w: World|
         if false {
-            $world
+            w
         }
         $(else if $input_event.$mouse_event(LEFT_BTN) {
-            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $world)
+            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, w)
         } else if $input_event.$mouse_event(RIGHT_BTN) {
-            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $world)
+            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, w)
         })*
         $(else if $input_event.key_pressed($key_event) {
-            $self.key_pressed($key_event, $shape_win, $mouse_pos, $world)
+            $self.key_pressed($key_event, $shape_win, $mouse_pos, w)
         })*
         else {
-            $world
-        }
+            w
+        })
     };
 }

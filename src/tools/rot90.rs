@@ -24,14 +24,13 @@ impl Tool for Rot90 {
         Self::new()
     }
 
-    fn events_transform(
-        &mut self,
+    fn events_transform<'a>(
+        &'a mut self,
         input_event: &WinitInputHelper,
         window_shape: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: World,
-    ) -> World {
-        world
+    ) -> Box<dyn 'a + FnMut(World) -> World> {
+        Box::new(|w| w)
     }
 
     fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageType> {
