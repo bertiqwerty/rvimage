@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CFG_TOML_PATH: &str = "cfg.toml";
+const CFG_TOML_PATH: &str = "rv_cfg.toml";
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
     cache = "FileCache"  # "NoCache" or "FileCache"
