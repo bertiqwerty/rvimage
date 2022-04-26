@@ -16,7 +16,7 @@ use crate::{
 
 use super::Tool;
 
-const MIN_ZOOM: u32 = 10;
+const MIN_ZOOM: u32 = 2;
 
 fn make_zoom_on_release(
     mouse_pos_start: (usize, usize),
@@ -183,7 +183,10 @@ impl Zoom {
         if btn == LEFT_BTN {
             let shape_orig = world.shape_orig();
             let im_view = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
-                self.bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
+                let bx = make_zoom_on_release(mps, mr, shape_orig, shape_win, self.bx);
+                if let Some(bx_) = bx {
+                    self.bx = Some(bx_);
+                }
                 scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h)
             } else {
                 scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h)
