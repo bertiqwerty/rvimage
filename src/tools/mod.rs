@@ -28,14 +28,6 @@ macro_rules! map_tool_method {
     };
 }
 #[macro_export]
-macro_rules! apply_tool_method_mut {
-    ($tool:expr, $f:ident, $($args:expr),*) => {
-        match $tool {
-            ToolWrapper::Zoom(z) => z.$f($($args,)*)
-        }
-    };
-}
-#[macro_export]
 macro_rules! apply_tool_method {
     ($tool:expr, $f:ident, $($args:expr),*) => {
         match $tool {

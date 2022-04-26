@@ -1,6 +1,6 @@
 use crate::tools::{Tool, ToolWrapper};
 use crate::util::{mouse_pos_transform, Shape, shape_from_im};
-use crate::{apply_tool_method, apply_tool_method_mut, ImageType};
+use crate::{apply_tool_method, ImageType};
 use pixels::Pixels;
 use winit_input_helper::WinitInputHelper;
 
@@ -53,7 +53,7 @@ impl World {
         let mouse_pos = mouse_pos_transform(pixels, input_event.mouse());
         for tool in tools {
             let old_shape = shape_from_im(self.im_view());
-            self = apply_tool_method_mut!(
+            self = apply_tool_method!(
                 tool,
                 events_transform,
                 input_event,
