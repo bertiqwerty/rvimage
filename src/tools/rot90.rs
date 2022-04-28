@@ -1,12 +1,30 @@
 use image::imageops;
+use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
-use crate::{util::Shape, world::World, ImageType};
+use crate::{util::Shape, world::World, ImageType, make_event_handler_if_elses};
 
 use super::Tool;
 
 pub struct Rot90 {
     n_rots: u8,
+}
+
+impl Rot90 {
+    
+    fn key_pressed(
+        &mut self,
+        key: VirtualKeyCode,
+        _shape_win: Shape,
+        _mouse_pos: Option<(usize, usize)>,
+        mut world: World,
+    ) -> World {
+        if key == VirtualKeyCode::R {
+            
+            *world.im_view_mut() = rot90(world.im_view());
+        }
+        world
+    }
 }
 
 /// rotate 90 degrees counter clockwise
@@ -26,11 +44,18 @@ impl Tool for Rot90 {
 
     fn events_transform<'a>(
         &'a mut self,
-        input_event: &WinitInputHelper,
-        window_shape: Shape,
+        input_event: &'a WinitInputHelper,
+        shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
     ) -> Box<dyn 'a + FnMut(World) -> World> {
-        Box::new(|w| w)
+        make_event_handler_if_elses!(
+            self,
+            input_event,
+            shape_win,
+            mouse_pos,
+            [],
+            [VirtualKeyCode::R]
+        )
     }
 
     fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageType> {

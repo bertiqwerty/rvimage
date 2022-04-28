@@ -59,74 +59,10 @@ impl BB {
         }
     }
 }
-/// Converts the mouse position to the coordinates of the original image
-pub fn mouse_pos_to_orig_pos(
-    mouse_pos: Option<(usize, usize)>,
-    shape_orig: Shape,
-    shape_win: Shape,
-    zoom_box: &Option<BB>,
-) -> Option<(u32, u32)> {
-    let unscaled = shape_unscaled(zoom_box, shape_orig);
-    let orig = shape_orig;
-    let scaled = shape_scaled(unscaled, shape_win);
-
-    let (x_off, y_off) = match zoom_box {
-        Some(c) => (c.x, c.y),
-        _ => (0, 0),
-    };
-
-    let coord_trans_2_orig = |x: u32, n_transformed: u32, n_orig: u32| -> u32 {
-        (x as f64 / n_transformed as f64 * n_orig as f64) as u32
-    };
-
-    match mouse_pos {
-        Some((x, y)) => {
-            let x_orig = x_off + coord_trans_2_orig(x as u32, scaled.w, unscaled.w);
-            let y_orig = y_off + coord_trans_2_orig(y as u32, scaled.h, unscaled.h);
-            if x_orig < orig.w && y_orig < orig.h {
-                Some((x_orig, y_orig))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
 
 pub fn shape_from_im(im: &ImageType) -> Shape {
     Shape {
         w: im.width(),
         h: im.height(),
     }
-}
-#[test]
-fn test_to_orig_pos() {
-    let orig_pos = mouse_pos_to_orig_pos(
-        Some((0, 0)),
-        Shape { w: 120, h: 120 },
-        Shape { w: 120, h: 120 },
-        &None,
-    );
-    assert_eq!(Some((0, 0)), orig_pos);
-    let orig_pos = mouse_pos_to_orig_pos(
-        Some((0, 0)),
-        Shape { w: 120, h: 120 },
-        Shape { w: 20, h: 20 },
-        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
-    );
-    assert_eq!(Some((10, 10)), orig_pos);
-    let orig_pos = mouse_pos_to_orig_pos(
-        Some((19, 19)),
-        Shape { w: 120, h: 120 },
-        Shape { w: 20, h: 20 },
-        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
-    );
-    assert_eq!(Some((29, 29)), orig_pos);
-    let orig_pos = mouse_pos_to_orig_pos(
-        Some((10, 10)),
-        Shape { w: 120, h: 120 },
-        Shape { w: 20, h: 20 },
-        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
-    );
-    assert_eq!(Some((20, 20)), orig_pos);
 }

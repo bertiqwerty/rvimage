@@ -9,7 +9,7 @@ use winit_input_helper::WinitInputHelper;
 
 use crate::{
     make_event_handler_if_elses,
-    util::{mouse_pos_to_orig_pos, shape_from_im, shape_scaled, shape_unscaled, Shape, BB},
+    util::{shape_from_im, shape_scaled, shape_unscaled, Shape, BB},
     world::World,
     ImageType, LEFT_BTN, RIGHT_BTN,
 };
@@ -18,6 +18,39 @@ use super::Tool;
 
 const MIN_ZOOM: u32 = 2;
 
+/// Converts the mouse position to the coordinates of the original image
+pub fn mouse_pos_to_orig_pos(
+    mouse_pos: Option<(usize, usize)>,
+    shape_orig: Shape,
+    shape_win: Shape,
+    zoom_box: &Option<BB>,
+) -> Option<(u32, u32)> {
+    let unscaled = shape_unscaled(zoom_box, shape_orig);
+    let orig = shape_orig;
+    let scaled = shape_scaled(unscaled, shape_win);
+
+    let (x_off, y_off) = match zoom_box {
+        Some(c) => (c.x, c.y),
+        _ => (0, 0),
+    };
+
+    let coord_trans_2_orig = |x: u32, n_transformed: u32, n_orig: u32| -> u32 {
+        (x as f64 / n_transformed as f64 * n_orig as f64) as u32
+    };
+
+    match mouse_pos {
+        Some((x, y)) => {
+            let x_orig = x_off + coord_trans_2_orig(x as u32, scaled.w, unscaled.w);
+            let y_orig = y_off + coord_trans_2_orig(y as u32, scaled.h, unscaled.h);
+            if x_orig < orig.w && y_orig < orig.h {
+                Some((x_orig, y_orig))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
 fn make_zoom_on_release(
     mouse_pos_start: (usize, usize),
     mouse_pos_release: (usize, usize),
@@ -281,7 +314,7 @@ impl Tool for Zoom {
         input_event: &'a WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-    ) -> Box::<dyn 'a + FnMut(World) -> World> {
+    ) -> Box<dyn 'a + FnMut(World) -> World> {
         make_event_handler_if_elses!(
             self,
             input_event,
@@ -302,10 +335,7 @@ impl Tool for Zoom {
         mouse_pos: Option<(usize, usize)>,
         shape_win: Shape,
     ) -> Option<(u32, u32, [u8; 3])> {
-        let shape_orig = Shape {
-            w: im_orig.width(),
-            h: im_orig.height(),
-        };
+        let shape_orig = shape_from_im(im_orig);
         let pos = mouse_pos_to_orig_pos(mouse_pos, shape_orig, shape_win, &self.bx);
         pos.map(|(x, y)| (x, y, im_orig.get_pixel(x, y).0))
     }
@@ -316,10 +346,7 @@ use crate::result::RvResult;
 #[cfg(test)]
 fn make_shape_win(shape_orig: Shape, zoom_box: Option<BB>) -> Shape {
     match zoom_box {
-        None => Shape {
-            w: shape_orig.w,
-            h: shape_orig.h,
-        },
+        None => shape_orig,
         Some(zb) => zb.shape(),
     }
 }
@@ -408,6 +435,38 @@ fn test_on_mouse_released() {
     );
     assert_eq!(z.im_prev_view, None);
     assert_eq!(z.mouse_pressed_start_pos, None);
+}
+
+#[test]
+fn test_to_orig_pos() {
+    let orig_pos = mouse_pos_to_orig_pos(
+        Some((0, 0)),
+        Shape { w: 120, h: 120 },
+        Shape { w: 120, h: 120 },
+        &None,
+    );
+    assert_eq!(Some((0, 0)), orig_pos);
+    let orig_pos = mouse_pos_to_orig_pos(
+        Some((0, 0)),
+        Shape { w: 120, h: 120 },
+        Shape { w: 20, h: 20 },
+        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
+    );
+    assert_eq!(Some((10, 10)), orig_pos);
+    let orig_pos = mouse_pos_to_orig_pos(
+        Some((19, 19)),
+        Shape { w: 120, h: 120 },
+        Shape { w: 20, h: 20 },
+        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
+    );
+    assert_eq!(Some((29, 29)), orig_pos);
+    let orig_pos = mouse_pos_to_orig_pos(
+        Some((10, 10)),
+        Shape { w: 120, h: 120 },
+        Shape { w: 20, h: 20 },
+        &Some(BB{ x: 10, y: 10, w: 20, h: 20}),
+    );
+    assert_eq!(Some((20, 20)), orig_pos);
 }
 
 #[test]
