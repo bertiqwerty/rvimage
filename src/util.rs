@@ -1,6 +1,8 @@
 use std::{ffi::OsStr, io};
 
 use pixels::Pixels;
+use winit::dpi::PhysicalSize;
+use winit_input_helper::WinitInputHelper;
 
 use crate::ImageType;
 
@@ -24,17 +26,54 @@ pub fn mouse_pos_transform(
         .ok()
 }
 
+#[derive(Clone)]
+pub struct Event<'a> {
+    pub input: &'a WinitInputHelper,
+    pub image_loaded: bool,
+    pub window_resized: bool,
+}
+impl<'a> Event<'a> {
+    pub fn new(input: &'a WinitInputHelper) -> Self {
+        Self {
+            input,
+            image_loaded: false,
+            window_resized: false,
+        }
+    }
+    pub fn from_window_resized(input: &'a WinitInputHelper) -> Self {
+        Self {
+            input,
+            image_loaded: false,
+            window_resized: true,
+        }
+    }
+    pub fn from_image_loaded(input: &'a WinitInputHelper) -> Self {
+        Self {
+            input,
+            image_loaded: false,
+            window_resized: true,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Shape {
     pub w: u32,
     pub h: u32,
 }
-
-/// shape without scaling according to zoom
-pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
-    zoom_box.map_or(shape_orig, |z| z.shape())
+impl Shape {
+    pub fn from_im(im: &ImageType) -> Self {
+        Self {
+            w: im.width(),
+            h: im.height(),
+        }
+    }
+    pub fn from_size(size: &PhysicalSize<u32>) -> Self {
+        Self {
+            w: size.width,
+            h: size.height,
+        }
+    }
 }
-
 /// shape of the image that fits into the window
 pub fn shape_scaled(shape_unscaled: Shape, shape_win: Shape) -> Shape {
     let w_ratio = shape_unscaled.w as f64 / shape_win.w as f64;
@@ -57,12 +96,5 @@ impl BB {
             w: self.w,
             h: self.h,
         }
-    }
-}
-
-pub fn shape_from_im(im: &ImageType) -> Shape {
-    Shape {
-        w: im.width(),
-        h: im.height(),
     }
 }

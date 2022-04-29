@@ -1,88 +1,67 @@
-use image::imageops;
+use image::imageops::{self, FilterType};
 use winit::event::VirtualKeyCode;
-use winit_input_helper::WinitInputHelper;
 
-use crate::{util::Shape, world::World, ImageType, make_event_handler_if_elses};
+use crate::{
+    make_event_handler_if_elses,
+    util::{shape_scaled, Event, Shape},
+    world::World,
+    ImageType,
+};
 
-use super::Tool;
+use super::{Tool, ToolTf, core::ViewCoordinateTf};
 
-pub struct Rot90 {
-    n_rots: u8,
+/// rotate 90 degrees counter clockwise
+fn rot90(im: &ImageType, shape_unscaled: Shape, shape_win: Shape) -> ImageType {
+    let shape_scaled = shape_scaled(shape_unscaled, shape_win);
+    imageops::resize(
+        &imageops::rotate270(im),
+        shape_scaled.w,
+        shape_scaled.h,
+        FilterType::Nearest,
+    )
 }
+#[derive(Clone, Copy, Debug)]
+pub struct Rot90;
 
 impl Rot90 {
-    
     fn key_pressed(
         &mut self,
         key: VirtualKeyCode,
-        _shape_win: Shape,
+        shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
     ) -> World {
         if key == VirtualKeyCode::R {
-            
-            *world.im_view_mut() = rot90(world.im_view());
+            *world.im_orig_mut() = imageops::rotate270(world.im_orig());
+            *world.im_view_mut() =
+                rot90(world.im_view(), Shape::from_im(world.im_orig()), shape_win);
         }
         world
     }
 }
 
-/// rotate 90 degrees counter clockwise
-fn rot90(im: &ImageType) -> ImageType {
-    imageops::rotate270(im)
-}
-
 impl Tool for Rot90 {
     fn new() -> Self {
-        Self { n_rots: 0 }
-    }
-
-    /// what should happen to the state of this tool when a new image is loaded
-    fn old_to_new(self) -> Self {
-        Self::new()
+        Self {}
     }
 
     fn events_transform<'a>(
         &'a mut self,
-        input_event: &'a WinitInputHelper,
-        shape_win: Shape,
+        input_event: &Event,
         mouse_pos: Option<(usize, usize)>,
-    ) -> Box<dyn 'a + FnMut(World) -> World> {
-        make_event_handler_if_elses!(
-            self,
-            input_event,
-            shape_win,
-            mouse_pos,
-            [],
-            [VirtualKeyCode::R]
-        )
+    ) -> (ToolTf, Option<ViewCoordinateTf>) {
+        let tt: ToolTf = make_event_handler_if_elses!(self, input_event, mouse_pos, [], [VirtualKeyCode::R]);
+        (tt, None)
     }
 
-    fn scale_to_shape(&self, world: &mut World, shape: &Shape) -> Option<ImageType> {
-        None
-    }
-
-    fn get_pixel_on_orig(
-        &self,
-        im_orig: &ImageType,
-        mouse_pos: Option<(usize, usize)>,
-        shape_win: Shape,
-    ) -> Option<(u32, u32, [u8; 3])> {
-        None
-    }
 }
-#[cfg(test)]
-use image::Rgb;
-#[test]
-fn test_rot90_new() {
-    let rot_tool = Rot90::new();
-    assert_eq!(rot_tool.n_rots, 0);
-}
-#[test]
-fn test_rotate() {
-    let mut im = ImageType::new(16, 8);
-    im.put_pixel(1, 1, Rgb([2u8, 2u8, 2u8]));
-    let im_rotated = rot90(&im);
-    assert_eq!((im_rotated.width(), im_rotated.height()), (8, 16));
-    assert_eq!(im_rotated.get_pixel(1, 14).0, [2u8, 2u8, 2u8]);
-}
+// #[cfg(test)]
+// use image::Rgb;
+// #[test]
+// fn test_rotate() {
+//     let mut im = ImageType::new(16, 8);
+//     im.put_pixel(1, 1, Rgb([2u8, 2u8, 2u8]));
+//     let im_rotated = rot90(&im, Shape{});
+//     assert_eq!((im_rotated.width(), im_rotated.height()), (8, 16));
+//     assert_eq!(im_rotated.get_pixel(1, 14).0, [2u8, 2u8, 2u8]);
+// }

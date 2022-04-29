@@ -1,8 +1,7 @@
-use crate::tools::{Tool, ToolWrapper};
-use crate::util::{mouse_pos_transform, Shape, shape_from_im};
-use crate::{apply_tool_method, ImageType};
+use crate::tools::ToolTf;
+use crate::util::Shape;
+use crate::ImageType;
 use pixels::Pixels;
-use winit_input_helper::WinitInputHelper;
 
 /// Draw the image to the frame buffer.
 ///
@@ -14,15 +13,32 @@ fn pixels_rgba_at(i: usize, im_view: &ImageType) -> [u8; 4] {
     let rgb_changed = rgb;
     [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
 }
+
+fn apply_tool_tranforms(
+    mut world: World,
+    shape_win: Shape,
+    transforms: &mut Vec<ToolTf>,
+    pixels: &mut Pixels,
+) -> World {
+    for t in transforms {
+        let old_shape = Shape::from_im(world.im_view());
+        world = t(world, shape_win);
+        let new_shape = Shape::from_im(world.im_view());
+        if old_shape != new_shape {
+            pixels.resize_buffer(new_shape.w, new_shape.h);
+        }
+    }
+    world
+}
+
 /// Everything we need to draw
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Default)]
 pub struct World {
     im_orig: ImageType,
     im_view: ImageType,
 }
 
 impl World {
-
     pub fn draw(&self, pixels: &mut Pixels) {
         let frame_len = pixels.get_frame().len() as u32;
         let w_view = self.im_view.width();
@@ -43,30 +59,13 @@ impl World {
             im_view: im_orig,
         }
     }
-    pub fn update(
-        mut self,
-        input_event: &WinitInputHelper,
+    pub fn update<'a>(
+        self,
         shape_win: Shape,
-        tools: &mut Vec<ToolWrapper>,
-        pixels: &mut Pixels,
+        tool_transforms: &'a mut Vec<ToolTf>,
+        pixels: &'a mut Pixels,
     ) -> Self {
-        let mouse_pos = mouse_pos_transform(pixels, input_event.mouse());
-        for tool in tools {
-            let old_shape = shape_from_im(self.im_view());
-            let mut transform = apply_tool_method!(
-                tool,
-                events_transform,
-                input_event,
-                shape_win,
-                mouse_pos
-            );
-            self = transform(self);
-            let new_shape = shape_from_im(self.im_view());
-            if old_shape != new_shape {
-                pixels.resize_buffer(new_shape.w, new_shape.h);
-            }
-        }
-        self
+        apply_tool_tranforms(self, shape_win, tool_transforms, pixels)
     }
     pub fn im_view(&self) -> &ImageType {
         &self.im_view
@@ -77,44 +76,14 @@ impl World {
     pub fn im_orig(&self) -> &ImageType {
         &self.im_orig
     }
+    pub fn im_orig_mut(&mut self) -> &mut ImageType {
+        &mut self.im_orig
+    }
     pub fn shape_orig(&self) -> Shape {
         Shape {
             w: self.im_orig.width(),
             h: self.im_orig.height(),
         }
-    }
-
-    pub fn get_pixel_on_orig(
-        &self,
-        mouse_pos: Option<(usize, usize)>,
-        shape_win: Shape,
-        tools: &[ToolWrapper],
-    ) -> Option<(u32, u32, [u8; 3])> {
-        let mut mp = mouse_pos;
-        let mut res = None;
-        for tool in tools {
-            let pos_rgb =
-                apply_tool_method!(tool, get_pixel_on_orig, self.im_orig(), mp, shape_win);
-            if let Some(prgb) = pos_rgb {
-                mp = Some((prgb.0 as usize, prgb.1 as usize));
-                res = pos_rgb;
-            }
-        }
-        res
-    }
-    pub fn scale_to_shape(&mut self, shape: Shape, tools: &[ToolWrapper]) -> Shape {
-        let mut new_shape = shape;
-        for tool in tools {
-            let im_view_new = apply_tool_method!(tool, scale_to_shape, self, &new_shape);
-            if let Some(ivn) = im_view_new {
-                new_shape = Shape {
-                    w: ivn.width(),
-                    h: ivn.height(),
-                };
-                self.im_view = ivn;
-            }
-        }
-        new_shape
     }
 }
 #[cfg(test)]
