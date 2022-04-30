@@ -8,11 +8,25 @@ use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
 fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
-    file_selected_idx.map(|idx| if idx < files_len - 1 { idx + 1 } else { idx })
+    file_selected_idx.map(|idx| {
+        if idx < files_len - 1 {
+            idx + 1
+        } else {
+            files_len - 1
+        }
+    })
 }
 
-fn prev(file_selected_idx: Option<usize>) -> Option<usize> {
-    file_selected_idx.map(|idx| if idx > 0 { idx - 1 } else { idx })
+fn prev(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
+    file_selected_idx.map(|idx| {
+        if idx > files_len {
+            files_len - 1
+        } else if idx > 0 {
+            idx - 1
+        } else {
+            0
+        }
+    })
 }
 /// Manages all state required for rendering egui over `Pixels`.
 pub(crate) struct Framework {
@@ -129,7 +143,8 @@ pub struct Gui {
     info_message: Info,
     file_labels: Vec<(usize, String)>,
     filter_string: String,
-    file_selected_idx: Option<usize>
+    file_selected_idx: Option<usize>,
+    are_tools_active: bool,
 }
 
 // evaluates expression that is expected to return Result,
@@ -164,8 +179,13 @@ impl Gui {
             info_message: info,
             file_labels: vec![],
             filter_string: "".to_string(),
-            file_selected_idx: None
+            file_selected_idx: None,
+            are_tools_active: true,
         }
+    }
+
+    pub fn are_tools_active(&self) -> bool {
+        self.are_tools_active
     }
 
     pub fn next(&mut self) {
@@ -176,7 +196,7 @@ impl Gui {
     }
 
     pub fn prev(&mut self) {
-        self.file_selected_idx = prev(self.file_selected_idx);
+        self.file_selected_idx = prev(self.file_selected_idx, self.file_labels.len());
         if let Some(idx) = self.file_selected_idx {
             self.reader.select_file(self.file_labels[idx].0);
         }
@@ -230,6 +250,12 @@ impl Gui {
                 handle_error!(ui_label, self.reader.file_selected_label(), self);
 
                 let txt_field = ui.text_edit_singleline(&mut self.filter_string);
+                if txt_field.gained_focus() {
+                    self.are_tools_active = false;
+                }
+                if txt_field.lost_focus() {
+                    self.are_tools_active = true;
+                }
                 if txt_field.changed() {
                     handle_error!(
                         |v| { self.file_labels = v },

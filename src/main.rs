@@ -113,18 +113,19 @@ fn main() -> Result<(), pixels::Error> {
 
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
             let event = util::Event::new(&input);
-            world = apply_tools(
-                &mut tools,
-                mem::take(&mut world),
-                shape_win,
-                mouse_pos,
-                &event,
-                &mut pixels,
-            );
-
+            if framework.gui().are_tools_active() {
+                world = apply_tools(
+                    &mut tools,
+                    mem::take(&mut world),
+                    shape_win,
+                    mouse_pos,
+                    &event,
+                    &mut pixels,
+                );
+            }
             // regrap mouse position after changeing pixels according to tools
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
-            
+
             if input.key_pressed(VirtualKeyCode::M) {
                 framework.gui().open();
             }
