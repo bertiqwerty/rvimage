@@ -202,7 +202,7 @@ impl Zoom {
     fn image_loaded(
         &mut self,
         shape_win: Shape,
-        _mouse_p2os: Option<(usize, usize)>,
+        _mouse_pos: Option<(usize, usize)>,
         mut world: World,
     ) -> World {
         *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
