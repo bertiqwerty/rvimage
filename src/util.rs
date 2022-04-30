@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, io};
+use std::{ffi::OsStr, io, path::Path};
 
 use pixels::Pixels;
 use winit::dpi::PhysicalSize;
@@ -15,6 +15,10 @@ pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
                 format!("{:?} not convertible to unicode", p),
             )
         })
+}
+
+pub fn is_relative(path: &str) -> bool {
+    Path::new(path).is_relative() && path.chars().next() != Some('/')
 }
 
 pub fn mouse_pos_transform(
