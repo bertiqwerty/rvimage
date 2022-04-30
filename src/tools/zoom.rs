@@ -205,6 +205,12 @@ impl Zoom {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
     ) -> World {
+        let shape_orig = Shape::from_im(world.im_orig());
+        // we keep the box if it fits into the new image
+        self.bx = match self.bx {
+            Some(bx) if bx.x + bx.w > shape_orig.w || bx.y + bx.h > shape_orig.h => None,
+            _ => self.bx
+        };
         *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
         world
     }
