@@ -2,13 +2,10 @@ use crate::util::Shape;
 use crate::ImageType;
 use pixels::Pixels;
 
-/// Draw the image to the frame buffer.
-///
-/// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
-fn pixels_rgba_at(i: usize, im_view: &ImageType) -> [u8; 4] {
-    let x = (i % im_view.width() as usize) as u32;
-    let y = (i / im_view.width() as usize) as u32;
-    let rgb = im_view.get_pixel(x, y).0;
+fn rgba_at(i: usize, im: &ImageType) -> [u8; 4] {
+    let x = (i % im.width() as usize) as u32;
+    let y = (i / im.width() as usize) as u32;
+    let rgb = im.get_pixel(x, y).0;
     let rgb_changed = rgb;
     [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
 }
@@ -31,7 +28,7 @@ impl World {
         let frame = pixels.get_frame();
 
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let rgba = pixels_rgba_at(i, &self.im_view);
+            let rgba = rgba_at(i, &self.im_view);
             pixel.copy_from_slice(&rgba);
         }
     }
@@ -66,9 +63,9 @@ use image::Rgb;
 fn test_rgba() {
     let mut im_test = ImageType::new(64, 64);
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
-    assert_eq!(pixels_rgba_at(0, &im_test), [23, 23, 23, 255]);
+    assert_eq!(rgba_at(0, &im_test), [23, 23, 23, 255]);
     im_test.put_pixel(0, 1, Rgb([23, 23, 23]));
-    assert_eq!(pixels_rgba_at(64, &im_test), [23, 23, 23, 255]);
+    assert_eq!(rgba_at(64, &im_test), [23, 23, 23, 255]);
     im_test.put_pixel(7, 11, Rgb([23, 23, 23]));
-    assert_eq!(pixels_rgba_at(11 * 64 + 7, &im_test), [23, 23, 23, 255]);
+    assert_eq!(rgba_at(11 * 64 + 7, &im_test), [23, 23, 23, 255]);
 }

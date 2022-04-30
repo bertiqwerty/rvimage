@@ -19,7 +19,7 @@ pub trait Tool {
     }
 
     /// All events that are used by a tool are implemented in here. Use the macro [`make_tool_transform`](make_tool_transform). See, e.g., 
-    /// [`Zoom::events_tf`](tools::zoom::Zoom::events_tf).
+    /// [`Zoom::events_tf`](crate::tools::Zoom::events_tf).
     fn events_tf<'a>(
         &'a mut self,
         world: World,
