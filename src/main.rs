@@ -3,9 +3,12 @@
 
 use crate::gui::Framework;
 use image::{ImageBuffer, Rgb};
+use lazy_static::lazy_static;
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
+use std::fs;
 use std::mem;
+use std::path::Path;
 use std::thread;
 use std::time::Duration;
 use tools::make_tool_vec;
@@ -75,6 +78,9 @@ fn apply_tools<'a>(
     world
 }
 fn main() -> Result<(), pixels::Error> {
+    lazy_static! {
+        pub static ref CFG: cfg::Cfg = cfg::get_cfg().unwrap();
+    };
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -107,6 +113,18 @@ fn main() -> Result<(), pixels::Error> {
             // Close events
             if input.key_pressed(VirtualKeyCode::Escape) || input.quit() {
                 *control_flow = ControlFlow::Exit;
+                // delete temporary dir
+                match CFG.tmpdir() {
+                    Ok(td) => match fs::remove_dir_all(Path::new(td)) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            println!("couldn't remove tmpdir {:?} ", e)
+                        }
+                    },
+                    Err(e) => {
+                        println!("couldn't remove tmpdir {:?} ", e)
+                    }
+                };
                 return;
             }
             let shape_win = Shape::from_size(&window.inner_size());
