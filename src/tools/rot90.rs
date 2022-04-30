@@ -8,7 +8,7 @@ use crate::{
     ImageType,
 };
 
-use super::{core::ViewCoordinateTf, Tool, ToolTf};
+use super::Tool;
 
 /// rotate 90 degrees counter clockwise
 fn rot90(im: &ImageType) -> ImageType {
@@ -37,8 +37,21 @@ impl Tool for Rot90 {
         Self {}
     }
 
-    fn events_transform<'a>(&'a mut self) -> (ToolTf, Option<ViewCoordinateTf>) {
-        let tt: ToolTf = make_tool_transform!(self, [], [VirtualKeyCode::R]);
-        (tt, None)
+    fn events_tf<'a>(
+        &'a mut self,
+        world: World,
+        shape_win: Shape,
+        mouse_pos: Option<(usize, usize)>,
+        event: &Event,
+    ) -> World {
+        make_tool_transform!(
+            self,
+            world,
+            shape_win,
+            mouse_pos,
+            event,
+            [],
+            [VirtualKeyCode::R]
+        )
     }
 }

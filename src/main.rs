@@ -9,8 +9,6 @@ use std::mem;
 use std::thread;
 use std::time::Duration;
 use tools::make_tool_vec;
-use tools::ToolTf;
-use tools::ViewCoordinateTf;
 use tools::{Tool, ToolWrapper};
 use util::{mouse_pos_transform, Shape};
 use winit::dpi::LogicalSize;
@@ -39,33 +37,42 @@ const RIGHT_BTN: usize = 1;
 type ImageType = ImageBuffer<Rgb<u8>, Vec<u8>>;
 
 fn get_pixel_on_orig(
+    tools: &mut [ToolWrapper],
     world: &World,
     mouse_pos: Option<(usize, usize)>,
     shape_win: Shape,
-    view_coord_tf: &[Option<ViewCoordinateTf>],
 ) -> Option<(u32, u32, [u8; 3])> {
     let mut pos_rgb = mouse_pos.map(|mp| (mp.0 as u32, mp.1 as u32));
     let mut res = None;
-    for tf in view_coord_tf.iter().flatten() {
-        pos_rgb = tf(pos_rgb, world, shape_win);
-        if let Some((x, y)) = pos_rgb {
-            res = Some((x, y, world.im_orig().get_pixel(x, y).0));
+    for t in tools {
+        let current_pos_rgb = apply_tool_method!(t, coord_tf, world, shape_win, pos_rgb);
+        if let Some((x, y)) = current_pos_rgb {
+            pos_rgb = Some((x, y));
         }
+    }
+    if let Some((x, y)) = pos_rgb {
+        res = Some((x, y, world.im_orig().get_pixel(x, y).0));
     }
     res
 }
 
-fn make_transforms<'a>(
-    tools: &'a mut Vec<ToolWrapper>
-) -> (Vec<ToolTf<'a>>, Vec<Option<ViewCoordinateTf<'a>>>) {
-    let mut tool_tfs = vec![];
-    let mut view_coord_tfs = vec![];
+fn apply_tools<'a>(
+    tools: &'a mut Vec<ToolWrapper>,
+    mut world: World,
+    shape_win: Shape,
+    mouse_pos: Option<(usize, usize)>,
+    event: &util::Event,
+    pixels: &mut Pixels,
+) -> World {
+    let old_shape = Shape::from_im(world.im_view());
     for t in tools {
-        let tfs = apply_tool_method!(t, events_transform, );
-        tool_tfs.push(tfs.0);
-        view_coord_tfs.push(tfs.1);
+        world = apply_tool_method!(t, events_tf, world, shape_win, mouse_pos, event);
     }
-    (tool_tfs, view_coord_tfs)
+    let new_shape = Shape::from_im(world.im_view());
+    if old_shape != new_shape {
+        pixels.resize_buffer(new_shape.w, new_shape.h);
+    }
+    world
 }
 fn main() -> Result<(), pixels::Error> {
     env_logger::init();
@@ -105,11 +112,19 @@ fn main() -> Result<(), pixels::Error> {
             let shape_win = Shape::from_size(&window.inner_size());
 
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
-            let (mut tool_tfs, view_coord_tfs) = make_transforms(&mut tools);
-            // we need mem::take since we cannot move directly out of a shared reference
-            world = mem::take(&mut world).update(shape_win, &util::Event::new(&input), mouse_pos, &mut tool_tfs, &mut pixels);
+            let event = util::Event::new(&input);
+            world = apply_tools(
+                &mut tools,
+                mem::take(&mut world),
+                shape_win,
+                mouse_pos,
+                &event,
+                &mut pixels,
+            );
 
+            // regrap mouse position after changeing pixels according to tools
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
+            
             if input.key_pressed(VirtualKeyCode::M) {
                 framework.gui().open();
             }
@@ -154,7 +169,14 @@ fn main() -> Result<(), pixels::Error> {
                     let size = window.inner_size();
                     let shape_win = Shape::from_size(&size);
                     let event = util::Event::from_image_loaded(&input);
-                    world = mem::take(&mut world).update(shape_win, &event, mouse_pos, &mut tool_tfs, &mut pixels);
+                    world = apply_tools(
+                        &mut tools,
+                        mem::take(&mut world),
+                        shape_win,
+                        mouse_pos,
+                        &event,
+                        &mut pixels,
+                    );
                     let Shape { w, h } = Shape::from_im(world.im_view());
                     pixels.resize_buffer(w, h);
                 }
@@ -169,7 +191,14 @@ fn main() -> Result<(), pixels::Error> {
             if let Some(size) = input.window_resized() {
                 let shape_win = Shape::from_size(&size);
                 let event = util::Event::from_window_resized(&input);
-                world = mem::take(&mut world).update(shape_win, &event, mouse_pos,&mut tool_tfs, &mut pixels);
+                world = apply_tools(
+                    &mut tools,
+                    mem::take(&mut world),
+                    shape_win,
+                    mouse_pos,
+                    &event,
+                    &mut pixels,
+                );
                 let Shape { w, h } = Shape::from_im(world.im_view());
                 pixels.resize_buffer(w, h);
                 framework.resize(size.width, size.height);
@@ -182,7 +211,7 @@ fn main() -> Result<(), pixels::Error> {
                     w: window.inner_size().width,
                     h: window.inner_size().height,
                 };
-                let data_point = get_pixel_on_orig(&world, mouse_pos, shape_win, &view_coord_tfs);
+                let data_point = get_pixel_on_orig(&mut tools, &world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
                 let s = match data_point {
                     Some((x, y, rgb)) => {

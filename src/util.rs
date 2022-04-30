@@ -50,8 +50,8 @@ impl<'a> Event<'a> {
     pub fn from_image_loaded(input: &'a WinitInputHelper) -> Self {
         Self {
             input,
-            image_loaded: false,
-            window_resized: true,
+            image_loaded: true,
+            window_resized: false,
         }
     }
 }

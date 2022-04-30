@@ -8,7 +8,7 @@ use winit::event::VirtualKeyCode;
 
 use crate::{
     make_tool_transform,
-    tools::core::{Tool, ToolTf, ViewCoordinateTf},
+    tools::core::Tool,
     util::{shape_scaled, Event, Shape, BB},
     world::World,
     ImageType, LEFT_BTN, RIGHT_BTN,
@@ -325,19 +325,31 @@ impl Tool for Zoom {
             im_prev_view: None,
         }
     }
-    fn events_transform<'a>(&'a mut self) -> (ToolTf, Option<ViewCoordinateTf>) {
-        let zoom_box = self.bx;
-        let tt: ToolTf = make_tool_transform!(
+    fn events_tf<'a>(
+        &'a mut self,
+        world: World,
+        shape_win: Shape,
+        mouse_pos: Option<(usize, usize)>,
+        event: &Event,
+    ) -> World {
+        make_tool_transform!(
             self,
+            world,
+            shape_win,
+            mouse_pos,
+            event,
             [mouse_pressed, mouse_released, mouse_held],
             [VirtualKeyCode::Back, VirtualKeyCode::R]
-        );
-        (
-            tt,
-            Some(Box::new(move |mp, w, shape_win| {
-                get_pixel_on_orig(zoom_box, w.im_orig(), mp, shape_win)
-            })),
         )
+    }
+
+    fn coord_tf(
+        &self,
+        world: &World,
+        shape_win: Shape,
+        mouse_pos: Option<(u32, u32)>,
+    ) -> Option<(u32, u32)> {
+        get_pixel_on_orig(self.bx, world.im_orig(), mouse_pos, shape_win)
     }
 }
 
