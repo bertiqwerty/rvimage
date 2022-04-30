@@ -61,7 +61,7 @@ macro_rules! make_tool_transform {
         $(else if $event.input.$mouse_event(LEFT_BTN) {
             $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $w)
         } else if $event.input.$mouse_event(RIGHT_BTN) {
-            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $w)
+            $self.$mouse_event(RIGHT_BTN, $shape_win, $mouse_pos, $w)
         })*
         $(else if $event.input.key_pressed($key_event) {
             $self.key_pressed($key_event, $shape_win, $mouse_pos, $w)
