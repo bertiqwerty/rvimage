@@ -1,8 +1,7 @@
 use std::marker::PhantomData;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
+
+use walkdir::WalkDir;
 
 use crate::cache::{ImageReaderFn, Preload};
 use crate::result::{to_rv, AsyncResultImage, RvError, RvResult};
@@ -20,18 +19,17 @@ impl ImageReaderFn for ReadImageFromPath {
 }
 
 pub fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
-    fs::read_dir(path)
-        .map_err(to_rv)?
+    WalkDir::new(path)
         .into_iter()
-        .map(|p| Ok(p.map_err(to_rv)?.path()))
-        .filter(|p: &RvResult<PathBuf>| match p {
+        .map(|p| Ok(p.map_err(to_rv)?))
+        .filter(|p| match p {
             Err(_) => true,
-            Ok(p_) => match p_.extension() {
+            Ok(p_) => match p_.path().extension() {
                 Some(ext) => ext == "png" || ext == "jpg",
                 None => false,
             },
         })
-        .map(|p| Ok(path_to_str(&p?)?.to_string()))
+        .map(|p| Ok(path_to_str(p?.path())?.to_string()))
         .collect::<RvResult<Vec<String>>>()
 }
 pub fn to_stem_str(p: &Path) -> RvResult<&str> {
@@ -121,7 +119,8 @@ where
     }
     fn list_file_labels(&self, filter_str: &str) -> RvResult<Vec<(usize, String)>> {
         self.file_paths
-            .iter().enumerate()
+            .iter()
+            .enumerate()
             .filter(|(_, p)| {
                 if filter_str.len() == 0 {
                     true
@@ -185,7 +184,8 @@ impl PickFolder for TmpFolderPicker {
         ))
     }
 }
-
+#[cfg(test)]
+use std::fs;
 #[test]
 fn test_folder_reader() -> RvResult<()> {
     let tmp_dir = env::temp_dir().join(TMP_SUBFOLDER);
