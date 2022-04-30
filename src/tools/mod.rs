@@ -30,24 +30,27 @@ macro_rules! apply_tool_method {
 }
 
 #[macro_export]
-macro_rules! make_event_handler_if_elses {
-    ($self:expr, $event:expr, $mouse_pos:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
-        if $event.image_loaded {
-            Box::new(move |w: World, shape_win: Shape| $self.image_loaded(shape_win, $mouse_pos, w))
-        }
-        else if $event.window_resized {
-            Box::new(move |w: World, shape_win: Shape| $self.window_resized(shape_win, $mouse_pos, w))
-        }
-        $(else if $event.input.$mouse_event(LEFT_BTN) {
-            Box::new(move |w: World, shape_win: Shape| $self.$mouse_event(LEFT_BTN, shape_win, $mouse_pos, w))
-        } else if $event.input.$mouse_event(RIGHT_BTN) {
-            Box::new(move |w: World, shape_win: Shape| $self.$mouse_event(LEFT_BTN, shape_win, $mouse_pos, w))
-        })*
-        $(else if $event.input.key_pressed($key_event) {
-            Box::new(move |w: World, shape_win: Shape| $self.key_pressed($key_event, shape_win, $mouse_pos, w))
-        })*
-        else {
-            Box::new(move |w: World, _: Shape| w)
-        }
+macro_rules! make_tool_transform {
+    ($self:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
+
+        Box::new(move |w: World, shape_win: Shape, event: &Event, mouse_pos: Option<(usize, usize)>| {
+            if event.image_loaded {
+                $self.image_loaded(shape_win, mouse_pos, w)
+            }
+            else if event.window_resized {
+                $self.window_resized(shape_win, mouse_pos, w)
+            }
+            $(else if event.input.$mouse_event(LEFT_BTN) {
+                $self.$mouse_event(LEFT_BTN, shape_win, mouse_pos, w)
+            } else if event.input.$mouse_event(RIGHT_BTN) {
+                $self.$mouse_event(LEFT_BTN, shape_win, mouse_pos, w)
+            })*
+            $(else if event.input.key_pressed($key_event) {
+                $self.key_pressed($key_event, shape_win, mouse_pos, w)
+            })*
+            else {
+                w
+            }
+        })
     };
 }

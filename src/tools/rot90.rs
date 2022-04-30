@@ -2,7 +2,7 @@ use image::imageops::{self, FilterType};
 use winit::event::VirtualKeyCode;
 
 use crate::{
-    make_event_handler_if_elses,
+    make_tool_transform,
     util::{shape_scaled, Event, Shape},
     world::World,
     ImageType,
@@ -47,10 +47,8 @@ impl Tool for Rot90 {
 
     fn events_transform<'a>(
         &'a mut self,
-        input_event: &Event,
-        mouse_pos: Option<(usize, usize)>,
     ) -> (ToolTf, Option<ViewCoordinateTf>) {
-        let tt: ToolTf = make_event_handler_if_elses!(self, input_event, mouse_pos, [], [VirtualKeyCode::R]);
+        let tt: ToolTf = make_tool_transform!(self, [], [VirtualKeyCode::R]);
         (tt, None)
     }
 

@@ -7,7 +7,7 @@ use image::{
 use winit::event::VirtualKeyCode;
 
 use crate::{
-    make_event_handler_if_elses,
+    make_tool_transform,
     tools::core::{Tool, ToolTf, ViewCoordinateTf},
     util::{shape_scaled, Event, Shape, BB},
     world::World,
@@ -122,18 +122,10 @@ fn move_zoom_box(
     }
 }
 
-pub fn scale_to_win(
-    im_orig: &ImageType,
-    zoom_box: Option<BB>,
-    w_win: u32,
-    h_win: u32,
-) -> ImageType {
-    let shape_orig = Shape {
-        w: im_orig.width(),
-        h: im_orig.height(),
-    };
+pub fn scale_to_win(im_orig: &ImageType, zoom_box: Option<BB>, shape_win: Shape) -> ImageType {
+    let shape_orig = Shape::from_im(im_orig);
     let unscaled = shape_unscaled(&zoom_box, shape_orig);
-    let new = shape_scaled(unscaled, Shape { w: w_win, h: h_win });
+    let new = shape_scaled(unscaled, shape_win);
     match zoom_box {
         Some(c) => imageops::resize(
             &*im_orig.view(c.x, c.y, c.w, c.h),
@@ -207,6 +199,24 @@ impl Zoom {
         self.mouse_pressed_start_time = None;
         self.im_prev_view = None;
     }
+    fn image_loaded(
+        &mut self,
+        shape_win: Shape,
+        _mouse_p2os: Option<(usize, usize)>,
+        mut world: World,
+    ) -> World {
+        *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
+        world
+    }
+    fn window_resized(
+        &mut self,
+        shape_win: Shape,
+        _mouse_p2os: Option<(usize, usize)>,
+        mut world: World,
+    ) -> World {
+        *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
+        world
+    }
     fn mouse_pressed(
         &mut self,
         _btn: usize,
@@ -233,9 +243,9 @@ impl Zoom {
                 if let Some(bx_) = bx {
                     self.bx = Some(bx_);
                 }
-                scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h)
+                scale_to_win(world.im_orig(), self.bx, shape_win)
             } else {
-                scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h)
+                scale_to_win(world.im_orig(), self.bx, shape_win)
             };
             self.unset_mouse_start();
             *world.im_view_mut() = im_view;
@@ -258,7 +268,7 @@ impl Zoom {
             if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 self.bx =
                     move_zoom_box(mps, mp, Shape::from_im(world.im_orig()), shape_win, self.bx);
-                let im_view = scale_to_win(world.im_orig(), self.bx, shape_win.w, shape_win.h);
+                let im_view = scale_to_win(world.im_orig(), self.bx, shape_win);
                 match mouse_pos {
                     Some(mp) => {
                         self.set_mouse_start(mp, None);
@@ -303,7 +313,7 @@ impl Zoom {
     ) -> World {
         if key == VirtualKeyCode::Back {
             self.bx = None;
-            *world.im_view_mut() = scale_to_win(world.im_orig(), None, shape_win.w, shape_win.h);
+            *world.im_view_mut() = scale_to_win(world.im_orig(), None, shape_win);
         }
         world
     }
@@ -319,14 +329,10 @@ impl Tool for Zoom {
     }
     fn events_transform<'a>(
         &'a mut self,
-        input_event: &Event,
-        mouse_pos: Option<(usize, usize)>,
     ) -> (ToolTf, Option<ViewCoordinateTf>) {
         let zoom_box = self.bx;
-        let tt: ToolTf = make_event_handler_if_elses!(
+        let tt: ToolTf = make_tool_transform!(
             self,
-            input_event,
-            mouse_pos,
             [mouse_pressed, mouse_released, mouse_held],
             [VirtualKeyCode::Back]
         );
@@ -366,7 +372,7 @@ fn test_make_zoom() -> RvResult<()> {
     test((0, 0), (10, 10), None, mk_z(0, 0, 10, 10));
     test((0, 0), (100, 10), None, None);
     test((13, 7), (33, 17), None, mk_z(13, 7, 20, 10));
-    test((5, 9), (10, 19), mk_z(24, 36, 33, 55), None);
+    test((5, 9), (6, 10), mk_z(24, 36, 33, 55), None);
     test((5, 9), (17, 19), mk_z(24, 36, 33, 55), mk_z(29, 45, 12, 10));
 
     Ok(())
@@ -389,7 +395,7 @@ fn test_scale_to_win() {
     let mut im_test = ImageType::new(64, 64);
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     im_test.put_pixel(10, 10, Rgb([23, 23, 23]));
-    let im_scaled = scale_to_win(&im_test, None, 128, 128);
+    let im_scaled = scale_to_win(&im_test, None, Shape { w: 128, h: 128 });
     assert_eq!(im_scaled.get_pixel(0, 0).0, [23, 23, 23]);
     assert_eq!(im_scaled.get_pixel(20, 20).0, [23, 23, 23]);
     assert_eq!(im_scaled.get_pixel(70, 70).0, [0, 0, 0]);

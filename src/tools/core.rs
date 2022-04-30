@@ -3,7 +3,7 @@ use crate::{
     world::World,
 };
 
-pub type ToolTf<'a> = Box<dyn 'a + FnMut(World, Shape) -> World>;
+pub type ToolTf<'a> = Box<dyn 'a + FnMut(World, Shape, &Event, Option<(usize, usize)>) -> World>;
 pub type ViewCoordinateTf<'a> = Box<dyn 'a + Fn(Option<(u32, u32)>, &World, Shape) -> Option<(u32, u32)>>;
 pub trait Tool {
     fn new() -> Self
@@ -12,8 +12,6 @@ pub trait Tool {
 
     fn events_transform<'a>(
         &'a mut self,
-        input_event: &Event,
-        mouse_pos_on_pixels: Option<(usize, usize)>,
     ) -> (ToolTf, Option<ViewCoordinateTf>);
 
     fn image_loaded(

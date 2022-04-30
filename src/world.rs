@@ -1,5 +1,5 @@
 use crate::tools::ToolTf;
-use crate::util::Shape;
+use crate::util::{Shape, Event};
 use crate::ImageType;
 use pixels::Pixels;
 
@@ -17,12 +17,14 @@ fn pixels_rgba_at(i: usize, im_view: &ImageType) -> [u8; 4] {
 fn apply_tool_tranforms(
     mut world: World,
     shape_win: Shape,
+    event: &Event,
+    mouse_pos: Option<(usize, usize)>,
     transforms: &mut Vec<ToolTf>,
     pixels: &mut Pixels,
 ) -> World {
     for t in transforms {
         let old_shape = Shape::from_im(world.im_view());
-        world = t(world, shape_win);
+        world = t(world, shape_win, event, mouse_pos);
         let new_shape = Shape::from_im(world.im_view());
         if old_shape != new_shape {
             pixels.resize_buffer(new_shape.w, new_shape.h);
@@ -62,10 +64,12 @@ impl World {
     pub fn update<'a>(
         self,
         shape_win: Shape,
+        event: &Event,
+        mouse_pos: Option<(usize, usize)>,
         tool_transforms: &'a mut Vec<ToolTf>,
         pixels: &'a mut Pixels,
     ) -> Self {
-        apply_tool_tranforms(self, shape_win, tool_transforms, pixels)
+        apply_tool_tranforms(self, shape_win, event, mouse_pos, tool_transforms, pixels, )
     }
     pub fn im_view(&self) -> &ImageType {
         &self.im_view
