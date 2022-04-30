@@ -8,6 +8,7 @@ pub trait Tool {
     where
         Self: Sized;
 
+    /// Transformation of the coordinates to show pixel positions and RGB values correctly.
     fn coord_tf(
         &self,
         _world: &World,
@@ -17,6 +18,8 @@ pub trait Tool {
         None
     }
 
+    /// All events that are used by a tool are implemented in here. Use the macro [`make_tool_transform`](make_tool_transform). See, e.g., 
+    /// [`Zoom::events_tf`](tools::zoom::Zoom::events_tf).
     fn events_tf<'a>(
         &'a mut self,
         world: World,
@@ -25,6 +28,7 @@ pub trait Tool {
         event: &Event,
     ) -> World;
 
+    /// Special event that is triggered on load of a new image.
     fn image_loaded(
         &mut self,
         _shape_win: Shape,
@@ -34,6 +38,7 @@ pub trait Tool {
         world
     }
     
+    /// Special event that is triggered on window resize.
     fn window_resized(
         &mut self,
         _shape_win: Shape,
@@ -42,4 +47,27 @@ pub trait Tool {
     ) -> World {
         world
     }
+}
+
+#[macro_export]
+macro_rules! make_tool_transform {
+    ($self:expr, $w:expr, $shape_win:expr, $mouse_pos:expr, $event:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
+        if $event.image_loaded {
+            $self.image_loaded($shape_win, $mouse_pos, $w)
+        }
+        else if $event.window_resized {
+            $self.window_resized($shape_win, $mouse_pos, $w)
+        }
+        $(else if $event.input.$mouse_event(LEFT_BTN) {
+            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $w)
+        } else if $event.input.$mouse_event(RIGHT_BTN) {
+            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $w)
+        })*
+        $(else if $event.input.key_pressed($key_event) {
+            $self.key_pressed($key_event, $shape_win, $mouse_pos, $w)
+        })*
+        else {
+            $w
+        }
+    };
 }
