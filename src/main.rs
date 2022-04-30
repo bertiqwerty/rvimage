@@ -173,11 +173,25 @@ fn main() -> Result<(), pixels::Error> {
                         }
                         None => {
                             let shape = world.shape_orig();
-                            let im_loading = ImageBuffer::from_fn(shape.w, shape.h, |x, _| {
-                                if x % 2 == 0 {
-                                    image::Rgb([0u8, 0u8, 0u8])
+                            let centers = [
+                                (shape.w / 2 - 75, shape.h / 2),
+                                (shape.w / 2 + 75, shape.h / 2),
+                                (shape.w / 2, shape.h / 2),
+                            ];
+
+                            let im_loading = ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
+                                for mid in centers.iter() {
+                                    if (mid.0 as i32 - x as i32).pow(2)
+                                        + (mid.1 as i32 - y as i32).pow(2)
+                                        < 100
+                                    {
+                                        return image::Rgb([255u8, 255u8, 255u8]);
+                                    }
+                                }
+                                if (x / 10) % 2 == 0 {
+                                    image::Rgb([180u8, 180u8, 190u8])
                                 } else {
-                                    image::Rgb([255u8, 255u8, 255u8])
+                                    image::Rgb([170u8, 170u8, 180u8])
                                 }
                             });
                             thread::sleep(Duration::from_millis(20));
