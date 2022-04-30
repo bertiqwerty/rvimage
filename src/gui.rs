@@ -212,15 +212,22 @@ impl Gui {
                     self.reader.list_file_labels(),
                     self
                 );
-                for (idx, s) in file_labels.iter().enumerate() {
-                    if ui.selectable_label(false, s).clicked() {
-                        self.reader.select_file(idx);
-                    };
-                }
+                let scroll_height = ui.available_height() - 120.0;
+                egui::ScrollArea::vertical()
+                    .max_height(scroll_height)
+                    .show(ui, |ui| {
+                        for (idx, s) in file_labels.iter().enumerate() {
+                            if ui.selectable_label(false, s).clicked() {
+                                self.reader.select_file(idx);
+                            };
+                        }
+                    });
+
                 ui.separator();
                 ui.label("zoom - drag left mouse");
                 ui.label("move zoomed area - drag right mouse");
                 ui.label("unzoom - backspace");
+                ui.label("r - rotate by 90 degrees");
                 ui.label("open this menu - m");
             });
     }
