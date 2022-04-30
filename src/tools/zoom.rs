@@ -306,15 +306,13 @@ impl Zoom {
     }
     fn key_pressed(
         &mut self,
-        key: VirtualKeyCode,
+        _key: VirtualKeyCode,
         shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
     ) -> World {
-        if key == VirtualKeyCode::Back {
-            self.bx = None;
-            *world.im_view_mut() = scale_to_win(world.im_orig(), None, shape_win);
-        }
+        self.bx = None;
+        *world.im_view_mut() = scale_to_win(world.im_orig(), None, shape_win);
         world
     }
 }
@@ -327,14 +325,12 @@ impl Tool for Zoom {
             im_prev_view: None,
         }
     }
-    fn events_transform<'a>(
-        &'a mut self,
-    ) -> (ToolTf, Option<ViewCoordinateTf>) {
+    fn events_transform<'a>(&'a mut self) -> (ToolTf, Option<ViewCoordinateTf>) {
         let zoom_box = self.bx;
         let tt: ToolTf = make_tool_transform!(
             self,
             [mouse_pressed, mouse_released, mouse_held],
-            [VirtualKeyCode::Back]
+            [VirtualKeyCode::Back, VirtualKeyCode::R]
         );
         (
             tt,

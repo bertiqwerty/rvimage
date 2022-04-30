@@ -17,7 +17,7 @@ macro_rules! make_tools {
          }
     };
 }
-make_tools!(Zoom, Rot90);
+make_tools!(Rot90, Zoom);
 
 #[macro_export]
 macro_rules! apply_tool_method {
