@@ -46,12 +46,6 @@ impl ReaderFromCfg {
     }
 }
 impl ReadImageFiles for ReaderFromCfg {
-    fn next(&mut self) {
-        self.reader.next();
-    }
-    fn prev(&mut self) {
-        self.reader.prev();
-    }
     fn read_image(
         &mut self,
         file_selected_idx: usize,
@@ -67,8 +61,8 @@ impl ReadImageFiles for ReaderFromCfg {
     fn select_file(&mut self, idx: usize) {
         self.reader.select_file(idx)
     }
-    fn list_file_labels(&self) -> RvResult<Vec<String>> {
-        self.reader.list_file_labels()
+    fn list_file_labels(&self, filter_str: &str) -> RvResult<Vec<(usize, String)>> {
+        self.reader.list_file_labels(filter_str)
     }
     fn folder_label(&self) -> RvResult<String> {
         self.reader.folder_label()

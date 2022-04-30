@@ -211,6 +211,7 @@ fn main() -> Result<(), pixels::Error> {
                     w: window.inner_size().width,
                     h: window.inner_size().height,
                 };
+                let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
                 let data_point = get_pixel_on_orig(&mut tools, &world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
                 let s = match data_point {

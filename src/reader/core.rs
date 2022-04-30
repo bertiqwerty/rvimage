@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::cache::{ImageReaderFn, Preload};
-use crate::result::{to_rv, RvError, RvResult, AsyncResultImage};
+use crate::result::{to_rv, AsyncResultImage, RvError, RvResult};
 use crate::{format_rverr, util, ImageType};
 
 pub struct ReadImageFromPath;
@@ -50,10 +50,6 @@ pub fn path_to_str(p: &Path) -> RvResult<&str> {
 }
 
 pub trait ReadImageFiles {
-    /// select next image
-    fn next(&mut self);
-    /// select previous image
-    fn prev(&mut self);
     /// read image with index file_selected_idx  
     fn read_image(&mut self, file_selected_idx: usize) -> AsyncResultImage;
     /// get index of selected file
@@ -61,21 +57,13 @@ pub trait ReadImageFiles {
     /// set index of selected file
     fn select_file(&mut self, idx: usize);
     /// list all files in folder
-    fn list_file_labels(&self) -> RvResult<Vec<String>>;
+    fn list_file_labels(&self, filter_str: &str) -> RvResult<Vec<(usize, String)>>;
     /// get the user input of a new folder and open it
     fn open_folder(&mut self) -> RvResult<()>;
     /// get the label of the folder to display
     fn folder_label(&self) -> RvResult<String>;
     /// get the label of the selected file to display
     fn file_selected_label(&self) -> RvResult<String>;
-}
-
-pub fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
-    file_selected_idx.map(|idx| if idx < files_len - 1 { idx + 1 } else { idx })
-}
-
-pub fn prev(file_selected_idx: Option<usize>) -> Option<usize> {
-    file_selected_idx.map(|idx| if idx > 0 { idx - 1 } else { idx })
 }
 
 pub trait PickFolder {
@@ -117,12 +105,6 @@ where
     C: Preload<A>,
     FP: PickFolder,
 {
-    fn next(&mut self) {
-        self.file_selected_idx = next(self.file_selected_idx, self.file_paths.len());
-    }
-    fn prev(&mut self) {
-        self.file_selected_idx = prev(self.file_selected_idx);
-    }
     fn read_image(&mut self, file_selected: usize) -> AsyncResultImage {
         self.cache.read_image(file_selected, &self.file_paths)
     }
@@ -137,11 +119,18 @@ where
 
         Ok(())
     }
-    fn list_file_labels(&self) -> RvResult<Vec<String>> {
+    fn list_file_labels(&self, filter_str: &str) -> RvResult<Vec<(usize, String)>> {
         self.file_paths
-            .iter()
-            .map(|p| Ok(to_name_str(Path::new(p))?.to_string()))
-            .collect::<RvResult<Vec<String>>>()
+            .iter().enumerate()
+            .filter(|(_, p)| {
+                if filter_str.len() == 0 {
+                    true
+                } else {
+                    p.contains(filter_str)
+                }
+            })
+            .map(|(i, p)| Ok((i, to_name_str(Path::new(p))?.to_string())))
+            .collect::<RvResult<Vec<_>>>()
     }
     fn folder_label(&self) -> RvResult<String> {
         match &self.folder_path {
@@ -187,7 +176,9 @@ impl PickFolder for TmpFolderPicker {
         Ok((
             format!(
                 "{}/{}",
-                tmpdir.to_str().ok_or_else(|| format_rverr!("cannot stringify {:?}", tmpdir))?,
+                tmpdir
+                    .to_str()
+                    .ok_or_else(|| format_rverr!("cannot stringify {:?}", tmpdir))?,
                 TMP_SUBFOLDER
             ),
             vec![],
@@ -210,7 +201,7 @@ fn test_folder_reader() -> RvResult<()> {
     }
     let mut reader = Reader::<NoCache<ReadImageFromPath>, TmpFolderPicker, ()>::new(());
     reader.open_folder()?;
-    for (i, label) in reader.list_file_labels()?.iter().enumerate() {
+    for (i, (_, label)) in reader.list_file_labels("")?.iter().enumerate() {
         assert_eq!(label[label.len() - 13..], format!("tmpfile_{}.png", i));
     }
     let folder_label = reader.folder_label()?;

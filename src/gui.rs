@@ -7,6 +7,13 @@ use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
+fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
+    file_selected_idx.map(|idx| if idx < files_len - 1 { idx + 1 } else { idx })
+}
+
+fn prev(file_selected_idx: Option<usize>) -> Option<usize> {
+    file_selected_idx.map(|idx| if idx > 0 { idx - 1 } else { idx })
+}
 /// Manages all state required for rendering egui over `Pixels`.
 pub(crate) struct Framework {
     // State for egui.
@@ -120,6 +127,9 @@ pub struct Gui {
     window_open: bool,
     reader: ReaderFromCfg,
     info_message: Info,
+    file_labels: Vec<(usize, String)>,
+    filter_string: String,
+    file_selected_idx: Option<usize>
 }
 
 // evaluates expression that is expected to return Result,
@@ -151,17 +161,25 @@ impl Gui {
         Self {
             window_open: true,
             reader: reader_from_cfg,
-
             info_message: info,
+            file_labels: vec![],
+            filter_string: "".to_string(),
+            file_selected_idx: None
         }
     }
 
     pub fn next(&mut self) {
-        self.reader.next();
+        self.file_selected_idx = next(self.file_selected_idx, self.file_labels.len());
+        if let Some(idx) = self.file_selected_idx {
+            self.reader.select_file(self.file_labels[idx].0);
+        }
     }
 
     pub fn prev(&mut self) {
-        self.reader.prev();
+        self.file_selected_idx = prev(self.file_selected_idx);
+        if let Some(idx) = self.file_selected_idx {
+            self.reader.select_file(self.file_labels[idx].0);
+        }
     }
 
     pub fn open(&mut self) {
@@ -200,25 +218,33 @@ impl Gui {
                 ui.separator();
                 if ui.button("open folder...").clicked() {
                     handle_error!(|_| (), self.reader.open_folder(), self);
+                    handle_error!(
+                        |v| { self.file_labels = v },
+                        self.reader.list_file_labels(""),
+                        self
+                    );
                 }
 
                 let mut ui_label = |s| ui.label(s);
                 handle_error!(ui_label, self.reader.folder_label(), self);
                 handle_error!(ui_label, self.reader.file_selected_label(), self);
 
-                let mut file_labels = vec![];
-                handle_error!(
-                    |v| { file_labels = v },
-                    self.reader.list_file_labels(),
-                    self
-                );
+                let txt_field = ui.text_edit_singleline(&mut self.filter_string);
+                if txt_field.changed() {
+                    handle_error!(
+                        |v| { self.file_labels = v },
+                        self.reader.list_file_labels(&self.filter_string.trim()),
+                        self
+                    );
+                }
                 let scroll_height = ui.available_height() - 120.0;
                 egui::ScrollArea::vertical()
                     .max_height(scroll_height)
                     .show(ui, |ui| {
-                        for (idx, s) in file_labels.iter().enumerate() {
+                        for (idx, (reader_idx, s)) in self.file_labels.iter().enumerate() {
                             if ui.selectable_label(false, s).clicked() {
-                                self.reader.select_file(idx);
+                                self.reader.select_file(*reader_idx);
+                                self.file_selected_idx = Some(idx);
                             };
                         }
                     });
