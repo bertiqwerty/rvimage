@@ -396,20 +396,22 @@ fn test_scale_to_win() {
     assert_eq!(im_scaled.get_pixel(20, 20).0, [23, 23, 23]);
     assert_eq!(im_scaled.get_pixel(70, 70).0, [0, 0, 0]);
 }
-// #[test]
-// fn test_on_mouse_pressed() {
-//     let shape_win = Shape { w: 250, h: 500 };
-//     let mouse_pos = Some((30, 45));
-//     let im_orig = ImageType::new(250, 500);
-//     let mouse_btn = LEFT_BTN;
-//     let mut z = Zoom::new();
-//     let world = World::new(im_orig);
-//     let old_world = world.clone();
-//     let res = z.mouse_pressed(mouse_btn, shape_win, mouse_pos, world);
-//     assert_eq!(res, old_world);
-//     assert_eq!(&z.im_prev_view.unwrap(), old_world.im_view());
-//     assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
-// }
+#[test]
+fn test_on_mouse_pressed() {
+    let shape_win = Shape { w: 250, h: 500 };
+    let mouse_pos = Some((30, 45));
+    let im_orig = ImageType::new(250, 500);
+    let mouse_btn = LEFT_BTN;
+    let mut z = Zoom::new();
+    let world = World::new(im_orig);
+    let im_view_old = world.im_view().clone();
+    let im_orig_old = world.im_orig().clone();
+    let res = z.mouse_pressed(mouse_btn, shape_win, mouse_pos, world);
+    assert_eq!(z.im_prev_view.unwrap(), im_view_old);
+    assert_eq!(*res.im_view(), im_view_old);
+    assert_eq!(*res.im_orig(), im_orig_old);
+    assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
+}
 
 #[test]
 fn test_on_mouse_released() {
