@@ -25,3 +25,4 @@ serde = { version="1.0", features = ["derive"] }
 lazy_static = "1.4.0"
 regex = "1"
 walkdir = "2.3.2"
+ssh2 = "0.9"
