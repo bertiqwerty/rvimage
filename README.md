@@ -4,7 +4,7 @@
 * SSH/SCP relying on the tools being accessible via command line or
 * local folders that might be mounts of remote storage. 
 
-Images are cached locally in a temporary directory. So far only tested on Windows 10. Currently, only RGB images with 8 bits per pixel and channel are supported. They have to be either `.png` or `.jpg`. RV Image is mainly based on [Egui](https://crates.io/crates/egui), [Image](https://crates.io/crates/image), and [Pixels](https://crates.io/crates/pixels).
+That is, to be able to connect to an ssh server, the commands `ssh` and `scp` need to be accessible from the terminal. Images are cached locally in a temporary directory. So far only tested on Windows 10. Currently, only RGB images with 8 bits per pixel and channel are supported. They have to be either `.png` or `.jpg`. RV Image is mainly based on [Egui](https://crates.io/crates/egui), [Image](https://crates.io/crates/image), and [Pixels](https://crates.io/crates/pixels).
 
 
 ## Configuration
