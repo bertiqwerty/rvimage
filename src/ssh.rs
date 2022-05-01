@@ -13,8 +13,8 @@ pub fn copy(
     ssh_cfg: &SshCfg,
     override_local: bool,
 ) -> RvResult<()> {
-    let sess = ssh_auth(ssh_cfg)?;
     if !Path::new(&dst_path).exists() || override_local {
+        let sess = ssh_auth(ssh_cfg)?;
         let (mut remote_file, _) = sess
             .scp_recv(Path::new(remote_src_file_path))
             .map_err(to_rv)?;
