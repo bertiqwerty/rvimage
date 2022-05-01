@@ -36,7 +36,7 @@ pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
 }
 
 pub fn is_relative(path: &str) -> bool {
-    Path::new(path).is_relative() && path.chars().next() != Some('/')
+    Path::new(path).is_relative() && !path.starts_with('/')
 }
 
 pub fn mouse_pos_transform(

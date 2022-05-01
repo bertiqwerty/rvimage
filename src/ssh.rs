@@ -40,17 +40,15 @@ pub fn ssh_ls(ssh_cfg: &SshCfg, filter_extensions: &[&str]) -> RvResult<Vec<Stri
                 let n_e = ext.len();
                 if n_e > n_s {
                     false
-                } else if &s[n_s - n_e..n_s] == **ext {
-                    true
-                } else {
-                    false
+                } else { 
+                    &s[n_s - n_e..n_s] == **ext
                 }
             })
             .count()
             > 0
-            || filter_extensions.len() == 0
+            || filter_extensions.is_empty()
     }
-    Ok(s.split("\n")
+    Ok(s.split('\n')
         .filter(|s| ext_predicate(s, filter_extensions))
         .map(|s| s.to_string())
         .collect::<Vec<_>>())

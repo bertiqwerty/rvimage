@@ -78,19 +78,15 @@ fn apply_tools<'a>(
     world
 }
 
-
 fn loading_image(shape: Shape) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
     let centers = [
         (shape.w / 2 - 75, shape.h / 2),
         (shape.w / 2 + 75, shape.h / 2),
         (shape.w / 2, shape.h / 2),
     ];
-    let im_loading = ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
+    ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
         for mid in centers.iter() {
-            if (mid.0 as i32 - x as i32).pow(2)
-                + (mid.1 as i32 - y as i32).pow(2)
-                < 100
-            {
+            if (mid.0 as i32 - x as i32).pow(2) + (mid.1 as i32 - y as i32).pow(2) < 100 {
                 return image::Rgb([255u8, 255u8, 255u8]);
             }
         }
@@ -99,8 +95,7 @@ fn loading_image(shape: Shape) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
         } else {
             image::Rgb([170u8, 170u8, 180u8])
         }
-    });
-    im_loading
+    })
 }
 
 fn remove_tmpdir() {
@@ -121,7 +116,6 @@ fn remove_tmpdir() {
 }
 
 fn main() -> Result<(), pixels::Error> {
-    
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -151,7 +145,6 @@ fn main() -> Result<(), pixels::Error> {
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
         if input.update(&event) {
-            
             // Close application
             if input.quit() {
                 *control_flow = ControlFlow::Exit;
@@ -173,7 +166,7 @@ fn main() -> Result<(), pixels::Error> {
                     &mut pixels,
                 );
             }
-            
+
             if input.key_pressed(VirtualKeyCode::M) {
                 framework.gui().open();
             }
@@ -204,7 +197,7 @@ fn main() -> Result<(), pixels::Error> {
                         None => {
                             thread::sleep(Duration::from_millis(20));
                             let shape = world.shape_orig();
-                            loading_image(shape)                            
+                            loading_image(shape)
                         }
                     };
                     world = World::new(im_read);
@@ -308,5 +301,3 @@ fn main() -> Result<(), pixels::Error> {
         }
     });
 }
-
-

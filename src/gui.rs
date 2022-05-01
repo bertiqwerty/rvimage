@@ -259,7 +259,7 @@ impl Gui {
                 if txt_field.changed() {
                     handle_error!(
                         |v| { self.file_labels = v },
-                        self.reader.list_file_labels(&self.filter_string.trim()),
+                        self.reader.list_file_labels(self.filter_string.trim()),
                         self
                     );
                 }

@@ -21,7 +21,7 @@ impl ImageReaderFn for ReadImageFromPath {
 pub fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
     WalkDir::new(path)
         .into_iter()
-        .map(|p| Ok(p.map_err(to_rv)?))
+        .map(|p| p.map_err(to_rv))
         .filter(|p| match p {
             Err(_) => true,
             Ok(p_) => match p_.path().extension() {
@@ -122,7 +122,7 @@ where
             .iter()
             .enumerate()
             .filter(|(_, p)| {
-                if filter_str.len() == 0 {
+                if filter_str.is_empty() {
                     true
                 } else {
                     p.contains(filter_str)
