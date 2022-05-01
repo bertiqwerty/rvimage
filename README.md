@@ -1,3 +1,4 @@
+[![CI workflow](https://github.com/bertiqwerty/rvimage/actions/workflows/rust.yml/badge.svg)](https://github.com/bertiqwerty/rvimage)
 # RV Image
 **R**emote **v**iewer for **image**s in Rust that connects via 
 
