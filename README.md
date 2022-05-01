@@ -1,10 +1,10 @@
 # RV Image
 **R**emote **v**iewer for **image**s in Rust that connects via 
 
-* SSH/SCP relying on the tools being accessible via command line or
+* SSH/SCP using the [Ssh2 crate](https://crates.io/crates/ssh2) and 
 * local folders that might be mounts of remote storage. 
 
-That is, to be able to connect to an ssh server, the commands `ssh` and `scp` need to be accessible from the terminal. Images are cached locally in a temporary directory. So far only tested on Windows 10. Currently, only RGB images with 8 bits per pixel and channel are supported. They have to be either `.png` or `.jpg`. RV Image is mainly based on [Egui](https://crates.io/crates/egui), [Image](https://crates.io/crates/image), and [Pixels](https://crates.io/crates/pixels).
+Images are cached locally in a temporary directory. So far only tested on Windows 10. Currently, only RGB images with 8 bits per pixel and channel are supported. They have to be either `.png` or `.jpg`. RV Image is mainly based on [Egui](https://crates.io/crates/egui), [Image](https://crates.io/crates/image), and [Pixels](https://crates.io/crates/pixels).
 
 
 ## Configuration
@@ -24,12 +24,4 @@ remote_folder_path = "folder on your server"
 address = "address of your server"
 user = "your username"
 ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
-# Your scp command.
-# If not given, we use 
-# ["cmd", "/C", "scp"]
-# on Windows and 
-# ["sh", "-c", "scp"]
-# otherwise (untested).
-# scp_command = 
-
 ```
