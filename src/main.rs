@@ -77,10 +77,51 @@ fn apply_tools<'a>(
     }
     world
 }
-fn main() -> Result<(), pixels::Error> {
+
+
+fn loading_image(shape: Shape) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+    let centers = [
+        (shape.w / 2 - 75, shape.h / 2),
+        (shape.w / 2 + 75, shape.h / 2),
+        (shape.w / 2, shape.h / 2),
+    ];
+    let im_loading = ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
+        for mid in centers.iter() {
+            if (mid.0 as i32 - x as i32).pow(2)
+                + (mid.1 as i32 - y as i32).pow(2)
+                < 100
+            {
+                return image::Rgb([255u8, 255u8, 255u8]);
+            }
+        }
+        if (x / 10) % 2 == 0 {
+            image::Rgb([180u8, 180u8, 190u8])
+        } else {
+            image::Rgb([170u8, 170u8, 180u8])
+        }
+    });
+    im_loading
+}
+
+fn remove_tmpdir() {
     lazy_static! {
         pub static ref CFG: cfg::Cfg = cfg::get_cfg().unwrap();
     };
+    match CFG.tmpdir() {
+        Ok(td) => match fs::remove_dir_all(Path::new(td)) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("couldn't remove tmpdir {:?} ", e)
+            }
+        },
+        Err(e) => {
+            println!("couldn't remove tmpdir {:?} ", e)
+        }
+    };
+}
+
+fn main() -> Result<(), pixels::Error> {
+    
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -110,25 +151,16 @@ fn main() -> Result<(), pixels::Error> {
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
         if input.update(&event) {
-            // Close events
-            if input.key_pressed(VirtualKeyCode::Escape) || input.quit() {
+            
+            // Close application
+            if input.quit() {
                 *control_flow = ControlFlow::Exit;
-                // delete temporary dir
-                match CFG.tmpdir() {
-                    Ok(td) => match fs::remove_dir_all(Path::new(td)) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            println!("couldn't remove tmpdir {:?} ", e)
-                        }
-                    },
-                    Err(e) => {
-                        println!("couldn't remove tmpdir {:?} ", e)
-                    }
-                };
+                remove_tmpdir();
                 return;
             }
-            let shape_win = Shape::from_size(&window.inner_size());
 
+            // update world based on tools
+            let shape_win = Shape::from_size(&window.inner_size());
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
             let event = util::Event::new(&input);
             if framework.gui().are_tools_active() {
@@ -141,9 +173,7 @@ fn main() -> Result<(), pixels::Error> {
                     &mut pixels,
                 );
             }
-            // regrap mouse position after changeing pixels according to tools
-            let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
-
+            
             if input.key_pressed(VirtualKeyCode::M) {
                 framework.gui().open();
             }
@@ -172,35 +202,15 @@ fn main() -> Result<(), pixels::Error> {
                             ri
                         }
                         None => {
-                            let shape = world.shape_orig();
-                            let centers = [
-                                (shape.w / 2 - 75, shape.h / 2),
-                                (shape.w / 2 + 75, shape.h / 2),
-                                (shape.w / 2, shape.h / 2),
-                            ];
-
-                            let im_loading = ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
-                                for mid in centers.iter() {
-                                    if (mid.0 as i32 - x as i32).pow(2)
-                                        + (mid.1 as i32 - y as i32).pow(2)
-                                        < 100
-                                    {
-                                        return image::Rgb([255u8, 255u8, 255u8]);
-                                    }
-                                }
-                                if (x / 10) % 2 == 0 {
-                                    image::Rgb([180u8, 180u8, 190u8])
-                                } else {
-                                    image::Rgb([170u8, 170u8, 180u8])
-                                }
-                            });
                             thread::sleep(Duration::from_millis(20));
-                            im_loading
+                            let shape = world.shape_orig();
+                            loading_image(shape)                            
                         }
                     };
                     world = World::new(im_read);
                     let size = window.inner_size();
                     let shape_win = Shape::from_size(&size);
+                    let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
                     let event = util::Event::from_image_loaded(&input);
                     world = apply_tools(
                         &mut tools,
@@ -224,6 +234,7 @@ fn main() -> Result<(), pixels::Error> {
             if let Some(size) = input.window_resized() {
                 let shape_win = Shape::from_size(&size);
                 let event = util::Event::from_window_resized(&input);
+                let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
                 world = apply_tools(
                     &mut tools,
                     mem::take(&mut world),
@@ -297,3 +308,5 @@ fn main() -> Result<(), pixels::Error> {
         }
     });
 }
+
+
