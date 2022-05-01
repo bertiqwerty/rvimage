@@ -1,10 +1,10 @@
 # RV Image
 **R**emote **v**iewer for **image**s in Rust that connects via 
 
-* SSH/SCP using the [Ssh2 crate](https://crates.io/crates/ssh2) and 
+* SSH/SCP using the [`ssh2` crate](https://crates.io/crates/ssh2) and 
 * local folders that might be mounts of remote storage. 
 
-Images are cached locally in a temporary directory. So far only tested on Windows 10. Currently, only RGB images with 8 bits per pixel and channel are supported. They have to be either `.png` or `.jpg`. RV Image is mainly based on [Egui](https://crates.io/crates/egui), [Image](https://crates.io/crates/image), and [Pixels](https://crates.io/crates/pixels).
+Images are cached locally in a temporary directory. So far only tested on Windows 10. Currently, only RGB images with 8 bits per pixel and channel are supported. They have to be either `.png` or `.jpg`. RV Image is mainly based on [`egui`](https://crates.io/crates/egui), [`image`](https://crates.io/crates/image), and [`pixels`](https://crates.io/crates/pixels).
 
 
 ## Configuration
