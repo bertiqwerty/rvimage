@@ -23,7 +23,7 @@ n_threads = 4  # number of threads to be used for background file caching
 remote_folder_path = "folder on your server"
 address = "address of your server"
 user = "your username"
-ssh_identity_file_path = "%USERPROFILE%/.ssh/id_file_with_private_key"
+ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
 # Your scp command.
 # If not given, we use 
 # ["cmd", "/C", "scp"]
