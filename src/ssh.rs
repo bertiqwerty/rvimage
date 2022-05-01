@@ -7,32 +7,21 @@ use crate::{
     result::{to_rv, RvResult},
 };
 
-pub fn copy(
-    remote_src_file_path: &str,
-    dst_path: &str,
-    ssh_cfg: &SshCfg,
-    override_local: bool,
-) -> RvResult<()> {
-    if !Path::new(&dst_path).exists() || override_local {
-        let sess = ssh_auth(ssh_cfg)?;
-        let (mut remote_file, _) = sess
-            .scp_recv(Path::new(remote_src_file_path))
-            .map_err(to_rv)?;
-        let mut content = vec![];
-        remote_file.read_to_end(&mut content).map_err(to_rv)?;
-        remote_file.send_eof().map_err(to_rv)?;
-        remote_file.wait_eof().map_err(to_rv)?;
-        remote_file.close().map_err(to_rv)?;
-        remote_file.wait_close().map_err(to_rv)?;
-        std::fs::write(Path::new(dst_path), &content).map_err(to_rv)?;
-    }
-    Ok(())
+pub fn download(remote_src_file_path: &str, ssh_cfg: &SshCfg) -> RvResult<Vec<u8>> {
+    let sess = ssh_auth(ssh_cfg)?;
+    let (mut remote_file, _) = sess
+        .scp_recv(Path::new(remote_src_file_path))
+        .map_err(to_rv)?;
+    let mut content = vec![];
+    remote_file.read_to_end(&mut content).map_err(to_rv)?;
+    remote_file.send_eof().map_err(to_rv)?;
+    remote_file.wait_eof().map_err(to_rv)?;
+    remote_file.close().map_err(to_rv)?;
+    remote_file.wait_close().map_err(to_rv)?;
+    Ok(content)
 }
 
-pub fn ssh_ls(
-    ssh_cfg: &SshCfg,
-    filter_extensions: &[&str],
-) -> RvResult<Vec<String>> {
+pub fn ssh_ls(ssh_cfg: &SshCfg, filter_extensions: &[&str]) -> RvResult<Vec<String>> {
     let sess = ssh_auth(ssh_cfg)?;
     let mut channel = sess.channel_session().map_err(to_rv)?;
 

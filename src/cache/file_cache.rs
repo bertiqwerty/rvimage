@@ -1,30 +1,16 @@
-use std::{
-    collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path, path::PathBuf,
-    str::FromStr,
-};
+use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path};
 
 use crate::{
     cache::core::Preload,
     cfg, format_rverr,
     result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult},
     threadpool::ThreadPool,
-    util,
+    util::filename_in_tmpdir,
 };
 
 use serde::Deserialize;
 
 use super::ImageReaderFn;
-
-fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
-    let path = PathBuf::from_str(path).unwrap();
-    let fname = util::osstr_to_str(path.file_name()).map_err(to_rv)?;
-    fs::create_dir_all(Path::new(tmpdir)).map_err(to_rv)?;
-    Path::new(tmpdir)
-        .join(fname)
-        .to_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| format_rverr!("could not transform {:?} to &str", fname))
-}
 
 fn copy<F>(path_or_url: &str, reader: F, target: &str) -> RvResult<()>
 where
@@ -42,6 +28,7 @@ fn preload<IR: ImageReaderFn>(
     cache: &HashMap<String, ThreadResult>,
     tmp_dir: &str,
 ) -> RvResult<HashMap<String, ThreadResult>> {
+    fs::create_dir_all(Path::new(tmp_dir)).map_err(to_rv)?;
     files
         .iter()
         .filter(|file| !cache.contains_key(*file))
@@ -157,6 +144,8 @@ use {
 #[test]
 fn test_file_cache() -> RvResult<()> {
     let cfg = cfg::get_cfg()?;
+    let tmpdir_path = Path::new(cfg.tmpdir()?);
+    fs::create_dir_all(tmpdir_path).map_err(to_rv)?;
     let test = |files: &[&str], selected: usize| -> RvResult<()> {
         struct DummyRead;
         impl ImageReaderFn for DummyRead {
@@ -214,6 +203,6 @@ fn test_file_cache() -> RvResult<()> {
         let f = format!("{}.png", i);
         assert!(Path::new(filename_in_tmpdir(f.as_str(), cfg.tmpdir()?)?.as_str()).exists());
     }
-
+    fs::remove_dir_all(tmpdir_path).map_err(to_rv)?;
     Ok(())
 }

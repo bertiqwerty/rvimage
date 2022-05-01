@@ -1,10 +1,28 @@
-use std::{ffi::OsStr, io, path::Path};
+use std::{
+    ffi::OsStr,
+    io,
+    path::{Path, PathBuf},
+};
 
+use crate::{
+    format_rverr,
+    result::{to_rv, RvError, RvResult},
+    ImageType,
+};
 use pixels::Pixels;
+use std::str::FromStr;
 use winit::dpi::PhysicalSize;
 use winit_input_helper::WinitInputHelper;
 
-use crate::ImageType;
+pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
+    let path = PathBuf::from_str(path).unwrap();
+    let fname = osstr_to_str(path.file_name()).map_err(to_rv)?;
+    Path::new(tmpdir)
+        .join(fname)
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| format_rverr!("could not transform {:?} to &str", fname))
+}
 
 pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
     p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?

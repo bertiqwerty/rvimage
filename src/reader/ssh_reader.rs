@@ -6,9 +6,10 @@ use super::core::PickFolder;
 use crate::{
     cache::ImageReaderFn,
     cfg,
-    reader::core::{path_to_str, to_name_str, ReadImageFromPath},
-    result::RvResult,
-    ssh, util,
+    reader::core::{to_name_str, ReadImageFromPath},
+    result::{to_rv, RvResult},
+    ssh,
+    util::{self, filename_in_tmpdir},
 };
 
 pub struct SshConfigPicker;
@@ -24,26 +25,25 @@ impl PickFolder for SshConfigPicker {
 
 pub struct ReadImageFromSsh;
 impl ImageReaderFn for ReadImageFromSsh {
-    fn read(remote_file_name: &str) -> RvResult<image::ImageBuffer<image::Rgb<u8>, Vec<u8>>> {
+    fn read(remote_file_path: &str) -> RvResult<image::ImageBuffer<image::Rgb<u8>, Vec<u8>>> {
         lazy_static! {
             pub static ref CFG: cfg::Cfg = cfg::get_cfg().unwrap();
         };
-        let remote_file_path = Path::new(remote_file_name);
-        let rel = if util::is_relative(remote_file_name) {
-            remote_file_name
+        let remote_file_path_path = Path::new(remote_file_path);
+        let relative_file_name = if util::is_relative(remote_file_path) {
+            remote_file_path
         } else {
-            to_name_str(remote_file_path)?
+            to_name_str(remote_file_path_path)?
         };
         let tmpdir = CFG.tmpdir()?;
-        let local_file_path_tmp = Path::new(&tmpdir).join(rel);
-        let local_file_path = path_to_str(&local_file_path_tmp)?;
-        let override_local = false;
-        ssh::copy(
-            remote_file_name,
-            local_file_path,
-            &CFG.ssh_cfg,
-            override_local,
-        )?;
-        ReadImageFromPath::read(local_file_path)
+        let local_file_path = filename_in_tmpdir(relative_file_name, tmpdir)?;
+        if !Path::new(&local_file_path).exists() {
+            let image_byte_blob = ssh::download(remote_file_path, &CFG.ssh_cfg)?;
+            Ok(image::load_from_memory(&image_byte_blob)
+                .map_err(to_rv)?
+                .into_rgb8())
+        } else {
+            ReadImageFromPath::read(&local_file_path)
+        }
     }
 }
