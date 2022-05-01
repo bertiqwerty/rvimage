@@ -8,7 +8,7 @@ Images are cached locally in a temporary directory. So far only tested on Window
 
 
 ## Configuration
-Create a file `rv_cfg.toml` in the folder from where you execute RV Image with the following content. Currently, only authorization with key-files without password is supported. The config will be read on start up of the application. To activate changes you have to restart.
+Create a file `rv_cfg.toml` in the folder from where you execute RV Image with the following content. Currently, only authorization with key-files without passphrase is supported. The config will be read on start up of the application. To activate changes you have to restart.
 ```
 connection = "Ssh" # "Local" or "Ssh", Local for local folder
 cache = "FileCache"  # "NoCache" for not caching at all or "FileCache" for caching files in a temp dir.
