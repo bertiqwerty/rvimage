@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path};
 
 use crate::{
-    cache::core::Preload,
+    cache::core::Cache,
     cfg, format_rverr,
     result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult},
     threadpool::ThreadPool,
@@ -10,7 +10,7 @@ use crate::{
 
 use serde::Deserialize;
 
-use super::ImageReaderFn;
+use super::ReadImageToCache;
 
 fn copy<F>(path_or_url: &str, reader: F, target: &str) -> RvResult<()>
 where
@@ -22,7 +22,7 @@ where
     Ok(())
 }
 
-fn preload<IR: ImageReaderFn>(
+fn preload<IR: ReadImageToCache>(
     files: &[String],
     tp: &mut ThreadPool<RvResult<String>>,
     cache: &HashMap<String, ThreadResult>,
@@ -57,20 +57,19 @@ pub struct FileCacheArgs {
     n_threads: usize,
 }
 
-pub struct FileCache<IR>
+pub struct FileCache<RIC>
 where
-    IR: ImageReaderFn,
+    RIC: ReadImageToCache,
 {
     cached_paths: HashMap<String, ThreadResult>,
     n_prev_images: usize,
     n_next_images: usize,
     tp: ThreadPool<RvResult<String>>,
-    reader_phantom: PhantomData<IR>,
+    reader_phantom: PhantomData<RIC>,
 }
-impl<IR> FileCache<IR> where IR: ImageReaderFn {}
-impl<IR> Preload<FileCacheArgs> for FileCache<IR>
+impl<RIC> Cache<FileCacheArgs> for FileCache<RIC>
 where
-    IR: ImageReaderFn,
+    RIC: ReadImageToCache,
 {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
         let cfg = cfg::get_cfg()?;
@@ -88,7 +87,7 @@ where
             selected_file_idx + self.n_next_images + 1
         };
         let files_to_preload = &files[start_idx..end_idx];
-        let cache = preload::<IR>(
+        let cache = preload::<RIC>(
             files_to_preload,
             &mut self.tp,
             &self.cached_paths,
@@ -102,13 +101,13 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => IR::read(path_in_cache).map(Some),
+            ThreadResult::Ok(path_in_cache) => RIC::read(path_in_cache).map(Some),
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self.tp.result(*job_id);
                 match path_in_cache {
                     Some(pic) => {
                         let pic = pic?;
-                        let res = IR::read(&pic);
+                        let res = RIC::read(&pic);
                         *self.cached_paths.get_mut(selected_file).unwrap() = ThreadResult::Ok(pic);
                         res.map(Some)
                     }
@@ -148,7 +147,7 @@ fn test_file_cache() -> RvResult<()> {
     fs::create_dir_all(tmpdir_path).map_err(to_rv)?;
     let test = |files: &[&str], selected: usize| -> RvResult<()> {
         struct DummyRead;
-        impl ImageReaderFn for DummyRead {
+        impl ReadImageToCache for DummyRead {
             fn read(_: &str) -> RvResult<ImageType> {
                 let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
                 Ok(dummy_image)

@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 
 use super::core::PickFolder;
 use crate::{
-    cache::ImageReaderFn,
+    cache::ReadImageToCache,
     cfg,
     reader::core::{to_name_str, ReadImageFromPath},
     result::{to_rv, RvResult},
@@ -24,7 +24,7 @@ impl PickFolder for SshConfigPicker {
 }
 
 pub struct ReadImageFromSsh;
-impl ImageReaderFn for ReadImageFromSsh {
+impl ReadImageToCache for ReadImageFromSsh {
     fn read(remote_file_path: &str) -> RvResult<image::ImageBuffer<image::Rgb<u8>, Vec<u8>>> {
         lazy_static! {
             pub static ref CFG: cfg::Cfg = cfg::get_cfg().unwrap();

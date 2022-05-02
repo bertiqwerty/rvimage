@@ -3,12 +3,12 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
-use crate::cache::{ImageReaderFn, Preload};
+use crate::cache::{ReadImageToCache, Cache};
 use crate::result::{to_rv, AsyncResultImage, RvError, RvResult};
 use crate::{format_rverr, util, ImageType};
 
 pub struct ReadImageFromPath;
-impl ImageReaderFn for ReadImageFromPath {
+impl ReadImageToCache for ReadImageFromPath {
     fn read(path: &str) -> RvResult<ImageType> {
         Ok(image::io::Reader::open(path)
             .map_err(to_rv)?
@@ -47,7 +47,7 @@ pub fn path_to_str(p: &Path) -> RvResult<&str> {
         .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
 }
 
-pub trait ReadImageFiles {
+pub trait LoadImageForGui {
     /// read image with index file_selected_idx  
     fn read_image(&mut self, file_selected_idx: usize) -> AsyncResultImage;
     /// get index of selected file
@@ -68,9 +68,9 @@ pub trait PickFolder {
     fn pick() -> RvResult<(String, Vec<String>)>;
 }
 
-pub struct Reader<C, FP, CA>
+pub struct Loader<C, FP, CA>
 where
-    C: Preload<CA>,
+    C: Cache<CA>,
     FP: PickFolder,
 {
     file_paths: Vec<String>,
@@ -81,13 +81,13 @@ where
     cache_args_phantom: PhantomData<CA>,
 }
 
-impl<C, FP, CA> Reader<C, FP, CA>
+impl<C, FP, CA> Loader<C, FP, CA>
 where
-    C: Preload<CA>,
+    C: Cache<CA>,
     FP: PickFolder,
 {
     pub fn new(cache_args: CA) -> Self {
-        Reader {
+        Loader {
             file_paths: vec![],
             folder_path: None,
             file_selected_idx: None,
@@ -98,9 +98,9 @@ where
     }
 }
 
-impl<C, FP, A> ReadImageFiles for Reader<C, FP, A>
+impl<C, FP, A> LoadImageForGui for Loader<C, FP, A>
 where
-    C: Preload<A>,
+    C: Cache<A>,
     FP: PickFolder,
 {
     fn read_image(&mut self, file_selected: usize) -> AsyncResultImage {
@@ -199,7 +199,7 @@ fn test_folder_reader() -> RvResult<()> {
         let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));
         im.save(out_path).unwrap();
     }
-    let mut reader = Reader::<NoCache<ReadImageFromPath>, TmpFolderPicker, ()>::new(());
+    let mut reader = Loader::<NoCache<ReadImageFromPath>, TmpFolderPicker, ()>::new(());
     reader.open_folder()?;
     for (i, (_, label)) in reader.list_file_labels("")?.iter().enumerate() {
         assert_eq!(label[label.len() - 13..], format!("tmpfile_{}.png", i));

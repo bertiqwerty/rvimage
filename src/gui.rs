@@ -1,5 +1,5 @@
 use crate::{
-    reader::{ReadImageFiles, ReaderFromCfg},
+    reader::{LoadImageForGui, ReaderFromCfg},
     ImageType,
 };
 use egui::{ClippedMesh, CtxRef};

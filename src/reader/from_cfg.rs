@@ -5,7 +5,7 @@ use crate::{
 };
 
 use super::{
-    core::{ReadImageFiles, ReadImageFromPath, Reader},
+    core::{LoadImageForGui, ReadImageFromPath, Loader},
     local_reader::FileDialogPicker,
     ssh_reader::{ReadImageFromSsh, SshConfigPicker},
 };
@@ -15,7 +15,7 @@ fn unwrap_file_cache_args(args: Option<FileCacheArgs>) -> RvResult<FileCacheArgs
 }
 
 pub struct ReaderFromCfg {
-    reader: Box<dyn ReadImageFiles>,
+    reader: Box<dyn LoadImageForGui>,
 }
 impl ReaderFromCfg {
     pub fn new() -> RvResult<Self> {
@@ -28,24 +28,24 @@ impl ReaderFromCfg {
                 (Connection::Local, Cache::FileCache) => {
                     let args = unwrap_file_cache_args(cfg.file_cache_args)?;
                     Box::new(
-                        Reader::<FileCache<ReadImageFromPath>, FileDialogPicker, _>::new(args),
+                        Loader::<FileCache<ReadImageFromPath>, FileDialogPicker, _>::new(args),
                     )
                 }
                 (Connection::Ssh, Cache::FileCache) => {
                     let args = unwrap_file_cache_args(cfg.file_cache_args)?;
-                    Box::new(Reader::<FileCache<ReadImageFromSsh>, SshConfigPicker, _>::new(args))
+                    Box::new(Loader::<FileCache<ReadImageFromSsh>, SshConfigPicker, _>::new(args))
                 }
                 (Connection::Local, Cache::NoCache) => {
-                    Box::new(Reader::<NoCache<ReadImageFromPath>, FileDialogPicker, _>::new(()))
+                    Box::new(Loader::<NoCache<ReadImageFromPath>, FileDialogPicker, _>::new(()))
                 }
                 (Connection::Ssh, Cache::NoCache) => {
-                    Box::new(Reader::<NoCache<ReadImageFromSsh>, SshConfigPicker, _>::new(()))
+                    Box::new(Loader::<NoCache<ReadImageFromSsh>, SshConfigPicker, _>::new(()))
                 }
             },
         })
     }
 }
-impl ReadImageFiles for ReaderFromCfg {
+impl LoadImageForGui for ReaderFromCfg {
     fn read_image(
         &mut self,
         file_selected_idx: usize,

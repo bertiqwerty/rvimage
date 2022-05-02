@@ -2,12 +2,12 @@ use std::marker::PhantomData;
 
 use crate::result::{AsyncResultImage};
 
-use super::{ImageReaderFn, Preload};
+use super::{ReadImageToCache, Cache};
 
-pub struct NoCache<F: ImageReaderFn> {
+pub struct NoCache<F: ReadImageToCache> {
     reader_phantom: PhantomData<F>,
 }
-impl<F: ImageReaderFn> Preload<()> for NoCache<F> {
+impl<F: ReadImageToCache> Cache<()> for NoCache<F> {
     fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
         F::read(&files[selected_file_idx]).map(Some)
     }
