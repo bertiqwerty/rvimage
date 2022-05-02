@@ -26,14 +26,14 @@ fn preload<IR: ReadImageToCache>(
     files: &[String],
     tp: &mut ThreadPool<RvResult<String>>,
     cache: &HashMap<String, ThreadResult>,
-    tmp_dir: &str,
+    tmpdir: &str,
 ) -> RvResult<HashMap<String, ThreadResult>> {
-    fs::create_dir_all(Path::new(tmp_dir)).map_err(to_rv)?;
+    fs::create_dir_all(Path::new(tmpdir)).map_err(to_rv)?;
     files
         .iter()
         .filter(|file| !cache.contains_key(*file))
         .map(|file| {
-            let dst_file = filename_in_tmpdir(file, tmp_dir)?;
+            let dst_file = filename_in_tmpdir(file, tmpdir)?;
             let file_for_thread = file.clone();
             let job = Box::new(move || match copy(&file_for_thread, IR::read, &dst_file) {
                 Ok(_) => Ok(dst_file),
