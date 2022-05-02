@@ -68,9 +68,9 @@ pub trait PickFolder {
     fn pick() -> RvResult<(String, Vec<String>)>;
 }
 
-pub struct Reader<C, FP, A>
+pub struct Reader<C, FP, CA>
 where
-    C: Preload<A>,
+    C: Preload<CA>,
     FP: PickFolder,
 {
     file_paths: Vec<String>,
@@ -78,22 +78,22 @@ where
     file_selected_idx: Option<usize>,
     cache: C,
     pick_phantom: PhantomData<FP>,
-    args_phantom: PhantomData<A>,
+    cache_args_phantom: PhantomData<CA>,
 }
 
-impl<C, FP, A> Reader<C, FP, A>
+impl<C, FP, CA> Reader<C, FP, CA>
 where
-    C: Preload<A>,
+    C: Preload<CA>,
     FP: PickFolder,
 {
-    pub fn new(args: A) -> Self {
+    pub fn new(cache_args: CA) -> Self {
         Reader {
             file_paths: vec![],
             folder_path: None,
             file_selected_idx: None,
-            cache: C::new(args),
+            cache: C::new(cache_args),
             pick_phantom: PhantomData {},
-            args_phantom: PhantomData {},
+            cache_args_phantom: PhantomData {},
         }
     }
 }
