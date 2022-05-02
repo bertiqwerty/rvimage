@@ -2,7 +2,7 @@ use std::path::Path;
 
 use lazy_static::lazy_static;
 
-use super::core::PickFolder;
+use super::core::{PickFolder, Picked};
 use crate::{
     cache::ReadImageToCache,
     cfg,
@@ -14,12 +14,15 @@ use crate::{
 
 pub struct SshConfigPicker;
 impl PickFolder for SshConfigPicker {
-    fn pick() -> RvResult<(String, Vec<String>)> {
+    fn pick() -> RvResult<Picked> {
         let cfg = cfg::get_cfg()?;
         let folder = cfg.ssh_cfg.remote_folder_path.replace(' ', r"\ ");
         let ssh_cfg = cfg::get_cfg()?.ssh_cfg;
         let image_paths = ssh::ssh_ls(&ssh_cfg, &[".png", ".jpg"])?;
-        Ok((folder, image_paths))
+        Ok(Picked {
+            folder_path: folder,
+            file_paths: image_paths,
+        })
     }
 }
 

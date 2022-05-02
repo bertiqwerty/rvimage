@@ -3,7 +3,7 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
-use crate::cache::{ReadImageToCache, Cache};
+use crate::cache::{Cache, ReadImageToCache};
 use crate::result::{to_rv, AsyncResultImage, RvError, RvResult};
 use crate::{format_rverr, util, ImageType};
 
@@ -64,8 +64,13 @@ pub trait LoadImageForGui {
     fn file_selected_label(&self) -> RvResult<String>;
 }
 
+pub struct Picked {
+    pub folder_path: String,
+    pub file_paths: Vec<String>,
+}
+
 pub trait PickFolder {
-    fn pick() -> RvResult<(String, Vec<String>)>;
+    fn pick() -> RvResult<Picked>;
 }
 
 pub struct Loader<C, FP, CA>
@@ -111,8 +116,8 @@ where
     }
     fn open_folder(&mut self) -> RvResult<()> {
         let picked = FP::pick()?;
-        self.folder_path = Some(picked.0);
-        self.file_paths = picked.1;
+        self.folder_path = Some(picked.folder_path);
+        self.file_paths = picked.file_paths;
         self.file_selected_idx = None;
 
         Ok(())
@@ -170,18 +175,18 @@ const TMP_SUBFOLDER: &str = "rvimage_testdata";
 struct TmpFolderPicker;
 #[cfg(test)]
 impl PickFolder for TmpFolderPicker {
-    fn pick() -> RvResult<(String, Vec<String>)> {
+    fn pick() -> RvResult<Picked> {
         let tmpdir = env::temp_dir();
-        Ok((
-            format!(
+        Ok(Picked {
+            folder_path: format!(
                 "{}/{}",
                 tmpdir
                     .to_str()
                     .ok_or_else(|| format_rverr!("cannot stringify {:?}", tmpdir))?,
                 TMP_SUBFOLDER
             ),
-            vec![],
-        ))
+            file_paths: vec![],
+        })
     }
 }
 #[cfg(test)]
