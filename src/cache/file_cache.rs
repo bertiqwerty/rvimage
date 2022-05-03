@@ -22,12 +22,16 @@ where
     Ok(())
 }
 
-fn preload<IR: ReadImageToCache>(
+fn preload<RTC, A>(
     files: &[String],
     tp: &mut ThreadPool<RvResult<String>>,
     cache: &HashMap<String, ThreadResult>,
+    reader: &RTC,
     tmpdir: &str,
-) -> RvResult<HashMap<String, ThreadResult>> {
+) -> RvResult<HashMap<String, ThreadResult>>
+where
+    RTC: ReadImageToCache<A> + Clone + Send + 'static,
+{
     fs::create_dir_all(Path::new(tmpdir)).map_err(to_rv)?;
     files
         .iter()
@@ -35,10 +39,14 @@ fn preload<IR: ReadImageToCache>(
         .map(|file| {
             let dst_file = filename_in_tmpdir(file, tmpdir)?;
             let file_for_thread = file.clone();
-            let job = Box::new(move || match copy(&file_for_thread, IR::read, &dst_file) {
-                Ok(_) => Ok(dst_file),
-                Err(e) => Err(e),
-            });
+            let reader_for_thread: RTC = reader.clone();
+            let job =
+                Box::new(
+                    move || match copy(&file_for_thread, |p| reader_for_thread.read_one(p), &dst_file) {
+                        Ok(_) => Ok(dst_file),
+                        Err(e) => Err(e),
+                    },
+                );
             Ok((file.clone(), ThreadResult::Running(tp.apply(job)?)))
         })
         .collect::<RvResult<HashMap<_, _>>>()
@@ -51,27 +59,33 @@ enum ThreadResult {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct FileCacheArgs {
-    n_prev_images: usize,
-    n_next_images: usize,
-    n_threads: usize,
+pub struct FileCacheCfgArgs {
+    pub n_prev_images: usize,
+    pub n_next_images: usize,
+    pub n_threads: usize,
 }
 
-pub struct FileCache<RIC>
+pub struct FileCacheArgs<RA> {
+    pub cfg_args: FileCacheCfgArgs,
+    pub reader_args: RA,
+}
+
+pub struct FileCache<RTC, RA>
 where
-    RIC: ReadImageToCache,
+    RTC: ReadImageToCache<RA>,
 {
     cached_paths: HashMap<String, ThreadResult>,
     n_prev_images: usize,
     n_next_images: usize,
     tp: ThreadPool<RvResult<String>>,
-    reader_phantom: PhantomData<RIC>,
+    reader: RTC,
+    reader_args_phantom: PhantomData<RA>,
 }
-impl<RIC> Cache<FileCacheArgs> for FileCache<RIC>
+impl<RTC, RA> Cache<FileCacheArgs<RA>> for FileCache<RTC, RA>
 where
-    RIC: ReadImageToCache,
+    RTC: ReadImageToCache<RA> + Send + Clone + 'static,
 {
-    fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
+    fn load_from_cache(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
         let cfg = cfg::get_cfg()?;
         if files.is_empty() {
             return Err(RvError::new("no files to read from"));
@@ -87,10 +101,11 @@ where
             selected_file_idx + self.n_next_images + 1
         };
         let files_to_preload = &files[start_idx..end_idx];
-        let cache = preload::<RIC>(
+        let cache = preload(
             files_to_preload,
             &mut self.tp,
             &self.cached_paths,
+            &self.reader,
             cfg.tmpdir()?,
         )?;
         // update cache
@@ -101,13 +116,13 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => RIC::read(path_in_cache).map(Some),
+            ThreadResult::Ok(path_in_cache) => self.reader.read_one(path_in_cache).map(Some),
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self.tp.result(*job_id);
                 match path_in_cache {
                     Some(pic) => {
                         let pic = pic?;
-                        let res = RIC::read(&pic);
+                        let res = self.reader.read_one(&pic);
                         *self.cached_paths.get_mut(selected_file).unwrap() = ThreadResult::Ok(pic);
                         res.map(Some)
                     }
@@ -116,19 +131,20 @@ where
             }
         }
     }
-    fn new(args: FileCacheArgs) -> Self {
-        let FileCacheArgs {
+    fn new(args: FileCacheArgs<RA>) -> Self {
+        let FileCacheCfgArgs {
             n_prev_images,
             n_next_images,
             n_threads,
-        } = args;
+        } = args.cfg_args;
         let tp = ThreadPool::new(n_threads);
         Self {
             cached_paths: HashMap::new(),
             n_prev_images,
             n_next_images,
             tp,
-            reader_phantom: PhantomData {},
+            reader: RTC::new(args.reader_args),
+            reader_args_phantom: PhantomData {},
         }
     }
 }
@@ -146,19 +162,26 @@ fn test_file_cache() -> RvResult<()> {
     let tmpdir_path = Path::new(cfg.tmpdir()?);
     fs::create_dir_all(tmpdir_path).map_err(to_rv)?;
     let test = |files: &[&str], selected: usize| -> RvResult<()> {
+        #[derive(Clone)]
         struct DummyRead;
-        impl ReadImageToCache for DummyRead {
-            fn read(_: &str) -> RvResult<ImageType> {
+        impl ReadImageToCache<()> for DummyRead {
+            fn new(_: ()) -> Self {
+                Self {}
+            }
+            fn read_one(&self, _: &str) -> RvResult<ImageType> {
                 let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
                 Ok(dummy_image)
             }
         }
         let file_cache_args = FileCacheArgs {
-            n_prev_images: 2,
-            n_next_images: 8,
-            n_threads: 2,
+            cfg_args: FileCacheCfgArgs {
+                n_prev_images: 2,
+                n_next_images: 8,
+                n_threads: 2,
+            },
+            reader_args: (),
         };
-        let mut cache = FileCache::<DummyRead>::new(file_cache_args);
+        let mut cache = FileCache::<DummyRead, ()>::new(file_cache_args);
         let min_i = if selected > cache.n_prev_images {
             selected - cache.n_prev_images
         } else {
@@ -170,7 +193,7 @@ fn test_file_cache() -> RvResult<()> {
             selected + cache.n_next_images
         };
         let files = files.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        cache.read_image(selected, &files)?;
+        cache.load_from_cache(selected, &files)?;
         let n_millis = (max_i - min_i) * 100;
         println!("waiting {} millis", n_millis);
         thread::sleep(Duration::from_millis(n_millis as u64));

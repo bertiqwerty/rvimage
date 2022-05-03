@@ -4,12 +4,16 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 use crate::cache::{Cache, ReadImageToCache};
-use crate::result::{to_rv, AsyncResultImage, RvError, RvResult};
-use crate::{format_rverr, util, ImageType};
+use crate::result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult};
+use crate::{format_rverr, util};
 
+#[derive(Clone, Debug)]
 pub struct ReadImageFromPath;
-impl ReadImageToCache for ReadImageFromPath {
-    fn read(path: &str) -> RvResult<ImageType> {
+impl ReadImageToCache<()> for ReadImageFromPath {
+    fn new(_: ()) -> Self {
+        Self {}
+    }
+    fn read_one(&self, path: &str) -> ResultImage {
         Ok(image::io::Reader::open(path)
             .map_err(to_rv)?
             .decode()
@@ -109,7 +113,7 @@ where
     FP: PickFolder,
 {
     fn read_image(&mut self, file_selected: usize) -> AsyncResultImage {
-        self.cache.read_image(file_selected, &self.file_paths)
+        self.cache.load_from_cache(file_selected, &self.file_paths)
     }
     fn file_selected_idx(&self) -> Option<usize> {
         self.file_selected_idx
@@ -190,7 +194,7 @@ impl PickFolder for TmpFolderPicker {
     }
 }
 #[cfg(test)]
-use std::fs;
+use {crate::ImageType, std::fs};
 #[test]
 fn test_folder_reader() -> RvResult<()> {
     let tmp_dir = env::temp_dir().join(TMP_SUBFOLDER);
@@ -204,7 +208,7 @@ fn test_folder_reader() -> RvResult<()> {
         let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));
         im.save(out_path).unwrap();
     }
-    let mut reader = Loader::<NoCache<ReadImageFromPath>, TmpFolderPicker, ()>::new(());
+    let mut reader = Loader::<NoCache<ReadImageFromPath, ()>, TmpFolderPicker, ()>::new(());
     reader.open_folder()?;
     for (i, (_, label)) in reader.list_file_labels("")?.iter().enumerate() {
         assert_eq!(label[label.len() - 13..], format!("tmpfile_{}.png", i));

@@ -1,10 +1,17 @@
-use crate::result::{ResultImage, AsyncResultImage};
+use crate::{
+    result::{AsyncResultImage, ResultImage, RvResult},
+    ImageType,
+};
 
-pub trait ReadImageToCache {
-    fn read(local_path: &str) -> ResultImage;
+pub trait ReadImageToCache<A> {
+    fn read_one(&self, path: &str) -> ResultImage;
+    fn read_n(&self, paths: &[&str]) -> RvResult<Vec<ImageType>> {
+        paths.iter().map(|p| self.read_one(p)).collect()
+    }
+    fn new(args: A) -> Self;
 }
 
 pub trait Cache<A> {
-    fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage;
+    fn load_from_cache(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage;
     fn new(args: A) -> Self;
 }

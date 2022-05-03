@@ -7,8 +7,7 @@ use crate::{
     result::{to_rv, RvResult},
 };
 
-pub fn download(remote_src_file_path: &str, ssh_cfg: &SshCfg) -> RvResult<Vec<u8>> {
-    let sess = ssh_auth(ssh_cfg)?;
+pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>> {
     let (mut remote_file, _) = sess
         .scp_recv(Path::new(remote_src_file_path))
         .map_err(to_rv)?;
@@ -21,8 +20,8 @@ pub fn download(remote_src_file_path: &str, ssh_cfg: &SshCfg) -> RvResult<Vec<u8
     Ok(content)
 }
 
-pub fn ssh_ls(ssh_cfg: &SshCfg, filter_extensions: &[&str]) -> RvResult<Vec<String>> {
-    let sess = ssh_auth(ssh_cfg)?;
+pub fn find(ssh_cfg: &SshCfg, filter_extensions: &[&str]) -> RvResult<Vec<String>> {
+    let sess = auth(ssh_cfg)?;
     let mut channel = sess.channel_session().map_err(to_rv)?;
 
     let mut s = String::new();
@@ -54,7 +53,7 @@ pub fn ssh_ls(ssh_cfg: &SshCfg, filter_extensions: &[&str]) -> RvResult<Vec<Stri
         .collect::<Vec<_>>())
 }
 
-fn ssh_auth(ssh_cfg: &SshCfg) -> RvResult<Session> {
+pub fn auth(ssh_cfg: &SshCfg) -> RvResult<Session> {
     let tcp = TcpStream::connect(&ssh_cfg.address).map_err(to_rv)?;
     let mut sess = Session::new().map_err(to_rv)?;
     sess.set_tcp_stream(tcp);

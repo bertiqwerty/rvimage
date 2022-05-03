@@ -1,4 +1,4 @@
-use crate::{result::{to_rv, RvError, RvResult}, cache::FileCacheArgs};
+use crate::{result::{to_rv, RvError, RvResult}, cache::FileCacheCfgArgs};
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::{
@@ -62,7 +62,7 @@ pub struct SshCfg {
 pub struct Cfg {
     pub connection: Connection,
     pub cache: Cache,
-    pub file_cache_args: Option<FileCacheArgs>,
+    pub file_cache_args: Option<FileCacheCfgArgs>,
     tmpdir: Option<String>,
     pub ssh_cfg: SshCfg,
 }

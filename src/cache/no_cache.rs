@@ -1,19 +1,24 @@
 use std::marker::PhantomData;
 
-use crate::result::{AsyncResultImage};
+use crate::result::AsyncResultImage;
 
-use super::{ReadImageToCache, Cache};
+use super::{Cache, ReadImageToCache};
 
-pub struct NoCache<F: ReadImageToCache> {
-    reader_phantom: PhantomData<F>,
+pub struct NoCache<RTC, RA>
+where
+    RTC: ReadImageToCache<RA>,
+{
+    reader: RTC,
+    reader_args_phantom: PhantomData<RA>,
 }
-impl<F: ReadImageToCache> Cache<()> for NoCache<F> {
-    fn read_image(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
-        F::read(&files[selected_file_idx]).map(Some)
+impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
+    fn load_from_cache(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
+        self.reader.read_one(&files[selected_file_idx]).map(Some)
     }
-    fn new(_: ()) -> Self {
+    fn new(args: RA) -> Self {
         Self {
-            reader_phantom: PhantomData {},
+            reader: RTC::new(args),
+            reader_args_phantom: PhantomData,
         }
     }
 }

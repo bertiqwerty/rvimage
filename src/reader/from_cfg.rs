@@ -1,16 +1,19 @@
+use ssh2::Session;
+
 use crate::{
-    cache::{FileCache, FileCacheArgs, NoCache},
+    cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
     cfg::{get_cfg, Cache, Cfg, Connection},
-    result::{RvError, RvResult, AsyncResultImage},
+    result::{AsyncResultImage, RvError, RvResult},
+    ssh,
 };
 
 use super::{
-    core::{LoadImageForGui, ReadImageFromPath, Loader},
+    core::{LoadImageForGui, Loader, ReadImageFromPath},
     local_reader::FileDialogPicker,
     ssh_reader::{ReadImageFromSsh, SshConfigPicker},
 };
 
-fn unwrap_file_cache_args(args: Option<FileCacheArgs>) -> RvResult<FileCacheArgs> {
+fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> RvResult<FileCacheCfgArgs> {
     args.ok_or_else(|| RvError::new("cfg with file cache needs file_cache_args"))
 }
 
@@ -27,29 +30,43 @@ impl ReaderFromCfg {
             reader: match (cfg.connection, cfg.cache) {
                 (Connection::Local, Cache::FileCache) => {
                     let args = unwrap_file_cache_args(cfg.file_cache_args)?;
-                    Box::new(
-                        Loader::<FileCache<ReadImageFromPath>, FileDialogPicker, _>::new(args),
-                    )
+                    Box::new(Loader::<
+                        FileCache<ReadImageFromPath, ()>,
+                        FileDialogPicker,
+                        _,
+                    >::new(FileCacheArgs {
+                        cfg_args: args,
+                        reader_args: (),
+                    }))
                 }
                 (Connection::Ssh, Cache::FileCache) => {
                     let args = unwrap_file_cache_args(cfg.file_cache_args)?;
-                    Box::new(Loader::<FileCache<ReadImageFromSsh>, SshConfigPicker, _>::new(args))
+                    let sess = ssh::auth(&cfg.ssh_cfg)?;
+                    type LoaderType = Loader<
+                        FileCache<ReadImageFromSsh, Session>,
+                        SshConfigPicker,
+                        FileCacheArgs<Session>,
+                    >;
+                    Box::new(LoaderType::new(FileCacheArgs {
+                        cfg_args: args,
+                        reader_args: sess,
+                    }))
                 }
                 (Connection::Local, Cache::NoCache) => {
-                    Box::new(Loader::<NoCache<ReadImageFromPath>, FileDialogPicker, _>::new(()))
+                    Box::new(Loader::<NoCache<ReadImageFromPath, ()>, FileDialogPicker, _>::new(()))
                 }
                 (Connection::Ssh, Cache::NoCache) => {
-                    Box::new(Loader::<NoCache<ReadImageFromSsh>, SshConfigPicker, _>::new(()))
+                    let sess = ssh::auth(&cfg.ssh_cfg)?;
+                    type LoaderType =
+                        Loader<NoCache<ReadImageFromSsh, Session>, SshConfigPicker, Session>;
+                    Box::new(LoaderType::new(sess))
                 }
             },
         })
     }
 }
 impl LoadImageForGui for ReaderFromCfg {
-    fn read_image(
-        &mut self,
-        file_selected_idx: usize,
-    ) -> AsyncResultImage {
+    fn read_image(&mut self, file_selected_idx: usize) -> AsyncResultImage {
         self.reader.read_image(file_selected_idx)
     }
     fn open_folder(&mut self) -> RvResult<()> {
