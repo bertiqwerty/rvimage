@@ -39,14 +39,17 @@ where
         .map(|file| {
             let dst_file = filename_in_tmpdir(file, tmpdir)?;
             let file_for_thread = file.clone();
-            let reader_for_thread: RTC = reader.clone();
-            let job =
-                Box::new(
-                    move || match copy(&file_for_thread, |p| reader_for_thread.read_one(p), &dst_file) {
-                        Ok(_) => Ok(dst_file),
-                        Err(e) => Err(e),
-                    },
-                );
+            let reader_for_thread = reader.clone();
+            let job = Box::new(move || {
+                match copy(
+                    &file_for_thread,
+                    |p| reader_for_thread.read_one(p),
+                    &dst_file,
+                ) {
+                    Ok(_) => Ok(dst_file),
+                    Err(e) => Err(e),
+                }
+            });
             Ok((file.clone(), ThreadResult::Running(tp.apply(job)?)))
         })
         .collect::<RvResult<HashMap<_, _>>>()
