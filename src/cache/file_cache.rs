@@ -43,7 +43,7 @@ where
             let job = Box::new(move || {
                 match copy(
                     &file_for_thread,
-                    |p| reader_for_thread.read_one(p),
+                    |p| reader_for_thread.read(p),
                     &dst_file,
                 ) {
                     Ok(_) => Ok(dst_file),
@@ -61,13 +61,13 @@ enum ThreadResult {
     Ok(String),
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct FileCacheCfgArgs {
     pub n_prev_images: usize,
     pub n_next_images: usize,
     pub n_threads: usize,
 }
-
+#[derive(Clone)]
 pub struct FileCacheArgs<RA> {
     pub cfg_args: FileCacheCfgArgs,
     pub reader_args: RA,
@@ -119,13 +119,13 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => self.reader.read_one(path_in_cache).map(Some),
+            ThreadResult::Ok(path_in_cache) => self.reader.read(path_in_cache).map(Some),
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self.tp.result(*job_id);
                 match path_in_cache {
                     Some(pic) => {
                         let pic = pic?;
-                        let res = self.reader.read_one(&pic);
+                        let res = self.reader.read(&pic);
                         *self.cached_paths.get_mut(selected_file).unwrap() = ThreadResult::Ok(pic);
                         res.map(Some)
                     }
@@ -134,21 +134,21 @@ where
             }
         }
     }
-    fn new(args: FileCacheArgs<RA>) -> Self {
+    fn new(args: FileCacheArgs<RA>) -> RvResult<Self> {
         let FileCacheCfgArgs {
             n_prev_images,
             n_next_images,
             n_threads,
         } = args.cfg_args;
         let tp = ThreadPool::new(n_threads);
-        Self {
+        Ok(Self {
             cached_paths: HashMap::new(),
             n_prev_images,
             n_next_images,
             tp,
-            reader: RTC::new(args.reader_args),
+            reader: RTC::new(args.reader_args)?,
             reader_args_phantom: PhantomData {},
-        }
+        })
     }
 }
 
@@ -168,10 +168,10 @@ fn test_file_cache() -> RvResult<()> {
         #[derive(Clone)]
         struct DummyRead;
         impl ReadImageToCache<()> for DummyRead {
-            fn new(_: ()) -> Self {
-                Self {}
+            fn new(_: ()) -> RvResult<Self> {
+                Ok(Self {})
             }
-            fn read_one(&self, _: &str) -> RvResult<ImageType> {
+            fn read(&self, _: &str) -> RvResult<ImageType> {
                 let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
                 Ok(dummy_image)
             }
@@ -184,7 +184,7 @@ fn test_file_cache() -> RvResult<()> {
             },
             reader_args: (),
         };
-        let mut cache = FileCache::<DummyRead, ()>::new(file_cache_args);
+        let mut cache = FileCache::<DummyRead, ()>::new(file_cache_args)?;
         let min_i = if selected > cache.n_prev_images {
             selected - cache.n_prev_images
         } else {

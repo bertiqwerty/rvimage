@@ -51,12 +51,21 @@ pub enum Cache {
     FileCache,
     NoCache,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct SshCfg {
     pub remote_folder_path: String,
     pub address: String,
     pub user: String,
     pub ssh_identity_file_path: String,
+    n_reconnection_attempts: Option<usize>
+}
+impl SshCfg {
+    pub fn n_reconnection_attempts(&self) -> usize {
+        match self.n_reconnection_attempts {
+            Some(n) => n,
+            None => 5
+        }
+    }
 }
 #[derive(Deserialize, Debug)]
 pub struct Cfg {

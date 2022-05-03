@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 use std::path::Path;
+use std::thread;
+use std::time::Duration;
 
 use walkdir::WalkDir;
 
@@ -7,13 +9,16 @@ use crate::cache::{Cache, ReadImageToCache};
 use crate::result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult};
 use crate::{format_rverr, util};
 
+#[derive(Clone)]
+pub struct CloneDummy;
+
 #[derive(Clone, Debug)]
 pub struct ReadImageFromPath;
-impl ReadImageToCache<()> for ReadImageFromPath {
-    fn new(_: ()) -> Self {
-        Self {}
+impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
+    fn new(_: CloneDummy) -> RvResult<Self> {
+        Ok(Self {})
     }
-    fn read_one(&self, path: &str) -> ResultImage {
+    fn read(&self, path: &str) -> ResultImage {
         Ok(image::io::Reader::open(path)
             .map_err(to_rv)?
             .decode()
@@ -86,34 +91,61 @@ where
     folder_path: Option<String>,
     file_selected_idx: Option<usize>,
     cache: C,
+    cache_args: CA,
+    n_cache_recreations: usize,
     pick_phantom: PhantomData<FP>,
-    cache_args_phantom: PhantomData<CA>,
 }
 
 impl<C, FP, CA> Loader<C, FP, CA>
 where
     C: Cache<CA>,
+    CA: Clone,
+    CA: Clone,
     FP: PickFolder,
 {
-    pub fn new(cache_args: CA) -> Self {
-        Loader {
+    pub fn new(cache_args: CA, n_cache_recreations: usize) -> RvResult<Self> {
+        Ok(Loader {
             file_paths: vec![],
             folder_path: None,
             file_selected_idx: None,
-            cache: C::new(cache_args),
+            cache: C::new(cache_args.clone())?,
+            cache_args: cache_args,
+            n_cache_recreations: n_cache_recreations,
             pick_phantom: PhantomData {},
-            cache_args_phantom: PhantomData {},
-        }
+        })
     }
 }
 
-impl<C, FP, A> LoadImageForGui for Loader<C, FP, A>
+impl<C, FP, CA> LoadImageForGui for Loader<C, FP, CA>
 where
-    C: Cache<A>,
+    CA: Clone,
+    C: Cache<CA>,
     FP: PickFolder,
 {
-    fn read_image(&mut self, file_selected: usize) -> AsyncResultImage {
-        self.cache.load_from_cache(file_selected, &self.file_paths)
+    fn read_image(&mut self, selected_file_idx: usize) -> AsyncResultImage {
+        let mut loaded = self
+            .cache
+            .load_from_cache(selected_file_idx, &self.file_paths);
+        let mut counter = 0usize;
+        while let Err(e) = loaded {
+            println!(
+                "recreating cache ({}/{}), {:?}",
+                counter + 1,
+                self.n_cache_recreations,
+                e
+            );
+            thread::sleep(Duration::from_millis(500));
+            self.cache = C::new(self.cache_args.clone())?;
+            loaded = self
+                .cache
+                .load_from_cache(selected_file_idx, &self.file_paths);
+            if counter == self.n_cache_recreations {
+                println!("max recreations (={}) reached.", counter);
+                return loaded;
+            }
+            counter += 1;
+        }
+        loaded
     }
     fn file_selected_idx(&self) -> Option<usize> {
         self.file_selected_idx
@@ -208,7 +240,11 @@ fn test_folder_reader() -> RvResult<()> {
         let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));
         im.save(out_path).unwrap();
     }
-    let mut reader = Loader::<NoCache<ReadImageFromPath, ()>, TmpFolderPicker, ()>::new(());
+    let mut reader =
+        Loader::<NoCache<ReadImageFromPath, CloneDummy>, TmpFolderPicker, CloneDummy>::new(
+            CloneDummy {},
+            0,
+        )?;
     reader.open_folder()?;
     for (i, (_, label)) in reader.list_file_labels("")?.iter().enumerate() {
         assert_eq!(label[label.len() - 13..], format!("tmpfile_{}.png", i));

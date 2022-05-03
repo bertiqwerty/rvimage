@@ -6,8 +6,8 @@ use ssh2::Session;
 use super::core::{PickFolder, Picked};
 use crate::{
     cache::ReadImageToCache,
-    cfg,
-    reader::core::{to_name_str, ReadImageFromPath},
+    cfg::{self, SshCfg},
+    reader::core::{to_name_str, ReadImageFromPath, CloneDummy},
     result::{to_rv, ResultImage, RvResult},
     ssh,
     util::{self, filename_in_tmpdir},
@@ -31,11 +31,11 @@ impl PickFolder for SshConfigPicker {
 pub struct ReadImageFromSsh {
     sess: Session,
 }
-impl ReadImageToCache<Session> for ReadImageFromSsh {
-    fn new(sess: Session) -> Self {
-        Self { sess }
+impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
+    fn new(ssh_cfg: SshCfg) -> RvResult<Self> {
+        Ok(Self { sess: ssh::auth(&ssh_cfg)? })
     }
-    fn read_one(&self, remote_file_path: &str) -> ResultImage {
+    fn read(&self, remote_file_path: &str) -> ResultImage {
         lazy_static! {
             pub static ref CFG: cfg::Cfg = cfg::get_cfg().unwrap();
         };
@@ -53,7 +53,7 @@ impl ReadImageToCache<Session> for ReadImageFromSsh {
                 .map_err(to_rv)?
                 .into_rgb8())
         } else {
-            ReadImageFromPath::new(()).read_one(&local_file_path)
+            ReadImageFromPath::new(CloneDummy{})?.read(&local_file_path)
         }
     }
 }
