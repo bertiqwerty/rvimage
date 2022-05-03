@@ -1,13 +1,11 @@
-use crate::{result::{to_rv, RvError, RvResult}, cache::FileCacheCfgArgs};
+use crate::{
+    cache::FileCacheCfgArgs,
+    result::{to_rv, RvError, RvResult},
+};
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use std::{
-    fmt::Debug,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fmt::Debug, fs, path::PathBuf};
 
-const CFG_TOML_PATH: &str = "rv_cfg.toml";
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
     cache = "FileCache"  # "NoCache" or "FileCache"
@@ -32,14 +30,17 @@ pub fn get_default_cfg() -> Cfg {
 }
 
 pub fn get_cfg() -> RvResult<Cfg> {
-    if Path::new(CFG_TOML_PATH).exists() {
-        let toml_str = fs::read_to_string(CFG_TOML_PATH).map_err(to_rv)?;
+    let cfg_toml_path = dirs::home_dir()
+        .ok_or_else(|| RvError::new("where is your home? cannot load config"))?
+        .join(".rvimage")
+        .join("rv_cfg.toml");
+    if cfg_toml_path.exists() {
+        let toml_str = fs::read_to_string(cfg_toml_path).map_err(to_rv)?;
         toml::from_str(&toml_str).map_err(to_rv)
     } else {
         Ok(get_default_cfg())
     }
 }
-
 
 #[derive(Deserialize, Debug)]
 pub enum Connection {
@@ -57,13 +58,13 @@ pub struct SshCfg {
     pub address: String,
     pub user: String,
     pub ssh_identity_file_path: String,
-    n_reconnection_attempts: Option<usize>
+    n_reconnection_attempts: Option<usize>,
 }
 impl SshCfg {
     pub fn n_reconnection_attempts(&self) -> usize {
         match self.n_reconnection_attempts {
             Some(n) => n,
-            None => 5
+            None => 5,
         }
     }
 }
@@ -81,7 +82,7 @@ impl Cfg {
             Some(td) => Ok(td.as_str()),
             None => DEFAULT_TMPDIR
                 .to_str()
-                .ok_or_else(||RvError::new("could not get tmpdir")),
+                .ok_or_else(|| RvError::new("could not get tmpdir")),
         }
     }
 }
