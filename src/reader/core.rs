@@ -3,7 +3,7 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
-use crate::cache::{Cache};
+use crate::cache::Cache;
 use crate::result::{AsyncResultImage, RvError, RvResult};
 use crate::{format_rverr, util};
 

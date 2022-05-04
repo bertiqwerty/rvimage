@@ -163,7 +163,6 @@ macro_rules! handle_error {
 }
 
 impl Gui {
-    
     fn new() -> Self {
         let (reader_from_cfg, info) = match ReaderFromCfg::new() {
             Ok(rfc) => (rfc, Info::None),

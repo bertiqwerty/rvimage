@@ -7,7 +7,10 @@ use super::core::{PickFolder, Picked};
 use crate::{
     cache::ReadImageToCache,
     cfg::{self, SshCfg},
-    reader::{core::{to_name_str, CloneDummy}, local_reader::ReadImageFromPath},
+    reader::{
+        core::{to_name_str, CloneDummy},
+        local_reader::ReadImageFromPath,
+    },
     result::{to_rv, ResultImage, RvResult},
     ssh,
     util::{self, filename_in_tmpdir},
@@ -33,7 +36,9 @@ pub struct ReadImageFromSsh {
 }
 impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
     fn new(ssh_cfg: SshCfg) -> RvResult<Self> {
-        Ok(Self { sess: ssh::auth(&ssh_cfg)? })
+        Ok(Self {
+            sess: ssh::auth(&ssh_cfg)?,
+        })
     }
     fn read(&self, remote_file_path: &str) -> ResultImage {
         lazy_static! {
@@ -53,7 +58,7 @@ impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
                 .map_err(to_rv)?
                 .into_rgb8())
         } else {
-            ReadImageFromPath::new(CloneDummy{})?.read(&local_file_path)
+            ReadImageFromPath::new(CloneDummy {})?.read(&local_file_path)
         }
     }
 }

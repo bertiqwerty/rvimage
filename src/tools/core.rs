@@ -13,12 +13,12 @@ pub trait Tool {
         &self,
         _world: &World,
         _shape_win: Shape,
-        _mouse_pos: Option<(u32, u32)>
+        _mouse_pos: Option<(u32, u32)>,
     ) -> Option<(u32, u32)> {
         None
     }
 
-    /// All events that are used by a tool are implemented in here. Use the macro [`make_tool_transform`](make_tool_transform). See, e.g., 
+    /// All events that are used by a tool are implemented in here. Use the macro [`make_tool_transform`](make_tool_transform). See, e.g.,
     /// [`Zoom::events_tf`](crate::tools::Zoom::events_tf).
     fn events_tf<'a>(
         &'a mut self,
@@ -37,7 +37,7 @@ pub trait Tool {
     ) -> World {
         world
     }
-    
+
     /// Special event that is triggered on window resize.
     fn window_resized(
         &mut self,

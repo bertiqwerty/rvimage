@@ -41,11 +41,7 @@ where
             let file_for_thread = file.clone();
             let reader_for_thread = reader.clone();
             let job = Box::new(move || {
-                match copy(
-                    &file_for_thread,
-                    |p| reader_for_thread.read(p),
-                    &dst_file,
-                ) {
+                match copy(&file_for_thread, |p| reader_for_thread.read(p), &dst_file) {
                     Ok(_) => Ok(dst_file),
                     Err(e) => Err(e),
                 }

@@ -340,7 +340,7 @@ impl Tool for Zoom {
         *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
         world
     }
-    
+
     fn window_resized(
         &mut self,
         shape_win: Shape,

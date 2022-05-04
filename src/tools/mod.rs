@@ -28,4 +28,3 @@ macro_rules! apply_tool_method {
         }
     };
 }
-

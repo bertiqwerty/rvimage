@@ -57,7 +57,11 @@ pub fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
 }
 #[cfg(test)]
 use {
-    crate::{ImageType, cache::{NoCache}, reader::core::{LoadImageForGui, Loader}},
+    crate::{
+        cache::NoCache,
+        reader::core::{LoadImageForGui, Loader},
+        ImageType,
+    },
     std::{env, fs},
 };
 #[cfg(test)]

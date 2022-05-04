@@ -39,7 +39,7 @@ pub fn find(ssh_cfg: &SshCfg, filter_extensions: &[&str]) -> RvResult<Vec<String
                 let n_e = ext.len();
                 if n_e > n_s {
                     false
-                } else { 
+                } else {
                     &s[n_s - n_e..n_s] == **ext
                 }
             })
