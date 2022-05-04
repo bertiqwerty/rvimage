@@ -2,7 +2,7 @@ use crate::{
     reader::{LoadImageForGui, ReaderFromCfg},
     ImageType,
 };
-use egui::{ClippedMesh, CtxRef};
+use egui::{Align, ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
@@ -145,6 +145,7 @@ pub struct Gui {
     filter_string: String,
     file_selected_idx: Option<usize>,
     are_tools_active: bool,
+    search_selected_label: bool,
 }
 
 // evaluates expression that is expected to return Result,
@@ -181,6 +182,7 @@ impl Gui {
             filter_string: "".to_string(),
             file_selected_idx: None,
             are_tools_active: true,
+            search_selected_label: false,
         }
     }
 
@@ -192,6 +194,7 @@ impl Gui {
         self.file_selected_idx = next(self.file_selected_idx, self.file_labels.len());
         if let Some(idx) = self.file_selected_idx {
             self.reader.select_file(self.file_labels[idx].0);
+            self.search_selected_label = true;
         }
     }
 
@@ -199,6 +202,7 @@ impl Gui {
         self.file_selected_idx = prev(self.file_selected_idx, self.file_labels.len());
         if let Some(idx) = self.file_selected_idx {
             self.reader.select_file(self.file_labels[idx].0);
+            self.search_selected_label = true;
         }
     }
 
@@ -247,7 +251,6 @@ impl Gui {
 
                 let mut ui_label = |s| ui.label(s);
                 handle_error!(ui_label, self.reader.folder_label(), self);
-                handle_error!(ui_label, self.reader.file_selected_label(), self);
 
                 let txt_field = ui.text_edit_singleline(&mut self.filter_string);
                 if txt_field.gained_focus() {
@@ -268,11 +271,21 @@ impl Gui {
                     .max_height(scroll_height)
                     .show(ui, |ui| {
                         for (idx, (reader_idx, s)) in self.file_labels.iter().enumerate() {
-                            if ui.selectable_label(false, s).clicked() {
+                            let sl = if self.file_selected_idx == Some(idx) {
+                                let sl_ = ui.selectable_label(true, s);
+                                if self.search_selected_label {
+                                    sl_.scroll_to_me(Align::Center);
+                                }
+                                sl_
+                            } else {
+                                ui.selectable_label(false, s)
+                            };
+                            if sl.clicked() {
                                 self.reader.select_file(*reader_idx);
                                 self.file_selected_idx = Some(idx);
-                            };
+                            }
                         }
+                        self.search_selected_label = false;
                     });
 
                 ui.separator();
