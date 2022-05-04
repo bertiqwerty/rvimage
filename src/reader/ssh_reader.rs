@@ -7,7 +7,7 @@ use super::core::{PickFolder, Picked};
 use crate::{
     cache::ReadImageToCache,
     cfg::{self, SshCfg},
-    reader::core::{to_name_str, ReadImageFromPath, CloneDummy},
+    reader::{core::{to_name_str, CloneDummy}, local_reader::ReadImageFromPath},
     result::{to_rv, ResultImage, RvResult},
     ssh,
     util::{self, filename_in_tmpdir},

@@ -5,8 +5,8 @@ use crate::{
 };
 
 use super::{
-    core::{CloneDummy, LoadImageForGui, Loader, ReadImageFromPath},
-    local_reader::FileDialogPicker,
+    core::{CloneDummy, LoadImageForGui, Loader},
+    local_reader::{FileDialogPicker, ReadImageFromPath},
     ssh_reader::{ReadImageFromSsh, SshConfigPicker},
 };
 
