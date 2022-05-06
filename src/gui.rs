@@ -211,6 +211,10 @@ impl Gui {
         self.reader.file_selected_idx()
     }
 
+    pub fn file_label(&self, idx: usize) -> &String {
+        &self.file_labels[idx].1
+    }
+
     pub fn read_image(&mut self, file_selected: usize) -> Option<ImageType> {
         let mut im_read = None;
         handle_error!(

@@ -243,7 +243,7 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             // show position and rgb value
-            if framework.gui().file_selected_idx().is_some() {
+            if let Some(idx) = framework.gui().file_selected_idx() {
                 let shape_win = Shape {
                     w: window.inner_size().width,
                     h: window.inner_size().height,
@@ -251,14 +251,18 @@ fn main() -> Result<(), pixels::Error> {
                 let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
                 let data_point = get_pixel_on_orig(&mut tools, &world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
+                let file_label = framework.gui().file_label(idx);
                 let s = match data_point {
                     Some((x, y, rgb)) => {
                         format!(
-                            "RV Image - {}x{} - ({}, {}) -> ({}, {}, {})",
-                            shape.w, shape.h, x, y, rgb[0], rgb[1], rgb[2]
+                            "RV Image - {} - {}x{} - ({}, {}) -> ({}, {}, {})",
+                            file_label, shape.w, shape.h, x, y, rgb[0], rgb[1], rgb[2]
                         )
                     }
-                    None => format!("RV Image - {}x{} - (x, y) -> (r, g, b)", shape.w, shape.h),
+                    None => format!(
+                        "RV Image - {} - {}x{} - (x, y) -> (r, g, b)",
+                        file_label, shape.w, shape.h
+                    ),
                 };
                 window.set_title(s.as_str())
             }
