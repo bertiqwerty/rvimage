@@ -78,8 +78,8 @@ where
             folder_path: None,
             file_selected_idx: None,
             cache: C::new(cache_args.clone())?,
-            cache_args: cache_args,
-            n_cache_recreations: n_cache_recreations,
+            cache_args,
+            n_cache_recreations,
             pick_phantom: PhantomData {},
         })
     }

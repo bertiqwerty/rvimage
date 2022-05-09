@@ -33,7 +33,7 @@ fn prev(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
 /// Returns the gui-idx (not the remote idx) and the label of the selected file
 fn find_selected_remote_idx(
     selected_remote_idx: usize,
-    file_labels: &Vec<(usize, String)>,
+    file_labels: &[(usize, String)],
 ) -> Option<(usize, &str)> {
     file_labels
         .iter()

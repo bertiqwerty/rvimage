@@ -62,10 +62,8 @@ pub struct SshCfg {
 }
 impl SshCfg {
     pub fn n_reconnection_attempts(&self) -> usize {
-        match self.n_reconnection_attempts {
-            Some(n) => n,
-            None => 5,
-        }
+        let default = 5;
+        self.n_reconnection_attempts.unwrap_or(default) 
     }
 }
 #[derive(Deserialize, Debug)]
