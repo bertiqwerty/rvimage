@@ -1,4 +1,6 @@
+use crate::result::RvError;
 use crate::{
+    format_rverr,
     reader::{LoadImageForGui, ReaderFromCfg},
     ImageType,
 };
@@ -6,7 +8,6 @@ use egui::{Align, ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
-
 fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
     file_selected_idx.map(|idx| {
         if idx < files_len - 1 {
@@ -28,6 +29,19 @@ fn prev(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
         }
     })
 }
+
+/// Returns the gui-idx (not the remote idx) and the label of the selected file
+fn find_selected_remote_idx(
+    selected_remote_idx: usize,
+    file_labels: &Vec<(usize, String)>,
+) -> Option<(usize, &str)> {
+    file_labels
+        .iter()
+        .enumerate()
+        .find(|(_, (r_idx, _))| selected_remote_idx == *r_idx)
+        .map(|(g_idx, (_, label))| (g_idx, label.as_str()))
+}
+
 /// Manages all state required for rendering egui over `Pixels`.
 pub(crate) struct Framework {
     // State for egui.
@@ -211,8 +225,16 @@ impl Gui {
         self.reader.file_selected_idx()
     }
 
-    pub fn file_label(&self, idx: usize) -> &String {
-        &self.file_labels[idx].1
+    pub fn file_label(&mut self, remote_idx: usize) -> &str {
+        let mut res = "";
+        handle_error!(
+            |v| res = v,
+            find_selected_remote_idx(remote_idx, &self.file_labels)
+                .map(|(_, label)| label)
+                .ok_or_else(|| format_rverr!("could not read r-idx {}", remote_idx)),
+            self
+        );
+        res
     }
 
     pub fn read_image(&mut self, file_selected: usize) -> Option<ImageType> {
@@ -261,11 +283,19 @@ impl Gui {
                     self.are_tools_active = true;
                 }
                 if txt_field.changed() {
-                    handle_error!(
-                        |v| { self.file_labels = v },
-                        self.reader.list_file_labels(self.filter_string.trim()),
-                        self
-                    );
+                    let new_labels = self.reader.list_file_labels(self.filter_string.trim());
+                    if let Ok(nl) = &new_labels {
+                        if let Some(gui_idx) = self.file_selected_idx {
+                            let selected_remote_idx = self.file_labels[gui_idx].0;
+                            self.file_selected_idx =
+                                find_selected_remote_idx(selected_remote_idx, nl)
+                                    .map(|(gui_idx, _)| gui_idx);
+                            if self.file_selected_idx.is_some() {
+                                self.scroll_to_selected_label = true;
+                            }
+                        }
+                    }
+                    handle_error!(|v| { self.file_labels = v }, new_labels, self);
                 }
                 let scroll_height = ui.available_height() - 120.0;
                 egui::ScrollArea::vertical()
