@@ -26,7 +26,7 @@ pub fn find(ssh_cfg: &SshCfg, filter_extensions: &[&str]) -> RvResult<Vec<String
 
     let mut s = String::new();
     channel
-        .exec(format!("find {}", ssh_cfg.remote_folder_path).as_str())
+        .exec(format!("find {}", ssh_cfg.remote_folder_path.replace(' ', "\\ ")).as_str())
         .map_err(to_rv)?;
 
     channel.read_to_string(&mut s).map_err(to_rv)?;

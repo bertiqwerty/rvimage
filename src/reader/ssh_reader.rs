@@ -20,7 +20,7 @@ pub struct SshConfigPicker;
 impl PickFolder for SshConfigPicker {
     fn pick() -> RvResult<Picked> {
         let cfg = cfg::get_cfg()?;
-        let folder = cfg.ssh_cfg.remote_folder_path.replace(' ', r"\ ");
+        let folder = cfg.ssh_cfg.remote_folder_path;
         let ssh_cfg = cfg::get_cfg()?.ssh_cfg;
         let image_paths = ssh::find(&ssh_cfg, &[".png", ".jpg"])?;
         Ok(Picked {
