@@ -1,6 +1,4 @@
-use crate::result::RvError;
 use crate::{
-    format_rverr,
     reader::{LoadImageForGui, ReaderFromCfg},
     ImageType,
 };
@@ -8,6 +6,7 @@ use egui::{Align, ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
+
 fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
     file_selected_idx.map(|idx| {
         if idx < files_len - 1 {
@@ -226,15 +225,10 @@ impl Gui {
     }
 
     pub fn file_label(&mut self, remote_idx: usize) -> &str {
-        let mut res = "";
-        handle_error!(
-            |v| res = v,
-            find_selected_remote_idx(remote_idx, &self.file_labels)
-                .map(|(_, label)| label)
-                .ok_or_else(|| format_rverr!("could not read r-idx {}", remote_idx)),
-            self
-        );
-        res
+        match find_selected_remote_idx(remote_idx, &self.file_labels) {
+            Some((_, label)) => label,
+            None => ""
+        }
     }
 
     pub fn read_image(&mut self, file_selected: usize) -> Option<ImageType> {
