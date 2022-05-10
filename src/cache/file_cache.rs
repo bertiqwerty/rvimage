@@ -22,19 +22,19 @@ where
     Ok(())
 }
 
-fn preload<RTC, A>(
-    files: &[String],
+fn preload<'a, I, RTC, A>(
+    files: I,
     tp: &mut ThreadPool<RvResult<String>>,
     cache: &HashMap<String, ThreadResult>,
     reader: &RTC,
     tmpdir: &str,
 ) -> RvResult<HashMap<String, ThreadResult>>
 where
+    I: Iterator<Item = &'a String>,
     RTC: ReadImageToCache<A> + Clone + Send + 'static,
 {
     fs::create_dir_all(Path::new(tmpdir)).map_err(to_rv)?;
     files
-        .iter()
         .filter(|file| !cache.contains_key(*file))
         .map(|file| {
             let dst_file = filename_in_tmpdir(file, tmpdir)?;
@@ -99,9 +99,13 @@ where
         } else {
             selected_file_idx + self.n_next_images + 1
         };
-        let files_to_preload = &files[start_idx..end_idx];
+        let indices_to_iterate = [selected_file_idx]
+            .into_iter()
+            .chain(selected_file_idx + 1..end_idx)
+            .chain(start_idx..selected_file_idx);
+        let files_iter = indices_to_iterate.map(|idx| &files[idx]);
         let cache = preload(
-            files_to_preload,
+            files_iter,
             &mut self.tp,
             &self.cached_paths,
             &self.reader,
