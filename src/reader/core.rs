@@ -40,6 +40,8 @@ pub trait LoadImageForGui {
     fn folder_label(&self) -> RvResult<String>;
     /// get the label of the selected file to display
     fn file_selected_label(&self) -> RvResult<String>;
+    /// get the full path of the selected file to display
+    fn file_selected_path(&self) -> RvResult<String>;
 }
 
 pub struct Picked {
@@ -164,6 +166,12 @@ where
             }
             None => Ok("no folder selected".to_string()),
         }
+    }
+    fn file_selected_path(&self) -> RvResult<String> {
+        Ok(match self.file_selected_idx {
+            Some(idx) => self.file_paths[idx].to_string(),
+            None => "no file selected".to_string(),
+        })
     }
     fn file_selected_label(&self) -> RvResult<String> {
         Ok(match self.file_selected_idx {

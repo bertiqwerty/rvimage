@@ -227,7 +227,7 @@ impl Gui {
     pub fn file_label(&mut self, remote_idx: usize) -> &str {
         match find_selected_remote_idx(remote_idx, &self.file_labels) {
             Some((_, label)) => label,
-            None => ""
+            None => "",
         }
     }
 
@@ -297,7 +297,16 @@ impl Gui {
                     .show(ui, |ui| {
                         for (idx, (reader_idx, s)) in self.file_labels.iter().enumerate() {
                             let sl = if self.file_selected_idx == Some(idx) {
-                                let sl_ = ui.selectable_label(true, s);
+                                let mut path = "".to_string();
+                                handle_error!(
+                                    |v| {
+                                        path = v;
+                                    },
+                                    self.reader.file_selected_path(),
+                                    self
+                                );
+
+                                let sl_ = ui.selectable_label(true, s).on_hover_text(path);
                                 if self.scroll_to_selected_label {
                                     sl_.scroll_to_me(Align::Center);
                                 }

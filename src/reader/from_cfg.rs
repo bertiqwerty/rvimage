@@ -93,4 +93,7 @@ impl LoadImageForGui for ReaderFromCfg {
     fn file_selected_label(&self) -> RvResult<String> {
         self.reader.file_selected_label()
     }
+    fn file_selected_path(&self) -> RvResult<String> {
+        self.reader.file_selected_path()
+    }
 }
