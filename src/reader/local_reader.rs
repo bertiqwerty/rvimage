@@ -8,6 +8,20 @@ use crate::{
 
 use super::core::{path_to_str, CloneDummy, PickFolder, Picked};
 
+fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
+    WalkDir::new(path)
+        .into_iter()
+        .map(|p| p.map_err(to_rv))
+        .filter(|p| match p {
+            Err(_) => true,
+            Ok(p_) => match p_.path().extension() {
+                Some(ext) => ext == "png" || ext == "jpg",
+                None => false,
+            },
+        })
+        .map(|p| Ok(path_to_str(p?.path())?.to_string()))
+        .collect::<RvResult<Vec<String>>>()
+}
 pub struct FileDialogPicker;
 impl PickFolder for FileDialogPicker {
     fn pick() -> RvResult<Picked> {
@@ -37,20 +51,6 @@ impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
     }
 }
 
-pub fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
-    WalkDir::new(path)
-        .into_iter()
-        .map(|p| p.map_err(to_rv))
-        .filter(|p| match p {
-            Err(_) => true,
-            Ok(p_) => match p_.path().extension() {
-                Some(ext) => ext == "png" || ext == "jpg",
-                None => false,
-            },
-        })
-        .map(|p| Ok(path_to_str(p?.path())?.to_string()))
-        .collect::<RvResult<Vec<String>>>()
-}
 #[cfg(test)]
 use {
     crate::{
