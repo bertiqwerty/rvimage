@@ -1,7 +1,7 @@
 
 use ssh2::Session;
 
-use super::core::{PickFolder, Picked};
+use super::core::{PickFolder, Picked, SUPPORTED_EXTENSIONS};
 use crate::{
     cache::ReadImageToCache,
     cfg::{self, SshCfg},
@@ -15,7 +15,7 @@ impl PickFolder for SshConfigPicker {
         let cfg = cfg::get_cfg()?;
         let folder = cfg.ssh_cfg.remote_folder_path;
         let ssh_cfg = cfg::get_cfg()?.ssh_cfg;
-        let image_paths = ssh::find(&ssh_cfg, &[".png", ".jpg"])?;
+        let image_paths = ssh::find(&ssh_cfg, &SUPPORTED_EXTENSIONS)?;
         Ok(Picked {
             folder_path: folder,
             file_paths: image_paths,

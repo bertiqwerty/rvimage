@@ -7,6 +7,8 @@ use crate::cache::Cache;
 use crate::result::{AsyncResultImage, RvError, RvResult};
 use crate::{format_rverr, util};
 
+pub const SUPPORTED_EXTENSIONS: [&str; 2] = [".png", ".jpg"];
+
 #[derive(Clone)]
 pub struct CloneDummy;
 

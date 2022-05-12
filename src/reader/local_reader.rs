@@ -6,7 +6,7 @@ use crate::{
     util,
 };
 
-use super::core::{path_to_str, CloneDummy, PickFolder, Picked};
+use super::core::{path_to_str, CloneDummy, PickFolder, Picked, SUPPORTED_EXTENSIONS};
 
 fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
     WalkDir::new(path)
@@ -15,7 +15,10 @@ fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
         .filter(|p| match p {
             Err(_) => true,
             Ok(p_) => match p_.path().extension() {
-                Some(ext) => ext == "png" || ext == "jpg",
+                Some(ext) => SUPPORTED_EXTENSIONS
+                    .iter()
+                    .find(|sup_ext| Some(&sup_ext[1..]) == ext.to_str())
+                    .is_some(),
                 None => false,
             },
         })
