@@ -1,13 +1,13 @@
 use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
-    cfg::{get_cfg, Cache, Cfg, Connection, SshCfg},
+    cfg::{get_cfg, Cache, Cfg, Connection},
     result::{AsyncResultImage, RvError, RvResult},
 };
 
 use super::{
     core::{CloneDummy, LoadImageForGui, Loader},
     local_reader::{FileDialogPicker, ReadImageFromPath},
-    ssh_reader::{ReadImageFromSsh, SshConfigPicker},
+    ssh_reader::{ReadImageFromSsh, ReadImageFromSshArgs, SshConfigPicker},
 };
 
 fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> RvResult<FileCacheCfgArgs> {
@@ -24,6 +24,7 @@ impl ReaderFromCfg {
     }
     pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
         let n_ssh_reconnections = cfg.ssh_cfg.n_reconnection_attempts();
+        let tmpdir = cfg.tmpdir()?.to_string(); 
         Ok(Self {
             reader: match (cfg.connection, cfg.cache) {
                 (Connection::Local, Cache::FileCache) => {
@@ -50,7 +51,10 @@ impl ReaderFromCfg {
                     >::new(
                         FileCacheArgs {
                             cfg_args: args,
-                            reader_args: cfg.ssh_cfg,
+                            reader_args: ReadImageFromSshArgs {
+                                ssh_cfg: cfg.ssh_cfg,
+                                tmpdir,
+                            },
                         },
                         n_ssh_reconnections,
                     )?)
@@ -63,9 +67,15 @@ impl ReaderFromCfg {
                     CloneDummy {}, 0
                 )?),
                 (Connection::Ssh, Cache::NoCache) => {
-                    type LoaderType =
-                        Loader<NoCache<ReadImageFromSsh, SshCfg>, SshConfigPicker, SshCfg>;
-                    Box::new(LoaderType::new(cfg.ssh_cfg, n_ssh_reconnections)?)
+                    Box::new(
+                        Loader::<NoCache<ReadImageFromSsh, _>, SshConfigPicker, _>::new(
+                            ReadImageFromSshArgs {
+                                ssh_cfg: cfg.ssh_cfg,
+                                tmpdir,
+                            },
+                            n_ssh_reconnections,
+                        )?,
+                    )
                 }
             },
         })

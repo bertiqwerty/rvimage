@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use lazy_static::lazy_static;
 use ssh2::Session;
 
 use super::core::{PickFolder, Picked};
@@ -31,27 +30,30 @@ impl PickFolder for SshConfigPicker {
 }
 
 #[derive(Clone)]
+pub struct ReadImageFromSshArgs {
+    pub ssh_cfg: SshCfg,
+    pub tmpdir: String,
+}
+#[derive(Clone)]
 pub struct ReadImageFromSsh {
     sess: Session,
+    tmpdir: String,
 }
-impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
-    fn new(ssh_cfg: SshCfg) -> RvResult<Self> {
+impl ReadImageToCache<ReadImageFromSshArgs> for ReadImageFromSsh {
+    fn new(args: ReadImageFromSshArgs) -> RvResult<Self> {
         Ok(Self {
-            sess: ssh::auth(&ssh_cfg)?,
+            sess: ssh::auth(&args.ssh_cfg)?,
+            tmpdir: args.tmpdir
         })
     }
     fn read(&self, remote_file_path: &str) -> ResultImage {
-        lazy_static! {
-            pub static ref CFG: cfg::Cfg = cfg::get_cfg().unwrap();
-        };
         let remote_file_path_path = Path::new(remote_file_path);
         let relative_file_name = if util::is_relative(remote_file_path) {
             remote_file_path
         } else {
             to_name_str(remote_file_path_path)?
         };
-        let tmpdir = CFG.tmpdir()?;
-        let local_file_path = filename_in_tmpdir(relative_file_name, tmpdir)?;
+        let local_file_path = filename_in_tmpdir(relative_file_name, &self.tmpdir)?;
         if !Path::new(&local_file_path).exists() {
             let image_byte_blob = ssh::download(remote_file_path, &self.sess)?;
             Ok(image::load_from_memory(&image_byte_blob)
