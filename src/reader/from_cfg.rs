@@ -7,7 +7,7 @@ use crate::{
 use super::{
     core::{CloneDummy, LoadImageForGui, Loader},
     local_reader::{FileDialogPicker, ReadImageFromPath},
-    ssh_reader::{ReadImageFromSsh, ReadImageFromSshArgs, SshConfigPicker},
+    ssh_reader::{ReadImageFromSsh, SshConfigPicker},
 };
 
 fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> RvResult<FileCacheCfgArgs> {
@@ -24,7 +24,7 @@ impl ReaderFromCfg {
     }
     pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
         let n_ssh_reconnections = cfg.ssh_cfg.n_reconnection_attempts();
-        let tmpdir = cfg.tmpdir()?.to_string(); 
+        let tmpdir = cfg.tmpdir()?.to_string();
         Ok(Self {
             reader: match (cfg.connection, cfg.cache) {
                 (Connection::Local, Cache::FileCache) => {
@@ -52,11 +52,8 @@ impl ReaderFromCfg {
                     >::new(
                         FileCacheArgs {
                             cfg_args: args,
-                            reader_args: ReadImageFromSshArgs {
-                                ssh_cfg: cfg.ssh_cfg,
-                                tmpdir: tmpdir.clone(),
-                            },
-                            tmpdir: tmpdir
+                            reader_args: cfg.ssh_cfg,
+                            tmpdir: tmpdir,
                         },
                         n_ssh_reconnections,
                     )?)
@@ -68,17 +65,13 @@ impl ReaderFromCfg {
                 >::new(
                     CloneDummy {}, 0
                 )?),
-                (Connection::Ssh, Cache::NoCache) => {
-                    Box::new(
-                        Loader::<NoCache<ReadImageFromSsh, _>, SshConfigPicker, _>::new(
-                            ReadImageFromSshArgs {
-                                ssh_cfg: cfg.ssh_cfg,
-                                tmpdir,
-                            },
-                            n_ssh_reconnections,
-                        )?,
-                    )
-                }
+                (Connection::Ssh, Cache::NoCache) => Box::new(Loader::<
+                    NoCache<ReadImageFromSsh, _>,
+                    SshConfigPicker,
+                    _,
+                >::new(
+                    cfg.ssh_cfg, n_ssh_reconnections
+                )?),
             },
         })
     }

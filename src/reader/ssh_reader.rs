@@ -1,4 +1,3 @@
-use std::path::Path;
 
 use ssh2::Session;
 
@@ -6,13 +5,8 @@ use super::core::{PickFolder, Picked};
 use crate::{
     cache::ReadImageToCache,
     cfg::{self, SshCfg},
-    reader::{
-        core::{to_name_str, CloneDummy},
-        local_reader::ReadImageFromPath,
-    },
     result::{to_rv, ResultImage, RvResult},
     ssh,
-    util::{self, filename_in_tmpdir},
 };
 
 pub struct SshConfigPicker;
@@ -37,30 +31,17 @@ pub struct ReadImageFromSshArgs {
 #[derive(Clone)]
 pub struct ReadImageFromSsh {
     sess: Session,
-    tmpdir: String,
 }
-impl ReadImageToCache<ReadImageFromSshArgs> for ReadImageFromSsh {
-    fn new(args: ReadImageFromSshArgs) -> RvResult<Self> {
+impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
+    fn new(ssh_cfg: SshCfg) -> RvResult<Self> {
         Ok(Self {
-            sess: ssh::auth(&args.ssh_cfg)?,
-            tmpdir: args.tmpdir
+            sess: ssh::auth(&ssh_cfg)?,
         })
     }
     fn read(&self, remote_file_path: &str) -> ResultImage {
-        let remote_file_path_path = Path::new(remote_file_path);
-        let relative_file_name = if util::is_relative(remote_file_path) {
-            remote_file_path
-        } else {
-            to_name_str(remote_file_path_path)?
-        };
-        let local_file_path = filename_in_tmpdir(relative_file_name, &self.tmpdir)?;
-        if !Path::new(&local_file_path).exists() {
-            let image_byte_blob = ssh::download(remote_file_path, &self.sess)?;
-            Ok(image::load_from_memory(&image_byte_blob)
-                .map_err(to_rv)?
-                .into_rgb8())
-        } else {
-            ReadImageFromPath::new(CloneDummy {})?.read(&local_file_path)
-        }
+        let image_byte_blob = ssh::download(remote_file_path, &self.sess)?;
+        Ok(image::load_from_memory(&image_byte_blob)
+            .map_err(to_rv)?
+            .into_rgb8())
     }
 }

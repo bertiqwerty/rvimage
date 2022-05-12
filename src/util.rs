@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     format_rverr,
-    result::{to_rv, RvError, RvResult},
+    result::{to_rv, ResultImage, RvError, RvResult},
     ImageType,
 };
 use pixels::Pixels;
@@ -35,10 +35,6 @@ pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
         })
 }
 
-pub fn is_relative(path: &str) -> bool {
-    Path::new(path).is_relative() && !path.starts_with('/')
-}
-
 pub fn mouse_pos_transform(
     pixels: &Pixels,
     input_pos: Option<(f32, f32)>,
@@ -46,6 +42,14 @@ pub fn mouse_pos_transform(
     pixels
         .window_pos_to_pixel(input_pos.unwrap_or((-1.0, -1.0)))
         .ok()
+}
+
+pub fn read_image(path: &str) -> ResultImage {
+    Ok(image::io::Reader::open(path)
+        .map_err(to_rv)?
+        .decode()
+        .map_err(|e| format_rverr!("could not decode image {:?}. {:?}", path, e))?
+        .into_rgb8())
 }
 
 #[derive(Clone)]

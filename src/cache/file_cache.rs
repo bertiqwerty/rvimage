@@ -5,7 +5,7 @@ use crate::{
     format_rverr,
     result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult},
     threadpool::ThreadPool,
-    util::filename_in_tmpdir,
+    util::{filename_in_tmpdir, self},
 };
 
 use serde::Deserialize;
@@ -120,13 +120,13 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => self.reader.read(path_in_cache).map(Some),
+            ThreadResult::Ok(path_in_cache) => util::read_image(path_in_cache).map(Some),
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self.tp.result(*job_id);
                 match path_in_cache {
                     Some(pic) => {
                         let pic = pic?;
-                        let res = self.reader.read(&pic);
+                        let res = util::read_image(&pic);
                         *self.cached_paths.get_mut(selected_file).unwrap() = ThreadResult::Ok(pic);
                         res.map(Some)
                     }

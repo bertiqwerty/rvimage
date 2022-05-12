@@ -2,8 +2,8 @@ use walkdir::WalkDir;
 
 use crate::{
     cache::ReadImageToCache,
-    format_rverr,
     result::{to_rv, ResultImage, RvError, RvResult},
+    util,
 };
 
 use super::core::{path_to_str, CloneDummy, PickFolder, Picked};
@@ -33,11 +33,7 @@ impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
         Ok(Self {})
     }
     fn read(&self, path: &str) -> ResultImage {
-        Ok(image::io::Reader::open(path)
-            .map_err(to_rv)?
-            .decode()
-            .map_err(|e| format_rverr!("could not decode image {:?}. {:?}", path, e))?
-            .into_rgb8())
+        util::read_image(path)
     }
 }
 
@@ -59,6 +55,7 @@ pub fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
 use {
     crate::{
         cache::NoCache,
+        format_rverr,
         reader::core::{LoadImageForGui, Loader},
         ImageType,
     },
