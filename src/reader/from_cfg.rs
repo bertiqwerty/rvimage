@@ -37,6 +37,7 @@ impl ReaderFromCfg {
                         FileCacheArgs {
                             cfg_args: args,
                             reader_args: CloneDummy {},
+                            tmpdir: tmpdir,
                         },
                         0,
                     )?)
@@ -53,8 +54,9 @@ impl ReaderFromCfg {
                             cfg_args: args,
                             reader_args: ReadImageFromSshArgs {
                                 ssh_cfg: cfg.ssh_cfg,
-                                tmpdir,
+                                tmpdir: tmpdir.clone(),
                             },
+                            tmpdir: tmpdir
                         },
                         n_ssh_reconnections,
                     )?)

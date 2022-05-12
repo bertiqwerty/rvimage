@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path}
 
 use crate::{
     cache::core::Cache,
-    cfg, format_rverr,
+    format_rverr,
     result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult},
     threadpool::ThreadPool,
     util::filename_in_tmpdir,
@@ -67,6 +67,7 @@ pub struct FileCacheCfgArgs {
 pub struct FileCacheArgs<RA> {
     pub cfg_args: FileCacheCfgArgs,
     pub reader_args: RA,
+    pub tmpdir: String,
 }
 
 pub struct FileCache<RTC, RA>
@@ -77,6 +78,7 @@ where
     n_prev_images: usize,
     n_next_images: usize,
     tp: ThreadPool<RvResult<String>>,
+    tmpdir: String,
     reader: RTC,
     reader_args_phantom: PhantomData<RA>,
 }
@@ -85,7 +87,6 @@ where
     RTC: ReadImageToCache<RA> + Send + Clone + 'static,
 {
     fn load_from_cache(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
-        let cfg = cfg::get_cfg()?;
         if files.is_empty() {
             return Err(RvError::new("no files to read from"));
         }
@@ -109,7 +110,7 @@ where
             &mut self.tp,
             &self.cached_paths,
             &self.reader,
-            cfg.tmpdir()?,
+            &self.tmpdir,
         )?;
         // update cache
         for elt in cache.into_iter() {
@@ -146,6 +147,7 @@ where
             n_prev_images,
             n_next_images,
             tp,
+            tmpdir: args.tmpdir,
             reader: RTC::new(args.reader_args)?,
             reader_args_phantom: PhantomData {},
         })
@@ -154,7 +156,7 @@ where
 
 #[cfg(test)]
 use {
-    crate::ImageType,
+    crate::{cfg, ImageType},
     image::{ImageBuffer, Rgb},
     std::{thread, time::Duration},
 };
@@ -176,6 +178,7 @@ fn test_file_cache() -> RvResult<()> {
                 Ok(dummy_image)
             }
         }
+
         let file_cache_args = FileCacheArgs {
             cfg_args: FileCacheCfgArgs {
                 n_prev_images: 2,
@@ -183,6 +186,7 @@ fn test_file_cache() -> RvResult<()> {
                 n_threads: 2,
             },
             reader_args: (),
+            tmpdir: cfg.tmpdir()?.to_string(),
         };
         let mut cache = FileCache::<DummyRead, ()>::new(file_cache_args)?;
         let min_i = if selected > cache.n_prev_images {
