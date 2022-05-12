@@ -5,7 +5,7 @@ use crate::{
     format_rverr,
     result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult},
     threadpool::ThreadPool,
-    util::{filename_in_tmpdir, self},
+    util::{self, filename_in_tmpdir},
 };
 
 use serde::Deserialize;
