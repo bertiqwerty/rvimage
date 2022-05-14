@@ -1,5 +1,5 @@
 use crate::{
-    result::{AsyncResultImage, ResultImage, RvResult},
+    result::{RvResult}, types::{ResultImage, AsyncResultImage},
 };
 
 pub trait ReadImageToCache<A> {

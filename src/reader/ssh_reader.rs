@@ -5,8 +5,8 @@ use super::core::{PickFolder, Picked, SUPPORTED_EXTENSIONS};
 use crate::{
     cache::ReadImageToCache,
     cfg::{self, SshCfg},
-    result::{to_rv, ResultImage, RvResult},
-    ssh,
+    result::{to_rv, RvResult},
+    ssh, types::ResultImage,
 };
 
 pub struct SshConfigPicker;
@@ -40,8 +40,7 @@ impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
     }
     fn read(&self, remote_file_path: &str) -> ResultImage {
         let image_byte_blob = ssh::download(remote_file_path, &self.sess)?;
-        Ok(image::load_from_memory(&image_byte_blob)
-            .map_err(to_rv)?
-            .into_rgb8())
+        image::load_from_memory(&image_byte_blob)
+            .map_err(to_rv)
     }
 }

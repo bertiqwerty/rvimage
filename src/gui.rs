@@ -1,9 +1,9 @@
 use crate::{
     reader::{LoadImageForGui, ReaderFromCfg},
-    ImageType,
 };
 use egui::{Align, ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
+use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
@@ -231,7 +231,7 @@ impl Gui {
         }
     }
 
-    pub fn read_image(&mut self, file_selected: usize) -> Option<ImageType> {
+    pub fn read_image(&mut self, file_selected: usize) -> Option<DynamicImage> {
         let mut im_read = None;
         handle_error!(
             |im| { im_read = im },

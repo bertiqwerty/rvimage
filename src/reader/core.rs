@@ -4,10 +4,11 @@ use std::thread;
 use std::time::Duration;
 
 use crate::cache::Cache;
-use crate::result::{AsyncResultImage, RvError, RvResult};
+use crate::result::{RvError, RvResult};
+use crate::types::AsyncResultImage;
 use crate::{format_rverr, util};
 
-pub const SUPPORTED_EXTENSIONS: [&str; 2] = [".png", ".jpg"];
+pub const SUPPORTED_EXTENSIONS: [&str; 4] = [".png", ".jpg", ".tif", ".tiff"];
 
 #[derive(Clone)]
 pub struct CloneDummy;

@@ -1,18 +1,17 @@
-use image::imageops;
+use image::DynamicImage;
 use winit::event::VirtualKeyCode;
 
 use crate::{
     make_tool_transform,
     util::{Event, Shape},
     world::World,
-    ImageType,
 };
 
 use super::Tool;
 
 /// rotate 90 degrees counter clockwise
-fn rot90(im: &ImageType) -> ImageType {
-    imageops::rotate270(im)
+fn rot90(im: &DynamicImage) -> DynamicImage {
+    im.rotate270()
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Rot90;

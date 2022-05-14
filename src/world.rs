@@ -1,8 +1,8 @@
-use crate::util::Shape;
-use crate::ImageType;
+use crate::util::{Shape, self};
+use crate::{result::RvResult, types::ViewImage};
+use image::DynamicImage;
 use pixels::Pixels;
-
-fn rgba_at(i: usize, im: &ImageType) -> [u8; 4] {
+fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     let x = (i % im.width() as usize) as u32;
     let y = (i / im.width() as usize) as u32;
     let rgb = im.get_pixel(x, y).0;
@@ -13,8 +13,8 @@ fn rgba_at(i: usize, im: &ImageType) -> [u8; 4] {
 /// Everything we need to draw
 #[derive(Default)]
 pub struct World {
-    im_orig: ImageType,
-    im_view: ImageType,
+    im_orig: DynamicImage,
+    im_view: ViewImage,
 }
 
 impl World {
@@ -32,22 +32,22 @@ impl World {
             pixel.copy_from_slice(&rgba);
         }
     }
-    pub fn new(im_orig: ImageType) -> Self {
-        Self {
+    pub fn new(im_orig: DynamicImage) -> RvResult<Self> {
+        Ok(Self {
             im_orig: im_orig.clone(),
-            im_view: im_orig,
-        }
+            im_view: util::orig_to_view(&im_orig)?,
+        })
     }
-    pub fn im_view(&self) -> &ImageType {
+    pub fn im_view(&self) -> &ViewImage {
         &self.im_view
     }
-    pub fn im_view_mut(&mut self) -> &mut ImageType {
+    pub fn im_view_mut(&mut self) -> &mut ViewImage {
         &mut self.im_view
     }
-    pub fn im_orig(&self) -> &ImageType {
+    pub fn im_orig(&self) -> &DynamicImage {
         &self.im_orig
     }
-    pub fn im_orig_mut(&mut self) -> &mut ImageType {
+    pub fn im_orig_mut(&mut self) -> &mut DynamicImage {
         &mut self.im_orig
     }
     pub fn shape_orig(&self) -> Shape {
@@ -61,7 +61,7 @@ impl World {
 use image::Rgb;
 #[test]
 fn test_rgba() {
-    let mut im_test = ImageType::new(64, 64);
+    let mut im_test = ViewImage::new(64, 64);
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     assert_eq!(rgba_at(0, &im_test), [23, 23, 23, 255]);
     im_test.put_pixel(0, 1, Rgb([23, 23, 23]));

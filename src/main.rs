@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 use crate::gui::Framework;
+use image::DynamicImage;
 use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
 use log::error;
@@ -29,6 +30,7 @@ mod result;
 mod ssh;
 mod threadpool;
 mod tools;
+mod types;
 mod util;
 mod world;
 const START_WIDTH: u32 = 640;
@@ -37,14 +39,24 @@ const START_HEIGHT: u32 = 480;
 const LEFT_BTN: usize = 0;
 const RIGHT_BTN: usize = 1;
 
-type ImageType = ImageBuffer<Rgb<u8>, Vec<u8>>;
+macro_rules! pos_2_string {
+    ($im:expr, $x:expr, $y:expr,  $($imt:ident),+) => {
+        match $im {
+            $(DynamicImage::$imt(im) => {
+                let [r, g, b] = im.get_pixel($x, $y).0;
+                format!("{} {} - {} {} {}", $x, $y, r, g, b)
+            }),+
+        _ => panic!("Bug, shouldn't happen. Unsupported image type.")
+        }
+    };
+}
 
-fn get_pixel_on_orig(
+fn get_pixel_on_orig_str(
     tools: &mut [ToolWrapper],
     world: &World,
     mouse_pos: Option<(usize, usize)>,
     shape_win: Shape,
-) -> Option<(u32, u32, [u8; 3])> {
+) -> Option<String> {
     let mut pos_rgb = mouse_pos.map(|mp| (mp.0 as u32, mp.1 as u32));
     let mut res = None;
     for t in tools {
@@ -54,7 +66,7 @@ fn get_pixel_on_orig(
         }
     }
     if let Some((x, y)) = pos_rgb {
-        res = Some((x, y, world.im_orig().get_pixel(x, y).0));
+        res = Some(pos_2_string!(world.im_orig(), x, y, ImageRgb32F, ImageRgb8));
     }
     res
 }
@@ -78,13 +90,13 @@ fn apply_tools<'a>(
     world
 }
 
-fn loading_image(shape: Shape) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+fn loading_image(shape: Shape) -> DynamicImage {
     let centers = [
         (shape.w / 2 - 75, shape.h / 2),
         (shape.w / 2 + 75, shape.h / 2),
         (shape.w / 2, shape.h / 2),
     ];
-    ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
+    DynamicImage::ImageRgb8(ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
         for mid in centers.iter() {
             if (mid.0 as i32 - x as i32).pow(2) + (mid.1 as i32 - y as i32).pow(2) < 100 {
                 return image::Rgb([255u8, 255u8, 255u8]);
@@ -95,7 +107,7 @@ fn loading_image(shape: Shape) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
         } else {
             image::Rgb([170u8, 170u8, 180u8])
         }
-    })
+    }))
 }
 
 fn remove_tmpdir() {
@@ -139,7 +151,11 @@ fn main() -> Result<(), pixels::Error> {
     };
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
-    let mut world = World::new(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT));
+    let mut world = World::new(DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(
+        START_WIDTH,
+        START_HEIGHT,
+    )))
+    .map_err(|e| pixels::Error::UserDefined(Box::new(e)))?;
     let mut tools = make_tool_vec();
     let mut file_selected = None;
     event_loop.run(move |event, _, control_flow| {
@@ -200,7 +216,7 @@ fn main() -> Result<(), pixels::Error> {
                             loading_image(shape)
                         }
                     };
-                    world = World::new(im_read);
+                    world = World::new(im_read).unwrap();
                     let size = window.inner_size();
                     let shape_win = Shape::from_size(&size);
                     let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
@@ -249,14 +265,14 @@ fn main() -> Result<(), pixels::Error> {
                     h: window.inner_size().height,
                 };
                 let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
-                let data_point = get_pixel_on_orig(&mut tools, &world, mouse_pos, shape_win);
+                let data_point = get_pixel_on_orig_str(&mut tools, &world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
                 let file_label = framework.gui().file_label(idx);
                 let s = match data_point {
-                    Some((x, y, rgb)) => {
+                    Some(s) => {
                         format!(
-                            "RV Image - {} - {}x{} - ({}, {}) -> ({}, {}, {})",
-                            file_label, shape.w, shape.h, x, y, rgb[0], rgb[1], rgb[2]
+                            "RV Image - {} - {}x{} - {}",
+                            file_label, shape.w, shape.h, s
                         )
                     }
                     None => format!(

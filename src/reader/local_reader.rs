@@ -1,9 +1,9 @@
 use walkdir::WalkDir;
 
 use crate::{
-    cache::ReadImageToCache,
-    result::{to_rv, ResultImage, RvError, RvResult},
-    util,
+    cache::ReadImageToCache, 
+    result::{to_rv, RvError, RvResult},
+    util, types::ResultImage,
 };
 
 use super::core::{path_to_str, CloneDummy, PickFolder, Picked, SUPPORTED_EXTENSIONS};
@@ -60,7 +60,7 @@ use {
         cache::NoCache,
         format_rverr,
         reader::core::{LoadImageForGui, Loader},
-        ImageType,
+        types::ViewImage,
     },
     std::{env, fs},
 };
@@ -93,7 +93,7 @@ fn test_folder_reader() -> RvResult<()> {
     }
     fs::create_dir(&tmp_dir).map_err(to_rv)?;
     for i in 0..10 {
-        let im = ImageType::new(10, 10);
+        let im = ViewImage::new(10, 10);
         let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));
         im.save(out_path).unwrap();
     }

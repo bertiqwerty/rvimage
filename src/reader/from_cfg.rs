@@ -1,7 +1,7 @@
 use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
     cfg::{get_cfg, Cache, Cfg, Connection},
-    result::{AsyncResultImage, RvError, RvResult},
+    result::{RvError, RvResult}, types::AsyncResultImage,
 };
 
 use super::{

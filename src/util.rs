@@ -4,11 +4,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::format_rverr;
+use crate::result::RvError;
 use crate::{
-    format_rverr,
-    result::{to_rv, ResultImage, RvError, RvResult},
-    ImageType,
+    result::{to_rv, RvResult},
+    types::{ResultImage, ViewImage},
 };
+use core::cmp::Ordering::{Greater, Less};
+use image::{buffer::ConvertBuffer, DynamicImage, GenericImage};
 use pixels::Pixels;
 use std::str::FromStr;
 use winit::dpi::PhysicalSize;
@@ -45,11 +48,12 @@ pub fn mouse_pos_transform(
 }
 
 pub fn read_image(path: &str) -> ResultImage {
-    Ok(image::io::Reader::open(path)
+    image::io::Reader::open(path)
+        .map_err(to_rv)?
+        .with_guessed_format()
         .map_err(to_rv)?
         .decode()
-        .map_err(|e| format_rverr!("could not decode image {:?}. {:?}", path, e))?
-        .into_rgb8())
+        .map_err(|e| format_rverr!("could not decode image {:?}. {:?}", path, e))
 }
 
 #[derive(Clone)]
@@ -87,7 +91,10 @@ pub struct Shape {
     pub h: u32,
 }
 impl Shape {
-    pub fn from_im(im: &ImageType) -> Self {
+    pub fn from_im<I>(im: &I) -> Self
+    where
+        I: GenericImage,
+    {
         Self {
             w: im.width(),
             h: im.height(),
@@ -122,5 +129,49 @@ impl BB {
             w: self.w,
             h: self.h,
         }
+    }
+}
+
+pub fn orig_to_view(im_orig: &DynamicImage) -> RvResult<ViewImage> {
+    match im_orig {
+        DynamicImage::ImageRgb8(im) => Ok(im.clone()),
+        DynamicImage::ImageRgb32F(im) => {
+            let mut im = im.clone();
+            let max_val = im
+                .as_raw()
+                .iter()
+                .copied()
+                .max_by(|a, b| {
+                    if *a == f32::NAN {
+                        Greater
+                    } else if *b == f32::NAN {
+                        Less
+                    } else {
+                        a.partial_cmp(b).unwrap()
+                    }
+                })
+                .expect("an image should have a maximum value");
+            if max_val <= 1.0 {
+                for y in 0..im.height() {
+                    for x in 0..im.width() {
+                        let p = im.get_pixel_mut(x, y);
+                        p.0 = [p.0[0] * 255.0, p.0[1] * 255.0, p.0[2] * 255.0];
+                    }
+                }
+            } else if max_val > 255.0 {
+                for y in 0..im.height() {
+                    for x in 0..im.width() {
+                        let p = im.get_pixel_mut(x, y);
+                        p.0 = [
+                            p.0[0] / max_val * 255.0,
+                            p.0[1] / max_val * 255.0,
+                            p.0[2] / max_val * 255.0,
+                        ];
+                    }
+                }
+            }
+            Ok(im.convert())
+        }
+        _ => Err(format_rverr!("unsupported image type {:?}", im_orig)),
     }
 }

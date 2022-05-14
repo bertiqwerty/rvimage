@@ -3,8 +3,9 @@ use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path}
 use crate::{
     cache::core::Cache,
     format_rverr,
-    result::{to_rv, AsyncResultImage, ResultImage, RvError, RvResult},
+    result::{to_rv, RvError, RvResult},
     threadpool::ThreadPool,
+    types::{AsyncResultImage, ResultImage},
     util::{self, filename_in_tmpdir},
 };
 
@@ -156,7 +157,8 @@ where
 
 #[cfg(test)]
 use {
-    crate::{cfg, ImageType},
+    crate::cfg,
+    image::DynamicImage,
     image::{ImageBuffer, Rgb},
     std::{thread, time::Duration},
 };
@@ -173,8 +175,9 @@ fn test_file_cache() -> RvResult<()> {
             fn new(_: ()) -> RvResult<Self> {
                 Ok(Self {})
             }
-            fn read(&self, _: &str) -> RvResult<ImageType> {
-                let dummy_image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20);
+            fn read(&self, _: &str) -> RvResult<DynamicImage> {
+                let dummy_image =
+                    DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20));
                 Ok(dummy_image)
             }
         }

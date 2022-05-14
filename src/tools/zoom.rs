@@ -1,17 +1,16 @@
 use std::{fmt::Debug, time::Instant};
 
-use image::{
-    imageops::{self, FilterType},
-    GenericImageView, Rgb,
-};
+use image::{imageops::FilterType, DynamicImage, GenericImageView, Rgb};
 use winit::event::VirtualKeyCode;
 
 use crate::{
     make_tool_transform,
+    result::RvResult,
     tools::core::Tool,
-    util::{shape_scaled, Event, Shape, BB},
+    types::ViewImage,
+    util::{self, shape_scaled, Event, Shape, BB},
     world::World,
-    ImageType, LEFT_BTN, RIGHT_BTN,
+    LEFT_BTN, RIGHT_BTN,
 };
 
 const MIN_ZOOM: u32 = 2;
@@ -122,24 +121,28 @@ fn move_zoom_box(
     }
 }
 
-pub fn scale_to_win(im_orig: &ImageType, zoom_box: Option<BB>, shape_win: Shape) -> ImageType {
+pub fn scale_to_win(
+    im_orig: &DynamicImage,
+    zoom_box: Option<BB>,
+    shape_win: Shape,
+) -> RvResult<ViewImage> {
     let shape_orig = Shape::from_im(im_orig);
     let unscaled = shape_unscaled(&zoom_box, shape_orig);
     let new = shape_scaled(unscaled, shape_win);
     match zoom_box {
-        Some(c) => imageops::resize(
-            &*im_orig.view(c.x, c.y, c.w, c.h),
+        Some(c) => util::orig_to_view(&im_orig.view(c.x, c.y, c.w, c.h).inner().resize_exact(
             new.w,
             new.h,
             FilterType::Nearest,
-        ),
-        None => imageops::resize(im_orig, new.w, new.h, FilterType::Nearest),
+        )),
+
+        None => util::orig_to_view(&im_orig.resize_exact(new.w, new.h, FilterType::Nearest)),
     }
 }
 
 fn draw_bx_on_view(
-    im_prev_view: &ImageType,
-    im_view: &mut ImageType,
+    im_prev_view: &ViewImage,
+    im_view: &mut ViewImage,
     start_time: Instant,
     draw_bx: BB,
 ) {
@@ -173,7 +176,7 @@ fn draw_bx_on_view(
 
 fn get_pixel_on_orig(
     zoom_box: Option<BB>,
-    im_orig: &ImageType,
+    im_orig: &DynamicImage,
     mouse_pos: Option<(u32, u32)>,
     shape_win: Shape,
 ) -> Option<(u32, u32)> {
@@ -186,10 +189,10 @@ pub struct Zoom {
     bx: Option<BB>,
     mouse_pressed_start_time: Option<Instant>,
     mouse_pressed_start_pos: Option<(usize, usize)>,
-    im_prev_view: Option<ImageType>,
+    im_prev_view: Option<ViewImage>,
 }
 impl Zoom {
-    fn set_mouse_start(&mut self, mp: (usize, usize), im_view: Option<ImageType>) {
+    fn set_mouse_start(&mut self, mp: (usize, usize), im_view: Option<ViewImage>) {
         self.mouse_pressed_start_pos = Some(mp);
         self.mouse_pressed_start_time = Some(Instant::now());
         self.im_prev_view = im_view;
@@ -230,7 +233,7 @@ impl Zoom {
                 scale_to_win(world.im_orig(), self.bx, shape_win)
             };
             self.unset_mouse_start();
-            *world.im_view_mut() = im_view;
+            *world.im_view_mut() = im_view.unwrap();
             world
         } else if btn == RIGHT_BTN {
             self.unset_mouse_start();
@@ -259,7 +262,7 @@ impl Zoom {
                         self.unset_mouse_start();
                     }
                 }
-                *world.im_view_mut() = im_view;
+                *world.im_view_mut() = im_view.unwrap();
             }
             world
         } else if btn == LEFT_BTN {
@@ -294,7 +297,7 @@ impl Zoom {
         mut world: World,
     ) -> World {
         self.bx = None;
-        *world.im_view_mut() = scale_to_win(world.im_orig(), None, shape_win);
+        *world.im_view_mut() = scale_to_win(world.im_orig(), None, shape_win).unwrap();
         world
     }
 }
@@ -337,7 +340,7 @@ impl Tool for Zoom {
             Some(bx) if bx.x + bx.w > shape_orig.w || bx.y + bx.h > shape_orig.h => None,
             _ => self.bx,
         };
-        *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
+        *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win).unwrap();
         world
     }
 
@@ -347,7 +350,7 @@ impl Tool for Zoom {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
     ) -> World {
-        *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
+        *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win).unwrap();
         world
     }
 
@@ -361,8 +364,6 @@ impl Tool for Zoom {
     }
 }
 
-#[cfg(test)]
-use crate::result::RvResult;
 #[cfg(test)]
 fn make_shape_win(shape_orig: Shape, zoom_box: Option<BB>) -> Shape {
     match zoom_box {
@@ -407,23 +408,28 @@ fn test_move_zoom() -> RvResult<()> {
     Ok(())
 }
 #[test]
-fn test_scale_to_win() {
-    let mut im_test = ImageType::new(64, 64);
+fn test_scale_to_win() -> RvResult<()> {
+    let mut im_test = ViewImage::new(64, 64);
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     im_test.put_pixel(10, 10, Rgb([23, 23, 23]));
-    let im_scaled = scale_to_win(&im_test, None, Shape { w: 128, h: 128 });
+    let im_scaled = scale_to_win(
+        &DynamicImage::ImageRgb8(im_test),
+        None,
+        Shape { w: 128, h: 128 },
+    )?;
     assert_eq!(im_scaled.get_pixel(0, 0).0, [23, 23, 23]);
     assert_eq!(im_scaled.get_pixel(20, 20).0, [23, 23, 23]);
     assert_eq!(im_scaled.get_pixel(70, 70).0, [0, 0, 0]);
+    Ok(())
 }
 #[test]
-fn test_on_mouse_pressed() {
+fn test_on_mouse_pressed() -> RvResult<()> {
     let shape_win = Shape { w: 250, h: 500 };
     let mouse_pos = Some((30, 45));
-    let im_orig = ImageType::new(250, 500);
+    let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mouse_btn = LEFT_BTN;
     let mut z = Zoom::new();
-    let world = World::new(im_orig);
+    let world = World::new(im_orig)?;
     let im_view_old = world.im_view().clone();
     let im_orig_old = world.im_orig().clone();
     let res = z.mouse_pressed(mouse_btn, shape_win, mouse_pos, world);
@@ -431,21 +437,22 @@ fn test_on_mouse_pressed() {
     assert_eq!(*res.im_view(), im_view_old);
     assert_eq!(*res.im_orig(), im_orig_old);
     assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
+    Ok(())
 }
 
 #[test]
-fn test_on_mouse_released() {
+fn test_on_mouse_released() -> RvResult<()> {
     let shape_win = Shape { w: 250, h: 500 };
     let mouse_pos = Some((30, 45));
-    let im_orig = ImageType::new(250, 500);
+    let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mouse_btn = LEFT_BTN;
     let mut z = Zoom::new();
-    let world = World::new(im_orig);
+    let world = World::new(im_orig)?;
     z.set_mouse_start((40, 80), Some(world.im_view().clone()));
 
     let res = z.mouse_released(mouse_btn, shape_win, mouse_pos, world);
     let shape_scaled_to_win = shape_scaled(z.bx.unwrap().shape(), shape_win);
-    assert_eq!(shape_scaled_to_win, Shape::from_im(&res.im_view()));
+    assert_eq!(shape_scaled_to_win, Shape::from_im(res.im_view()));
     assert_eq!(
         z.bx,
         Some(BB {
@@ -457,6 +464,7 @@ fn test_on_mouse_released() {
     );
     assert_eq!(z.im_prev_view, None);
     assert_eq!(z.mouse_pressed_start_pos, None);
+    Ok(())
 }
 
 #[test]
