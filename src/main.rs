@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 use crate::gui::Framework;
+use gui::Info;
 use image::DynamicImage;
 use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
@@ -150,12 +151,15 @@ fn main() -> Result<(), pixels::Error> {
         (pixels, framework)
     };
 
+    fn empty_world() -> World {
+        World::new(DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(
+            START_WIDTH,
+            START_HEIGHT,
+        ))).expect("bug, empty world creation needs to work")
+    }
+
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
-    let mut world = World::new(DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(
-        START_WIDTH,
-        START_HEIGHT,
-    )))
-    .map_err(|e| pixels::Error::UserDefined(Box::new(e)))?;
+    let mut world = empty_world();
     let mut tools = make_tool_vec();
     let mut file_selected = None;
     event_loop.run(move |event, _, control_flow| {
@@ -216,7 +220,13 @@ fn main() -> Result<(), pixels::Error> {
                             loading_image(shape)
                         }
                     };
-                    world = World::new(im_read).unwrap();
+                    world = match World::new(im_read) {
+                        Ok(w) => w,
+                        Err(e) => {
+                            framework.gui().popup(Info::Error(e.to_string()));
+                            empty_world()
+                        }
+                    };
                     let size = window.inner_size();
                     let shape_win = Shape::from_size(&size);
                     let mouse_pos = mouse_pos_transform(&pixels, input.mouse());

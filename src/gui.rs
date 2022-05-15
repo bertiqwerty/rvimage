@@ -1,6 +1,4 @@
-use crate::{
-    reader::{LoadImageForGui, ReaderFromCfg},
-};
+use crate::reader::{LoadImageForGui, ReaderFromCfg};
 use egui::{Align, ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use image::DynamicImage;
@@ -142,7 +140,8 @@ impl Framework {
     }
 }
 
-enum Info {
+#[derive(Clone)]
+pub enum Info {
     Error(String),
     Warning(String),
     None,
@@ -196,6 +195,10 @@ impl Gui {
         }
     }
 
+    pub fn popup(&mut self, info: Info) {
+        self.info_message = info;
+    }
+
     pub fn are_tools_active(&self) -> bool {
         self.are_tools_active
     }
@@ -247,16 +250,30 @@ impl Gui {
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
-                match &self.info_message {
+                let popup_id = ui.make_persistent_id("1");
+                let r = ui.separator();
+                let show_popup = |msg: &str, icon: &str| {
+                    ui.memory().open_popup(popup_id);
+                    let mut new_msg = Info::None;
+                    egui::popup_below_widget(ui, popup_id, &r, |ui| {
+                        ui.label(format!("{} {}", icon, &msg[..300]));
+                        new_msg = if ui.button("close").clicked() {
+                            Info::None
+                        } else {
+                            self.info_message.clone()
+                        }
+                    });
+                    new_msg
+                };
+                self.info_message = match &self.info_message {
                     Info::Warning(msg) => {
-                        ui.label(format!("❕ {}", msg));
+                        show_popup(msg, "❕")
                     }
                     Info::Error(msg) => {
-                        ui.label(format!("❌ {}", msg));
+                        show_popup(msg, "❌")
                     }
-                    Info::None => (),
-                }
-                ui.separator();
+                    Info::None => Info::None,
+                };
                 if ui.button("open folder...").clicked() {
                     handle_error!(|_| (), self.reader.open_folder(), self);
                     handle_error!(
