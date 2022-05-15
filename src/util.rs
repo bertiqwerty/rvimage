@@ -147,7 +147,7 @@ where
         DynamicImage::ImageLuma8(im) => fn_luma8(im),
         DynamicImage::ImageRgb8(im) => fn_rgb8(im),
         DynamicImage::ImageRgb32F(im) => fn_rgb32f(im),
-        _ => panic!("Bug, shouldn't happen. Unsupported image type."),
+        _ => panic!("Unsupported image type. {:?}", im_d.color()),
     }
 }
 
