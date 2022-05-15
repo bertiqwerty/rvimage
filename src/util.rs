@@ -142,9 +142,9 @@ pub fn orig_to_view(im_orig: &DynamicImage) -> RvResult<ViewImage> {
                 .iter()
                 .copied()
                 .max_by(|a, b| {
-                    if *a == f32::NAN {
+                    if a.is_nan() {
                         Greater
-                    } else if *b == f32::NAN {
+                    } else if b.is_nan() {
                         Less
                     } else {
                         a.partial_cmp(b).unwrap()

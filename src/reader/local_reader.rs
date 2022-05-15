@@ -17,8 +17,7 @@ fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
             Ok(p_) => match p_.path().extension() {
                 Some(ext) => SUPPORTED_EXTENSIONS
                     .iter()
-                    .find(|sup_ext| Some(&sup_ext[1..]) == ext.to_str())
-                    .is_some(),
+                    .any(|sup_ext| Some(&sup_ext[1..]) == ext.to_str()),
                 None => false,
             },
         })
