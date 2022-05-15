@@ -256,7 +256,13 @@ impl Gui {
                     ui.memory().open_popup(popup_id);
                     let mut new_msg = Info::None;
                     egui::popup_below_widget(ui, popup_id, &r, |ui| {
-                        ui.label(format!("{} {}", icon, &msg[..300]));
+                        let max_msg_len = 500;
+                        let shortened_msg = if msg.len() > max_msg_len {
+                            &msg[..max_msg_len]
+                        } else {
+                            &msg
+                        };
+                        ui.label(format!("{} {}", icon, shortened_msg));
                         new_msg = if ui.button("close").clicked() {
                             Info::None
                         } else {

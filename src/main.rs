@@ -3,11 +3,12 @@
 
 use crate::gui::Framework;
 use gui::Info;
-use image::DynamicImage;
+use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
+use std::fmt::Debug;
 use std::fs;
 use std::mem;
 use std::path::Path;
@@ -15,7 +16,7 @@ use std::thread;
 use std::time::Duration;
 use tools::make_tool_vec;
 use tools::{Tool, ToolWrapper};
-use util::{mouse_pos_transform, Shape};
+use util::{apply_to_matched_image, mouse_pos_transform, Shape};
 use winit::dpi::LogicalSize;
 use winit::event::Event;
 use winit::event::VirtualKeyCode;
@@ -40,16 +41,22 @@ const START_HEIGHT: u32 = 480;
 const LEFT_BTN: usize = 0;
 const RIGHT_BTN: usize = 1;
 
-macro_rules! pos_2_string {
-    ($im:expr, $x:expr, $y:expr,  $($imt:ident),+) => {
-        match $im {
-            $(DynamicImage::$imt(im) => {
-                let [r, g, b] = im.get_pixel($x, $y).0;
-                format!("{} {} - {} {} {}", $x, $y, r, g, b)
-            }),+
-        _ => panic!("Bug, shouldn't happen. Unsupported image type.")
-        }
-    };
+fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
+where
+    T: GenericImageView,
+    <T as GenericImageView>::Pixel: Debug,
+{
+    let p = im.get_pixel(x, y);
+    format!("({}, {}) -> ({:?})", x, y, p)
+}
+
+fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
+    apply_to_matched_image(
+        im,
+        |im|pos_2_string_gen(im, x, y),
+        |im|pos_2_string_gen(im, x, y),
+        |im|pos_2_string_gen(im, x, y),
+    )
 }
 
 fn get_pixel_on_orig_str(
@@ -67,7 +74,7 @@ fn get_pixel_on_orig_str(
         }
     }
     if let Some((x, y)) = pos_rgb {
-        res = Some(pos_2_string!(world.im_orig(), x, y, ImageRgb32F, ImageRgb8));
+        res = Some(pos_2_string(world.im_orig(), x, y));
     }
     res
 }
@@ -155,7 +162,8 @@ fn main() -> Result<(), pixels::Error> {
         World::new(DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(
             START_WIDTH,
             START_HEIGHT,
-        ))).expect("bug, empty world creation needs to work")
+        )))
+        .expect("bug, empty world creation needs to work")
     }
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()

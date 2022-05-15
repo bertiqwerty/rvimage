@@ -11,7 +11,7 @@ use crate::{
     types::{ResultImage, ViewImage},
 };
 use core::cmp::Ordering::{Greater, Less};
-use image::{buffer::ConvertBuffer, DynamicImage, GenericImage};
+use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb};
 use pixels::Pixels;
 use std::str::FromStr;
 use winit::dpi::PhysicalSize;
@@ -132,46 +132,111 @@ impl BB {
     }
 }
 
-pub fn orig_to_view(im_orig: &DynamicImage) -> RvResult<ViewImage> {
-    match im_orig {
-        DynamicImage::ImageRgb8(im) => Ok(im.clone()),
-        DynamicImage::ImageRgb32F(im) => {
-            let mut im = im.clone();
-            let max_val = im
-                .as_raw()
-                .iter()
-                .copied()
-                .max_by(|a, b| {
-                    if a.is_nan() {
-                        Greater
-                    } else if b.is_nan() {
-                        Less
-                    } else {
-                        a.partial_cmp(b).unwrap()
-                    }
-                })
-                .expect("an image should have a maximum value");
-            if max_val <= 1.0 {
-                for y in 0..im.height() {
-                    for x in 0..im.width() {
-                        let p = im.get_pixel_mut(x, y);
-                        p.0 = [p.0[0] * 255.0, p.0[1] * 255.0, p.0[2] * 255.0];
-                    }
-                }
-            } else if max_val > 255.0 {
-                for y in 0..im.height() {
-                    for x in 0..im.width() {
-                        let p = im.get_pixel_mut(x, y);
-                        p.0 = [
-                            p.0[0] / max_val * 255.0,
-                            p.0[1] / max_val * 255.0,
-                            p.0[2] / max_val * 255.0,
-                        ];
-                    }
-                }
-            }
-            Ok(im.convert())
-        }
-        _ => Err(format_rverr!("unsupported image type {:?}", im_orig)),
+pub fn apply_to_matched_image<FnRgb8, FnLuma8, FnRgb32F, T>(
+    im_d: &DynamicImage,
+    fn_rgb8: FnRgb8,
+    fn_luma8: FnLuma8,
+    fn_rgb32f: FnRgb32F,
+) -> T
+where
+    FnRgb8: Fn(&ImageBuffer<Rgb<u8>, Vec<u8>>) -> T,
+    FnLuma8: Fn(&ImageBuffer<Luma<u8>, Vec<u8>>) -> T,
+    FnRgb32F: Fn(&ImageBuffer<Rgb<f32>, Vec<f32>>) -> T,
+{
+    match im_d {
+        DynamicImage::ImageLuma8(im) => fn_luma8(im),
+        DynamicImage::ImageRgb8(im) => fn_rgb8(im),
+        DynamicImage::ImageRgb32F(im) => fn_rgb32f(im),
+        _ => panic!("Bug, shouldn't happen. Unsupported image type."),
     }
 }
+
+pub fn orig_to_view(im_orig: &DynamicImage) -> RvResult<ViewImage> {
+    let fn_rgb32f = |im: &ImageBuffer<Rgb<f32>, Vec<f32>>| {
+        let mut im = im.clone();
+        let max_val = im
+            .as_raw()
+            .iter()
+            .copied()
+            .max_by(|a, b| {
+                if a.is_nan() {
+                    Greater
+                } else if b.is_nan() {
+                    Less
+                } else {
+                    a.partial_cmp(b).unwrap()
+                }
+            })
+            .expect("an image should have a maximum value");
+        if max_val <= 1.0 {
+            for y in 0..im.height() {
+                for x in 0..im.width() {
+                    let p = im.get_pixel_mut(x, y);
+                    p.0 = [p.0[0] * 255.0, p.0[1] * 255.0, p.0[2] * 255.0];
+                }
+            }
+        } else if max_val > 255.0 {
+            for y in 0..im.height() {
+                for x in 0..im.width() {
+                    let p = im.get_pixel_mut(x, y);
+                    p.0 = [
+                        p.0[0] / max_val * 255.0,
+                        p.0[1] / max_val * 255.0,
+                        p.0[2] / max_val * 255.0,
+                    ];
+                }
+            }
+        }
+        Ok(im.convert())
+    };
+    apply_to_matched_image(
+        im_orig,
+        |im| Ok(im.clone()),
+        |im| Ok(im.convert()),
+        fn_rgb32f,
+    )
+}
+// pub fn orig_to_view(im_orig: &DynamicImage) -> RvResult<ViewImage> {
+//     match im_orig {
+//         DynamicImage::ImageRgb8(im) => Ok(im.clone()),
+//         DynamicImage::ImageLuma8(im) => Ok(im.convert()),
+//         DynamicImage::ImageRgb32F(im) => {
+//             let mut im = im.clone();
+//             let max_val = im
+//                 .as_raw()
+//                 .iter()
+//                 .copied()
+//                 .max_by(|a, b| {
+//                     if a.is_nan() {
+//                         Greater
+//                     } else if b.is_nan() {
+//                         Less
+//                     } else {
+//                         a.partial_cmp(b).unwrap()
+//                     }
+//                 })
+//                 .expect("an image should have a maximum value");
+//             if max_val <= 1.0 {
+//                 for y in 0..im.height() {
+//                     for x in 0..im.width() {
+//                         let p = im.get_pixel_mut(x, y);
+//                         p.0 = [p.0[0] * 255.0, p.0[1] * 255.0, p.0[2] * 255.0];
+//                     }
+//                 }
+//             } else if max_val > 255.0 {
+//                 for y in 0..im.height() {
+//                     for x in 0..im.width() {
+//                         let p = im.get_pixel_mut(x, y);
+//                         p.0 = [
+//                             p.0[0] / max_val * 255.0,
+//                             p.0[1] / max_val * 255.0,
+//                             p.0[2] / max_val * 255.0,
+//                         ];
+//                     }
+//                 }
+//             }
+//             Ok(im.convert())
+//         }
+//         _ => Err(format_rverr!("unsupported image type {:?}", im_orig)),
+//     }
+// }
