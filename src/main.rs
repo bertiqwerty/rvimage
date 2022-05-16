@@ -5,9 +5,9 @@ use crate::gui::Framework;
 use gui::Info;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
-use lazy_static::lazy_static;
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
+use result::RvResult;
 use std::fmt::Debug;
 use std::fs;
 use std::mem;
@@ -53,9 +53,9 @@ where
 fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
     apply_to_matched_image(
         im,
-        |im|pos_2_string_gen(im, x, y),
-        |im|pos_2_string_gen(im, x, y),
-        |im|pos_2_string_gen(im, x, y),
+        |im| pos_2_string_gen(im, x, y),
+        |im| pos_2_string_gen(im, x, y),
+        |im| pos_2_string_gen(im, x, y),
     )
 }
 
@@ -118,11 +118,9 @@ fn loading_image(shape: Shape) -> DynamicImage {
     }))
 }
 
-fn remove_tmpdir() {
-    lazy_static! {
-        pub static ref CFG: cfg::Cfg = cfg::get_cfg().unwrap();
-    };
-    match CFG.tmpdir() {
+fn remove_tmpdir() -> RvResult<()> {
+    let cfg = cfg::get_cfg()?;
+    match cfg.tmpdir() {
         Ok(td) => match fs::remove_dir_all(Path::new(td)) {
             Ok(_) => {}
             Err(e) => {
@@ -133,6 +131,7 @@ fn remove_tmpdir() {
             println!("couldn't remove tmpdir {:?} ", e)
         }
     };
+    Ok(())
 }
 
 fn main() -> Result<(), pixels::Error> {
@@ -176,7 +175,15 @@ fn main() -> Result<(), pixels::Error> {
             // Close application
             if input.quit() {
                 *control_flow = ControlFlow::Exit;
-                remove_tmpdir();
+                match remove_tmpdir() {
+                    Err(e) => {
+                        framework
+                            .gui()
+                            .popup(Info::Error(format!("could not delete tmpdir. {:?}", e)));
+                        thread::sleep(Duration::from_secs(5));
+                    }
+                    _ => ()
+                }
                 return;
             }
 

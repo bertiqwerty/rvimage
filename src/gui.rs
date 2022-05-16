@@ -272,12 +272,8 @@ impl Gui {
                     new_msg
                 };
                 self.info_message = match &self.info_message {
-                    Info::Warning(msg) => {
-                        show_popup(msg, "❕")
-                    }
-                    Info::Error(msg) => {
-                        show_popup(msg, "❌")
-                    }
+                    Info::Warning(msg) => show_popup(msg, "❕"),
+                    Info::Error(msg) => show_popup(msg, "❌"),
                     Info::None => Info::None,
                 };
                 if ui.button("open folder...").clicked() {
