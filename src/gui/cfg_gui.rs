@@ -31,7 +31,7 @@ impl<'a> CfgGui<'a> {
 }
 impl<'a> Widget for CfgGui<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
-        let edit_cfg_btn_resp = ui.button("edit config");
+        let edit_cfg_btn_resp = ui.button("settings");
 
         if edit_cfg_btn_resp.clicked() {
             ui.memory().toggle_popup(self.id);
