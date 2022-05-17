@@ -1,6 +1,7 @@
 use crate::{
+    cfg::{self, Cfg},
     gui::cfg_gui::CfgGui,
-    reader::{LoadImageForGui, ReaderFromCfg}, cfg::{Cfg, self},
+    reader::{LoadImageForGui, ReaderFromCfg},
 };
 use egui::{Align, ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
@@ -156,19 +157,6 @@ fn get_cfg() -> (Cfg, Info) {
         Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{:?}", e))),
     }
 }
-pub struct Gui {
-    window_open: bool, // Only show the egui window when true.
-    reader: ReaderFromCfg,
-    info_message: Info,
-    file_labels: Vec<(usize, String)>,
-    filter_string: String,
-    file_selected_idx: Option<usize>,
-    are_tools_active: bool,
-    scroll_to_selected_label: bool,
-    cfg: Cfg,
-    ssh_cfg: String
-}
-
 // evaluates an expression that is expected to return Result,
 // passes unpacked value to effect function in case of Ok,
 // sets according error message in case of Err
@@ -185,15 +173,31 @@ macro_rules! handle_error {
     };
 }
 
+fn make_reader_from_cfg() -> (ReaderFromCfg, Info) {
+    match ReaderFromCfg::new() {
+        Ok(rfc) => (rfc, Info::None),
+        Err(e) => (
+            ReaderFromCfg::new().expect("default cfg broken"),
+            Info::Warning(e.msg().to_string()),
+        ),
+    }
+}
+pub struct Gui {
+    window_open: bool, // Only show the egui window when true.
+    reader: ReaderFromCfg,
+    info_message: Info,
+    file_labels: Vec<(usize, String)>,
+    filter_string: String,
+    file_selected_idx: Option<usize>,
+    are_tools_active: bool,
+    scroll_to_selected_label: bool,
+    cfg: Cfg,
+    ssh_cfg: String,
+}
+
 impl Gui {
     fn new() -> Self {
-        let (reader_from_cfg, info) = match ReaderFromCfg::new() {
-            Ok(rfc) => (rfc, Info::None),
-            Err(e) => (
-                ReaderFromCfg::new().expect("default cfg broken"),
-                Info::Warning(e.msg().to_string()),
-            ),
-        };
+        let (reader_from_cfg, info) = make_reader_from_cfg();
         let (cfg, _) = get_cfg();
 
         let ssh_cfg_str = toml::to_string(&cfg.ssh_cfg).unwrap();
@@ -207,8 +211,7 @@ impl Gui {
             are_tools_active: true,
             scroll_to_selected_label: false,
             cfg,
-            ssh_cfg: ssh_cfg_str
-            
+            ssh_cfg: ssh_cfg_str,
         }
     }
 
@@ -294,6 +297,9 @@ impl Gui {
                     Info::None => Info::None,
                 };
                 if ui.button("open folder").clicked() {
+                    let reader_info_tmp = make_reader_from_cfg();
+                    self.reader = reader_info_tmp.0;
+                    self.info_message = reader_info_tmp.1;
                     handle_error!(|_| (), self.reader.open_folder(), self);
                     handle_error!(
                         |v| { self.file_labels = v },
