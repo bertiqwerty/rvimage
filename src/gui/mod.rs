@@ -173,8 +173,8 @@ macro_rules! handle_error {
     };
 }
 
-fn make_reader_from_cfg() -> (ReaderFromCfg, Info) {
-    match ReaderFromCfg::new() {
+fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
+    match ReaderFromCfg::from_cfg(cfg) {
         Ok(rfc) => (rfc, Info::None),
         Err(e) => (
             ReaderFromCfg::new().expect("default cfg broken"),
@@ -197,8 +197,8 @@ pub struct Gui {
 
 impl Gui {
     fn new() -> Self {
-        let (reader_from_cfg, info) = make_reader_from_cfg();
         let (cfg, _) = get_cfg();
+        let (reader_from_cfg, info) = make_reader_from_cfg(&cfg);
 
         let ssh_cfg_str = toml::to_string(&cfg.ssh_cfg).unwrap();
         Self {
@@ -297,7 +297,7 @@ impl Gui {
                     Info::None => Info::None,
                 };
                 if ui.button("open folder").clicked() {
-                    let reader_info_tmp = make_reader_from_cfg();
+                    let reader_info_tmp = make_reader_from_cfg(&self.cfg);
                     self.reader = reader_info_tmp.0;
                     self.info_message = reader_info_tmp.1;
                     handle_error!(|_| (), self.reader.open_folder(), self);
