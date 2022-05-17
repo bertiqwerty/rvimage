@@ -9,7 +9,7 @@ use crate::{
     util::{self, filename_in_tmpdir},
 };
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::ReadImageToCache;
 
@@ -58,7 +58,7 @@ enum ThreadResult {
     Ok(String),
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct FileCacheCfgArgs {
     pub n_prev_images: usize,
     pub n_next_images: usize,

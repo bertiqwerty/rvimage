@@ -3,7 +3,7 @@ use crate::{
     result::{to_rv, RvError, RvResult},
 };
 use lazy_static::lazy_static;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, fs, path::PathBuf};
 
 const CFG_DEFAULT: &str = r#"
@@ -29,11 +29,15 @@ pub fn get_default_cfg() -> Cfg {
     toml::from_str(CFG_DEFAULT).expect("default config broken")
 }
 
-pub fn get_cfg() -> RvResult<Cfg> {
-    let cfg_toml_path = dirs::home_dir()
+fn get_cfg_path() -> RvResult<PathBuf> {
+    Ok(dirs::home_dir()
         .ok_or_else(|| RvError::new("where is your home? cannot load config"))?
         .join(".rvimage")
-        .join("rv_cfg.toml");
+        .join("rv_cfg.toml"))
+}
+
+pub fn get_cfg() -> RvResult<Cfg> {
+    let cfg_toml_path = get_cfg_path()?;
     if cfg_toml_path.exists() {
         let toml_str = fs::read_to_string(cfg_toml_path).map_err(to_rv)?;
         toml::from_str(&toml_str).map_err(to_rv)
@@ -42,17 +46,28 @@ pub fn get_cfg() -> RvResult<Cfg> {
     }
 }
 
-#[derive(Deserialize, Debug)]
+pub fn write_cfg(cfg: &Cfg) -> RvResult<()> {
+    let cfg_str = toml::to_string(cfg).map_err(to_rv)?;
+    write_cfg_str(&cfg_str)
+}
+
+pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
+    let cfg_toml_path = get_cfg_path()?;
+    fs::write(cfg_toml_path, cfg_str).map_err(to_rv)?;
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub enum Connection {
     Ssh,
     Local,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub enum Cache {
     FileCache,
     NoCache,
 }
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SshCfg {
     pub remote_folder_path: String,
     pub address: String,
@@ -63,10 +78,10 @@ pub struct SshCfg {
 impl SshCfg {
     pub fn n_reconnection_attempts(&self) -> usize {
         let default = 5;
-        self.n_reconnection_attempts.unwrap_or(default) 
+        self.n_reconnection_attempts.unwrap_or(default)
     }
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Cfg {
     pub connection: Connection,
     pub cache: Cache,

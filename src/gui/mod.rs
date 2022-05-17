@@ -1,10 +1,13 @@
-use crate::reader::{LoadImageForGui, ReaderFromCfg};
+use crate::{
+    gui::cfg_gui::CfgGui,
+    reader::{LoadImageForGui, ReaderFromCfg}, cfg::{Cfg, self},
+};
 use egui::{Align, ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
-
+mod cfg_gui;
 fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
     file_selected_idx.map(|idx| {
         if idx < files_len - 1 {
@@ -147,6 +150,12 @@ pub enum Info {
     None,
 }
 
+fn get_cfg() -> (Cfg, Info) {
+    match cfg::get_cfg() {
+        Ok(cfg) => (cfg, Info::None),
+        Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{:?}", e))),
+    }
+}
 pub struct Gui {
     window_open: bool, // Only show the egui window when true.
     reader: ReaderFromCfg,
@@ -156,6 +165,8 @@ pub struct Gui {
     file_selected_idx: Option<usize>,
     are_tools_active: bool,
     scroll_to_selected_label: bool,
+    cfg: Cfg,
+    ssh_cfg: String
 }
 
 // evaluates an expression that is expected to return Result,
@@ -183,6 +194,9 @@ impl Gui {
                 Info::Warning(e.msg().to_string()),
             ),
         };
+        let (cfg, _) = get_cfg();
+
+        let ssh_cfg_str = toml::to_string(&cfg.ssh_cfg).unwrap();
         Self {
             window_open: true,
             reader: reader_from_cfg,
@@ -192,6 +206,9 @@ impl Gui {
             file_selected_idx: None,
             are_tools_active: true,
             scroll_to_selected_label: false,
+            cfg,
+            ssh_cfg: ssh_cfg_str
+            
         }
     }
 
@@ -250,7 +267,7 @@ impl Gui {
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
-                let popup_id = ui.make_persistent_id("1");
+                let popup_id = ui.make_persistent_id("info-popup");
                 let r = ui.separator();
                 let show_popup = |msg: &str, icon: &str| {
                     ui.memory().open_popup(popup_id);
@@ -276,7 +293,7 @@ impl Gui {
                     Info::Error(msg) => show_popup(msg, "❌"),
                     Info::None => Info::None,
                 };
-                if ui.button("open folder...").clicked() {
+                if ui.button("open folder").clicked() {
                     handle_error!(|_| (), self.reader.open_folder(), self);
                     handle_error!(
                         |v| { self.file_labels = v },
@@ -340,7 +357,9 @@ impl Gui {
                         }
                         self.scroll_to_selected_label = false;
                     });
-
+                let popup_id = ui.make_persistent_id("cfg-popup");
+                let cfg_gui = CfgGui::new(popup_id, &mut self.cfg, &mut self.ssh_cfg);
+                ui.add(cfg_gui);
                 ui.separator();
                 ui.label("zoom - drag left mouse");
                 ui.label("move zoomed area - drag right mouse");
