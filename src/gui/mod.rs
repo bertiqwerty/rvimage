@@ -2,6 +2,7 @@ use crate::{
     cfg::{self, Cfg},
     gui::cfg_gui::CfgGui,
     reader::{LoadImageForGui, ReaderFromCfg},
+    threadpool::ThreadPool,
 };
 use egui::{Align, ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
@@ -144,14 +145,14 @@ impl Framework {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Info {
     Error(String),
     Warning(String),
     None,
 }
 
-fn get_cfg() -> (Cfg, Info) {
+pub fn get_cfg() -> (Cfg, Info) {
     match cfg::get_cfg() {
         Ok(cfg) => (cfg, Info::None),
         Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{:?}", e))),
@@ -184,7 +185,7 @@ fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
 }
 pub struct Gui {
     window_open: bool, // Only show the egui window when true.
-    reader: ReaderFromCfg,
+    reader: Option<ReaderFromCfg>,
     info_message: Info,
     file_labels: Vec<(usize, String)>,
     filter_string: String,
@@ -193,18 +194,19 @@ pub struct Gui {
     scroll_to_selected_label: bool,
     cfg: Cfg,
     ssh_cfg: String,
+    tp: ThreadPool<(ReaderFromCfg, Info)>,
+    last_open_folder_job_id: Option<usize>,
 }
 
 impl Gui {
     fn new() -> Self {
         let (cfg, _) = get_cfg();
-        let (reader_from_cfg, info) = make_reader_from_cfg(&cfg);
 
         let ssh_cfg_str = toml::to_string(&cfg.ssh_cfg).unwrap();
         Self {
             window_open: true,
-            reader: reader_from_cfg,
-            info_message: info,
+            reader: None,
+            info_message: Info::None,
             file_labels: vec![],
             filter_string: "".to_string(),
             file_selected_idx: None,
@@ -212,6 +214,8 @@ impl Gui {
             scroll_to_selected_label: false,
             cfg,
             ssh_cfg: ssh_cfg_str,
+            tp: ThreadPool::new(1),
+            last_open_folder_job_id: None,
         }
     }
 
@@ -225,17 +229,23 @@ impl Gui {
 
     pub fn next(&mut self) {
         self.file_selected_idx = next(self.file_selected_idx, self.file_labels.len());
-        if let Some(idx) = self.file_selected_idx {
-            self.reader.select_file(self.file_labels[idx].0);
-            self.scroll_to_selected_label = true;
+        match (self.file_selected_idx, &mut self.reader) {
+            (Some(idx), Some(reader)) => {
+                reader.select_file(self.file_labels[idx].0);
+                self.scroll_to_selected_label = true;
+            }
+            _ => (),
         }
     }
 
     pub fn prev(&mut self) {
         self.file_selected_idx = prev(self.file_selected_idx, self.file_labels.len());
-        if let Some(idx) = self.file_selected_idx {
-            self.reader.select_file(self.file_labels[idx].0);
-            self.scroll_to_selected_label = true;
+        match (self.file_selected_idx, &mut self.reader) {
+            (Some(idx), Some(reader)) => {
+                reader.select_file(self.file_labels[idx].0);
+                self.scroll_to_selected_label = true;
+            }
+            _ => (),
         }
     }
 
@@ -244,7 +254,10 @@ impl Gui {
     }
 
     pub fn file_selected_idx(&self) -> Option<usize> {
-        self.reader.file_selected_idx()
+        match &self.reader {
+            Some(reader) => reader.file_selected_idx(),
+            None => None,
+        }
     }
 
     pub fn file_label(&mut self, remote_idx: usize) -> &str {
@@ -256,11 +269,15 @@ impl Gui {
 
     pub fn read_image(&mut self, file_selected: usize) -> Option<DynamicImage> {
         let mut im_read = None;
-        handle_error!(
-            |im| { im_read = im },
-            self.reader.read_image(file_selected),
-            self
-        );
+        self.reader.as_mut().map(|r| {
+            handle_error!(
+                |im| {
+                    im_read = im;
+                },
+                r.read_image(file_selected),
+                self
+            )
+        });
         im_read
     }
 
@@ -296,21 +313,56 @@ impl Gui {
                     Info::Error(msg) => show_popup(msg, "❌"),
                     Info::None => Info::None,
                 };
-                if ui.button("open folder").clicked() {
-                    let reader_info_tmp = make_reader_from_cfg(&self.cfg);
-                    self.reader = reader_info_tmp.0;
-                    self.info_message = reader_info_tmp.1;
-                    handle_error!(|_| (), self.reader.open_folder(), self);
+                ui.horizontal(|ui| {
+                    if ui.button("open folder").clicked() {
+                        self.file_labels = vec![];
+
+                        let cfg_send = self.cfg.clone();
+                        handle_error!(
+                            |jid| {
+                                self.last_open_folder_job_id = Some(jid);
+                            },
+                            self.tp
+                                .apply(Box::new(move || make_reader_from_cfg(&cfg_send))),
+                            self
+                        );
+                    }
+
+                    let popup_id = ui.make_persistent_id("cfg-popup");
+                    let cfg_gui = CfgGui::new(popup_id, &mut self.cfg, &mut self.ssh_cfg);
+                    ui.add(cfg_gui);
+                });
+                if let Some(job_id) = self.last_open_folder_job_id {
+                    let tp_res = self.tp.result(job_id);
+                    if let Some(reader_info_tmp) = tp_res {
+                        self.reader = Some(reader_info_tmp.0);
+                        self.info_message = reader_info_tmp.1;
+                        self.reader
+                            .as_mut()
+                            .map(|r| handle_error!(|_| {}, r.open_folder(), self));
+
+                        self.reader.as_mut().map(|r| {
+                            handle_error!(
+                                |v| {
+                                    self.file_labels = v;
+                                },
+                                r.list_file_labels(""),
+                                self
+                            )
+                        });
+                        self.last_open_folder_job_id = None;
+                    }
+                    ui.label("connecting...");
+                } else {
                     handle_error!(
-                        |v| { self.file_labels = v },
-                        self.reader.list_file_labels(""),
+                        |fl| ui.label(fl),
+                        match &self.reader {
+                            Some(r) => r.folder_label(),
+                            None => Ok("".to_string()),
+                        },
                         self
                     );
                 }
-
-                let mut ui_label = |s| ui.label(s);
-                handle_error!(ui_label, self.reader.folder_label(), self);
-
                 let txt_field = ui.text_edit_singleline(&mut self.filter_string);
                 if txt_field.gained_focus() {
                     self.are_tools_active = false;
@@ -319,19 +371,25 @@ impl Gui {
                     self.are_tools_active = true;
                 }
                 if txt_field.changed() {
-                    let new_labels = self.reader.list_file_labels(self.filter_string.trim());
-                    if let Ok(nl) = &new_labels {
-                        if let Some(gui_idx) = self.file_selected_idx {
-                            let selected_remote_idx = self.file_labels[gui_idx].0;
-                            self.file_selected_idx =
-                                find_selected_remote_idx(selected_remote_idx, nl)
-                                    .map(|(gui_idx, _)| gui_idx);
-                            if self.file_selected_idx.is_some() {
-                                self.scroll_to_selected_label = true;
+                    let new_labels_option = self
+                        .reader
+                        .as_ref()
+                        .map(|r| r.list_file_labels(self.filter_string.trim()));
+                    match (new_labels_option, self.file_selected_idx) {
+                        (Some(new_labels), Some(gui_idx)) => {
+                            if let Ok(nl) = &new_labels {
+                                let selected_remote_idx = self.file_labels[gui_idx].0;
+                                self.file_selected_idx =
+                                    find_selected_remote_idx(selected_remote_idx, nl)
+                                        .map(|(gui_idx, _)| gui_idx);
+                                if self.file_selected_idx.is_some() {
+                                    self.scroll_to_selected_label = true;
+                                }
                             }
+                            handle_error!(|v| { self.file_labels = v }, new_labels, self);
                         }
+                        _ => (),
                     }
-                    handle_error!(|v| { self.file_labels = v }, new_labels, self);
                 }
                 let scroll_height = ui.available_height() - 120.0;
                 egui::ScrollArea::vertical()
@@ -340,14 +398,16 @@ impl Gui {
                         for (idx, (reader_idx, s)) in self.file_labels.iter().enumerate() {
                             let sl = if self.file_selected_idx == Some(idx) {
                                 let mut path = "".to_string();
-                                handle_error!(
-                                    |v| {
-                                        path = v;
-                                    },
-                                    self.reader.file_selected_path(),
-                                    self
-                                );
 
+                                self.reader.as_ref().map(|r| {
+                                    handle_error!(
+                                        |p| {
+                                            path = p;
+                                        },
+                                        r.file_selected_path(),
+                                        self
+                                    )
+                                });
                                 let sl_ = ui.selectable_label(true, s).on_hover_text(path);
                                 if self.scroll_to_selected_label {
                                     sl_.scroll_to_me(Align::Center);
@@ -357,15 +417,12 @@ impl Gui {
                                 ui.selectable_label(false, s)
                             };
                             if sl.clicked() {
-                                self.reader.select_file(*reader_idx);
+                                self.reader.as_mut().map(|r| r.select_file(*reader_idx));
                                 self.file_selected_idx = Some(idx);
                             }
                         }
                         self.scroll_to_selected_label = false;
                     });
-                let popup_id = ui.make_persistent_id("cfg-popup");
-                let cfg_gui = CfgGui::new(popup_id, &mut self.cfg, &mut self.ssh_cfg);
-                ui.add(cfg_gui);
                 ui.separator();
                 ui.label("zoom - drag left mouse");
                 ui.label("move zoomed area - drag right mouse");

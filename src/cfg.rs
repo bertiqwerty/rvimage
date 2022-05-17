@@ -57,12 +57,12 @@ pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub enum Connection {
     Ssh,
     Local,
 }
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub enum Cache {
     FileCache,
     NoCache,
@@ -81,7 +81,7 @@ impl SshCfg {
         self.n_reconnection_attempts.unwrap_or(default)
     }
 }
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Cfg {
     pub connection: Connection,
     pub cache: Cache,

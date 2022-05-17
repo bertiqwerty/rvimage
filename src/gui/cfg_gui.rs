@@ -1,17 +1,10 @@
 use egui::{Area, Color32, Frame, Id, Order, Response, TextEdit, Ui, Widget};
 
-use crate::cfg::{self, Cache, Cfg, Connection, SshCfg};
+use crate::{
+    cfg::{self, Cache, Cfg, Connection, SshCfg},
+    gui,
+};
 
-fn save_on_click(resp: Response, cfg: &Cfg) -> String {
-    if resp.clicked() {
-        match cfg::write_cfg(cfg) {
-            Ok(_) => "".to_string(),
-            Err(e) => format!("{}", e),
-        }
-    } else {
-        "".to_string()
-    }
-}
 fn is_valid_ssh_cfg(s: &str) -> bool {
     toml::from_str::<SshCfg>(s).is_ok()
 }
@@ -32,10 +25,14 @@ impl<'a> CfgGui<'a> {
 impl<'a> Widget for CfgGui<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let edit_cfg_btn_resp = ui.button("settings");
-
         if edit_cfg_btn_resp.clicked() {
             ui.memory().toggle_popup(self.id);
         }
+        enum Close {
+            Yes(bool),
+            No,
+        }
+        let mut close = Close::No;
         if ui.memory().is_popup_open(self.id) {
             let area = Area::new(self.id)
                 .order(Order::Foreground)
@@ -45,24 +42,12 @@ impl<'a> Widget for CfgGui<'a> {
                 .show(ui.ctx(), |ui| {
                     Frame::popup(ui.style()).show(ui, |ui| {
                         ui.label("CONNECTION");
-                        save_on_click(
-                            ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local"),
-                            &self.cfg,
-                        );
-                        save_on_click(
-                            ui.radio_value(&mut self.cfg.connection, Connection::Ssh, "Ssh"),
-                            &self.cfg,
-                        );
+                        ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");
+                        ui.radio_value(&mut self.cfg.connection, Connection::Ssh, "Ssh");
                         ui.separator();
                         ui.label("CACHE");
-                        save_on_click(
-                            ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File cache"),
-                            &self.cfg,
-                        );
-                        save_on_click(
-                            ui.radio_value(&mut self.cfg.cache, Cache::NoCache, "No cache"),
-                            &self.cfg,
-                        );
+                        ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File cache");
+                        ui.radio_value(&mut self.cfg.cache, Cache::NoCache, "No cache");
                         ui.separator();
                         ui.label("SSH CONNECTION PARAMETERS");
                         let clr = if is_valid_ssh_cfg(self.ssh_cfg_str) {
@@ -76,15 +61,31 @@ impl<'a> Widget for CfgGui<'a> {
                                 .code_editor()
                                 .text_color(clr),
                         );
+                        ui.horizontal(|ui| {
+                            if ui.button("OK").clicked() {
+                                close = Close::Yes(true);
+                            }
+                            if ui.button("cancel").clicked() {
+                                close = Close::Yes(false);
+                            }
+                        })
                     });
                 })
                 .response;
-            if !edit_cfg_btn_resp.clicked() && area_response.clicked_elsewhere() {
-                if is_valid_ssh_cfg(self.ssh_cfg_str) {
+            if let Close::Yes(save) = close {
+                if save && is_valid_ssh_cfg(self.ssh_cfg_str) {
                     self.cfg.ssh_cfg = toml::from_str::<SshCfg>(self.ssh_cfg_str).unwrap();
                     cfg::write_cfg(self.cfg).unwrap();
+                } else {
+                    let tmp = gui::get_cfg();
+                    *self.cfg = tmp.0;
                 }
                 ui.memory().toggle_popup(self.id);
+            }
+            if !edit_cfg_btn_resp.clicked() && area_response.clicked_elsewhere() {
+                ui.memory().toggle_popup(self.id);
+                let tmp = gui::get_cfg();
+                *self.cfg = tmp.0;
             }
         }
         edit_cfg_btn_resp

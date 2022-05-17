@@ -1,7 +1,6 @@
 use crate::result::{RvError, RvResult};
 
 use std::{
-    fmt::Debug,
     sync::mpsc::{self, Receiver, Sender},
     thread,
     time::{self, Instant},
@@ -45,7 +44,7 @@ fn poll_until_result<T, F1: FnMut() -> Option<T>>(
 }
 
 #[allow(dead_code)]
-pub struct ThreadPool<T: Debug + Clone + Send + 'static> {
+pub struct ThreadPool<T: Send + 'static> {
     txs_to_pool: Vec<Sender<(usize, Job<T>)>>,
     rx_from_pool: Receiver<RvResult<(usize, T)>>,
     next_thread: usize,
@@ -54,7 +53,7 @@ pub struct ThreadPool<T: Debug + Clone + Send + 'static> {
     interval_millis: u64,
     timeout_millis: Option<u128>,
 }
-impl<T: Debug + Clone + Send + 'static> ThreadPool<T> {
+impl<T: Send + 'static> ThreadPool<T> {
     pub fn new(n_threads: usize) -> Self {
         let mut txs_to_pool = Vec::with_capacity(n_threads);
         let (tx_from_pool, rx_from_pool) = mpsc::channel();

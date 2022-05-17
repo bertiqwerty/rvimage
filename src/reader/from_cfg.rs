@@ -16,7 +16,7 @@ fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> RvResult<FileCacheC
 }
 
 pub struct ReaderFromCfg {
-    reader: Box<dyn LoadImageForGui>,
+    reader: Box<dyn LoadImageForGui + Send>,
 }
 impl ReaderFromCfg {
     pub fn new() -> RvResult<Self> {
