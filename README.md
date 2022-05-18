@@ -7,6 +7,8 @@
 
 Images are cached locally in a temporary directory. So far only tested on Windows 10. Currently, only RGB images with 8 bits per pixel and channel are supported. They have to be either `.png` or `.jpg`. RV Image is mainly based on [`egui`](https://crates.io/crates/egui), [`image`](https://crates.io/crates/image), and [`pixels`](https://crates.io/crates/pixels).
 
+![grafik](https://user-images.githubusercontent.com/50267830/168975976-45ab6567-ef5e-41a8-8027-2ff210dfda3c.png)
+
 
 ## Configuration
 Create a file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) with the following content. Currently, only authorization with key-files without passphrase is supported.
