@@ -1,6 +1,9 @@
 use std::{fmt::Debug, time::Instant};
 
-use image::{imageops::FilterType, DynamicImage, GenericImageView, Rgb};
+use image::{
+    imageops::{self, FilterType},
+    DynamicImage, Rgb,
+};
 use winit::event::VirtualKeyCode;
 
 use crate::{
@@ -130,13 +133,17 @@ pub fn scale_to_win(
     let unscaled = shape_unscaled(&zoom_box, shape_orig);
     let new = shape_scaled(unscaled, shape_win);
     match zoom_box {
-        Some(c) => util::orig_to_view(&im_orig.view(c.x, c.y, c.w, c.h).inner().resize_exact(
-            new.w,
-            new.h,
-            FilterType::Nearest,
-        )),
+        Some(c) => {
+            let im_cropped = im_orig.clone().crop(c.x, c.y, c.w, c.h);
+            Ok(imageops::resize(
+                &util::orig_to_0_255(&im_cropped)?,
+                new.w,
+                new.h,
+                FilterType::Nearest,
+            ))
+        }
 
-        None => util::orig_to_view(&im_orig.resize_exact(new.w, new.h, FilterType::Nearest)),
+        None => util::orig_to_0_255(&im_orig.resize_exact(new.w, new.h, FilterType::Nearest)),
     }
 }
 

@@ -35,7 +35,7 @@ impl World {
     pub fn new(im_orig: DynamicImage) -> RvResult<Self> {
         Ok(Self {
             im_orig: im_orig.clone(),
-            im_view: util::orig_to_view(&im_orig)?,
+            im_view: util::orig_to_0_255(&im_orig)?,
         })
     }
     pub fn im_view(&self) -> &ViewImage {

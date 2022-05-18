@@ -151,7 +151,7 @@ where
     }
 }
 
-pub fn orig_to_view(im_orig: &DynamicImage) -> RvResult<ViewImage> {
+pub fn orig_to_0_255(im_orig: &DynamicImage) -> RvResult<ViewImage> {
     let fn_rgb32f = |im: &ImageBuffer<Rgb<f32>, Vec<f32>>| {
         let mut im = im.clone();
         let max_val = im
