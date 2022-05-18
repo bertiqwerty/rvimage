@@ -43,10 +43,15 @@ fn poll_until_result<T, F1: FnMut() -> Option<T>>(
     poll(query_result, interval_millis, &predicate)
 }
 
+enum Message<T> {
+    Terminate,
+    NewJob((usize, Job<T>)),
+}
+
 #[allow(dead_code)]
 pub struct ThreadPool<T: Send + 'static> {
-    txs_to_pool: Vec<Sender<(usize, Job<T>)>>,
-    rx_from_pool: Receiver<RvResult<(usize, T)>>,
+    txs_to_pool: Vec<Sender<Message<T>>>,
+    rx_from_pool: Receiver<(usize, T)>,
     next_thread: usize,
     job_id: usize,
     result_queue: Vec<(usize, T)>,
@@ -61,22 +66,28 @@ impl<T: Send + 'static> ThreadPool<T> {
             let (tx_to_pool, rx_to_pool) = mpsc::channel();
             txs_to_pool.push(tx_to_pool);
             let tx = tx_from_pool.clone();
-            thread::spawn(move || {
+            thread::spawn(move || -> RvResult<()> {
                 println!("spawning thread {}", idx_thread);
                 loop {
-                    let received = rx_to_pool
-                        .recv()
-                        .map(|(i, f): (usize, Job<T>)| (i, f()))
-                        .map_err(to_rv);
-                    let send_result = tx.send(received);
-                    match send_result {
-                        Ok(_) => {
-                            println!("thread {} send a result.", idx_thread);
+                    let received = rx_to_pool.recv().map_err(to_rv)?;
+
+                    match received {
+                        Message::Terminate => {
+                            println!("shut down thread {}", idx_thread);
+                            return Ok(());
                         }
-                        Err(e) => {
-                            println!("thread {} terminated. receiver gone.", idx_thread);
-                            println!("error: {:?}", e);
-                            return;
+                        Message::NewJob((i, f)) => {
+                            let send_result = tx.send((i, f()));
+                            match send_result {
+                                Ok(_) => {
+                                    println!("thread {} send a result.", idx_thread);
+                                }
+                                Err(e) => {
+                                    println!("thread {} terminated. receiver gone.", idx_thread);
+                                    println!("error: {:?}", e);
+                                    return Ok(());
+                                }
+                            }
                         }
                     }
                 }
@@ -94,8 +105,7 @@ impl<T: Send + 'static> ThreadPool<T> {
     }
 
     pub fn result(&mut self, job_id: usize) -> Option<T> {
-        self.result_queue
-            .extend(self.rx_from_pool.try_iter().flatten());
+        self.result_queue.extend(self.rx_from_pool.try_iter());
         let result = self
             .result_queue
             .iter()
@@ -110,7 +120,12 @@ impl<T: Send + 'static> ThreadPool<T> {
             }
         }
     }
-
+    pub fn shut_down(&mut self) -> RvResult<()> {
+        for tx in &self.txs_to_pool {
+            tx.send(Message::Terminate).map_err(to_rv)?;
+        }
+        Ok(())
+    }
     pub fn apply(&mut self, f: Job<T>) -> RvResult<usize> {
         // paranoia check
         self.job_id = if self.job_id < usize::MAX {
@@ -123,7 +138,7 @@ impl<T: Send + 'static> ThreadPool<T> {
         }
         println!("sending id {:?}", self.job_id);
         self.txs_to_pool[self.next_thread]
-            .send((self.job_id, f))
+            .send(Message::NewJob((self.job_id, f)))
             .map_err(|e| RvError::new(&e.to_string()))?;
         self.next_thread += 1;
 
@@ -137,6 +152,17 @@ impl<T: Send + 'static> ThreadPool<T> {
         match timeout {
             Some(to) => poll_timeout(query_result, interv, to),
             None => poll_until_result(query_result, interv),
+        }
+    }
+}
+
+impl<T: Send + 'static> Drop for ThreadPool<T> {
+    fn drop(&mut self) {
+        match self.shut_down() {
+            Ok(_) => (),
+            Err(e) => {
+                println!("error when dropping threadpool, {:?}", e);
+            }
         }
     }
 }
