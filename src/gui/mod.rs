@@ -4,12 +4,15 @@ use crate::{
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
 };
-use egui::{Align, ClippedMesh, CtxRef};
+use egui::{ClippedMesh, CtxRef};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 mod cfg_gui;
+mod open_folder;
+mod scroll_area;
+
 fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
     file_selected_idx.map(|idx| {
         if idx < files_len - 1 {
@@ -174,15 +177,6 @@ macro_rules! handle_error {
     };
 }
 
-fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
-    match ReaderFromCfg::from_cfg(cfg) {
-        Ok(rfc) => (rfc, Info::None),
-        Err(e) => (
-            ReaderFromCfg::new().expect("default cfg broken"),
-            Info::Warning(e.msg().to_string()),
-        ),
-    }
-}
 pub struct Gui {
     window_open: bool, // Only show the egui window when true.
     reader: Option<ReaderFromCfg>,
@@ -318,55 +312,45 @@ impl Gui {
                     Info::None => Info::None,
                 };
                 ui.horizontal(|ui| {
-                    if ui.button("open folder").clicked() {
-                        self.file_labels = vec![];
-
-                        let cfg_send = self.cfg.clone();
-                        handle_error!(
-                            |jid| {
-                                self.last_open_folder_job_id = Some(jid);
-                            },
-                            self.tp
-                                .apply(Box::new(move || make_reader_from_cfg(&cfg_send))),
-                            self
-                        );
-                    }
-
+                    handle_error!(
+                        |_| {},
+                        open_folder::button(
+                            ui,
+                            &mut self.file_labels,
+                            self.cfg.clone(),
+                            &mut self.last_open_folder_job_id,
+                            &mut self.tp,
+                        ),
+                        self
+                    );
                     let popup_id = ui.make_persistent_id("cfg-popup");
                     let cfg_gui = CfgGui::new(popup_id, &mut self.cfg, &mut self.ssh_cfg_str);
                     ui.add(cfg_gui);
                 });
-                if let Some(job_id) = self.last_open_folder_job_id {
-                    let tp_res = self.tp.result(job_id);
-                    if let Some(reader_info_tmp) = tp_res {
-                        self.reader = Some(reader_info_tmp.0);
-                        self.info_message = reader_info_tmp.1;
-                        self.reader
-                            .as_mut()
-                            .map(|r| handle_error!(|_| {}, r.open_folder(), self));
-
-                        self.reader.as_mut().map(|r| {
-                            handle_error!(
-                                |v| {
-                                    self.file_labels = v;
-                                },
-                                r.list_file_labels(""),
-                                self
-                            )
-                        });
-                        self.last_open_folder_job_id = None;
+                let tmp_reader = std::mem::take(&mut self.reader);
+                type OpenResType = (Option<ReaderFromCfg>, Vec<(usize, String)>, Info);
+                let mut assign_open_folder_res = |(reader, file_labels, info): OpenResType| {
+                    self.reader = reader;
+                    if !file_labels.is_empty() {
+                        self.file_labels = file_labels;
                     }
-                    ui.label("connecting...");
-                } else {
-                    handle_error!(
-                        |fl| ui.label(fl),
-                        match &self.reader {
-                            Some(r) => r.folder_label(),
-                            None => Ok("".to_string()),
-                        },
-                        self
-                    );
-                }
+                    match info {
+                        Info::None => (),
+                        _ => {
+                            self.info_message = info;
+                        }
+                    }
+                };
+                handle_error!(
+                    assign_open_folder_res,
+                    open_folder::check_if_connected(
+                        ui,
+                        &mut self.last_open_folder_job_id,
+                        tmp_reader,
+                        &mut self.tp,
+                    ),
+                    self
+                );
                 let txt_field = ui.text_edit_singleline(&mut self.filter_string);
                 if txt_field.gained_focus() {
                     self.are_tools_active = false;
@@ -396,37 +380,23 @@ impl Gui {
                     }
                 }
                 let scroll_height = ui.available_height() - 120.0;
-                egui::ScrollArea::vertical()
-                    .max_height(scroll_height)
-                    .show(ui, |ui| {
-                        for (idx, (reader_idx, s)) in self.file_labels.iter().enumerate() {
-                            let sl = if self.file_selected_idx == Some(idx) {
-                                let mut path = "".to_string();
-
-                                self.reader.as_ref().map(|r| {
-                                    handle_error!(
-                                        |p| {
-                                            path = p;
-                                        },
-                                        r.file_selected_path(),
-                                        self
-                                    )
-                                });
-                                let sl_ = ui.selectable_label(true, s).on_hover_text(path);
-                                if self.scroll_to_selected_label {
-                                    sl_.scroll_to_me(Align::Center);
-                                }
-                                sl_
-                            } else {
-                                ui.selectable_label(false, s)
-                            };
-                            if sl.clicked() {
-                                self.reader.as_mut().map(|r| r.select_file(*reader_idx));
-                                self.file_selected_idx = Some(idx);
-                            }
-                        }
-                        self.scroll_to_selected_label = false;
-                    });
+                if let Some(reader) = &mut self.reader {
+                    egui::ScrollArea::vertical()
+                        .max_height(scroll_height)
+                        .show(ui, |ui| {
+                            handle_error!(
+                                |_| {},
+                                scroll_area::scroll_area(
+                                    ui,
+                                    &mut self.file_selected_idx,
+                                    &self.file_labels,
+                                    &mut self.scroll_to_selected_label,
+                                    reader,
+                                ),
+                                self
+                            );
+                        });
+                }
                 ui.separator();
                 ui.label("zoom - drag left mouse");
                 ui.label("move zoomed area - drag right mouse");
