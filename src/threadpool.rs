@@ -1,4 +1,4 @@
-use crate::result::{RvError, RvResult};
+use crate::result::{to_rv, RvError, RvResult};
 
 use std::{
     sync::mpsc::{self, Receiver, Sender},
@@ -64,12 +64,11 @@ impl<T: Send + 'static> ThreadPool<T> {
             thread::spawn(move || {
                 println!("spawning thread {}", idx_thread);
                 loop {
-                    let send_result = tx.send(
-                        rx_to_pool
-                            .recv()
-                            .map(|(i, f): (usize, Job<T>)| (i, f()))
-                            .map_err(|e| RvError::new(&e.to_string())),
-                    );
+                    let received = rx_to_pool
+                        .recv()
+                        .map(|(i, f): (usize, Job<T>)| (i, f()))
+                        .map_err(to_rv);
+                    let send_result = tx.send(received);
                     match send_result {
                         Ok(_) => {
                             println!("thread {} send a result.", idx_thread);
