@@ -401,7 +401,7 @@ impl Gui {
                 ui.label("zoom - drag left mouse");
                 ui.label("move zoomed area - drag right mouse");
                 ui.label("unzoom - backspace");
-                ui.label("r - rotate by 90 degrees");
+                ui.label("rotate by 90 degrees - r");
                 ui.label("open or close this menu - m");
             });
     }
