@@ -20,7 +20,7 @@ n_threads = 4  # number of threads to be used for background file caching
 # If you do not want to use the temporary directory of your OS, you can add something else.
 # tmpdir = 
 [ssh_cfg]             
-# After the application started you cannot change the remote folder. For local folders, this is possible. 
+# You cannot change the ssh-remote folders interactively. For local folders, this is possible. 
 remote_folder_path = "folder on your server"
 address = "address:port"  # port is usually 22
 user = "your username"
