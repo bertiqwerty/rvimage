@@ -4,7 +4,7 @@ use crate::{
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
 };
-use egui::{ClippedMesh, CtxRef};
+use egui::{ClippedMesh, CtxRef, Id, Response, Ui};
 use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
 use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
@@ -155,6 +155,33 @@ pub enum Info {
     None,
 }
 
+fn show_popup(
+    ui: &mut Ui,
+    msg: &str,
+    icon: &str,
+    popup_id: Id,
+    info_message: Info,
+    below_respone: &Response,
+) -> Info {
+    ui.memory().open_popup(popup_id);
+    let mut new_msg = Info::None;
+    egui::popup_below_widget(ui, popup_id, &below_respone, |ui| {
+        let max_msg_len = 500;
+        let shortened_msg = if msg.len() > max_msg_len {
+            &msg[..max_msg_len]
+        } else {
+            &msg
+        };
+        ui.label(format!("{} {}", icon, shortened_msg));
+        new_msg = if ui.button("close").clicked() {
+            Info::None
+        } else {
+            info_message
+        }
+    });
+    new_msg
+}
+
 pub fn get_cfg() -> (Cfg, Info) {
     match cfg::get_cfg() {
         Ok(cfg) => (cfg, Info::None),
@@ -176,7 +203,7 @@ macro_rules! handle_error {
         }
     };
     ($result:expr, $self:expr) => {
-        handle_error!(|_|{}, $result, $self);
+        handle_error!(|_| {}, $result, $self);
     };
 }
 
@@ -288,47 +315,35 @@ impl Gui {
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
+                // Popup for error messages
                 let popup_id = ui.make_persistent_id("info-popup");
                 let r = ui.separator();
-                let show_popup = |msg: &str, icon: &str| {
-                    ui.memory().open_popup(popup_id);
-                    let mut new_msg = Info::None;
-                    egui::popup_below_widget(ui, popup_id, &r, |ui| {
-                        let max_msg_len = 500;
-                        let shortened_msg = if msg.len() > max_msg_len {
-                            &msg[..max_msg_len]
-                        } else {
-                            &msg
-                        };
-                        ui.label(format!("{} {}", icon, shortened_msg));
-                        new_msg = if ui.button("close").clicked() {
-                            Info::None
-                        } else {
-                            self.info_message.clone()
-                        }
-                    });
-                    new_msg
-                };
                 self.info_message = match &self.info_message {
-                    Info::Warning(msg) => show_popup(msg, "❕"),
-                    Info::Error(msg) => show_popup(msg, "❌"),
+                    Info::Warning(msg) => {
+                        show_popup(ui, msg, "❕", popup_id, self.info_message.clone(), &r)
+                    }
+                    Info::Error(msg) => {
+                        show_popup(ui, msg, "❌", popup_id, self.info_message.clone(), &r)
+                    }
                     Info::None => Info::None,
                 };
+
+                // Top row with open folder and settings button
                 ui.horizontal(|ui| {
-                    handle_error!(
-                        open_folder::button(
-                            ui,
-                            &mut self.file_labels,
-                            self.cfg.clone(),
-                            &mut self.last_open_folder_job_id,
-                            &mut self.tp,
-                        ),
-                        self
+                    let button_resp = open_folder::button(
+                        ui,
+                        &mut self.file_labels,
+                        self.cfg.clone(),
+                        &mut self.last_open_folder_job_id,
+                        &mut self.tp,
                     );
+                    handle_error!(button_resp, self);
                     let popup_id = ui.make_persistent_id("cfg-popup");
                     let cfg_gui = CfgGui::new(popup_id, &mut self.cfg, &mut self.ssh_cfg_str);
                     ui.add(cfg_gui);
                 });
+
+                // check if connection is after open folder is ready
                 let tmp_reader = std::mem::take(&mut self.reader);
                 type OpenResType = (Option<ReaderFromCfg>, Vec<(usize, String)>, Info);
                 let mut assign_open_folder_res = |(reader, file_labels, info): OpenResType| {
@@ -353,6 +368,8 @@ impl Gui {
                     ),
                     self
                 );
+
+                // filter text field
                 let txt_field = ui.text_edit_singleline(&mut self.filter_string);
                 if txt_field.gained_focus() {
                     self.are_tools_active = false;
@@ -381,6 +398,8 @@ impl Gui {
                         _ => (),
                     }
                 }
+
+                // scroll area showing image file names
                 let scroll_height = ui.available_height() - 120.0;
                 if let Some(reader) = &mut self.reader {
                     egui::ScrollArea::vertical()
@@ -398,6 +417,8 @@ impl Gui {
                             );
                         });
                 }
+
+                // help
                 ui.separator();
                 ui.label("zoom - drag left mouse");
                 ui.label("move zoomed area - drag right mouse");
