@@ -175,6 +175,9 @@ macro_rules! handle_error {
             }
         }
     };
+    ($result:expr, $self:expr) => {
+        handle_error!(|_|{}, $result, $self);
+    };
 }
 
 pub struct Gui {
@@ -313,7 +316,6 @@ impl Gui {
                 };
                 ui.horizontal(|ui| {
                     handle_error!(
-                        |_| {},
                         open_folder::button(
                             ui,
                             &mut self.file_labels,
@@ -385,7 +387,6 @@ impl Gui {
                         .max_height(scroll_height)
                         .show(ui, |ui| {
                             handle_error!(
-                                |_| {},
                                 scroll_area::scroll_area(
                                     ui,
                                     &mut self.file_selected_idx,
