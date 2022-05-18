@@ -48,6 +48,25 @@ enum Message<T> {
     NewJob((usize, Job<T>)),
 }
 
+fn send_answer_message<T>(
+    job_id: usize,
+    f: Job<T>,
+    tx: &Sender<(usize, T)>,
+    idx_thread: usize,
+) -> Option<()> {
+    let send_result = tx.send((job_id, f()));
+    match send_result {
+        Ok(_) => {
+            println!("thread {} send a result.", idx_thread);
+            Some(())
+        }
+        Err(e) => {
+            println!("thread {} terminated. receiver gone.", idx_thread);
+            println!("error: {:?}", e);
+            Some(())
+        }
+    }
+}
 #[allow(dead_code)]
 pub struct ThreadPool<T: Send + 'static> {
     txs_to_pool: Vec<Sender<Message<T>>>,
@@ -66,32 +85,22 @@ impl<T: Send + 'static> ThreadPool<T> {
             let (tx_to_pool, rx_to_pool) = mpsc::channel();
             txs_to_pool.push(tx_to_pool);
             let tx = tx_from_pool.clone();
-            thread::spawn(move || -> RvResult<()> {
+            let thread = move || -> RvResult<()> {
                 println!("spawning thread {}", idx_thread);
                 loop {
-                    let received = rx_to_pool.recv().map_err(to_rv)?;
-
-                    match received {
+                    let received_msg = rx_to_pool.recv().map_err(to_rv)?;
+                    match received_msg {
                         Message::Terminate => {
                             println!("shut down thread {}", idx_thread);
                             return Ok(());
                         }
                         Message::NewJob((i, f)) => {
-                            let send_result = tx.send((i, f()));
-                            match send_result {
-                                Ok(_) => {
-                                    println!("thread {} send a result.", idx_thread);
-                                }
-                                Err(e) => {
-                                    println!("thread {} terminated. receiver gone.", idx_thread);
-                                    println!("error: {:?}", e);
-                                    return Ok(());
-                                }
-                            }
+                            send_answer_message(i, f, &tx, idx_thread);
                         }
                     }
                 }
-            });
+            };
+            thread::spawn(thread);
         }
         ThreadPool {
             txs_to_pool,
