@@ -193,7 +193,7 @@ pub struct Gui {
     are_tools_active: bool,
     scroll_to_selected_label: bool,
     cfg: Cfg,
-    ssh_cfg: String,
+    ssh_cfg_str: String,
     tp: ThreadPool<(ReaderFromCfg, Info)>,
     last_open_folder_job_id: Option<usize>,
 }
@@ -213,7 +213,7 @@ impl Gui {
             are_tools_active: true,
             scroll_to_selected_label: false,
             cfg,
-            ssh_cfg: ssh_cfg_str,
+            ssh_cfg_str,
             tp: ThreadPool::new(1),
             last_open_folder_job_id: None,
         }
@@ -249,8 +249,12 @@ impl Gui {
         }
     }
 
-    pub fn open(&mut self) {
-        self.window_open = true;
+    pub fn toggle(&mut self) {
+        if self.window_open {
+            self.window_open = false;
+        } else {
+            self.window_open = true;
+        }
     }
 
     pub fn file_selected_idx(&self) -> Option<usize> {
@@ -329,7 +333,7 @@ impl Gui {
                     }
 
                     let popup_id = ui.make_persistent_id("cfg-popup");
-                    let cfg_gui = CfgGui::new(popup_id, &mut self.cfg, &mut self.ssh_cfg);
+                    let cfg_gui = CfgGui::new(popup_id, &mut self.cfg, &mut self.ssh_cfg_str);
                     ui.add(cfg_gui);
                 });
                 if let Some(job_id) = self.last_open_folder_job_id {
@@ -428,7 +432,7 @@ impl Gui {
                 ui.label("move zoomed area - drag right mouse");
                 ui.label("unzoom - backspace");
                 ui.label("r - rotate by 90 degrees");
-                ui.label("open this menu - m");
+                ui.label("open or close this menu - m");
             });
     }
 }

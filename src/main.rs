@@ -203,7 +203,7 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             if input.key_pressed(VirtualKeyCode::M) {
-                framework.gui().open();
+                framework.gui().toggle();
             }
 
             if input.key_pressed(VirtualKeyCode::Right)
