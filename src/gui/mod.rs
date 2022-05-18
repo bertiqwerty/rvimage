@@ -403,6 +403,8 @@ impl Gui {
                 ui.label("unzoom - backspace");
                 ui.label("rotate by 90 degrees - r");
                 ui.label("open or close this menu - m");
+                ui.separator();
+                ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
             });
     }
 }
