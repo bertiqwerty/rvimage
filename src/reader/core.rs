@@ -125,7 +125,8 @@ where
         self.file_selected_idx
     }
     fn open_folder(&mut self) -> RvResult<()> {
-        let picked = FP::pick()?;
+        let mut picked = FP::pick()?;
+        picked.file_paths.sort();
         self.folder_path = Some(picked.folder_path);
         self.file_paths = picked.file_paths;
         self.file_selected_idx = None;
@@ -145,10 +146,6 @@ where
             })
             .map(|(i, p)| Ok((i, to_name_str(Path::new(p))?.to_string())))
             .collect::<RvResult<Vec<_>>>()
-            .map(|mut v| {
-                v.sort_by(|(_, s1), (_, s2)| s1.cmp(s2));
-                v
-            })
     }
     fn folder_label(&self) -> RvResult<String> {
         match &self.folder_path {
