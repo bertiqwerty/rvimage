@@ -36,7 +36,7 @@ fn prev(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
 }
 
 /// Returns the gui-idx (not the remote idx) and the label of the selected file
-fn find_selected_remote_idx(
+fn find_gui_idx_selected(
     selected_remote_idx: usize,
     file_labels: &[(usize, String)],
 ) -> Option<(usize, &str)> {
@@ -289,7 +289,7 @@ impl Gui {
     }
 
     pub fn file_label(&mut self, remote_idx: usize) -> &str {
-        match find_selected_remote_idx(remote_idx, &self.file_labels) {
+        match find_gui_idx_selected(remote_idx, &self.file_labels) {
             Some((_, label)) => label,
             None => "",
         }
@@ -382,20 +382,17 @@ impl Gui {
                         .reader
                         .as_ref()
                         .map(|r| r.list_file_labels(self.filter_string.trim()));
-                    match (new_labels_option, self.file_selected_idx) {
-                        (Some(new_labels), Some(gui_idx)) => {
-                            if let Ok(nl) = &new_labels {
-                                let selected_remote_idx = self.file_labels[gui_idx].0;
-                                self.file_selected_idx =
-                                    find_selected_remote_idx(selected_remote_idx, nl)
-                                        .map(|(gui_idx, _)| gui_idx);
-                                if self.file_selected_idx.is_some() {
-                                    self.scroll_to_selected_label = true;
-                                }
-                            }
-                            handle_error!(|v| { self.file_labels = v }, new_labels, self);
-                        }
-                        _ => (),
+                    if let Some(new_labels) = new_labels_option {
+                        handle_error!(
+                            |v| {
+                                self.file_labels = v;
+                            },
+                            new_labels,
+                            self
+                        );
+                    }
+                    if self.file_selected_idx.is_some() {
+                        self.scroll_to_selected_label = true;
                     }
                 }
 

@@ -11,7 +11,7 @@ use crate::{
     types::{ResultImage, ViewImage},
 };
 use core::cmp::Ordering::{Greater, Less};
-use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb};
+use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb, Rgba};
 use pixels::Pixels;
 use std::str::FromStr;
 use winit::dpi::PhysicalSize;
@@ -132,20 +132,23 @@ impl BB {
     }
 }
 
-pub fn apply_to_matched_image<FnRgb8, FnLuma8, FnRgb32F, T>(
+pub fn apply_to_matched_image<FnRgb8, FnRgba8, FnLuma8, FnRgb32F, T>(
     im_d: &DynamicImage,
     fn_rgb8: FnRgb8,
+    fn_rgba8: FnRgba8,
     fn_luma8: FnLuma8,
     fn_rgb32f: FnRgb32F,
 ) -> T
 where
     FnRgb8: Fn(&ImageBuffer<Rgb<u8>, Vec<u8>>) -> T,
+    FnRgba8: Fn(&ImageBuffer<Rgba<u8>, Vec<u8>>) -> T,
     FnLuma8: Fn(&ImageBuffer<Luma<u8>, Vec<u8>>) -> T,
     FnRgb32F: Fn(&ImageBuffer<Rgb<f32>, Vec<f32>>) -> T,
 {
     match im_d {
-        DynamicImage::ImageLuma8(im) => fn_luma8(im),
         DynamicImage::ImageRgb8(im) => fn_rgb8(im),
+        DynamicImage::ImageRgba8(im) => fn_rgba8(im),
+        DynamicImage::ImageLuma8(im) => fn_luma8(im),
         DynamicImage::ImageRgb32F(im) => fn_rgb32f(im),
         _ => panic!("Unsupported image type. {:?}", im_d.color()),
     }
@@ -192,6 +195,7 @@ pub fn orig_to_0_255(im_orig: &DynamicImage) -> RvResult<ViewImage> {
     apply_to_matched_image(
         im_orig,
         |im| Ok(im.clone()),
+        |im| Ok(im.convert()),
         |im| Ok(im.convert()),
         fn_rgb32f,
     )

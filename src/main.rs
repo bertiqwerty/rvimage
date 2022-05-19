@@ -56,6 +56,7 @@ fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
         |im| pos_2_string_gen(im, x, y),
         |im| pos_2_string_gen(im, x, y),
         |im| pos_2_string_gen(im, x, y),
+        |im| pos_2_string_gen(im, x, y),
     )
 }
 
