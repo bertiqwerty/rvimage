@@ -4,6 +4,13 @@ version = "0.1.0"
 authors = ["Behrang Shafei"]
 edition = "2021"
 publish = false
+[lib]
+name = "rvlib"
+path = "src/rvlib/lib.rs"
+
+[[bin]]
+name = "rvimage"
+path = "src/main.rs"
 
 [features]
 optimize = ["log/release_max_level_warn"]

@@ -48,7 +48,7 @@ fn find_gui_idx_selected(
 }
 
 /// Manages all state required for rendering egui over `Pixels`.
-pub(crate) struct Framework {
+pub struct Framework {
     // State for egui.
     egui_ctx: CtxRef,
     egui_state: egui_winit::State,
@@ -62,7 +62,7 @@ pub(crate) struct Framework {
 
 impl Framework {
     /// Create egui.
-    pub(crate) fn new(width: u32, height: u32, scale_factor: f32, pixels: &pixels::Pixels) -> Self {
+    pub fn new(width: u32, height: u32, scale_factor: f32, pixels: &pixels::Pixels) -> Self {
         let egui_ctx = CtxRef::default();
         let egui_state = egui_winit::State::from_pixels_per_point(scale_factor);
         let screen_descriptor = ScreenDescriptor {
@@ -84,12 +84,12 @@ impl Framework {
     }
 
     /// Handle input events from the window manager.
-    pub(crate) fn handle_event(&mut self, event: &winit::event::WindowEvent) {
+    pub fn handle_event(&mut self, event: &winit::event::WindowEvent) {
         self.egui_state.on_event(&self.egui_ctx, event);
     }
 
     /// Resize egui.
-    pub(crate) fn resize(&mut self, width: u32, height: u32) {
+    pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.screen_descriptor.physical_width = width;
             self.screen_descriptor.physical_height = height;
@@ -97,12 +97,12 @@ impl Framework {
     }
 
     /// Update scaling factor.
-    pub(crate) fn scale_factor(&mut self, scale_factor: f64) {
+    pub fn scale_factor(&mut self, scale_factor: f64) {
         self.screen_descriptor.scale_factor = scale_factor as f32;
     }
 
     /// Prepare egui.
-    pub(crate) fn prepare(&mut self, window: &Window) {
+    pub fn prepare(&mut self, window: &Window) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let (output, paint_commands) = self.egui_ctx.run(raw_input, |egui_ctx| {
@@ -116,7 +116,7 @@ impl Framework {
     }
 
     /// Render egui.
-    pub(crate) fn render(
+    pub fn render(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         render_target: &wgpu::TextureView,

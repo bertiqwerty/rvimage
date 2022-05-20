@@ -1,45 +1,32 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use crate::gui::Framework;
-use gui::Info;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
-use result::RvResult;
+use rvlib::gui::Framework;
+use rvlib::gui::Info;
+use rvlib::result::RvResult;
+use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
+use rvlib::util::{self, apply_to_matched_image, mouse_pos_transform, Shape};
+use rvlib::world::World;
+use rvlib::{apply_tool_method, cfg};
 use std::fmt::Debug;
 use std::fs;
 use std::mem;
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
-use tools::make_tool_vec;
-use tools::{Tool, ToolWrapper};
-use util::{apply_to_matched_image, mouse_pos_transform, Shape};
 use winit::dpi::LogicalSize;
 use winit::event::Event;
 use winit::event::VirtualKeyCode;
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
-use world::World;
-mod cache;
-mod cfg;
-mod gui;
-mod reader;
-mod result;
-mod ssh;
-mod threadpool;
-mod tools;
-mod types;
-mod util;
-mod world;
+
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
-
-const LEFT_BTN: usize = 0;
-const RIGHT_BTN: usize = 1;
 
 fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
 where
@@ -183,7 +170,7 @@ fn main() -> Result<(), pixels::Error> {
                             .popup(Info::Error(format!("could not delete tmpdir. {:?}", e)));
                         thread::sleep(Duration::from_secs(5));
                     }
-                    _ => ()
+                    _ => (),
                 }
                 return;
             }
