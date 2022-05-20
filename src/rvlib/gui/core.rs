@@ -1,7 +1,6 @@
-
 use crate::{
     cfg::{self, Cfg},
-    gui::{cfg_gui::CfgGui, self},
+    gui::{self, cfg_gui::CfgGui},
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
 };
@@ -12,7 +11,6 @@ use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
 fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
-    
     file_selected_idx.map(|idx| {
         if idx < files_len - 1 {
             idx + 1
@@ -383,7 +381,15 @@ impl Gui {
                         .map(|r| r.list_file_labels(self.filter_string.trim()));
                     if let Some(new_labels) = new_labels_option {
                         handle_error!(
-                            |v| {
+                            |v: Vec<_>| {
+                                // update index of selected file in gui
+                                if let Some(r) = &self.reader {
+                                    if let Some(remote_idx) = r.file_selected_idx() {
+                                        self.file_selected_idx =
+                                            find_gui_idx_selected(remote_idx, &v).map(|pair| pair.0);
+                                    }
+                                }
+                                // assign filtered file labels
                                 self.file_labels = v;
                             },
                             new_labels,
