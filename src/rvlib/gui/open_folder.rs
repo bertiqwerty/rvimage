@@ -2,12 +2,11 @@ use egui::Ui;
 
 use crate::{
     cfg::Cfg,
+    gui::core::Info,
     reader::{LoadImageForGui, ReaderFromCfg},
     result::RvResult,
     threadpool::ThreadPool,
 };
-
-use super::Info;
 
 fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
     match ReaderFromCfg::from_cfg(cfg) {

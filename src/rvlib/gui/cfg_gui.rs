@@ -77,14 +77,14 @@ impl<'a> Widget for CfgGui<'a> {
                     self.cfg.ssh_cfg = toml::from_str::<SshCfg>(self.ssh_cfg_str).unwrap();
                     cfg::write_cfg(self.cfg).unwrap();
                 } else {
-                    let tmp = gui::get_cfg();
+                    let tmp = gui::core::get_cfg();
                     *self.cfg = tmp.0;
                 }
                 ui.memory().toggle_popup(self.id);
             }
             if !edit_cfg_btn_resp.clicked() && area_response.clicked_elsewhere() {
                 ui.memory().toggle_popup(self.id);
-                let tmp = gui::get_cfg();
+                let tmp = gui::core::get_cfg();
                 *self.cfg = tmp.0;
             }
         }
