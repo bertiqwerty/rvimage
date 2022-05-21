@@ -165,14 +165,11 @@ fn main() -> Result<(), pixels::Error> {
             if input.quit() {
                 *control_flow = ControlFlow::Exit;
                 // optick::stop_capture("rvimage");
-                match remove_tmpdir() {
-                    Err(e) => {
-                        framework
-                            .gui()
-                            .popup(Info::Error(format!("could not delete tmpdir. {:?}", e)));
-                        thread::sleep(Duration::from_secs(5));
-                    }
-                    _ => (),
+                if let Err(e) = remove_tmpdir() {
+                    framework
+                        .gui()
+                        .popup(Info::Error(format!("could not delete tmpdir. {:?}", e)));
+                    thread::sleep(Duration::from_secs(5));
                 }
                 return;
             }

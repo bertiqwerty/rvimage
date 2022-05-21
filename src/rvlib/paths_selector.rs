@@ -15,7 +15,7 @@ pub fn to_name_str(p: &Path) -> RvResult<&str> {
     util::osstr_to_str(p.file_name())
         .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
 }
-fn list_file_labels(file_paths: &Vec<String>, filter_str: &str) -> RvResult<Vec<(usize, String)>> {
+fn list_file_labels(file_paths: &[String], filter_str: &str) -> RvResult<Vec<(usize, String)>> {
     file_paths
         .iter()
         .enumerate()
@@ -59,7 +59,7 @@ impl PathsSelector {
         optick::event!();
         file_paths.sort();
         let filtered_file_labels = list_file_labels(&file_paths, "")?;
-        let folder_label = make_folder_label(folder_path.as_ref().map(|fp| fp.as_str()))?;
+        let folder_label = make_folder_label(folder_path.as_deref())?;
         Ok(PathsSelector {
             file_paths,
             filtered_file_labels,

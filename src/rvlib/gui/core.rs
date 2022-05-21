@@ -20,7 +20,7 @@ fn next(file_selected_idx: usize, files_len: usize) -> usize {
 }
 
 fn prev(file_selected_idx: usize, files_len: usize) -> usize {
-    if file_selected_idx > files_len {
+    if file_selected_idx >= files_len {
         files_len - 1
     } else if file_selected_idx > 0 {
         file_selected_idx - 1
@@ -147,12 +147,12 @@ fn show_popup(
 ) -> Info {
     ui.memory().open_popup(popup_id);
     let mut new_msg = Info::None;
-    egui::popup_below_widget(ui, popup_id, &below_respone, |ui| {
+    egui::popup_below_widget(ui, popup_id, below_respone, |ui| {
         let max_msg_len = 500;
         let shortened_msg = if msg.len() > max_msg_len {
             &msg[..max_msg_len]
         } else {
-            &msg
+            msg
         };
         ui.label(format!("{} {}", icon, shortened_msg));
         new_msg = if ui.button("close").clicked() {
@@ -233,24 +233,21 @@ impl Gui {
         self.are_tools_active
     }
 
-    pub fn next(&mut self) {
-        match (self.file_label_selected_idx, &self.paths_selector) {
-            (Some(idx), Some(ps)) => {
-                self.file_label_selected_idx = Some(next(idx, ps.file_labels().len()));
+    fn pn(&mut self, f: fn(usize, usize) -> usize) {
+        if let Some(idx) = self.file_label_selected_idx {
+            if let Some(ps) = &self.paths_selector {
+                self.file_label_selected_idx = Some(f(idx, ps.file_labels().len()));
                 self.scroll_to_selected_label = true;
             }
-            _ => (),
         }
     }
 
+    pub fn next(&mut self) {
+        self.pn(next);
+    }
+
     pub fn prev(&mut self) {
-        match (self.file_label_selected_idx, &self.paths_selector) {
-            (Some(idx), Some(ps)) => {
-                self.file_label_selected_idx = Some(prev(idx, ps.file_labels().len()));
-                self.scroll_to_selected_label = true;
-            }
-            _ => (),
-        }
+        self.pn(prev);
     }
 
     pub fn toggle(&mut self) {
@@ -274,23 +271,18 @@ impl Gui {
 
     pub fn read_image(&mut self, file_label_selected_idx: usize) -> Option<DynamicImage> {
         let mut im_read = None;
-        self.reader.as_mut().map(|r| {
+        if let Some(r) = &mut self.reader {
             handle_error!(
                 |im| {
                     im_read = im;
                 },
-                {
-                    match &self.paths_selector {
-                        Some(ps) => {
-                            let ffp = ps.filtered_file_paths();
-                            r.read_image(file_label_selected_idx, &ffp)
-                        }
-                        None => Ok(None),
-                    }
-                },
+                self.paths_selector.as_ref().map_or(Ok(None), |ps| {
+                    let ffp = ps.filtered_file_paths();
+                    r.read_image(file_label_selected_idx, &ffp)
+                }),
                 self
             )
-        });
+        }
         im_read
     }
 
@@ -378,7 +370,7 @@ impl Gui {
                 }
                 if txt_field.changed() {
                     optick::event!("tf.changed");
-                    self.paths_selector.as_mut().map(|ps| {
+                    if let Some(ps) = &mut self.paths_selector {
                         let unfiltered_idx_before_filter =
                             if let Some(filtered_idx) = self.file_label_selected_idx {
                                 self.scroll_to_selected_label = true;
@@ -397,7 +389,7 @@ impl Gui {
                                 .map(|(fidx, _)| fidx),
                             None => None,
                         };
-                    });
+                    }
                 }
 
                 // scroll area showing image file names
@@ -429,4 +421,17 @@ impl Gui {
                 ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
             });
     }
+}
+
+#[test]
+fn test_prev_next() {
+    assert_eq!(next(3, 4), 3);
+    assert_eq!(next(2, 4), 3);
+    assert_eq!(next(5, 4), 3);
+    assert_eq!(next(1, 4), 2);
+    assert_eq!(prev(3, 4), 2);
+    assert_eq!(prev(2, 3), 1);
+    assert_eq!(prev(3, 3), 2);
+    assert_eq!(prev(4, 3), 2);
+    assert_eq!(prev(9, 3), 2);
 }
