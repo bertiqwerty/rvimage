@@ -188,7 +188,6 @@ pub struct Gui {
 impl Gui {
     fn new() -> Self {
         let (cfg, _) = get_cfg();
-
         let ssh_cfg_str = toml::to_string(&cfg.ssh_cfg).unwrap();
         Self {
             window_open: true,
@@ -196,7 +195,7 @@ impl Gui {
             info_message: Info::None,
             filter_string: "".to_string(),
             are_tools_active: true,
-            paths_navigator: PathsNavigator::new(),
+            paths_navigator: PathsNavigator::new(None),
             cfg,
             ssh_cfg_str,
             tp: ThreadPool::new(1),
@@ -281,7 +280,7 @@ impl Gui {
                     optick::event!("top row buttons");
                     let button_resp = gui::open_folder::button(
                         ui,
-                        self.paths_navigator.paths_selector_mut(),
+                        &mut self.paths_navigator,
                         self.cfg.clone(),
                         &mut self.last_open_folder_job_id,
                         &mut self.tp,
@@ -318,7 +317,7 @@ impl Gui {
                 if self.paths_navigator.paths_selector().is_none() {
                     handle_error!(
                         |ps| {
-                            *self.paths_navigator.paths_selector_mut() = ps;
+                            self.paths_navigator = PathsNavigator::new(ps);
                         },
                         {
                             optick::event!("r.open_folder");
@@ -362,7 +361,7 @@ impl Gui {
                             );
                         });
                     self.paths_navigator.deactivate_scroll_to_selected_label();
-                    *self.paths_navigator.file_label_selected_idx_mut() = file_label_selected;
+                    self.paths_navigator.select_label_idx(file_label_selected);
                 }
 
                 // help

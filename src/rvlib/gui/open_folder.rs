@@ -1,7 +1,7 @@
 use egui::Ui;
 
 use crate::{
-    cfg::Cfg, gui::core::Info, paths_selector::PathsSelector, reader::ReaderFromCfg,
+    cfg::Cfg, gui::{core::Info, paths_navigator::PathsNavigator}, paths_selector::PathsSelector, reader::ReaderFromCfg,
     result::RvResult, threadpool::ThreadPool,
 };
 
@@ -16,14 +16,14 @@ fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
 }
 pub fn button(
     ui: &mut Ui,
-    paths_selector: &mut Option<PathsSelector>,
+    paths_navigator: &mut PathsNavigator,
     cfg: Cfg,
     last_open_folder_job_id: &mut Option<usize>,
     tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
 ) -> RvResult<()> {
     optick::event!();
     if ui.button("open folder").clicked() {
-        *paths_selector = None;
+        *paths_navigator = PathsNavigator::new(None);
 
         *last_open_folder_job_id = Some(tp.apply(Box::new(move || make_reader_from_cfg(&cfg)))?);
     }

@@ -24,14 +24,13 @@ pub struct PathsNavigator {
     scroll_to_selected_label: bool,
 }
 impl PathsNavigator {
-    pub fn new() -> Self {
+    pub fn new(paths_selector: Option<PathsSelector>) -> Self {
         Self {
             file_label_selected_idx: None,
-            paths_selector: None,
+            paths_selector,
             scroll_to_selected_label: false,
         }
     }
-
     fn pn(&mut self, f: fn(usize, usize) -> usize) {
         if let Some(idx) = self.file_label_selected_idx {
             if let Some(ps) = &self.paths_selector {
@@ -40,32 +39,26 @@ impl PathsNavigator {
             }
         }
     }
-
     pub fn next(&mut self) {
         self.pn(next);
     }
-
     pub fn prev(&mut self) {
         self.pn(prev);
     }
     pub fn file_label_selected_idx(&self) -> Option<usize> {
         self.file_label_selected_idx
     }
-    pub fn scroll_to_selected_label(&mut self) -> bool {
+    pub fn scroll_to_selected_label(&self) -> bool {
         self.scroll_to_selected_label
     }
     pub fn deactivate_scroll_to_selected_label(&mut self)  {
         self.scroll_to_selected_label = false;
     }
-
-    pub fn file_label_selected_idx_mut(&mut self) -> &mut Option<usize> {
-        &mut self.file_label_selected_idx
+    pub fn select_label_idx(&mut self, idx: Option<usize>) {
+        self.file_label_selected_idx = idx;
     }
     pub fn paths_selector(&self) -> &Option<PathsSelector> {
         &self.paths_selector
-    }
-    pub fn paths_selector_mut(&mut self) -> &mut Option<PathsSelector> {
-        &mut self.paths_selector
     }
     pub fn filter(&mut self, filter_string: &str) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
@@ -91,6 +84,7 @@ impl PathsNavigator {
         Ok(())
     }
 }
+
 #[test]
 fn test_prev_next() {
     assert_eq!(next(3, 4), 3);
