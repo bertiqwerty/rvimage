@@ -1,7 +1,6 @@
 use crate::{
     cfg::{self, Cfg},
     gui::{self, cfg_gui::CfgGui},
-    paths_selector::PathsSelector,
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
 };
@@ -11,23 +10,7 @@ use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
-fn next(file_selected_idx: usize, files_len: usize) -> usize {
-    if file_selected_idx < files_len - 1 {
-        file_selected_idx + 1
-    } else {
-        files_len - 1
-    }
-}
-
-fn prev(file_selected_idx: usize, files_len: usize) -> usize {
-    if file_selected_idx >= files_len {
-        files_len - 1
-    } else if file_selected_idx > 0 {
-        file_selected_idx - 1
-    } else {
-        0
-    }
-}
+use super::paths_navigator::PathsNavigator;
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub struct Framework {
@@ -194,10 +177,8 @@ pub struct Gui {
     reader: Option<ReaderFromCfg>,
     info_message: Info,
     filter_string: String,
-    paths_selector: Option<PathsSelector>,
-    file_label_selected_idx: Option<usize>,
     are_tools_active: bool,
-    scroll_to_selected_label: bool,
+    paths_navigator: PathsNavigator,
     cfg: Cfg,
     ssh_cfg_str: String,
     tp: ThreadPool<(ReaderFromCfg, Info)>,
@@ -214,10 +195,8 @@ impl Gui {
             reader: None,
             info_message: Info::None,
             filter_string: "".to_string(),
-            paths_selector: None,
-            file_label_selected_idx: None,
             are_tools_active: true,
-            scroll_to_selected_label: false,
+            paths_navigator: PathsNavigator::new(),
             cfg,
             ssh_cfg_str,
             tp: ThreadPool::new(1),
@@ -233,23 +212,6 @@ impl Gui {
         self.are_tools_active
     }
 
-    fn pn(&mut self, f: fn(usize, usize) -> usize) {
-        if let Some(idx) = self.file_label_selected_idx {
-            if let Some(ps) = &self.paths_selector {
-                self.file_label_selected_idx = Some(f(idx, ps.file_labels().len()));
-                self.scroll_to_selected_label = true;
-            }
-        }
-    }
-
-    pub fn next(&mut self) {
-        self.pn(next);
-    }
-
-    pub fn prev(&mut self) {
-        self.pn(prev);
-    }
-
     pub fn toggle(&mut self) {
         if self.window_open {
             self.window_open = false;
@@ -257,13 +219,18 @@ impl Gui {
             self.window_open = true;
         }
     }
-
+    pub fn prev(&mut self) {
+        self.paths_navigator.prev();
+    }
+    pub fn next(&mut self) {
+        self.paths_navigator.next();
+    }
     pub fn file_label_selected_idx(&self) -> Option<usize> {
-        self.file_label_selected_idx
+        self.paths_navigator.file_label_selected_idx()
     }
 
     pub fn file_label(&mut self, idx: usize) -> &str {
-        match &self.paths_selector {
+        match self.paths_navigator.paths_selector() {
             Some(ps) => ps.file_labels()[idx].1.as_str(),
             None => "",
         }
@@ -276,10 +243,13 @@ impl Gui {
                 |im| {
                     im_read = im;
                 },
-                self.paths_selector.as_ref().map_or(Ok(None), |ps| {
-                    let ffp = ps.filtered_file_paths();
-                    r.read_image(file_label_selected_idx, &ffp)
-                }),
+                self.paths_navigator
+                    .paths_selector()
+                    .as_ref()
+                    .map_or(Ok(None), |ps| {
+                        let ffp = ps.filtered_file_paths();
+                        r.read_image(file_label_selected_idx, &ffp)
+                    }),
                 self
             )
         }
@@ -311,7 +281,7 @@ impl Gui {
                     optick::event!("top row buttons");
                     let button_resp = gui::open_folder::button(
                         ui,
-                        &mut self.paths_selector,
+                        self.paths_navigator.paths_selector_mut(),
                         self.cfg.clone(),
                         &mut self.last_open_folder_job_id,
                         &mut self.tp,
@@ -340,15 +310,15 @@ impl Gui {
                     gui::open_folder::check_if_connected(
                         ui,
                         &mut self.last_open_folder_job_id,
-                        &self.paths_selector,
+                        self.paths_navigator.paths_selector(),
                         &mut self.tp,
                     ),
                     self
                 );
-                if self.paths_selector.is_none() {
+                if self.paths_navigator.paths_selector().is_none() {
                     handle_error!(
                         |ps| {
-                            self.paths_selector = ps;
+                            *self.paths_navigator.paths_selector_mut() = ps;
                         },
                         {
                             optick::event!("r.open_folder");
@@ -370,44 +340,29 @@ impl Gui {
                 }
                 if txt_field.changed() {
                     optick::event!("tf.changed");
-                    if let Some(ps) = &mut self.paths_selector {
-                        let unfiltered_idx_before_filter =
-                            if let Some(filtered_idx) = self.file_label_selected_idx {
-                                self.scroll_to_selected_label = true;
-                                let (unfiltered_idx, _) = ps.file_labels()[filtered_idx];
-                                Some(unfiltered_idx)
-                            } else {
-                                None
-                            };
-                        handle_error!(ps.filter(self.filter_string.trim()), self);
-                        self.file_label_selected_idx = match unfiltered_idx_before_filter {
-                            Some(unfiltered_idx) => ps
-                                .file_labels()
-                                .iter()
-                                .enumerate()
-                                .find(|(_, (uidx, _))| *uidx == unfiltered_idx)
-                                .map(|(fidx, _)| fidx),
-                            None => None,
-                        };
-                    }
+                    handle_error!(self.paths_navigator.filter(&self.filter_string), self);
                 }
 
                 // scroll area showing image file names
                 let scroll_height = ui.available_height() - 120.0;
-                if let Some(ps) = &self.paths_selector {
+                let scroll_to_selected = self.paths_navigator.scroll_to_selected_label();
+                let mut file_label_selected = self.paths_navigator.file_label_selected_idx();
+                if let Some(ps) = &self.paths_navigator.paths_selector() {
                     egui::ScrollArea::vertical()
                         .max_height(scroll_height)
                         .show(ui, |ui| {
                             handle_error!(
                                 gui::scroll_area::scroll_area(
                                     ui,
-                                    &mut self.file_label_selected_idx,
+                                    &mut file_label_selected,
                                     ps,
-                                    &mut self.scroll_to_selected_label,
+                                    scroll_to_selected,
                                 ),
                                 self
                             );
                         });
+                    self.paths_navigator.deactivate_scroll_to_selected_label();
+                    *self.paths_navigator.file_label_selected_idx_mut() = file_label_selected;
                 }
 
                 // help
@@ -421,17 +376,4 @@ impl Gui {
                 ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
             });
     }
-}
-
-#[test]
-fn test_prev_next() {
-    assert_eq!(next(3, 4), 3);
-    assert_eq!(next(2, 4), 3);
-    assert_eq!(next(5, 4), 3);
-    assert_eq!(next(1, 4), 2);
-    assert_eq!(prev(3, 4), 2);
-    assert_eq!(prev(2, 3), 1);
-    assert_eq!(prev(3, 3), 2);
-    assert_eq!(prev(4, 3), 2);
-    assert_eq!(prev(9, 3), 2);
 }
