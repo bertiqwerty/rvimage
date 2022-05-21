@@ -389,14 +389,12 @@ impl Gui {
                             };
                         handle_error!(ps.filter(self.filter_string.trim()), self);
                         self.file_label_selected_idx = match unfiltered_idx_before_filter {
-                            Some(unfiltered_idx) => {
- ps
-                                    .file_labels()
-                                    .iter()
-                                    .enumerate()
-                                    .find(|(_, (uidx, _))| *uidx == unfiltered_idx)
-                                    .map(|(fidx, _)| fidx)
-                            }
+                            Some(unfiltered_idx) => ps
+                                .file_labels()
+                                .iter()
+                                .enumerate()
+                                .find(|(_, (uidx, _))| *uidx == unfiltered_idx)
+                                .map(|(fidx, _)| fidx),
                             None => None,
                         };
                     });
