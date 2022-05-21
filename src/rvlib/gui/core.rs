@@ -378,13 +378,28 @@ impl Gui {
                 }
                 if txt_field.changed() {
                     optick::event!("tf.changed");
-                    self.paths_selector
-                        .as_mut()
-                        .map(|ps| ps.filter(self.filter_string.trim()));
-                    if self.file_label_selected_idx.is_some() {
-                        // TODO: find selected label after change due to filter
-                        self.scroll_to_selected_label = true;
-                    }
+                    self.paths_selector.as_mut().map(|ps| {
+                        let unfiltered_idx_before_filter =
+                            if let Some(filtered_idx) = self.file_label_selected_idx {
+                                self.scroll_to_selected_label = true;
+                                let (unfiltered_idx, _) = ps.file_labels()[filtered_idx];
+                                Some(unfiltered_idx)
+                            } else {
+                                None
+                            };
+                        handle_error!(ps.filter(self.filter_string.trim()), self);
+                        self.file_label_selected_idx = match unfiltered_idx_before_filter {
+                            Some(unfiltered_idx) => {
+ ps
+                                    .file_labels()
+                                    .iter()
+                                    .enumerate()
+                                    .find(|(_, (uidx, _))| *uidx == unfiltered_idx)
+                                    .map(|(fidx, _)| fidx)
+                            }
+                            None => None,
+                        };
+                    });
                 }
 
                 // scroll area showing image file names

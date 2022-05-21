@@ -69,6 +69,7 @@ impl PathsSelector {
     pub fn file_selected_path(&self, label_selected_idx: usize) -> &str {
         self.file_paths[self.label_idx_2_path_idx(label_selected_idx)].as_str()
     }
+    
     pub fn filter(&mut self, filter_str: &str) -> RvResult<()> {
         optick::event!();
         self.filtered_file_labels = list_file_labels(&self.file_paths, filter_str)?;
