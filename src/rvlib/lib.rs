@@ -1,4 +1,5 @@
 mod cache;
+mod paths_selector;
 mod reader;
 mod ssh;
 mod threadpool;

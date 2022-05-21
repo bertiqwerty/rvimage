@@ -1,12 +1,13 @@
 use walkdir::WalkDir;
 
 use crate::{
-    cache::ReadImageToCache, 
+    cache::ReadImageToCache,
     result::{to_rv, RvError, RvResult},
-    util, types::ResultImage,
+    types::ResultImage,
+    util,
 };
 
-use super::core::{path_to_str, CloneDummy, PickFolder, Picked, SUPPORTED_EXTENSIONS};
+use super::core::{CloneDummy, PickFolder, Picked, SUPPORTED_EXTENSIONS};
 
 fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
     WalkDir::new(path)
@@ -21,7 +22,7 @@ fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
                 None => false,
             },
         })
-        .map(|p| Ok(path_to_str(p?.path())?.to_string()))
+        .map(|p| Ok(util::path_to_str(p?.path())?.to_string()))
         .collect::<RvResult<Vec<String>>>()
 }
 pub struct FileDialogPicker;
@@ -54,15 +55,7 @@ impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
 }
 
 #[cfg(test)]
-use {
-    crate::{
-        cache::NoCache,
-        format_rverr,
-        reader::core::{LoadImageForGui, Loader},
-        types::ViewImage,
-    },
-    std::{env, fs},
-};
+use {crate::format_rverr, std::env};
 #[cfg(test)]
 const TMP_SUBFOLDER: &str = "rvimage_testdata";
 #[cfg(test)]
@@ -82,31 +75,4 @@ impl PickFolder for TmpFolderPicker {
             file_paths: vec![],
         })
     }
-}
-#[test]
-fn test_folder_reader() -> RvResult<()> {
-    let tmp_dir = env::temp_dir().join(TMP_SUBFOLDER);
-    match fs::remove_dir_all(&tmp_dir) {
-        Ok(_) => (),
-        Err(_) => (),
-    }
-    fs::create_dir(&tmp_dir).map_err(to_rv)?;
-    for i in 0..10 {
-        let im = ViewImage::new(10, 10);
-        let out_path = tmp_dir.join(format!("tmpfile_{}.png", i));
-        im.save(out_path).unwrap();
-    }
-    let mut reader =
-        Loader::<NoCache<ReadImageFromPath, _>, TmpFolderPicker, _>::new(CloneDummy {}, 0)?;
-    reader.open_folder()?;
-    for (i, (_, label)) in reader.list_file_labels("")?.iter().enumerate() {
-        assert_eq!(label[label.len() - 13..], format!("tmpfile_{}.png", i));
-    }
-    let folder_label = reader.folder_label()?;
-    println!("{}", folder_label);
-    assert_eq!(
-        folder_label[(folder_label.len() - TMP_SUBFOLDER.len())..].to_string(),
-        TMP_SUBFOLDER.to_string()
-    );
-    Ok(())
 }

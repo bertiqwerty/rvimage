@@ -1,11 +1,8 @@
 use egui::Ui;
 
 use crate::{
-    cfg::Cfg,
-    gui::core::Info,
-    reader::{LoadImageForGui, ReaderFromCfg},
-    result::RvResult,
-    threadpool::ThreadPool,
+    cfg::Cfg, gui::core::Info, paths_selector::PathsSelector, reader::ReaderFromCfg,
+    result::RvResult, threadpool::ThreadPool,
 };
 
 fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
@@ -19,13 +16,14 @@ fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
 }
 pub fn button(
     ui: &mut Ui,
-    file_labels: &mut Vec<(usize, String)>,
+    paths_selector: &mut Option<PathsSelector>,
     cfg: Cfg,
     last_open_folder_job_id: &mut Option<usize>,
     tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
 ) -> RvResult<()> {
+    optick::event!();
     if ui.button("open folder").clicked() {
-        *file_labels = vec![];
+        *paths_selector = None;
 
         *last_open_folder_job_id = Some(tp.apply(Box::new(move || make_reader_from_cfg(&cfg)))?);
     }
@@ -34,28 +32,22 @@ pub fn button(
 pub fn check_if_connected(
     ui: &mut Ui,
     last_open_folder_job_id: &mut Option<usize>,
-    mut reader: Option<ReaderFromCfg>,
+    paths_selector: &Option<PathsSelector>,
     tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
-) -> RvResult<(Option<ReaderFromCfg>, Vec<(usize, String)>, Info)> {
-    let mut info_message = Info::None;
-    let mut file_labels = vec![];
+) -> RvResult<Option<(ReaderFromCfg, Info)>> {
+    optick::event!();
     if let Some(job_id) = last_open_folder_job_id {
         ui.label("connecting...");
         let tp_res = tp.result(*job_id);
-        if let Some(reader_info_tmp) = tp_res {
-            let mut new_reader = reader_info_tmp.0;
-            info_message = reader_info_tmp.1;
-
-            new_reader.open_folder()?;
-            file_labels = new_reader.list_file_labels("")?;
-            reader = Some(new_reader);
+        if tp_res.is_some() {
             *last_open_folder_job_id = None;
         }
+        Ok(tp_res)
     } else {
-        ui.label(match &reader {
-            Some(r) => r.folder_label()?,
-            None => "".to_string(),
+        ui.label(match paths_selector {
+            Some(ps) => ps.folder_label(),
+            None => "",
         });
+        Ok(None)
     }
-    Ok((reader, file_labels, info_message))
 }

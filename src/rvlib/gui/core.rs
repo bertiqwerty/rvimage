@@ -1,6 +1,7 @@
 use crate::{
     cfg::{self, Cfg},
     gui::{self, cfg_gui::CfgGui},
+    paths_selector::PathsSelector,
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
 };
@@ -10,38 +11,22 @@ use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
-fn next(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
-    file_selected_idx.map(|idx| {
-        if idx < files_len - 1 {
-            idx + 1
-        } else {
-            files_len - 1
-        }
-    })
+fn next(file_selected_idx: usize, files_len: usize) -> usize {
+    if file_selected_idx < files_len - 1 {
+        file_selected_idx + 1
+    } else {
+        files_len - 1
+    }
 }
 
-fn prev(file_selected_idx: Option<usize>, files_len: usize) -> Option<usize> {
-    file_selected_idx.map(|idx| {
-        if idx > files_len {
-            files_len - 1
-        } else if idx > 0 {
-            idx - 1
-        } else {
-            0
-        }
-    })
-}
-
-/// Returns the gui-idx (not the remote idx) and the label of the selected file
-fn find_gui_idx_selected(
-    selected_remote_idx: usize,
-    file_labels: &[(usize, String)],
-) -> Option<(usize, &str)> {
-    file_labels
-        .iter()
-        .enumerate()
-        .find(|(_, (r_idx, _))| selected_remote_idx == *r_idx)
-        .map(|(g_idx, (_, label))| (g_idx, label.as_str()))
+fn prev(file_selected_idx: usize, files_len: usize) -> usize {
+    if file_selected_idx > files_len {
+        files_len - 1
+    } else if file_selected_idx > 0 {
+        file_selected_idx - 1
+    } else {
+        0
+    }
 }
 
 /// Manages all state required for rendering egui over `Pixels`.
@@ -208,9 +193,9 @@ pub struct Gui {
     window_open: bool, // Only show the egui window when true.
     reader: Option<ReaderFromCfg>,
     info_message: Info,
-    file_labels: Vec<(usize, String)>,
     filter_string: String,
-    file_selected_idx: Option<usize>,
+    paths_selector: Option<PathsSelector>,
+    file_label_selected_idx: Option<usize>,
     are_tools_active: bool,
     scroll_to_selected_label: bool,
     cfg: Cfg,
@@ -228,9 +213,9 @@ impl Gui {
             window_open: true,
             reader: None,
             info_message: Info::None,
-            file_labels: vec![],
             filter_string: "".to_string(),
-            file_selected_idx: None,
+            paths_selector: None,
+            file_label_selected_idx: None,
             are_tools_active: true,
             scroll_to_selected_label: false,
             cfg,
@@ -249,10 +234,9 @@ impl Gui {
     }
 
     pub fn next(&mut self) {
-        self.file_selected_idx = next(self.file_selected_idx, self.file_labels.len());
-        match (self.file_selected_idx, &mut self.reader) {
-            (Some(idx), Some(reader)) => {
-                reader.select_file(self.file_labels[idx].0);
+        match (self.file_label_selected_idx, &self.paths_selector) {
+            (Some(idx), Some(ps)) => {
+                self.file_label_selected_idx = Some(next(idx, ps.file_labels().len()));
                 self.scroll_to_selected_label = true;
             }
             _ => (),
@@ -260,10 +244,9 @@ impl Gui {
     }
 
     pub fn prev(&mut self) {
-        self.file_selected_idx = prev(self.file_selected_idx, self.file_labels.len());
-        match (self.file_selected_idx, &mut self.reader) {
-            (Some(idx), Some(reader)) => {
-                reader.select_file(self.file_labels[idx].0);
+        match (self.file_label_selected_idx, &self.paths_selector) {
+            (Some(idx), Some(ps)) => {
+                self.file_label_selected_idx = Some(prev(idx, ps.file_labels().len()));
                 self.scroll_to_selected_label = true;
             }
             _ => (),
@@ -278,28 +261,33 @@ impl Gui {
         }
     }
 
-    pub fn file_selected_idx(&self) -> Option<usize> {
-        match &self.reader {
-            Some(reader) => reader.file_selected_idx(),
-            None => None,
-        }
+    pub fn file_label_selected_idx(&self) -> Option<usize> {
+        self.file_label_selected_idx
     }
 
-    pub fn file_label(&mut self, remote_idx: usize) -> &str {
-        match find_gui_idx_selected(remote_idx, &self.file_labels) {
-            Some((_, label)) => label,
+    pub fn file_label(&mut self, idx: usize) -> &str {
+        match &self.paths_selector {
+            Some(ps) => ps.file_labels()[idx].1.as_str(),
             None => "",
         }
     }
 
-    pub fn read_image(&mut self, file_selected: usize) -> Option<DynamicImage> {
+    pub fn read_image(&mut self, file_label_selected_idx: usize) -> Option<DynamicImage> {
         let mut im_read = None;
         self.reader.as_mut().map(|r| {
             handle_error!(
                 |im| {
                     im_read = im;
                 },
-                r.read_image(file_selected),
+                {
+                    match &self.paths_selector {
+                        Some(ps) => {
+                            let ffp = ps.filtered_file_paths();
+                            r.read_image(file_label_selected_idx, &ffp)
+                        }
+                        None => Ok(None),
+                    }
+                },
                 self
             )
         });
@@ -312,6 +300,7 @@ impl Gui {
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
+                optick::event!("show ctx");
                 // Popup for error messages
                 let popup_id = ui.make_persistent_id("info-popup");
                 let r = ui.separator();
@@ -327,9 +316,10 @@ impl Gui {
 
                 // Top row with open folder and settings button
                 ui.horizontal(|ui| {
+                    optick::event!("top row buttons");
                     let button_resp = gui::open_folder::button(
                         ui,
-                        &mut self.file_labels,
+                        &mut self.paths_selector,
                         self.cfg.clone(),
                         &mut self.last_open_folder_job_id,
                         &mut self.tp,
@@ -341,17 +331,15 @@ impl Gui {
                 });
 
                 // check if connection is after open folder is ready
-                let tmp_reader = std::mem::take(&mut self.reader);
-                type OpenResType = (Option<ReaderFromCfg>, Vec<(usize, String)>, Info);
-                let mut assign_open_folder_res = |(reader, file_labels, info): OpenResType| {
-                    self.reader = reader;
-                    if !file_labels.is_empty() {
-                        self.file_labels = file_labels;
-                    }
-                    match info {
-                        Info::None => (),
-                        _ => {
-                            self.info_message = info;
+                let mut assign_open_folder_res = |reader_n_info: Option<(ReaderFromCfg, Info)>| {
+                    optick::event!("assign open folder res");
+                    if let Some((reader, info)) = reader_n_info {
+                        self.reader = Some(reader);
+                        match info {
+                            Info::None => (),
+                            _ => {
+                                self.info_message = info;
+                            }
                         }
                     }
                 };
@@ -360,11 +348,25 @@ impl Gui {
                     gui::open_folder::check_if_connected(
                         ui,
                         &mut self.last_open_folder_job_id,
-                        tmp_reader,
+                        &self.paths_selector,
                         &mut self.tp,
                     ),
                     self
                 );
+                if self.paths_selector.is_none() {
+                    handle_error!(
+                        |ps| {
+                            self.paths_selector = ps;
+                        },
+                        {
+                            optick::event!("r.open_folder");
+                            self.reader
+                                .as_ref()
+                                .map_or(Ok(None), |r| r.open_folder().map(Some))
+                        },
+                        self
+                    );
+                }
 
                 // filter text field
                 let txt_field = ui.text_edit_singleline(&mut self.filter_string);
@@ -375,45 +377,27 @@ impl Gui {
                     self.are_tools_active = true;
                 }
                 if txt_field.changed() {
-                    let new_labels_option = self
-                        .reader
-                        .as_ref()
-                        .map(|r| r.list_file_labels(self.filter_string.trim()));
-                    if let Some(new_labels) = new_labels_option {
-                        handle_error!(
-                            |v: Vec<_>| {
-                                // update index of selected file in gui
-                                if let Some(r) = &self.reader {
-                                    if let Some(remote_idx) = r.file_selected_idx() {
-                                        self.file_selected_idx =
-                                            find_gui_idx_selected(remote_idx, &v).map(|pair| pair.0);
-                                    }
-                                }
-                                // assign filtered file labels
-                                self.file_labels = v;
-                            },
-                            new_labels,
-                            self
-                        );
-                    }
-                    if self.file_selected_idx.is_some() {
+                    optick::event!("tf.changed");
+                    self.paths_selector
+                        .as_mut()
+                        .map(|ps| ps.filter(self.filter_string.trim()));
+                    if self.file_label_selected_idx.is_some() {
                         self.scroll_to_selected_label = true;
                     }
                 }
 
                 // scroll area showing image file names
                 let scroll_height = ui.available_height() - 120.0;
-                if let Some(reader) = &mut self.reader {
+                if let Some(ps) = &self.paths_selector {
                     egui::ScrollArea::vertical()
                         .max_height(scroll_height)
                         .show(ui, |ui| {
                             handle_error!(
                                 gui::scroll_area::scroll_area(
                                     ui,
-                                    &mut self.file_selected_idx,
-                                    &self.file_labels,
+                                    &mut self.file_label_selected_idx,
+                                    ps,
                                     &mut self.scroll_to_selected_label,
-                                    reader,
                                 ),
                                 self
                             );

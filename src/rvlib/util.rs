@@ -27,6 +27,10 @@ pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
         .ok_or_else(|| format_rverr!("could not transform {:?} to &str", fname))
 }
 
+pub fn path_to_str(p: &Path) -> RvResult<&str> {
+    osstr_to_str(Some(p.as_os_str()))
+        .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+}
 pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
     p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
         .to_str()

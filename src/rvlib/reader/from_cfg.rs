@@ -2,7 +2,7 @@ use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
     cfg::{self, Cache, Cfg, Connection},
     result::{RvError, RvResult},
-    types::AsyncResultImage,
+    types::AsyncResultImage, paths_selector::PathsSelector,
 };
 
 use super::{
@@ -79,28 +79,10 @@ impl ReaderFromCfg {
     }
 }
 impl LoadImageForGui for ReaderFromCfg {
-    fn read_image(&mut self, file_selected_idx: usize) -> AsyncResultImage {
-        self.reader.read_image(file_selected_idx)
+    fn read_image(&mut self, file_selected_idx: usize, file_paths: &[String]) -> AsyncResultImage {
+        self.reader.read_image(file_selected_idx, file_paths)
     }
-    fn open_folder(&mut self) -> RvResult<()> {
+    fn open_folder(& self) -> RvResult<PathsSelector> {
         self.reader.open_folder()
-    }
-    fn file_selected_idx(&self) -> Option<usize> {
-        self.reader.file_selected_idx()
-    }
-    fn select_file(&mut self, idx: usize) {
-        self.reader.select_file(idx)
-    }
-    fn list_file_labels(&self, filter_str: &str) -> RvResult<Vec<(usize, String)>> {
-        self.reader.list_file_labels(filter_str)
-    }
-    fn folder_label(&self) -> RvResult<String> {
-        self.reader.folder_label()
-    }
-    fn file_selected_label(&self) -> RvResult<String> {
-        self.reader.file_selected_label()
-    }
-    fn file_selected_path(&self) -> RvResult<String> {
-        self.reader.file_selected_path()
     }
 }

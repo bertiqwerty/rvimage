@@ -122,6 +122,7 @@ fn remove_tmpdir() -> RvResult<()> {
 }
 
 fn main() -> Result<(), pixels::Error> {
+    // optick::start_capture();
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -157,11 +158,13 @@ fn main() -> Result<(), pixels::Error> {
     let mut tools = make_tool_vec();
     let mut file_selected = None;
     event_loop.run(move |event, _, control_flow| {
+        optick::event!("main eventloop");
         // Handle input events
         if input.update(&event) {
             // Close application
             if input.quit() {
                 *control_flow = ControlFlow::Exit;
+                // optick::stop_capture("rvimage");
                 match remove_tmpdir() {
                     Err(e) => {
                         framework
@@ -208,7 +211,7 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             // load new image
-            let gui_file_selected = framework.gui().file_selected_idx();
+            let gui_file_selected = framework.gui().file_label_selected_idx();
             if file_selected != gui_file_selected {
                 if let Some(selected) = &gui_file_selected {
                     let im_read = match framework.gui().read_image(*selected) {
@@ -271,7 +274,7 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             // show position and rgb value
-            if let Some(idx) = framework.gui().file_selected_idx() {
+            if let Some(idx) = framework.gui().file_label_selected_idx() {
                 let shape_win = Shape {
                     w: window.inner_size().width,
                     h: window.inner_size().height,
