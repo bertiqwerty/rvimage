@@ -382,6 +382,7 @@ impl Gui {
                         .as_mut()
                         .map(|ps| ps.filter(self.filter_string.trim()));
                     if self.file_label_selected_idx.is_some() {
+                        // TODO: find selected label after change due to filter
                         self.scroll_to_selected_label = true;
                     }
                 }
