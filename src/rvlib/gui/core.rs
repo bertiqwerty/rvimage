@@ -343,23 +343,15 @@ impl Gui {
                 }
 
                 // scroll area showing image file names
-                let scroll_height = ui.available_height() - 120.0;
                 let scroll_to_selected = self.paths_navigator.scroll_to_selected_label();
                 let mut file_label_selected = self.paths_navigator.file_label_selected_idx();
                 if let Some(ps) = &self.paths_navigator.paths_selector() {
-                    egui::ScrollArea::vertical()
-                        .max_height(scroll_height)
-                        .show(ui, |ui| {
-                            handle_error!(
-                                gui::scroll_area::scroll_area(
-                                    ui,
-                                    &mut file_label_selected,
-                                    ps,
-                                    scroll_to_selected,
-                                ),
-                                self
-                            );
-                        });
+                    gui::scroll_area::scroll_area(
+                        ui,
+                        &mut file_label_selected,
+                        ps,
+                        scroll_to_selected,
+                    );
                     self.paths_navigator.deactivate_scroll_to_selected_label();
                     self.paths_navigator.select_label_idx(file_label_selected);
                 }
