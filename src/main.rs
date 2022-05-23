@@ -254,20 +254,22 @@ fn main() -> Result<(), pixels::Error> {
             // Resize the window
             if let Some(size) = input.window_resized() {
                 let shape_win = Shape::from_size(&size);
-                let event = util::Event::from_window_resized(&input);
-                let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
-                world = apply_tools(
-                    &mut tools,
-                    mem::take(&mut world),
-                    shape_win,
-                    mouse_pos,
-                    &event,
-                    &mut pixels,
-                );
-                let Shape { w, h } = Shape::from_im(world.im_view());
-                pixels.resize_buffer(w, h);
-                framework.resize(size.width, size.height);
-                pixels.resize_surface(size.width, size.height);
+                if shape_win.h > 0 && shape_win.w > 0 {
+                    let event = util::Event::from_window_resized(&input);
+                    let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
+                    world = apply_tools(
+                        &mut tools,
+                        mem::take(&mut world),
+                        shape_win,
+                        mouse_pos,
+                        &event,
+                        &mut pixels,
+                    );
+                    let Shape { w, h } = Shape::from_im(world.im_view());
+                    pixels.resize_buffer(w, h);
+                    framework.resize(size.width, size.height);
+                    pixels.resize_surface(size.width, size.height);
+                }
             }
 
             // show position and rgb value
