@@ -5,7 +5,7 @@ mod ssh;
 mod threadpool;
 mod types;
 pub mod cfg;
-pub mod gui;
+pub mod menu;
 pub mod result;
 pub mod tools;
 pub mod util;

@@ -1,7 +1,7 @@
 use egui::Ui;
 
 use crate::{
-    cfg::Cfg, gui::{core::Info, paths_navigator::PathsNavigator}, paths_selector::PathsSelector, reader::ReaderFromCfg,
+    cfg::Cfg, menu::{core::Info, paths_navigator::PathsNavigator}, paths_selector::PathsSelector, reader::ReaderFromCfg,
     result::RvResult, threadpool::ThreadPool,
 };
 

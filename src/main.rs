@@ -5,7 +5,7 @@ use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
-use rvlib::gui::{Framework, Info};
+use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
 use rvlib::util::{self, apply_to_matched_image, mouse_pos_transform, Shape};
@@ -167,7 +167,7 @@ fn main() -> Result<(), pixels::Error> {
                 // optick::stop_capture("rvimage");
                 if let Err(e) = remove_tmpdir() {
                     framework
-                        .gui()
+                        .menu()
                         .popup(Info::Error(format!("could not delete tmpdir. {:?}", e)));
                     thread::sleep(Duration::from_secs(5));
                 }
@@ -178,7 +178,7 @@ fn main() -> Result<(), pixels::Error> {
             let shape_win = Shape::from_size(&window.inner_size());
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
             let event = util::Event::new(&input);
-            if framework.gui().are_tools_active() {
+            if framework.menu().are_tools_active() {
                 world = apply_tools(
                     &mut tools,
                     mem::take(&mut world),
@@ -190,28 +190,28 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             if input.key_pressed(VirtualKeyCode::M) {
-                framework.gui().toggle();
+                framework.menu().toggle();
             }
 
             if input.key_pressed(VirtualKeyCode::Right)
                 || input.key_pressed(VirtualKeyCode::Down)
                 || input.key_pressed(VirtualKeyCode::PageDown)
             {
-                framework.gui().next();
+                framework.menu().next();
             }
 
             if input.key_pressed(VirtualKeyCode::Left)
                 || input.key_pressed(VirtualKeyCode::Up)
                 || input.key_pressed(VirtualKeyCode::PageUp)
             {
-                framework.gui().prev();
+                framework.menu().prev();
             }
 
             // load new image
-            let gui_file_selected = framework.gui().file_label_selected_idx();
+            let gui_file_selected = framework.menu().file_label_selected_idx();
             if file_selected != gui_file_selected {
                 if let Some(selected) = &gui_file_selected {
-                    let im_read = match framework.gui().read_image(*selected) {
+                    let im_read = match framework.menu().read_image(*selected) {
                         Some(ri) => {
                             file_selected = gui_file_selected;
                             ri
@@ -225,7 +225,7 @@ fn main() -> Result<(), pixels::Error> {
                     world = match World::new(im_read) {
                         Ok(w) => w,
                         Err(e) => {
-                            framework.gui().popup(Info::Error(e.to_string()));
+                            framework.menu().popup(Info::Error(e.to_string()));
                             empty_world()
                         }
                     };
@@ -273,7 +273,7 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             // show position and rgb value
-            if let Some(idx) = framework.gui().file_label_selected_idx() {
+            if let Some(idx) = framework.menu().file_label_selected_idx() {
                 let shape_win = Shape {
                     w: window.inner_size().width,
                     h: window.inner_size().height,
@@ -281,7 +281,7 @@ fn main() -> Result<(), pixels::Error> {
                 let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
                 let data_point = get_pixel_on_orig_str(&mut tools, &world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
-                let file_label = framework.gui().file_label(idx);
+                let file_label = framework.menu().file_label(idx);
                 let s = match data_point {
                     Some(s) => {
                         format!(

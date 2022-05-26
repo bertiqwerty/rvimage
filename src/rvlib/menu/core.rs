@@ -1,6 +1,6 @@
 use crate::{
     cfg::{self, Cfg},
-    gui::{self, cfg_gui::CfgGui},
+    menu::{self, cfg_menu::CfgMenu},
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
 };
@@ -22,7 +22,7 @@ pub struct Framework {
     paint_jobs: Vec<ClippedMesh>,
 
     // State for the GUI
-    gui: Gui,
+    menu: Menu,
 }
 
 impl Framework {
@@ -36,7 +36,7 @@ impl Framework {
             scale_factor,
         };
         let rpass = RenderPass::new(pixels.device(), pixels.render_texture_format(), 1);
-        let gui = Gui::new();
+        let menu = Menu::new();
 
         Self {
             egui_ctx,
@@ -44,7 +44,7 @@ impl Framework {
             screen_descriptor,
             rpass,
             paint_jobs: Vec::new(),
-            gui,
+            menu,
         }
     }
 
@@ -72,7 +72,7 @@ impl Framework {
         let raw_input = self.egui_state.take_egui_input(window);
         let (output, paint_commands) = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw the demo application.
-            self.gui.ui(egui_ctx);
+            self.menu.ui(egui_ctx);
         });
 
         self.egui_state
@@ -108,8 +108,8 @@ impl Framework {
             None,
         )
     }
-    pub fn gui(&mut self) -> &mut Gui {
-        &mut self.gui
+    pub fn menu(&mut self) -> &mut Menu {
+        &mut self.menu
     }
 }
 
@@ -172,7 +172,7 @@ macro_rules! handle_error {
     };
 }
 
-pub struct Gui {
+pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     reader: Option<ReaderFromCfg>,
     info_message: Info,
@@ -185,7 +185,7 @@ pub struct Gui {
     last_open_folder_job_id: Option<usize>,
 }
 
-impl Gui {
+impl Menu {
     fn new() -> Self {
         let (cfg, _) = get_cfg();
         let ssh_cfg_str = toml::to_string(&cfg.ssh_cfg).unwrap();
@@ -278,7 +278,7 @@ impl Gui {
                 // Top row with open folder and settings button
                 ui.horizontal(|ui| {
                     optick::event!("top row buttons");
-                    let button_resp = gui::open_folder::button(
+                    let button_resp = menu::open_folder::button(
                         ui,
                         &mut self.paths_navigator,
                         self.cfg.clone(),
@@ -287,7 +287,7 @@ impl Gui {
                     );
                     handle_error!(button_resp, self);
                     let popup_id = ui.make_persistent_id("cfg-popup");
-                    let cfg_gui = CfgGui::new(popup_id, &mut self.cfg, &mut self.ssh_cfg_str);
+                    let cfg_gui = CfgMenu::new(popup_id, &mut self.cfg, &mut self.ssh_cfg_str);
                     ui.add(cfg_gui);
                 });
 
@@ -306,7 +306,7 @@ impl Gui {
                 };
                 handle_error!(
                     assign_open_folder_res,
-                    gui::open_folder::check_if_connected(
+                    menu::open_folder::check_if_connected(
                         ui,
                         &mut self.last_open_folder_job_id,
                         self.paths_navigator.paths_selector(),
@@ -346,7 +346,7 @@ impl Gui {
                 let scroll_to_selected = self.paths_navigator.scroll_to_selected_label();
                 let mut file_label_selected = self.paths_navigator.file_label_selected_idx();
                 if let Some(ps) = &self.paths_navigator.paths_selector() {
-                    gui::scroll_area::scroll_area(
+                    menu::scroll_area::scroll_area(
                         ui,
                         &mut file_label_selected,
                         ps,

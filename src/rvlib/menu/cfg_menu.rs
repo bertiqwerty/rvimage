@@ -2,19 +2,19 @@ use egui::{Area, Color32, Frame, Id, Order, Response, TextEdit, Ui, Widget};
 
 use crate::{
     cfg::{self, Cache, Cfg, Connection, SshCfg},
-    gui,
+    menu,
 };
 
 fn is_valid_ssh_cfg(s: &str) -> bool {
     toml::from_str::<SshCfg>(s).is_ok()
 }
-pub struct CfgGui<'a> {
+pub struct CfgMenu<'a> {
     id: Id,
     cfg: &'a mut Cfg,
     ssh_cfg_str: &'a mut String,
 }
-impl<'a> CfgGui<'a> {
-    pub fn new(id: Id, cfg: &'a mut Cfg, ssh_cfg_str: &'a mut String) -> CfgGui<'a> {
+impl<'a> CfgMenu<'a> {
+    pub fn new(id: Id, cfg: &'a mut Cfg, ssh_cfg_str: &'a mut String) -> CfgMenu<'a> {
         Self {
             id,
             cfg,
@@ -22,7 +22,7 @@ impl<'a> CfgGui<'a> {
         }
     }
 }
-impl<'a> Widget for CfgGui<'a> {
+impl<'a> Widget for CfgMenu<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let edit_cfg_btn_resp = ui.button("settings");
         if edit_cfg_btn_resp.clicked() {
@@ -77,14 +77,14 @@ impl<'a> Widget for CfgGui<'a> {
                     self.cfg.ssh_cfg = toml::from_str::<SshCfg>(self.ssh_cfg_str).unwrap();
                     cfg::write_cfg(self.cfg).unwrap();
                 } else {
-                    let tmp = gui::core::get_cfg();
+                    let tmp = menu::core::get_cfg();
                     *self.cfg = tmp.0;
                 }
                 ui.memory().toggle_popup(self.id);
             }
             if !edit_cfg_btn_resp.clicked() && area_response.clicked_elsewhere() {
                 ui.memory().toggle_popup(self.id);
-                let tmp = gui::core::get_cfg();
+                let tmp = menu::core::get_cfg();
                 *self.cfg = tmp.0;
             }
         }
