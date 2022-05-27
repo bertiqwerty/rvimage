@@ -129,12 +129,6 @@ impl<T: Send + 'static> ThreadPool<T> {
             }
         }
     }
-    pub fn shut_down(&mut self) -> RvResult<()> {
-        for tx in &self.txs_to_pool {
-            tx.send(Message::Terminate).map_err(to_rv)?;
-        }
-        Ok(())
-    }
     pub fn apply(&mut self, f: Job<T>) -> RvResult<usize> {
         // paranoia check
         self.job_id = if self.job_id < usize::MAX {
@@ -165,9 +159,16 @@ impl<T: Send + 'static> ThreadPool<T> {
     }
 }
 
+fn terminate_all_threads<T: Send + 'static>(tp: &ThreadPool<T>) -> RvResult<()> {
+    for tx in &tp.txs_to_pool {
+        tx.send(Message::Terminate).map_err(to_rv)?;
+    }
+    Ok(())
+}
+
 impl<T: Send + 'static> Drop for ThreadPool<T> {
     fn drop(&mut self) {
-        match self.shut_down() {
+        match terminate_all_threads(&self) {
             Ok(_) => (),
             Err(e) => {
                 println!("error when dropping threadpool, {:?}", e);
