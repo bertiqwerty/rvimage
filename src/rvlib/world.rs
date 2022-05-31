@@ -1,4 +1,4 @@
-use crate::util::{Shape, self};
+use crate::util::{self, Shape};
 use crate::{result::RvResult, types::ViewImage};
 use image::DynamicImage;
 use pixels::Pixels;

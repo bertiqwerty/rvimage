@@ -63,9 +63,7 @@ where
     FP: PickFolder,
 {
     fn read_image(&mut self, selected_file_idx: usize, file_paths: &[String]) -> AsyncResultImage {
-        let mut loaded = self
-            .cache
-            .load_from_cache(selected_file_idx, file_paths);
+        let mut loaded = self.cache.load_from_cache(selected_file_idx, file_paths);
         let mut counter = 0usize;
         while let Err(e) = loaded {
             println!(
@@ -76,9 +74,7 @@ where
             );
             thread::sleep(Duration::from_millis(500));
             self.cache = C::new(self.cache_args.clone())?;
-            loaded = self
-                .cache
-                .load_from_cache(selected_file_idx, file_paths);
+            loaded = self.cache.load_from_cache(selected_file_idx, file_paths);
             if counter == self.n_cache_recreations {
                 println!("max recreations (={}) reached.", counter);
                 return loaded;
@@ -90,9 +86,6 @@ where
     fn open_folder(&self) -> RvResult<PathsSelector> {
         let picked = FP::pick()?;
 
-        PathsSelector::new(
-            picked.file_paths,
-            Some(picked.folder_path),
-        )
+        PathsSelector::new(picked.file_paths, Some(picked.folder_path))
     }
 }

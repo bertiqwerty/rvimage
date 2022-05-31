@@ -54,7 +54,7 @@ where
 
 #[derive(Debug)]
 enum ThreadResult {
-    Running(usize),
+    Running(u128),
     Ok(String),
 }
 

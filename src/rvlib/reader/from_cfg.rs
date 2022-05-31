@@ -1,8 +1,9 @@
 use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
     cfg::{self, Cache, Cfg, Connection},
+    paths_selector::PathsSelector,
     result::{RvError, RvResult},
-    types::AsyncResultImage, paths_selector::PathsSelector,
+    types::AsyncResultImage,
 };
 
 use super::{
@@ -82,7 +83,7 @@ impl LoadImageForGui for ReaderFromCfg {
     fn read_image(&mut self, file_selected_idx: usize, file_paths: &[String]) -> AsyncResultImage {
         self.reader.read_image(file_selected_idx, file_paths)
     }
-    fn open_folder(& self) -> RvResult<PathsSelector> {
+    fn open_folder(&self) -> RvResult<PathsSelector> {
         self.reader.open_folder()
     }
 }

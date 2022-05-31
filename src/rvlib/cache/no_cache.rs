@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{result::{RvResult}, types::AsyncResultImage};
+use crate::{result::RvResult, types::AsyncResultImage};
 
 use super::{Cache, ReadImageToCache};
 

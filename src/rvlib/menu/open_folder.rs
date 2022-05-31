@@ -1,8 +1,12 @@
 use egui::Ui;
 
 use crate::{
-    cfg::Cfg, menu::{core::Info, paths_navigator::PathsNavigator}, paths_selector::PathsSelector, reader::ReaderFromCfg,
-    result::RvResult, threadpool::ThreadPool,
+    cfg::Cfg,
+    menu::{core::Info, paths_navigator::PathsNavigator},
+    paths_selector::PathsSelector,
+    reader::ReaderFromCfg,
+    result::RvResult,
+    threadpool::ThreadPool,
 };
 
 fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
@@ -18,7 +22,7 @@ pub fn button(
     ui: &mut Ui,
     paths_navigator: &mut PathsNavigator,
     cfg: Cfg,
-    last_open_folder_job_id: &mut Option<usize>,
+    last_open_folder_job_id: &mut Option<u128>,
     tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
 ) -> RvResult<()> {
     optick::event!();
@@ -31,7 +35,7 @@ pub fn button(
 }
 pub fn check_if_connected(
     ui: &mut Ui,
-    last_open_folder_job_id: &mut Option<usize>,
+    last_open_folder_job_id: &mut Option<u128>,
     paths_selector: &Option<PathsSelector>,
     tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
 ) -> RvResult<Option<(ReaderFromCfg, Info)>> {

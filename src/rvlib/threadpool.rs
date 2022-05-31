@@ -1,9 +1,12 @@
-use crate::result::{to_rv, RvError, RvResult};
+use crate::{
+    format_rverr,
+    result::{to_rv, RvError, RvResult},
+};
 
 use std::{
     sync::mpsc::{self, Receiver, Sender},
     thread,
-    time::{self, Instant},
+    time::{self, Duration, Instant},
 };
 
 type Job<T> = Box<dyn FnOnce() -> T + Send + 'static>;
@@ -24,8 +27,8 @@ fn poll<T, F1: FnMut() -> Option<T>, F2: Fn() -> bool>(
 }
 
 #[allow(dead_code)]
-fn poll_timeout<T, F1: FnMut() -> Option<T>>(
-    query_result: &mut F1,
+fn poll_timeout<T, F: FnMut() -> Option<T>>(
+    query_result: &mut F,
     interval_millis: u64,
     timeout_millis: u128,
 ) -> Option<T> {
@@ -35,23 +38,43 @@ fn poll_timeout<T, F1: FnMut() -> Option<T>>(
 }
 
 #[allow(dead_code)]
-fn poll_until_result<T, F1: FnMut() -> Option<T>>(
-    query_result: &mut F1,
+fn poll_until_result<T, F: FnMut() -> Option<T>>(
+    query_result: &mut F,
     interval_millis: u64,
 ) -> Option<T> {
     let predicate = || true;
     poll(query_result, interval_millis, &predicate)
 }
 
-enum Message<T> {
+enum Message<J> {
     Terminate,
-    NewJob((usize, Job<T>)),
+    NewJob(J),
+}
+
+pub fn result<T: Send + 'static>(
+    rx_from_pool: &mut Receiver<(u128, T)>,
+    result_queue: &mut Vec<(u128, T)>,
+    job_id: u128,
+) -> Option<T> {
+    result_queue.extend(rx_from_pool.try_iter());
+    let result = result_queue
+        .iter()
+        .enumerate()
+        .find(|(_, (jid, _))| job_id == *jid);
+
+    match result {
+        None => None,
+        Some((vec_idx, _)) => {
+            let (_, v) = result_queue.remove(vec_idx);
+            Some(v)
+        }
+    }
 }
 
 fn send_answer_message<T>(
-    job_id: usize,
+    job_id: u128,
     f: Job<T>,
-    tx: &Sender<(usize, T)>,
+    tx: &Sender<(u128, T)>,
     idx_thread: usize,
 ) -> Option<()> {
     let send_result = tx.send((job_id, f()));
@@ -69,11 +92,11 @@ fn send_answer_message<T>(
 }
 #[allow(dead_code)]
 pub struct ThreadPool<T: Send + 'static> {
-    txs_to_pool: Vec<Sender<Message<T>>>,
-    rx_from_pool: Receiver<(usize, T)>,
+    txs_to_pool: Vec<Sender<Message<(u128, Job<T>)>>>,
+    rx_from_pool: Receiver<(u128, T)>,
     next_thread: usize,
-    job_id: usize,
-    result_queue: Vec<(usize, T)>,
+    job_id: u128,
+    result_queue: Vec<(u128, T)>,
     interval_millis: u64,
     timeout_millis: Option<u128>,
 }
@@ -106,49 +129,39 @@ impl<T: Send + 'static> ThreadPool<T> {
             txs_to_pool,
             rx_from_pool,
             next_thread: 0usize,
-            job_id: 0usize,
+            job_id: 0u128,
             result_queue: vec![],
             interval_millis: 10,
             timeout_millis: None,
         }
     }
 
-    pub fn result(&mut self, job_id: usize) -> Option<T> {
-        self.result_queue.extend(self.rx_from_pool.try_iter());
-        let result = self
-            .result_queue
-            .iter()
-            .enumerate()
-            .find(|(_, (jid, _))| job_id == *jid);
-
-        match result {
-            None => None,
-            Some((vec_idx, _)) => {
-                let (_, v) = self.result_queue.remove(vec_idx);
-                Some(v)
-            }
-        }
+    pub fn result(&mut self, job_id: u128) -> Option<T> {
+        result(&mut self.rx_from_pool, &mut self.result_queue, job_id)
     }
-    pub fn apply(&mut self, f: Job<T>) -> RvResult<usize> {
-        // paranoia check
-        self.job_id = if self.job_id < usize::MAX {
+    fn apply_id(&mut self, f: Job<T>, job_id: u128) -> RvResult<()> {
+        if self.next_thread == self.txs_to_pool.len() {
+            self.next_thread = 0;
+        }
+        println!("sending id {:?}", job_id);
+        self.txs_to_pool[self.next_thread]
+            .send(Message::NewJob((job_id, f)))
+            .map_err(|e| RvError::new(&e.to_string()))?;
+        self.next_thread += 1;
+
+        Ok(())
+    }
+    pub fn apply(&mut self, f: Job<T>) -> RvResult<u128> {
+        self.apply_id(f, self.job_id)?;
+        self.job_id = if self.job_id < u128::MAX {
             self.job_id + 1
         } else {
             0
         };
-        if self.next_thread == self.txs_to_pool.len() {
-            self.next_thread = 0;
-        }
-        println!("sending id {:?}", self.job_id);
-        self.txs_to_pool[self.next_thread]
-            .send(Message::NewJob((self.job_id, f)))
-            .map_err(|e| RvError::new(&e.to_string()))?;
-        self.next_thread += 1;
-
-        Ok(self.job_id)
+        Ok(self.job_id - 1)
     }
     #[allow(dead_code)]
-    pub fn poll(&mut self, job_id: usize) -> Option<T> {
+    pub fn poll(&mut self, job_id: u128) -> Option<T> {
         let interv = self.interval_millis;
         let timeout = self.timeout_millis;
         let query_result = &mut || self.result(job_id);
@@ -177,11 +190,276 @@ impl<T: Send + 'static> Drop for ThreadPool<T> {
     }
 }
 
+fn update_prio<T: Send + 'static>(
+    job_id_to_change: u128,
+    new_prio: Option<usize>,
+    jobs_queue: &mut Vec<JobQueued<T>>,
+) -> RvResult<()> {
+    let change_idx = jobs_queue
+        .iter()
+        .position(|j| j.job_id == job_id_to_change)
+        .ok_or_else(|| format_rverr!("could not find job with id {}", job_id_to_change))?;
+    match new_prio {
+        None => {
+            jobs_queue.remove(change_idx);
+        }
+        Some(prio) => {
+            jobs_queue[change_idx].prio = prio;
+        }
+    }
+    Ok(())
+}
+// submit new job if we have less jobs than threads and the respective delays have
+// passed
+fn submit_job<T: Send + 'static>(
+    n_threads: usize,
+    jobs_running: &mut Vec<u128>,
+    jobs_queue: &mut Vec<JobQueued<T>>,
+    tp: &mut ThreadPool<T>,
+) -> RvResult<()> {
+    if n_threads > jobs_running.len() {
+        let n_jobs = jobs_queue.len();
+        // look for the job with the highest priority and execute that
+        if let Some((max_prio_idx, _)) = jobs_queue
+            .iter()
+            .filter(|j| j.started.elapsed().as_millis() >= j.delay_ms)
+            .enumerate()
+            .max_by_key(|(_, j)| j.prio)
+        {
+            jobs_queue.swap(max_prio_idx, n_jobs - 1);
+            let job = &jobs_queue[n_jobs - 1];
+            let job_id = job.job_id;
+            jobs_running.push(job_id);
+            tp.apply_id(jobs_queue.pop().unwrap().f, job_id)?;
+        }
+    }
+    Ok(())
+}
+struct JobQueued<T: Send + 'static> {
+    f: Job<T>,
+    prio: usize,
+    delay_ms: u128,
+    job_id: u128,
+    started: Instant,
+}
+struct ThreadPoolQueued<T: Send + 'static> {
+    job_id: u128,
+    tx_job_to_pool: Sender<Message<JobQueued<T>>>,
+    rx_job_result_from_pool: Receiver<(u128, T)>,
+    tx_prio_to_pool: Sender<(u128, Option<usize>)>, // send job id and new priority
+    result_queue: Vec<(u128, T)>,
+}
+impl<T: Send + 'static> ThreadPoolQueued<T> {
+    fn new(n_threads: usize) -> Self {
+        let (tx_job_to_pool, rx_job_to_pool) = mpsc::channel();
+        let (tx_job_result_from_pool, rx_job_result_from_pool) = mpsc::channel();
+        let (tx_prio_to_pool, rx_prio_to_pool) = mpsc::channel();
+        let thread = move || -> RvResult<()> {
+            let mut tp: ThreadPool<T> = ThreadPool::new(n_threads);
+            let mut jobs_queue = Vec::new();
+            let mut jobs_running = Vec::new();
+            loop {
+                // update job queue
+                for msg in rx_job_to_pool.try_iter() {
+                    match msg {
+                        Message::Terminate => {
+                            return Ok(());
+                        }
+                        Message::<JobQueued<T>>::NewJob(job_queued) => {
+                            jobs_queue.push(job_queued);
+                        }
+                    }
+                }
+                // update priorities
+                for (job_id_to_change, new_prio) in rx_prio_to_pool.try_iter() {
+                    update_prio(job_id_to_change, new_prio, &mut jobs_queue)?;
+                }
+
+                submit_job(n_threads, &mut jobs_running, &mut jobs_queue, &mut tp)?;
+
+                // send results of finished jobs
+                let results = jobs_running
+                    .iter()
+                    .map(|job_id| tp.result(*job_id))
+                    .collect::<Vec<_>>();
+                let mut finished_job_ids: Vec<u128> = Vec::new();
+                jobs_running = jobs_running
+                    .into_iter()
+                    .enumerate()
+                    .filter(|(i, job_id)| match results[*i] {
+                        None => true,
+                        Some(_) => {
+                            finished_job_ids.push(*job_id);
+                            false
+                        }
+                    })
+                    .map(|(_, job_id)| job_id)
+                    .collect::<Vec<_>>();
+                for (i, res) in results.into_iter().flatten().enumerate() {
+                    tx_job_result_from_pool
+                        .send((finished_job_ids[i], res))
+                        .map_err(to_rv)?;
+                }
+                thread::sleep(Duration::from_millis(1));
+            }
+        };
+        thread::spawn(thread);
+        ThreadPoolQueued {
+            job_id: 0,
+            tx_job_to_pool,
+            rx_job_result_from_pool,
+            tx_prio_to_pool,
+            result_queue: vec![],
+        }
+    }
+    pub fn apply(&mut self, job: Job<T>, prio: usize, delay_ms: u128) -> RvResult<u128> {
+        self.tx_job_to_pool
+            .send(Message::NewJob(JobQueued {
+                f: job,
+                prio,
+                delay_ms,
+                job_id: self.job_id,
+                started: Instant::now(),
+            }))
+            .map_err(to_rv)?;
+        self.job_id = if self.job_id < u128::MAX {
+            self.job_id + 1
+        } else {
+            0
+        };
+        Ok(self.job_id - 1)
+    }
+    pub fn update_prio(&self, job_id: u128, new_prio: Option<usize>) -> RvResult<()> {
+        self.tx_prio_to_pool
+            .send((job_id, new_prio))
+            .map_err(to_rv)?;
+        Ok(())
+    }
+    pub fn result(&mut self, job_id: u128) -> Option<T> {
+        result(
+            &mut self.rx_job_result_from_pool,
+            &mut self.result_queue,
+            job_id,
+        )
+    }
+}
+impl<T: Send + 'static> Drop for ThreadPoolQueued<T> {
+    fn drop(&mut self) {
+        match self.tx_job_to_pool.send(Message::Terminate) {
+            Ok(_) => (),
+            Err(e) => {
+                println!("error when dropping ThreadPoolQueued, {:?}", e);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+fn make_test_job_sleep(res: i32, sleep_ms: u64) -> Job<i32> {
+    Box::new(move || {
+        thread::sleep(Duration::from_millis(sleep_ms));
+        res
+    })
+}
+#[cfg(test)]
+fn make_test_job(res: i32) -> Job<i32> {
+    make_test_job_sleep(res, 20)
+}
+#[cfg(test)]
+fn make_test_queue() -> Vec<JobQueued<i32>> {
+    let mut jobs_queue = vec![];
+    for i in 0..20 {
+        jobs_queue.push(JobQueued {
+            prio: 1,
+            job_id: i,
+            f: make_test_job(i as i32),
+            started: Instant::now(),
+            delay_ms: 0,
+        });
+    }
+    jobs_queue
+}
 #[test]
-fn test() -> RvResult<()> {
+fn test_prio() -> RvResult<()> {
+    let mut jobs_queue = make_test_queue();
+    let mut test_update_prio = |job_id_to_change, new_prio| -> RvResult<()> {
+        println!("setting {} to {:?}", job_id_to_change, new_prio);
+        update_prio(job_id_to_change, new_prio, &mut jobs_queue)?;
+        assert_eq!(
+            jobs_queue
+                .iter()
+                .find(|j| j.job_id == job_id_to_change)
+                .map(|j| j.prio),
+            new_prio
+        );
+        Ok(())
+    };
+    test_update_prio(0, Some(234))?;
+    test_update_prio(1, None)?;
+    test_update_prio(13, Some(577))?;
+    Ok(())
+}
+#[test]
+fn test_submit() -> RvResult<()> {
+    let mut jobs_queue = make_test_queue();
+    let n_threads = 2;
+    let mut tp = ThreadPool::<i32>::new(n_threads);
+    let mut jobs_running = vec![];
+    update_prio(0, Some(234), &mut jobs_queue)?;
+    update_prio(1, None, &mut jobs_queue)?;
+    update_prio(13, Some(577), &mut jobs_queue)?;
+    submit_job(n_threads, &mut jobs_running, &mut vec![], &mut tp)?;
+    assert_eq!(jobs_running.len(), 0);
+    assert!(jobs_queue.iter().find(|j| j.job_id == 13).is_some());
+    submit_job(n_threads, &mut jobs_running, &mut jobs_queue, &mut tp)?;
+    assert!(jobs_running.iter().find(|j| **j == 13).is_some());
+    assert!(jobs_queue.iter().find(|j| j.job_id == 13).is_none());
+    assert!(jobs_queue.iter().find(|j| j.job_id == 0).is_some());
+    submit_job(n_threads, &mut jobs_running, &mut jobs_queue, &mut tp)?;
+    assert!(jobs_running.iter().find(|j| **j == 0).is_some());
+    assert!(jobs_queue.iter().find(|j| j.job_id == 0).is_none());
+    Ok(())
+}
+#[test]
+fn test_tp_queued() -> RvResult<()> {
+    let mut tpq = ThreadPoolQueued::new(1);
+//    tpq.apply(make_test_job(17), 0, 0)?;
+//    assert!(tpq.result(0).is_none());
+//    thread::sleep(Duration::from_millis(50));
+//    assert_eq!(tpq.result(0), Some(17));
+//    assert_eq!(tpq.result(0), None);
+    let jid1 = tpq.apply(make_test_job(11), 0, 0)?;
+    let jid2 = tpq.apply(make_test_job(12), 0, 0)?;
+    println!("jid1 {}, jid2, {}", jid1, jid2);
+    thread::sleep(Duration::from_millis(150));
+    assert_eq!(tpq.result(jid1), Some(11));
+    assert_eq!(tpq.result(jid2), Some(12));
+    Ok(())
+}
+#[test]
+fn test_tp_prio() -> RvResult<()> {
+    let mut tpq = ThreadPoolQueued::new(1);
+    let ref_lo = 47;
+    let ref_hi = 23;
+    let j_lo = make_test_job_sleep(ref_lo, 200);
+    let j_hi = make_test_job_sleep(ref_hi, 200);
+    let jid_hi = tpq.apply(j_hi, 50, 0)?;
+    let jid_lo = tpq.apply(j_lo, 49, 0)?;
+    thread::sleep(Duration::from_millis(300));
+    let res_hi = tpq.result(jid_hi);
+    let res_lo = tpq.result(jid_lo);
+    assert_eq!(res_hi, Some(ref_hi));
+    assert_eq!(res_lo, None);
+    thread::sleep(Duration::from_millis(300));
+    let res_lo = tpq.result(jid_lo);
+    assert_eq!(res_lo, Some(ref_lo));
+    Ok(())
+}
+#[test]
+fn test_tp() -> RvResult<()> {
     let mut tp = ThreadPool::new(4);
 
-    fn apply_job(res: usize, tp: &mut ThreadPool<usize>) -> RvResult<usize> {
+    fn apply_job(res: usize, tp: &mut ThreadPool<usize>) -> RvResult<u128> {
         let job = Box::new(move || {
             let some_time = time::Duration::from_millis(10);
             thread::sleep(some_time);
@@ -190,7 +468,7 @@ fn test() -> RvResult<()> {
         tp.apply(job)
     }
 
-    fn poll_n_check(job_id: usize, expected_res: usize, tp: &mut ThreadPool<usize>) {
+    fn poll_n_check(job_id: u128, expected_res: usize, tp: &mut ThreadPool<usize>) {
         let res = tp.poll(job_id);
         assert_eq!(res, Some(expected_res));
     }
@@ -201,5 +479,6 @@ fn test() -> RvResult<()> {
     }
 
     assert_eq!(tp.result_queue.len(), 0);
+
     Ok(())
 }

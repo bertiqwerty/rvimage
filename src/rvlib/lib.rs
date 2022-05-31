@@ -1,13 +1,13 @@
 mod cache;
-mod paths_selector;
-mod reader;
-mod ssh;
-mod threadpool;
-mod types;
 pub mod cfg;
 pub mod menu;
+mod paths_selector;
+mod reader;
 pub mod result;
+mod ssh;
+mod threadpool;
 pub mod tools;
+mod types;
 pub mod util;
 pub mod world;
 

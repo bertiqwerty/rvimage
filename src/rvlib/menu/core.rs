@@ -182,7 +182,7 @@ pub struct Menu {
     cfg: Cfg,
     ssh_cfg_str: String,
     tp: ThreadPool<(ReaderFromCfg, Info)>,
-    last_open_folder_job_id: Option<usize>,
+    last_open_folder_job_id: Option<u128>,
 }
 
 impl Menu {

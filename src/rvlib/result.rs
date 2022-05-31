@@ -48,4 +48,3 @@ macro_rules! format_rverr {
 pub fn to_rv<E: Debug>(e: E) -> RvError {
     format_rverr!("{:?}", e)
 }
-
