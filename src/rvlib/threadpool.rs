@@ -224,9 +224,7 @@ fn submit_job<T: Send + 'static>(
         if let Some((max_prio_idx, _)) = jobs_queue
             .iter()
             .enumerate()
-            .filter(|(_, j)| {
-                j.started.elapsed().as_millis() >= j.delay_ms
-            })
+            .filter(|(_, j)| j.started.elapsed().as_millis() >= j.delay_ms)
             .max_by_key(|(_, j)| j.prio)
         {
             jobs_queue.swap(max_prio_idx, n_jobs - 1);
