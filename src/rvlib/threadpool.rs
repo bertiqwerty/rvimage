@@ -4,6 +4,7 @@ use crate::{
 };
 
 use std::{
+    fmt::{self, Debug, Formatter},
     sync::mpsc::{self, Receiver, Sender},
     thread,
     time::{self, Duration, Instant},
@@ -222,8 +223,10 @@ fn submit_job<T: Send + 'static>(
         // look for the job with the highest priority and execute that
         if let Some((max_prio_idx, _)) = jobs_queue
             .iter()
-            .filter(|j| j.started.elapsed().as_millis() >= j.delay_ms)
             .enumerate()
+            .filter(|(_, j)| {
+                j.started.elapsed().as_millis() >= j.delay_ms
+            })
             .max_by_key(|(_, j)| j.prio)
         {
             jobs_queue.swap(max_prio_idx, n_jobs - 1);
@@ -241,6 +244,15 @@ struct JobQueued<T: Send + 'static> {
     delay_ms: u128,
     job_id: u128,
     started: Instant,
+}
+impl<T: Send + 'static> Debug for JobQueued<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "job id: {}, prio: {},  delay_ms{}, started: {:?}",
+            self.job_id, self.prio, self.delay_ms, self.started
+        )
+    }
 }
 struct ThreadPoolQueued<T: Send + 'static> {
     job_id: u128,
@@ -418,22 +430,52 @@ fn test_submit() -> RvResult<()> {
     submit_job(n_threads, &mut jobs_running, &mut jobs_queue, &mut tp)?;
     assert!(jobs_running.iter().find(|j| **j == 0).is_some());
     assert!(jobs_queue.iter().find(|j| j.job_id == 0).is_none());
+    let n_threads = 20;
+    let mut tp = ThreadPool::<i32>::new(n_threads);
+    let mut new_queue = make_test_queue();
+    let mut jobs_running = vec![];
+    new_queue[0].delay_ms = 1000;
+    for _ in 0..20 {
+        submit_job(n_threads, &mut jobs_running, &mut new_queue, &mut tp)?;
+    }
+    println!("{:?}", jobs_running);
+    assert!(jobs_running.iter().find(|jid| **jid == 0).is_none());
+    assert!(jobs_running.iter().find(|jid| **jid == 1).is_some());
     Ok(())
 }
 #[test]
 fn test_tp_queued() -> RvResult<()> {
     let mut tpq = ThreadPoolQueued::new(1);
-//    tpq.apply(make_test_job(17), 0, 0)?;
-//    assert!(tpq.result(0).is_none());
-//    thread::sleep(Duration::from_millis(50));
-//    assert_eq!(tpq.result(0), Some(17));
-//    assert_eq!(tpq.result(0), None);
+    tpq.apply(make_test_job(17), 0, 0)?;
+    assert!(tpq.result(0).is_none());
+    thread::sleep(Duration::from_millis(50));
+    assert_eq!(tpq.result(0), Some(17));
+    assert_eq!(tpq.result(0), None);
     let jid1 = tpq.apply(make_test_job(11), 0, 0)?;
     let jid2 = tpq.apply(make_test_job(12), 0, 0)?;
     println!("jid1 {}, jid2, {}", jid1, jid2);
     thread::sleep(Duration::from_millis(150));
     assert_eq!(tpq.result(jid1), Some(11));
     assert_eq!(tpq.result(jid2), Some(12));
+    Ok(())
+}
+#[test]
+fn test_tp_delay() -> RvResult<()> {
+    let mut tpq = ThreadPoolQueued::new(1);
+    let ref_lo = 47;
+    let ref_hi = 23;
+    let j_lo = make_test_job_sleep(ref_lo, 200);
+    let j_hi = make_test_job_sleep(ref_hi, 200);
+    let jid_hi = tpq.apply(j_hi, 50, 350)?;
+    let jid_lo = tpq.apply(j_lo, 49, 0)?;
+    thread::sleep(Duration::from_millis(300));
+    let res_hi = tpq.result(jid_hi);
+    let res_lo = tpq.result(jid_lo);
+    assert_eq!(res_hi, None);
+    assert_eq!(res_lo, Some(ref_lo));
+    thread::sleep(Duration::from_millis(300));
+    let res_hi = tpq.result(jid_hi);
+    assert_eq!(res_hi, Some(ref_hi));
     Ok(())
 }
 #[test]
