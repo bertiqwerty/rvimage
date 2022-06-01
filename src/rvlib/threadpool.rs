@@ -1,7 +1,4 @@
-use crate::{
-    format_rverr,
-    result::{to_rv, RvError, RvResult},
-};
+use crate::result::{to_rv, RvError, RvResult};
 
 use std::{
     fmt::{self, Debug, Formatter},
@@ -91,9 +88,10 @@ fn send_answer_message<T>(
         }
     }
 }
+type Tx2Tp<T> = Sender<Message<(u128, Job<T>)>>;
 #[allow(dead_code)]
 pub struct ThreadPool<T: Send + 'static> {
-    txs_to_pool: Vec<Sender<Message<(u128, Job<T>)>>>,
+    txs_to_pool: Vec<Tx2Tp<T>>,
     rx_from_pool: Receiver<(u128, T)>,
     next_thread: usize,
     job_id: u128,
@@ -182,7 +180,7 @@ fn terminate_all_threads<T: Send + 'static>(tp: &ThreadPool<T>) -> RvResult<()> 
 
 impl<T: Send + 'static> Drop for ThreadPool<T> {
     fn drop(&mut self) {
-        match terminate_all_threads(&self) {
+        match terminate_all_threads(self) {
             Ok(_) => (),
             Err(e) => {
                 println!("error when dropping threadpool, {:?}", e);
@@ -195,20 +193,18 @@ fn update_prio<T: Send + 'static>(
     job_id_to_change: u128,
     new_prio: Option<usize>,
     jobs_queue: &mut Vec<JobQueued<T>>,
-) -> RvResult<()> {
-    let change_idx = jobs_queue
-        .iter()
-        .position(|j| j.job_id == job_id_to_change)
-        .ok_or_else(|| format_rverr!("could not find job with id {}", job_id_to_change))?;
-    match new_prio {
-        None => {
-            jobs_queue.remove(change_idx);
-        }
-        Some(prio) => {
-            jobs_queue[change_idx].prio = prio;
+) {
+    let change_idx_opt = jobs_queue.iter().position(|j| j.job_id == job_id_to_change);
+    if let Some(change_idx) = change_idx_opt {
+        match new_prio {
+            None => {
+                jobs_queue.remove(change_idx);
+            }
+            Some(prio) => {
+                jobs_queue[change_idx].prio = prio;
+            }
         }
     }
-    Ok(())
 }
 // submit new job if we have less jobs than threads and the respective delays have
 // passed
@@ -252,7 +248,7 @@ impl<T: Send + 'static> Debug for JobQueued<T> {
         )
     }
 }
-struct ThreadPoolQueued<T: Send + 'static> {
+pub struct ThreadPoolQueued<T: Send + 'static> {
     job_id: u128,
     tx_job_to_pool: Sender<Message<JobQueued<T>>>,
     rx_job_result_from_pool: Receiver<(u128, T)>,
@@ -260,7 +256,7 @@ struct ThreadPoolQueued<T: Send + 'static> {
     result_queue: Vec<(u128, T)>,
 }
 impl<T: Send + 'static> ThreadPoolQueued<T> {
-    fn new(n_threads: usize) -> Self {
+    pub fn new(n_threads: usize) -> Self {
         let (tx_job_to_pool, rx_job_to_pool) = mpsc::channel();
         let (tx_job_result_from_pool, rx_job_result_from_pool) = mpsc::channel();
         let (tx_prio_to_pool, rx_prio_to_pool) = mpsc::channel();
@@ -282,7 +278,7 @@ impl<T: Send + 'static> ThreadPoolQueued<T> {
                 }
                 // update priorities
                 for (job_id_to_change, new_prio) in rx_prio_to_pool.try_iter() {
-                    update_prio(job_id_to_change, new_prio, &mut jobs_queue)?;
+                    update_prio(job_id_to_change, new_prio, &mut jobs_queue);
                 }
 
                 submit_job(n_threads, &mut jobs_running, &mut jobs_queue, &mut tp)?;
@@ -339,6 +335,7 @@ impl<T: Send + 'static> ThreadPoolQueued<T> {
         };
         Ok(self.job_id - 1)
     }
+    /// Updates the priority if not yet submitted, None means cancel
     pub fn update_prio(&self, job_id: u128, new_prio: Option<usize>) -> RvResult<()> {
         self.tx_prio_to_pool
             .send((job_id, new_prio))
@@ -455,6 +452,23 @@ fn test_tp_queued() -> RvResult<()> {
     thread::sleep(Duration::from_millis(150));
     assert_eq!(tpq.result(jid1), Some(11));
     assert_eq!(tpq.result(jid2), Some(12));
+    Ok(())
+}
+#[test]
+fn test_tp_update_prio() -> RvResult<()> {
+    let mut tpq = ThreadPoolQueued::new(1);
+    let jid = tpq.apply(make_test_job_sleep(5, 20), 0, 10)?;
+    tpq.update_prio(jid, None)?;
+    thread::sleep(Duration::from_millis(140));
+    assert_eq!(tpq.result(jid), None);
+    let jid_1 = tpq.apply(make_test_job_sleep(5, 20), 0, 0)?;
+    let jid_2 = tpq.apply(make_test_job_sleep(10, 20), 1, 0)?;
+    tpq.update_prio(jid_1, Some(10))?;
+    thread::sleep(Duration::from_millis(100));
+    assert_eq!(tpq.result(jid_2), None);
+    assert_eq!(tpq.result(jid_1), Some(5));
+    thread::sleep(Duration::from_millis(130));
+    assert_eq!(tpq.result(jid_2), Some(10));
     Ok(())
 }
 #[test]

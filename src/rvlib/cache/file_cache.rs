@@ -4,7 +4,7 @@ use crate::{
     cache::core::Cache,
     format_rverr,
     result::{to_rv, RvError, RvResult},
-    threadpool::ThreadPool,
+    threadpool::ThreadPoolQueued,
     types::{AsyncResultImage, ResultImage},
     util::{self, filename_in_tmpdir},
 };
@@ -25,19 +25,18 @@ where
 
 fn preload<'a, I, RTC, A>(
     files: I,
-    tp: &mut ThreadPool<RvResult<String>>,
-    cache: &HashMap<String, ThreadResult>,
+    tp: &mut ThreadPoolQueued<RvResult<String>>,
     reader: &RTC,
     tmpdir: &str,
 ) -> RvResult<HashMap<String, ThreadResult>>
 where
-    I: Iterator<Item = (i32, &'a String)>,
+    I: Iterator<Item = (usize, &'a String)>,
     RTC: ReadImageToCache<A> + Clone + Send + 'static,
 {
+    let delay_ms = 10;
     fs::create_dir_all(Path::new(tmpdir)).map_err(to_rv)?;
     files
-        .filter(|(_, file)| !cache.contains_key(*file))
-        .map(|(distance, file)| {
+        .map(|(prio, file)| {
             let dst_file = filename_in_tmpdir(file, tmpdir)?;
             let file_for_thread = file.clone();
             let reader_for_thread = reader.clone();
@@ -47,7 +46,10 @@ where
                     Err(e) => Err(e),
                 }
             });
-            Ok((file.clone(), ThreadResult::Running(tp.apply(job)?)))
+            Ok((
+                file.clone(),
+                ThreadResult::Running(tp.apply(job, prio, delay_ms)?),
+            ))
         })
         .collect::<RvResult<HashMap<_, _>>>()
 }
@@ -78,7 +80,7 @@ where
     cached_paths: HashMap<String, ThreadResult>,
     n_prev_images: usize,
     n_next_images: usize,
-    tp: ThreadPool<RvResult<String>>,
+    tp: ThreadPoolQueued<RvResult<String>>,
     tmpdir: String,
     reader: RTC,
     reader_args_phantom: PhantomData<RA>,
@@ -102,15 +104,26 @@ where
             selected_file_idx + self.n_next_images + 1
         };
         let indices_to_iterate = start_idx..end_idx;
-        let files_iter = indices_to_iterate
-            .map(|idx| ((selected_file_idx as i32 - idx as i32).abs(), &files[idx]));
-        let cache = preload(
-            files_iter,
-            &mut self.tp,
-            &self.cached_paths,
-            &self.reader,
-            &self.tmpdir,
-        )?;
+        let n_max_possible_files = self.n_prev_images + self.n_next_images + 1;
+        let files_iter = indices_to_iterate.map(|idx| {
+            (
+                n_max_possible_files - (selected_file_idx as i32 - idx as i32).abs() as usize,
+                &files[idx],
+            )
+        });
+        // update priorities of in cache files
+        let files_in_cache = files_iter
+            .clone()
+            .filter(|(_, file)| self.cached_paths.contains_key(*file));
+        let files_not_in_cache =
+            files_iter.filter(|(_, file)| !self.cached_paths.contains_key(*file));
+        for (prio, file) in files_in_cache {
+            if let ThreadResult::Running(job_id) = self.cached_paths[file] {
+                self.tp.update_prio(job_id, Some(prio))?;
+            }
+        }
+        // trigger caching of not in cache files
+        let cache = preload(files_not_in_cache, &mut self.tp, &self.reader, &self.tmpdir)?;
         // update cache
         for elt in cache.into_iter() {
             let (file, th_res) = elt;
@@ -140,7 +153,7 @@ where
             n_next_images,
             n_threads,
         } = args.cfg_args;
-        let tp = ThreadPool::new(n_threads);
+        let tp = ThreadPoolQueued::new(n_threads);
         Ok(Self {
             cached_paths: HashMap::new(),
             n_prev_images,
