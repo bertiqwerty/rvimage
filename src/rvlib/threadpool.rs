@@ -391,7 +391,7 @@ fn test_prio() -> RvResult<()> {
     let mut jobs_queue = make_test_queue();
     let mut test_update_prio = |job_id_to_change, new_prio| -> RvResult<()> {
         println!("setting {} to {:?}", job_id_to_change, new_prio);
-        update_prio(job_id_to_change, new_prio, &mut jobs_queue)?;
+        update_prio(job_id_to_change, new_prio, &mut jobs_queue);
         assert_eq!(
             jobs_queue
                 .iter()
@@ -412,9 +412,9 @@ fn test_submit() -> RvResult<()> {
     let n_threads = 2;
     let mut tp = ThreadPool::<i32>::new(n_threads);
     let mut jobs_running = vec![];
-    update_prio(0, Some(234), &mut jobs_queue)?;
-    update_prio(1, None, &mut jobs_queue)?;
-    update_prio(13, Some(577), &mut jobs_queue)?;
+    update_prio(0, Some(234), &mut jobs_queue);
+    update_prio(1, None, &mut jobs_queue);
+    update_prio(13, Some(577), &mut jobs_queue);
     submit_job(n_threads, &mut jobs_running, &mut vec![], &mut tp)?;
     assert_eq!(jobs_running.len(), 0);
     assert!(jobs_queue.iter().find(|j| j.job_id == 13).is_some());

@@ -80,7 +80,7 @@ where
     cached_paths: HashMap<String, ThreadResult>,
     n_prev_images: usize,
     n_next_images: usize,
-    tp: ThreadPoolQueued<RvResult<String>>,
+    tpq: ThreadPoolQueued<RvResult<String>>,
     tmpdir: String,
     reader: RTC,
     reader_args_phantom: PhantomData<RA>,
@@ -119,11 +119,11 @@ where
             files_iter.filter(|(_, file)| !self.cached_paths.contains_key(*file));
         for (prio, file) in files_in_cache {
             if let ThreadResult::Running(job_id) = self.cached_paths[file] {
-                self.tp.update_prio(job_id, Some(prio))?;
+                self.tpq.update_prio(job_id, Some(prio))?;
             }
         }
         // trigger caching of not in cache files
-        let cache = preload(files_not_in_cache, &mut self.tp, &self.reader, &self.tmpdir)?;
+        let cache = preload(files_not_in_cache, &mut self.tpq, &self.reader, &self.tmpdir)?;
         // update cache
         for elt in cache.into_iter() {
             let (file, th_res) = elt;
@@ -134,7 +134,7 @@ where
         match selected_file_state {
             ThreadResult::Ok(path_in_cache) => util::read_image(path_in_cache).map(Some),
             ThreadResult::Running(job_id) => {
-                let path_in_cache = self.tp.result(*job_id);
+                let path_in_cache = self.tpq.result(*job_id);
                 match path_in_cache {
                     Some(pic) => {
                         let pic = pic?;
@@ -158,7 +158,7 @@ where
             cached_paths: HashMap::new(),
             n_prev_images,
             n_next_images,
-            tp,
+            tpq: tp,
             tmpdir: args.tmpdir,
             reader: RTC::new(args.reader_args)?,
             reader_args_phantom: PhantomData {},
