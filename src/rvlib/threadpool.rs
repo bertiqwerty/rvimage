@@ -461,13 +461,19 @@ fn test_tp_update_prio() -> RvResult<()> {
     tpq.update_prio(jid, None)?;
     thread::sleep(Duration::from_millis(140));
     assert_eq!(tpq.result(jid), None);
-    let jid_1 = tpq.apply(make_test_job_sleep(5, 20), 0, 0)?;
-    let jid_2 = tpq.apply(make_test_job_sleep(10, 20), 1, 0)?;
+    let jid_1 = tpq.apply(make_test_job_sleep(5, 20), 0, 30)?;
+    let jid_2 = tpq.apply(make_test_job_sleep(10, 20), 1, 30)?;
     tpq.update_prio(jid_1, Some(10))?;
-    thread::sleep(Duration::from_millis(100));
-    assert_eq!(tpq.result(jid_2), None);
-    assert_eq!(tpq.result(jid_1), Some(5));
-    thread::sleep(Duration::from_millis(130));
+    for _ in 30..250 {
+        thread::sleep(Duration::from_millis(1));
+        let r1 = tpq.result(jid_1);
+        let r2 = tpq.result(jid_2);
+        assert!(!(r1.is_none() && r2.is_some()));
+        if r1.is_some() {
+            break;
+        }
+    }
+    thread::sleep(Duration::from_millis(300));
     assert_eq!(tpq.result(jid_2), Some(10));
     Ok(())
 }
