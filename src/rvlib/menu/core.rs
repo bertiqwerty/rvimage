@@ -228,11 +228,22 @@ impl Menu {
         self.paths_navigator.file_label_selected_idx()
     }
 
+    fn idx_of_file_label(&self, file_label: &str) -> Option<usize> {
+        match self.paths_navigator.paths_selector() {
+            Some(ps) => ps.idx_of_file_label(file_label),
+            None => None,
+        }
+    }
+
     pub fn file_label(&mut self, idx: usize) -> &str {
         match self.paths_navigator.paths_selector() {
             Some(ps) => ps.file_labels()[idx].1.as_str(),
             None => "",
         }
+    }
+
+    pub fn select_file_label(&mut self, file_label: &str) {
+        self.paths_navigator.select_label_idx(self.idx_of_file_label(file_label));
     }
 
     pub fn read_image(&mut self, file_label_selected_idx: usize) -> Option<DynamicImage> {

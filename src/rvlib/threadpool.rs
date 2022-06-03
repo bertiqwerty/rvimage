@@ -72,10 +72,10 @@ pub fn result<T: Send + 'static>(
 fn send_answer_message<T>(
     job_id: u128,
     f: Job<T>,
-    tx: &Sender<(u128, T)>,
+    tx_from_pool: &Sender<(u128, T)>,
     idx_thread: usize,
 ) -> Option<()> {
-    let send_result = tx.send((job_id, f()));
+    let send_result = tx_from_pool.send((job_id, f()));
     match send_result {
         Ok(_) => {
             println!("thread {} send a result.", idx_thread);

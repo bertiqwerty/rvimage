@@ -1189,6 +1189,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
+name = "httparse"
+version = "1.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "496ce29bb5a52785b44e0f7ca2847ae0bb839c9bd28f69acac9b99d461c0c04c"
+
+[[package]]
 name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2071,10 +2077,12 @@ dependencies = [
  "egui-winit",
  "egui_wgpu_backend",
  "env_logger",
+ "httparse",
  "image",
  "lazy_static",
  "log",
  "optick",
+ "percent-encoding",
  "pixels",
  "regex",
  "rfd",

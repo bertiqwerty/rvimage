@@ -10,7 +10,7 @@ use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
 use rvlib::util::{self, apply_to_matched_image, mouse_pos_transform, Shape};
 use rvlib::world::World;
-use rvlib::{apply_tool_method, cfg};
+use rvlib::{apply_tool_method, cfg, httpserver};
 use std::fmt::Debug;
 use std::fs;
 use std::mem;
@@ -157,6 +157,10 @@ fn main() -> Result<(), pixels::Error> {
     let mut world = empty_world();
     let mut tools = make_tool_vec();
     let mut file_selected = None;
+    let mut rx_opt = None;
+    if let Ok((_, rx)) = httpserver::launch("127.0.0.1:5432".to_string()) {
+        rx_opt = Some(rx);
+    }
     event_loop.run(move |event, _, control_flow| {
         optick::event!("main eventloop");
         // Handle input events
@@ -206,14 +210,21 @@ fn main() -> Result<(), pixels::Error> {
             {
                 framework.menu().prev();
             }
-
+            if let Some(rx) = &rx_opt {
+                if let Some(last) = rx.try_iter().last() {
+                    match last {
+                        Ok(file_label) => framework.menu().select_file_label(&file_label),
+                        Err(e) => println!("{:?}", e)
+                    }
+                }
+            }
             // load new image
-            let gui_file_selected = framework.menu().file_label_selected_idx();
-            if file_selected != gui_file_selected {
-                if let Some(selected) = &gui_file_selected {
+            let menu_file_selected = framework.menu().file_label_selected_idx();
+            if file_selected != menu_file_selected {
+                if let Some(selected) = &menu_file_selected {
                     let im_read = match framework.menu().read_image(*selected) {
                         Some(ri) => {
-                            file_selected = gui_file_selected;
+                            file_selected = menu_file_selected;
                             ri
                         }
                         None => {

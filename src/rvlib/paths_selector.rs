@@ -51,10 +51,12 @@ pub struct PathsSelector {
     filtered_file_labels: Vec<(usize, String)>,
     folder_label: String,
 }
+
 impl PathsSelector {
     fn label_idx_2_path_idx(&self, label_idx: usize) -> usize {
         self.filtered_file_labels[label_idx].0
     }
+
     pub fn new(mut file_paths: Vec<String>, folder_path: Option<String>) -> RvResult<Self> {
         optick::event!();
         file_paths.sort();
@@ -66,6 +68,7 @@ impl PathsSelector {
             folder_label,
         })
     }
+
     pub fn file_selected_path(&self, label_selected_idx: usize) -> &str {
         self.file_paths[self.label_idx_2_path_idx(label_selected_idx)].as_str()
     }
@@ -75,9 +78,11 @@ impl PathsSelector {
         self.filtered_file_labels = list_file_labels(&self.file_paths, filter_str)?;
         Ok(())
     }
+
     pub fn file_labels(&self) -> &Vec<(usize, String)> {
         &self.filtered_file_labels
     }
+
     pub fn filtered_file_paths(&self) -> Vec<String> {
         optick::event!();
         self.filtered_file_labels
@@ -85,7 +90,16 @@ impl PathsSelector {
             .map(|(idx, _)| self.file_paths[*idx].clone())
             .collect()
     }
+
     pub fn folder_label(&self) -> &str {
         self.folder_label.as_str()
+    }
+
+    pub fn idx_of_file_label(&self, file_label: &str) -> Option<usize> {
+        self.filtered_file_labels
+            .iter()
+            .enumerate()
+            .find(|(_, (_, fl))| fl == file_label)
+            .map(|(idx, _)| idx)
     }
 }

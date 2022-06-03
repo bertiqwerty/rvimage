@@ -105,25 +105,30 @@ where
         };
         let indices_to_iterate = start_idx..end_idx;
         let n_max_possible_files = self.n_prev_images + self.n_next_images + 1;
-        let files_iter = indices_to_iterate.map(|idx| {
+        let prio_file_pairs = indices_to_iterate.map(|idx| {
             (
                 n_max_possible_files - (selected_file_idx as i32 - idx as i32).abs() as usize,
                 &files[idx],
             )
         });
         // update priorities of in cache files
-        let files_in_cache = files_iter
+        let files_in_cache = prio_file_pairs
             .clone()
             .filter(|(_, file)| self.cached_paths.contains_key(*file));
-        let files_not_in_cache =
-            files_iter.filter(|(_, file)| !self.cached_paths.contains_key(*file));
         for (prio, file) in files_in_cache {
             if let ThreadResult::Running(job_id) = self.cached_paths[file] {
                 self.tpq.update_prio(job_id, Some(prio))?;
             }
         }
         // trigger caching of not in cache files
-        let cache = preload(files_not_in_cache, &mut self.tpq, &self.reader, &self.tmpdir)?;
+        let files_not_in_cache =
+            prio_file_pairs.filter(|(_, file)| !self.cached_paths.contains_key(*file));
+        let cache = preload(
+            files_not_in_cache,
+            &mut self.tpq,
+            &self.reader,
+            &self.tmpdir,
+        )?;
         // update cache
         for elt in cache.into_iter() {
             let (file, th_res) = elt;
