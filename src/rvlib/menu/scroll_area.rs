@@ -8,7 +8,6 @@ pub fn scroll_area(
     paths_selector: &PathsSelector,
     scroll_to_selected_label: bool,
 ) {
-    optick::event!();
     let scroll_height = ui.available_height() - 120.0;
     let n_rows = paths_selector.file_labels().len();
     egui::ScrollArea::vertical()

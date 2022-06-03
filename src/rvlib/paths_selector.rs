@@ -58,7 +58,6 @@ impl PathsSelector {
     }
 
     pub fn new(mut file_paths: Vec<String>, folder_path: Option<String>) -> RvResult<Self> {
-        optick::event!();
         file_paths.sort();
         let filtered_file_labels = list_file_labels(&file_paths, "")?;
         let folder_label = make_folder_label(folder_path.as_deref())?;
@@ -74,7 +73,6 @@ impl PathsSelector {
     }
 
     pub fn filter(&mut self, filter_str: &str) -> RvResult<()> {
-        optick::event!();
         self.filtered_file_labels = list_file_labels(&self.file_paths, filter_str)?;
         Ok(())
     }
@@ -84,7 +82,6 @@ impl PathsSelector {
     }
 
     pub fn filtered_file_paths(&self) -> Vec<String> {
-        optick::event!();
         self.filtered_file_labels
             .iter()
             .map(|(idx, _)| self.file_paths[*idx].clone())

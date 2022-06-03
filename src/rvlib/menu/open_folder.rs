@@ -25,7 +25,6 @@ pub fn button(
     last_open_folder_job_id: &mut Option<u128>,
     tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
 ) -> RvResult<()> {
-    optick::event!();
     if ui.button("open folder").clicked() {
         *paths_navigator = PathsNavigator::new(None);
 
@@ -39,7 +38,6 @@ pub fn check_if_connected(
     paths_selector: &Option<PathsSelector>,
     tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
 ) -> RvResult<Option<(ReaderFromCfg, Info)>> {
-    optick::event!();
     if let Some(job_id) = last_open_folder_job_id {
         ui.label("connecting...");
         let tp_res = tp.result(*job_id);

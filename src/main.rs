@@ -122,7 +122,6 @@ fn remove_tmpdir() -> RvResult<()> {
 }
 
 fn main() -> Result<(), pixels::Error> {
-    // optick::start_capture();
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -162,13 +161,11 @@ fn main() -> Result<(), pixels::Error> {
         rx_opt = Some(rx);
     }
     event_loop.run(move |event, _, control_flow| {
-        optick::event!("main eventloop");
         // Handle input events
         if input.update(&event) {
             // Close application
             if input.quit() {
                 *control_flow = ControlFlow::Exit;
-                // optick::stop_capture("rvimage");
                 if let Err(e) = remove_tmpdir() {
                     framework
                         .menu()
@@ -210,6 +207,8 @@ fn main() -> Result<(), pixels::Error> {
             {
                 framework.menu().prev();
             }
+
+            // check for new image requests from http server
             if let Some(rx) = &rx_opt {
                 if let Some(last) = rx.try_iter().last() {
                     match last {

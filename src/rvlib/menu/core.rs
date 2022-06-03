@@ -272,7 +272,6 @@ impl Menu {
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
-                optick::event!("show ctx");
                 // Popup for error messages
                 let popup_id = ui.make_persistent_id("info-popup");
                 let r = ui.separator();
@@ -288,7 +287,6 @@ impl Menu {
 
                 // Top row with open folder and settings button
                 ui.horizontal(|ui| {
-                    optick::event!("top row buttons");
                     let button_resp = menu::open_folder::button(
                         ui,
                         &mut self.paths_navigator,
@@ -304,7 +302,6 @@ impl Menu {
 
                 // check if connection is after open folder is ready
                 let mut assign_open_folder_res = |reader_n_info: Option<(ReaderFromCfg, Info)>| {
-                    optick::event!("assign open folder res");
                     if let Some((reader, info)) = reader_n_info {
                         self.reader = Some(reader);
                         match info {
@@ -331,7 +328,6 @@ impl Menu {
                             self.paths_navigator = PathsNavigator::new(ps);
                         },
                         {
-                            optick::event!("r.open_folder");
                             self.reader
                                 .as_ref()
                                 .map_or(Ok(None), |r| r.open_folder().map(Some))
@@ -349,22 +345,21 @@ impl Menu {
                     self.are_tools_active = true;
                 }
                 if txt_field.changed() {
-                    optick::event!("tf.changed");
                     handle_error!(self.paths_navigator.filter(&self.filter_string), self);
                 }
 
                 // scroll area showing image file names
                 let scroll_to_selected = self.paths_navigator.scroll_to_selected_label();
-                let mut file_label_selected = self.paths_navigator.file_label_selected_idx();
+                let mut file_label_selected_idx = self.paths_navigator.file_label_selected_idx();
                 if let Some(ps) = &self.paths_navigator.paths_selector() {
                     menu::scroll_area::scroll_area(
                         ui,
-                        &mut file_label_selected,
+                        &mut file_label_selected_idx,
                         ps,
                         scroll_to_selected,
                     );
                     self.paths_navigator.deactivate_scroll_to_selected_label();
-                    self.paths_navigator.select_label_idx(file_label_selected);
+                    self.paths_navigator.select_label_idx(file_label_selected_idx);
                 }
 
                 // help
