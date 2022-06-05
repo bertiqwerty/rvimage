@@ -5,7 +5,6 @@
 
 ![grafik](https://user-images.githubusercontent.com/50267830/168975976-45ab6567-ef5e-41a8-8027-2ff210dfda3c.png)
 
-# Features
 
 ## Connect to remote
 RV Image connects to 
@@ -21,7 +20,7 @@ When RV Image is started, also an http server is launched for navigation. When s
 get-request to `/file_label` the image `file_label` is loaded. For this to work, `file_label` must
 be selectable through the user interface. 
 
-# Configuration
+## Configuration
 Create a file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) with the following content. Currently, only authorization with key-files without passphrase is supported.
 ```
 connection = "Ssh" # "Local" or "Ssh", Local for local folder
