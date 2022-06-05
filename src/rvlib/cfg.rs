@@ -100,8 +100,8 @@ impl Cfg {
     }
     pub fn http_address(&self) -> &str {
         match &self.http_address {
-            Some(http) => &http,
-            None => &"127.0.0.1:5432",
+            Some(http_addr) => http_addr,
+            None => "127.0.0.1:5432",
         }
     }
 }
