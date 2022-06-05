@@ -26,7 +26,7 @@ Create a file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably
 connection = "Ssh" # "Local" or "Ssh", Local for local folder
 cache = "FileCache"  # "NoCache" for not caching at all or "FileCache" for caching files in a temp dir.
 # Address of the http server, default is 127.0.0.1:5432
-# http_server = address:port
+# http_address = address:port
 # If you do not want to use the temporary directory of your OS, you can add something else.
 # tmpdir = 
 [file_cache_args]
