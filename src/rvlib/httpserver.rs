@@ -61,7 +61,7 @@ where
         }
     }
 }
-pub type LaunchResultType = RvResult<(JoinHandle<RvResult<()>>, Receiver<RvResult<String>>)>; 
+pub type LaunchResultType = RvResult<(JoinHandle<RvResult<()>>, Receiver<RvResult<String>>)>;
 pub fn launch(address: String) -> LaunchResultType {
     println!("spawning httpserver at {}", address);
     let (tx_from_server, rx_from_server) = mpsc::channel();

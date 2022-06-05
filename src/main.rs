@@ -3,8 +3,10 @@
 
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
+use lazy_static::lazy_static;
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
+use rvlib::cfg::{get_cfg, Cfg};
 use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
@@ -27,6 +29,13 @@ use winit_input_helper::WinitInputHelper;
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 
+fn http_address() -> &'static str {
+    lazy_static! {
+        static ref CFG: Cfg = get_cfg().expect("config broken");
+        static ref HTTP_ADDRESS: &'static str = CFG.http_address();
+    }
+    &HTTP_ADDRESS
+}
 fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
 where
     T: GenericImageView,
@@ -157,7 +166,7 @@ fn main() -> Result<(), pixels::Error> {
     let mut tools = make_tool_vec();
     let mut file_selected = None;
     let mut rx_opt = None;
-    if let Ok((_, rx)) = httpserver::launch("127.0.0.1:5432".to_string()) {
+    if let Ok((_, rx)) = httpserver::launch(http_address().to_string()) {
         rx_opt = Some(rx);
     }
     event_loop.run(move |event, _, control_flow| {
@@ -213,7 +222,7 @@ fn main() -> Result<(), pixels::Error> {
                 if let Some(last) = rx.try_iter().last() {
                     match last {
                         Ok(file_label) => framework.menu().select_file_label(&file_label),
-                        Err(e) => println!("{:?}", e)
+                        Err(e) => println!("{:?}", e),
                     }
                 }
             }

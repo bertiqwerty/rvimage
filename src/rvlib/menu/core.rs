@@ -243,7 +243,8 @@ impl Menu {
     }
 
     pub fn select_file_label(&mut self, file_label: &str) {
-        self.paths_navigator.select_label_idx(self.idx_of_file_label(file_label));
+        self.paths_navigator
+            .select_label_idx(self.idx_of_file_label(file_label));
     }
 
     pub fn read_image(&mut self, file_label_selected_idx: usize) -> Option<DynamicImage> {
@@ -359,7 +360,8 @@ impl Menu {
                         scroll_to_selected,
                     );
                     self.paths_navigator.deactivate_scroll_to_selected_label();
-                    self.paths_navigator.select_label_idx(file_label_selected_idx);
+                    self.paths_navigator
+                        .select_label_idx(file_label_selected_idx);
                 }
 
                 // help

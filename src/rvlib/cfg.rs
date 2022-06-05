@@ -8,7 +8,7 @@ use std::{fmt::Debug, fs, path::PathBuf};
 
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
-    cache = "FileCache"  # "NoCache" or "FileCache"
+    cache = "FileCache"  # "NoCache" or "FileCache" 
     [file_cache_args]
     n_prev_images = 2
     n_next_images = 8
@@ -20,10 +20,6 @@ const CFG_DEFAULT: &str = r#"
     user = "someuser"
     ssh_identity_file_path = "local/path"
     "#;
-
-lazy_static! {
-    static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
-}
 
 pub fn get_default_cfg() -> Cfg {
     toml::from_str(CFG_DEFAULT).expect("default config broken")
@@ -85,17 +81,27 @@ impl SshCfg {
 pub struct Cfg {
     pub connection: Connection,
     pub cache: Cache,
-    pub file_cache_args: Option<FileCacheCfgArgs>,
+    http_address: Option<String>,
     tmpdir: Option<String>,
+    pub file_cache_args: Option<FileCacheCfgArgs>,
     pub ssh_cfg: SshCfg,
 }
 impl Cfg {
     pub fn tmpdir(&self) -> RvResult<&str> {
+        lazy_static! {
+            static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
+        }
         match &self.tmpdir {
             Some(td) => Ok(td.as_str()),
             None => DEFAULT_TMPDIR
                 .to_str()
                 .ok_or_else(|| RvError::new("could not get tmpdir")),
+        }
+    }
+    pub fn http_address(&self) -> &str {
+        match &self.http_address {
+            Some(http) => &http,
+            None => &"127.0.0.1:5432",
         }
     }
 }

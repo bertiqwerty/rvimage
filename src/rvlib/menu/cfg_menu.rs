@@ -75,7 +75,10 @@ impl<'a> Widget for CfgMenu<'a> {
             if let Close::Yes(save) = close {
                 if save && is_valid_ssh_cfg(self.ssh_cfg_str) {
                     self.cfg.ssh_cfg = toml::from_str::<SshCfg>(self.ssh_cfg_str).unwrap();
-                    cfg::write_cfg(self.cfg).unwrap();
+                    if let Err(e) = cfg::write_cfg(self.cfg) {
+                        println!("could not write config,\n{:#?}", e);
+                        println!("{:?}", self.cfg);
+                    }
                 } else {
                     let tmp = menu::core::get_cfg();
                     *self.cfg = tmp.0;
