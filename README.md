@@ -1,6 +1,6 @@
 [![CI workflow](https://github.com/bertiqwerty/rvimage/actions/workflows/rust.yml/badge.svg)](https://github.com/bertiqwerty/rvimage)
 # RV Image
-**R**emote **v**iewer for **image**s written in Rust. So far only tested on Windows 10. Currently, only RGB images with 8 bits per pixel and channel are supported. They have to be either `.png` or `.jpg`. RV Image is mainly based on [`egui`](https://crates.io/crates/egui), [`image`](https://crates.io/crates/image), and [`pixels`](https://crates.io/crates/pixels).
+**R**emote **v**iewer for **image**s written in Rust. So far only tested on Windows 10. RV Image is mainly based on [`egui`](https://crates.io/crates/egui), [`image`](https://crates.io/crates/image), and [`pixels`](https://crates.io/crates/pixels).
 
 
 ![grafik](https://user-images.githubusercontent.com/50267830/168975976-45ab6567-ef5e-41a8-8027-2ff210dfda3c.png)
@@ -14,9 +14,9 @@ RV Image connects to
 
 Images are cached locally in a temporary directory. 
 
-## Http server
+## Optional http server 
 
-When RV Image is started, also an http server is launched for navigation. When sending a
+When RV Image is started, also an http server is launched as aditional navigation option besides the graphical user interface. The default address is  `127.0.0.1:5432`. When sending a
 get-request to `/file_label` the image `file_label` is loaded. For this to work, `file_label` must
 be selectable through the user interface. 
 
