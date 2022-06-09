@@ -241,7 +241,6 @@ impl Menu {
             None => "",
         }
     }
-
     pub fn select_file_label(&mut self, file_label: &str) {
         self.paths_navigator
             .select_label_idx(self.idx_of_file_label(file_label));
