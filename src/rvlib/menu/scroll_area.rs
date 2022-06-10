@@ -10,10 +10,12 @@ pub fn scroll_area(
 ) {
     let scroll_height = ui.available_height() - 120.0;
     let n_rows = paths_selector.file_labels().len();
+    let text_style = egui::TextStyle::Body;
+    let row_height = ui.fonts()[text_style].row_height();
     egui::ScrollArea::vertical()
         .max_height(scroll_height)
-        .show(ui, |ui| {
-            for filtered_idx in 0..n_rows {
+        .show_rows(ui, row_height, n_rows, |ui, row_range| {
+            for filtered_idx in row_range {
                 let file_label = paths_selector.file_labels()[filtered_idx].1.as_str();
                 let sl = if *file_selected_idx == Some(filtered_idx) {
                     let path = paths_selector.file_selected_path(filtered_idx);

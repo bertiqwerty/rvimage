@@ -55,9 +55,6 @@ impl PathsNavigator {
         self.scroll_to_selected_label = false;
     }
     pub fn select_label_idx(&mut self, idx: Option<usize>) {
-        if idx.is_some() {
-            self.scroll_to_selected_label = true;
-        }
         self.file_label_selected_idx = idx;
     }
     pub fn paths_selector(&self) -> &Option<PathsSelector> {

@@ -359,8 +359,10 @@ impl Menu {
                         scroll_to_selected,
                     );
                     self.paths_navigator.deactivate_scroll_to_selected_label();
-                    self.paths_navigator
-                        .select_label_idx(file_label_selected_idx);
+                    if self.paths_navigator.file_label_selected_idx() != file_label_selected_idx {
+                        self.paths_navigator
+                            .select_label_idx(file_label_selected_idx);
+                    }
                 }
 
                 // help
