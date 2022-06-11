@@ -1,5 +1,3 @@
-use crate::format_rverr;
-use crate::result::RvError;
 use crate::util::{self, Shape};
 use crate::{result::RvResult, types::ViewImage};
 use image::DynamicImage;
