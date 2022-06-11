@@ -1,3 +1,5 @@
+use crate::format_rverr;
+use crate::result::RvError;
 use crate::util::{self, Shape};
 use crate::{result::RvResult, types::ViewImage};
 use image::DynamicImage;
@@ -20,23 +22,21 @@ pub struct World {
 impl World {
     pub fn draw(&self, pixels: &mut Pixels) {
         let frame_len = pixels.get_frame().len() as u32;
-        let w_view = self.im_view.width();
-        let h_view = self.im_view.height();
+        let w_view = self.im_view().width();
+        let h_view = self.im_view().height();
         if frame_len != w_view * h_view * 4 {
             pixels.resize_buffer(w_view, h_view);
         }
         let frame = pixels.get_frame();
 
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let rgba = rgba_at(i, &self.im_view);
+            let rgba = rgba_at(i, &self.im_view());
             pixel.copy_from_slice(&rgba);
         }
     }
     pub fn new(im_orig: DynamicImage) -> RvResult<Self> {
-        Ok(Self {
-            im_orig: im_orig.clone(),
-            im_view: util::orig_to_0_255(&im_orig)?,
-        })
+        let im_view = util::orig_to_0_255(&im_orig)?;
+        Ok(Self { im_orig, im_view })
     }
     pub fn im_view(&self) -> &ViewImage {
         &self.im_view
@@ -52,8 +52,8 @@ impl World {
     }
     pub fn shape_orig(&self) -> Shape {
         Shape {
-            w: self.im_orig.width(),
-            h: self.im_orig.height(),
+            w: self.im_orig().width(),
+            h: self.im_orig().height(),
         }
     }
 }

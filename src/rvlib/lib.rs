@@ -1,5 +1,6 @@
 mod cache;
 pub mod cfg;
+pub mod history;
 pub mod httpserver;
 pub mod menu;
 mod paths_selector;
