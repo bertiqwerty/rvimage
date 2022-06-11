@@ -46,5 +46,9 @@ macro_rules! format_rverr {
 }
 
 pub fn to_rv<E: Debug>(e: E) -> RvError {
-    format_rverr!("original error type is '{:?}', error message is '{:?}'", std::any::type_name::<E>(), e)
+    format_rverr!(
+        "original error type is '{:?}', error message is '{:?}'",
+        std::any::type_name::<E>(),
+        e
+    )
 }
