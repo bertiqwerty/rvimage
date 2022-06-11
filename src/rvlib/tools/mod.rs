@@ -1,7 +1,9 @@
+mod annotate;
 mod core;
 mod rot90;
 mod zoom;
 pub use self::core::Tool;
+pub use annotate::Annotate;
 pub use rot90::Rot90;
 use std::fmt::Debug;
 pub use zoom::Zoom;
