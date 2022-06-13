@@ -2,6 +2,7 @@ use image::DynamicImage;
 use winit::event::VirtualKeyCode;
 
 use crate::{
+    history::History,
     make_tool_transform,
     util::{Event, Shape},
     world::World,
@@ -23,11 +24,13 @@ impl Rot90 {
         _shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
-    ) -> World {
+        mut history: History,
+    ) -> (World, History) {
         if key == VirtualKeyCode::R {
+            history.push(world.im_orig().clone());
             *world.im_orig_mut() = rot90(world.im_orig());
         }
-        world
+        (world, history)
     }
 }
 
@@ -39,13 +42,15 @@ impl Tool for Rot90 {
     fn events_tf<'a>(
         &'a mut self,
         world: World,
+        history: History,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &Event,
-    ) -> World {
+    ) -> (World, History) {
         make_tool_transform!(
             self,
             world,
+            history,
             shape_win,
             mouse_pos,
             event,

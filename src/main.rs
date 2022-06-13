@@ -7,6 +7,7 @@ use lazy_static::lazy_static;
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{get_cfg, Cfg};
+use rvlib::history::History;
 use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
@@ -78,20 +79,22 @@ fn get_pixel_on_orig_str(
 fn apply_tools<'a>(
     tools: &'a mut Vec<ToolWrapper>,
     mut world: World,
+    mut history: History,
     shape_win: Shape,
     mouse_pos: Option<(usize, usize)>,
     event: &util::Event,
     pixels: &mut Pixels,
-) -> World {
+) -> (World, History) {
     let old_shape = Shape::from_im(world.im_view());
     for t in tools {
-        world = apply_tool_method!(t, events_tf, world, shape_win, mouse_pos, event);
+        (world, history) =
+            apply_tool_method!(t, events_tf, world, history, shape_win, mouse_pos, event);
     }
     let new_shape = Shape::from_im(world.im_view());
     if old_shape != new_shape {
         pixels.resize_buffer(new_shape.w, new_shape.h);
     }
-    world
+    (world, history)
 }
 
 fn loading_image(shape: Shape) -> DynamicImage {
@@ -158,14 +161,15 @@ fn main() -> Result<(), pixels::Error> {
             START_WIDTH,
             START_HEIGHT,
         )))
-        .expect("bug, empty world creation needs to work")
     }
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
     let mut world = empty_world();
+    let mut history = History::new();
     let mut tools = make_tool_vec();
     let mut file_selected = None;
     let mut rx_opt = None;
+    let mut is_loading_screen_active = false;
     if let Ok((_, rx)) = httpserver::launch(http_address().to_string()) {
         rx_opt = Some(rx);
     }
@@ -189,9 +193,10 @@ fn main() -> Result<(), pixels::Error> {
             let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
             let event = util::Event::new(&input);
             if framework.menu().are_tools_active() {
-                world = apply_tools(
+                (world, history) = apply_tools(
                     &mut tools,
                     mem::take(&mut world),
+                    mem::take(&mut history),
                     shape_win,
                     mouse_pos,
                     &event,
@@ -226,45 +231,64 @@ fn main() -> Result<(), pixels::Error> {
                     }
                 }
             }
-            // load new image
+
             let menu_file_selected = framework.menu().file_label_selected_idx();
-            if file_selected != menu_file_selected {
+            let opt_im_new = if (input.key_held(VirtualKeyCode::RControl)
+                || input.key_held(VirtualKeyCode::LControl))
+                && input.key_pressed(VirtualKeyCode::Z)
+            {
+                // undo
+                Some(history.prev_world(std::mem::take(world.im_orig_mut())))
+            } else if (input.key_held(VirtualKeyCode::RControl)
+                || input.key_held(VirtualKeyCode::LControl))
+                && input.key_pressed(VirtualKeyCode::Y)
+            {
+                // redo
+                Some(history.next_world(std::mem::take(world.im_orig_mut())))
+            } else if file_selected != menu_file_selected {
+                // load new image
                 if let Some(selected) = &menu_file_selected {
+                    if !is_loading_screen_active{
+                        history.push(world.im_orig().clone());
+                    }
                     let im_read = match framework.menu().read_image(*selected) {
                         Some(ri) => {
                             file_selected = menu_file_selected;
+                            is_loading_screen_active = false;
                             ri
                         }
                         None => {
                             thread::sleep(Duration::from_millis(20));
                             let shape = world.shape_orig();
+                            is_loading_screen_active = true;
                             loading_image(shape)
                         }
                     };
-                    world = match World::new(im_read) {
-                        Ok(w) => w,
-                        Err(e) => {
-                            framework.menu().popup(Info::Error(e.to_string()));
-                            empty_world()
-                        }
-                    };
-                    let size = window.inner_size();
-                    let shape_win = Shape::from_size(&size);
-                    let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
-                    let event = util::Event::from_image_loaded(&input);
-                    world = apply_tools(
-                        &mut tools,
-                        mem::take(&mut world),
-                        shape_win,
-                        mouse_pos,
-                        &event,
-                        &mut pixels,
-                    );
-                    let Shape { w, h } = Shape::from_im(world.im_view());
-                    pixels.resize_buffer(w, h);
+                    Some(im_read)
+                } else {
+                    None
                 }
+            } else {
+                None
+            };
+            if let Some(im_new) = opt_im_new {
+                let size = window.inner_size();
+                let shape_win = Shape::from_size(&size);
+                let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
+                let event = util::Event::from_image_loaded(&input);
+                world = World::new(im_new);
+                (world, history) = apply_tools(
+                    &mut tools,
+                    mem::take(&mut world),
+                    mem::take(&mut history),
+                    shape_win,
+                    mouse_pos,
+                    &event,
+                    &mut pixels,
+                );
+                let Shape { w, h } = Shape::from_im(world.im_view());
+                pixels.resize_buffer(w, h);
             }
-
             // Update the scale factor
             if let Some(scale_factor) = input.scale_factor() {
                 framework.scale_factor(scale_factor);
@@ -276,9 +300,10 @@ fn main() -> Result<(), pixels::Error> {
                 if shape_win.h > 0 && shape_win.w > 0 {
                     let event = util::Event::from_window_resized(&input);
                     let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
-                    world = apply_tools(
+                    (world, history) = apply_tools(
                         &mut tools,
                         mem::take(&mut world),
+                        mem::take(&mut history),
                         shape_win,
                         mouse_pos,
                         &event,

@@ -1,5 +1,7 @@
+use std::fmt::Debug;
+
+use crate::types::ViewImage;
 use crate::util::{self, Shape};
-use crate::{result::RvResult, types::ViewImage};
 use image::DynamicImage;
 use pixels::Pixels;
 fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
@@ -11,7 +13,7 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
 }
 
 /// Everything we need to draw
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct World {
     im_orig: DynamicImage,
     im_view: ViewImage,
@@ -28,13 +30,13 @@ impl World {
         let frame = pixels.get_frame();
 
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let rgba = rgba_at(i, &self.im_view());
+            let rgba = rgba_at(i, self.im_view());
             pixel.copy_from_slice(&rgba);
         }
     }
-    pub fn new(im_orig: DynamicImage) -> RvResult<Self> {
-        let im_view = util::orig_to_0_255(&im_orig)?;
-        Ok(Self { im_orig, im_view })
+    pub fn new(im_orig: DynamicImage) -> Self {
+        let im_view = util::orig_to_0_255(&im_orig);
+        Self { im_orig, im_view }
     }
     pub fn im_view(&self) -> &ViewImage {
         &self.im_view
@@ -53,6 +55,16 @@ impl World {
             w: self.im_orig().width(),
             h: self.im_orig().height(),
         }
+    }
+}
+impl Debug for World {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "\nim_orig, {:?}\nim_view, {:?}",
+            Shape::from_im(&self.im_orig),
+            Shape::from_im(&self.im_view)
+        )
     }
 }
 #[cfg(test)]

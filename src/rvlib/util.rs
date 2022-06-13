@@ -158,7 +158,7 @@ where
     }
 }
 
-pub fn orig_to_0_255(im_orig: &DynamicImage) -> RvResult<ViewImage> {
+pub fn orig_to_0_255(im_orig: &DynamicImage) -> ViewImage {
     let fn_rgb32f = |im: &ImageBuffer<Rgb<f32>, Vec<f32>>| {
         let mut im = im.clone();
         let max_val = im
@@ -194,13 +194,13 @@ pub fn orig_to_0_255(im_orig: &DynamicImage) -> RvResult<ViewImage> {
                 }
             }
         }
-        Ok(im.convert())
+        im.convert()
     };
     apply_to_matched_image(
         im_orig,
-        |im| Ok(im.clone()),
-        |im| Ok(im.convert()),
-        |im| Ok(im.convert()),
+        |im| im.clone(),
+        |im| im.convert(),
+        |im| im.convert(),
         fn_rgb32f,
     )
 }

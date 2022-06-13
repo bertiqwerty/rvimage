@@ -1,4 +1,5 @@
 use crate::{
+    history::History,
     util::{Event, Shape},
     world::World,
 };
@@ -23,10 +24,11 @@ pub trait Tool {
     fn events_tf<'a>(
         &'a mut self,
         world: World,
+        history: History,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &Event,
-    ) -> World;
+    ) -> (World, History);
 
     /// Special event that is triggered on load of a new image.
     fn image_loaded(
@@ -52,23 +54,23 @@ pub trait Tool {
 // applies the tool transformation to the world
 #[macro_export]
 macro_rules! make_tool_transform {
-    ($self:expr, $world:expr, $shape_win:expr, $mouse_pos:expr, $event:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
+    ($self:expr, $world:expr, $history:expr, $shape_win:expr, $mouse_pos:expr, $event:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
         if $event.image_loaded {
-            $self.image_loaded($shape_win, $mouse_pos, $world)
+            ($self.image_loaded($shape_win, $mouse_pos, $world), $history)
         }
         else if $event.window_resized {
-            $self.window_resized($shape_win, $mouse_pos, $world)
+            ($self.window_resized($shape_win, $mouse_pos, $world), $history)
         }
         $(else if $event.input.$mouse_event(LEFT_BTN) {
-            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $world)
+            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $world, $history)
         } else if $event.input.$mouse_event(RIGHT_BTN) {
-            $self.$mouse_event(RIGHT_BTN, $shape_win, $mouse_pos, $world)
+            $self.$mouse_event(RIGHT_BTN, $shape_win, $mouse_pos, $world, $history)
         })*
         $(else if $event.input.key_pressed($key_event) {
-            $self.key_pressed($key_event, $shape_win, $mouse_pos, $world)
+            $self.key_pressed($key_event, $shape_win, $mouse_pos, $world, $history)
         })*
         else {
-            $world
+            ($world, $history)
         }
     };
 }
