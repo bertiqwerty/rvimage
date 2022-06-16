@@ -108,7 +108,10 @@ impl Framework {
             None,
         )
     }
-    pub fn menu(&mut self) -> &mut Menu {
+    pub fn menu(&self) -> &Menu {
+        &self.menu
+    }
+    pub fn menu_mut(&mut self) -> &mut Menu {
         &mut self.menu
     }
 }
@@ -235,7 +238,7 @@ impl Menu {
         }
     }
 
-    pub fn file_label(&mut self, idx: usize) -> &str {
+    pub fn file_label(&self, idx: usize) -> &str {
         match self.paths_navigator.paths_selector() {
             Some(ps) => ps.file_labels()[idx].1.as_str(),
             None => "",

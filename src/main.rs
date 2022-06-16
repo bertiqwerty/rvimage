@@ -182,7 +182,7 @@ fn main() -> Result<(), pixels::Error> {
                 *control_flow = ControlFlow::Exit;
                 if let Err(e) = remove_tmpdir() {
                     framework
-                        .menu()
+                        .menu_mut()
                         .popup(Info::Error(format!("could not delete tmpdir. {:?}", e)));
                     thread::sleep(Duration::from_secs(5));
                 }
@@ -206,106 +206,98 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             if input.key_pressed(VirtualKeyCode::M) {
-                framework.menu().toggle();
+                framework.menu_mut().toggle();
             }
 
             if input.key_pressed(VirtualKeyCode::Right)
                 || input.key_pressed(VirtualKeyCode::Down)
                 || input.key_pressed(VirtualKeyCode::PageDown)
             {
-                framework.menu().next();
+                framework.menu_mut().next();
             }
 
             if input.key_pressed(VirtualKeyCode::Left)
                 || input.key_pressed(VirtualKeyCode::Up)
                 || input.key_pressed(VirtualKeyCode::PageUp)
             {
-                framework.menu().prev();
+                framework.menu_mut().prev();
             }
 
             // check for new image requests from http server
             if let Some(rx) = &rx_opt {
                 if let Some(last) = rx.try_iter().last() {
                     match last {
-                        Ok(file_label) => framework.menu().select_file_label(&file_label),
+                        Ok(file_label) => framework.menu_mut().select_file_label(&file_label),
                         Err(e) => println!("{:?}", e),
                     }
                 }
             }
 
             let menu_file_selected = framework.menu().file_label_selected_idx();
+            let make_folder_label = || framework.menu().folder_label().map(|s| s.to_string());
             let opt_rec_new = if (input.key_held(VirtualKeyCode::RControl)
                 || input.key_held(VirtualKeyCode::LControl))
                 && input.key_pressed(VirtualKeyCode::Z)
             {
-                undo_redo_load = true;
                 // undo
+                undo_redo_load = true;
                 Some(history.prev_world(Record {
                     im_orig: std::mem::take(world.im_orig_mut()),
                     file_label_idx: file_selected,
-                    folder_label: framework.menu().folder_label().map(|s| s.to_string()),
+                    folder_label: make_folder_label(),
                 }))
             } else if (input.key_held(VirtualKeyCode::RControl)
                 || input.key_held(VirtualKeyCode::LControl))
                 && input.key_pressed(VirtualKeyCode::Y)
             {
-                undo_redo_load = true;
                 // redo
+                undo_redo_load = true;
                 Some(history.next_world(Record {
                     im_orig: std::mem::take(world.im_orig_mut()),
                     file_label_idx: file_selected,
-                    folder_label: framework.menu().folder_label().map(|s| s.to_string()),
+                    folder_label: make_folder_label(),
                 }))
             } else if file_selected != menu_file_selected || is_loading_screen_active {
                 // load new image
                 if let Some(selected) = &menu_file_selected {
-                    let folder_label = framework.menu().folder_label().map(|s| s.to_string());
                     if !is_loading_screen_active && !undo_redo_load {
                         history.push(Record {
                             im_orig: world.im_orig().clone(),
                             file_label_idx: file_selected,
-                            folder_label: folder_label.clone(),
+                            folder_label: make_folder_label(),
                         });
                     }
-                    let rec_read = match framework.menu().read_image(*selected) {
+                    let read_image_and_idx = match framework.menu_mut().read_image(*selected) {
                         Some(ri) => {
                             undo_redo_load = false;
                             file_selected = menu_file_selected;
                             is_loading_screen_active = false;
-                            Record {
-                                im_orig: ri,
-                                file_label_idx: file_selected,
-                                folder_label,
-                            }
+                            (ri, file_selected)    
                         }
                         None => {
                             thread::sleep(Duration::from_millis(20));
                             let shape = world.shape_orig();
                             file_selected = menu_file_selected;
                             is_loading_screen_active = true;
-                            Record {
-                                im_orig: loading_image(shape),
-                                file_label_idx: file_selected,
-                                folder_label,
-                            }
+                            (loading_image(shape), file_selected)
                         }
                     };
-                    Some(rec_read)
+                    Some(read_image_and_idx)
                 } else {
                     None
                 }
             } else {
                 None
             };
-            if let Some(rec_new) = opt_rec_new {
+            if let Some((im_orig, file_label_idx)) = opt_rec_new {
                 let size = window.inner_size();
                 let shape_win = Shape::from_size(&size);
                 let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
                 let event = util::Event::from_image_loaded(&input);
-                if rec_new.file_label_idx.is_some() {
-                    framework.menu().select_label_idx(rec_new.file_label_idx);
+                if file_label_idx.is_some() {
+                    framework.menu_mut().select_label_idx(file_label_idx);
                 }
-                world = World::new(rec_new.im_orig);
+                world = World::new(im_orig);
                 (world, history) = apply_tools(
                     &mut tools,
                     mem::take(&mut world),
@@ -346,7 +338,7 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             // show position and rgb value
-            if let Some(idx) = framework.menu().file_label_selected_idx() {
+            if let Some(idx) = framework.menu_mut().file_label_selected_idx() {
                 let shape_win = Shape {
                     w: window.inner_size().width,
                     h: window.inner_size().height,

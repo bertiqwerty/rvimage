@@ -8,7 +8,11 @@ pub struct Record {
     pub file_label_idx: Option<usize>,
     pub folder_label: Option<String>,
 }
-
+impl Record {
+    fn move_to_im_idx_pair(self) -> (DynamicImage, Option<usize>) {
+        (self.im_orig, self.file_label_idx)
+    }
+}
 #[derive(Clone, Default)]
 pub struct History {
     records: Vec<Record>,
@@ -29,12 +33,11 @@ impl History {
                 .iter()
                 .enumerate()
                 .find(|(_, r)| r.folder_label.as_ref() == Some(cfl));
-            if folder_in_history.is_none() {
+            if let Some((i, _)) = folder_in_history {
+                self.records.drain(0..i);
+            } else {
                 self.current_idx = None;
                 self.records.clear();
-            } else {
-                let (i, _) = folder_in_history.unwrap();
-                self.records.drain(0..i);
             }
         }
     }
@@ -60,7 +63,8 @@ impl History {
             }
         }
     }
-    pub fn prev_world(&mut self, mut curr_world: Record) -> Record {
+
+    pub fn prev_world(&mut self, mut curr_world: Record) -> (DynamicImage, Option<usize>) {
         self.clear_on_folder_change(&curr_world.folder_label);
         if let Some(idx) = self.current_idx {
             if idx > 0 {
@@ -70,22 +74,23 @@ impl History {
             }
             std::mem::swap(&mut self.records[idx], &mut curr_world);
         }
-        curr_world
+        curr_world.move_to_im_idx_pair()
     }
-    pub fn next_world(&mut self, mut curr_world: Record) -> Record {
+
+    pub fn next_world(&mut self, mut curr_world: Record) -> (DynamicImage, Option<usize>) {
         self.clear_on_folder_change(&curr_world.folder_label);
         match self.current_idx {
             Some(idx) if idx < self.records.len() - 1 => {
                 self.current_idx = Some(idx + 1);
                 std::mem::swap(&mut self.records[idx + 1], &mut curr_world);
-                curr_world
+                curr_world.move_to_im_idx_pair()
             }
             None if !self.records.is_empty() => {
                 self.current_idx = Some(0);
                 std::mem::swap(&mut self.records[0], &mut curr_world);
-                curr_world
+                curr_world.move_to_im_idx_pair()
             }
-            _ => curr_world,
+            _ => curr_world.move_to_im_idx_pair(),
         }
     }
 }
