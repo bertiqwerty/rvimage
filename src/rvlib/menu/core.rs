@@ -245,6 +245,16 @@ impl Menu {
         self.paths_navigator
             .select_label_idx(self.idx_of_file_label(file_label));
     }
+    pub fn select_label_idx(&mut self, file_label_idx: Option<usize>) {
+        self.paths_navigator.select_label_idx(file_label_idx);
+    }
+
+    pub fn folder_label(&self) -> Option<&str> {
+        self.paths_navigator
+            .paths_selector()
+            .as_ref()
+            .map(|ps| ps.folder_label())
+    }
 
     pub fn read_image(&mut self, file_label_selected_idx: usize) -> Option<DynamicImage> {
         let mut im_read = None;

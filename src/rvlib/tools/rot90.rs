@@ -2,7 +2,7 @@ use image::DynamicImage;
 use winit::event::VirtualKeyCode;
 
 use crate::{
-    history::History,
+    history::{History, Record},
     make_tool_transform,
     util::{Event, Shape},
     world::World,
@@ -27,7 +27,11 @@ impl Rot90 {
         mut history: History,
     ) -> (World, History) {
         if key == VirtualKeyCode::R {
-            history.push(world.im_orig().clone());
+            history.push(Record {
+                im_orig: world.im_orig().clone(),
+                file_label_idx: None,
+                folder_label: None,
+            });
             *world.im_orig_mut() = rot90(world.im_orig());
         }
         (world, history)
