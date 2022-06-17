@@ -135,14 +135,14 @@ fn remove_tmpdir() -> RvResult<()> {
 }
 
 fn increase_port(address: &str) -> RvResult<String> {
-    let address_wo_port = address.split(":").next();
-    let port = address.split(":").last();
+    let address_wo_port = address.split(':').next();
+    let port = address.split(':').last();
     if let Some(port) = port {
         if let Some(address_wo_port) = address_wo_port {
             Ok(format!(
                 "{}:{}",
                 address_wo_port,
-                (port.parse::<usize>().map_err(to_rv)? + 1).to_string()
+                (port.parse::<usize>().map_err(to_rv)? + 1)
             ))
         } else {
             Err(format_rverr!("is address of {} missing?", address))
@@ -157,7 +157,7 @@ fn restart_http(
     mut stop_restarting_http: bool,
 ) -> (String, bool, Option<Receiver<RvResult<String>>>) {
     
-    let http_addr = match increase_port(&http_addr) {
+    let http_addr = match increase_port(http_addr) {
         Ok(x) => x,
         Err(e) => {
             println!("{:?}", e);
