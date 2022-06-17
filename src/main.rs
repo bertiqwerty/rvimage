@@ -9,15 +9,16 @@ use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{get_cfg, Cfg};
 use rvlib::history::{History, Record};
 use rvlib::menu::{Framework, Info};
-use rvlib::result::RvResult;
+use rvlib::result::{to_rv, RvError, RvResult};
 use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
 use rvlib::util::{self, apply_to_matched_image, mouse_pos_transform, Shape};
 use rvlib::world::World;
-use rvlib::{apply_tool_method, cfg, httpserver};
+use rvlib::{apply_tool_method, cfg, format_rverr, httpserver};
 use std::fmt::Debug;
 use std::fs;
 use std::mem;
 use std::path::Path;
+use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::Duration;
 use winit::dpi::LogicalSize;
@@ -133,6 +134,24 @@ fn remove_tmpdir() -> RvResult<()> {
     Ok(())
 }
 
+fn increase_port(address: &str) -> RvResult<String> {
+    let address_wo_port = address.split(":").next();
+    let port = address.split(":").last();
+    if let Some(port) = port {
+        if let Some(address_wo_port) = address_wo_port {
+            Ok(format!(
+                "{}:{}",
+                address_wo_port,
+                (port.parse::<usize>().map_err(to_rv)? + 1).to_string()
+            ))
+        } else {
+            Err(format_rverr!("is address of {} missing?", address))
+        }
+    } else {
+        Err(format_rverr!("is port of address {} missing?", address))
+    }
+}
+
 fn main() -> Result<(), pixels::Error> {
     env_logger::init();
     let event_loop = EventLoop::new();
@@ -168,10 +187,12 @@ fn main() -> Result<(), pixels::Error> {
     let mut history = History::new();
     let mut tools = make_tool_vec();
     let mut file_selected = None;
-    let mut rx_opt = None;
     let mut is_loading_screen_active = false;
     let mut undo_redo_load = false;
-    if let Ok((_, rx)) = httpserver::launch(http_address().to_string()) {
+    let mut rx_opt: Option<Receiver<RvResult<String>>> = None;
+    let mut http_addr = http_address().to_string();
+    let mut stop_restarting_http = false;
+    if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
         rx_opt = Some(rx);
     }
     event_loop.run(move |event, _, control_flow| {
@@ -228,7 +249,23 @@ fn main() -> Result<(), pixels::Error> {
                 if let Some(last) = rx.try_iter().last() {
                     match last {
                         Ok(file_label) => framework.menu_mut().select_file_label(&file_label),
-                        Err(e) => println!("{:?}", e),
+                        Err(e) => {
+                            http_addr = match increase_port(&http_addr) {
+                                Ok(x) => x,
+                                Err(e) => {
+                                    println!("{:?}", e);
+                                    stop_restarting_http = true;
+                                    "".to_string()
+                                }
+                            };
+                            println!("{:?}", e);
+                            if !stop_restarting_http {
+                                println!("restarting http server with increase port");
+                                if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
+                                    rx_opt = Some(rx);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -272,7 +309,7 @@ fn main() -> Result<(), pixels::Error> {
                             undo_redo_load = false;
                             file_selected = menu_file_selected;
                             is_loading_screen_active = false;
-                            (ri, file_selected)    
+                            (ri, file_selected)
                         }
                         None => {
                             thread::sleep(Duration::from_millis(20));
@@ -399,4 +436,10 @@ fn main() -> Result<(), pixels::Error> {
             _ => (),
         }
     });
+}
+
+#[test]
+fn test_increase_port() -> RvResult<()> {
+    assert_eq!(increase_port("address:1234")?, "address:1235");
+    Ok(())
 }
