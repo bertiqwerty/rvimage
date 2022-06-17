@@ -152,6 +152,31 @@ fn increase_port(address: &str) -> RvResult<String> {
     }
 }
 
+fn restart_http(
+    http_addr: &str,
+    mut stop_restarting_http: bool,
+) -> (String, bool, Option<Receiver<RvResult<String>>>) {
+    
+    let http_addr = match increase_port(&http_addr) {
+        Ok(x) => x,
+        Err(e) => {
+            println!("{:?}", e);
+            stop_restarting_http = true;
+            "".to_string()
+        }
+    };
+    if !stop_restarting_http {
+        println!("restarting http server with increased port");
+        if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
+            (http_addr, stop_restarting_http, Some(rx))
+        } else {
+            (http_addr, stop_restarting_http, None)
+        }
+    } else {
+        (http_addr, stop_restarting_http, None)
+    }
+}
+
 fn main() -> Result<(), pixels::Error> {
     env_logger::init();
     let event_loop = EventLoop::new();
@@ -250,21 +275,8 @@ fn main() -> Result<(), pixels::Error> {
                     match last {
                         Ok(file_label) => framework.menu_mut().select_file_label(&file_label),
                         Err(e) => {
-                            http_addr = match increase_port(&http_addr) {
-                                Ok(x) => x,
-                                Err(e) => {
-                                    println!("{:?}", e);
-                                    stop_restarting_http = true;
-                                    "".to_string()
-                                }
-                            };
                             println!("{:?}", e);
-                            if !stop_restarting_http {
-                                println!("restarting http server with increase port");
-                                if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
-                                    rx_opt = Some(rx);
-                                }
-                            }
+                            (http_addr, stop_restarting_http, rx_opt) = restart_http(&http_addr, stop_restarting_http);
                         }
                     }
                 }
