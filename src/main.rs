@@ -414,8 +414,3 @@ fn main() -> Result<(), pixels::Error> {
     });
 }
 
-#[test]
-fn test_increase_port() -> RvResult<()> {
-    assert_eq!(increase_port("address:1234")?, "address:1235");
-    Ok(())
-}
