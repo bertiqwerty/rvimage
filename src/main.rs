@@ -225,23 +225,21 @@ fn main() -> Result<(), pixels::Error> {
             {
                 framework.menu_mut().prev();
             }
-
-            if let Some(Some(last)) = &rx_opt.as_ref().map(|rx| rx.try_iter().last()) {
-                // check for new image requests from http server
-                match last {
-                    Ok(file_label) => framework.menu_mut().select_file_label(&file_label),
+            
+            // check for new image requests from http server
+            let rx_match = &rx_opt.as_ref().map(|rx| rx.try_iter().last());
+            if let Some(Some(Ok(file_label))) = rx_match {
+                framework.menu_mut().select_file_label(&file_label);
+            } else if let Some(Some(Err(e))) = rx_match {
+                // if the server thread sends an error we restart the server
+                println!("{:?}", e);
+                (http_addr, rx_opt) = match restart_with_increased_port(&http_addr) {
+                    Ok(x) => x,
                     Err(e) => {
-                        // if the server thread sends an error we restart the server
                         println!("{:?}", e);
-                        (http_addr, rx_opt) = match restart_with_increased_port(&http_addr) {
-                            Ok(x) => x,
-                            Err(e) => {
-                                println!("{:?}", e);
-                                (http_addr.to_string(), None)
-                            }
-                        }
+                        (http_addr.to_string(), None)
                     }
-                }
+                };
             }
 
             let menu_file_selected = framework.menu().file_label_selected_idx();
