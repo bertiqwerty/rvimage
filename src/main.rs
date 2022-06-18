@@ -232,6 +232,7 @@ fn main() -> Result<(), pixels::Error> {
                     match last {
                         Ok(file_label) => framework.menu_mut().select_file_label(&file_label),
                         Err(e) => {
+                            // if the server thread sends an error we restart the server
                             println!("{:?}", e);
                             (http_addr, rx_opt) = match restart_with_increased_port(&http_addr) {
                                 Ok(x) => x,
