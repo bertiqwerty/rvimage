@@ -14,7 +14,7 @@ pub enum OpenFolder {
     PopupOpen,
     Some(String),
 }
-fn show_ssh_folder_popup(
+fn show_folder_list_popup(
     ui: &mut Ui,
     folders: &[String],
     popup_id: Id,
@@ -33,15 +33,15 @@ fn show_ssh_folder_popup(
     selected_idx
 }
 
-fn pick_ssh_folder(
+fn pick_folder_from_list(
     ui: &mut Ui,
-    ssh_folders: &[String],
+    folder_list: &[String],
     response: &Response,
 ) -> RvResult<OpenFolder> {
     let popup_id = ui.make_persistent_id("ssh-folder-popup");
-    let idx = show_ssh_folder_popup(ui, ssh_folders, popup_id, response);
+    let idx = show_folder_list_popup(ui, folder_list, popup_id, response);
     match idx {
-        Some(idx) => Ok(OpenFolder::Some(ssh_folders[idx].clone())),
+        Some(idx) => Ok(OpenFolder::Some(folder_list[idx].clone())),
         None => Ok(OpenFolder::PopupOpen),
     }
 }
@@ -91,7 +91,7 @@ pub fn button(
     } else {
         match open_folder {
             OpenFolder::PopupOpen => {
-                let picked = pick_ssh_folder(ui, &cfg.ssh_cfg.remote_folder_paths, &resp)?;
+                let picked = pick_folder_from_list(ui, &cfg.ssh_cfg.remote_folder_paths, &resp)?;
                 if let OpenFolder::Some(_) = picked {
                     // this is when in the openfolder popup a folder has been selected
                     (*paths_navigator, *last_open_folder_job_id) = open_effects(tp, cfg)?;
