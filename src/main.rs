@@ -226,20 +226,18 @@ fn main() -> Result<(), pixels::Error> {
                 framework.menu_mut().prev();
             }
 
-            // check for new image requests from http server
-            if let Some(rx) = &rx_opt {
-                if let Some(last) = rx.try_iter().last() {
-                    match last {
-                        Ok(file_label) => framework.menu_mut().select_file_label(&file_label),
-                        Err(e) => {
-                            // if the server thread sends an error we restart the server
-                            println!("{:?}", e);
-                            (http_addr, rx_opt) = match restart_with_increased_port(&http_addr) {
-                                Ok(x) => x,
-                                Err(e) => {
-                                    println!("{:?}", e);
-                                    (http_addr.to_string(), None)
-                                }
+            if let Some(Some(last)) = &rx_opt.as_ref().map(|rx| rx.try_iter().last()) {
+                // check for new image requests from http server
+                match last {
+                    Ok(file_label) => framework.menu_mut().select_file_label(&file_label),
+                    Err(e) => {
+                        // if the server thread sends an error we restart the server
+                        println!("{:?}", e);
+                        (http_addr, rx_opt) = match restart_with_increased_port(&http_addr) {
+                            Ok(x) => x,
+                            Err(e) => {
+                                println!("{:?}", e);
+                                (http_addr.to_string(), None)
                             }
                         }
                     }
@@ -413,4 +411,3 @@ fn main() -> Result<(), pixels::Error> {
         }
     });
 }
-
