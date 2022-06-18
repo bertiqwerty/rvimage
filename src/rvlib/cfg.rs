@@ -15,7 +15,7 @@ const CFG_DEFAULT: &str = r#"
     n_threads = 2 
     # tmpdir = 
     [ssh_cfg]
-    remote_folder_path = "a/b/c"
+    remote_folder_paths = ["a/b/c"]
     address = "73.42.73.42"
     user = "someuser"
     ssh_identity_file_path = "local/path"
@@ -65,7 +65,7 @@ pub enum Cache {
 }
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SshCfg {
-    pub remote_folder_path: String,
+    pub remote_folder_paths: Vec<String>,
     pub address: String,
     pub user: String,
     pub ssh_identity_file_path: String,

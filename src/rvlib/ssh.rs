@@ -20,13 +20,12 @@ pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>>
     Ok(content)
 }
 
-pub fn find(ssh_cfg: &SshCfg, filter_extensions: &[&str]) -> RvResult<Vec<String>> {
-    let sess = auth(ssh_cfg)?;
+pub fn find(sess: Session, remote_folder_path: &str, filter_extensions: &[&str]) -> RvResult<Vec<String>> {
     let mut channel = sess.channel_session().map_err(to_rv)?;
 
     let mut s = String::new();
     channel
-        .exec(format!("find {}", ssh_cfg.remote_folder_path.replace(' ', "\\ ")).as_str())
+        .exec(format!("find {}", remote_folder_path.replace(' ', "\\ ")).as_str())
         .map_err(to_rv)?;
 
     channel.read_to_string(&mut s).map_err(to_rv)?;

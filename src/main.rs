@@ -172,10 +172,10 @@ fn main() -> Result<(), pixels::Error> {
     let mut file_selected = None;
     let mut is_loading_screen_active = false;
     let mut undo_redo_load = false;
-    let mut rx_opt: Option<Receiver<RvResult<String>>> = None;
+    let mut rx_from_http: Option<Receiver<RvResult<String>>> = None;
     let mut http_addr = http_address().to_string();
     if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
-        rx_opt = Some(rx);
+        rx_from_http = Some(rx);
     }
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
@@ -227,13 +227,13 @@ fn main() -> Result<(), pixels::Error> {
             }
             
             // check for new image requests from http server
-            let rx_match = &rx_opt.as_ref().map(|rx| rx.try_iter().last());
+            let rx_match = &rx_from_http.as_ref().map(|rx| rx.try_iter().last());
             if let Some(Some(Ok(file_label))) = rx_match {
                 framework.menu_mut().select_file_label(&file_label);
             } else if let Some(Some(Err(e))) = rx_match {
                 // if the server thread sends an error we restart the server
                 println!("{:?}", e);
-                (http_addr, rx_opt) = match restart_with_increased_port(&http_addr) {
+                (http_addr, rx_from_http) = match restart_with_increased_port(&http_addr) {
                     Ok(x) => x,
                     Err(e) => {
                         println!("{:?}", e);

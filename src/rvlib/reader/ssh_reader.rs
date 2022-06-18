@@ -5,7 +5,7 @@ use crate::{
     cache::ReadImageToCache,
     cfg::{self, SshCfg},
     result::{to_rv, RvResult},
-    ssh,
+    ssh::{self, auth},
     types::ResultImage,
 };
 
@@ -13,11 +13,11 @@ pub struct SshConfigPicker;
 impl PickFolder for SshConfigPicker {
     fn pick() -> RvResult<Picked> {
         let cfg = cfg::get_cfg()?;
-        let folder = cfg.ssh_cfg.remote_folder_path;
-        let ssh_cfg = cfg::get_cfg()?.ssh_cfg;
-        let image_paths = ssh::find(&ssh_cfg, &SUPPORTED_EXTENSIONS)?;
+        let folder = cfg.ssh_cfg.remote_folder_paths[0].as_str();
+        let sess = auth(&cfg.ssh_cfg)?;
+        let image_paths = ssh::find(sess, folder, &SUPPORTED_EXTENSIONS)?;
         Ok(Picked {
-            folder_path: folder,
+            folder_path: folder.to_string(),
             file_paths: image_paths,
         })
     }
