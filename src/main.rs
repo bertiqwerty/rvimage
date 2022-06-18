@@ -8,12 +8,13 @@ use log::error;
 use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{get_cfg, Cfg};
 use rvlib::history::{History, Record};
+use rvlib::httpserver::restart_with_increased_port;
 use rvlib::menu::{Framework, Info};
-use rvlib::result::{to_rv, RvError, RvResult};
+use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
 use rvlib::util::{self, apply_to_matched_image, mouse_pos_transform, Shape};
 use rvlib::world::World;
-use rvlib::{apply_tool_method, cfg, format_rverr, httpserver};
+use rvlib::{apply_tool_method, cfg, httpserver};
 use std::fmt::Debug;
 use std::fs;
 use std::mem;
@@ -134,49 +135,6 @@ fn remove_tmpdir() -> RvResult<()> {
     Ok(())
 }
 
-fn increase_port(address: &str) -> RvResult<String> {
-    let address_wo_port = address.split(':').next();
-    let port = address.split(':').last();
-    if let Some(port) = port {
-        if let Some(address_wo_port) = address_wo_port {
-            Ok(format!(
-                "{}:{}",
-                address_wo_port,
-                (port.parse::<usize>().map_err(to_rv)? + 1)
-            ))
-        } else {
-            Err(format_rverr!("is address of {} missing?", address))
-        }
-    } else {
-        Err(format_rverr!("is port of address {} missing?", address))
-    }
-}
-
-fn restart_http(
-    http_addr: &str,
-    mut stop_restarting_http: bool,
-) -> (String, bool, Option<Receiver<RvResult<String>>>) {
-    
-    let http_addr = match increase_port(http_addr) {
-        Ok(x) => x,
-        Err(e) => {
-            println!("{:?}", e);
-            stop_restarting_http = true;
-            "".to_string()
-        }
-    };
-    if !stop_restarting_http {
-        println!("restarting http server with increased port");
-        if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
-            (http_addr, stop_restarting_http, Some(rx))
-        } else {
-            (http_addr, stop_restarting_http, None)
-        }
-    } else {
-        (http_addr, stop_restarting_http, None)
-    }
-}
-
 fn main() -> Result<(), pixels::Error> {
     env_logger::init();
     let event_loop = EventLoop::new();
@@ -216,7 +174,6 @@ fn main() -> Result<(), pixels::Error> {
     let mut undo_redo_load = false;
     let mut rx_opt: Option<Receiver<RvResult<String>>> = None;
     let mut http_addr = http_address().to_string();
-    let mut stop_restarting_http = false;
     if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
         rx_opt = Some(rx);
     }
@@ -276,7 +233,13 @@ fn main() -> Result<(), pixels::Error> {
                         Ok(file_label) => framework.menu_mut().select_file_label(&file_label),
                         Err(e) => {
                             println!("{:?}", e);
-                            (http_addr, stop_restarting_http, rx_opt) = restart_http(&http_addr, stop_restarting_http);
+                            (http_addr, rx_opt) = match restart_with_increased_port(&http_addr) {
+                                Ok(x) => x,
+                                Err(e) => {
+                                    println!("{:?}", e);
+                                    (http_addr.to_string(), None)
+                                }
+                            }
                         }
                     }
                 }

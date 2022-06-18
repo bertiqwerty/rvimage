@@ -112,6 +112,36 @@ pub fn launch(address: String) -> LaunchResultType {
     Ok((handle, rx_from_server))
 }
 
+fn increase_port(address: &str) -> RvResult<String> {
+    let address_wo_port = address.split(':').next();
+    let port = address.split(':').last();
+    if let Some(port) = port {
+        if let Some(address_wo_port) = address_wo_port {
+            Ok(format!(
+                "{}:{}",
+                address_wo_port,
+                (port.parse::<usize>().map_err(to_rv)? + 1)
+            ))
+        } else {
+            Err(format_rverr!("is address of {} missing?", address))
+        }
+    } else {
+        Err(format_rverr!("is port of address {} missing?", address))
+    }
+}
+
+pub fn restart_with_increased_port(
+    http_addr: &str,
+) -> RvResult<(String, Option<Receiver<RvResult<String>>>)> {
+    let http_addr = increase_port(http_addr)?;
+
+    println!("restarting http server with increased port");
+    Ok(if let Ok((_, rx)) = launch(http_addr.clone()) {
+        (http_addr, Some(rx))
+    } else {
+        (http_addr, None)
+    })
+}
 #[test]
 fn test_handler() -> RvResult<()> {
     let buffer = b"garbage";
@@ -174,5 +204,10 @@ fn test_launch() -> RvResult<()> {
     thread::sleep(Duration::from_millis(500));
     assert!(handle.is_finished());
     println!("...done");
+    Ok(())
+}
+#[test]
+fn test_increase_port() -> RvResult<()> {
+    assert_eq!(increase_port("address:1234")?, "address:1235");
     Ok(())
 }

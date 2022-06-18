@@ -43,7 +43,6 @@ impl<C, FP, CA> Loader<C, FP, CA>
 where
     C: Cache<CA>,
     CA: Clone,
-    CA: Clone,
     FP: PickFolder,
 {
     pub fn new(cache_args: CA, n_cache_recreations: usize) -> RvResult<Self> {
@@ -58,8 +57,8 @@ where
 
 impl<C, FP, CA> LoadImageForGui for Loader<C, FP, CA>
 where
-    CA: Clone,
     C: Cache<CA>,
+    CA: Clone,
     FP: PickFolder,
 {
     fn read_image(&mut self, selected_file_idx: usize, file_paths: &[String]) -> AsyncResultImage {
