@@ -229,7 +229,7 @@ fn main() -> Result<(), pixels::Error> {
             // check for new image requests from http server
             let rx_match = &rx_from_http.as_ref().map(|rx| rx.try_iter().last());
             if let Some(Some(Ok(file_label))) = rx_match {
-                framework.menu_mut().select_file_label(&file_label);
+                framework.menu_mut().select_file_label(file_label);
             } else if let Some(Some(Err(e))) = rx_match {
                 // if the server thread sends an error we restart the server
                 println!("{:?}", e);

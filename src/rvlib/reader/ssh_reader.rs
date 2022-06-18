@@ -1,6 +1,6 @@
 use ssh2::Session;
 
-use super::core::{PickFolder, Picked, SUPPORTED_EXTENSIONS};
+use super::core::{ListFilesInFolder, SUPPORTED_EXTENSIONS};
 use crate::{
     cache::ReadImageToCache,
     cfg::{self, SshCfg},
@@ -9,17 +9,13 @@ use crate::{
     types::ResultImage,
 };
 
-pub struct SshConfigPicker;
-impl PickFolder for SshConfigPicker {
-    fn pick() -> RvResult<Picked> {
+pub struct SshLister;
+impl ListFilesInFolder for SshLister {
+    fn list(folder_path: &str) -> RvResult<Vec<String>> {
         let cfg = cfg::get_cfg()?;
-        let folder = cfg.ssh_cfg.remote_folder_paths[0].as_str();
         let sess = auth(&cfg.ssh_cfg)?;
-        let image_paths = ssh::find(sess, folder, &SUPPORTED_EXTENSIONS)?;
-        Ok(Picked {
-            folder_path: folder.to_string(),
-            file_paths: image_paths,
-        })
+        let image_paths = ssh::find(sess, folder_path, &SUPPORTED_EXTENSIONS)?;
+        Ok(image_paths)
     }
 }
 

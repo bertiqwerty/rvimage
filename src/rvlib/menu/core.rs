@@ -10,7 +10,7 @@ use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
-use super::paths_navigator::PathsNavigator;
+use super::{paths_navigator::PathsNavigator, open_folder::OpenFolder};
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub struct Framework {
@@ -175,11 +175,13 @@ macro_rules! handle_error {
     };
 }
 
+
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     reader: Option<ReaderFromCfg>,
     info_message: Info,
     filter_string: String,
+    opened_folder: OpenFolder,
     are_tools_active: bool,
     paths_navigator: PathsNavigator,
     cfg: Cfg,
@@ -197,6 +199,7 @@ impl Menu {
             reader: None,
             info_message: Info::None,
             filter_string: "".to_string(),
+            opened_folder: OpenFolder::None,
             are_tools_active: true,
             paths_navigator: PathsNavigator::new(None),
             cfg,
@@ -303,11 +306,18 @@ impl Menu {
                     let button_resp = menu::open_folder::button(
                         ui,
                         &mut self.paths_navigator,
+                        std::mem::replace(&mut self.opened_folder, OpenFolder::None),
                         self.cfg.clone(),
                         &mut self.last_open_folder_job_id,
                         &mut self.tp,
                     );
-                    handle_error!(button_resp, self);
+                    handle_error!(
+                        |folder| {
+                            self.opened_folder = folder;
+                        },
+                        button_resp,
+                        self
+                    );
                     let popup_id = ui.make_persistent_id("cfg-popup");
                     let cfg_gui = CfgMenu::new(popup_id, &mut self.cfg, &mut self.ssh_cfg_str);
                     ui.add(cfg_gui);
@@ -336,6 +346,7 @@ impl Menu {
                     self
                 );
                 if self.paths_navigator.paths_selector().is_none() {
+                    if let OpenFolder::Some(open_folder) = &self.opened_folder{
                     handle_error!(
                         |ps| {
                             self.paths_navigator = PathsNavigator::new(ps);
@@ -343,11 +354,11 @@ impl Menu {
                         {
                             self.reader
                                 .as_ref()
-                                .map_or(Ok(None), |r| r.open_folder().map(Some))
+                                .map_or(Ok(None), |r| r.open_folder(open_folder).map(Some))
                         },
                         self
                     );
-                }
+                }}
 
                 // filter text field
                 let txt_field = ui.text_edit_singleline(&mut self.filter_string);

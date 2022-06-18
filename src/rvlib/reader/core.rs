@@ -16,22 +16,18 @@ pub trait LoadImageForGui {
     /// read image with index file_selected_idx  
     fn read_image(&mut self, file_selected_idx: usize, file_paths: &[String]) -> AsyncResultImage;
     /// get the user input of a new folder and open it
-    fn open_folder(&self) -> RvResult<PathsSelector>;
+    fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector>;
 }
 
-pub struct Picked {
-    pub folder_path: String,
-    pub file_paths: Vec<String>,
-}
 
-pub trait PickFolder {
-    fn pick() -> RvResult<Picked>;
+pub trait ListFilesInFolder {
+    fn list(folder: &str) -> RvResult<Vec<String>>;
 }
 
 pub struct Loader<C, FP, CA>
 where
     C: Cache<CA>,
-    FP: PickFolder,
+    FP: ListFilesInFolder,
 {
     cache: C,
     cache_args: CA,
@@ -43,7 +39,7 @@ impl<C, FP, CA> Loader<C, FP, CA>
 where
     C: Cache<CA>,
     CA: Clone,
-    FP: PickFolder,
+    FP: ListFilesInFolder,
 {
     pub fn new(cache_args: CA, n_cache_recreations: usize) -> RvResult<Self> {
         Ok(Loader {
@@ -59,7 +55,7 @@ impl<C, FP, CA> LoadImageForGui for Loader<C, FP, CA>
 where
     C: Cache<CA>,
     CA: Clone,
-    FP: PickFolder,
+    FP: ListFilesInFolder,
 {
     fn read_image(&mut self, selected_file_idx: usize, file_paths: &[String]) -> AsyncResultImage {
         let mut loaded = self.cache.load_from_cache(selected_file_idx, file_paths);
@@ -82,9 +78,8 @@ where
         }
         loaded
     }
-    fn open_folder(&self) -> RvResult<PathsSelector> {
-        let picked = FP::pick()?;
-
-        PathsSelector::new(picked.file_paths, Some(picked.folder_path))
+    fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector> {
+        let file_paths = FP::list(folder_path)?;
+        PathsSelector::new(file_paths, Some(folder_path.to_string()))
     }
 }

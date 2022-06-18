@@ -34,11 +34,11 @@ n_prev_images = 2  # number of images to be cached previous to the selected one
 n_next_images = 8  # number of images to be cached following the selected one
 n_threads = 4  # number of threads to be used for background file caching
 [ssh_cfg]             
-# You cannot change the ssh-remote folder interactively. For local folders, this is possible. 
+# Local folders can interactively be chosen via file dialog. Remote folders are restricted to one of the following list. 
 remote_folder_paths = [
     "folder on your server", 
-    "another folder that will be ignored because it is not the first
-"]
+    "another folder"
+]
 address = "address:port"  # port is usually 22
 user = "your username"
 ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"

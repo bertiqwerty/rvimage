@@ -1,3 +1,4 @@
+
 use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
     cfg::{self, Cache, Cfg, Connection},
@@ -8,8 +9,8 @@ use crate::{
 
 use super::{
     core::{CloneDummy, LoadImageForGui, Loader},
-    local_reader::{FileDialogPicker, ReadImageFromPath},
-    ssh_reader::{ReadImageFromSsh, SshConfigPicker},
+    local_reader::{LocalLister, ReadImageFromPath},
+    ssh_reader::{ReadImageFromSsh, SshLister},
 };
 
 fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> RvResult<FileCacheCfgArgs> {
@@ -33,7 +34,7 @@ impl ReaderFromCfg {
                     let args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
                     Box::new(Loader::<
                         FileCache<ReadImageFromPath, _>,
-                        FileDialogPicker,
+                        LocalLister,
                         _,
                     >::new(
                         FileCacheArgs {
@@ -49,7 +50,7 @@ impl ReaderFromCfg {
 
                     Box::new(Loader::<
                         FileCache<ReadImageFromSsh, _>,
-                        SshConfigPicker,
+                        SshLister,
                         FileCacheArgs<_>,
                     >::new(
                         FileCacheArgs {
@@ -62,14 +63,14 @@ impl ReaderFromCfg {
                 }
                 (Connection::Local, Cache::NoCache) => Box::new(Loader::<
                     NoCache<ReadImageFromPath, _>,
-                    FileDialogPicker,
+                    LocalLister,
                     _,
                 >::new(
                     CloneDummy {}, 0
                 )?),
                 (Connection::Ssh, Cache::NoCache) => {
                     Box::new(
-                        Loader::<NoCache<ReadImageFromSsh, _>, SshConfigPicker, _>::new(
+                        Loader::<NoCache<ReadImageFromSsh, _>, SshLister, _>::new(
                             cfg.ssh_cfg.clone(),
                             n_ssh_reconnections,
                         )?,
@@ -83,7 +84,7 @@ impl LoadImageForGui for ReaderFromCfg {
     fn read_image(&mut self, file_selected_idx: usize, file_paths: &[String]) -> AsyncResultImage {
         self.reader.read_image(file_selected_idx, file_paths)
     }
-    fn open_folder(&self) -> RvResult<PathsSelector> {
-        self.reader.open_folder()
+    fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector> {
+        self.reader.open_folder(folder_path)
     }
 }

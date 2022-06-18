@@ -53,7 +53,7 @@ pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone, Copy)]
 pub enum Connection {
     Ssh,
     Local,
