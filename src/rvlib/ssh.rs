@@ -25,7 +25,7 @@ pub fn find(sess: Session, remote_folder_path: &str, filter_extensions: &[&str])
 
     let mut s = String::new();
     channel
-        .exec(format!("find {}", remote_folder_path.replace(' ', "\\ ")).as_str())
+        .exec(format!("find '{}'", remote_folder_path).as_str())
         .map_err(to_rv)?;
 
     channel.read_to_string(&mut s).map_err(to_rv)?;
