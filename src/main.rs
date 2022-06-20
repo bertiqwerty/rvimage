@@ -31,6 +31,7 @@ use winit_input_helper::WinitInputHelper;
 
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
+const MIN_WIN_INNER_SIZE: LogicalSize<i32> = LogicalSize::new(32, 32);
 
 fn http_address() -> &'static str {
     lazy_static! {
@@ -144,7 +145,7 @@ fn main() -> Result<(), pixels::Error> {
         WindowBuilder::new()
             .with_title("RV Image")
             .with_inner_size(size)
-            .with_min_inner_size(size)
+            .with_min_inner_size(MIN_WIN_INNER_SIZE)
             .build(&event_loop)
             .unwrap()
     };
