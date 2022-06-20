@@ -193,7 +193,7 @@ pub struct Menu {
 impl Menu {
     fn new() -> Self {
         let (cfg, _) = get_cfg();
-        let ssh_cfg_str = toml::to_string(&cfg.ssh_cfg).unwrap();
+        let ssh_cfg_str = toml::to_string_pretty(&cfg.ssh_cfg).unwrap();
         Self {
             window_open: true,
             reader: None,

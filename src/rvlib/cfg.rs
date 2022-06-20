@@ -43,7 +43,7 @@ pub fn get_cfg() -> RvResult<Cfg> {
 }
 
 pub fn write_cfg(cfg: &Cfg) -> RvResult<()> {
-    let cfg_str = toml::to_string(cfg).map_err(to_rv)?;
+    let cfg_str = toml::to_string_pretty(cfg).map_err(to_rv)?;
     write_cfg_str(&cfg_str)
 }
 
