@@ -25,7 +25,7 @@ pub fn get_default_cfg() -> Cfg {
     toml::from_str(CFG_DEFAULT).expect("default config broken")
 }
 
-fn get_cfg_path() -> RvResult<PathBuf> {
+pub fn get_cfg_path() -> RvResult<PathBuf> {
     Ok(dirs::home_dir()
         .ok_or_else(|| RvError::new("where is your home? cannot load config"))?
         .join(".rvimage")

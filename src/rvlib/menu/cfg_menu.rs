@@ -3,6 +3,7 @@ use egui::{Area, Color32, Frame, Id, Order, Response, TextEdit, Ui, Widget};
 use crate::{
     cfg::{self, Cache, Cfg, Connection, SshCfg},
     menu,
+    result::to_rv,
 };
 
 fn is_valid_ssh_cfg(s: &str) -> bool {
@@ -41,6 +42,27 @@ impl<'a> Widget for CfgMenu<'a> {
             let area_response = area
                 .show(ui.ctx(), |ui| {
                     Frame::popup(ui.style()).show(ui, |ui| {
+                        if ui.button("open in editor").clicked() {
+                            match cfg::get_cfg_path() {
+                                Ok(p) => {
+                                    if let Err(e) = edit::edit_file(p).map_err(to_rv) {
+                                        println!("{:?}", e);
+                                        println!("could not open editor. {:?}", edit::get_editor());
+                                    }
+                                }
+                                Err(e) => {
+                                    println!("could not open config file. {:?}", e);
+                                }
+                            }
+                            if let Ok(cfg) = cfg::get_cfg() {
+                                *self.cfg = cfg;
+                                *self.ssh_cfg_str =
+                                    toml::to_string_pretty(&self.cfg.ssh_cfg).unwrap();
+                            } else {
+                                println!("could not reload cfg from file");
+                            }
+                        }
+                        ui.separator();
                         ui.label("CONNECTION");
                         ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");
                         ui.radio_value(&mut self.cfg.connection, Connection::Ssh, "Ssh");
