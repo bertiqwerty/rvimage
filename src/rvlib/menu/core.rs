@@ -4,8 +4,8 @@ use crate::{
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
 };
-use egui::{ClippedMesh, CtxRef, Id, Response, Ui};
-use egui_wgpu_backend::{BackendError, RenderPass, ScreenDescriptor};
+use egui::{ClippedPrimitive, Context, TexturesDelta, Ui, Id, Response};
+use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
 use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
@@ -15,12 +15,12 @@ use super::{paths_navigator::PathsNavigator, open_folder::OpenFolder};
 /// Manages all state required for rendering egui over `Pixels`.
 pub struct Framework {
     // State for egui.
-    egui_ctx: CtxRef,
+    egui_ctx: Context,
     egui_state: egui_winit::State,
     screen_descriptor: ScreenDescriptor,
     rpass: RenderPass,
-    paint_jobs: Vec<ClippedMesh>,
-
+    paint_jobs: Vec<ClippedPrimitive>,
+    textures: TexturesDelta,
     // State for the GUI
     menu: Menu,
 }
@@ -28,22 +28,24 @@ pub struct Framework {
 impl Framework {
     /// Create egui.
     pub fn new(width: u32, height: u32, scale_factor: f32, pixels: &pixels::Pixels) -> Self {
-        let egui_ctx = CtxRef::default();
-        let egui_state = egui_winit::State::from_pixels_per_point(scale_factor);
+        let egui_ctx = Context::default();        
+        let max_texture_size = pixels.device().limits().max_texture_dimension_2d as usize;
+        let egui_state = egui_winit::State::from_pixels_per_point(max_texture_size, scale_factor);
+        
         let screen_descriptor = ScreenDescriptor {
-            physical_width: width,
-            physical_height: height,
-            scale_factor,
+            size_in_pixels: [width, height],
+            pixels_per_point: scale_factor,
         };
         let rpass = RenderPass::new(pixels.device(), pixels.render_texture_format(), 1);
         let menu = Menu::new();
-
+        let textures = TexturesDelta::default();
         Self {
             egui_ctx,
             egui_state,
             screen_descriptor,
             rpass,
             paint_jobs: Vec::new(),
+                        textures,
             menu,
         }
     }
@@ -56,28 +58,27 @@ impl Framework {
     /// Resize egui.
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
-            self.screen_descriptor.physical_width = width;
-            self.screen_descriptor.physical_height = height;
+            self.screen_descriptor.size_in_pixels = [width, height];
         }
     }
 
     /// Update scaling factor.
     pub fn scale_factor(&mut self, scale_factor: f64) {
-        self.screen_descriptor.scale_factor = scale_factor as f32;
+        self.screen_descriptor.pixels_per_point = scale_factor as f32;
     }
 
     /// Prepare egui.
     pub fn prepare(&mut self, window: &Window) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
-        let (output, paint_commands) = self.egui_ctx.run(raw_input, |egui_ctx| {
+        let output = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw the demo application.
             self.menu.ui(egui_ctx);
         });
-
+                self.textures.append(output.textures_delta);
         self.egui_state
-            .handle_output(window, &self.egui_ctx, output);
-        self.paint_jobs = self.egui_ctx.tessellate(paint_commands);
+            .handle_platform_output(window, &self.egui_ctx, output.platform_output);
+        self.paint_jobs = self.egui_ctx.tessellate(output.shapes);
     }
 
     /// Render egui.
@@ -86,12 +87,13 @@ impl Framework {
         encoder: &mut wgpu::CommandEncoder,
         render_target: &wgpu::TextureView,
         context: &PixelsContext,
-    ) -> Result<(), BackendError> {
+    ) {
         // Upload all resources to the GPU.
-        self.rpass
-            .update_texture(&context.device, &context.queue, &self.egui_ctx.font_image());
-        self.rpass
-            .update_user_textures(&context.device, &context.queue);
+        for (id, image_delta) in &self.textures.set {
+            self.rpass
+                .update_texture(&context.device, &context.queue, *id, image_delta);
+        }
+        
         self.rpass.update_buffers(
             &context.device,
             &context.queue,
@@ -106,7 +108,13 @@ impl Framework {
             &self.paint_jobs,
             &self.screen_descriptor,
             None,
-        )
+        );
+
+        // Cleanup
+        let textures = std::mem::take(&mut self.textures);
+        for id in &textures.free {
+            self.rpass.free_texture(id);
+        }
     }
     pub fn menu(&self) -> &Menu {
         &self.menu
@@ -283,7 +291,7 @@ impl Menu {
     }
 
     /// Create the UI using egui.
-    fn ui(&mut self, ctx: &CtxRef) {
+    fn ui(&mut self, ctx: &Context) {
         egui::Window::new("menu")
             .vscroll(true)
             .open(&mut self.window_open)

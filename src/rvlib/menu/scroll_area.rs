@@ -11,7 +11,7 @@ pub fn scroll_area(
     let scroll_height = ui.available_height() - 120.0;
     let n_rows = paths_selector.file_labels().len();
     let text_style = egui::TextStyle::Body;
-    let row_height = ui.fonts()[text_style].row_height();
+    let row_height = ui.text_style_height(&text_style);
     egui::ScrollArea::vertical()
         .max_height(scroll_height)
         .show_rows(ui, row_height, n_rows, |ui, row_range| {
@@ -21,7 +21,7 @@ pub fn scroll_area(
                     let path = paths_selector.file_selected_path(filtered_idx);
                     let sl_ = ui.selectable_label(true, file_label).on_hover_text(path);
                     if scroll_to_selected_label {
-                        sl_.scroll_to_me(Align::Center);
+                        sl_.scroll_to_me(Some(Align::Center));
                     }
                     sl_
                 } else {

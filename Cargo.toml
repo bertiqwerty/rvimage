@@ -18,21 +18,21 @@ optimize = ["log/release_max_level_warn"]
 
 [dependencies]
 dirs = "4.0.0"
-egui = "0.16"
-egui-winit = {version = "0.16", default-features = false, features = ["links"]}
-egui_wgpu_backend = "0.16"
+egui = "~0.18"
+egui-winit = {version = "~0.18", default-features = false, features = ["links"]}
+egui-wgpu = "~0.18"
 env_logger = "0.9"
 image = "0.24.2"
 lazy_static = "1.4.0"
 log = "0.4"
 pixels = "0.9.0"
 regex = "1"
-rfd = "0.9.0"
+rfd = "~0.9"
 serde = {version = "1.0", features = ["derive"]}
 ssh2 = "0.9"
-toml = "0.5.8"
+toml = "~0.5"
 walkdir = "2.3.2"
 winit = "0.26"
 winit_input_helper = "0.11"
-httparse = "1.7.1"
-percent-encoding = "2.1.0"
+httparse = "~1.7"
+percent-encoding = "~2.1"

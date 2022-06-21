@@ -393,7 +393,7 @@ fn main() -> Result<(), pixels::Error> {
                     context.scaling_renderer.render(encoder, render_target);
 
                     // Render egui
-                    framework.render(encoder, render_target, context)?;
+                    framework.render(encoder, render_target, context);
 
                     Ok(())
                 });
