@@ -100,23 +100,32 @@ fn apply_tools<'a>(
     (world, history)
 }
 
-fn loading_image(shape: Shape) -> DynamicImage {
+fn loading_image(shape: Shape, counter: u128) -> DynamicImage {
+    let radius = 7i32;
     let centers = [
-        (shape.w / 2 - 75, shape.h / 2),
-        (shape.w / 2 + 75, shape.h / 2),
-        (shape.w / 2, shape.h / 2),
+        (shape.w - 70, shape.h - 20),
+        (shape.w - 50, shape.h - 20),
+        (shape.w - 30, shape.h - 20),
     ];
-    DynamicImage::ImageRgb8(ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
-        for mid in centers.iter() {
-            if (mid.0 as i32 - x as i32).pow(2) + (mid.1 as i32 - y as i32).pow(2) < 100 {
-                return image::Rgb([255u8, 255u8, 255u8]);
+    let off_center_dim = |c_idx: usize, counter_mod: usize, rgb: &[u8; 3]| {
+        let mut res = *rgb;
+        for (rgb_idx, val) in rgb.iter().enumerate() {
+            if counter_mod != c_idx {
+                res[rgb_idx] = (*val as f32 * 0.7) as u8;
+            } else {
+                res[rgb_idx] = *val;
             }
         }
-        if (x / 10) % 2 == 0 {
-            image::Rgb([180u8, 180u8, 190u8])
-        } else {
-            image::Rgb([170u8, 170u8, 180u8])
+        res
+    };
+    DynamicImage::ImageRgb8(ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
+        for (c_idx, ctr) in centers.iter().enumerate() {
+            if (ctr.0 as i32 - x as i32).pow(2) + (ctr.1 as i32 - y as i32).pow(2) < radius.pow(2) {
+                let counter_mod = ((counter / 10) % 3) as usize;
+                return image::Rgb(off_center_dim(c_idx, counter_mod, &[195u8, 255u8, 205u8]));
+            }
         }
+        image::Rgb([77u8, 77u8, 87u8])
     }))
 }
 
@@ -175,6 +184,7 @@ fn main() -> Result<(), pixels::Error> {
     let mut undo_redo_load = false;
     let mut rx_from_http: Option<Receiver<RvResult<String>>> = None;
     let mut http_addr = http_address().to_string();
+    let mut counter = 0;
     if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
         rx_from_http = Some(rx);
     }
@@ -226,7 +236,7 @@ fn main() -> Result<(), pixels::Error> {
             {
                 framework.menu_mut().prev();
             }
-            
+
             // check for new image requests from http server
             let rx_match = &rx_from_http.as_ref().map(|rx| rx.try_iter().last());
             if let Some(Some(Ok(file_label))) = rx_match {
@@ -289,7 +299,7 @@ fn main() -> Result<(), pixels::Error> {
                             let shape = world.shape_orig();
                             file_selected = menu_file_selected;
                             is_loading_screen_active = true;
-                            (loading_image(shape), file_selected)
+                            (loading_image(shape, counter), file_selected)
                         }
                     };
                     Some(read_image_and_idx)
@@ -299,6 +309,10 @@ fn main() -> Result<(), pixels::Error> {
             } else {
                 None
             };
+            counter += 1;
+            if counter == u128::MAX {
+                counter = 0;
+            }
             if let Some((im_orig, file_label_idx)) = opt_rec_new {
                 let size = window.inner_size();
                 let shape_win = Shape::from_size(&size);

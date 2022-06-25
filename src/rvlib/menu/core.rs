@@ -4,13 +4,13 @@ use crate::{
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
 };
-use egui::{ClippedPrimitive, Context, TexturesDelta, Ui, Id, Response};
+use egui::{ClippedPrimitive, Context, Id, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
 use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use winit::window::Window;
 
-use super::{paths_navigator::PathsNavigator, open_folder::OpenFolder};
+use super::{open_folder::OpenFolder, paths_navigator::PathsNavigator};
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub struct Framework {
@@ -28,10 +28,10 @@ pub struct Framework {
 impl Framework {
     /// Create egui.
     pub fn new(width: u32, height: u32, scale_factor: f32, pixels: &pixels::Pixels) -> Self {
-        let egui_ctx = Context::default();        
+        let egui_ctx = Context::default();
         let max_texture_size = pixels.device().limits().max_texture_dimension_2d as usize;
         let egui_state = egui_winit::State::from_pixels_per_point(max_texture_size, scale_factor);
-        
+
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [width, height],
             pixels_per_point: scale_factor,
@@ -45,7 +45,7 @@ impl Framework {
             screen_descriptor,
             rpass,
             paint_jobs: Vec::new(),
-                        textures,
+            textures,
             menu,
         }
     }
@@ -75,7 +75,7 @@ impl Framework {
             // Draw the demo application.
             self.menu.ui(egui_ctx);
         });
-                self.textures.append(output.textures_delta);
+        self.textures.append(output.textures_delta);
         self.egui_state
             .handle_platform_output(window, &self.egui_ctx, output.platform_output);
         self.paint_jobs = self.egui_ctx.tessellate(output.shapes);
@@ -93,7 +93,7 @@ impl Framework {
             self.rpass
                 .update_texture(&context.device, &context.queue, *id, image_delta);
         }
-        
+
         self.rpass.update_buffers(
             &context.device,
             &context.queue,
@@ -182,7 +182,6 @@ macro_rules! handle_error {
         handle_error!(|_| {}, $result, $self);
     };
 }
-
 
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
@@ -354,19 +353,20 @@ impl Menu {
                     self
                 );
                 if self.paths_navigator.paths_selector().is_none() {
-                    if let OpenFolder::Some(open_folder) = &self.opened_folder{
-                    handle_error!(
-                        |ps| {
-                            self.paths_navigator = PathsNavigator::new(ps);
-                        },
-                        {
-                            self.reader
-                                .as_ref()
-                                .map_or(Ok(None), |r| r.open_folder(open_folder).map(Some))
-                        },
-                        self
-                    );
-                }}
+                    if let OpenFolder::Some(open_folder) = &self.opened_folder {
+                        handle_error!(
+                            |ps| {
+                                self.paths_navigator = PathsNavigator::new(ps);
+                            },
+                            {
+                                self.reader
+                                    .as_ref()
+                                    .map_or(Ok(None), |r| r.open_folder(open_folder).map(Some))
+                            },
+                            self
+                        );
+                    }
+                }
 
                 // filter text field
                 let txt_field = ui.text_edit_singleline(&mut self.filter_string);

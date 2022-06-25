@@ -19,7 +19,6 @@ pub trait LoadImageForGui {
     fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector>;
 }
 
-
 pub trait ListFilesInFolder {
     fn list(folder: &str) -> RvResult<Vec<String>>;
 }
