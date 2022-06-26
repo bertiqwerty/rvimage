@@ -21,7 +21,7 @@ use std::mem;
 use std::path::Path;
 use std::sync::mpsc::Receiver;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
 use winit::event::Event;
 use winit::event::VirtualKeyCode;
@@ -182,13 +182,15 @@ fn main() -> Result<(), pixels::Error> {
     let mut file_selected = None;
     let mut is_loading_screen_active = false;
     let mut undo_redo_load = false;
+    let mut counter = 0;
+    // http server state
     let mut rx_from_http: Option<Receiver<RvResult<String>>> = None;
     let mut http_addr = http_address().to_string();
-    let mut counter = 0;
     if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
         rx_from_http = Some(rx);
     }
     event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(300));
         // Handle input events
         if input.update(&event) {
             // Close application
