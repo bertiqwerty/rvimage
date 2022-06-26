@@ -6,15 +6,14 @@ use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
-use rvlib::cfg::{get_cfg, Cfg};
+use rvlib::cfg::{self, Cfg};
 use rvlib::history::{History, Record};
-use rvlib::httpserver::restart_with_increased_port;
 use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
-use rvlib::util::{self, apply_to_matched_image, mouse_pos_transform, Shape};
+use rvlib::util::{self, Shape};
 use rvlib::world::World;
-use rvlib::{apply_tool_method, cfg, httpserver};
+use rvlib::{apply_tool_method, httpserver};
 use std::fmt::Debug;
 use std::fs;
 use std::mem;
@@ -23,8 +22,7 @@ use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
-use winit::event::Event;
-use winit::event::VirtualKeyCode;
+use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
@@ -35,7 +33,7 @@ const MIN_WIN_INNER_SIZE: LogicalSize<i32> = LogicalSize::new(32, 32);
 
 fn http_address() -> &'static str {
     lazy_static! {
-        static ref CFG: Cfg = get_cfg().expect("config broken");
+        static ref CFG: Cfg = cfg::get_cfg().expect("config broken");
         static ref HTTP_ADDRESS: &'static str = CFG.http_address();
     }
     &HTTP_ADDRESS
@@ -50,7 +48,7 @@ where
 }
 
 fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
-    apply_to_matched_image(
+    util::apply_to_matched_image(
         im,
         |im| pos_2_string_gen(im, x, y),
         |im| pos_2_string_gen(im, x, y),
@@ -207,7 +205,7 @@ fn main() -> Result<(), pixels::Error> {
 
             // update world based on tools
             let shape_win = Shape::from_size(&window.inner_size());
-            let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
+            let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
             let event = util::Event::new(&input);
             if framework.menu().are_tools_active() {
                 (world, history) = apply_tools(
@@ -246,18 +244,20 @@ fn main() -> Result<(), pixels::Error> {
             } else if let Some(Some(Err(e))) = rx_match {
                 // if the server thread sends an error we restart the server
                 println!("{:?}", e);
-                (http_addr, rx_from_http) = match restart_with_increased_port(&http_addr) {
-                    Ok(x) => x,
-                    Err(e) => {
-                        println!("{:?}", e);
-                        (http_addr.to_string(), None)
-                    }
-                };
+                (http_addr, rx_from_http) =
+                    match httpserver::restart_with_increased_port(&http_addr) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            println!("{:?}", e);
+                            (http_addr.to_string(), None)
+                        }
+                    };
             }
 
             let menu_file_selected = framework.menu().file_label_selected_idx();
             let make_folder_label = || framework.menu().folder_label().map(|s| s.to_string());
-            let opt_rec_new = if (input.key_held(VirtualKeyCode::RControl)
+
+            let im_orig_idx_pair = if (input.key_held(VirtualKeyCode::RControl)
                 || input.key_held(VirtualKeyCode::LControl))
                 && input.key_pressed(VirtualKeyCode::Z)
             {
@@ -315,10 +315,10 @@ fn main() -> Result<(), pixels::Error> {
             if counter == u128::MAX {
                 counter = 0;
             }
-            if let Some((im_orig, file_label_idx)) = opt_rec_new {
+            if let Some((im_orig, file_label_idx)) = im_orig_idx_pair {
                 let size = window.inner_size();
                 let shape_win = Shape::from_size(&size);
-                let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
+                let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
                 let event = util::Event::from_image_loaded(&input);
                 if file_label_idx.is_some() {
                     framework.menu_mut().select_label_idx(file_label_idx);
@@ -346,7 +346,7 @@ fn main() -> Result<(), pixels::Error> {
                 let shape_win = Shape::from_size(&size);
                 if shape_win.h > 0 && shape_win.w > 0 {
                     let event = util::Event::from_window_resized(&input);
-                    let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
+                    let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
                     (world, history) = apply_tools(
                         &mut tools,
                         mem::take(&mut world),
@@ -369,7 +369,7 @@ fn main() -> Result<(), pixels::Error> {
                     w: window.inner_size().width,
                     h: window.inner_size().height,
                 };
-                let mouse_pos = mouse_pos_transform(&pixels, input.mouse());
+                let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
                 let data_point = get_pixel_on_orig_str(&mut tools, &world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
                 let file_label = framework.menu().file_label(idx);

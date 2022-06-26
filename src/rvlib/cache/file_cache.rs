@@ -6,7 +6,7 @@ use crate::{
     result::{to_rv, RvError, RvResult},
     threadpool::ThreadPoolQueued,
     types::{AsyncResultImage, ResultImage},
-    util::{self, filename_in_tmpdir},
+    util,
 };
 
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ where
     fs::create_dir_all(Path::new(tmpdir)).map_err(to_rv)?;
     files
         .map(|(prio, file)| {
-            let dst_file = filename_in_tmpdir(file, tmpdir)?;
+            let dst_file = util::filename_in_tmpdir(file, tmpdir)?;
             let file_for_thread = file.clone();
             let reader_for_thread = reader.clone();
             let job = Box::new(move || {
@@ -232,9 +232,9 @@ fn test_file_cache() -> RvResult<()> {
             let f = file.as_str();
             println!(
                 "filename in tmpdir {:?}",
-                Path::new(filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str())
+                Path::new(util::filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str())
             );
-            assert!(Path::new(filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str()).exists());
+            assert!(Path::new(util::filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str()).exists());
         }
         Ok(())
     };
@@ -249,7 +249,7 @@ fn test_file_cache() -> RvResult<()> {
     test(&files_str, 36)?;
     for i in (14..25).chain(34..45) {
         let f = format!("{}.png", i);
-        assert!(Path::new(filename_in_tmpdir(f.as_str(), cfg.tmpdir()?)?.as_str()).exists());
+        assert!(Path::new(util::filename_in_tmpdir(f.as_str(), cfg.tmpdir()?)?.as_str()).exists());
     }
     fs::remove_dir_all(tmpdir_path).map_err(to_rv)?;
     Ok(())

@@ -4,6 +4,7 @@ use crate::types::ViewImage;
 use crate::util::{self, Shape};
 use image::DynamicImage;
 use pixels::Pixels;
+
 fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     let x = (i % im.width() as usize) as u32;
     let y = (i / im.width() as usize) as u32;

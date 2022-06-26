@@ -5,7 +5,7 @@ use crate::{
     cache::ReadImageToCache,
     cfg::{self, SshCfg},
     result::{to_rv, RvResult},
-    ssh::{self, auth},
+    ssh,
     types::ResultImage,
 };
 
@@ -13,7 +13,7 @@ pub struct SshLister;
 impl ListFilesInFolder for SshLister {
     fn list(folder_path: &str) -> RvResult<Vec<String>> {
         let cfg = cfg::get_cfg()?;
-        let sess = auth(&cfg.ssh_cfg)?;
+        let sess = ssh::auth(&cfg.ssh_cfg)?;
         let image_paths = ssh::find(sess, folder_path, &SUPPORTED_EXTENSIONS)?;
         Ok(image_paths)
     }
