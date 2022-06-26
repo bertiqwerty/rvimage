@@ -3,7 +3,7 @@ authors = ["Behrang Shafei"]
 edition = "2021"
 name = "rvimage"
 publish = false
-version = "0.1.0"
+version = "0.1.1"
 [lib]
 name = "rvlib"
 path = "src/rvlib/lib.rs"
