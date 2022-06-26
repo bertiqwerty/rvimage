@@ -16,9 +16,9 @@ Images are cached locally in a temporary directory.
 
 ## Optional http server 
 
-When RV Image is started, also an http server is launched as aditional navigation option besides the graphical user interface. The default address is  `127.0.0.1:5432`. When sending a
+When RV Image is started, also an http server is launched as aditional navigation option besides the graphical user interface. The default address is  `127.0.0.1:5432`. If the address is already occupied, the port will be increased. When sending a
 get-request to `/file_label` the image `file_label` is loaded. For this to work, `file_label` must
-be in the currently opened folder. If the address is already occupied, the port will be increased.
+be in the currently opened folder. 
 
 ## Configuration
 Create a file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) with the following content. Currently, only authorization with key-files without passphrase is supported.
