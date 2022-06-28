@@ -250,5 +250,21 @@ fn test_ims_raw() -> RvResult<()> {
             );
         }
     }
+    ims_raw.ims_layers[0].put_pixel(4, 4, Rgba([1, 1, 1, 255]));
+    ims_raw.ims_layers[0].put_pixel(5, 5, Rgba([13, 13, 123, 123]));
+    ims_raw.ims_masks[0]
+        .as_mut()
+        .unwrap()
+        .put_pixel(5, 5, Luma([0]));
+    let im_view = ims_raw.to_view();
+    for y in 0..ims_raw.shape().h {
+        for x in 0..ims_raw.shape().w {
+            if x == 4 && y == 4 {
+                assert_eq!(im_view.get_pixel(x, y), &Rgb([1, 1, 1]));
+            } else {
+                assert_eq!(im_view.get_pixel(x, y), &Rgb([122, 122, 122]));
+            }
+        }
+    }
     Ok(())
 }
