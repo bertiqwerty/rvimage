@@ -12,7 +12,7 @@ use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
 use rvlib::util::{self, Shape};
-use rvlib::world::World;
+use rvlib::world::{ImsRaw, World};
 use rvlib::{apply_tool_method, httpserver};
 use std::fmt::Debug;
 use std::fs;
@@ -72,7 +72,7 @@ fn get_pixel_on_orig_str(
         }
     }
     if let Some((x, y)) = pos_rgb {
-        res = Some(pos_2_string(world.im_orig(), x, y));
+        res = Some(pos_2_string(world.ims_raw().im_background(), x, y));
     }
     res
 }
@@ -167,7 +167,7 @@ fn main() -> Result<(), pixels::Error> {
     };
 
     fn empty_world() -> World {
-        World::new(DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(
+        World::from_im(DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(
             START_WIDTH,
             START_HEIGHT,
         )))
@@ -257,14 +257,14 @@ fn main() -> Result<(), pixels::Error> {
             let menu_file_selected = framework.menu().file_label_selected_idx();
             let make_folder_label = || framework.menu().folder_label().map(|s| s.to_string());
 
-            let im_orig_idx_pair = if (input.key_held(VirtualKeyCode::RControl)
+            let ims_raw_idx_pair = if (input.key_held(VirtualKeyCode::RControl)
                 || input.key_held(VirtualKeyCode::LControl))
                 && input.key_pressed(VirtualKeyCode::Z)
             {
                 // undo
                 undo_redo_load = true;
                 Some(history.prev_world(Record {
-                    im_orig: std::mem::take(world.im_orig_mut()),
+                    ims_raw: std::mem::take(world.ims_raw_mut()),
                     file_label_idx: file_selected,
                     folder_label: make_folder_label(),
                 }))
@@ -275,7 +275,7 @@ fn main() -> Result<(), pixels::Error> {
                 // redo
                 undo_redo_load = true;
                 Some(history.next_world(Record {
-                    im_orig: std::mem::take(world.im_orig_mut()),
+                    ims_raw: std::mem::take(world.ims_raw_mut()),
                     file_label_idx: file_selected,
                     folder_label: make_folder_label(),
                 }))
@@ -284,7 +284,7 @@ fn main() -> Result<(), pixels::Error> {
                 if let Some(selected) = &menu_file_selected {
                     if !is_loading_screen_active && !undo_redo_load {
                         history.push(Record {
-                            im_orig: world.im_orig().clone(),
+                            ims_raw: world.ims_raw().clone(),
                             file_label_idx: file_selected,
                             folder_label: make_folder_label(),
                         });
@@ -294,14 +294,14 @@ fn main() -> Result<(), pixels::Error> {
                             undo_redo_load = false;
                             file_selected = menu_file_selected;
                             is_loading_screen_active = false;
-                            (ri, file_selected)
+                            (ImsRaw::new(ri), file_selected)
                         }
                         None => {
                             thread::sleep(Duration::from_millis(20));
                             let shape = world.shape_orig();
                             file_selected = menu_file_selected;
                             is_loading_screen_active = true;
-                            (loading_image(shape, counter), file_selected)
+                            (ImsRaw::new(loading_image(shape, counter)), file_selected)
                         }
                     };
                     Some(read_image_and_idx)
@@ -315,7 +315,7 @@ fn main() -> Result<(), pixels::Error> {
             if counter == u128::MAX {
                 counter = 0;
             }
-            if let Some((im_orig, file_label_idx)) = im_orig_idx_pair {
+            if let Some((ims_raw, file_label_idx)) = ims_raw_idx_pair {
                 let size = window.inner_size();
                 let shape_win = Shape::from_size(&size);
                 let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
@@ -323,7 +323,7 @@ fn main() -> Result<(), pixels::Error> {
                 if file_label_idx.is_some() {
                     framework.menu_mut().select_label_idx(file_label_idx);
                 }
-                world = World::new(im_orig);
+                world = World::new(ims_raw);
                 (world, history) = apply_tools(
                     &mut tools,
                     mem::take(&mut world),

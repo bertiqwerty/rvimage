@@ -1,9 +1,13 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, mem};
 
+use crate::format_rverr;
+use crate::result::{RvError, RvResult};
 use crate::types::ViewImage;
 use crate::util::{self, Shape};
-use image::DynamicImage;
+use image::{DynamicImage, ImageBuffer, Luma};
 use pixels::Pixels;
+
+pub type MaskImage = Option<ImageBuffer<Luma<u8>, Vec<u8>>>;
 
 fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     let x = (i % im.width() as usize) as u32;
@@ -13,10 +17,137 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
 }
 
+fn assert_data_is_valid(
+    shape: Shape,
+    ims_layers: &Vec<DynamicImage>,
+    ims_masks: &Vec<MaskImage>,
+) -> RvResult<()> {
+    if ims_layers.len() != ims_masks.len() {
+        Err(format_rverr!(
+            "lengths of ims and masks need to coincide but {} vs. {}",
+            ims_layers.len(),
+            ims_masks.len()
+        ))
+    } else {
+        for idx in 0..ims_layers.len() {
+            let im_l = &ims_layers[idx];
+            let im_m = &ims_masks[idx];
+            let shape_m = if let Some(im_m) = im_m {
+                Shape::from_im(im_m)
+            } else {
+                shape
+            };
+            if Shape::from_im(im_l) != shape || shape_m != shape {
+                return Err(RvError::new("shape mismatch between layer and background"));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Default, PartialEq)]
+pub struct ImsRaw {
+    im_background: DynamicImage,
+    ims_layers: Vec<DynamicImage>,
+    ims_masks: Vec<MaskImage>,
+}
+
+impl ImsRaw {
+    pub fn new(im_background: DynamicImage) -> Self {
+        ImsRaw {
+            im_background,
+            ims_layers: vec![],
+            ims_masks: vec![],
+        }
+    }
+
+    pub fn im_background(&self) -> &DynamicImage {
+        &&self.im_background
+    }
+
+    pub fn from_multiple_layers(
+        im_background: DynamicImage,
+        ims_layers: Vec<DynamicImage>,
+        ims_masks: Vec<MaskImage>,
+    ) -> RvResult<Self> {
+        let mut ims_raw = Self::new(im_background);
+        ims_raw.append(ims_layers, ims_masks)?;
+        Ok(ims_raw)
+    }
+
+    pub fn apply<FI: FnMut(DynamicImage) -> DynamicImage, FM: FnMut(MaskImage) -> MaskImage>(
+        &mut self,
+        mut f_i: FI,
+        mut f_m: FM,
+    ) {
+        self.im_background = f_i(mem::take(&mut self.im_background));
+        self.ims_layers = mem::take(&mut self.ims_layers)
+            .into_iter()
+            .map(|im_layer| f_i(im_layer))
+            .collect::<_>();
+        self.ims_masks = mem::take(&mut self.ims_masks)
+            .into_iter()
+            .map(|im_mask| f_m(im_mask))
+            .collect::<_>();
+
+        assert_data_is_valid(self.shape(), &self.ims_layers, &self.ims_masks)
+            .expect("invalid data");
+    }
+
+    pub fn append(
+        &mut self,
+        mut ims_layers: Vec<DynamicImage>,
+        mut ims_masks: Vec<MaskImage>,
+    ) -> RvResult<()> {
+        assert_data_is_valid(self.shape(), &ims_layers, &ims_masks)?;
+        self.ims_layers.append(&mut ims_layers);
+        self.ims_masks.append(&mut ims_masks);
+        Ok(())
+    }
+    pub fn shape(&self) -> Shape {
+        Shape::from_im(&self.im_background)
+    }
+
+    pub fn to_view(&self) -> ViewImage {
+        let mut res = util::orig_to_0_255(&self.im_background, &None);
+        for idx in 0..self.ims_layers.len() {
+            let (im_raw, im_mask) = (&self.ims_layers[idx], &self.ims_masks[idx]);
+            let im_transformed = util::orig_to_0_255(im_raw, im_mask);
+            match im_mask {
+                Some(im_m) => {
+                    for y in 0..im_m.height() {
+                        for x in 0..im_m.width() {
+                            if im_m.get_pixel(x, y)[0] > 0 {
+                                *res.get_pixel_mut(x, y) = *im_transformed.get_pixel(x, y);
+                            }
+                        }
+                    }
+                }
+                None => {
+                    res = im_transformed;
+                }
+            }
+        }
+        res
+    }
+}
+
+impl Debug for ImsRaw {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "\nshape {:?}\nnumber of layers {:?}\nnumber of masks {:?}",
+            self.shape(),
+            self.ims_layers.len(),
+            self.ims_masks.len()
+        )
+    }
+}
+
 /// Everything we need to draw
 #[derive(Clone, Default)]
 pub struct World {
-    im_orig: DynamicImage,
+    ims_raw: ImsRaw,
     im_view: ViewImage,
 }
 
@@ -35,9 +166,12 @@ impl World {
             pixel.copy_from_slice(&rgba);
         }
     }
-    pub fn new(im_orig: DynamicImage) -> Self {
-        let im_view = util::orig_to_0_255(&im_orig);
-        Self { im_orig, im_view }
+    pub fn new(ims_raw: ImsRaw) -> Self {
+        let im_view = ims_raw.to_view();
+        Self { ims_raw, im_view }
+    }
+    pub fn from_im(im: DynamicImage) -> Self {
+        Self::new(ImsRaw::new(im))
     }
     pub fn im_view(&self) -> &ViewImage {
         &self.im_view
@@ -45,25 +179,22 @@ impl World {
     pub fn im_view_mut(&mut self) -> &mut ViewImage {
         &mut self.im_view
     }
-    pub fn im_orig(&self) -> &DynamicImage {
-        &self.im_orig
+    pub fn ims_raw(&self) -> &ImsRaw {
+        &self.ims_raw
     }
-    pub fn im_orig_mut(&mut self) -> &mut DynamicImage {
-        &mut self.im_orig
+    pub fn ims_raw_mut(&mut self) -> &mut ImsRaw {
+        &mut self.ims_raw
     }
     pub fn shape_orig(&self) -> Shape {
-        Shape {
-            w: self.im_orig().width(),
-            h: self.im_orig().height(),
-        }
+        self.ims_raw.shape()
     }
 }
 impl Debug for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "\nim_orig, {:?}\nim_view, {:?}",
-            Shape::from_im(&self.im_orig),
+            "\nims_raw {:?}\nim_view shape {:?}",
+            self.ims_raw(),
             Shape::from_im(&self.im_view)
         )
     }

@@ -1,18 +1,23 @@
-use image::DynamicImage;
+use image::imageops;
 use winit::event::VirtualKeyCode;
 
 use crate::{
     history::{History, Record},
     make_tool_transform,
     util::{Event, Shape},
-    world::World,
+    world::{ImsRaw, World},
 };
 
 use super::Tool;
 
 /// rotate 90 degrees counter clockwise
-fn rot90(im: &DynamicImage) -> DynamicImage {
-    im.rotate270()
+fn rot90(ims: &ImsRaw) -> ImsRaw {
+    let mut ims = ims.clone();
+    ims.apply(
+        |im| im.rotate270(),
+        |mask| mask.as_ref().map(|m| imageops::rotate270(m)),
+    );
+    ims
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Rot90;
@@ -28,11 +33,11 @@ impl Rot90 {
     ) -> (World, History) {
         if key == VirtualKeyCode::R {
             history.push(Record {
-                im_orig: world.im_orig().clone(),
+                ims_raw: world.ims_raw().clone(),
                 file_label_idx: None,
                 folder_label: None,
             });
-            *world.im_orig_mut() = rot90(world.im_orig());
+            *world.ims_raw_mut() = rot90(world.ims_raw());
         }
         (world, history)
     }

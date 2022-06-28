@@ -11,8 +11,8 @@ use crate::{
     make_tool_transform,
     tools::core::Tool,
     types::ViewImage,
-    util::{self, shape_scaled, Event, Shape, BB},
-    world::World,
+    util::{shape_scaled, Event, Shape, BB},
+    world::{ImsRaw, World},
     LEFT_BTN, RIGHT_BTN,
 };
 
@@ -124,23 +124,21 @@ fn move_zoom_box(
     }
 }
 
-pub fn scale_to_win(im_orig: &DynamicImage, zoom_box: Option<BB>, shape_win: Shape) -> ViewImage {
-    let shape_orig = Shape::from_im(im_orig);
+pub fn scale_to_win(ims_raw: &ImsRaw, zoom_box: Option<BB>, shape_win: Shape) -> ViewImage {
+    let shape_orig = ims_raw.shape();
     let unscaled = shape_unscaled(&zoom_box, shape_orig);
     let new = shape_scaled(unscaled, shape_win);
-    match zoom_box {
-        Some(c) => {
-            let im_cropped = im_orig.clone().crop(c.x, c.y, c.w, c.h);
-            imageops::resize(
-                &util::orig_to_0_255(&im_cropped),
-                new.w,
-                new.h,
-                FilterType::Nearest,
-            )
-        }
-
-        None => util::orig_to_0_255(&im_orig.resize_exact(new.w, new.h, FilterType::Nearest)),
-    }
+    let im_view = if let Some(c) = zoom_box {
+        let mut ims_raw = ims_raw.clone();
+        ims_raw.apply(
+            |mut im| im.crop(c.x, c.y, c.w, c.h),
+            |mask| mask.map(|mut m| imageops::crop(&mut m, c.x, c.y, c.w, c.h).to_image()),
+        );
+        ims_raw.to_view()
+    } else {
+        ims_raw.to_view()
+    };
+    imageops::resize(&im_view, new.w, new.h, FilterType::Nearest)
 }
 
 fn draw_bx_on_view(
@@ -233,9 +231,9 @@ impl Zoom {
                 if let Some(bx_) = bx {
                     self.bx = Some(bx_);
                 }
-                scale_to_win(world.im_orig(), self.bx, shape_win)
+                scale_to_win(world.ims_raw(), self.bx, shape_win)
             } else {
-                scale_to_win(world.im_orig(), self.bx, shape_win)
+                scale_to_win(world.ims_raw(), self.bx, shape_win)
             };
             self.unset_mouse_start();
             *world.im_view_mut() = im_view;
@@ -257,9 +255,8 @@ impl Zoom {
     ) -> (World, History) {
         if btn == RIGHT_BTN {
             if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
-                self.bx =
-                    move_zoom_box(mps, mp, Shape::from_im(world.im_orig()), shape_win, self.bx);
-                let im_view = scale_to_win(world.im_orig(), self.bx, shape_win);
+                self.bx = move_zoom_box(mps, mp, world.ims_raw().shape(), shape_win, self.bx);
+                let im_view = scale_to_win(world.ims_raw(), self.bx, shape_win);
                 match mouse_pos {
                     Some(mp) => {
                         self.set_mouse_start(mp, None);
@@ -304,7 +301,7 @@ impl Zoom {
         history: History,
     ) -> (World, History) {
         self.bx = None;
-        *world.im_view_mut() = scale_to_win(world.im_orig(), None, shape_win);
+        *world.im_view_mut() = scale_to_win(world.ims_raw(), None, shape_win);
         (world, history)
     }
 }
@@ -343,13 +340,13 @@ impl Tool for Zoom {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
     ) -> World {
-        let shape_orig = Shape::from_im(world.im_orig());
+        let shape_orig = world.ims_raw().shape();
         // we keep the box if it fits into the new image
         self.bx = match self.bx {
             Some(bx) if bx.x + bx.w > shape_orig.w || bx.y + bx.h > shape_orig.h => None,
             _ => self.bx,
         };
-        *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
+        *world.im_view_mut() = scale_to_win(world.ims_raw(), self.bx, shape_win);
         world
     }
 
@@ -359,7 +356,7 @@ impl Tool for Zoom {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
     ) -> World {
-        *world.im_view_mut() = scale_to_win(world.im_orig(), self.bx, shape_win);
+        *world.im_view_mut() = scale_to_win(world.ims_raw(), self.bx, shape_win);
         world
     }
 
@@ -369,7 +366,12 @@ impl Tool for Zoom {
         shape_win: Shape,
         mouse_pos: Option<(u32, u32)>,
     ) -> Option<(u32, u32)> {
-        get_pixel_on_orig(self.bx, world.im_orig(), mouse_pos, shape_win)
+        get_pixel_on_orig(
+            self.bx,
+            world.ims_raw().im_background(),
+            mouse_pos,
+            shape_win,
+        )
     }
 }
 #[cfg(test)]
@@ -423,7 +425,7 @@ fn test_scale_to_win() -> RvResult<()> {
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     im_test.put_pixel(10, 10, Rgb([23, 23, 23]));
     let im_scaled = scale_to_win(
-        &DynamicImage::ImageRgb8(im_test),
+        &ImsRaw::new(DynamicImage::ImageRgb8(im_test)),
         None,
         Shape { w: 128, h: 128 },
     );
@@ -439,14 +441,14 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mouse_btn = LEFT_BTN;
     let mut z = Zoom::new();
-    let world = World::new(im_orig);
+    let world = World::from_im(im_orig);
     let history = History::new();
     let im_view_old = world.im_view().clone();
-    let im_orig_old = world.im_orig().clone();
+    let im_orig_old = world.ims_raw().clone();
     let (res, _) = z.mouse_pressed(mouse_btn, shape_win, mouse_pos, world, history);
     assert_eq!(z.im_prev_view.unwrap(), im_view_old);
     assert_eq!(*res.im_view(), im_view_old);
-    assert_eq!(*res.im_orig(), im_orig_old);
+    assert_eq!(*res.ims_raw(), im_orig_old);
     assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
     Ok(())
 }
@@ -458,7 +460,7 @@ fn test_on_mouse_released() -> RvResult<()> {
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mouse_btn = LEFT_BTN;
     let mut z = Zoom::new();
-    let world = World::new(im_orig);
+    let world = World::from_im(im_orig);
     let history = History::new();
     z.set_mouse_start((40, 80), Some(world.im_view().clone()));
 

@@ -1,16 +1,15 @@
-use crate::util::Shape;
-use image::DynamicImage;
+use crate::world::ImsRaw;
 use std::fmt::Debug;
 
 #[derive(Clone)]
 pub struct Record {
-    pub im_orig: DynamicImage,
+    pub ims_raw: ImsRaw,
     pub file_label_idx: Option<usize>,
     pub folder_label: Option<String>,
 }
 impl Record {
-    fn move_to_im_idx_pair(self) -> (DynamicImage, Option<usize>) {
-        (self.im_orig, self.file_label_idx)
+    fn move_to_im_idx_pair(self) -> (ImsRaw, Option<usize>) {
+        (self.ims_raw, self.file_label_idx)
     }
 }
 #[derive(Clone, Default)]
@@ -64,7 +63,7 @@ impl History {
         }
     }
 
-    pub fn prev_world(&mut self, mut curr_world: Record) -> (DynamicImage, Option<usize>) {
+    pub fn prev_world(&mut self, mut curr_world: Record) -> (ImsRaw, Option<usize>) {
         self.clear_on_folder_change(&curr_world.folder_label);
         if let Some(idx) = self.current_idx {
             if idx > 0 {
@@ -77,7 +76,7 @@ impl History {
         curr_world.move_to_im_idx_pair()
     }
 
-    pub fn next_world(&mut self, mut curr_world: Record) -> (DynamicImage, Option<usize>) {
+    pub fn next_world(&mut self, mut curr_world: Record) -> (ImsRaw, Option<usize>) {
         self.clear_on_folder_change(&curr_world.folder_label);
         match self.current_idx {
             Some(idx) if idx < self.records.len() - 1 => {
@@ -105,68 +104,71 @@ impl Debug for History {
                 .map(|r| format!(
                     "file label idx {:?} - {:?}",
                     r.file_label_idx,
-                    Shape::from_im(&r.im_orig)
+                    &r.ims_raw.shape()
                 ))
                 .collect::<Vec<_>>()
         )
     }
 }
 #[cfg(test)]
-use crate::{result::RvResult, types::ViewImage, world::World};
+use {
+    crate::{result::RvResult, types::ViewImage, world::World},
+    image::DynamicImage,
+};
 #[test]
 fn test_history() -> RvResult<()> {
     let im = ViewImage::new(64, 64);
-    let world = World::new(DynamicImage::ImageRgb8(im));
+    let world = World::from_im(DynamicImage::ImageRgb8(im));
     let mut hist = History::new();
 
     hist.push(Record {
-        im_orig: world.im_orig().clone(),
+        ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
         folder_label: None,
     });
-    let mut world = World::new(DynamicImage::ImageRgb8(ViewImage::new(32, 32)));
+    let mut world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(32, 32)));
     hist.push(Record {
-        im_orig: world.im_orig().clone(),
+        ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
         folder_label: None,
     });
     assert_eq!(hist.records.len(), 2);
-    assert_eq!(hist.records[0].im_orig.width(), 64);
-    assert_eq!(hist.records[1].im_orig.width(), 32);
+    assert_eq!(hist.records[0].ims_raw.shape().w, 64);
+    assert_eq!(hist.records[1].ims_raw.shape().w, 32);
     hist.prev_world(Record {
-        im_orig: std::mem::take(world.im_orig_mut()),
+        ims_raw: std::mem::take(world.ims_raw_mut()),
         file_label_idx: None,
         folder_label: None,
     });
-    let world = World::new(DynamicImage::ImageRgb8(ViewImage::new(16, 16)));
+    let world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(16, 16)));
     hist.push(Record {
-        im_orig: world.im_orig().clone(),
+        ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
         folder_label: None,
     });
     assert_eq!(hist.records.len(), 2);
-    assert_eq!(hist.records[0].im_orig.width(), 64);
-    assert_eq!(hist.records[1].im_orig.width(), 16);
+    assert_eq!(hist.records[0].ims_raw.shape().w, 64);
+    assert_eq!(hist.records[1].ims_raw.shape().w, 16);
 
     hist.push(Record {
-        im_orig: world.im_orig().clone(),
+        ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
         folder_label: Some("folder1".to_string()),
     });
     assert_eq!(hist.records.len(), 1);
 
     hist.push(Record {
-        im_orig: world.im_orig().clone(),
+        ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),
     });
     hist.push(Record {
-        im_orig: world.im_orig().clone(),
+        ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
         folder_label: None,
     });
     hist.push(Record {
-        im_orig: world.im_orig().clone(),
+        ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),
     });

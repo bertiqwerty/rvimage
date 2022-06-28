@@ -11,7 +11,10 @@ use crate::{
     types::{ResultImage, ViewImage},
 };
 use core::cmp::Ordering::{Greater, Less};
-use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb, Rgba};
+use image::{
+    buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb,
+    Rgba,
+};
 use pixels::Pixels;
 use std::str::FromStr;
 use winit::dpi::PhysicalSize;
@@ -158,7 +161,10 @@ where
     }
 }
 
-pub fn orig_to_0_255(im_orig: &DynamicImage) -> ViewImage {
+pub fn orig_to_0_255(
+    im_orig: &DynamicImage,
+    im_mask: &Option<ImageBuffer<Luma<u8>, Vec<u8>>>,
+) -> ViewImage {
     let fn_rgb32f = |im: &ImageBuffer<Rgb<f32>, Vec<f32>>| {
         let mut im = im.clone();
         let max_val = im
@@ -185,12 +191,21 @@ pub fn orig_to_0_255(im_orig: &DynamicImage) -> ViewImage {
         } else if max_val > 255.0 {
             for y in 0..im.height() {
                 for x in 0..im.width() {
+                    let is_pixel_relevant = if let Some(im_mask) = im_mask {
+                        im_mask.get_pixel(x, y)[0] > 0
+                    } else {
+                        true
+                    };
                     let p = im.get_pixel_mut(x, y);
-                    p.0 = [
-                        p.0[0] / max_val * 255.0,
-                        p.0[1] / max_val * 255.0,
-                        p.0[2] / max_val * 255.0,
-                    ];
+                    p.0 = if is_pixel_relevant {
+                        [
+                            p.0[0] / max_val * 255.0,
+                            p.0[1] / max_val * 255.0,
+                            p.0[2] / max_val * 255.0,
+                        ]
+                    } else {
+                        [0.0, 0.0, 0.0]
+                    };
                 }
             }
         }
