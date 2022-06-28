@@ -15,7 +15,7 @@ fn rot90(ims: &ImsRaw) -> ImsRaw {
     let mut ims = ims.clone();
     ims.apply(
         |im| im.rotate270(),
-        |mask| mask.as_ref().map(|m| imageops::rotate270(m)),
+        |mask| mask.as_ref().map(imageops::rotate270),
     );
     ims
 }

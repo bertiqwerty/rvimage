@@ -62,7 +62,7 @@ impl ImsRaw {
     }
 
     pub fn im_background(&self) -> &DynamicImage {
-        &&self.im_background
+        &self.im_background
     }
 
     pub fn from_multiple_layers(
@@ -78,17 +78,17 @@ impl ImsRaw {
     pub fn apply<FI: FnMut(DynamicImage) -> DynamicImage, FM: FnMut(MaskImage) -> MaskImage>(
         &mut self,
         mut f_i: FI,
-        mut f_m: FM,
+        f_m: FM,
     ) {
         self.im_background = f_i(mem::take(&mut self.im_background));
         self.ims_layers = mem::take(&mut self.ims_layers)
             .into_iter()
-            .map(|im_layer| f_i(im_layer))
-            .collect::<_>();
+            .map(f_i)
+            .collect();
         self.ims_masks = mem::take(&mut self.ims_masks)
             .into_iter()
-            .map(|im_mask| f_m(im_mask))
-            .collect::<_>();
+            .map(f_m)
+            .collect();
 
         assert_data_is_valid(self.shape(), &self.ims_layers, &self.ims_masks)
             .expect("invalid data");
@@ -199,8 +199,10 @@ impl Debug for World {
         )
     }
 }
+
 #[cfg(test)]
 use image::Rgb;
+
 #[test]
 fn test_rgba() {
     let mut im_test = ViewImage::new(64, 64);
