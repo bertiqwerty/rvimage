@@ -201,7 +201,7 @@ impl Debug for World {
 }
 
 #[cfg(test)]
-use image::Rgb;
+use image::{GenericImage, GenericImageView, Rgb, Rgba};
 
 #[test]
 fn test_rgba() {
@@ -212,4 +212,43 @@ fn test_rgba() {
     assert_eq!(rgba_at(64, &im_test), [23, 23, 23, 255]);
     im_test.put_pixel(7, 11, Rgb([23, 23, 23]));
     assert_eq!(rgba_at(11 * 64 + 7, &im_test), [23, 23, 23, 255]);
+}
+
+#[test]
+fn test_ims_raw() -> RvResult<()> {
+    let im = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
+    let mut ims_raw = ImsRaw::new(im.clone());
+    let ref_pixel = Rgba([122, 122, 122, 255]);
+    ims_raw.append(
+        vec![im],
+        vec![Some(ImageBuffer::<Luma<u8>, Vec<u8>>::new(64, 64))],
+    )?;
+    ims_raw.apply(
+        |mut im: DynamicImage| {
+            for y in 0..im.height() {
+                for x in 0..im.width() {
+                    im.put_pixel(x, y, ref_pixel);
+                }
+            }
+            im
+        },
+        |x| {
+            x.map(|mut m| {
+                m.fill(11);
+                m
+            })
+        },
+    );
+
+    for y in 0..ims_raw.shape().h {
+        for x in 0..ims_raw.shape().w {
+            assert_eq!(ims_raw.ims_layers[0].get_pixel(x, y), ref_pixel);
+            assert_eq!(ims_raw.im_background().get_pixel(x, y), ref_pixel);
+            assert_eq!(
+                ims_raw.ims_masks[0].as_ref().unwrap().get_pixel(x, y),
+                &Luma([11u8])
+            );
+        }
+    }
+    Ok(())
 }
