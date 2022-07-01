@@ -4,7 +4,7 @@ use crate::{
     world::World,
 };
 
-pub trait Tool {
+pub trait Manipulate {
     fn new() -> Self
     where
         Self: Sized;

@@ -8,7 +8,7 @@ use crate::{
     world::{ImsRaw, World},
 };
 
-use super::Tool;
+use super::Manipulate;
 
 /// rotate 90 degrees counter clockwise
 fn rot90(ims: &ImsRaw) -> ImsRaw {
@@ -43,7 +43,7 @@ impl Rot90 {
     }
 }
 
-impl Tool for Rot90 {
+impl Manipulate for Rot90 {
     fn new() -> Self {
         Self {}
     }

@@ -9,7 +9,7 @@ use winit::event::VirtualKeyCode;
 use crate::{
     history::History,
     make_tool_transform,
-    tools::core::Tool,
+    tools::core::Manipulate,
     types::ViewImage,
     util::{shape_scaled, Event, Shape, BB},
     world::{ImsRaw, World},
@@ -305,7 +305,7 @@ impl Zoom {
         (world, history)
     }
 }
-impl Tool for Zoom {
+impl Manipulate for Zoom {
     fn new() -> Zoom {
         Zoom {
             bx: None,

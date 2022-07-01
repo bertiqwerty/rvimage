@@ -10,7 +10,7 @@ use rvlib::cfg::{self, Cfg};
 use rvlib::history::{History, Record};
 use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
-use rvlib::tools::{make_tool_vec, Tool, ToolWrapper};
+use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
 use rvlib::world::{ImsRaw, World};
 use rvlib::{apply_tool_method, httpserver};
@@ -58,7 +58,7 @@ fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
 }
 
 fn get_pixel_on_orig_str(
-    tools: &mut [ToolWrapper],
+    tools: &mut [ToolState],
     world: &World,
     mouse_pos: Option<(usize, usize)>,
     shape_win: Shape,
@@ -78,7 +78,7 @@ fn get_pixel_on_orig_str(
 }
 
 fn apply_tools<'a>(
-    tools: &'a mut Vec<ToolWrapper>,
+    tools: &'a mut Vec<ToolState>,
     mut world: World,
     mut history: History,
     shape_win: Shape,
@@ -88,8 +88,16 @@ fn apply_tools<'a>(
 ) -> (World, History) {
     let old_shape = Shape::from_im(world.im_view());
     for t in tools {
-        (world, history) =
-            apply_tool_method!(t, events_tf, world, history, shape_win, mouse_pos, event);
+        if t.is_active {
+            (world, history) =
+                apply_tool_method!(t, events_tf, world, history, shape_win, mouse_pos, event);
+        } else {
+            let mut event = event.clone();
+            let dummy_input = WinitInputHelper::new();
+            event.input = &dummy_input;
+            (world, history) =
+                apply_tool_method!(t, events_tf, world, history, shape_win, mouse_pos, &event);
+        }
     }
     let new_shape = Shape::from_im(world.im_view());
     if old_shape != new_shape {
@@ -175,8 +183,8 @@ fn main() -> Result<(), pixels::Error> {
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
     let mut world = empty_world();
-    let mut history = History::new();
     let mut tools = make_tool_vec();
+    let mut history = History::new();
     let mut file_selected = None;
     let mut is_loading_screen_active = false;
     let mut undo_redo_load = false;
@@ -217,6 +225,38 @@ fn main() -> Result<(), pixels::Error> {
                     &event,
                     &mut pixels,
                 );
+            }
+
+            if input.key_held(VirtualKeyCode::RShift) || input.key_held(VirtualKeyCode::LShift) {
+                if input.key_pressed(VirtualKeyCode::B) {
+                    for t in tools.iter_mut() {
+                        if let ToolWrapper::Brush(_) = &t.tool {
+                            t.is_active = true;
+                        } else {
+                            t.is_active = false;
+                        }
+                    }
+                } else if input.key_pressed(VirtualKeyCode::R) {
+                    for t in tools.iter_mut() {
+                        if let ToolWrapper::Rot90(_) = &t.tool {
+                            t.is_active = true;
+                        } else {
+                            t.is_active = false;
+                        }
+                    }
+                } else if input.key_pressed(VirtualKeyCode::Z) {
+                    for t in tools.iter_mut() {
+                        if let ToolWrapper::Zoom(_) = &t.tool {
+                            t.is_active = true;
+                        } else {
+                            t.is_active = false;
+                        }
+                    }
+                } else if input.key_pressed(VirtualKeyCode::Q) {
+                    for t in tools.iter_mut() {
+                        t.is_active = false;
+                    }
+                }
             }
 
             if input.key_pressed(VirtualKeyCode::M) {
