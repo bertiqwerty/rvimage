@@ -119,7 +119,7 @@ fn loading_image(shape: Shape, counter: u128) -> DynamicImage {
     DynamicImage::ImageRgb8(ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
         for (c_idx, ctr) in centers.iter().enumerate() {
             if (ctr.0 as i32 - x as i32).pow(2) + (ctr.1 as i32 - y as i32).pow(2) < radius.pow(2) {
-                let counter_mod = ((counter / 10) % 3) as usize;
+                let counter_mod = ((counter / 5) % 3) as usize;
                 return image::Rgb(off_center_dim(c_idx, counter_mod, &[195u8, 255u8, 205u8]));
             }
         }
@@ -241,6 +241,7 @@ fn main() -> Result<(), pixels::Error> {
             let rx_match = &rx_from_http.as_ref().map(|rx| rx.try_iter().last());
             if let Some(Some(Ok(file_label))) = rx_match {
                 framework.menu_mut().select_file_label(file_label);
+                framework.menu_mut().activate_scroll_to_label();
             } else if let Some(Some(Err(e))) = rx_match {
                 // if the server thread sends an error we restart the server
                 println!("{:?}", e);
