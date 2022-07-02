@@ -231,6 +231,7 @@ fn main() -> Result<(), pixels::Error> {
                 if input.key_pressed(VirtualKeyCode::B) {
                     for t in tools.iter_mut() {
                         if let ToolWrapper::Brush(_) = &t.tool {
+                            println!("activated brush tool");
                             t.is_active = true;
                         } else {
                             t.is_active = false;
@@ -239,6 +240,7 @@ fn main() -> Result<(), pixels::Error> {
                 } else if input.key_pressed(VirtualKeyCode::R) {
                     for t in tools.iter_mut() {
                         if let ToolWrapper::Rot90(_) = &t.tool {
+                            println!("activated rotate tool");
                             t.is_active = true;
                         } else {
                             t.is_active = false;
@@ -247,6 +249,7 @@ fn main() -> Result<(), pixels::Error> {
                 } else if input.key_pressed(VirtualKeyCode::Z) {
                     for t in tools.iter_mut() {
                         if let ToolWrapper::Zoom(_) = &t.tool {
+                            println!("activated zoom tool");
                             t.is_active = true;
                         } else {
                             t.is_active = false;
@@ -254,6 +257,7 @@ fn main() -> Result<(), pixels::Error> {
                     }
                 } else if input.key_pressed(VirtualKeyCode::Q) {
                     for t in tools.iter_mut() {
+                        println!("deactivated all tools");
                         t.is_active = false;
                     }
                 }
@@ -414,16 +418,22 @@ fn main() -> Result<(), pixels::Error> {
                 let data_point = get_pixel_on_orig_str(&mut tools, &world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
                 let file_label = framework.menu().file_label(idx);
+                let active_tool = tools.iter().find(|t| t.is_active);
+                let tool_string = if let Some(t) = active_tool {
+                    format!(" - {} tool is active - ", t.name.as_str())
+                } else {
+                    "".to_string()
+                };
                 let s = match data_point {
                     Some(s) => {
                         format!(
-                            "RV Image - {} - {}x{} - {}",
-                            file_label, shape.w, shape.h, s
+                            "RV Image{} - {} - {}x{} - {}",
+                            tool_string, file_label, shape.w, shape.h, s
                         )
                     }
                     None => format!(
-                        "RV Image - {} - {}x{} - (x, y) -> (r, g, b)",
-                        file_label, shape.w, shape.h
+                        "RV Image{} - {} - {}x{} - (x, y) -> (r, g, b)",
+                        tool_string, file_label, shape.w, shape.h
                     ),
                 };
                 window.set_title(s.as_str())

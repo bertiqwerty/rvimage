@@ -1,15 +1,21 @@
-use image::imageops;
+use image::imageops::{self, FilterType};
 use winit::event::VirtualKeyCode;
 
 use crate::{
     history::{History, Record},
     make_tool_transform,
-    util::{Event, Shape},
-    world::{ImsRaw, World},
+    util::{self, Event, Shape},
+    world::{ImsRaw, World}, types::ViewImage,
 };
 
 use super::Manipulate;
 
+pub fn scale_to_win(ims_raw: &ImsRaw, shape_win: Shape) -> ViewImage {
+    let shape_orig = ims_raw.shape();
+    let new = util::shape_scaled(shape_orig, shape_win);
+    let im_view = ims_raw.to_view();
+    imageops::resize(&im_view, new.w, new.h, FilterType::Nearest)
+}
 /// rotate 90 degrees counter clockwise
 fn rot90(ims: &ImsRaw) -> ImsRaw {
     let mut ims = ims.clone();
@@ -26,7 +32,7 @@ impl Rot90 {
     fn key_pressed(
         &mut self,
         key: VirtualKeyCode,
-        _shape_win: Shape,
+        shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
@@ -37,7 +43,8 @@ impl Rot90 {
                 file_label_idx: None,
                 folder_label: None,
             });
-            *world.ims_raw_mut() = rot90(world.ims_raw());
+            world = World::new(rot90(world.ims_raw()));
+            *world.im_view_mut() = scale_to_win(world.ims_raw(), shape_win);
         }
         (world, history)
     }

@@ -11,7 +11,7 @@ use crate::{
     make_tool_transform,
     tools::core::Manipulate,
     types::ViewImage,
-    util::{shape_scaled, Event, Shape, BB},
+    util::{self, Event, Shape, BB},
     world::{ImsRaw, World},
     LEFT_BTN, RIGHT_BTN,
 };
@@ -32,7 +32,7 @@ pub fn mouse_pos_to_orig_pos(
 ) -> Option<(u32, u32)> {
     let unscaled = shape_unscaled(zoom_box, shape_orig);
     let orig = shape_orig;
-    let scaled = shape_scaled(unscaled, shape_win);
+    let scaled = util::shape_scaled(unscaled, shape_win);
 
     let (x_off, y_off) = match zoom_box {
         Some(c) => (c.x, c.y),
@@ -127,7 +127,7 @@ fn move_zoom_box(
 pub fn scale_to_win(ims_raw: &ImsRaw, zoom_box: Option<BB>, shape_win: Shape) -> ViewImage {
     let shape_orig = ims_raw.shape();
     let unscaled = shape_unscaled(&zoom_box, shape_orig);
-    let new = shape_scaled(unscaled, shape_win);
+    let new = util::shape_scaled(unscaled, shape_win);
     let im_view = if let Some(c) = zoom_box {
         let mut ims_raw = ims_raw.clone();
         ims_raw.apply(
@@ -465,7 +465,7 @@ fn test_on_mouse_released() -> RvResult<()> {
     z.set_mouse_start((40, 80), Some(world.im_view().clone()));
 
     let (res, _) = z.mouse_released(mouse_btn, shape_win, mouse_pos, world, history);
-    let shape_scaled_to_win = shape_scaled(z.bx.unwrap().shape(), shape_win);
+    let shape_scaled_to_win = util::shape_scaled(z.bx.unwrap().shape(), shape_win);
     assert_eq!(shape_scaled_to_win, Shape::from_im(res.im_view()));
     assert_eq!(
         z.bx,

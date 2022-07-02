@@ -402,10 +402,12 @@ impl Menu {
 
                 // help
                 ui.separator();
-                ui.label("zoom - drag left mouse");
-                ui.label("move zoomed area - drag right mouse");
-                ui.label("unzoom - backspace");
-                ui.label("rotate by 90 degrees - r");
+                ui.label("activate zoom tool - shift+z");
+                ui.label("  zoom - drag left mouse");
+                ui.label("  move zoomed area - drag right mouse");
+                ui.label("  unzoom - backspace");
+                ui.label("activate rotate tool - shift+r");
+                ui.label("  rotate by 90 degrees - r");
                 ui.label("open or close this menu - m");
                 ui.separator();
                 ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
