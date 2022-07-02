@@ -132,7 +132,7 @@ pub fn scale_to_win(ims_raw: &ImsRaw, zoom_box: Option<BB>, shape_win: Shape) ->
         let mut ims_raw = ims_raw.clone();
         ims_raw.apply(
             |mut im| im.crop(c.x, c.y, c.w, c.h),
-            |mask| mask.map(|mut m| imageops::crop(&mut m, c.x, c.y, c.w, c.h).to_image()),
+            |mut a| imageops::crop(&mut a, c.x, c.y, c.w, c.h).to_image(),
         );
         ims_raw.to_view()
     } else {

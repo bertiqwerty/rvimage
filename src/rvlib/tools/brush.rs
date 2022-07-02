@@ -1,15 +1,15 @@
-use image::imageops;
+use image::{imageops, DynamicImage, Rgba};
 use winit::event::VirtualKeyCode;
 
 use crate::{
     history::{History, Record},
     make_tool_transform,
     util::{Event, Shape},
-    world::{ImsRaw, World}, LEFT_BTN, RIGHT_BTN,
+    world::World,
+    LEFT_BTN, RIGHT_BTN,
 };
 
 use super::Manipulate;
-
 
 #[derive(Clone, Copy, Debug)]
 pub struct Brush;
@@ -19,11 +19,20 @@ impl Brush {
         &mut self,
         btn: usize,
         _shape_win: Shape,
-        _mouse_pos: Option<(usize, usize)>,
+        mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        
+        if !world.ims_raw().has_annotations() {
+            world.ims_raw_mut().create_annotations_layer();
+        }
+        if let Some(mp) = mouse_pos {
+            world.ims_raw_mut().set_annotations_pixel(
+                mp.0 as u32,
+                mp.1 as u32,
+                [255, 255, 255, 255],
+            );
+        }
         (world, history)
     }
     fn mouse_released(
@@ -34,7 +43,6 @@ impl Brush {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        
         (world, history)
     }
 }

@@ -219,3 +219,11 @@ pub fn orig_to_0_255(
         fn_rgb32f,
     )
 }
+
+pub fn effect_per_pixel<F: FnMut(u32, u32)>(shape: Shape, mut f: F) {
+    for y in 0..shape.h {
+        for x in 0..shape.w {
+            f(x, y);
+        }
+    }
+}
