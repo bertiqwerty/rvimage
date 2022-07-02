@@ -51,6 +51,9 @@ impl PathsNavigator {
     pub fn scroll_to_selected_label(&self) -> bool {
         self.scroll_to_selected_label
     }
+    pub fn activate_scroll_to_selected_label(&mut self) {
+        self.scroll_to_selected_label = true;
+    }
     pub fn deactivate_scroll_to_selected_label(&mut self) {
         self.scroll_to_selected_label = false;
     }

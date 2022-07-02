@@ -258,6 +258,9 @@ impl Menu {
         self.paths_navigator
             .select_label_idx(self.idx_of_file_label(file_label));
     }
+    pub fn activate_scroll_to_label(&mut self) {
+        self.paths_navigator.activate_scroll_to_selected_label();
+    }
     pub fn select_label_idx(&mut self, file_label_idx: Option<usize>) {
         self.paths_navigator.select_label_idx(file_label_idx);
     }
