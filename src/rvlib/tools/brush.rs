@@ -65,8 +65,8 @@ impl Manipulate for Brush {
         Self { prev_pos: None }
     }
 
-    fn events_tf<'a>(
-        &'a mut self,
+    fn events_tf(
+        &mut self,
         world: World,
         history: History,
         shape_win: Shape,

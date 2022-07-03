@@ -104,7 +104,7 @@ impl ImsRaw {
         self.im_background = f_i(mem::take(&mut self.im_background));
         self.im_annotations = mem::take(&mut self.im_annotations).map(f_a);
 
-        assert_data_is_valid(self.shape(), &&self.im_annotations).expect("invalid data");
+        assert_data_is_valid(self.shape(), &self.im_annotations).expect("invalid data");
     }
 
     pub fn set_annotations_pixel(&mut self, x: u32, y: u32, value: &[u8; 4]) {
@@ -130,7 +130,7 @@ impl ImsRaw {
         match &self.im_annotations {
             Some(im_a) => {
                 util::effect_per_pixel(Shape::from_im(im_a), |x, y| {
-                    add_annotation_to_view(x, y, &im_a, &mut im_view)
+                    add_annotation_to_view(x, y, im_a, &mut im_view)
                 });
             }
             None => {}

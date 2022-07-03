@@ -77,8 +77,8 @@ fn get_pixel_on_orig_str(
     .map(|(x, y)| pos_2_string(world.ims_raw().im_background(), x, y))
 }
 
-fn apply_tools<'a>(
-    tools: &'a mut Vec<ToolState>,
+fn apply_tools(
+    tools: &mut Vec<ToolState>,
     mut world: World,
     mut history: History,
     shape_win: Shape,

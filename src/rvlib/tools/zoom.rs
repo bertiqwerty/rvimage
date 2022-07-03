@@ -257,8 +257,8 @@ impl Manipulate for Zoom {
             im_prev_view: None,
         }
     }
-    fn events_tf<'a>(
-        &'a mut self,
+    fn events_tf(
+        &mut self,
         world: World,
         history: History,
         shape_win: Shape,
