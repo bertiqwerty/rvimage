@@ -127,16 +127,19 @@ pub struct Zoom {
     animation_box: Option<BB>,
 }
 impl Zoom {
+
     fn set_mouse_start(&mut self, mp: (usize, usize), im_view: Option<ViewImage>) {
         self.mouse_pressed_start_pos = Some(mp);
         self.mouse_pressed_start_time = Some(Instant::now());
         self.im_prev_view = im_view;
     }
+    
     fn unset_mouse_start(&mut self) {
         self.mouse_pressed_start_pos = None;
         self.mouse_pressed_start_time = None;
         self.im_prev_view = None;
     }
+
     fn mouse_pressed(
         &mut self,
         _btn: usize,
@@ -150,6 +153,7 @@ impl Zoom {
         }
         (world, history)
     }
+    
     fn mouse_released(
         &mut self,
         btn: usize,
@@ -175,6 +179,7 @@ impl Zoom {
             (world, history)
         }
     }
+
     fn mouse_held(
         &mut self,
         btn: usize,
@@ -229,6 +234,7 @@ impl Zoom {
             (world, history)
         }
     }
+
     fn key_pressed(
         &mut self,
         _key: VirtualKeyCode,
@@ -240,6 +246,7 @@ impl Zoom {
         world.set_zoom_box(None, shape_win);
         (world, history)
     }
+
 }
 impl Manipulate for Zoom {
     fn new() -> Zoom {
@@ -338,7 +345,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
 #[test]
 fn test_on_mouse_released() -> RvResult<()> {
     let shape_win = Shape { w: 250, h: 500 };
-    let mouse_pos = Some((30, 45));
+    let mouse_pos = Some((30, 70));
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mouse_btn = LEFT_BTN;
     let mut z = Zoom::new();
@@ -346,16 +353,15 @@ fn test_on_mouse_released() -> RvResult<()> {
     let history = History::new();
     z.set_mouse_start((40, 80), Some(world.im_view().clone()));
 
-    let (res, _) = z.mouse_released(mouse_btn, shape_win, mouse_pos, world.clone(), history);
-    let shape_scaled_to_win = util::shape_scaled(world.ims_raw().shape(), shape_win);
-    assert_eq!(shape_scaled_to_win, Shape::from_im(res.im_view()));
+    let (world, _) = z.mouse_released(mouse_btn, shape_win, mouse_pos, world, history);
+    assert_eq!(Shape::new(250, 250), Shape::from_im(world.im_view()));
     assert_eq!(
         *world.zoom_box(),
         Some(BB {
             x: 30,
-            y: 45,
+            y: 70,
             w: 10,
-            h: 35
+            h: 10
         })
     );
     assert_eq!(z.im_prev_view, None);
