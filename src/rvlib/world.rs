@@ -107,10 +107,14 @@ impl ImsRaw {
         assert_data_is_valid(self.shape(), &&self.im_annotations).expect("invalid data");
     }
 
-    pub fn set_annotations_pixel(&mut self, x: u32, y: u32, value: [u8; 4]) {
+    pub fn set_annotations_pixel(&mut self, x: u32, y: u32, value: &[u8; 4]) {
         if let Some(im_annotations) = &mut self.im_annotations {
-            *im_annotations.get_pixel_mut(x, y) = Rgba(value);
+            *im_annotations.get_pixel_mut(x, y) = Rgba(*value);
         }
+    }
+
+    pub fn im_annotations_mut(&mut self) -> &mut Option<AnnotationImage> {
+        &mut self.im_annotations
     }
 
     pub fn create_annotations_layer(&mut self) {
@@ -182,7 +186,7 @@ impl World {
         Self::new(ImsRaw::new(im), None, shape_win)
     }
     pub fn set_view(&mut self, im_view: ViewImage) -> bool {
-        if Shape::from_im(&im_view) ==  Shape::from_im(self.im_view()) {
+        if Shape::from_im(&im_view) == Shape::from_im(self.im_view()) {
             self.im_view = im_view;
             true
         } else {
@@ -200,6 +204,12 @@ impl World {
     }
     pub fn ims_raw_mut(&mut self) -> &mut ImsRaw {
         &mut self.ims_raw
+    }
+    pub fn set_annotations_pixel(&mut self, x: u32, y: u32, value: &[u8; 4]) {
+        self.ims_raw_mut().set_annotations_pixel(x, y, value);
+    }
+    pub fn update_view(&mut self, shape_win: Shape) {
+        self.im_view = scaled_to_win_view(self.ims_raw(), *self.zoom_box(), shape_win);
     }
     pub fn shape_orig(&self) -> Shape {
         self.ims_raw.shape()
