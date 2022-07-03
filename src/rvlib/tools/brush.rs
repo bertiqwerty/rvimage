@@ -1,10 +1,9 @@
-use image::{imageops, DynamicImage, Rgba};
-use winit::event::VirtualKeyCode;
+use winit_input_helper::WinitInputHelper;
 
 use crate::{
     history::{History, Record},
     make_tool_transform,
-    util::{Event, Shape},
+    util::Shape,
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
@@ -21,28 +20,34 @@ impl Brush {
         _shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
-        mut history: History,
+        history: History,
     ) -> (World, History) {
-        if !world.ims_raw().has_annotations() {
-            world.ims_raw_mut().create_annotations_layer();
-        }
-        if let Some(mp) = mouse_pos {
-            world.ims_raw_mut().set_annotations_pixel(
-                mp.0 as u32,
-                mp.1 as u32,
-                [255, 255, 255, 255],
-            );
+        if btn == LEFT_BTN {
+            if !world.ims_raw().has_annotations() {
+                world.ims_raw_mut().create_annotations_layer();
+            }
+            if let Some(mp) = mouse_pos {
+                world.ims_raw_mut().set_annotations_pixel(
+                    mp.0 as u32,
+                    mp.1 as u32,
+                    [255, 255, 255, 255],
+                );
+            }
         }
         (world, history)
     }
+
     fn mouse_released(
         &mut self,
         btn: usize,
         _shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
-        mut world: World,
+        world: World,
         mut history: History,
     ) -> (World, History) {
+        if btn == LEFT_BTN {
+            history.push(Record::new(world.ims_raw().clone()));
+        }
         (world, history)
     }
 }
@@ -58,7 +63,7 @@ impl Manipulate for Brush {
         history: History,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        event: &Event,
+        event: &WinitInputHelper,
     ) -> (World, History) {
         make_tool_transform!(
             self,

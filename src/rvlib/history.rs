@@ -8,6 +8,13 @@ pub struct Record {
     pub folder_label: Option<String>,
 }
 impl Record {
+    pub fn new(ims_raw: ImsRaw) -> Self {
+        Self {
+            ims_raw,
+            file_label_idx: None,
+            folder_label: None,
+        }
+    }
     fn move_to_im_idx_pair(self) -> (ImsRaw, Option<usize>) {
         (self.ims_raw, self.file_label_idx)
     }
@@ -112,21 +119,22 @@ impl Debug for History {
 }
 #[cfg(test)]
 use {
-    crate::{result::RvResult, types::ViewImage, world::World},
+    crate::{util::Shape, result::RvResult, types::ViewImage, world::World},
     image::DynamicImage,
 };
 #[test]
 fn test_history() -> RvResult<()> {
+    let dummy_shape_win = Shape::new(128, 128);
     let im = ViewImage::new(64, 64);
-    let world = World::from_im(DynamicImage::ImageRgb8(im));
+    let world = World::from_im(DynamicImage::ImageRgb8(im), dummy_shape_win);
     let mut hist = History::new();
-
+    
     hist.push(Record {
         ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
         folder_label: None,
     });
-    let mut world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(32, 32)));
+    let mut world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(32, 32)), dummy_shape_win);
     hist.push(Record {
         ims_raw: world.ims_raw().clone(),
         file_label_idx: None,
@@ -140,7 +148,7 @@ fn test_history() -> RvResult<()> {
         file_label_idx: None,
         folder_label: None,
     });
-    let world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(16, 16)));
+    let world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(16, 16)), dummy_shape_win);
     hist.push(Record {
         ims_raw: world.ims_raw().clone(),
         file_label_idx: None,

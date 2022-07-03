@@ -12,7 +12,7 @@ use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
-use rvlib::world::{ImsRaw, World};
+use rvlib::world::{ImsRaw, World, scaled_to_win_view};
 use rvlib::{apply_tool_method, httpserver};
 use std::fmt::Debug;
 use std::fs;
@@ -58,23 +58,17 @@ fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
 }
 
 fn get_pixel_on_orig_str(
-    tools: &mut [ToolState],
     world: &World,
     mouse_pos: Option<(usize, usize)>,
     shape_win: Shape,
 ) -> Option<String> {
-    let mut pos_rgb = mouse_pos.map(|mp| (mp.0 as u32, mp.1 as u32));
-    let mut res = None;
-    for t in tools {
-        let current_pos_rgb = apply_tool_method!(t, coord_tf, world, shape_win, pos_rgb);
-        if let Some((x, y)) = current_pos_rgb {
-            pos_rgb = Some((x, y));
-        }
-    }
-    if let Some((x, y)) = pos_rgb {
-        res = Some(pos_2_string(world.ims_raw().im_background(), x, y));
-    }
-    res
+    util::mouse_pos_to_orig_pos(
+        mouse_pos,
+        world.ims_raw().shape(),
+        shape_win,
+        world.zoom_box(),
+    )
+    .map(|(x, y)| pos_2_string(world.ims_raw().im_background(), x, y))
 }
 
 fn apply_tools<'a>(
@@ -83,25 +77,13 @@ fn apply_tools<'a>(
     mut history: History,
     shape_win: Shape,
     mouse_pos: Option<(usize, usize)>,
-    event: &util::Event,
-    pixels: &mut Pixels,
+    input_event: &WinitInputHelper,
 ) -> (World, History) {
-    let old_shape = Shape::from_im(world.im_view());
     for t in tools {
         if t.is_active {
             (world, history) =
-                apply_tool_method!(t, events_tf, world, history, shape_win, mouse_pos, event);
-        } else {
-            let mut event = event.clone();
-            let dummy_input = WinitInputHelper::new();
-            event.input = &dummy_input;
-            (world, history) =
-                apply_tool_method!(t, events_tf, world, history, shape_win, mouse_pos, &event);
+                apply_tool_method!(t, events_tf, world, history, shape_win, mouse_pos, input_event);
         }
-    }
-    let new_shape = Shape::from_im(world.im_view());
-    if old_shape != new_shape {
-        pixels.resize_buffer(new_shape.w, new_shape.h);
     }
     (world, history)
 }
@@ -175,10 +157,10 @@ fn main() -> Result<(), pixels::Error> {
     };
 
     fn empty_world() -> World {
-        World::from_im(DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(
-            START_WIDTH,
-            START_HEIGHT,
-        )))
+        World::from_im(
+            DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
+            Shape::new(START_WIDTH, START_HEIGHT),
+        )
     }
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
@@ -214,7 +196,7 @@ fn main() -> Result<(), pixels::Error> {
             // update world based on tools
             let shape_win = Shape::from_size(&window.inner_size());
             let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
-            let event = util::Event::new(&input);
+            
             if framework.menu().are_tools_active() {
                 (world, history) = apply_tools(
                     &mut tools,
@@ -222,8 +204,7 @@ fn main() -> Result<(), pixels::Error> {
                     mem::take(&mut history),
                     shape_win,
                     mouse_pos,
-                    &event,
-                    &mut pixels,
+                    &input,
                 );
             }
 
@@ -363,21 +344,16 @@ fn main() -> Result<(), pixels::Error> {
             if let Some((ims_raw, file_label_idx)) = ims_raw_idx_pair {
                 let size = window.inner_size();
                 let shape_win = Shape::from_size(&size);
-                let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
-                let event = util::Event::from_image_loaded(&input);
                 if file_label_idx.is_some() {
                     framework.menu_mut().select_label_idx(file_label_idx);
                 }
-                world = World::new(ims_raw);
-                (world, history) = apply_tools(
-                    &mut tools,
-                    mem::take(&mut world),
-                    mem::take(&mut history),
-                    shape_win,
-                    mouse_pos,
-                    &event,
-                    &mut pixels,
-                );
+                let zoom_box = if ims_raw.shape() == world.ims_raw().shape() {
+                    *world.zoom_box()
+                } else {
+                    None
+                };
+                world = World::new(ims_raw, zoom_box, shape_win);
+
                 let Shape { w, h } = Shape::from_im(world.im_view());
                 pixels.resize_buffer(w, h);
             }
@@ -390,17 +366,7 @@ fn main() -> Result<(), pixels::Error> {
             if let Some(size) = input.window_resized() {
                 let shape_win = Shape::from_size(&size);
                 if shape_win.h > 0 && shape_win.w > 0 {
-                    let event = util::Event::from_window_resized(&input);
-                    let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
-                    (world, history) = apply_tools(
-                        &mut tools,
-                        mem::take(&mut world),
-                        mem::take(&mut history),
-                        shape_win,
-                        mouse_pos,
-                        &event,
-                        &mut pixels,
-                    );
+                    world.set_view(scaled_to_win_view(world.ims_raw(), *world.zoom_box(), shape_win));
                     let Shape { w, h } = Shape::from_im(world.im_view());
                     pixels.resize_buffer(w, h);
                     framework.resize(size.width, size.height);
@@ -415,7 +381,7 @@ fn main() -> Result<(), pixels::Error> {
                     h: window.inner_size().height,
                 };
                 let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
-                let data_point = get_pixel_on_orig_str(&mut tools, &world, mouse_pos, shape_win);
+                let data_point = get_pixel_on_orig_str(&world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
                 let file_label = framework.menu().file_label(idx);
                 let active_tool = tools.iter().find(|t| t.is_active);

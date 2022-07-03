@@ -2,6 +2,7 @@ mod brush;
 mod core;
 mod rot90;
 mod zoom;
+
 pub use self::core::Manipulate;
 pub use brush::Brush;
 pub use rot90::Rot90;
@@ -22,9 +23,9 @@ macro_rules! make_tools {
         }
         pub fn make_tool_vec() -> Vec<ToolState> {
             vec![$(
-                ToolState { 
-                    tool: ToolWrapper::$tool($tool::new()), 
-                    is_active: false, 
+                ToolState {
+                    tool: ToolWrapper::$tool($tool::new()),
+                    is_active: false,
                     name: stringify!($tool).to_string()
                 }),+]
         }

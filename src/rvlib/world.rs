@@ -2,11 +2,27 @@ use std::{fmt::Debug, mem};
 
 use crate::result::{RvError, RvResult};
 use crate::types::ViewImage;
-use crate::util::{self, Shape};
-use image::{DynamicImage, ImageBuffer, Rgb, Rgba};
+use crate::util::{self, Shape, BB};
+use image::{imageops, imageops::FilterType, DynamicImage, ImageBuffer, Rgb, Rgba};
 use pixels::Pixels;
-
 pub type AnnotationImage = ImageBuffer<Rgba<u8>, Vec<u8>>;
+
+pub fn scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: Option<BB>, shape_win: Shape) -> ViewImage {
+    let shape_orig = ims_raw.shape();
+    let unscaled = util::shape_unscaled(&zoom_box, shape_orig);
+    let new = util::shape_scaled(unscaled, shape_win);
+    let im_view = if let Some(c) = zoom_box {
+        let mut ims_raw = ims_raw.clone();
+        ims_raw.apply(
+            |mut im| im.crop(c.x, c.y, c.w, c.h),
+            |mut a| imageops::crop(&mut a, c.x, c.y, c.w, c.h).to_image(),
+        );
+        ims_raw.to_view()
+    } else {
+        ims_raw.to_view()
+    };
+    imageops::resize(&im_view, new.w, new.h, FilterType::Nearest)
+}
 
 fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     let x = (i % im.width() as usize) as u32;
@@ -135,6 +151,8 @@ impl Debug for ImsRaw {
 pub struct World {
     ims_raw: ImsRaw,
     im_view: ViewImage,
+    // transforms coordinates from view to raw image
+    zoom_box: Option<BB>,
 }
 
 impl World {
@@ -152,18 +170,30 @@ impl World {
             pixel.copy_from_slice(&rgba);
         }
     }
-    pub fn new(ims_raw: ImsRaw) -> Self {
-        let im_view = ims_raw.to_view();
-        Self { ims_raw, im_view }
+    pub fn new(ims_raw: ImsRaw, zoom_box: Option<BB>, shape_win: Shape) -> Self {
+        let im_view = scaled_to_win_view(&ims_raw, zoom_box, shape_win);
+        Self {
+            ims_raw,
+            im_view,
+            zoom_box,
+        }
     }
-    pub fn from_im(im: DynamicImage) -> Self {
-        Self::new(ImsRaw::new(im))
+    pub fn from_im(im: DynamicImage, shape_win: Shape) -> Self {
+        Self::new(ImsRaw::new(im), None, shape_win)
+    }
+    pub fn set_view(&mut self, im_view: ViewImage) -> bool {
+        if Shape::from_im(&im_view) ==  Shape::from_im(self.im_view()) {
+            self.im_view = im_view;
+            true
+        } else {
+            false
+        }
     }
     pub fn im_view(&self) -> &ViewImage {
         &self.im_view
     }
-    pub fn im_view_mut(&mut self) -> &mut ViewImage {
-        &mut self.im_view
+    pub fn set_view_pixel(&mut self, x: u32, y: u32, value: Rgb<u8>) {
+        *self.im_view.get_pixel_mut(x, y) = value;
     }
     pub fn ims_raw(&self) -> &ImsRaw {
         &self.ims_raw
@@ -173,6 +203,13 @@ impl World {
     }
     pub fn shape_orig(&self) -> Shape {
         self.ims_raw.shape()
+    }
+    pub fn set_zoom_box(&mut self, zoom_box: Option<BB>, shape_win: Shape) {
+        self.im_view = scaled_to_win_view(self.ims_raw(), zoom_box, shape_win);
+        self.zoom_box = zoom_box;
+    }
+    pub fn zoom_box(&self) -> &Option<BB> {
+        &self.zoom_box
     }
 }
 impl Debug for World {
@@ -226,8 +263,24 @@ fn test_ims_raw() -> RvResult<()> {
             &Rgba([26u8, 26u8, 26u8, 26u8])
         );
         // 10% fewer background image plus 10% from the annotations image
-        assert_eq!(*im_view.get_pixel(x, y), Rgb([92, 92, 92]));  
+        assert_eq!(*im_view.get_pixel(x, y), Rgb([92, 92, 92]));
     });
 
+    Ok(())
+}
+
+#[test]
+fn test_scale_to_win() -> RvResult<()> {
+    let mut im_test = ViewImage::new(64, 64);
+    im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
+    im_test.put_pixel(10, 10, Rgb([23, 23, 23]));
+    let im_scaled = scaled_to_win_view(
+        &ImsRaw::new(DynamicImage::ImageRgb8(im_test)),
+        None,
+        Shape { w: 128, h: 128 },
+    );
+    assert_eq!(im_scaled.get_pixel(0, 0).0, [23, 23, 23]);
+    assert_eq!(im_scaled.get_pixel(20, 20).0, [23, 23, 23]);
+    assert_eq!(im_scaled.get_pixel(70, 70).0, [0, 0, 0]);
     Ok(())
 }
