@@ -12,7 +12,7 @@ use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
-use rvlib::world::{ImsRaw, World, scaled_to_win_view};
+use rvlib::world::{scaled_to_win_view, ImsRaw, World};
 use rvlib::{apply_tool_method, httpserver};
 use std::fmt::Debug;
 use std::fs;
@@ -31,10 +31,16 @@ const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 const MIN_WIN_INNER_SIZE: LogicalSize<i32> = LogicalSize::new(32, 32);
 
-fn http_address() -> &'static str {
+fn cfg() -> &'static Cfg {
     lazy_static! {
         static ref CFG: Cfg = cfg::get_cfg().expect("config broken");
-        static ref HTTP_ADDRESS: &'static str = CFG.http_address();
+    }
+    &CFG
+}
+
+fn http_address() -> &'static str {
+    lazy_static! {
+        static ref HTTP_ADDRESS: &'static str = cfg().http_address();
     }
     &HTTP_ADDRESS
 }
@@ -81,8 +87,15 @@ fn apply_tools<'a>(
 ) -> (World, History) {
     for t in tools {
         if t.is_active {
-            (world, history) =
-                apply_tool_method!(t, events_tf, world, history, shape_win, mouse_pos, input_event);
+            (world, history) = apply_tool_method!(
+                t,
+                events_tf,
+                world,
+                history,
+                shape_win,
+                mouse_pos,
+                input_event
+            );
         }
     }
     (world, history)
@@ -178,7 +191,14 @@ fn main() -> Result<(), pixels::Error> {
         rx_from_http = Some(rx);
     }
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(300));
+        match cfg().connection {
+            cfg::Connection::Ssh => {
+                *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(300));
+            }
+            _ => {
+                *control_flow = ControlFlow::Poll;
+            }
+        }
         // Handle input events
         if input.update(&event) {
             // Close application
@@ -196,7 +216,7 @@ fn main() -> Result<(), pixels::Error> {
             // update world based on tools
             let shape_win = Shape::from_size(&window.inner_size());
             let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
-            
+
             if framework.menu().are_tools_active() {
                 (world, history) = apply_tools(
                     &mut tools,
@@ -366,7 +386,11 @@ fn main() -> Result<(), pixels::Error> {
             if let Some(size) = input.window_resized() {
                 let shape_win = Shape::from_size(&size);
                 if shape_win.h > 0 && shape_win.w > 0 {
-                    world.set_view(scaled_to_win_view(world.ims_raw(), *world.zoom_box(), shape_win));
+                    world.set_view(scaled_to_win_view(
+                        world.ims_raw(),
+                        *world.zoom_box(),
+                        shape_win,
+                    ));
                     let Shape { w, h } = Shape::from_im(world.im_view());
                     pixels.resize_buffer(w, h);
                     framework.resize(size.width, size.height);
