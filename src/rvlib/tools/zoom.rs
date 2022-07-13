@@ -85,28 +85,23 @@ fn move_zoom_box(
     }
 }
 
-fn draw_bx_on_view(mut im: ViewImage, draw_bx: BB) -> ViewImage {
-    let offset = 20;
-    let white = Rgb([255, 255, 255]);
+fn draw_bx_on_view(mut im: ViewImage, draw_bx: BB, color: Rgb<u8>) -> ViewImage {
+    let offset = Rgb([color[0] / 5, color[1] / 5, color[2] / 5]);
 
-    let y_range = draw_bx.y..(draw_bx.y + draw_bx.h);
-    let x_range = draw_bx.x..(draw_bx.x + draw_bx.w);
-
-    for x in x_range {
-        *im.get_pixel_mut(x, draw_bx.y) = white;
-        *im.get_pixel_mut(x, draw_bx.y + draw_bx.h - 1) = white;
+    for x in draw_bx.x_range() {
+        *im.get_pixel_mut(x, draw_bx.y) = color;
+        *im.get_pixel_mut(x, draw_bx.y + draw_bx.h - 1) = color;
     }
-    for y in y_range {
-        *im.get_pixel_mut(draw_bx.x, y) = white;
-        *im.get_pixel_mut(draw_bx.x + draw_bx.w - 1, y) = white;
+    for y in draw_bx.y_range() {
+        *im.get_pixel_mut(draw_bx.x, y) = color;
+        *im.get_pixel_mut(draw_bx.x + draw_bx.w - 1, y) = color;
     }
-
     draw_bx.effect_per_inner_pixel(|x, y| {
         let rgb = *im.get_pixel(x, y);
         *im.get_pixel_mut(x, y) = Rgb([
-            util::clipped_add(offset, rgb[0], 255),
-            util::clipped_add(offset, rgb[1], 255),
-            util::clipped_add(offset, rgb[2], 255),
+            util::clipped_add(offset[0], rgb[0], 255),
+            util::clipped_add(offset[1], rgb[1], 255),
+            util::clipped_add(offset[2], rgb[2], 255),
         ]);
     });
     im
@@ -208,7 +203,8 @@ impl Zoom {
                     h: (y_max - y_min) as u32,
                 };
                 let initial_view = self.initial_view.clone();
-                world.im_view = draw_bx_on_view(initial_view.unwrap(), draw_bx);
+                world.im_view =
+                    draw_bx_on_view(initial_view.unwrap(), draw_bx, Rgb([255, 255, 255]));
             }
             (world, history)
         } else {
