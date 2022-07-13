@@ -185,13 +185,8 @@ impl World {
     pub fn from_im(im: DynamicImage, shape_win: Shape) -> Self {
         Self::new(ImsRaw::new(im), None, shape_win)
     }
-    pub fn set_view(&mut self, im_view: ViewImage) -> bool {
-        if Shape::from_im(&im_view) == Shape::from_im(self.im_view()) {
-            self.im_view = im_view;
-            true
-        } else {
-            false
-        }
+    pub fn set_view(&mut self, im_view: ViewImage) {
+        self.im_view = im_view;
     }
     pub fn im_view(&self) -> &ViewImage {
         &self.im_view
