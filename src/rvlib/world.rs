@@ -153,8 +153,8 @@ impl Debug for ImsRaw {
 /// Everything we need to draw
 #[derive(Clone, Default)]
 pub struct World {
-    ims_raw: ImsRaw,
-    im_view: ViewImage,
+    pub ims_raw: ImsRaw,
+    pub im_view: ViewImage,
     // transforms coordinates from view to raw image
     zoom_box: Option<BB>,
 }
@@ -162,15 +162,15 @@ pub struct World {
 impl World {
     pub fn draw(&self, pixels: &mut Pixels) {
         let frame_len = pixels.get_frame().len() as u32;
-        let w_view = self.im_view().width();
-        let h_view = self.im_view().height();
+        let w_view = self.im_view.width();
+        let h_view = self.im_view.height();
         if frame_len != w_view * h_view * 4 {
             pixels.resize_buffer(w_view, h_view);
         }
         let frame = pixels.get_frame();
 
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let rgba = rgba_at(i, self.im_view());
+            let rgba = rgba_at(i, &self.im_view);
             pixel.copy_from_slice(&rgba);
         }
     }
@@ -185,32 +185,17 @@ impl World {
     pub fn from_im(im: DynamicImage, shape_win: Shape) -> Self {
         Self::new(ImsRaw::new(im), None, shape_win)
     }
-    pub fn set_view(&mut self, im_view: ViewImage) {
-        self.im_view = im_view;
-    }
-    pub fn im_view(&self) -> &ViewImage {
-        &self.im_view
-    }
-    pub fn set_view_pixel(&mut self, x: u32, y: u32, value: Rgb<u8>) {
-        *self.im_view.get_pixel_mut(x, y) = value;
-    }
-    pub fn ims_raw(&self) -> &ImsRaw {
-        &self.ims_raw
-    }
-    pub fn ims_raw_mut(&mut self) -> &mut ImsRaw {
-        &mut self.ims_raw
-    }
     pub fn set_annotations_pixel(&mut self, x: u32, y: u32, value: &[u8; 4]) {
-        self.ims_raw_mut().set_annotations_pixel(x, y, value);
+        self.ims_raw.set_annotations_pixel(x, y, value);
     }
     pub fn update_view(&mut self, shape_win: Shape) {
-        self.im_view = scaled_to_win_view(self.ims_raw(), *self.zoom_box(), shape_win);
+        self.im_view = scaled_to_win_view(&self.ims_raw, *self.zoom_box(), shape_win);
     }
     pub fn shape_orig(&self) -> Shape {
         self.ims_raw.shape()
     }
     pub fn set_zoom_box(&mut self, zoom_box: Option<BB>, shape_win: Shape) {
-        self.im_view = scaled_to_win_view(self.ims_raw(), zoom_box, shape_win);
+        self.im_view = scaled_to_win_view(&self.ims_raw, zoom_box, shape_win);
         self.zoom_box = zoom_box;
     }
     pub fn zoom_box(&self) -> &Option<BB> {
@@ -222,7 +207,7 @@ impl Debug for World {
         write!(
             f,
             "\nims_raw {:?}\nim_view shape {:?}",
-            self.ims_raw(),
+            &self.ims_raw,
             Shape::from_im(&self.im_view)
         )
     }

@@ -130,13 +130,13 @@ fn test_history() -> RvResult<()> {
     let mut hist = History::new();
     
     hist.push(Record {
-        ims_raw: world.ims_raw().clone(),
+        ims_raw: world.ims_raw.clone(),
         file_label_idx: None,
         folder_label: None,
     });
     let mut world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(32, 32)), dummy_shape_win);
     hist.push(Record {
-        ims_raw: world.ims_raw().clone(),
+        ims_raw: world.ims_raw.clone(),
         file_label_idx: None,
         folder_label: None,
     });
@@ -144,13 +144,13 @@ fn test_history() -> RvResult<()> {
     assert_eq!(hist.records[0].ims_raw.shape().w, 64);
     assert_eq!(hist.records[1].ims_raw.shape().w, 32);
     hist.prev_world(Record {
-        ims_raw: std::mem::take(world.ims_raw_mut()),
+        ims_raw: std::mem::take(&mut world.ims_raw),
         file_label_idx: None,
         folder_label: None,
     });
     let world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(16, 16)), dummy_shape_win);
     hist.push(Record {
-        ims_raw: world.ims_raw().clone(),
+        ims_raw: world.ims_raw.clone(),
         file_label_idx: None,
         folder_label: None,
     });
@@ -159,24 +159,24 @@ fn test_history() -> RvResult<()> {
     assert_eq!(hist.records[1].ims_raw.shape().w, 16);
 
     hist.push(Record {
-        ims_raw: world.ims_raw().clone(),
+        ims_raw: world.ims_raw.clone(),
         file_label_idx: None,
         folder_label: Some("folder1".to_string()),
     });
     assert_eq!(hist.records.len(), 1);
 
     hist.push(Record {
-        ims_raw: world.ims_raw().clone(),
+        ims_raw: world.ims_raw.clone(),
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),
     });
     hist.push(Record {
-        ims_raw: world.ims_raw().clone(),
+        ims_raw: world.ims_raw.clone(),
         file_label_idx: None,
         folder_label: None,
     });
     hist.push(Record {
-        ims_raw: world.ims_raw().clone(),
+        ims_raw: world.ims_raw.clone(),
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),
     });

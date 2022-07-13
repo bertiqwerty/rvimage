@@ -26,8 +26,8 @@ impl Brush {
         history: History,
     ) -> (World, History) {
         if btn == LEFT_BTN {
-            if !world.ims_raw().has_annotations() {
-                world.ims_raw_mut().create_annotations_layer();
+            if !world.ims_raw.has_annotations() {
+                world.ims_raw.create_annotations_layer();
             }
             let mp_orig =
                 mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
@@ -35,7 +35,7 @@ impl Brush {
                 let start = (mp_prev.0 as f32, mp_prev.1 as f32);
                 let end = (mp.0 as f32, mp.1 as f32);
                 let clr = Rgba([255, 255, 255, 255]);
-                drawing::draw_line_segment_mut(world.ims_raw_mut().im_annotations_mut().as_mut().unwrap(), start, end, clr);
+                drawing::draw_line_segment_mut(world.ims_raw.im_annotations_mut().as_mut().unwrap(), start, end, clr);
                 world.set_annotations_pixel(mp.0, mp.1, &[255, 255, 255, 255]);
                 world.update_view(shape_win);
             }
@@ -53,7 +53,7 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if btn == LEFT_BTN {
-            history.push(Record::new(world.ims_raw().clone()));
+            history.push(Record::new(world.ims_raw.clone()));
             self.prev_pos = None;
         }
         (world, history)

@@ -29,8 +29,8 @@ impl Rot90 {
         mut history: History,
     ) -> (World, History) {
         if key == VirtualKeyCode::R {
-            history.push(Record::new(world.ims_raw().clone()));
-            world = World::new(rot90(world.ims_raw()), *world.zoom_box(), shape_win);
+            history.push(Record::new(world.ims_raw.clone()));
+            world = World::new(rot90(&world.ims_raw), *world.zoom_box(), shape_win);
         }
         (world, history)
     }

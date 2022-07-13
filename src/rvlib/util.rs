@@ -1,6 +1,7 @@
 use std::{
     ffi::OsStr,
     io,
+    ops::{Add, Range, Sub},
     path::{Path, PathBuf},
 };
 
@@ -11,14 +12,13 @@ use crate::{
     types::{ResultImage, ViewImage},
 };
 use core::cmp::Ordering::{Greater, Less};
-use image::{
-    buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb,
-    Rgba,
-};
+use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb, Rgba};
 use pixels::Pixels;
 use std::str::FromStr;
 use winit::dpi::PhysicalSize;
 
+pub trait PixelEffect: FnMut(u32, u32) {}
+impl<T: FnMut(u32, u32)> PixelEffect for T {}
 pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
     let path = PathBuf::from_str(path).unwrap();
     let fname = osstr_to_str(path.file_name()).map_err(to_rv)?;
@@ -102,7 +102,7 @@ pub struct Shape {
 }
 impl Shape {
     pub fn new(w: u32, h: u32) -> Self {
-        Self{w, h}
+        Self { w, h }
     }
     pub fn from_im<I>(im: &I) -> Self
     where
@@ -134,6 +134,17 @@ pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
     zoom_box.map_or(shape_orig, |z| z.shape())
 }
 
+pub fn clipped_add<T>(x1: T, x2: T, clip_value: T) -> T
+where
+    T: Add<Output = T> + Sub<Output = T> + PartialOrd + Copy,
+{
+    if x1 >= clip_value || x2 >= clip_value || clip_value - x1 < x2 {
+        clip_value
+    } else {
+        x1 + x2
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct BB {
     pub x: u32,
@@ -146,6 +157,22 @@ impl BB {
         Shape {
             w: self.w,
             h: self.h,
+        }
+    }
+    pub fn x_range(&self) -> Range<u32> {
+        self.x..(self.x + self.w)
+    }
+    pub fn y_range(&self) -> Range<u32> {
+        self.y..(self.y + self.h)
+    }
+    pub fn effect_per_inner_pixel<F>(&self, mut effect: F)
+    where
+        F: PixelEffect,
+    {
+        for y in (self.y + 1)..(self.y + self.h - 1) {
+            for x in (self.x + 1)..(self.x + self.w - 1) {
+                effect(x, y);
+            }
         }
     }
 }
@@ -230,8 +257,7 @@ pub fn orig_to_0_255(
         fn_rgb32f,
     )
 }
-
-pub fn effect_per_pixel<F: FnMut(u32, u32)>(shape: Shape, mut f: F) {
+pub fn effect_per_pixel<F: PixelEffect>(shape: Shape, mut f: F) {
     for y in 0..shape.h {
         for x in 0..shape.w {
             f(x, y);

@@ -12,7 +12,7 @@ use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
-use rvlib::world::{scaled_to_win_view, ImsRaw, World};
+use rvlib::world::{ImsRaw, World};
 use rvlib::{apply_tool_method, httpserver};
 use std::fmt::Debug;
 use std::fs;
@@ -70,11 +70,11 @@ fn get_pixel_on_orig_str(
 ) -> Option<String> {
     util::mouse_pos_to_orig_pos(
         mouse_pos,
-        world.ims_raw().shape(),
+        world.ims_raw.shape(),
         shape_win,
         world.zoom_box(),
     )
-    .map(|(x, y)| pos_2_string(world.ims_raw().im_background(), x, y))
+    .map(|(x, y)| pos_2_string(world.ims_raw.im_background(), x, y))
 }
 
 fn apply_tools(
@@ -310,7 +310,7 @@ fn main() -> Result<(), pixels::Error> {
                 // undo
                 undo_redo_load = true;
                 Some(history.prev_world(Record {
-                    ims_raw: std::mem::take(world.ims_raw_mut()),
+                    ims_raw: std::mem::take(&mut world.ims_raw),
                     file_label_idx: file_selected,
                     folder_label: make_folder_label(),
                 }))
@@ -321,7 +321,7 @@ fn main() -> Result<(), pixels::Error> {
                 // redo
                 undo_redo_load = true;
                 Some(history.next_world(Record {
-                    ims_raw: std::mem::take(world.ims_raw_mut()),
+                    ims_raw: std::mem::take(&mut world.ims_raw),
                     file_label_idx: file_selected,
                     folder_label: make_folder_label(),
                 }))
@@ -330,7 +330,7 @@ fn main() -> Result<(), pixels::Error> {
                 if let Some(selected) = &menu_file_selected {
                     if !is_loading_screen_active && !undo_redo_load {
                         history.push(Record {
-                            ims_raw: world.ims_raw().clone(),
+                            ims_raw: world.ims_raw.clone(),
                             file_label_idx: file_selected,
                             folder_label: make_folder_label(),
                         });
@@ -367,14 +367,14 @@ fn main() -> Result<(), pixels::Error> {
                 if file_label_idx.is_some() {
                     framework.menu_mut().select_label_idx(file_label_idx);
                 }
-                let zoom_box = if ims_raw.shape() == world.ims_raw().shape() {
+                let zoom_box = if ims_raw.shape() == world.ims_raw.shape() {
                     *world.zoom_box()
                 } else {
                     None
                 };
                 world = World::new(ims_raw, zoom_box, shape_win);
 
-                let Shape { w, h } = Shape::from_im(world.im_view());
+                let Shape { w, h } = Shape::from_im(&world.im_view);
                 pixels.resize_buffer(w, h);
             }
             // Update the scale factor
@@ -386,12 +386,8 @@ fn main() -> Result<(), pixels::Error> {
             if let Some(size) = input.window_resized() {
                 let shape_win = Shape::from_size(&size);
                 if shape_win.h > 0 && shape_win.w > 0 {
-                    world.set_view(scaled_to_win_view(
-                        world.ims_raw(),
-                        *world.zoom_box(),
-                        shape_win,
-                    ));
-                    let Shape { w, h } = Shape::from_im(world.im_view());
+                    world.update_view(shape_win);
+                    let Shape { w, h } = Shape::from_im(&world.im_view);
                     pixels.resize_buffer(w, h);
                     framework.resize(size.width, size.height);
                     pixels.resize_surface(size.width, size.height);
