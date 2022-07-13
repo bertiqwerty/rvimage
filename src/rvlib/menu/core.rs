@@ -195,6 +195,7 @@ pub struct Menu {
     ssh_cfg_str: String,
     tp: ThreadPool<(ReaderFromCfg, Info)>,
     last_open_folder_job_id: Option<u128>,
+    scroll_offset: f32,
 }
 
 impl Menu {
@@ -213,6 +214,7 @@ impl Menu {
             ssh_cfg_str,
             tp: ThreadPool::new(1),
             last_open_folder_job_id: None,
+            scroll_offset: 0.0,
         }
     }
 
@@ -387,11 +389,12 @@ impl Menu {
                 let scroll_to_selected = self.paths_navigator.scroll_to_selected_label();
                 let mut file_label_selected_idx = self.paths_navigator.file_label_selected_idx();
                 if let Some(ps) = &self.paths_navigator.paths_selector() {
-                    menu::scroll_area::scroll_area(
+                    self.scroll_offset = menu::scroll_area::scroll_area(
                         ui,
                         &mut file_label_selected_idx,
                         ps,
                         scroll_to_selected,
+                        self.scroll_offset,
                     );
                     self.paths_navigator.deactivate_scroll_to_selected_label();
                     if self.paths_navigator.file_label_selected_idx() != file_label_selected_idx {
