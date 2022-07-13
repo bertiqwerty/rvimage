@@ -107,7 +107,7 @@ where
         let n_max_possible_files = self.n_prev_images + self.n_next_images + 1;
         let prio_file_pairs = indices_to_iterate.map(|idx| {
             (
-                n_max_possible_files - (selected_file_idx as i32 - idx as i32).abs() as usize,
+                n_max_possible_files - (selected_file_idx as i32 - idx as i32).unsigned_abs() as usize,
                 &files[idx],
             )
         });
