@@ -3,7 +3,6 @@ use egui::{Area, Color32, Frame, Id, Order, Response, TextEdit, Ui, Widget};
 use crate::{
     cfg::{self, Cache, Cfg, Connection, SshCfg},
     menu,
-    result::to_rv,
 };
 
 fn is_valid_ssh_cfg(s: &str) -> bool {
@@ -45,7 +44,7 @@ impl<'a> Widget for CfgMenu<'a> {
                         if ui.button("open in editor").clicked() {
                             match cfg::get_cfg_path() {
                                 Ok(p) => {
-                                    if let Err(e) = edit::edit_file(p).map_err(to_rv) {
+                                    if let Err(e) = edit::edit_file(p) {
                                         println!("{:?}", e);
                                         println!("could not open editor. {:?}", edit::get_editor());
                                     }
