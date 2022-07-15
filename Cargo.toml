@@ -19,7 +19,7 @@ optimize = ["log/release_max_level_warn"]
 [dependencies]
 dirs = "4.0.0"
 egui = "~0.18"
-egui-winit = {version = "~0.18", default-features = false, features = ["links"]}
+egui-winit = {version = "~0.18", default-features = false, features = ["links", "clipboard"]}
 egui-wgpu = "~0.18"
 env_logger = "0.9"
 image = "0.24.2"

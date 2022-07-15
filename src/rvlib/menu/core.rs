@@ -412,6 +412,7 @@ impl Menu {
                 ui.label("activate rotate tool - shift+r");
                 ui.label("  rotate by 90 degrees - r");
                 ui.label("open or close this menu - m");
+                ui.label("copy file path - right click on file label");
                 ui.separator();
                 ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
             });
