@@ -72,7 +72,7 @@ impl Framework {
     }
 
     /// Prepare egui.
-    pub fn prepare(&mut self, window: &Window, tools: &mut Vec<ToolState>) {
+    pub fn prepare(&mut self, window: &Window, tools: &mut [ToolState]) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
@@ -196,26 +196,23 @@ impl ToolsMenu {
         Self { window_open: true }
     }
 
-    fn ui(&mut self, ctx: &Context, tools: &mut Vec<ToolState>) {
+    fn ui(&mut self, ctx: &Context, tools: &mut [ToolState]) {
         egui::Window::new("tools")
             .vscroll(true)
             .title_bar(false)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
                 ui.horizontal_top(|ui| {
-                    let active_tool = tools.iter_mut().enumerate().find(|(_, t)| {
-                        if ui.selectable_label(t.is_active, t.button_label).clicked() {
-                            true
-                        } else {
-                            false
-                        }
-                    });
+                    let active_tool = tools
+                        .iter_mut()
+                        .enumerate()
+                        .find(|(_, t)| ui.selectable_label(t.is_active, t.button_label).clicked());
                     if let Some((idx_active, _)) = active_tool {
-                        for i in 0..tools.len() {
+                        for (i, t) in tools.iter_mut().enumerate() {
                             if i == idx_active {
-                                tools[i].is_active = true;
+                                t.is_active = true;
                             } else {
-                                tools[i].is_active = false;
+                                t.is_active = false;
                             }
                         }
                     }
