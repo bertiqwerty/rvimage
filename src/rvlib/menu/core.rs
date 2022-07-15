@@ -3,6 +3,7 @@ use crate::{
     menu::{self, cfg_menu::CfgMenu},
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
+    tools::ToolState,
 };
 use egui::{ClippedPrimitive, Context, Id, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
@@ -23,6 +24,7 @@ pub struct Framework {
     textures: TexturesDelta,
     // State for the GUI
     menu: Menu,
+    tools_menu: ToolsMenu,
 }
 
 impl Framework {
@@ -38,6 +40,7 @@ impl Framework {
         };
         let rpass = RenderPass::new(pixels.device(), pixels.render_texture_format(), 1);
         let menu = Menu::new();
+        let tools_menu = ToolsMenu::new();
         let textures = TexturesDelta::default();
         Self {
             egui_ctx,
@@ -47,6 +50,7 @@ impl Framework {
             paint_jobs: Vec::new(),
             textures,
             menu,
+            tools_menu,
         }
     }
 
@@ -68,12 +72,13 @@ impl Framework {
     }
 
     /// Prepare egui.
-    pub fn prepare(&mut self, window: &Window) {
+    pub fn prepare(&mut self, window: &Window, tools: &mut Vec<ToolState>) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw the demo application.
             self.menu.ui(egui_ctx);
+            self.tools_menu.ui(egui_ctx, tools);
         });
         self.textures.append(output.textures_delta);
         self.egui_state
@@ -181,6 +186,42 @@ macro_rules! handle_error {
     ($result:expr, $self:expr) => {
         handle_error!(|_| {}, $result, $self);
     };
+}
+
+pub struct ToolsMenu {
+    window_open: bool, // Only show the egui window when true.
+}
+impl ToolsMenu {
+    fn new() -> Self {
+        Self { window_open: true }
+    }
+
+    fn ui(&mut self, ctx: &Context, tools: &mut Vec<ToolState>) {
+        egui::Window::new("tools")
+            .vscroll(true)
+            .title_bar(false)
+            .open(&mut self.window_open)
+            .show(ctx, |ui| {
+                ui.horizontal_top(|ui| {
+                    let active_tool = tools.iter_mut().enumerate().find(|(_, t)| {
+                        if ui.selectable_label(t.is_active, t.button_label).clicked() {
+                            true
+                        } else {
+                            false
+                        }
+                    });
+                    if let Some((idx_active, _)) = active_tool {
+                        for i in 0..tools.len() {
+                            if i == idx_active {
+                                tools[i].is_active = true;
+                            } else {
+                                tools[i].is_active = false;
+                            }
+                        }
+                    }
+                })
+            });
+    }
 }
 
 pub struct Menu {

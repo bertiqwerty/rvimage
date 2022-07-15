@@ -12,11 +12,12 @@ pub use zoom::Zoom;
 pub struct ToolState {
     pub tool: ToolWrapper,
     pub is_active: bool,
-    pub name: String,
+    pub name: &'static str,
+    pub button_label: &'static str,
 }
 
 macro_rules! make_tools {
-($($tool:ident),+) => {
+($(($tool:ident, $label:expr)),+) => {
         #[derive(Clone, Debug)]
         pub enum ToolWrapper {
             $($tool($tool)),+
@@ -26,12 +27,13 @@ macro_rules! make_tools {
                 ToolState {
                     tool: ToolWrapper::$tool($tool::new()),
                     is_active: false,
-                    name: stringify!($tool).to_string()
+                    name: stringify!($tool),
+                    button_label: $label
                 }),+]
         }
     };
 }
-make_tools!(Rot90, Zoom, Brush);
+make_tools!((Rot90,"🔄"), (Zoom, "🔍"), (Brush, "✏"));
 
 #[macro_export]
 macro_rules! apply_tool_method {

@@ -159,6 +159,7 @@ fn main() -> Result<(), pixels::Error> {
             .build(&event_loop)
             .unwrap()
     };
+    let mut tools = make_tool_vec();
     let (mut pixels, mut framework) = {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor() as f32;
@@ -178,7 +179,6 @@ fn main() -> Result<(), pixels::Error> {
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
     let mut world = empty_world();
-    let mut tools = make_tool_vec();
     let mut history = History::new();
     let mut file_selected = None;
     let mut is_loading_screen_active = false;
@@ -406,7 +406,7 @@ fn main() -> Result<(), pixels::Error> {
                 let file_label = framework.menu().file_label(idx);
                 let active_tool = tools.iter().find(|t| t.is_active);
                 let tool_string = if let Some(t) = active_tool {
-                    format!(" - {} tool is active - ", t.name.as_str())
+                    format!(" - {} tool is active - ", t.name)
                 } else {
                     "".to_string()
                 };
@@ -438,7 +438,7 @@ fn main() -> Result<(), pixels::Error> {
                 world.draw(&mut pixels);
 
                 // Prepare egui
-                framework.prepare(&window);
+                framework.prepare(&window, &mut tools);
 
                 // Render everything together
                 let render_result = pixels.render_with(|encoder, render_target, context| {

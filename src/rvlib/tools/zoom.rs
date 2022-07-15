@@ -150,8 +150,9 @@ impl Zoom {
             let shape_orig = world.shape_orig();
             let bx = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 make_zoom_on_release(mps, mr, shape_orig, shape_win, &self.animation_box)
+                    .or(*world.zoom_box())
             } else {
-                None
+                *world.zoom_box()
             };
             world.set_zoom_box(bx, shape_win);
             self.unset_mouse_start();
