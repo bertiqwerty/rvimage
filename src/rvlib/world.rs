@@ -92,7 +92,9 @@ impl ImsRaw {
     pub fn has_annotations(&self) -> bool {
         self.im_annotations.is_some()
     }
-
+    pub fn clear_annotations(&mut self) {
+        self.im_annotations = None;
+    }
     pub fn apply<
         FI: FnMut(DynamicImage) -> DynamicImage,
         FA: FnMut(AnnotationImage) -> AnnotationImage,
@@ -127,15 +129,19 @@ impl ImsRaw {
 
     pub fn to_view(&self) -> ViewImage {
         let mut im_view = util::orig_to_0_255(&self.im_background, &None);
+        self.annotation_on_view(&mut im_view);
+        im_view
+    }
+
+    pub fn annotation_on_view(&self, im_view: &mut ViewImage) {
         match &self.im_annotations {
             Some(im_a) => {
                 util::effect_per_pixel(Shape::from_im(im_a), |x, y| {
-                    add_annotation_to_view(x, y, im_a, &mut im_view)
+                    add_annotation_to_view(x, y, im_a, im_view)
                 });
             }
             None => {}
         }
-        im_view
     }
 }
 
