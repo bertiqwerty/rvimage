@@ -43,8 +43,10 @@ impl Brush {
                     clr,
                 );
                 world.set_annotations_pixel(mp.0, mp.1, &[255, 255, 255, 255]);
-                let zoom_box=world.zoom_box().clone();
-                world.ims_raw.annotation_on_view(&mut world.im_view, shape_win, &zoom_box);
+                let zoom_box = *world.zoom_box();
+                world
+                    .ims_raw
+                    .annotation_on_view(&mut world.im_view, shape_win, &zoom_box);
             }
             self.prev_pos = mp_orig;
         }

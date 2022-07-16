@@ -15,7 +15,7 @@ impl Record {
             folder_label: None,
         }
     }
-    fn to_im_idx_pair(self) -> (ImsRaw, Option<usize>) {
+    fn convert_to_im_idx_pair(self) -> (ImsRaw, Option<usize>) {
         (self.ims_raw, self.file_label_idx)
     }
 }
@@ -80,7 +80,7 @@ impl History {
             }
             std::mem::swap(&mut self.records[idx], &mut curr_world);
         }
-        curr_world.to_im_idx_pair()
+        curr_world.convert_to_im_idx_pair()
     }
 
     pub fn next_world(&mut self, mut curr_world: Record) -> (ImsRaw, Option<usize>) {
@@ -89,14 +89,14 @@ impl History {
             Some(idx) if idx < self.records.len() - 1 => {
                 self.current_idx = Some(idx + 1);
                 std::mem::swap(&mut self.records[idx + 1], &mut curr_world);
-                curr_world.to_im_idx_pair()
+                curr_world.convert_to_im_idx_pair()
             }
             None if !self.records.is_empty() => {
                 self.current_idx = Some(0);
                 std::mem::swap(&mut self.records[0], &mut curr_world);
-                curr_world.to_im_idx_pair()
+                curr_world.convert_to_im_idx_pair()
             }
-            _ => curr_world.to_im_idx_pair(),
+            _ => curr_world.convert_to_im_idx_pair(),
         }
     }
 }
