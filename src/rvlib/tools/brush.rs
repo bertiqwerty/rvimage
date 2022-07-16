@@ -43,7 +43,8 @@ impl Brush {
                     clr,
                 );
                 world.set_annotations_pixel(mp.0, mp.1, &[255, 255, 255, 255]);
-                world.ims_raw.annotation_on_view(&mut world.im_view);
+                let zoom_box=world.zoom_box().clone();
+                world.ims_raw.annotation_on_view(&mut world.im_view, shape_win, &zoom_box);
             }
             self.prev_pos = mp_orig;
         }
@@ -67,7 +68,7 @@ impl Brush {
     fn key_pressed(
         &mut self,
         _key: VirtualKeyCode,
-        _shape_win: Shape,
+        shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
@@ -75,7 +76,7 @@ impl Brush {
         if world.ims_raw.im_annotations_mut().is_some() {
             history.push(Record::new(world.ims_raw.clone()));
             world.ims_raw.clear_annotations();
-            world.im_view = world.ims_raw.to_view();
+            world.update_view(shape_win);
         }
         (world, history)
     }

@@ -54,14 +54,13 @@ pub fn mouse_pos_transform(
 }
 
 /// Converts the mouse position to the coordinates of the original image
-pub fn mouse_pos_to_orig_pos(
-    mouse_pos: Option<(usize, usize)>,
+pub fn view_pos_to_orig_pos(
+    view_pos: (u32, u32),
     shape_orig: Shape,
     shape_win: Shape,
     zoom_box: &Option<BB>,
-) -> Option<(u32, u32)> {
+) -> (u32, u32) {
     let unscaled = shape_unscaled(zoom_box, shape_orig);
-    let orig = shape_orig;
     let scaled = shape_scaled(unscaled, shape_win);
 
     let (x_off, y_off) = match zoom_box {
@@ -72,19 +71,21 @@ pub fn mouse_pos_to_orig_pos(
     let coord_trans_2_orig = |x: u32, n_transformed: u32, n_orig: u32| -> u32 {
         (x as f64 / n_transformed as f64 * n_orig as f64) as u32
     };
+    let (x, y) = view_pos;
+    let x_orig = x_off + coord_trans_2_orig(x, scaled.w, unscaled.w);
+    let y_orig = y_off + coord_trans_2_orig(y, scaled.h, unscaled.h);
+    (x_orig, y_orig)
+}
 
-    match mouse_pos {
-        Some((x, y)) => {
-            let x_orig = x_off + coord_trans_2_orig(x as u32, scaled.w, unscaled.w);
-            let y_orig = y_off + coord_trans_2_orig(y as u32, scaled.h, unscaled.h);
-            if x_orig < orig.w && y_orig < orig.h {
-                Some((x_orig, y_orig))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
+pub fn mouse_pos_to_orig_pos(
+    mouse_pos: Option<(usize, usize)>,
+    shape_orig: Shape,
+    shape_win: Shape,
+    zoom_box: &Option<BB>,
+) -> Option<(u32, u32)> {
+    mouse_pos
+        .map(|(x, y)| view_pos_to_orig_pos((x as u32, y as u32), shape_orig, shape_win, zoom_box))
+        .filter(|(x_orig, y_orig)| x_orig < &shape_orig.w && y_orig < &shape_orig.h)
 }
 pub fn read_image(path: &str) -> ResultImage {
     image::io::Reader::open(path)

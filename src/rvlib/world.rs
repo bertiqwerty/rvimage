@@ -2,7 +2,7 @@ use std::{fmt::Debug, mem};
 
 use crate::result::{RvError, RvResult};
 use crate::types::ViewImage;
-use crate::util::{self, Shape, BB};
+use crate::util::{self, view_pos_to_orig_pos, Shape, BB};
 use image::{imageops, imageops::FilterType, DynamicImage, ImageBuffer, Rgb, Rgba};
 use pixels::Pixels;
 pub type AnnotationImage = ImageBuffer<Rgba<u8>, Vec<u8>>;
@@ -17,11 +17,16 @@ pub fn scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: Option<BB>, shape_win: Sha
             |mut im| im.crop(c.x, c.y, c.w, c.h),
             |mut a| imageops::crop(&mut a, c.x, c.y, c.w, c.h).to_image(),
         );
-        ims_raw.to_view()
+        ims_raw.to_uncropped_view()
     } else {
-        ims_raw.to_view()
+        ims_raw.to_uncropped_view()
     };
-    imageops::resize(&im_view, new.w, new.h, FilterType::Nearest)
+
+    if im_view.width() != new.w || im_view.height() != new.h {
+        imageops::resize(&im_view, new.w, new.h, FilterType::Nearest)
+    } else {
+        im_view
+    }
 }
 
 fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
@@ -51,20 +56,22 @@ fn assert_data_is_valid(shape: Shape, im_anntoations: &Option<AnnotationImage>) 
 }
 
 fn add_annotation_to_view(
-    x: u32,
-    y: u32,
+    x_a: u32,
+    y_a: u32,
+    x_v: u32,
+    y_v: u32,
     im_annotation: &AnnotationImage,
     im_view: &mut ViewImage,
 ) {
-    if im_annotation.get_pixel(x, y)[0] > 0 {
-        let [r_bg, g_bg, b_bg] = im_view.get_pixel(x, y).0;
-        let pixel = *im_annotation.get_pixel(x, y);
+    if im_annotation.get_pixel(x_a, y_a)[0] > 0 {
+        let pixel = *im_annotation.get_pixel(x_a, y_a);
         let [r_anno, g_anno, b_anno, alpha_anno] = pixel.0;
         let alpha_amount = to_01(alpha_anno);
         let apply_alpha = |x_anno, x_res| {
             ((to_01(x_anno) * alpha_amount + (1.0 - alpha_amount) * to_01(x_res)) * 255.0) as u8
         };
-        *im_view.get_pixel_mut(x, y) = Rgb([
+        let [r_bg, g_bg, b_bg] = im_view.get_pixel(x_v, y_v).0;
+        *im_view.get_pixel_mut(x_v, y_v) = Rgb([
             apply_alpha(r_anno, r_bg),
             apply_alpha(g_anno, g_bg),
             apply_alpha(b_anno, b_bg),
@@ -127,17 +134,31 @@ impl ImsRaw {
         Shape::from_im(&self.im_background)
     }
 
-    pub fn to_view(&self) -> ViewImage {
+    pub fn to_uncropped_view(&self) -> ViewImage {
         let mut im_view = util::orig_to_0_255(&self.im_background, &None);
-        self.annotation_on_view(&mut im_view);
-        im_view
-    }
-
-    pub fn annotation_on_view(&self, im_view: &mut ViewImage) {
         match &self.im_annotations {
             Some(im_a) => {
                 util::effect_per_pixel(Shape::from_im(im_a), |x, y| {
-                    add_annotation_to_view(x, y, im_a, im_view)
+                    add_annotation_to_view(x, y, x, y, im_a, &mut im_view);
+                });
+            }
+            None => {}
+        }
+        im_view
+    }
+
+    pub fn annotation_on_view(
+        &self,
+        im_view: &mut ViewImage,
+        shape_win: Shape,
+        zoom_box: &Option<BB>,
+    ) {
+        match &self.im_annotations {
+            Some(im_a) => {
+                util::effect_per_pixel(Shape::from_im(im_view), |x_v, y_v| {
+                    let (x_a, y_a) =
+                        view_pos_to_orig_pos((x_v, y_v), Shape::from_im(im_a), shape_win, zoom_box);
+                    add_annotation_to_view(x_a, y_a, x_v, y_v, im_a, im_view);
                 });
             }
             None => {}
@@ -251,7 +272,7 @@ fn test_ims_raw() -> RvResult<()> {
             a
         },
     );
-    let im_view = ims_raw.to_view();
+    let im_view = ims_raw.to_uncropped_view();
     util::effect_per_pixel(Shape::from_im(&im_view), |x, y| {
         assert_eq!(ims_raw.im_background().get_pixel(x, y), ref_pixel);
         assert_eq!(
