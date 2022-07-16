@@ -74,9 +74,9 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if world.ims_raw.im_annotations_mut().is_some() {
-            history.push(Record::new(world.ims_raw.clone()));
             world.ims_raw.clear_annotations();
             world.update_view(shape_win);
+            history.push(Record::new(world.ims_raw.clone()));
         }
         (world, history)
     }
