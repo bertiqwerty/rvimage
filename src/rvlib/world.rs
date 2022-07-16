@@ -99,17 +99,16 @@ impl ImsRaw {
     pub fn has_annotations(&self) -> bool {
         self.im_annotations.is_some()
     }
+    
     pub fn clear_annotations(&mut self) {
         self.im_annotations = None;
     }
-    pub fn apply<
+
+    pub fn apply<FI, FA>(&mut self, mut f_i: FI, f_a: FA)
+    where
         FI: FnMut(DynamicImage) -> DynamicImage,
         FA: FnMut(AnnotationImage) -> AnnotationImage,
-    >(
-        &mut self,
-        mut f_i: FI,
-        f_a: FA,
-    ) {
+    {
         self.im_background = f_i(mem::take(&mut self.im_background));
         self.im_annotations = mem::take(&mut self.im_annotations).map(f_a);
 
