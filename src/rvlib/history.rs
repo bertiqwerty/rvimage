@@ -78,26 +78,37 @@ impl History {
         }
     }
 
-    pub fn prev_world(&mut self, folder_label: &Option<String>) -> Option<(ImsRaw, Option<usize>)> {
+    fn change_world<F1, F2>(
+        &mut self,
+        idx_change: F1,
+        pred: F2,
+        folder_label: &Option<String>,
+    ) -> Option<(ImsRaw, Option<usize>)>
+    where
+        F1: Fn(usize) -> usize,
+        F2: FnOnce(usize) -> bool,
+    {
         self.clear_on_folder_change(folder_label);
         match self.current_idx {
-            Some(idx) if idx > 0 => {
-                self.current_idx = Some(idx - 1);
-                Some(self.records[idx - 1].clone().convert_to_im_idx_pair())
+            Some(idx) if pred(idx) => {
+                self.current_idx = Some(idx_change(idx));
+                Some(
+                    self.records[idx_change(idx)]
+                        .clone()
+                        .convert_to_im_idx_pair(),
+                )
             }
             _ => None,
         }
     }
 
+    pub fn prev_world(&mut self, folder_label: &Option<String>) -> Option<(ImsRaw, Option<usize>)> {
+        self.change_world(|idx| idx - 1, |idx| idx > 0, folder_label)
+    }
+
     pub fn next_world(&mut self, folder_label: &Option<String>) -> Option<(ImsRaw, Option<usize>)> {
-        self.clear_on_folder_change(folder_label);
-        match self.current_idx {
-            Some(idx) if idx < self.records.len() - 1 => {
-                self.current_idx = Some(idx + 1);
-                Some(self.records[idx + 1].clone().convert_to_im_idx_pair())
-            }
-            _ => None,
-        }
+        let n_recs = self.records.len();
+        self.change_world(|idx| idx + 1, |idx| idx < n_recs - 1, folder_label)
     }
 }
 
