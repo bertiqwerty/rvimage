@@ -30,6 +30,7 @@ use winit_input_helper::WinitInputHelper;
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 const MIN_WIN_INNER_SIZE: LogicalSize<i32> = LogicalSize::new(32, 32);
+const LOAD_ACTOR_NAME: &str = "Load";
 
 fn cfg() -> &'static Cfg {
     lazy_static! {
@@ -309,34 +310,28 @@ fn main() -> Result<(), pixels::Error> {
             {
                 // undo
                 undo_redo_load = true;
-                Some(history.prev_world(Record {
-                    ims_raw: std::mem::take(&mut world.ims_raw),
-                    file_label_idx: file_selected,
-                    folder_label: make_folder_label(),
-                }))
+                history.prev_world(&make_folder_label())
             } else if (input.key_held(VirtualKeyCode::RControl)
                 || input.key_held(VirtualKeyCode::LControl))
                 && input.key_pressed(VirtualKeyCode::Y)
             {
                 // redo
                 undo_redo_load = true;
-                Some(history.next_world(Record {
-                    ims_raw: std::mem::take(&mut world.ims_raw),
-                    file_label_idx: file_selected,
-                    folder_label: make_folder_label(),
-                }))
+                history.next_world(&make_folder_label())
             } else if file_selected != menu_file_selected || is_loading_screen_active {
                 // load new image
                 if let Some(selected) = &menu_file_selected {
-                    if !is_loading_screen_active && !undo_redo_load {
-                        history.push(Record {
-                            ims_raw: world.ims_raw.clone(),
-                            file_label_idx: file_selected,
-                            folder_label: make_folder_label(),
-                        });
-                    }
+                    let folder_label = make_folder_label();
                     let read_image_and_idx = match framework.menu_mut().read_image(*selected) {
                         Some(ri) => {
+                            if !undo_redo_load {
+                                history.push(Record {
+                                    ims_raw: ImsRaw::new(ri.clone()),
+                                    actor: LOAD_ACTOR_NAME,
+                                    file_label_idx: file_selected,
+                                    folder_label,
+                                });
+                            }
                             undo_redo_load = false;
                             file_selected = menu_file_selected;
                             is_loading_screen_active = false;

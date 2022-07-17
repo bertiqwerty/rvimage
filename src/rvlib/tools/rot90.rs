@@ -10,6 +10,8 @@ use winit_input_helper::WinitInputHelper;
 
 use super::Manipulate;
 
+const ACTOR_NAME: &str = "Rot90";
+
 /// rotate 90 degrees counter clockwise
 fn rot90(ims: &ImsRaw) -> ImsRaw {
     let mut ims = ims.clone();
@@ -29,7 +31,7 @@ impl Rot90 {
         mut history: History,
     ) -> (World, History) {
         if key == VirtualKeyCode::R {
-            history.push(Record::new(world.ims_raw.clone()));
+            history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
             world = World::new(rot90(&world.ims_raw), *world.zoom_box(), shape_win);
         }
         (world, history)

@@ -12,6 +12,8 @@ use winit_input_helper::WinitInputHelper;
 
 use super::Manipulate;
 
+const ACTOR_NAME: &str = "Brush";
+
 #[derive(Clone, Copy, Debug)]
 pub struct Brush {
     prev_pos: Option<(u32, u32)>,
@@ -62,7 +64,7 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if btn == LEFT_BTN {
-            history.push(Record::new(world.ims_raw.clone()));
+            history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
             self.prev_pos = None;
         }
         (world, history)
@@ -78,7 +80,7 @@ impl Brush {
         if world.ims_raw.im_annotations_mut().is_some() {
             world.ims_raw.clear_annotations();
             world.update_view(shape_win);
-            history.push(Record::new(world.ims_raw.clone()));
+            history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         }
         (world, history)
     }

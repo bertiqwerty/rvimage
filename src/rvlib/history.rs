@@ -4,13 +4,15 @@ use std::fmt::Debug;
 #[derive(Clone)]
 pub struct Record {
     pub ims_raw: ImsRaw,
+    pub actor: &'static str,
     pub file_label_idx: Option<usize>,
     pub folder_label: Option<String>,
 }
 impl Record {
-    pub fn new(ims_raw: ImsRaw) -> Self {
+    pub fn new(ims_raw: ImsRaw, actor: &'static str) -> Self {
         Self {
             ims_raw,
+            actor,
             file_label_idx: None,
             folder_label: None,
         }
@@ -70,33 +72,26 @@ impl History {
         }
     }
 
-    pub fn prev_world(&mut self, mut curr_world: Record) -> (ImsRaw, Option<usize>) {
-        self.clear_on_folder_change(&curr_world.folder_label);
-        if let Some(idx) = self.current_idx {
-            if idx > 0 {
+    pub fn prev_world(&mut self, folder_label: &Option<String>) -> Option<(ImsRaw, Option<usize>)> {
+        self.clear_on_folder_change(folder_label);
+        match self.current_idx {
+            Some(idx) if idx > 0 => {
                 self.current_idx = Some(idx - 1);
-            } else {
-                self.current_idx = None
+                Some(self.records[idx - 1].clone().convert_to_im_idx_pair())
             }
-            std::mem::swap(&mut self.records[idx], &mut curr_world);
+            _ => None,
         }
-        curr_world.convert_to_im_idx_pair()
     }
 
-    pub fn next_world(&mut self, mut curr_world: Record) -> (ImsRaw, Option<usize>) {
-        self.clear_on_folder_change(&curr_world.folder_label);
+    pub fn next_world(&mut self, folder_label: &Option<String>) -> Option<(ImsRaw, Option<usize>)> {
+        self.clear_on_folder_change(folder_label);
+
         match self.current_idx {
             Some(idx) if idx < self.records.len() - 1 => {
                 self.current_idx = Some(idx + 1);
-                std::mem::swap(&mut self.records[idx + 1], &mut curr_world);
-                curr_world.convert_to_im_idx_pair()
+                Some(self.records[idx + 1].clone().convert_to_im_idx_pair())
             }
-            None if !self.records.is_empty() => {
-                self.current_idx = Some(0);
-                std::mem::swap(&mut self.records[0], &mut curr_world);
-                curr_world.convert_to_im_idx_pair()
-            }
-            _ => curr_world.convert_to_im_idx_pair(),
+            _ => None,
         }
     }
 }
@@ -104,14 +99,16 @@ impl Debug for History {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "(record idx {:?}, {:?})",
+            "(record idx {:?}, {:#?})",
             self.current_idx,
             self.records
                 .iter()
                 .map(|r| format!(
-                    "file label idx {:?} - {:?}",
+                    "actor {}, file label idx {:?}, {:?}, folder label {:?}",
+                    r.actor,
                     r.file_label_idx,
-                    &r.ims_raw.shape()
+                    &r.ims_raw.shape(),
+                    r.folder_label
                 ))
                 .collect::<Vec<_>>()
         )
@@ -119,7 +116,7 @@ impl Debug for History {
 }
 #[cfg(test)]
 use {
-    crate::{util::Shape, result::RvResult, types::ViewImage, world::World},
+    crate::{result::RvResult, types::ViewImage, util::Shape, world::World},
     image::DynamicImage,
 };
 #[test]
@@ -128,29 +125,34 @@ fn test_history() -> RvResult<()> {
     let im = ViewImage::new(64, 64);
     let world = World::from_im(DynamicImage::ImageRgb8(im), dummy_shape_win);
     let mut hist = History::new();
-    
+
     hist.push(Record {
         ims_raw: world.ims_raw.clone(),
+        actor: "",
         file_label_idx: None,
         folder_label: None,
     });
-    let mut world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(32, 32)), dummy_shape_win);
+    let world = World::from_im(
+        DynamicImage::ImageRgb8(ViewImage::new(32, 32)),
+        dummy_shape_win,
+    );
     hist.push(Record {
         ims_raw: world.ims_raw.clone(),
+        actor: "",
         file_label_idx: None,
         folder_label: None,
     });
     assert_eq!(hist.records.len(), 2);
     assert_eq!(hist.records[0].ims_raw.shape().w, 64);
     assert_eq!(hist.records[1].ims_raw.shape().w, 32);
-    hist.prev_world(Record {
-        ims_raw: std::mem::take(&mut world.ims_raw),
-        file_label_idx: None,
-        folder_label: None,
-    });
-    let world = World::from_im(DynamicImage::ImageRgb8(ViewImage::new(16, 16)), dummy_shape_win);
+    hist.prev_world(&None);
+    let world = World::from_im(
+        DynamicImage::ImageRgb8(ViewImage::new(16, 16)),
+        dummy_shape_win,
+    );
     hist.push(Record {
         ims_raw: world.ims_raw.clone(),
+        actor: "",
         file_label_idx: None,
         folder_label: None,
     });
@@ -160,6 +162,7 @@ fn test_history() -> RvResult<()> {
 
     hist.push(Record {
         ims_raw: world.ims_raw.clone(),
+        actor: "",
         file_label_idx: None,
         folder_label: Some("folder1".to_string()),
     });
@@ -167,16 +170,19 @@ fn test_history() -> RvResult<()> {
 
     hist.push(Record {
         ims_raw: world.ims_raw.clone(),
+        actor: "",
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),
     });
     hist.push(Record {
         ims_raw: world.ims_raw.clone(),
+        actor: "",
         file_label_idx: None,
         folder_label: None,
     });
     hist.push(Record {
         ims_raw: world.ims_raw.clone(),
+        actor: "",
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),
     });
