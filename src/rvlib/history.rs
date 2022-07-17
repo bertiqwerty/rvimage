@@ -8,6 +8,7 @@ pub struct Record {
     pub file_label_idx: Option<usize>,
     pub folder_label: Option<String>,
 }
+
 impl Record {
     pub fn new(ims_raw: ImsRaw, actor: &'static str) -> Self {
         Self {
@@ -17,10 +18,12 @@ impl Record {
             folder_label: None,
         }
     }
+
     fn convert_to_im_idx_pair(self) -> (ImsRaw, Option<usize>) {
         (self.ims_raw, self.file_label_idx)
     }
 }
+
 #[derive(Clone, Default)]
 pub struct History {
     records: Vec<Record>,
@@ -34,6 +37,7 @@ impl History {
             current_idx: None,
         }
     }
+
     fn clear_on_folder_change(&mut self, current_folder_label: &Option<String>) {
         if let Some(cfl) = current_folder_label {
             let folder_in_history = self
@@ -49,9 +53,11 @@ impl History {
             }
         }
     }
+
     pub fn current_record(&self) -> Option<Record> {
         self.current_idx.map(|idx| self.records[idx].clone())
     }
+
     pub fn push(&mut self, record: Record) {
         self.clear_on_folder_change(&record.folder_label);
         match self.current_idx {
@@ -85,7 +91,6 @@ impl History {
 
     pub fn next_world(&mut self, folder_label: &Option<String>) -> Option<(ImsRaw, Option<usize>)> {
         self.clear_on_folder_change(folder_label);
-
         match self.current_idx {
             Some(idx) if idx < self.records.len() - 1 => {
                 self.current_idx = Some(idx + 1);
@@ -95,6 +100,7 @@ impl History {
         }
     }
 }
+
 impl Debug for History {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -114,6 +120,7 @@ impl Debug for History {
         )
     }
 }
+
 #[cfg(test)]
 use {
     crate::{result::RvResult, types::ViewImage, util::Shape, world::World},
