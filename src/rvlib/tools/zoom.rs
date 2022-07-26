@@ -110,7 +110,6 @@ fn draw_bx_on_view(mut im: ViewImage, draw_bx: BB, color: Rgb<u8>) -> ViewImage 
 #[derive(Clone, Debug)]
 pub struct Zoom {
     mouse_pressed_start_pos: Option<(usize, usize)>,
-    animation_box: Option<BB>,
     initial_view: Option<ViewImage>,
 }
 impl Zoom {
@@ -149,7 +148,7 @@ impl Zoom {
         if btn == LEFT_BTN {
             let shape_orig = world.shape_orig();
             let bx = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
-                make_zoom_on_release(mps, mr, shape_orig, shape_win, &self.animation_box)
+                make_zoom_on_release(mps, mr, shape_orig, shape_win, world.zoom_box())
                     .or(*world.zoom_box())
             } else {
                 *world.zoom_box()
@@ -228,7 +227,6 @@ impl Zoom {
 impl Manipulate for Zoom {
     fn new() -> Zoom {
         Zoom {
-            animation_box: None,
             mouse_pressed_start_pos: None,
             initial_view: None,
         }
