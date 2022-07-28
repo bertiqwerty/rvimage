@@ -3,9 +3,10 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     tools::core,
+    types::ViewImage,
     util::{mouse_pos_to_orig_pos, Shape},
     world::World,
-    LEFT_BTN, RIGHT_BTN, types::ViewImage,
+    LEFT_BTN, RIGHT_BTN,
 };
 use image::{Rgb, Rgba};
 use std::mem;
@@ -32,8 +33,12 @@ impl BBox {
         if btn == LEFT_BTN {
             let mp_orig =
                 mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
-            let pp_orig = 
-                mouse_pos_to_orig_pos(self.prev_pos, world.shape_orig(), shape_win, world.zoom_box());
+            let pp_orig = mouse_pos_to_orig_pos(
+                self.prev_pos,
+                world.shape_orig(),
+                shape_win,
+                world.zoom_box(),
+            );
             if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
                 *world.ims_raw.im_annotations_mut() = core::draw_bx_on_anno(
                     mem::take(world.ims_raw.im_annotations_mut()),
@@ -73,7 +78,10 @@ impl BBox {
 
 impl Manipulate for BBox {
     fn new() -> Self {
-        Self { prev_pos: None, initial_view: None }
+        Self {
+            prev_pos: None,
+            initial_view: None,
+        }
     }
 
     fn events_tf(
@@ -86,12 +94,7 @@ impl Manipulate for BBox {
     ) -> (World, History) {
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
             let iv = self.initial_view.clone();
-            world.im_view = core::draw_bx_on_view(
-                iv.unwrap(),
-                mp,
-                pp,
-                Rgb([255, 255, 255]),
-            );
+            world.im_view = core::draw_bx_on_view(iv.unwrap(), mp, pp, Rgb([255, 255, 255]));
         }
         make_tool_transform!(
             self,

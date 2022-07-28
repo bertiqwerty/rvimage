@@ -38,12 +38,7 @@ impl Brush {
                 let start = (mp_prev.0 as f32, mp_prev.1 as f32);
                 let end = (mp.0 as f32, mp.1 as f32);
                 let clr = Rgba([255, 255, 255, 255]);
-                drawing::draw_line_segment_mut(
-                    world.ims_raw.im_annotations_mut(),
-                    start,
-                    end,
-                    clr,
-                );
+                drawing::draw_line_segment_mut(world.ims_raw.im_annotations_mut(), start, end, clr);
                 world.set_annotations_pixel(mp.0, mp.1, &[255, 255, 255, 255]);
                 let zoom_box = *world.zoom_box();
                 world
