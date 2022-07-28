@@ -36,7 +36,7 @@ impl BBox {
                 mouse_pos_to_orig_pos(self.prev_pos, world.shape_orig(), shape_win, world.zoom_box());
             if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
                 *world.ims_raw.im_annotations_mut() = core::draw_bx_on_anno(
-                    mem::take(&mut world.ims_raw.im_annotations_mut()),
+                    mem::take(world.ims_raw.im_annotations_mut()),
                     (mp.0 as usize, mp.1 as usize),
                     (pp.0 as usize, pp.1 as usize),
                     Rgba([255, 255, 255, 255]),
@@ -87,7 +87,7 @@ impl Manipulate for BBox {
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
             let iv = self.initial_view.clone();
             world.im_view = core::draw_bx_on_view(
-                iv.unwrap().clone(),
+                iv.unwrap(),
                 mp,
                 pp,
                 Rgb([255, 255, 255]),
