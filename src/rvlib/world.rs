@@ -99,7 +99,7 @@ impl ImsRaw {
     pub fn has_annotations(&self) -> bool {
         self.im_annotations.is_some()
     }
-    
+
     pub fn clear_annotations(&mut self) {
         self.im_annotations = None;
     }
@@ -121,8 +121,11 @@ impl ImsRaw {
         }
     }
 
-    pub fn im_annotations_mut(&mut self) -> &mut Option<AnnotationImage> {
-        &mut self.im_annotations
+    pub fn im_annotations_mut(&mut self) -> &mut AnnotationImage {
+        if self.im_annotations.is_none() {
+            self.create_annotations_layer();
+        }
+        self.im_annotations.as_mut().unwrap()
     }
 
     pub fn create_annotations_layer(&mut self) {

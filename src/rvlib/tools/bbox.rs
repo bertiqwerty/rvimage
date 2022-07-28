@@ -1,71 +1,56 @@
+use super::Manipulate;
 use crate::{
     history::{History, Record},
     make_tool_transform,
+    tools::core,
     util::{mouse_pos_to_orig_pos, Shape},
     world::World,
-    LEFT_BTN, RIGHT_BTN,
+    LEFT_BTN, RIGHT_BTN, types::ViewImage,
 };
-use image::Rgba;
-use imageproc::drawing;
+use image::{Rgb, Rgba};
+use std::mem;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
-use super::Manipulate;
+const ACTOR_NAME: &str = "BBox";
 
-const ACTOR_NAME: &str = "Brush";
-
-#[derive(Clone, Copy, Debug)]
-pub struct Brush {
-    prev_pos: Option<(u32, u32)>,
+#[derive(Clone, Debug)]
+pub struct BBox {
+    prev_pos: Option<(usize, usize)>,
+    initial_view: Option<ViewImage>,
 }
 
-impl Brush {
-    fn mouse_held(
+impl BBox {
+    fn mouse_released(
         &mut self,
         btn: usize,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
-        history: History,
+        mut history: History,
     ) -> (World, History) {
         if btn == LEFT_BTN {
-            if !world.ims_raw.has_annotations() {
-                world.ims_raw.create_annotations_layer();
-            }
             let mp_orig =
                 mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
-            if let (Some(mp), Some(mp_prev)) = (mp_orig, self.prev_pos) {
-                let start = (mp_prev.0 as f32, mp_prev.1 as f32);
-                let end = (mp.0 as f32, mp.1 as f32);
-                let clr = Rgba([255, 255, 255, 255]);
-                drawing::draw_line_segment_mut(
-                    world.ims_raw.im_annotations_mut(),
-                    start,
-                    end,
-                    clr,
+            let pp_orig = 
+                mouse_pos_to_orig_pos(self.prev_pos, world.shape_orig(), shape_win, world.zoom_box());
+            if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
+                *world.ims_raw.im_annotations_mut() = core::draw_bx_on_anno(
+                    mem::take(&mut world.ims_raw.im_annotations_mut()),
+                    (mp.0 as usize, mp.1 as usize),
+                    (pp.0 as usize, pp.1 as usize),
+                    Rgba([255, 255, 255, 255]),
                 );
-                world.set_annotations_pixel(mp.0, mp.1, &[255, 255, 255, 255]);
                 let zoom_box = *world.zoom_box();
                 world
                     .ims_raw
                     .annotation_on_view(&mut world.im_view, shape_win, &zoom_box);
+                history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
+                self.prev_pos = None;
+            } else {
+                self.prev_pos = mouse_pos;
+                self.initial_view = Some(world.im_view.clone());
             }
-            self.prev_pos = mp_orig;
-        }
-        (world, history)
-    }
-
-    fn mouse_released(
-        &mut self,
-        btn: usize,
-        _shape_win: Shape,
-        _mouse_pos: Option<(usize, usize)>,
-        world: World,
-        mut history: History,
-    ) -> (World, History) {
-        if btn == LEFT_BTN {
-            history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
-            self.prev_pos = None;
         }
         (world, history)
     }
@@ -86,19 +71,28 @@ impl Brush {
     }
 }
 
-impl Manipulate for Brush {
+impl Manipulate for BBox {
     fn new() -> Self {
-        Self { prev_pos: None }
+        Self { prev_pos: None, initial_view: None }
     }
 
     fn events_tf(
         &mut self,
-        world: World,
+        mut world: World,
         history: History,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
     ) -> (World, History) {
+        if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
+            let iv = self.initial_view.clone();
+            world.im_view = core::draw_bx_on_view(
+                iv.unwrap().clone(),
+                mp,
+                pp,
+                Rgb([255, 255, 255]),
+            );
+        }
         make_tool_transform!(
             self,
             world,
@@ -106,7 +100,7 @@ impl Manipulate for Brush {
             shape_win,
             mouse_pos,
             event,
-            [mouse_held, mouse_released],
+            [mouse_released],
             [VirtualKeyCode::Back]
         )
     }

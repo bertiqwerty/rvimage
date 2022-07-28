@@ -6,7 +6,7 @@ use winit_input_helper::WinitInputHelper;
 use crate::{
     history::History,
     make_tool_transform,
-    tools::core::Manipulate,
+    tools::core::{self, Manipulate},
     types::ViewImage,
     util::{self, Shape, BB},
     world::World,
@@ -83,28 +83,6 @@ fn move_zoom_box(
         }
         _ => zoom_box,
     }
-}
-
-fn draw_bx_on_view(mut im: ViewImage, draw_bx: BB, color: Rgb<u8>) -> ViewImage {
-    let offset = Rgb([color[0] / 5, color[1] / 5, color[2] / 5]);
-
-    for x in draw_bx.x_range() {
-        *im.get_pixel_mut(x, draw_bx.y) = color;
-        *im.get_pixel_mut(x, draw_bx.y + draw_bx.h - 1) = color;
-    }
-    for y in draw_bx.y_range() {
-        *im.get_pixel_mut(draw_bx.x, y) = color;
-        *im.get_pixel_mut(draw_bx.x + draw_bx.w - 1, y) = color;
-    }
-    draw_bx.effect_per_inner_pixel(|x, y| {
-        let rgb = *im.get_pixel(x, y);
-        *im.get_pixel_mut(x, y) = Rgb([
-            util::clipped_add(offset[0], rgb[0], 255),
-            util::clipped_add(offset[1], rgb[1], 255),
-            util::clipped_add(offset[2], rgb[2], 255),
-        ]);
-    });
-    im
 }
 
 #[derive(Clone, Debug)]
@@ -189,22 +167,10 @@ impl Zoom {
             }
             (world, history)
         } else if btn == LEFT_BTN {
-            if let (Some((mps_x, mps_y)), Some((m_x, m_y))) =
-                (self.mouse_pressed_start_pos, mouse_pos)
-            {
-                let x_min = mps_x.min(m_x);
-                let y_min = mps_y.min(m_y);
-                let x_max = mps_x.max(m_x);
-                let y_max = mps_y.max(m_y);
-                let draw_bx = BB {
-                    x: x_min as u32,
-                    y: y_min as u32,
-                    w: (x_max - x_min) as u32,
-                    h: (y_max - y_min) as u32,
-                };
+            if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 let initial_view = self.initial_view.clone();
                 world.im_view =
-                    draw_bx_on_view(initial_view.unwrap(), draw_bx, Rgb([255, 255, 255]));
+                    core::draw_bx_on_view(initial_view.unwrap(), mps, m, Rgb([255, 255, 255]));
             }
             (world, history)
         } else {
