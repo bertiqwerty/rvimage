@@ -183,24 +183,28 @@ impl Debug for ImsRaw {
 #[derive(Clone, Default)]
 pub struct World {
     pub ims_raw: ImsRaw,
-    pub im_view: ViewImage,
+    im_view: ViewImage,
+    is_redraw_requested: bool,
     // transforms coordinates from view to raw image
     zoom_box: Option<BB>,
 }
 
 impl World {
-    pub fn draw(&self, pixels: &mut Pixels) {
-        let frame_len = pixels.get_frame().len() as u32;
-        let w_view = self.im_view.width();
-        let h_view = self.im_view.height();
-        if frame_len != w_view * h_view * 4 {
-            pixels.resize_buffer(w_view, h_view);
-        }
-        let frame = pixels.get_frame();
+    pub fn draw(&mut self, pixels: &mut Pixels) {
+        if self.is_redraw_requested {
+            let frame_len = pixels.get_frame().len() as u32;
+            let w_view = self.im_view.width();
+            let h_view = self.im_view.height();
+            if frame_len != w_view * h_view * 4 {
+                pixels.resize_buffer(w_view, h_view);
+            }
+            let frame = pixels.get_frame();
 
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let rgba = rgba_at(i, &self.im_view);
-            pixel.copy_from_slice(&rgba);
+            for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
+                let rgba = rgba_at(i, &self.im_view);
+                pixel.copy_from_slice(&rgba);
+            }
+            self.is_redraw_requested = false;
         }
     }
     pub fn new(ims_raw: ImsRaw, zoom_box: Option<BB>, shape_win: Shape) -> Self {
@@ -208,6 +212,7 @@ impl World {
         Self {
             ims_raw,
             im_view,
+            is_redraw_requested: true,
             zoom_box,
         }
     }
@@ -217,8 +222,26 @@ impl World {
     pub fn set_annotations_pixel(&mut self, x: u32, y: u32, value: &[u8; 4]) {
         self.ims_raw.set_annotations_pixel(x, y, value);
     }
+    pub fn put_annotations_on_view(&mut self, shape_win: Shape) {
+        let mut im_view_tmp = self.take_view();
+        self
+            .ims_raw
+            .annotation_on_view(&mut im_view_tmp, shape_win, self.zoom_box());
+        self.set_im_view(im_view_tmp);
+    }
+    pub fn take_view(&mut self) -> ViewImage {
+        mem::take(&mut self.im_view)
+    }
+    pub fn im_view(&self) -> &ViewImage {
+        &self.im_view
+    }
+    pub fn set_im_view(&mut self, im_view: ViewImage) {
+        self.im_view = im_view;
+        self.is_redraw_requested = true;
+    }
     pub fn update_view(&mut self, shape_win: Shape) {
         self.im_view = scaled_to_win_view(&self.ims_raw, *self.zoom_box(), shape_win);
+        self.is_redraw_requested = true;
     }
     pub fn shape_orig(&self) -> Shape {
         self.ims_raw.shape()
@@ -226,6 +249,7 @@ impl World {
     pub fn set_zoom_box(&mut self, zoom_box: Option<BB>, shape_win: Shape) {
         self.im_view = scaled_to_win_view(&self.ims_raw, zoom_box, shape_win);
         self.zoom_box = zoom_box;
+        self.is_redraw_requested = true;
     }
     pub fn zoom_box(&self) -> &Option<BB> {
         &self.zoom_box

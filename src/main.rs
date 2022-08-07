@@ -369,7 +369,7 @@ fn main() -> Result<(), pixels::Error> {
                 };
                 world = World::new(ims_raw, zoom_box, shape_win);
 
-                let Shape { w, h } = Shape::from_im(&world.im_view);
+                let Shape { w, h } = Shape::from_im(world.im_view());
                 pixels.resize_buffer(w, h);
             }
             // Update the scale factor
@@ -382,7 +382,7 @@ fn main() -> Result<(), pixels::Error> {
                 let shape_win = Shape::from_size(&size);
                 if shape_win.h > 0 && shape_win.w > 0 {
                     world.update_view(shape_win);
-                    let Shape { w, h } = Shape::from_im(&world.im_view);
+                    let Shape { w, h } = Shape::from_im(world.im_view());
                     pixels.resize_buffer(w, h);
                     framework.resize(size.width, size.height);
                     pixels.resize_surface(size.width, size.height);

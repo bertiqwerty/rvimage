@@ -46,15 +46,12 @@ impl BBox {
                     (pp.0 as usize, pp.1 as usize),
                     Rgba([255, 255, 255, 255]),
                 );
-                let zoom_box = *world.zoom_box();
-                world
-                    .ims_raw
-                    .annotation_on_view(&mut world.im_view, shape_win, &zoom_box);
+                world.put_annotations_on_view(shape_win);
                 history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
                 self.prev_pos = None;
             } else {
                 self.prev_pos = mouse_pos;
-                self.initial_view = Some(world.im_view.clone());
+                self.initial_view = Some(world.im_view().clone());
             }
         }
         (world, history)
@@ -94,7 +91,7 @@ impl Manipulate for BBox {
     ) -> (World, History) {
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
             let iv = self.initial_view.clone();
-            world.im_view = core::draw_bx_on_view(iv.unwrap(), mp, pp, Rgb([255, 255, 255]));
+            world.set_im_view(core::draw_bx_on_view(iv.unwrap(), mp, pp, Rgb([255, 255, 255])));
         }
         make_tool_transform!(
             self,

@@ -110,7 +110,7 @@ impl Zoom {
         history: History,
     ) -> (World, History) {
         if let (None, Some((m_x, m_y))) = (self.mouse_pressed_start_pos, mouse_pos) {
-            self.set_mouse_start((m_x, m_y), Some(world.im_view.clone()));
+            self.set_mouse_start((m_x, m_y), Some(world.im_view().clone()));
         }
         (world, history)
     }
@@ -169,8 +169,12 @@ impl Zoom {
         } else if btn == LEFT_BTN {
             if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 let initial_view = self.initial_view.clone();
-                world.im_view =
-                    core::draw_bx_on_view(initial_view.unwrap(), mps, m, Rgb([255, 255, 255]));
+                world.set_im_view(core::draw_bx_on_view(
+                    initial_view.unwrap(),
+                    mps,
+                    m,
+                    Rgb([255, 255, 255]),
+                ));
             }
             (world, history)
         } else {
@@ -272,10 +276,10 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let mut z = Zoom::new();
     let world = World::from_im(im_orig, shape_win);
     let history = History::new();
-    let im_view_old = world.im_view.clone();
+    let im_view_old = world.im_view().clone();
     let im_orig_old = world.ims_raw.clone();
     let (res, _) = z.mouse_pressed(mouse_btn, shape_win, mouse_pos, world, history);
-    assert_eq!(res.im_view, im_view_old);
+    assert_eq!(*res.im_view(), im_view_old);
     assert_eq!(res.ims_raw, im_orig_old);
     assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
     Ok(())
@@ -290,10 +294,10 @@ fn test_on_mouse_released() -> RvResult<()> {
     let mut z = Zoom::new();
     let world = World::from_im(im_orig, shape_win);
     let history = History::new();
-    z.set_mouse_start((40, 80), Some(world.im_view.clone()));
+    z.set_mouse_start((40, 80), Some(world.im_view().clone()));
 
     let (world, _) = z.mouse_released(mouse_btn, shape_win, mouse_pos, world, history);
-    assert_eq!(Shape::new(250, 250), Shape::from_im(&world.im_view));
+    assert_eq!(Shape::new(250, 250), Shape::from_im(world.im_view()));
     assert_eq!(
         *world.zoom_box(),
         Some(BB {
