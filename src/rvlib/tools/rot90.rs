@@ -24,16 +24,14 @@ pub struct Rot90;
 impl Rot90 {
     fn key_pressed(
         &mut self,
-        key: VirtualKeyCode,
+        _event: &WinitInputHelper,
         shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        if key == VirtualKeyCode::R {
-            history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
-            world = World::new(rot90(&world.ims_raw), *world.zoom_box(), shape_win);
-        }
+        history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
+        world = World::new(rot90(&world.ims_raw), *world.zoom_box(), shape_win);
         (world, history)
     }
 }
@@ -59,7 +57,7 @@ impl Manipulate for Rot90 {
             mouse_pos,
             event,
             [],
-            [VirtualKeyCode::R]
+            [(key_pressed, VirtualKeyCode::R)]
         )
     }
 }

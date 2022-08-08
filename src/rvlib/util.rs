@@ -160,6 +160,18 @@ impl BB {
             h: self.h,
         }
     }
+    pub fn from_points(p1: (u32, u32), p2: (u32, u32)) -> Self {
+        let x_min = p1.0.min(p2.0);
+        let y_min = p1.1.min(p2.1);
+        let x_max = p1.0.max(p2.0);
+        let y_max = p1.1.max(p2.1);
+        Self {
+            x: x_min,
+            y: y_min,
+            w: x_max - x_min,
+            h: y_max - y_min,
+        }
+    }
     pub fn x_range(&self) -> Range<u32> {
         self.x..(self.x + self.w)
     }

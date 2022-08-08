@@ -28,17 +28,24 @@ pub trait Manipulate {
 // applies the tool transformation to the world
 #[macro_export]
 macro_rules! make_tool_transform {
-    ($self:expr, $world:expr, $history:expr, $shape_win:expr, $mouse_pos:expr, $event:expr, [$($mouse_event:ident),*], [$($key_event:expr),*]) => {
+    (
+        $self:expr, 
+        $world:expr, 
+        $history:expr, 
+        $shape_win:expr,
+        $mouse_pos:expr, 
+        $event:expr, 
+        [$(($mouse_event:ident, $mouse_btn:expr)),*], 
+        [$(($key_event:ident, $key_btn:expr)),*]
+    ) => {
         if false {
             ($world, $history)
         }
-        $(else if $event.$mouse_event(LEFT_BTN) {
-            $self.$mouse_event(LEFT_BTN, $shape_win, $mouse_pos, $world, $history)
-        } else if $event.$mouse_event(RIGHT_BTN) {
-            $self.$mouse_event(RIGHT_BTN, $shape_win, $mouse_pos, $world, $history)
+        $(else if $event.$mouse_event($mouse_btn) {
+            $self.$mouse_event($event, $shape_win, $mouse_pos, $world, $history)
         })*
-        $(else if $event.key_pressed($key_event) {
-            $self.key_pressed($key_event, $shape_win, $mouse_pos, $world, $history)
+        $(else if $event.$key_event($key_btn) {
+            $self.$key_event($event, $shape_win, $mouse_pos, $world, $history)
         })*
         else {
             ($world, $history)
