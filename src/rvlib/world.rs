@@ -2,7 +2,7 @@ use std::{fmt::Debug, mem};
 
 use crate::result::{RvError, RvResult};
 use crate::types::ViewImage;
-use crate::util::{self, view_pos_to_orig_pos, Shape, BB};
+use crate::util::{self, Shape, BB};
 use image::{imageops, imageops::FilterType, DynamicImage, ImageBuffer, Rgb, Rgba};
 use pixels::Pixels;
 pub type AnnotationImage = ImageBuffer<Rgba<u8>, Vec<u8>>;
@@ -149,23 +149,6 @@ impl ImsRaw {
         im_view
     }
 
-    pub fn annotation_on_view(
-        &self,
-        im_view: &mut ViewImage,
-        shape_win: Shape,
-        zoom_box: &Option<BB>,
-    ) {
-        match &self.im_annotations {
-            Some(im_a) => {
-                util::effect_per_pixel(Shape::from_im(im_view), |x_v, y_v| {
-                    let (x_a, y_a) =
-                        view_pos_to_orig_pos((x_v, y_v), Shape::from_im(im_a), shape_win, zoom_box);
-                    add_annotation_to_view(x_a, y_a, x_v, y_v, im_a, im_view);
-                });
-            }
-            None => {}
-        }
-    }
 }
 
 impl Debug for ImsRaw {
@@ -223,11 +206,9 @@ impl World {
         self.ims_raw.set_annotations_pixel(x, y, value);
     }
     pub fn put_annotations_on_view(&mut self, shape_win: Shape) {
-        let mut im_view_tmp = self.take_view();
-        self
-            .ims_raw
-            .annotation_on_view(&mut im_view_tmp, shape_win, self.zoom_box());
+        let im_view_tmp = self.ims_raw.to_uncropped_view();     
         self.set_im_view(im_view_tmp);
+        self.update_view(shape_win);
     }
     pub fn take_view(&mut self) -> ViewImage {
         mem::take(&mut self.im_view)

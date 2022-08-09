@@ -1,4 +1,4 @@
-use image::{GenericImage, Rgb, Rgba};
+use image::{GenericImage, Pixel, Rgb, Rgba};
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
@@ -29,13 +29,13 @@ pub trait Manipulate {
 #[macro_export]
 macro_rules! make_tool_transform {
     (
-        $self:expr, 
-        $world:expr, 
-        $history:expr, 
+        $self:expr,
+        $world:expr,
+        $history:expr,
         $shape_win:expr,
-        $mouse_pos:expr, 
-        $event:expr, 
-        [$(($mouse_event:ident, $mouse_btn:expr)),*], 
+        $mouse_pos:expr,
+        $event:expr,
+        [$(($mouse_event:ident, $mouse_btn:expr)),*],
         [$(($key_event:ident, $key_btn:expr)),*]
     ) => {
         if false {
@@ -57,19 +57,15 @@ pub fn draw_bx_on_anno(
     im: AnnotationImage,
     corner_1: (usize, usize),
     corner_2: (usize, usize),
-    color: Rgba<u8>,
+    color: Rgb<u8>,
 ) -> AnnotationImage {
-    let offset = Rgba([color[0] / 5, color[1] / 5, color[2] / 5, color[3] / 5]);
-    let f = |rgba: Rgba<u8>| {
-        Rgba([
-            util::clipped_add(offset[0], rgba[0], color[0]),
-            util::clipped_add(offset[1], rgba[1], color[1]),
-            util::clipped_add(offset[2], rgba[2], color[2]),
-            util::clipped_add(offset[3], rgba[3], color[3]),
-        ])
+    let f = |Rgba([r, g, b, a]): Rgba<u8>| {
+        let alpha = 100;
+        Rgba([color[0].max(r), color[1].max(g), color[2].max(b), alpha.max(a)])
     };
-    draw_bx_on_image(im, corner_1, corner_2, color, f)
+    draw_bx_on_image(im, corner_1, corner_2, color.to_rgba(), f)
 }
+
 pub fn draw_bx_on_view(
     im: ViewImage,
     corner_1: (usize, usize),
@@ -79,9 +75,9 @@ pub fn draw_bx_on_view(
     let offset = Rgb([color[0] / 5, color[1] / 5, color[2] / 5]);
     let f = |rgb: Rgb<u8>| {
         Rgb([
-            util::clipped_add(offset[0], rgb[0], color[0]),
-            util::clipped_add(offset[1], rgb[1], color[1]),
-            util::clipped_add(offset[2], rgb[2], color[2]),
+            util::clipped_add(offset[0], rgb[0], 255),
+            util::clipped_add(offset[1], rgb[1], 255),
+            util::clipped_add(offset[2], rgb[2], 255),
         ])
     };
     draw_bx_on_image(im, corner_1, corner_2, color, f)

@@ -8,18 +8,30 @@ use crate::{
     world::World,
     LEFT_BTN,
 };
-use image::{Rgb, Rgba};
+use image::{Rgb};
 use std::mem;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 const ACTOR_NAME: &str = "BBox";
 
+fn _find_bb_idx(pos: (u32, u32), bbs: &Vec<BB>) -> Option<usize> {
+    bbs.iter()
+        .map(|bb| {
+            let (c_x, c_y) = bb.center();
+            ((c_x as f64 - pos.0 as f64).powi(2) + (c_y as f64 - pos.1 as f64).powi(2)).sqrt()
+        })
+        .enumerate()
+        .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
+        .map(|(i, _)| i)
+}
+
 #[derive(Clone, Debug)]
 pub struct BBox {
     prev_pos: Option<(usize, usize)>,
     initial_view: Option<ViewImage>,
     bbs: Vec<BB>,
+    _selected_bbs: Vec<bool>,
 }
 
 impl BBox {
@@ -40,17 +52,21 @@ impl BBox {
             world.zoom_box(),
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
+            // second click
             self.bbs.push(BB::from_points(mp, pp));
             *world.ims_raw.im_annotations_mut() = core::draw_bx_on_anno(
                 mem::take(world.ims_raw.im_annotations_mut()),
                 (mp.0 as usize, mp.1 as usize),
                 (pp.0 as usize, pp.1 as usize),
-                Rgba([255, 255, 255, 255]),
+                Rgb([255, 255, 255]),
             );
+            
             world.put_annotations_on_view(shape_win);
+            
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
             self.prev_pos = None;
         } else {
+            // first click
             self.prev_pos = mouse_pos;
             self.initial_view = Some(world.im_view().clone());
         }
@@ -79,6 +95,7 @@ impl Manipulate for BBox {
             prev_pos: None,
             initial_view: None,
             bbs: vec![],
+            _selected_bbs: vec![],
         }
     }
 
@@ -91,9 +108,9 @@ impl Manipulate for BBox {
         event: &WinitInputHelper,
     ) -> (World, History) {
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
-            let iv = self.initial_view.clone();
+            let iv = self.initial_view.clone().unwrap();
             world.set_im_view(core::draw_bx_on_view(
-                iv.unwrap(),
+                iv,
                 mp,
                 pp,
                 Rgb([255, 255, 255]),

@@ -188,6 +188,9 @@ impl BB {
             }
         }
     }
+    pub fn center(&self) -> (u32, u32) {
+        (self.x + self.w / 2, self.y + self.h / 2)
+    }
 }
 
 pub fn apply_to_matched_image<FnRgb8, FnRgba8, FnLuma8, FnRgb32F, T>(
