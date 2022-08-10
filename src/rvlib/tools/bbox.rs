@@ -81,7 +81,6 @@ impl BBox {
             // second click
             self.bbs.push(BB::from_points(mp, pp));
             self.selected_bbs.push(false);
-
             world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
             self.prev_pos = None;
@@ -89,9 +88,9 @@ impl BBox {
             // first click
             if event.key_held(VirtualKeyCode::LControl) {
                 let idx = mp_orig.and_then(|(x, y)| find_bb_idx((x as u32, y as u32), &self.bbs));
-                idx.map(|i| {
+                if let Some(i) = idx {
                     self.selected_bbs[i] = !self.selected_bbs[i];
-                });
+                }
                 world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
             } else {
                 self.prev_pos = mouse_pos;
