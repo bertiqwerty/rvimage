@@ -58,9 +58,9 @@ pub fn draw_bx_on_anno(
     corner_1: (usize, usize),
     corner_2: (usize, usize),
     color: Rgb<u8>,
+    alpha: u8
 ) -> AnnotationImage {
     let f = |Rgba([r, g, b, a]): Rgba<u8>| {
-        let alpha = 100;
         Rgba([color[0].max(r), color[1].max(g), color[2].max(b), alpha.max(a)])
     };
     draw_bx_on_image(im, corner_1, corner_2, color.to_rgba(), f)

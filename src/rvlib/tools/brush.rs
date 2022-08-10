@@ -39,7 +39,7 @@ impl Brush {
             let clr = Rgba([255, 255, 255, 255]);
             drawing::draw_line_segment_mut(world.ims_raw.im_annotations_mut(), start, end, clr);
             world.set_annotations_pixel(mp.0, mp.1, &[255, 255, 255, 255]);
-            world.put_annotations_on_view(shape_win);
+            world.view_from_annotations(shape_win);
         }
         self.prev_pos = mp_orig;
         (world, history)

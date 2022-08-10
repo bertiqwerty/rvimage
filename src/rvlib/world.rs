@@ -205,7 +205,7 @@ impl World {
     pub fn set_annotations_pixel(&mut self, x: u32, y: u32, value: &[u8; 4]) {
         self.ims_raw.set_annotations_pixel(x, y, value);
     }
-    pub fn put_annotations_on_view(&mut self, shape_win: Shape) {
+    pub fn view_from_annotations(&mut self, shape_win: Shape) {
         let im_view_tmp = self.ims_raw.to_uncropped_view();     
         self.set_im_view(im_view_tmp);
         self.update_view(shape_win);

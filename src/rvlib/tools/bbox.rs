@@ -8,22 +8,48 @@ use crate::{
     world::World,
     LEFT_BTN,
 };
-use image::{Rgb};
+use image::Rgb;
 use std::mem;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 const ACTOR_NAME: &str = "BBox";
+const ALPHA: u8 = 90;
+const ALPHA_SELECTED: u8 = 170;
 
-fn _find_bb_idx(pos: (u32, u32), bbs: &Vec<BB>) -> Option<usize> {
+fn find_bb_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
-        .map(|bb| {
-            let (c_x, c_y) = bb.center();
-            ((c_x as f64 - pos.0 as f64).powi(2) + (c_y as f64 - pos.1 as f64).powi(2)).sqrt()
-        })
         .enumerate()
+        .filter(|(_, bb)| bb.contains(pos))
+        .map(|(i, bb)| {
+            let dx = (bb.x as i64 - pos.0 as i64).abs();
+            let dw = ((bb.x + bb.w) as i64 - pos.0 as i64).abs();
+            let dy = (bb.y as i64 - pos.1 as i64).abs();
+            let dh = ((bb.y + bb.h) as i64 - pos.1 as i64).abs();
+            (i, dx.min(dw).min(dy).min(dh))
+        })
         .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
         .map(|(i, _)| i)
+}
+
+fn draw_bbs(mut world: World, shape_win: Shape, bbs: &[BB], selected_bbs: &[bool]) -> World {
+    world.ims_raw.clear_annotations();
+    for (i, bb) in bbs.iter().enumerate() {
+        let alpha = if selected_bbs[i] {
+            ALPHA_SELECTED
+        } else {
+            ALPHA
+        };
+        *world.ims_raw.im_annotations_mut() = core::draw_bx_on_anno(
+            mem::take(world.ims_raw.im_annotations_mut()),
+            bb.min_usize(),
+            bb.max_usize(),
+            Rgb([255, 255, 255]),
+            alpha,
+        );
+    }
+    world.view_from_annotations(shape_win);
+    world
 }
 
 #[derive(Clone, Debug)]
@@ -31,13 +57,13 @@ pub struct BBox {
     prev_pos: Option<(usize, usize)>,
     initial_view: Option<ViewImage>,
     bbs: Vec<BB>,
-    _selected_bbs: Vec<bool>,
+    selected_bbs: Vec<bool>,
 }
 
 impl BBox {
     fn mouse_released(
         &mut self,
-        _event: &WinitInputHelper,
+        event: &WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
@@ -54,21 +80,23 @@ impl BBox {
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // second click
             self.bbs.push(BB::from_points(mp, pp));
-            *world.ims_raw.im_annotations_mut() = core::draw_bx_on_anno(
-                mem::take(world.ims_raw.im_annotations_mut()),
-                (mp.0 as usize, mp.1 as usize),
-                (pp.0 as usize, pp.1 as usize),
-                Rgb([255, 255, 255]),
-            );
-            
-            world.put_annotations_on_view(shape_win);
-            
+            self.selected_bbs.push(false);
+
+            world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
             self.prev_pos = None;
         } else {
             // first click
-            self.prev_pos = mouse_pos;
-            self.initial_view = Some(world.im_view().clone());
+            if event.key_held(VirtualKeyCode::LControl) {
+                let idx = mp_orig.and_then(|(x, y)| find_bb_idx((x as u32, y as u32), &self.bbs));
+                idx.map(|i| {
+                    self.selected_bbs[i] = !self.selected_bbs[i];
+                });
+                world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
+            } else {
+                self.prev_pos = mouse_pos;
+                self.initial_view = mouse_pos.map(|_| world.im_view().clone());
+            }
         }
         (world, history)
     }
@@ -82,6 +110,7 @@ impl BBox {
     ) -> (World, History) {
         if world.ims_raw.has_annotations() {
             world.ims_raw.clear_annotations();
+            self.bbs = vec![];
             world.update_view(shape_win);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         }
@@ -95,7 +124,7 @@ impl Manipulate for BBox {
             prev_pos: None,
             initial_view: None,
             bbs: vec![],
-            _selected_bbs: vec![],
+            selected_bbs: vec![],
         }
     }
 
@@ -109,12 +138,7 @@ impl Manipulate for BBox {
     ) -> (World, History) {
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
             let iv = self.initial_view.clone().unwrap();
-            world.set_im_view(core::draw_bx_on_view(
-                iv,
-                mp,
-                pp,
-                Rgb([255, 255, 255]),
-            ));
+            world.set_im_view(core::draw_bx_on_view(iv, mp, pp, Rgb([255, 255, 255])));
         }
         make_tool_transform!(
             self,
@@ -127,4 +151,37 @@ impl Manipulate for BBox {
             [(key_pressed, VirtualKeyCode::Back)]
         )
     }
+}
+
+#[cfg(test)]
+use crate::result::RvResult;
+#[test]
+fn test_find_idx() -> RvResult<()> {
+    let bbs = vec![
+        BB {
+            x: 0,
+            y: 0,
+            w: 10,
+            h: 10,
+        },
+        BB {
+            x: 5,
+            y: 5,
+            w: 10,
+            h: 10,
+        },
+        BB {
+            x: 9,
+            y: 9,
+            w: 10,
+            h: 10,
+        },
+    ];
+    assert_eq!(find_bb_idx((0, 20), &bbs), None);
+    assert_eq!(find_bb_idx((0, 0), &bbs), Some(0));
+    assert_eq!(find_bb_idx((3, 8), &bbs), Some(0));
+    assert_eq!(find_bb_idx((7, 15), &bbs), Some(1));
+    assert_eq!(find_bb_idx((8, 8), &bbs), Some(0));
+    assert_eq!(find_bb_idx((10, 12), &bbs), Some(2));
+    Ok(())
 }

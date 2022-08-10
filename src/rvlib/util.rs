@@ -191,6 +191,22 @@ impl BB {
     pub fn center(&self) -> (u32, u32) {
         (self.x + self.w / 2, self.y + self.h / 2)
     }
+    pub fn contains(&self, p: (u32, u32)) -> bool {
+        let BB { x, y, h, w } = self;
+        x <= &p.0 && p.0 <= x + w && y <= &p.1 && p.1 <= y + h
+    }
+    pub fn min_usize(&self) -> (usize, usize) {
+        (self.x as usize, self.y as usize)
+    }
+    pub fn max_usize(&self) -> (usize, usize) {
+        ((self.x + self.w) as usize, (self.y + self.h) as usize)
+    }
+    pub fn min(&self) -> (u32, u32) {
+        (self.x, self.y)
+    }
+    pub fn max(&self) -> (u32, u32) {
+        (self.x + self.w, self.y + self.h)
+    }
 }
 
 pub fn apply_to_matched_image<FnRgb8, FnRgba8, FnLuma8, FnRgb32F, T>(
