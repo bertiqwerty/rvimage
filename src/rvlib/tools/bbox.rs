@@ -99,15 +99,27 @@ impl BBox {
         }
         (world, history)
     }
-    fn key_pressed(
+    fn key_released(
         &mut self,
-        _event: &WinitInputHelper,
+        event: &WinitInputHelper,
         shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        if world.ims_raw.has_annotations() {
+        if event.key_released(VirtualKeyCode::Delete) {
+            let keep_indices = self
+                .selected_bbs
+                .iter()
+                .enumerate()
+                .filter(|(_, is_selected)| !**is_selected)
+                .map(|(i, _)| i);
+            self.bbs = keep_indices.clone().map(|i| self.bbs[i]).collect();
+            // the selected ones have been deleted hence all remaining ones are unselected
+            self.selected_bbs.clear();
+            self.selected_bbs.resize(self.bbs.len(), false);
+            world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
+        } else if world.ims_raw.has_annotations() {
             world.ims_raw.clear_annotations();
             self.bbs = vec![];
             world.update_view(shape_win);
@@ -147,7 +159,10 @@ impl Manipulate for BBox {
             mouse_pos,
             event,
             [(mouse_released, LEFT_BTN)],
-            [(key_pressed, VirtualKeyCode::Back)]
+            [
+                (key_released, VirtualKeyCode::Back),
+                (key_released, VirtualKeyCode::Delete)
+            ]
         )
     }
 }
