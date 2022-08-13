@@ -1,3 +1,4 @@
+
 use image::{GenericImage, Pixel, Rgb, Rgba};
 use winit_input_helper::WinitInputHelper;
 
@@ -23,6 +24,44 @@ pub trait Manipulate {
         mouse_pos: Option<(usize, usize)>,
         input_event: &WinitInputHelper,
     ) -> (World, History);
+}
+
+#[derive(Clone, Debug)]
+pub struct Mover {
+    mouse_pos_start: Option<(usize, usize)>,
+}
+impl Mover {
+    pub fn new() -> Self {
+        Self {
+            mouse_pos_start: None,
+        }
+    }
+    pub fn move_mouse_held<T, F: FnOnce((u32, u32), (u32, u32)) -> T>(
+        &mut self,
+        f_move: F,
+        mouse_pos: Option<(usize, usize)>,
+        shape_win: Shape,
+        shape_orig: Shape,
+        zoom_box: &Option<BB>,
+    ) -> Option<T> {
+        let res = if let (Some(mps), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
+            let mps_orig = util::mouse_pos_to_orig_pos(Some(mps), shape_orig, shape_win, zoom_box);
+            let mp_orig = util::mouse_pos_to_orig_pos(Some(mp), shape_orig, shape_win, zoom_box);
+            match (mps_orig, mp_orig) {
+                (Some(mpso), Some(mpo)) => Some(f_move(mpso, mpo)),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        self.mouse_pos_start = mouse_pos;
+        res
+    }
+    pub fn move_mouse_pressed(&mut self, mouse_pos: Option<(usize, usize)>) {
+        if mouse_pos.is_some() {
+            self.mouse_pos_start = mouse_pos;
+        }
+    }
 }
 
 // applies the tool transformation to the world
@@ -58,10 +97,15 @@ pub fn draw_bx_on_anno(
     corner_1: (usize, usize),
     corner_2: (usize, usize),
     color: Rgb<u8>,
-    alpha: u8
+    alpha: u8,
 ) -> AnnotationImage {
     let f = |Rgba([r, g, b, a]): Rgba<u8>| {
-        Rgba([color[0].max(r), color[1].max(g), color[2].max(b), alpha.max(a)])
+        Rgba([
+            color[0].max(r),
+            color[1].max(g),
+            color[2].max(b),
+            alpha.max(a),
+        ])
     };
     draw_bx_on_image(im, corner_1, corner_2, color.to_rgba(), f)
 }

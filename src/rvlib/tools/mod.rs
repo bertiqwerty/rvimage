@@ -5,8 +5,8 @@ mod rot90;
 mod zoom;
 
 pub use self::core::Manipulate;
-pub use brush::Brush;
 pub use bbox::BBox;
+pub use brush::Brush;
 pub use rot90::Rot90;
 use std::fmt::Debug;
 pub use zoom::Zoom;
@@ -35,7 +35,7 @@ macro_rules! make_tools {
         }
     };
 }
-make_tools!((Rot90,"🔄"), (Zoom, "🔍"), (Brush, "✏"), (BBox, "⬜"));
+make_tools!((Rot90, "🔄"), (Zoom, "🔍"), (Brush, "✏"), (BBox, "⬜"));
 
 #[macro_export]
 macro_rules! apply_tool_method {

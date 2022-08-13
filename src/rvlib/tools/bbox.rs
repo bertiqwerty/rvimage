@@ -1,4 +1,4 @@
-use super::Manipulate;
+use super::{Manipulate, core::Mover};
 use crate::{
     history::{History, Record},
     make_tool_transform,
@@ -6,7 +6,7 @@ use crate::{
     types::ViewImage,
     util::{mouse_pos_to_orig_pos, Shape, BB},
     world::World,
-    LEFT_BTN,
+    LEFT_BTN, RIGHT_BTN,
 };
 use image::Rgb;
 use std::mem;
@@ -58,9 +58,30 @@ pub struct BBox {
     initial_view: Option<ViewImage>,
     bbs: Vec<BB>,
     selected_bbs: Vec<bool>,
+    mover: Mover
 }
 
 impl BBox {
+    fn mouse_pressed(
+        &mut self,
+        event: &WinitInputHelper,
+        shape_win: Shape,
+        mouse_pos: Option<(usize, usize)>,
+        mut world: World,
+        mut history: History,
+    ) -> (World, History) {
+        (world, history)
+    }
+    fn mouse_held(
+        &mut self,
+        event: &WinitInputHelper,
+        shape_win: Shape,
+        mouse_pos: Option<(usize, usize)>,
+        mut world: World,
+        mut history: History,
+    ) -> (World, History) {
+        (world, history)
+    }
     fn mouse_released(
         &mut self,
         event: &WinitInputHelper,
@@ -136,6 +157,7 @@ impl Manipulate for BBox {
             initial_view: None,
             bbs: vec![],
             selected_bbs: vec![],
+            mover: Mover::new(),
         }
     }
 
@@ -158,7 +180,11 @@ impl Manipulate for BBox {
             shape_win,
             mouse_pos,
             event,
-            [(mouse_released, LEFT_BTN)],
+            [
+                (mouse_released, LEFT_BTN),
+                (mouse_pressed, RIGHT_BTN),
+                (mouse_held, RIGHT_BTN)
+            ],
             [
                 (key_released, VirtualKeyCode::Back),
                 (key_released, VirtualKeyCode::Delete)

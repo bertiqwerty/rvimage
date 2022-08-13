@@ -13,6 +13,8 @@ use crate::{
     LEFT_BTN, RIGHT_BTN,
 };
 
+use super::core::Mover;
+
 const MIN_ZOOM: u32 = 2;
 
 fn make_zoom_on_release(
@@ -52,35 +54,13 @@ fn make_zoom_on_release(
 }
 
 fn move_zoom_box(
-    m_press: (usize, usize),
-    m_held: (usize, usize),
+    mpso: (u32, u32),
+    mpo: (u32, u32),
     shape_orig: Shape,
-    shape_win: Shape,
     zoom_box: Option<BB>,
 ) -> Option<BB> {
-    let press_orig = util::mouse_pos_to_orig_pos(Some(m_press), shape_orig, shape_win, &zoom_box);
-    let held_orig = util::mouse_pos_to_orig_pos(Some(m_held), shape_orig, shape_win, &zoom_box);
-    match (press_orig, held_orig, zoom_box) {
-        (Some((px, py)), Some((hx, hy)), Some(c)) => {
-            let x_shift: i32 = px as i32 - hx as i32;
-            let y_shift: i32 = py as i32 - hy as i32;
-            let x_new = c.x as i32 + x_shift;
-            let y_new = c.y as i32 + y_shift;
-            if x_new >= 0
-                && y_new >= 0
-                && x_new as u32 + c.w < shape_orig.w
-                && y_new as u32 + c.h < shape_orig.h
-            {
-                Some(BB {
-                    x: x_new as u32,
-                    y: y_new as u32,
-                    w: c.w,
-                    h: c.h,
-                })
-            } else {
-                zoom_box
-            }
-        }
+    match zoom_box {
+        Some(zb) => zb.follow_movement(mpso, mpo, shape_orig),
         _ => zoom_box,
     }
 }
@@ -88,29 +68,32 @@ fn move_zoom_box(
 #[derive(Clone, Debug)]
 pub struct Zoom {
     mouse_pressed_start_pos: Option<(usize, usize)>,
+    mover: Mover,
     initial_view: Option<ViewImage>,
 }
 impl Zoom {
-    fn set_mouse_start(&mut self, mp: (usize, usize), im_view_initial: Option<ViewImage>) {
+    fn set_mouse_start_zoom(&mut self, mp: (usize, usize), im_view_initial: Option<ViewImage>) {
         self.mouse_pressed_start_pos = Some(mp);
         self.initial_view = im_view_initial;
     }
 
-    fn unset_mouse_start(&mut self) {
+    fn unset_mouse_start_zoom(&mut self) {
         self.mouse_pressed_start_pos = None;
         self.initial_view = None;
     }
 
     fn mouse_pressed(
         &mut self,
-        _event: &WinitInputHelper,
+        event: &WinitInputHelper,
         _shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         world: World,
         history: History,
     ) -> (World, History) {
-        if let (None, Some((m_x, m_y))) = (self.mouse_pressed_start_pos, mouse_pos) {
-            self.set_mouse_start((m_x, m_y), Some(world.im_view().clone()));
+        if event.mouse_pressed(RIGHT_BTN) {
+            self.mover.move_mouse_pressed(mouse_pos);
+        } else if let Some(mp) = mouse_pos {
+            self.set_mouse_start_zoom(mp, Some(world.im_view().clone()));
         }
         (world, history)
     }
@@ -129,7 +112,7 @@ impl Zoom {
             *world.zoom_box()
         };
         world.set_zoom_box(bx, shape_win);
-        self.unset_mouse_start();
+        self.unset_mouse_start_zoom();
         world
     }
 
@@ -145,7 +128,7 @@ impl Zoom {
             world = self.mouse_released_left_btn(world, shape_win, mouse_pos);
             (world, history)
         } else if event.mouse_released(RIGHT_BTN) {
-            self.unset_mouse_start();
+            self.unset_mouse_start_zoom();
             (world, history)
         } else {
             (world, history)
@@ -161,19 +144,14 @@ impl Zoom {
         history: History,
     ) -> (World, History) {
         if event.mouse_held(RIGHT_BTN) {
-            if let (Some(mps), Some(mp)) = (self.mouse_pressed_start_pos, mouse_pos) {
-                world.set_zoom_box(
-                    move_zoom_box(mps, mp, world.ims_raw.shape(), shape_win, *world.zoom_box()),
-                    shape_win,
-                );
-                match mouse_pos {
-                    Some(mp) => {
-                        self.set_mouse_start(mp, None);
-                    }
-                    None => {
-                        self.unset_mouse_start();
-                    }
-                }
+            let shape_orig = world.ims_raw.shape();
+            let zoom_box = *world.zoom_box();
+            let f_move = |mpso, mpo| move_zoom_box(mpso, mpo, shape_orig, zoom_box);
+            let opt_opt_zoom_box = self
+                .mover
+                .move_mouse_held(f_move, mouse_pos, shape_win, shape_orig, &zoom_box);
+            if let Some(zoom_box) = opt_opt_zoom_box {
+                world.set_zoom_box(zoom_box, shape_win);
             }
             (world, history)
         } else if event.mouse_held(LEFT_BTN) {
@@ -209,6 +187,7 @@ impl Manipulate for Zoom {
         Zoom {
             mouse_pressed_start_pos: None,
             initial_view: None,
+            mover: Mover::new(),
         }
     }
     fn events_tf(
@@ -273,12 +252,11 @@ fn test_make_zoom() -> RvResult<()> {
 #[test]
 fn test_move_zoom() -> RvResult<()> {
     fn test(mpp: (usize, usize), mph: (usize, usize), zoom_box: Option<BB>, expected: Option<BB>) {
+        let mpp = (mpp.0 as u32, mpp.1 as u32);
+        let mph = (mph.0 as u32, mph.1 as u32);
         let shape_orig = Shape { w: 80, h: 80 };
         let shape_win = make_shape_win(shape_orig, zoom_box);
-        assert_eq!(
-            move_zoom_box(mpp, mph, shape_orig, shape_win, zoom_box),
-            expected
-        );
+        assert_eq!(move_zoom_box(mpp, mph, shape_orig, zoom_box), expected);
     }
     test((4, 4), (12, 8), mk_z(12, 16, 40, 40), mk_z(4, 12, 40, 40));
     Ok(())
@@ -308,7 +286,7 @@ fn test_on_mouse_released() -> RvResult<()> {
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
     let world = World::from_im(im_orig, shape_win);
-    z.set_mouse_start((40, 80), Some(world.im_view().clone()));
+    z.set_mouse_start_zoom((40, 80), Some(world.im_view().clone()));
 
     let world = z.mouse_released_left_btn(world, shape_win, mouse_pos);
     assert_eq!(Shape::new(250, 250), Shape::from_im(world.im_view()));

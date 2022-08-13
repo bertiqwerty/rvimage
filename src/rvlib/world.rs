@@ -148,7 +148,6 @@ impl ImsRaw {
         }
         im_view
     }
-
 }
 
 impl Debug for ImsRaw {
@@ -206,7 +205,7 @@ impl World {
         self.ims_raw.set_annotations_pixel(x, y, value);
     }
     pub fn view_from_annotations(&mut self, shape_win: Shape) {
-        let im_view_tmp = self.ims_raw.to_uncropped_view();     
+        let im_view_tmp = self.ims_raw.to_uncropped_view();
         self.set_im_view(im_view_tmp);
         self.update_view(shape_win);
     }

@@ -207,6 +207,26 @@ impl BB {
     pub fn max(&self) -> (u32, u32) {
         (self.x + self.w, self.y + self.h)
     }
+    pub fn follow_movement(&self, from: (u32, u32), to: (u32, u32), shape: Shape) -> Option<Self> {
+        let x_shift: i32 = from.0 as i32 - to.0 as i32;
+        let y_shift: i32 = from.1 as i32 - to.1 as i32;
+        let x_new = self.x as i32 + x_shift;
+        let y_new = self.y as i32 + y_shift;
+        if x_new >= 0
+            && y_new >= 0
+            && x_new as u32 + self.w < shape.w
+            && y_new as u32 + self.h < shape.h
+        {
+            Some(Self {
+                x: x_new as u32,
+                y: y_new as u32,
+                w: self.w,
+                h: self.h,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 pub fn apply_to_matched_image<FnRgb8, FnRgba8, FnLuma8, FnRgb32F, T>(
