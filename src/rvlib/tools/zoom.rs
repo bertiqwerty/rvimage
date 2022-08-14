@@ -60,7 +60,7 @@ fn move_zoom_box(
     zoom_box: Option<BB>,
 ) -> Option<BB> {
     match zoom_box {
-        Some(zb) => zb.follow_movement(mpso, mpo, shape_orig),
+        Some(zb) => zb.follow_movement(mpo, mpso, shape_orig),
         _ => zoom_box,
     }
 }
@@ -255,7 +255,6 @@ fn test_move_zoom() -> RvResult<()> {
         let mpp = (mpp.0 as u32, mpp.1 as u32);
         let mph = (mph.0 as u32, mph.1 as u32);
         let shape_orig = Shape { w: 80, h: 80 };
-        let shape_win = make_shape_win(shape_orig, zoom_box);
         assert_eq!(move_zoom_box(mpp, mph, shape_orig, zoom_box), expected);
     }
     test((4, 4), (12, 8), mk_z(12, 16, 40, 40), mk_z(4, 12, 40, 40));

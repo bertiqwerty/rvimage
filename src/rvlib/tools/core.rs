@@ -1,4 +1,3 @@
-
 use image::{GenericImage, Pixel, Rgb, Rgba};
 use winit_input_helper::WinitInputHelper;
 

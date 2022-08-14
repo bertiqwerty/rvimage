@@ -1,4 +1,4 @@
-use super::{Manipulate, core::Mover};
+use super::{core::Mover, Manipulate};
 use crate::{
     history::{History, Record},
     make_tool_transform,
@@ -58,28 +58,46 @@ pub struct BBox {
     initial_view: Option<ViewImage>,
     bbs: Vec<BB>,
     selected_bbs: Vec<bool>,
-    mover: Mover
+    mover: Mover,
 }
 
 impl BBox {
     fn mouse_pressed(
         &mut self,
-        event: &WinitInputHelper,
-        shape_win: Shape,
+        _event: &WinitInputHelper,
+        _shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        mut world: World,
-        mut history: History,
+        world: World,
+        history: History,
     ) -> (World, History) {
+        self.mover.move_mouse_pressed(mouse_pos);
         (world, history)
     }
     fn mouse_held(
         &mut self,
-        event: &WinitInputHelper,
+        _event: &WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        mut world: World,
-        mut history: History,
+        world: World,
+        history: History,
     ) -> (World, History) {
+        let move_boxes = |mpso, mpo| {
+            for (bb, selected) in self.bbs.iter_mut().zip(self.selected_bbs.iter()) {
+                if *selected {
+                    if let Some(bb_moved) = bb.follow_movement(mpso, mpo, world.ims_raw.shape()) {
+                        *bb = bb_moved;
+                    }
+                }
+            }
+            Some(())
+        };
+        self.mover.move_mouse_held(
+            move_boxes,
+            mouse_pos,
+            shape_win,
+            world.ims_raw.shape(),
+            world.zoom_box(),
+        );
         (world, history)
     }
     fn mouse_released(

@@ -208,8 +208,8 @@ impl BB {
         (self.x + self.w, self.y + self.h)
     }
     pub fn follow_movement(&self, from: (u32, u32), to: (u32, u32), shape: Shape) -> Option<Self> {
-        let x_shift: i32 = from.0 as i32 - to.0 as i32;
-        let y_shift: i32 = from.1 as i32 - to.1 as i32;
+        let x_shift: i32 = to.0 as i32 - from.0 as i32;
+        let y_shift: i32 = to.1 as i32 - from.1 as i32;
         let x_new = self.x as i32 + x_shift;
         let y_new = self.y as i32 + y_shift;
         if x_new >= 0
