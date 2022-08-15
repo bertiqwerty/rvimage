@@ -78,7 +78,7 @@ impl BBox {
         _event: &WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        world: World,
+        mut world: World,
         history: History,
     ) -> (World, History) {
         let move_boxes = |mpso, mpo| {
@@ -98,6 +98,7 @@ impl BBox {
             world.ims_raw.shape(),
             world.zoom_box(),
         );
+        world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
         (world, history)
     }
     fn mouse_released(
