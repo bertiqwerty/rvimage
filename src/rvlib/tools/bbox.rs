@@ -17,10 +17,10 @@ const ACTOR_NAME: &str = "BBox";
 const ALPHA: u8 = 90;
 const ALPHA_SELECTED: u8 = 170;
 
-fn find_bb_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
+fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
         .enumerate()
-        .filter(|(_, bb)| bb.contains(pos))
+        .filter(|(_, bb)| bb.extend_max((1, 1), None).contains(pos))
         .map(|(i, bb)| {
             let dx = (bb.x as i64 - pos.0 as i64).abs();
             let dw = ((bb.x + bb.w) as i64 - pos.0 as i64).abs();
@@ -127,7 +127,8 @@ impl BBox {
         } else {
             // first click
             if event.key_held(VirtualKeyCode::LControl) {
-                let idx = mp_orig.and_then(|(x, y)| find_bb_idx((x as u32, y as u32), &self.bbs));
+                let idx = mp_orig
+                    .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &self.bbs));
                 if let Some(i) = idx {
                     self.selected_bbs[i] = !self.selected_bbs[i];
                 }
@@ -236,11 +237,11 @@ fn test_find_idx() -> RvResult<()> {
             h: 10,
         },
     ];
-    assert_eq!(find_bb_idx((0, 20), &bbs), None);
-    assert_eq!(find_bb_idx((0, 0), &bbs), Some(0));
-    assert_eq!(find_bb_idx((3, 8), &bbs), Some(0));
-    assert_eq!(find_bb_idx((7, 15), &bbs), Some(1));
-    assert_eq!(find_bb_idx((8, 8), &bbs), Some(0));
-    assert_eq!(find_bb_idx((10, 12), &bbs), Some(2));
+    assert_eq!(find_closest_boundary_idx((0, 20), &bbs), None);
+    assert_eq!(find_closest_boundary_idx((0, 0), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((3, 8), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((7, 15), &bbs), Some(1));
+    assert_eq!(find_closest_boundary_idx((8, 8), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((10, 12), &bbs), Some(2));
     Ok(())
 }

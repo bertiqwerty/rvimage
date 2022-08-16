@@ -239,6 +239,21 @@ impl BB {
             None
         }
     }
+    pub fn extend_max(&self, amount: (u32, u32), shape: Option<Shape>) -> Self {
+        let (w, h) = match shape {
+            Some(shp) => (
+                (self.w + amount.0).min(shp.w),
+                (self.h + amount.1).min(shp.h),
+            ),
+            None => (self.w + amount.0, self.h + amount.1),
+        };
+        BB {
+            x: self.x,
+            y: self.y,
+            w,
+            h,
+        }
+    }
 }
 
 pub fn apply_to_matched_image<FnRgb8, FnRgba8, FnLuma8, FnRgb32F, T>(
