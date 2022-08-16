@@ -53,7 +53,7 @@ pub fn mouse_pos_transform(
         .ok()
 }
 
-/// Converts the mouse position to the coordinates of the original image
+/// Converts the position of a pixel in the view to the coordinates of the original image
 pub fn view_pos_to_orig_pos(
     view_pos: (u32, u32),
     shape_orig: Shape,
@@ -154,6 +154,18 @@ pub struct BB {
     pub h: u32,
 }
 impl BB {
+    pub fn to_other_coords(&self, other: &BB) -> Option<Self> {
+        let p_min = other.to_my_coordinates((self.x, self.y));
+        p_min.map(|p| BB::from_points(p, (p.0 + self.w, p.1 + self.h)))
+    }
+    fn to_my_coordinates(&self, image_coords: (u32, u32)) -> Option<(u32, u32)> {
+        if self.contains(image_coords) {
+            Some((image_coords.0 - self.x, image_coords.1 - self.y))
+        } else {
+            None
+        }
+    }
+
     pub fn shape(&self) -> Shape {
         Shape {
             w: self.w,
@@ -193,7 +205,7 @@ impl BB {
     }
     pub fn contains(&self, p: (u32, u32)) -> bool {
         let BB { x, y, h, w } = self;
-        x <= &p.0 && p.0 <= x + w && y <= &p.1 && p.1 <= y + h
+        x <= &p.0 && p.0 < x + w && y <= &p.1 && p.1 < y + h
     }
     pub fn min_usize(&self) -> (usize, usize) {
         (self.x as usize, self.y as usize)
@@ -316,7 +328,20 @@ pub fn effect_per_pixel<F: PixelEffect>(shape: Shape, mut f: F) {
         }
     }
 }
-
+#[test]
+fn test_bb() {
+    let bb = BB {
+        x: 10,
+        y: 10,
+        w: 10,
+        h: 10,
+    };
+    assert!(!bb.contains((20, 20)));
+    assert!(bb.contains((10, 10)));
+    assert_eq!(bb.to_my_coordinates((20, 20)), None);
+    assert_eq!(bb.to_my_coordinates((10, 10)), Some((0, 0)));
+    assert_eq!(bb.to_my_coordinates((11, 12)), Some((1, 2)));
+}
 #[test]
 fn test_to_orig_pos() {
     let orig_pos = mouse_pos_to_orig_pos(
