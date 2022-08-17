@@ -37,10 +37,6 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
 }
 
-fn to_01(x: u8) -> f32 {
-    x as f32 / 255.0
-}
-
 fn assert_data_is_valid(shape: Shape, im_anntoations: &Option<AnnotationImage>) -> RvResult<()> {
     let shape_a = if let Some(im_a) = im_anntoations {
         Shape::from_im(im_a)
@@ -66,9 +62,10 @@ fn add_annotation_to_view(
     if im_annotation.get_pixel(x_a, y_a)[0] > 0 {
         let pixel = *im_annotation.get_pixel(x_a, y_a);
         let [r_anno, g_anno, b_anno, alpha_anno] = pixel.0;
-        let alpha_amount = to_01(alpha_anno);
+        let alpha_amount = util::to_01(alpha_anno);
         let apply_alpha = |x_anno, x_res| {
-            ((to_01(x_anno) * alpha_amount + (1.0 - alpha_amount) * to_01(x_res)) * 255.0) as u8
+            ((util::to_01(x_anno) * alpha_amount + (1.0 - alpha_amount) * util::to_01(x_res))
+                * 255.0) as u8
         };
         let [r_bg, g_bg, b_bg] = im_view.get_pixel(x_v, y_v).0;
         *im_view.get_pixel_mut(x_v, y_v) = Rgb([

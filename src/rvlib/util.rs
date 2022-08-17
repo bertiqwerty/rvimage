@@ -53,13 +53,16 @@ pub fn mouse_pos_transform(
         .ok()
 }
 
-/// Converts the position of a pixel in the view to the coordinates of the original image
-pub fn view_pos_to_orig_pos(
-    view_pos: (u32, u32),
+pub fn pos_transform<F>(
+    pos: (u32, u32),
     shape_orig: Shape,
     shape_win: Shape,
     zoom_box: &Option<BB>,
-) -> (u32, u32) {
+    transform: F,
+) -> (u32, u32)
+where
+    F: Fn(u32, u32, u32, u32) -> u32,
+{
     let unscaled = shape_unscaled(zoom_box, shape_orig);
     let scaled = shape_scaled(unscaled, shape_win);
 
@@ -68,13 +71,65 @@ pub fn view_pos_to_orig_pos(
         _ => (0, 0),
     };
 
-    let coord_trans_2_orig = |x: u32, n_transformed: u32, n_orig: u32| -> u32 {
-        (x as f64 / n_transformed as f64 * n_orig as f64) as u32
+    let (x, y) = pos;
+    let x_tf = transform(x, scaled.w, unscaled.w, x_off);
+    let y_tf = transform(y, scaled.h, unscaled.h, y_off);
+    (x_tf, y_tf)
+}
+
+/// Converts the position of a pixel in the view to the coordinates of the original image
+pub fn view_pos_to_orig_pos(
+    view_pos: (u32, u32),
+    shape_orig: Shape,
+    shape_win: Shape,
+    zoom_box: &Option<BB>,
+) -> (u32, u32) {
+    let coord_trans_2_orig = |x: u32, n_transformed: u32, n_orig: u32, off: u32| -> u32 {
+        let tmp = x as f64 * n_orig as f64 / n_transformed as f64;
+        let tmp = if n_transformed > n_orig {
+            tmp.ceil()
+        } else {
+            tmp.floor()
+        };
+        off + tmp as u32
     };
-    let (x, y) = view_pos;
-    let x_orig = x_off + coord_trans_2_orig(x, scaled.w, unscaled.w);
-    let y_orig = y_off + coord_trans_2_orig(y, scaled.h, unscaled.h);
-    (x_orig, y_orig)
+    pos_transform(
+        view_pos,
+        shape_orig,
+        shape_win,
+        zoom_box,
+        coord_trans_2_orig,
+    )
+}
+
+/// Converts the position of a pixel in the view to the coordinates of the original image
+pub fn orig_pos_to_view_pos(
+    orig_pos: (u32, u32),
+    shape_orig: Shape,
+    shape_win: Shape,
+    zoom_box: &Option<BB>,
+) -> Option<(u32, u32)> {
+    if let Some(zb) = zoom_box {
+        if !zb.contains(orig_pos) {
+            return None;
+        }
+    }
+    let coord_trans_2_view = |x: u32, n_transformed: u32, n_orig: u32, off: u32| -> u32 {
+        let tmp = (x - off) as f64 * n_transformed as f64 / n_orig as f64;
+        let tmp = if n_transformed > n_orig {
+            tmp.floor()
+        } else {
+            tmp.ceil()
+        };
+        tmp as u32
+    };
+    Some(pos_transform(
+        orig_pos,
+        shape_orig,
+        shape_win,
+        zoom_box,
+        coord_trans_2_view,
+    ))
 }
 
 pub fn mouse_pos_to_orig_pos(
@@ -130,7 +185,7 @@ pub fn shape_scaled(shape_unscaled: Shape, shape_win: Shape) -> Shape {
     let h_new = (shape_unscaled.h as f64 / ratio) as u32;
     Shape { w: w_new, h: h_new }
 }
-/// shape without scaling according to zoom
+/// shape without scaling to window
 pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
     zoom_box.map_or(shape_orig, |z| z.shape())
 }
@@ -154,16 +209,30 @@ pub struct BB {
     pub h: u32,
 }
 impl BB {
-    pub fn to_other_coords(&self, other: &BB) -> Option<Self> {
-        let p_min = other.to_my_coordinates((self.x, self.y));
-        p_min.map(|p| BB::from_points(p, (p.0 + self.w, p.1 + self.h)))
-    }
-    fn to_my_coordinates(&self, image_coords: (u32, u32)) -> Option<(u32, u32)> {
-        if self.contains(image_coords) {
-            Some((image_coords.0 - self.x, image_coords.1 - self.y))
-        } else {
-            None
-        }
+    pub fn to_view_corners(
+        &self,
+        shape_orig: Shape,
+        shape_win: Shape,
+        zoom_box: &Option<BB>,
+    ) -> (Option<(u32, u32)>, Option<(u32, u32)>) {
+        let (min, max) = match zoom_box {
+            Some(zb) => {
+                let min = if zb.contains(self.min()) {
+                    Some(self.min())
+                } else {
+                    None
+                };
+                let max = if zb.extend_max((1, 1), None).contains(self.max()) {
+                    Some(self.max())
+                } else {
+                    None
+                };
+                (min, max)
+            }
+            None => (Some(self.min()), Some(self.max())),
+        };
+        let tf = |x| orig_pos_to_view_pos(x, shape_orig, shape_win, zoom_box);
+        (min.and_then(tf), max.and_then(tf))
     }
 
     pub fn shape(&self) -> Shape {
@@ -343,6 +412,28 @@ pub fn effect_per_pixel<F: PixelEffect>(shape: Shape, mut f: F) {
         }
     }
 }
+
+pub fn to_u32(x: (usize, usize)) -> (u32, u32) {
+    ((x.0 as u32), (x.1 as u32))
+}
+
+pub fn to_01(x: u8) -> f32 {
+    x as f32 / 255.0
+}
+
+pub fn apply_alpha(pixel_rgb: &Rgb<u8>, color: &Rgb<u8>, alpha: u8) -> Rgb<u8> {
+    let alpha_amount = to_01(alpha);
+    let apply_alpha_scalar = |x_anno, x_res| {
+        ((to_01(x_anno) * alpha_amount + (1.0 - alpha_amount) * to_01(x_res)) * 255.0) as u8
+    };
+    let [r_pixel, g_pixel, b_pixel] = pixel_rgb.0;
+    let [r_clr, g_clr, b_clr] = color.0;
+    Rgb([
+        apply_alpha_scalar(r_pixel, r_clr),
+        apply_alpha_scalar(g_pixel, g_clr),
+        apply_alpha_scalar(b_pixel, b_clr),
+    ])
+}
 #[test]
 fn test_bb() {
     let bb = BB {
@@ -353,9 +444,6 @@ fn test_bb() {
     };
     assert!(!bb.contains((20, 20)));
     assert!(bb.contains((10, 10)));
-    assert_eq!(bb.to_my_coordinates((20, 20)), None);
-    assert_eq!(bb.to_my_coordinates((10, 10)), Some((0, 0)));
-    assert_eq!(bb.to_my_coordinates((11, 12)), Some((1, 2)));
 }
 #[test]
 fn test_to_orig_pos() {
@@ -402,4 +490,56 @@ fn test_to_orig_pos() {
         }),
     );
     assert_eq!(Some((20, 20)), orig_pos);
+}
+#[test]
+fn test_view_pos_tf() {
+    let shape_orig = Shape { w: 20, h: 10 };
+    let shape_win = Shape { w: 40, h: 20 };
+    assert_eq!(
+        orig_pos_to_view_pos((4, 4), shape_orig, shape_win, &None),
+        Some((8, 8))
+    );
+    fn test_inverse(shape_orig: Shape, shape_win: Shape, zoom_box: &Option<BB>, tol: i32) {
+        let view_pos = (10, 10);
+        let orig_pos = view_pos_to_orig_pos((10, 10), shape_orig, shape_win, zoom_box);
+        let view_pos_ = orig_pos_to_view_pos(orig_pos, shape_orig, shape_win, zoom_box);
+        println!("view pos_ {:?}", view_pos_);
+        assert!((view_pos.0 as i32 - view_pos_.unwrap().0 as i32).abs() <= tol);
+        assert!((view_pos.1 as i32 - view_pos_.unwrap().1 as i32).abs() <= tol);
+    }
+    let shape_orig = Shape { w: 90, h: 120 };
+    let shape_win = Shape { w: 320, h: 440 };
+    test_inverse(shape_orig, shape_win, &None, 0);
+    let shape_orig = Shape { w: 190, h: 620 };
+    let shape_win = Shape { w: 120, h: 240 };
+    test_inverse(shape_orig, shape_win, &None, 0);
+    let shape_orig = Shape { w: 293, h: 321 };
+    let shape_win = Shape { w: 520, h: 241 };
+    test_inverse(shape_orig, shape_win, &None, 0);
+    let shape_orig = Shape { w: 40, h: 40 };
+    let shape_win = Shape { w: 40, h: 40 };
+    test_inverse(
+        shape_orig,
+        shape_win,
+        &Some(BB {
+            x: 10,
+            y: 10,
+            w: 20,
+            h: 10,
+        }),
+        0,
+    );
+    let shape_orig = Shape { w: 1040, h: 2113 };
+    let shape_win = Shape { w: 401, h: 139 };
+    test_inverse(
+        shape_orig,
+        shape_win,
+        &Some(BB {
+            x: 17,
+            y: 10,
+            w: 22,
+            h: 11,
+        }),
+        2,
+    );
 }

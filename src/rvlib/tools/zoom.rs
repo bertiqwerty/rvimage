@@ -8,7 +8,7 @@ use crate::{
     make_tool_transform,
     tools::core::{self, Manipulate},
     types::ViewImage,
-    util::{self, Shape, BB},
+    util::{self, to_u32, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
@@ -159,9 +159,9 @@ impl Zoom {
                 let initial_view = self.initial_view.clone();
                 world.set_im_view(core::draw_bx_on_view(
                     initial_view.unwrap(),
-                    mps,
-                    m,
-                    Rgb([255, 255, 255]),
+                    to_u32(mps),
+                    to_u32(m),
+                    &Rgb([255, 255, 255]),
                 ));
             }
             (world, history)

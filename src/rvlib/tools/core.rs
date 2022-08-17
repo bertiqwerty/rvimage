@@ -91,71 +91,60 @@ macro_rules! make_tool_transform {
     };
 }
 
-pub fn draw_bx_on_anno(
-    im: AnnotationImage,
-    corner_1: (usize, usize),
-    corner_2: (usize, usize),
-    color: Rgb<u8>,
-    alpha: u8,
-) -> AnnotationImage {
-    let f = |Rgba([r, g, b, a]): Rgba<u8>| {
-        Rgba([
-            color[0].max(r),
-            color[1].max(g),
-            color[2].max(b),
-            alpha.max(a),
-        ])
-    };
-    draw_bx_on_image(im, corner_1, corner_2, color.to_rgba(), f)
-}
-
 pub fn draw_bx_on_view(
     im: ViewImage,
-    corner_1: (usize, usize),
-    corner_2: (usize, usize),
-    color: Rgb<u8>,
+    corner_1: (u32, u32),
+    corner_2: (u32, u32),
+    color: &Rgb<u8>,
 ) -> ViewImage {
     let offset = Rgb([color[0] / 5, color[1] / 5, color[2] / 5]);
-    let f = |rgb: Rgb<u8>| {
+    let f = |rgb: &Rgb<u8>| {
         Rgb([
             util::clipped_add(offset[0], rgb[0], 255),
             util::clipped_add(offset[1], rgb[1], 255),
             util::clipped_add(offset[2], rgb[2], 255),
         ])
     };
-    draw_bx_on_image(im, corner_1, corner_2, color, f)
+    draw_bx_on_image(im, Some(corner_1), Some(corner_2), color, f)
 }
 
-pub fn draw_bx_on_image<I: GenericImage, F: Fn(I::Pixel) -> I::Pixel>(
+pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
     mut im: I,
-    corner_1: (usize, usize),
-    corner_2: (usize, usize),
-    color: I::Pixel,
+    corner_1: Option<(u32, u32)>,
+    corner_2: Option<(u32, u32)>,
+    color: &I::Pixel,
     fn_inner_color: F,
 ) -> I {
-    let (p1_x, p1_y) = corner_1;
-    let (p2_x, p2_y) = corner_2;
-    let x_min = p1_x.min(p2_x);
-    let y_min = p1_y.min(p2_y);
-    let x_max = p1_x.max(p2_x);
-    let y_max = p1_y.max(p2_y);
+    let (x_min, y_min) = corner_1.unwrap_or((0, 0));
+    let (x_max, y_max) = corner_2.unwrap_or((im.width(), im.height()));
     let draw_bx = BB {
         x: x_min as u32,
         y: y_min as u32,
         w: (x_max - x_min) as u32,
         h: (y_max - y_min) as u32,
     };
-    for x in draw_bx.x_range() {
-        im.put_pixel(x, draw_bx.y, color);
-        im.put_pixel(x, draw_bx.y + draw_bx.h - 1, color);
-    }
-    for y in draw_bx.y_range() {
-        im.put_pixel(draw_bx.x, y, color);
-        im.put_pixel(draw_bx.x + draw_bx.w - 1, y, color);
-    }
-    draw_bx.effect_per_inner_pixel(|x, y| {
+
+    let inner_effect = |x, y, im: &mut I| {
         let rgb = im.get_pixel(x, y);
-        im.put_pixel(x, y, fn_inner_color(rgb));
-    });
+        im.put_pixel(x, y, fn_inner_color(&rgb));
+    };
+    {
+        let mut put_pixel = |c: Option<(u32, u32)>, x, y| {
+            if c.is_some() {
+                im.put_pixel(x, y, *color);
+            } else {
+                inner_effect(x, y, &mut im);
+            }
+        };
+        for x in draw_bx.x_range() {
+            put_pixel(corner_1, x, draw_bx.y);
+            put_pixel(corner_2, x, draw_bx.y + draw_bx.h - 1);
+        }
+        for y in draw_bx.y_range() {
+            put_pixel(corner_1, draw_bx.x, y);
+            put_pixel(corner_2, draw_bx.x + draw_bx.w - 1, y);
+        }
+    }
+    draw_bx.effect_per_inner_pixel(|x, y| inner_effect(x, y, &mut im));
     im
 }

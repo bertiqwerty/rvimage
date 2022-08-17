@@ -4,12 +4,11 @@ use crate::{
     make_tool_transform,
     tools::core,
     types::ViewImage,
-    util::{mouse_pos_to_orig_pos, Shape, BB},
+    util::{self, mouse_pos_to_orig_pos, to_u32, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
 use image::Rgb;
-use std::mem;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
@@ -20,7 +19,7 @@ const ALPHA_SELECTED: u8 = 170;
 fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
         .enumerate()
-        .filter(|(_, bb)| bb.extend_max((1, 1), None).contains(pos))
+        .filter(|(_, bb)| bb.contains(pos))
         .map(|(i, bb)| {
             let dx = (bb.x as i64 - pos.0 as i64).abs();
             let dw = ((bb.x + bb.w) as i64 - pos.0 as i64).abs();
@@ -32,24 +31,26 @@ fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
-fn draw_bbs(mut world: World, shape_win: Shape, bbs: &[BB], selected_bbs: &[bool]) -> World {
-    world.ims_raw.clear_annotations();
-    for (i, bb) in bbs.iter().enumerate() {
-        let alpha = if selected_bbs[i] {
+fn draw_bbs(
+    mut im: ViewImage,
+    shape_orig: Shape,
+    shape_win: Shape,
+    zoom_box: &Option<BB>,
+    bbs: &[BB],
+    selected_bbs: &[bool],
+    color: &Rgb<u8>,
+) -> ViewImage {
+    for (bb, is_selected) in bbs.iter().zip(selected_bbs.iter()) {
+        let alpha = if *is_selected {
             ALPHA_SELECTED
         } else {
             ALPHA
         };
-        *world.ims_raw.im_annotations_mut() = core::draw_bx_on_anno(
-            mem::take(world.ims_raw.im_annotations_mut()),
-            bb.min_usize(),
-            bb.max_usize(),
-            Rgb([255, 255, 255]),
-            alpha,
-        );
+        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(rgb, color, alpha);
+        let view_corners = bb.to_view_corners(shape_orig, shape_win, zoom_box);
+        im = core::draw_bx_on_image(im, view_corners.0, view_corners.1, color, f_inner_color);
     }
-    world.view_from_annotations(shape_win);
-    world
+    im
 }
 
 #[derive(Clone, Debug)]
@@ -98,7 +99,16 @@ impl BBox {
             world.ims_raw.shape(),
             world.zoom_box(),
         );
-        world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
+        let im_view = draw_bbs(
+            self.initial_view.clone().unwrap(),
+            world.ims_raw.shape(),
+            shape_win,
+            world.zoom_box(),
+            &self.bbs,
+            &self.selected_bbs,
+            &Rgb([255, 255, 255]),
+        );
+        world.set_im_view(im_view);
         (world, history)
     }
     fn mouse_released(
@@ -121,7 +131,15 @@ impl BBox {
             // second click
             self.bbs.push(BB::from_points(mp, pp));
             self.selected_bbs.push(false);
-            world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
+            world.set_im_view(draw_bbs(
+                self.initial_view.clone().unwrap(),
+                world.ims_raw.shape(),
+                shape_win,
+                world.zoom_box(),
+                &self.bbs,
+                &self.selected_bbs,
+                &Rgb([255, 255, 255]),
+            ));
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
             self.prev_pos = None;
         } else {
@@ -132,7 +150,15 @@ impl BBox {
                 if let Some(i) = idx {
                     self.selected_bbs[i] = !self.selected_bbs[i];
                 }
-                world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
+                world.set_im_view(draw_bbs(
+                    self.initial_view.clone().unwrap(),
+                    world.ims_raw.shape(),
+                    shape_win,
+                    world.zoom_box(),
+                    &self.bbs,
+                    &self.selected_bbs,
+                    &Rgb([255, 255, 255]),
+                ));
             } else {
                 self.prev_pos = mouse_pos;
                 self.initial_view = mouse_pos.map(|_| world.im_view().clone());
@@ -159,7 +185,17 @@ impl BBox {
             // the selected ones have been deleted hence all remaining ones are unselected
             self.selected_bbs.clear();
             self.selected_bbs.resize(self.bbs.len(), false);
-            world = draw_bbs(world, shape_win, &self.bbs, &self.selected_bbs);
+            let im_view = draw_bbs(
+                self.initial_view.clone().unwrap(),
+                world.ims_raw.shape(),
+                shape_win,
+                world.zoom_box(),
+                &self.bbs,
+                &self.selected_bbs,
+                &Rgb([255, 255, 255]),
+            );
+            world.set_im_view(im_view);
+            world.update_view(shape_win);
         } else if world.ims_raw.has_annotations() {
             world.ims_raw.clear_annotations();
             self.bbs = vec![];
@@ -191,7 +227,12 @@ impl Manipulate for BBox {
     ) -> (World, History) {
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
             let iv = self.initial_view.clone().unwrap();
-            world.set_im_view(core::draw_bx_on_view(iv, mp, pp, Rgb([255, 255, 255])));
+            world.set_im_view(core::draw_bx_on_view(
+                iv,
+                to_u32(mp),
+                to_u32(pp),
+                &Rgb([255, 255, 255]),
+            ));
         }
         make_tool_transform!(
             self,
@@ -240,7 +281,8 @@ fn test_find_idx() -> RvResult<()> {
     assert_eq!(find_closest_boundary_idx((0, 20), &bbs), None);
     assert_eq!(find_closest_boundary_idx((0, 0), &bbs), Some(0));
     assert_eq!(find_closest_boundary_idx((3, 8), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((7, 15), &bbs), Some(1));
+    assert_eq!(find_closest_boundary_idx((7, 14), &bbs), Some(1));
+    assert_eq!(find_closest_boundary_idx((7, 15), &bbs), None);
     assert_eq!(find_closest_boundary_idx((8, 8), &bbs), Some(0));
     assert_eq!(find_closest_boundary_idx((10, 12), &bbs), Some(2));
     Ok(())
