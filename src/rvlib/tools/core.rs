@@ -17,6 +17,7 @@ pub trait Manipulate {
     where
         Self: Sized;
 
+    fn on_deactivate(&mut self) {}
     /// All events that are used by a tool are implemented in here. Use the macro [`make_tool_transform`](make_tool_transform). See, e.g.,
     /// [`Zoom::events_tf`](crate::tools::Zoom::events_tf).
     fn events_tf(

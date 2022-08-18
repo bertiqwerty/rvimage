@@ -11,13 +11,6 @@ pub use rot90::Rot90;
 use std::fmt::Debug;
 pub use zoom::Zoom;
 
-pub struct ToolState {
-    pub tool: ToolWrapper,
-    pub is_active: bool,
-    pub name: &'static str,
-    pub button_label: &'static str,
-}
-
 macro_rules! make_tools {
 ($(($tool:ident, $label:expr)),+) => {
         #[derive(Clone, Debug)]
@@ -47,4 +40,25 @@ macro_rules! apply_tool_method {
             ToolWrapper::BBox(z) => z.$f($($args,)*),
         }
     };
+}
+
+pub struct ToolState {
+    pub tool: ToolWrapper,
+    is_active: bool,
+    pub name: &'static str,
+    pub button_label: &'static str,
+}
+impl ToolState {
+    pub fn activate(&mut self) {
+        self.is_active = true;
+    }
+    pub fn deactivate(&mut self) {
+        if self.is_active {
+            apply_tool_method!(self, on_deactivate,);
+        }
+        self.is_active = false;
+    }
+    pub fn is_active(&self) -> bool {
+        self.is_active
+    }
 }

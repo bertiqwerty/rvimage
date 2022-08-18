@@ -121,11 +121,17 @@ impl Framework {
             self.rpass.free_texture(id);
         }
     }
+
     pub fn menu(&self) -> &Menu {
         &self.menu
     }
+
     pub fn menu_mut(&mut self) -> &mut Menu {
         &mut self.menu
+    }
+
+    pub fn are_tools_active(&self) -> bool {
+        self.menu.are_tools_active && self.tools_menu.are_tools_active
     }
 }
 
@@ -190,34 +196,44 @@ macro_rules! handle_error {
 
 pub struct ToolsMenu {
     window_open: bool, // Only show the egui window when true.
+    are_tools_active: bool,
 }
 impl ToolsMenu {
     fn new() -> Self {
-        Self { window_open: true }
+        Self {
+            window_open: true,
+            are_tools_active: true,
+        }
     }
-
     fn ui(&mut self, ctx: &Context, tools: &mut [ToolState]) {
-        egui::Window::new("tools")
+        let window_response = egui::Window::new("tools")
             .vscroll(true)
             .title_bar(false)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
                 ui.horizontal_top(|ui| {
-                    let active_tool = tools
-                        .iter_mut()
-                        .enumerate()
-                        .find(|(_, t)| ui.selectable_label(t.is_active, t.button_label).clicked());
+                    let active_tool = tools.iter_mut().enumerate().find(|(_, t)| {
+                        ui.selectable_label(t.is_active(), t.button_label).clicked()
+                    });
                     if let Some((idx_active, _)) = active_tool {
                         for (i, t) in tools.iter_mut().enumerate() {
                             if i == idx_active {
-                                t.is_active = true;
+                                t.activate();
                             } else {
-                                t.is_active = false;
+                                t.deactivate();
                             }
                         }
                     }
                 })
             });
+        if let Some(wr) = window_response {
+            if wr.response.hovered() {
+                self.are_tools_active = false;
+            } else {
+                self.are_tools_active = true;
+            }
+            println!("ata {}", self.are_tools_active);
+        }
     }
 }
 
@@ -258,10 +274,6 @@ impl Menu {
 
     pub fn popup(&mut self, info: Info) {
         self.info_message = info;
-    }
-
-    pub fn are_tools_active(&self) -> bool {
-        self.are_tools_active
     }
 
     pub fn toggle(&mut self) {
@@ -341,7 +353,7 @@ impl Menu {
 
     /// Create the UI using egui.
     fn ui(&mut self, ctx: &Context) {
-        egui::Window::new("menu")
+        let window_response = egui::Window::new("menu")
             .vscroll(true)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
@@ -380,7 +392,7 @@ impl Menu {
                     ui.add(cfg_gui);
                 });
 
-                // check if connection is after open folder is ready
+                // check if connection is ready after open folder
                 let mut assign_open_folder_res = |reader_n_info: Option<(ReaderFromCfg, Info)>| {
                     if let Some((reader, info)) = reader_n_info {
                         self.reader = Some(reader);
@@ -462,5 +474,12 @@ impl Menu {
                 ui.separator();
                 ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
             });
+        if let Some(wr) = window_response {
+            if wr.response.hovered() {
+                self.are_tools_active = false;
+            } else {
+                self.are_tools_active = true;
+            }
+        }
     }
 }

@@ -221,6 +221,10 @@ impl Manipulate for BBox {
         }
     }
 
+    fn on_deactivate(&mut self) {
+        self.prev_pos = None;
+        self.initial_view = None;
+    }
     fn events_tf(
         &mut self,
         mut world: World,
@@ -243,6 +247,14 @@ impl Manipulate for BBox {
             }
             None => {
                 self.current_file_path = "".to_string();
+            }
+        }
+        if self.initial_view.is_none() {
+            self.initial_view = Some(world.im_view().clone());
+        }
+        if let Some(iv) = &self.initial_view {
+            if Shape::from_im(iv) != Shape::from_im(world.im_view()) {
+                self.initial_view = Some(world.im_view().clone());
             }
         }
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {

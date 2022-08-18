@@ -88,7 +88,7 @@ fn apply_tools(
     meta_data: &MetaData,
 ) -> (World, History) {
     for t in tools {
-        if t.is_active {
+        if t.is_active() {
             (world, history) = apply_tool_method!(
                 t,
                 events_tf,
@@ -220,7 +220,8 @@ fn main() -> Result<(), pixels::Error> {
             let shape_win = Shape::from_size(&window.inner_size());
             let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
 
-            if framework.menu().are_tools_active() {
+            if framework.are_tools_active() {
+                println!("tools are active");
                 let file_path = file_selected.and_then(|fs| framework.menu().file_path(fs));
                 let meta_data = MetaData { file_path };
                 (world, history) = apply_tools(
@@ -239,7 +240,7 @@ fn main() -> Result<(), pixels::Error> {
             {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
-                    t.is_active = false;
+                    t.deactivate();
                 }
             }
 
@@ -377,7 +378,7 @@ fn main() -> Result<(), pixels::Error> {
                 let data_point = get_pixel_on_orig_str(&world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
                 let file_label = framework.menu().file_label(idx);
-                let active_tool = tools.iter().find(|t| t.is_active);
+                let active_tool = tools.iter().find(|t| t.is_active());
                 let tool_string = if let Some(t) = active_tool {
                     format!(" - {} tool is active - ", t.name)
                 } else {
