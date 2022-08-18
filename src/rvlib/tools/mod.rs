@@ -4,7 +4,7 @@ mod core;
 mod rot90;
 mod zoom;
 
-pub use self::core::Manipulate;
+pub use self::core::{Manipulate, MetaData};
 pub use bbox::BBox;
 pub use brush::Brush;
 pub use rot90::Rot90;

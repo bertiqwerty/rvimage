@@ -312,6 +312,13 @@ impl Menu {
             .map(|ps| ps.folder_label())
     }
 
+    pub fn file_path(&self, file_idx: usize) -> Option<&str> {
+        self.paths_navigator
+            .paths_selector()
+            .as_ref()
+            .map(|ps| ps.file_selected_path(file_idx))
+    }
+
     pub fn read_image(&mut self, file_label_selected_idx: usize) -> Option<DynamicImage> {
         let mut im_read = None;
         if let Some(r) = &mut self.reader {

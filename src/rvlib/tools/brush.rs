@@ -10,7 +10,7 @@ use imageproc::drawing;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
-use super::Manipulate;
+use super::{core::MetaData, Manipulate};
 
 const ACTOR_NAME: &str = "Brush";
 
@@ -86,6 +86,7 @@ impl Manipulate for Brush {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         make_tool_transform!(
             self,

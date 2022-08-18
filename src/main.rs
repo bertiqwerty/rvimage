@@ -10,7 +10,7 @@ use rvlib::cfg::{self, Cfg};
 use rvlib::history::{History, Record};
 use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
-use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper};
+use rvlib::tools::{make_tool_vec, Manipulate, MetaData, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
 use rvlib::world::{ImsRaw, World};
 use rvlib::{apply_tool_method, httpserver};
@@ -85,6 +85,7 @@ fn apply_tools(
     shape_win: Shape,
     mouse_pos: Option<(usize, usize)>,
     input_event: &WinitInputHelper,
+    meta_data: &MetaData,
 ) -> (World, History) {
     for t in tools {
         if t.is_active {
@@ -95,7 +96,8 @@ fn apply_tools(
                 history,
                 shape_win,
                 mouse_pos,
-                input_event
+                input_event,
+                meta_data
             );
         }
     }
@@ -219,6 +221,8 @@ fn main() -> Result<(), pixels::Error> {
             let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
 
             if framework.menu().are_tools_active() {
+                let file_path = file_selected.and_then(|fs| framework.menu().file_path(fs));
+                let meta_data = MetaData { file_path };
                 (world, history) = apply_tools(
                     &mut tools,
                     mem::take(&mut world),
@@ -226,38 +230,12 @@ fn main() -> Result<(), pixels::Error> {
                     shape_win,
                     mouse_pos,
                     &input,
+                    &meta_data,
                 );
             }
 
             if input.key_held(VirtualKeyCode::RShift) || input.key_held(VirtualKeyCode::LShift) {
-                if input.key_pressed(VirtualKeyCode::B) {
-                    for t in tools.iter_mut() {
-                        if let ToolWrapper::Brush(_) = &t.tool {
-                            println!("activated brush tool");
-                            t.is_active = true;
-                        } else {
-                            t.is_active = false;
-                        }
-                    }
-                } else if input.key_pressed(VirtualKeyCode::R) {
-                    for t in tools.iter_mut() {
-                        if let ToolWrapper::Rot90(_) = &t.tool {
-                            println!("activated rotate tool");
-                            t.is_active = true;
-                        } else {
-                            t.is_active = false;
-                        }
-                    }
-                } else if input.key_pressed(VirtualKeyCode::Z) {
-                    for t in tools.iter_mut() {
-                        if let ToolWrapper::Zoom(_) = &t.tool {
-                            println!("activated zoom tool");
-                            t.is_active = true;
-                        } else {
-                            t.is_active = false;
-                        }
-                    }
-                } else if input.key_pressed(VirtualKeyCode::Q) {
+                if input.key_pressed(VirtualKeyCode::Q) {
                     for t in tools.iter_mut() {
                         println!("deactivated all tools");
                         t.is_active = false;

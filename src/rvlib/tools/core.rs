@@ -8,6 +8,10 @@ use crate::{
     world::World,
 };
 
+pub struct MetaData<'a> {
+    pub file_path: Option<&'a str>,
+}
+
 pub trait Manipulate {
     fn new() -> Self
     where
@@ -22,6 +26,7 @@ pub trait Manipulate {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         input_event: &WinitInputHelper,
+        meta_data: &MetaData,
     ) -> (World, History);
 }
 
@@ -115,6 +120,9 @@ pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
     color: &I::Pixel,
     fn_inner_color: F,
 ) -> I {
+    if corner_1.is_none() && corner_2.is_none() {
+        return im;
+    }
     let (x_min, y_min) = corner_1.unwrap_or((0, 0));
     let (x_max, y_max) = corner_2.unwrap_or((im.width(), im.height()));
     let draw_bx = BB {

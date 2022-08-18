@@ -13,7 +13,7 @@ use crate::{
     LEFT_BTN, RIGHT_BTN,
 };
 
-use super::core::Mover;
+use super::core::{MetaData, Mover};
 
 const MIN_ZOOM: u32 = 2;
 
@@ -197,6 +197,7 @@ impl Manipulate for Zoom {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         make_tool_transform!(
             self,
