@@ -234,12 +234,12 @@ fn main() -> Result<(), pixels::Error> {
                 );
             }
 
-            if input.key_held(VirtualKeyCode::RShift) || input.key_held(VirtualKeyCode::LShift) {
-                if input.key_pressed(VirtualKeyCode::Q) {
-                    for t in tools.iter_mut() {
-                        println!("deactivated all tools");
-                        t.is_active = false;
-                    }
+            if (input.key_held(VirtualKeyCode::RShift) || input.key_held(VirtualKeyCode::LShift))
+                && input.key_pressed(VirtualKeyCode::Q)
+            {
+                for t in tools.iter_mut() {
+                    println!("deactivated all tools");
+                    t.is_active = false;
                 }
             }
 

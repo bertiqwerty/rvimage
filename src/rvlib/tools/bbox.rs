@@ -54,7 +54,6 @@ fn draw_bbs<'a, I1: Iterator<Item = &'a BB>, I2: Iterator<Item = &'a bool>>(
     im
 }
 
-
 #[derive(Clone, Debug)]
 pub struct BBox {
     prev_pos: Option<(usize, usize)>,

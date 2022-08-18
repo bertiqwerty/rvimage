@@ -200,7 +200,7 @@ where
         x1 + x2
     }
 }
-
+pub type CornerOptions = (Option<(u32, u32)>, Option<(u32, u32)>);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct BB {
     pub x: u32,
@@ -214,7 +214,7 @@ impl BB {
         shape_orig: Shape,
         shape_win: Shape,
         zoom_box: &Option<BB>,
-    ) -> (Option<(u32, u32)>, Option<(u32, u32)>) {
+    ) -> CornerOptions {
         let (min, max) = match zoom_box {
             Some(zb) => {
                 let min = if zb.contains(self.min()) {
