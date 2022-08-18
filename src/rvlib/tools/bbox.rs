@@ -31,21 +31,17 @@ fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
-fn draw_bbs(
+fn draw_bbs<'a, I1: Iterator<Item = &'a BB>, I2: Iterator<Item = &'a bool>>(
     mut im: ViewImage,
     shape_orig: Shape,
     shape_win: Shape,
     zoom_box: &Option<BB>,
-    bbs: &[BB],
-    selected_bbs: &[bool],
+    bbs: I1,
+    selected_bbs: I2,
     color: &Rgb<u8>,
 ) -> ViewImage {
-    for (bb, is_selected) in bbs.iter().zip(selected_bbs.iter()) {
-        let alpha = if *is_selected {
-            ALPHA_SELECTED
-        } else {
-            ALPHA
-        };
+    for (bb, is_selected) in bbs.zip(selected_bbs) {
+        let alpha = if *is_selected { ALPHA_SELECTED } else { ALPHA };
         let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(rgb, color, alpha);
         let view_corners = bb.to_view_corners(shape_orig, shape_win, zoom_box);
         im = core::draw_bx_on_image(im, view_corners.0, view_corners.1, color, f_inner_color);
@@ -63,6 +59,20 @@ pub struct BBox {
 }
 
 impl BBox {
+    fn draw_bbs_on_view(&self, mut world: World, shape_win: Shape) -> World {
+
+        let im_view = draw_bbs(
+            self.initial_view.clone().unwrap(),
+            world.ims_raw.shape(),
+            shape_win,
+            world.zoom_box(),
+            self.bbs.iter(),
+            self.selected_bbs.iter(),
+            &Rgb([255, 255, 255]),
+        );
+        world.set_im_view(im_view);
+        world
+    }
     fn mouse_pressed(
         &mut self,
         _event: &WinitInputHelper,
@@ -99,16 +109,7 @@ impl BBox {
             world.ims_raw.shape(),
             world.zoom_box(),
         );
-        let im_view = draw_bbs(
-            self.initial_view.clone().unwrap(),
-            world.ims_raw.shape(),
-            shape_win,
-            world.zoom_box(),
-            &self.bbs,
-            &self.selected_bbs,
-            &Rgb([255, 255, 255]),
-        );
-        world.set_im_view(im_view);
+        world = self.draw_bbs_on_view(world, shape_win);
         (world, history)
     }
     fn mouse_released(
@@ -131,15 +132,7 @@ impl BBox {
             // second click
             self.bbs.push(BB::from_points(mp, pp));
             self.selected_bbs.push(false);
-            world.set_im_view(draw_bbs(
-                self.initial_view.clone().unwrap(),
-                world.ims_raw.shape(),
-                shape_win,
-                world.zoom_box(),
-                &self.bbs,
-                &self.selected_bbs,
-                &Rgb([255, 255, 255]),
-            ));
+            world = self.draw_bbs_on_view(world, shape_win);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
             self.prev_pos = None;
         } else {
@@ -150,15 +143,7 @@ impl BBox {
                 if let Some(i) = idx {
                     self.selected_bbs[i] = !self.selected_bbs[i];
                 }
-                world.set_im_view(draw_bbs(
-                    self.initial_view.clone().unwrap(),
-                    world.ims_raw.shape(),
-                    shape_win,
-                    world.zoom_box(),
-                    &self.bbs,
-                    &self.selected_bbs,
-                    &Rgb([255, 255, 255]),
-                ));
+                world = self.draw_bbs_on_view(world, shape_win);
             } else {
                 self.prev_pos = mouse_pos;
                 self.initial_view = mouse_pos.map(|_| world.im_view().clone());
@@ -185,16 +170,7 @@ impl BBox {
             // the selected ones have been deleted hence all remaining ones are unselected
             self.selected_bbs.clear();
             self.selected_bbs.resize(self.bbs.len(), false);
-            let im_view = draw_bbs(
-                self.initial_view.clone().unwrap(),
-                world.ims_raw.shape(),
-                shape_win,
-                world.zoom_box(),
-                &self.bbs,
-                &self.selected_bbs,
-                &Rgb([255, 255, 255]),
-            );
-            world.set_im_view(im_view);
+            world = self.draw_bbs_on_view(world, shape_win);
             world.update_view(shape_win);
         } else if world.ims_raw.has_annotations() {
             world.ims_raw.clear_annotations();

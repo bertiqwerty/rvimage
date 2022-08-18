@@ -1,11 +1,11 @@
-use image::{GenericImage, Pixel, Rgb, Rgba};
+use image::{GenericImage, Rgb};
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
     history::History,
     types::ViewImage,
     util::{self, Shape, BB},
-    world::{AnnotationImage, World},
+    world::World,
 };
 
 pub trait Manipulate {
