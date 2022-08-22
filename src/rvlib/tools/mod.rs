@@ -4,6 +4,8 @@ mod core;
 mod rot90;
 mod zoom;
 
+use crate::{history::History, util::Shape, world::World};
+
 pub use self::core::{Manipulate, MetaData};
 pub use bbox::BBox;
 pub use brush::Brush;
@@ -52,11 +54,19 @@ impl ToolState {
     pub fn activate(&mut self) {
         self.is_active = true;
     }
-    pub fn deactivate(&mut self) {
+    pub fn deactivate(
+        &mut self,
+        mut world: World,
+        mut history: History,
+        shape_win: Shape,
+        meta_data: &MetaData,
+    ) -> (World, History) {
         if self.is_active {
-            apply_tool_method!(self, on_deactivate,);
+            (world, history) =
+                apply_tool_method!(self, on_deactivate, world, history, shape_win, meta_data);
         }
         self.is_active = false;
+        (world, history)
     }
     pub fn is_active(&self) -> bool {
         self.is_active

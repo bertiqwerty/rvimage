@@ -1,25 +1,43 @@
 use crate::{
+    annotations::{Annotate, Annotations, BrushAnnotations},
+    annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
     make_tool_transform,
+    types::ViewImage,
     util::{mouse_pos_to_orig_pos, Shape},
     world::World,
-    LEFT_BTN,
+    LEFT_BTN, anno_data_initializer,
 };
-use image::Rgba;
-use imageproc::drawing;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use super::{core::MetaData, Manipulate};
 
 const ACTOR_NAME: &str = "Brush";
+const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
+anno_data_initializer!(ACTOR_NAME, Brush, BrushAnnotations);
+annotations_accessor!(ACTOR_NAME, Brush, BrushAnnotations);
+annotations_accessor_mut!(ACTOR_NAME, Brush, BrushAnnotations);
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Brush {
-    prev_pos: Option<(u32, u32)>,
+    initial_view: Option<ViewImage>,
 }
 
 impl Brush {
+    fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
+        let im_view = get_annos(&world)
+            .expect(MISSING_ANNO_MSG)
+            .brush()
+            .draw_on_view(
+                self.initial_view.clone().unwrap(),
+                world.zoom_box(),
+                world.ims_raw.shape(),
+                shape_win,
+            );
+        world.set_im_view(im_view);
+        world
+    }
     fn mouse_held(
         &mut self,
         _event: &WinitInputHelper,
@@ -28,23 +46,31 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if !world.ims_raw.has_annotations() {
-            world.ims_raw.create_annotations_layer();
-        }
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
-        if let (Some(mp), Some(mp_prev)) = (mp_orig, self.prev_pos) {
-            let start = (mp_prev.0 as f32, mp_prev.1 as f32);
-            let end = (mp.0 as f32, mp.1 as f32);
-            let clr = Rgba([255, 255, 255, 255]);
-            drawing::draw_line_segment_mut(world.ims_raw.im_annotations_mut(), start, end, clr);
-            world.set_annotations_pixel(mp.0, mp.1, &[255, 255, 255, 255]);
-            world.view_from_annotations(shape_win);
+        if let Some(mp) = mp_orig {
+            get_annos_mut(&mut world)
+                .brush_mut()
+                .points
+                .last_mut()
+                .unwrap()
+                .push(mp);
+            world = self.draw_on_view(world, shape_win);
         }
-        self.prev_pos = mp_orig;
         (world, history)
     }
 
+    fn mouse_pressed(
+        &mut self,
+        _event: &WinitInputHelper,
+        _shape_win: Shape,
+        _mouse_pos: Option<(usize, usize)>,
+        mut world: World,
+        _history: History,
+    ) -> (World, History) {
+        get_annos_mut(&mut world).brush_mut().points.push(vec![]);
+        (world, _history)
+    }
     fn mouse_released(
         &mut self,
         _event: &WinitInputHelper,
@@ -54,7 +80,6 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
-        self.prev_pos = None;
         (world, history)
     }
     fn key_pressed(
@@ -66,8 +91,8 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if world.ims_raw.has_annotations() {
-            world.ims_raw.clear_annotations();
-            world.update_view(shape_win);
+            get_annos_mut(&mut world).brush_mut().points.clear();
+            world = self.draw_on_view(world, shape_win);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         }
         (world, history)
@@ -76,18 +101,22 @@ impl Brush {
 
 impl Manipulate for Brush {
     fn new() -> Self {
-        Self { prev_pos: None }
+        Self { initial_view: None }
     }
 
     fn events_tf(
         &mut self,
-        world: World,
+        mut world: World,
         history: History,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
         _meta_data: &MetaData,
     ) -> (World, History) {
+        world = initialize_anno_data(world);
+        if self.initial_view.is_none() {
+            self.initial_view = Some(world.im_view().clone());
+        }
         make_tool_transform!(
             self,
             world,
@@ -95,7 +124,11 @@ impl Manipulate for Brush {
             shape_win,
             mouse_pos,
             event,
-            [(mouse_held, LEFT_BTN), (mouse_released, LEFT_BTN)],
+            [
+                (mouse_pressed, LEFT_BTN),
+                (mouse_held, LEFT_BTN),
+                (mouse_released, LEFT_BTN)
+            ],
             [(key_pressed, VirtualKeyCode::Back)]
         )
     }

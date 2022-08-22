@@ -221,7 +221,6 @@ fn main() -> Result<(), pixels::Error> {
             let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
 
             if framework.are_tools_active() {
-                println!("tools are active");
                 let file_path = file_selected.and_then(|fs| framework.menu().file_path(fs));
                 let meta_data = MetaData { file_path };
                 (world, history) = apply_tools(
@@ -235,12 +234,35 @@ fn main() -> Result<(), pixels::Error> {
                 );
             }
 
+            if let Some(idx_active) = framework.activated_tool() {
+                for (i, t) in tools.iter_mut().enumerate() {
+                    if i == idx_active {
+                        t.activate();
+                    } else {
+                        let file_path = file_selected.and_then(|fs| framework.menu().file_path(fs));
+                        let meta_data = MetaData { file_path };
+                        (world, history) = t.deactivate(
+                            mem::take(&mut world),
+                            mem::take(&mut history),
+                            shape_win,
+                            &meta_data,
+                        );
+                    }
+                }
+            }
             if (input.key_held(VirtualKeyCode::RShift) || input.key_held(VirtualKeyCode::LShift))
                 && input.key_pressed(VirtualKeyCode::Q)
             {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
-                    t.deactivate();
+                    let file_path = file_selected.and_then(|fs| framework.menu().file_path(fs));
+                    let meta_data = MetaData { file_path };
+                    (world, history) = t.deactivate(
+                        mem::take(&mut world),
+                        mem::take(&mut history),
+                        shape_win,
+                        &meta_data,
+                    );
                 }
             }
 

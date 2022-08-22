@@ -1,3 +1,4 @@
+pub mod annotations;
 mod cache;
 pub mod cfg;
 pub mod history;

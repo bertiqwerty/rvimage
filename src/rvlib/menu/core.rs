@@ -133,6 +133,9 @@ impl Framework {
     pub fn are_tools_active(&self) -> bool {
         self.menu.are_tools_active && self.tools_menu.are_tools_active
     }
+    pub fn activated_tool(&self) -> Option<usize> {
+        self.tools_menu.activated_tool
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -195,14 +198,16 @@ macro_rules! handle_error {
 }
 
 pub struct ToolsMenu {
-    window_open: bool, // Only show the egui window when true.
-    are_tools_active: bool,
+    window_open: bool,      // Only show the egui window when true.
+    are_tools_active: bool, // can deactivate all tools, overrides activated_tool
+    activated_tool: Option<usize>,
 }
 impl ToolsMenu {
     fn new() -> Self {
         Self {
             window_open: true,
             are_tools_active: true,
+            activated_tool: None,
         }
     }
     fn ui(&mut self, ctx: &Context, tools: &mut [ToolState]) {
@@ -212,18 +217,11 @@ impl ToolsMenu {
             .open(&mut self.window_open)
             .show(ctx, |ui| {
                 ui.horizontal_top(|ui| {
-                    let active_tool = tools.iter_mut().enumerate().find(|(_, t)| {
-                        ui.selectable_label(t.is_active(), t.button_label).clicked()
-                    });
-                    if let Some((idx_active, _)) = active_tool {
-                        for (i, t) in tools.iter_mut().enumerate() {
-                            if i == idx_active {
-                                t.activate();
-                            } else {
-                                t.deactivate();
-                            }
-                        }
-                    }
+                    self.activated_tool = tools
+                        .iter_mut()
+                        .enumerate()
+                        .find(|(_, t)| ui.selectable_label(t.is_active(), t.button_label).clicked())
+                        .map(|(i, _)| i);
                 })
             });
         if let Some(wr) = window_response {
@@ -232,7 +230,6 @@ impl ToolsMenu {
             } else {
                 self.are_tools_active = true;
             }
-            println!("ata {}", self.are_tools_active);
         }
     }
 }

@@ -1,15 +1,16 @@
-use std::{collections::HashMap, mem};
+use std::mem;
 
-use super::{
+use crate::tools::{
     core::{draw_bx_on_view, MetaData, Mover},
     Manipulate,
 };
 use crate::{
+    annotations::{Annotate, Annotations, BboxAnnotations},
+    anno_data_initializer, annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
     make_tool_transform,
-    tools::core,
     types::ViewImage,
-    util::{self, mouse_pos_to_orig_pos, to_u32, Shape, BB},
+    util::{mouse_pos_to_orig_pos, to_u32, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
@@ -18,8 +19,7 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 const ACTOR_NAME: &str = "BBox";
-const ALPHA: u8 = 90;
-const ALPHA_SELECTED: u8 = 170;
+const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
 
 fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
@@ -36,64 +36,41 @@ fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
-fn draw_bbs<'a, I1: Iterator<Item = &'a BB>, I2: Iterator<Item = &'a bool>>(
-    mut im: ViewImage,
-    shape_orig: Shape,
-    shape_win: Shape,
-    zoom_box: &Option<BB>,
-    bbs: I1,
-    selected_bbs: I2,
-    color: &Rgb<u8>,
-) -> ViewImage {
-    for (bb, is_selected) in bbs.zip(selected_bbs) {
-        let alpha = if *is_selected { ALPHA_SELECTED } else { ALPHA };
-        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(rgb, color, alpha);
-        let view_corners = bb.to_view_corners(shape_orig, shape_win, zoom_box);
-        im = core::draw_bx_on_image(im, view_corners.0, view_corners.1, color, f_inner_color);
-    }
-    im
+anno_data_initializer!(ACTOR_NAME, Bbox, BboxAnnotations);
+annotations_accessor_mut!(ACTOR_NAME, Bbox, BboxAnnotations);
+annotations_accessor!(ACTOR_NAME, Bbox, BboxAnnotations);
+
+fn current_file_path(world: &World) -> &String {
+    &get_annos(world)
+        .expect(MISSING_ANNO_MSG)
+        .bbox()
+        .current_file_path
+}
+fn set_current_file_path(world: &mut World, cfp: String) {
+    get_annos_mut(world).bbox_mut().set_current_file_path(cfp);
 }
 
+fn bbs_mut(world: &mut World) -> &mut (Vec<BB>, Vec<bool>) {
+    get_annos_mut(world).bbox_mut().get_current_annos_mut()
+}
 #[derive(Clone, Debug)]
 pub struct BBox {
     prev_pos: Option<(usize, usize)>,
     initial_view: Option<ViewImage>,
-    file_box_map: HashMap<String, (Vec<BB>, Vec<bool>)>,
-    current_file_path: String,
     mover: Mover,
 }
 
 impl BBox {
-    fn bbs(&self) -> &Vec<BB> {
-        &self.file_box_map[&self.current_file_path].0
-    }
-    fn bbs_mut(&mut self) -> &mut Vec<BB> {
-        &mut self
-            .file_box_map
-            .get_mut(&self.current_file_path)
-            .unwrap()
-            .0
-    }
-    fn selected_bbs(&self) -> &Vec<bool> {
-        &self.file_box_map[&self.current_file_path].1
-    }
-    fn selected_bbs_mut(&mut self) -> &mut Vec<bool> {
-        &mut self
-            .file_box_map
-            .get_mut(&self.current_file_path)
-            .unwrap()
-            .1
-    }
-    fn draw_bbs_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let im_view = draw_bbs(
-            self.initial_view.clone().unwrap(),
-            world.ims_raw.shape(),
-            shape_win,
-            world.zoom_box(),
-            self.file_box_map[&self.current_file_path].0.iter(),
-            self.file_box_map[&self.current_file_path].1.iter(),
-            &Rgb([255, 255, 255]),
-        );
+    fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
+        let im_view = get_annos(&world)
+            .expect(MISSING_ANNO_MSG)
+            .bbox()
+            .draw_on_view(
+                self.initial_view.clone().unwrap(),
+                world.zoom_box(),
+                world.ims_raw.shape(),
+                shape_win,
+            );
         world.set_im_view(im_view);
         world
     }
@@ -116,25 +93,22 @@ impl BBox {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        let (bbs, selections) = self.file_box_map.get_mut(&self.current_file_path).unwrap();
+        let orig_shape = world.ims_raw.shape();
+        let zoom_box = *world.zoom_box();
         let move_boxes = |mpso, mpo| {
-            for (bb, selected) in bbs.iter_mut().zip(selections.iter()) {
+            let (bbs, selecteds) = bbs_mut(&mut world);
+            for (bb, selected) in bbs.iter_mut().zip(selecteds.iter()) {
                 if *selected {
-                    if let Some(bb_moved) = bb.follow_movement(mpso, mpo, world.ims_raw.shape()) {
+                    if let Some(bb_moved) = bb.follow_movement(mpso, mpo, orig_shape) {
                         *bb = bb_moved;
                     }
                 }
             }
             Some(())
         };
-        self.mover.move_mouse_held(
-            move_boxes,
-            mouse_pos,
-            shape_win,
-            world.ims_raw.shape(),
-            world.zoom_box(),
-        );
-        world = self.draw_bbs_on_view(world, shape_win);
+        self.mover
+            .move_mouse_held(move_boxes, mouse_pos, shape_win, orig_shape, &zoom_box);
+        world = self.draw_on_view(world, shape_win);
         (world, history)
     }
     fn mouse_released(
@@ -155,20 +129,21 @@ impl BBox {
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // second click
-            self.bbs_mut().push(BB::from_points(mp, pp));
-            self.selected_bbs_mut().push(false);
-            world = self.draw_bbs_on_view(world, shape_win);
+            bbs_mut(&mut world).0.push(BB::from_points(mp, pp));
+            bbs_mut(&mut world).1.push(false);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
+
             self.prev_pos = None;
         } else {
             // first click
             if event.key_held(VirtualKeyCode::LControl) {
-                let idx = mp_orig
-                    .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), self.bbs()));
+                let (bbs, selected_bbs) = bbs_mut(&mut world);
+                let idx =
+                    mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), bbs));
                 if let Some(i) = idx {
-                    self.selected_bbs_mut()[i] = !self.selected_bbs()[i];
+                    selected_bbs[i] = !selected_bbs[i];
                 }
-                world = self.draw_bbs_on_view(world, shape_win);
+                world = self.draw_on_view(world, shape_win);
             } else {
                 self.prev_pos = mouse_pos;
             }
@@ -184,8 +159,7 @@ impl BBox {
         mut history: History,
     ) -> (World, History) {
         if event.key_released(VirtualKeyCode::Delete) {
-            let (bbs, selected_bbs) =
-                mem::take(self.file_box_map.get_mut(&self.current_file_path).unwrap());
+            let (bbs, selected_bbs) = mem::take(bbs_mut(&mut world));
             let keep_indices = selected_bbs
                 .iter()
                 .enumerate()
@@ -194,15 +168,13 @@ impl BBox {
             let bbs = keep_indices.clone().map(|i| bbs[i]).collect::<Vec<_>>();
             // the selected ones have been deleted hence all remaining ones are unselected
             let selected_bbs = vec![false; bbs.len()];
-            self.file_box_map
-                .insert(self.current_file_path.clone(), (bbs, selected_bbs));
 
-            world = self.draw_bbs_on_view(world, shape_win);
+            *bbs_mut(&mut world) = (bbs, selected_bbs);
+
+            world = self.draw_on_view(world, shape_win);
             world.update_view(shape_win);
         } else if world.ims_raw.has_annotations() {
-            world.ims_raw.clear_annotations();
-            self.file_box_map
-                .insert(self.current_file_path.clone(), (vec![], vec![]));
+            *bbs_mut(&mut world) = (vec![], vec![]);
             world.update_view(shape_win);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         }
@@ -215,16 +187,22 @@ impl Manipulate for BBox {
         Self {
             prev_pos: None,
             initial_view: None,
-            file_box_map: HashMap::new(),
             mover: Mover::new(),
-            current_file_path: "".to_string(),
         }
     }
 
-    fn on_deactivate(&mut self) {
+    fn on_deactivate(
+        &mut self,
+        world: World,
+        history: History,
+        _shape_win: Shape,
+        _meta_data: &MetaData,
+    ) -> (World, History) {
         self.prev_pos = None;
         self.initial_view = None;
+        (world, history)
     }
+
     fn events_tf(
         &mut self,
         mut world: World,
@@ -234,19 +212,13 @@ impl Manipulate for BBox {
         event: &WinitInputHelper,
         meta_data: &MetaData,
     ) -> (World, History) {
-        match meta_data.file_path {
-            Some(mdfp) => {
-                if self.current_file_path.as_str() != mdfp {
-                    self.current_file_path = mdfp.to_string();
-                    if !self.file_box_map.contains_key(&self.current_file_path) {
-                        self.file_box_map
-                            .insert(self.current_file_path.clone(), (vec![], vec![]));
-                    }
-                    self.initial_view = Some(world.im_view().clone());
-                }
-            }
-            None => {
-                self.current_file_path = "".to_string();
+        
+        world = initialize_anno_data(world);
+
+        if let Some(mdfp) = meta_data.file_path {
+            if current_file_path(&world) != mdfp {
+                set_current_file_path(&mut world, mdfp.to_string());
+                self.initial_view = Some(world.im_view().clone());
             }
         }
         if self.initial_view.is_none() {
@@ -258,7 +230,7 @@ impl Manipulate for BBox {
             }
         }
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
-            world = self.draw_bbs_on_view(world, shape_win);
+            world = self.draw_on_view(world, shape_win);
             let im_view = world.take_view();
             world.set_im_view(draw_bx_on_view(
                 im_view,

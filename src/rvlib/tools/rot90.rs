@@ -4,7 +4,6 @@ use crate::{
     util::Shape,
     world::{ImsRaw, World},
 };
-use image::imageops;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
@@ -15,7 +14,7 @@ const ACTOR_NAME: &str = "Rot90";
 /// rotate 90 degrees counter clockwise
 fn rot90(ims: &ImsRaw) -> ImsRaw {
     let mut ims = ims.clone();
-    ims.apply(|im| im.rotate270(), |a| imageops::rotate270(&a));
+    ims.apply(|im| im.rotate270());
     ims
 }
 #[derive(Clone, Copy, Debug)]
