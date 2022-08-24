@@ -1,5 +1,5 @@
 use crate::tools::{
-    core::{draw_bx_on_view, MetaData, Mover},
+    core::{MetaData, Mover},
     Manipulate,
 };
 use crate::{
@@ -9,11 +9,10 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     types::ViewImage,
-    util::{mouse_pos_to_orig_pos, to_u32, Shape, BB},
+    util::{mouse_pos_to_orig_pos, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
-use image::Rgb;
 use std::collections::HashMap;
 use std::mem;
 use winit::event::VirtualKeyCode;
@@ -236,15 +235,28 @@ impl Manipulate for BBox {
                 self.initial_view = Some(world.im_view().clone());
             }
         }
-        if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
+        let mp_orig = mouse_pos_to_orig_pos(
+            mouse_pos,
+            world.ims_raw.shape(),
+            shape_win,
+            world.zoom_box(),
+        );
+        let pp_orig = mouse_pos_to_orig_pos(
+            self.prev_pos,
+            world.ims_raw.shape(),
+            shape_win,
+            world.zoom_box(),
+        );
+        if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             world = self.draw_on_view(world, shape_win, meta_data.file_path);
-            let im_view = world.take_view();
-            world.set_im_view(draw_bx_on_view(
-                im_view,
-                to_u32(mp),
-                to_u32(pp),
-                &Rgb([255, 255, 255]),
-            ));
+            let tmp_annos = BboxAnnotations {
+                bbs: vec![BB::from_points(mp, pp)],
+                selected_bbs: vec![false],
+            };
+            let mut im_view = world.take_view();
+            im_view =
+                tmp_annos.draw_on_view(im_view, world.zoom_box(), world.ims_raw.shape(), shape_win);
+            world.set_im_view(im_view);
         }
         make_tool_transform!(
             self,
