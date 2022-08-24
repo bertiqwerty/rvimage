@@ -14,6 +14,7 @@ use rvlib::tools::{make_tool_vec, Manipulate, MetaData, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
 use rvlib::world::{ImsRaw, World};
 use rvlib::{apply_tool_method, httpserver};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
 use std::mem;
@@ -174,8 +175,10 @@ fn main() -> Result<(), pixels::Error> {
     };
 
     fn empty_world() -> World {
-        World::from_im(
+        World::from_real_im(
             DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
+            HashMap::new(),
+            "".to_string(),
             Shape::new(START_WIDTH, START_HEIGHT),
         )
     }
@@ -323,11 +326,13 @@ fn main() -> Result<(), pixels::Error> {
                 // load new image
                 if let Some(selected) = &menu_file_selected {
                     let folder_label = make_folder_label();
-                    let read_image_and_idx = match framework.menu_mut().read_image(*selected) {
-                        Some(ri) => {
+                    let file_path = menu_file_selected.and_then(|fs| Some(framework.menu().file_path(fs)?.to_string()));
+                    let read_image_and_idx = match (file_path, framework.menu_mut().read_image(*selected)) {
+                        (Some(fp), Some(ri)) => {
+                            let ims_raw = ImsRaw::new(ri, world.ims_raw.annotations.clone(), fp);
                             if !undo_redo_load {
                                 history.push(Record {
-                                    ims_raw: ImsRaw::new(ri.clone()),
+                                    ims_raw: ims_raw.clone(),
                                     actor: LOAD_ACTOR_NAME,
                                     file_label_idx: file_selected,
                                     folder_label,
@@ -336,14 +341,21 @@ fn main() -> Result<(), pixels::Error> {
                             undo_redo_load = false;
                             file_selected = menu_file_selected;
                             is_loading_screen_active = false;
-                            (ImsRaw::new(ri), file_selected)
+                            (ims_raw, file_selected)
                         }
-                        None => {
+                        _ => {
                             thread::sleep(Duration::from_millis(20));
                             let shape = world.shape_orig();
                             file_selected = menu_file_selected;
                             is_loading_screen_active = true;
-                            (ImsRaw::new(loading_image(shape, counter)), file_selected)
+                            (
+                                ImsRaw::new(
+                                    loading_image(shape, counter),
+                                    world.ims_raw.annotations.clone(),
+                                    "".to_string(),
+                                ),
+                                file_selected,
+                            )
                         }
                     };
                     Some(read_image_and_idx)

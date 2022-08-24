@@ -224,12 +224,9 @@ impl Manipulate for BBox {
 
         if self.current_file_path.as_deref() != meta_data.file_path {
             self.current_file_path = meta_data.file_path.map(|s| s.to_string());
-            self.initial_view = Some(world.im_view().clone());
+            self.initial_view = Some(world.ims_raw.bg_to_unannotated_view(world.zoom_box(), shape_win));
         }
 
-        if self.initial_view.is_none() {
-            self.initial_view = Some(world.im_view().clone());
-        }
         if let Some(iv) = &self.initial_view {
             if Shape::from_im(iv) != Shape::from_im(world.im_view()) {
                 self.initial_view = Some(world.im_view().clone());

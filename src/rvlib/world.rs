@@ -7,7 +7,7 @@ use crate::util::{self, Shape, BB};
 use image::{imageops, imageops::FilterType, DynamicImage};
 use pixels::Pixels;
 
-pub fn scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: Option<BB>, shape_win: Shape) -> ViewImage {
+pub fn raw_scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
     let shape_orig = ims_raw.shape();
     let unscaled = util::shape_unscaled(&zoom_box, shape_orig);
     let new = util::shape_scaled(unscaled, shape_win);
@@ -18,13 +18,17 @@ pub fn scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: Option<BB>, shape_win: Sha
     } else {
         ims_raw.bg_to_uncropped_view()
     };
-
     let im_view = if im_view.width() != new.w || im_view.height() != new.h {
         imageops::resize(&im_view, new.w, new.h, FilterType::Nearest)
     } else {
         im_view
     };
-    ims_raw.draw_annotations_on_view(im_view, &zoom_box, shape_orig, shape_win)
+    im_view
+}
+
+pub fn scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
+    let im_view = raw_scaled_to_win_view(ims_raw, zoom_box, shape_win);
+    ims_raw.draw_annotations_on_view(im_view, &zoom_box, ims_raw.shape(), shape_win)
 }
 
 fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
@@ -35,18 +39,26 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
 }
 
+// filename -> (tool name -> annotations)
+pub type AnnotationsType = HashMap<String, HashMap<&'static str, Annotations>>;
+
 #[derive(Clone, Default, PartialEq)]
 pub struct ImsRaw {
     im_background: DynamicImage,
-    // filename -> (tool name -> annotations)
-    pub annotations: HashMap<String, HashMap<&'static str, Annotations>>,
+    pub annotations: AnnotationsType,
+    file_path: String,
 }
 
 impl ImsRaw {
-    pub fn new(im_background: DynamicImage) -> Self {
+    pub fn new(
+        im_background: DynamicImage,
+        annotations: AnnotationsType,
+        file_path: String,
+    ) -> Self {
         ImsRaw {
             im_background,
-            annotations: HashMap::new(),
+            annotations,
+            file_path,
         }
     }
 
@@ -57,7 +69,7 @@ impl ImsRaw {
         shape_orig: Shape,
         shape_win: Shape,
     ) -> ViewImage {
-        for annos in self.annotations.values() {
+        if let Some(annos) = self.annotations.get(&self.file_path) {
             for anno in annos.values() {
                 im_view = anno.draw_on_view(im_view, zoom_box, shape_orig, shape_win);
             }
@@ -82,6 +94,10 @@ impl ImsRaw {
 
     pub fn bg_to_uncropped_view(&self) -> ViewImage {
         util::orig_to_0_255(&self.im_background, &None)
+    }
+
+    pub fn bg_to_unannotated_view(&self, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
+        raw_scaled_to_win_view(&self, zoom_box, shape_win)
     }
 }
 
@@ -125,7 +141,7 @@ impl World {
         }
     }
     pub fn new(ims_raw: ImsRaw, zoom_box: Option<BB>, shape_win: Shape) -> Self {
-        let im_view = scaled_to_win_view(&ims_raw, zoom_box, shape_win);
+        let im_view = scaled_to_win_view(&ims_raw, &zoom_box, shape_win);
         Self {
             ims_raw,
             im_view,
@@ -133,8 +149,9 @@ impl World {
             zoom_box,
         }
     }
-    pub fn from_im(im: DynamicImage, shape_win: Shape) -> Self {
-        Self::new(ImsRaw::new(im), None, shape_win)
+    /// real image in contrast to the loading image
+    pub fn from_real_im(im: DynamicImage, annotations: AnnotationsType, file_path: String, shape_win: Shape) -> Self {
+        Self::new(ImsRaw::new(im, annotations, file_path), None, shape_win)
     }
     pub fn view_from_annotations(&mut self, shape_win: Shape) {
         let im_view_tmp = self.ims_raw.draw_annotations_on_view(
@@ -158,14 +175,14 @@ impl World {
         self.is_redraw_requested = true;
     }
     pub fn update_view(&mut self, shape_win: Shape) {
-        self.im_view = scaled_to_win_view(&self.ims_raw, *self.zoom_box(), shape_win);
+        self.im_view = scaled_to_win_view(&self.ims_raw, self.zoom_box(), shape_win);
         self.is_redraw_requested = true;
     }
     pub fn shape_orig(&self) -> Shape {
         self.ims_raw.shape()
     }
     pub fn set_zoom_box(&mut self, zoom_box: Option<BB>, shape_win: Shape) {
-        self.im_view = scaled_to_win_view(&self.ims_raw, zoom_box, shape_win);
+        self.im_view = scaled_to_win_view(&self.ims_raw, &zoom_box, shape_win);
         self.zoom_box = zoom_box;
         self.is_redraw_requested = true;
     }
@@ -204,8 +221,8 @@ fn test_scale_to_win() -> RvResult<()> {
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     im_test.put_pixel(10, 10, Rgb([23, 23, 23]));
     let im_scaled = scaled_to_win_view(
-        &ImsRaw::new(DynamicImage::ImageRgb8(im_test)),
-        None,
+        &ImsRaw::new(DynamicImage::ImageRgb8(im_test), HashMap::new(), "".to_string()),
+        &None,
         Shape { w: 128, h: 128 },
     );
     assert_eq!(im_scaled.get_pixel(0, 0).0, [23, 23, 23]);

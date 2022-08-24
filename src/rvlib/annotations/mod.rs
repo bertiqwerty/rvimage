@@ -50,16 +50,14 @@ macro_rules! anno_data_initializer {
     ($actor:expr, $variant:ident, $annotation_type:ident) => {
         fn initialize_anno_data(mut world: World, current_file_path: Option<&str>) -> World {
             if let Some(cfp) = current_file_path {
-                let is_none = world.ims_raw.annotations.get_mut(cfp).is_none();
-                if is_none {
+                if world.ims_raw.annotations.get_mut(cfp).is_none() {
                     world
                         .ims_raw
                         .annotations
                         .insert(cfp.to_string(), HashMap::new());
                 }
                 let actor_annotations_map = world.ims_raw.annotations.get_mut(cfp).unwrap();
-                let is_none = actor_annotations_map.get_mut($actor).is_none();
-                if is_none {
+                if actor_annotations_map.get_mut($actor).is_none() {
                     actor_annotations_map
                         .insert($actor, Annotations::$variant($annotation_type::default()));
                 }
