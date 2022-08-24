@@ -557,8 +557,13 @@ pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
     if corner_1.is_none() && corner_2.is_none() {
         return im;
     }
-    let (x_min, y_min) = corner_1.unwrap_or((0, 0));
-    let (x_max, y_max) = corner_2.unwrap_or((im.width(), im.height()));
+    
+    let tmp_c_1 = corner_1.unwrap_or((0, 0));
+    let tmp_c_2 = corner_2.unwrap_or((im.width(), im.height()));
+    let x_min = tmp_c_1.0.min(tmp_c_2.0);
+    let y_min = tmp_c_1.1.min(tmp_c_2.1);
+    let x_max = tmp_c_1.0.max(tmp_c_2.0);
+    let y_max = tmp_c_1.1.max(tmp_c_2.1);
     let draw_bx = BB {
         x: x_min as u32,
         y: y_min as u32,
