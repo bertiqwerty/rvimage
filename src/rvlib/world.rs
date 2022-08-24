@@ -9,7 +9,7 @@ use pixels::Pixels;
 
 pub fn raw_scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
     let shape_orig = ims_raw.shape();
-    let unscaled = util::shape_unscaled(&zoom_box, shape_orig);
+    let unscaled = util::shape_unscaled(zoom_box, shape_orig);
     let new = util::shape_scaled(unscaled, shape_win);
     let im_view = if let Some(c) = zoom_box {
         let mut ims_raw = ims_raw.clone();
@@ -18,17 +18,16 @@ pub fn raw_scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: &Option<BB>, shape_win
     } else {
         ims_raw.bg_to_uncropped_view()
     };
-    let im_view = if im_view.width() != new.w || im_view.height() != new.h {
+    if im_view.width() != new.w || im_view.height() != new.h {
         imageops::resize(&im_view, new.w, new.h, FilterType::Nearest)
     } else {
         im_view
-    };
-    im_view
+    }
 }
 
 pub fn scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
     let im_view = raw_scaled_to_win_view(ims_raw, zoom_box, shape_win);
-    ims_raw.draw_annotations_on_view(im_view, &zoom_box, ims_raw.shape(), shape_win)
+    ims_raw.draw_annotations_on_view(im_view, zoom_box, ims_raw.shape(), shape_win)
 }
 
 fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
@@ -97,7 +96,7 @@ impl ImsRaw {
     }
 
     pub fn bg_to_unannotated_view(&self, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
-        raw_scaled_to_win_view(&self, zoom_box, shape_win)
+        raw_scaled_to_win_view(self, zoom_box, shape_win)
     }
 }
 
