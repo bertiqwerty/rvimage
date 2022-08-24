@@ -130,7 +130,7 @@ impl BBox {
             if event.key_held(VirtualKeyCode::LControl) {
                 let annos = &mut get_annos_mut(&mut world).bbox_mut();
                 let idx =
-                    mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &mut annos.bbs));
+                    mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &annos.bbs));
                 if let Some(i) = idx {
                     annos.selected_bbs[i] = !annos.selected_bbs[i];
                 }
@@ -211,7 +211,7 @@ impl Manipulate for BBox {
     ) -> (World, History) {
         world = initialize_anno_data(world);
 
-        if self.current_file_path.as_ref().map(|s| s.as_str()) != meta_data.file_path {
+        if self.current_file_path.as_deref() != meta_data.file_path {
             self.current_file_path = meta_data.file_path.map(|s| s.to_string());
             self.initial_view = Some(world.im_view().clone());
         }
