@@ -38,8 +38,8 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
 #[derive(Clone, Default, PartialEq)]
 pub struct ImsRaw {
     im_background: DynamicImage,
-    // name of the tool, i.e., ACTOR_NAME maps to its annotations
-    pub annotations: HashMap<&'static str, Annotations>,
+    // filename -> (tool name -> annotations)
+    pub annotations: HashMap<String, HashMap<&'static str, Annotations>>,
 }
 
 impl ImsRaw {
@@ -57,18 +57,16 @@ impl ImsRaw {
         shape_orig: Shape,
         shape_win: Shape,
     ) -> ViewImage {
-        for anno in self.annotations.values() {
-            im_view = anno.draw_on_view(im_view, zoom_box, shape_orig, shape_win);
+        for annos in self.annotations.values() {
+            for anno in annos.values() {
+                im_view = anno.draw_on_view(im_view, zoom_box, shape_orig, shape_win);
+            }
         }
         im_view
     }
 
     pub fn im_background(&self) -> &DynamicImage {
         &self.im_background
-    }
-
-    pub fn has_annotations(&self) -> bool {
-        !self.annotations.is_empty()
     }
 
     pub fn apply<FI>(&mut self, mut f_i: FI)

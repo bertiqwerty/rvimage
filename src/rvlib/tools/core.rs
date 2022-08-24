@@ -87,6 +87,7 @@ macro_rules! make_tool_transform {
         $shape_win:expr,
         $mouse_pos:expr,
         $event:expr,
+        $meta_data:expr,
         [$(($mouse_event:ident, $mouse_btn:expr)),*],
         [$(($key_event:ident, $key_btn:expr)),*]
     ) => {
@@ -94,10 +95,10 @@ macro_rules! make_tool_transform {
             ($world, $history)
         }
         $(else if $event.$mouse_event($mouse_btn) {
-            $self.$mouse_event($event, $shape_win, $mouse_pos, $world, $history)
+            $self.$mouse_event($event, $shape_win, $mouse_pos, $world, $history, $meta_data)
         })*
         $(else if $event.$key_event($key_btn) {
-            $self.$key_event($event, $shape_win, $mouse_pos, $world, $history)
+            $self.$key_event($event, $shape_win, $mouse_pos, $world, $history, $meta_data)
         })*
         else {
             ($world, $history)

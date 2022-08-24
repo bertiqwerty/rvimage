@@ -28,6 +28,7 @@ impl Rot90 {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         world = World::new(rot90(&world.ims_raw), *world.zoom_box(), shape_win);
@@ -47,7 +48,7 @@ impl Manipulate for Rot90 {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
-        _meta_data: &MetaData,
+        meta_data: &MetaData,
     ) -> (World, History) {
         make_tool_transform!(
             self,
@@ -56,6 +57,7 @@ impl Manipulate for Rot90 {
             shape_win,
             mouse_pos,
             event,
+            meta_data,
             [],
             [(key_pressed, VirtualKeyCode::R)]
         )

@@ -9,6 +9,7 @@ use crate::{
     world::World,
     LEFT_BTN,
 };
+use std::collections::HashMap;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
@@ -26,8 +27,13 @@ pub struct Brush {
 }
 
 impl Brush {
-    fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let im_view = get_annos(&world)
+    fn draw_on_view(
+        &self,
+        mut world: World,
+        shape_win: Shape,
+        current_file_path: Option<&str>,
+    ) -> World {
+        let im_view = get_annos(&world, current_file_path)
             .expect(MISSING_ANNO_MSG)
             .brush()
             .draw_on_view(
@@ -46,32 +52,23 @@ impl Brush {
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
         history: History,
+        meta_data: &MetaData,
     ) -> (World, History) {
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
         if let Some(mp) = mp_orig {
-            get_annos_mut(&mut world)
+            get_annos_mut(&mut world, meta_data.file_path)
+                .expect(MISSING_ANNO_MSG)
                 .brush_mut()
                 .points
                 .last_mut()
                 .unwrap()
                 .push(mp);
-            world = self.draw_on_view(world, shape_win);
+            world = self.draw_on_view(world, shape_win, meta_data.file_path);
         }
         (world, history)
     }
 
-    fn mouse_pressed(
-        &mut self,
-        _event: &WinitInputHelper,
-        _shape_win: Shape,
-        _mouse_pos: Option<(usize, usize)>,
-        mut world: World,
-        _history: History,
-    ) -> (World, History) {
-        get_annos_mut(&mut world).brush_mut().points.push(vec![]);
-        (world, _history)
-    }
     fn mouse_released(
         &mut self,
         _event: &WinitInputHelper,
@@ -79,6 +76,7 @@ impl Brush {
         _mouse_pos: Option<(usize, usize)>,
         world: World,
         mut history: History,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         (world, history)
@@ -90,12 +88,15 @@ impl Brush {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
+        meta_data: &MetaData,
     ) -> (World, History) {
-        if world.ims_raw.has_annotations() {
-            get_annos_mut(&mut world).brush_mut().points.clear();
-            world = self.draw_on_view(world, shape_win);
-            history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
-        }
+        get_annos_mut(&mut world, meta_data.file_path)
+            .expect(MISSING_ANNO_MSG)
+            .brush_mut()
+            .points
+            .clear();
+        world = self.draw_on_view(world, shape_win, meta_data.file_path);
+        history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         (world, history)
     }
 }
@@ -112,9 +113,9 @@ impl Manipulate for Brush {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
-        _meta_data: &MetaData,
+        meta_data: &MetaData,
     ) -> (World, History) {
-        world = initialize_anno_data(world);
+        world = initialize_anno_data(world, meta_data.file_path);
         if self.initial_view.is_none() {
             self.initial_view = Some(world.im_view().clone());
         }
@@ -125,11 +126,8 @@ impl Manipulate for Brush {
             shape_win,
             mouse_pos,
             event,
-            [
-                (mouse_pressed, LEFT_BTN),
-                (mouse_held, LEFT_BTN),
-                (mouse_released, LEFT_BTN)
-            ],
+            meta_data,
+            [(mouse_held, LEFT_BTN), (mouse_released, LEFT_BTN)],
             [(key_pressed, VirtualKeyCode::Back)]
         )
     }

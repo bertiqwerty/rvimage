@@ -48,13 +48,21 @@ impl Annotate for Annotations {
 #[macro_export]
 macro_rules! anno_data_initializer {
     ($actor:expr, $variant:ident, $annotation_type:ident) => {
-        fn initialize_anno_data(mut world: World) -> World {
-            let is_none = world.ims_raw.annotations.get_mut($actor).is_none();
-            if is_none {
-                world
-                    .ims_raw
-                    .annotations
-                    .insert($actor, Annotations::$variant($annotation_type::default()));
+        fn initialize_anno_data(mut world: World, current_file_path: Option<&str>) -> World {
+            if let Some(cfp) = current_file_path {
+                let is_none = world.ims_raw.annotations.get_mut(cfp).is_none();
+                if is_none {
+                    world
+                        .ims_raw
+                        .annotations
+                        .insert(cfp.to_string(), HashMap::new());
+                }
+                let actor_annotations_map = world.ims_raw.annotations.get_mut(cfp).unwrap();
+                let is_none = actor_annotations_map.get_mut($actor).is_none();
+                if is_none {
+                    actor_annotations_map
+                        .insert($actor, Annotations::$variant($annotation_type::default()));
+                }
             }
             world
         }
@@ -63,16 +71,34 @@ macro_rules! anno_data_initializer {
 #[macro_export]
 macro_rules! annotations_accessor_mut {
     ($actor:expr, $variant:ident, $annotation_type:ident) => {
-        fn get_annos_mut(world: &mut World) -> &mut Annotations {
-            world.ims_raw.annotations.get_mut($actor).unwrap()
+        fn get_annos_mut<'a>(
+            world: &'a mut World,
+            current_file_path: Option<&str>,
+        ) -> Option<&'a mut Annotations> {
+            current_file_path.and_then(|cfp| {
+                world
+                    .ims_raw
+                    .annotations
+                    .get_mut(cfp)
+                    .and_then(|x| x.get_mut($actor))
+            })
         }
     };
 }
 #[macro_export]
 macro_rules! annotations_accessor {
     ($actor:expr, $variant:ident, $annotation_type:ident) => {
-        fn get_annos(world: &World) -> Option<&Annotations> {
-            world.ims_raw.annotations.get($actor)
+        fn get_annos<'a>(
+            world: &'a World,
+            current_file_path: Option<&str>,
+        ) -> Option<&'a Annotations> {
+            current_file_path.and_then(|cfp| {
+                world
+                    .ims_raw
+                    .annotations
+                    .get(cfp)
+                    .and_then(|x| x.get($actor))
+            })
         }
     };
 }

@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::tools::{
     core::{draw_bx_on_view, MetaData, Mover},
     Manipulate,
@@ -16,6 +14,8 @@ use crate::{
     LEFT_BTN, RIGHT_BTN,
 };
 use image::Rgb;
+use std::collections::HashMap;
+use std::mem;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
@@ -41,7 +41,6 @@ anno_data_initializer!(ACTOR_NAME, Bbox, BboxAnnotations);
 annotations_accessor_mut!(ACTOR_NAME, Bbox, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, Bbox, BboxAnnotations);
 
-
 #[derive(Clone, Debug)]
 pub struct BBox {
     current_file_path: Option<String>,
@@ -51,8 +50,8 @@ pub struct BBox {
 }
 
 impl BBox {
-    fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let im_view = get_annos(&world)
+    fn draw_on_view(&self, mut world: World, shape_win: Shape, file_path: Option<&str>) -> World {
+        let im_view = get_annos(&world, file_path)
             .expect(MISSING_ANNO_MSG)
             .bbox()
             .draw_on_view(
@@ -71,6 +70,7 @@ impl BBox {
         mouse_pos: Option<(usize, usize)>,
         world: World,
         history: History,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         self.mover.move_mouse_pressed(mouse_pos);
         (world, history)
@@ -82,11 +82,14 @@ impl BBox {
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
         history: History,
+        meta_data: &MetaData,
     ) -> (World, History) {
         let orig_shape = world.ims_raw.shape();
         let zoom_box = *world.zoom_box();
         let move_boxes = |mpso, mpo| {
-            let annos = get_annos_mut(&mut world).bbox_mut();
+            let annos = get_annos_mut(&mut world, meta_data.file_path)
+                .expect(MISSING_ANNO_MSG)
+                .bbox_mut();
             for (bb, is_bb_selected) in annos.bbs.iter_mut().zip(annos.selected_bbs.iter()) {
                 if *is_bb_selected {
                     if let Some(bb_moved) = bb.follow_movement(mpso, mpo, orig_shape) {
@@ -98,7 +101,7 @@ impl BBox {
         };
         self.mover
             .move_mouse_held(move_boxes, mouse_pos, shape_win, orig_shape, &zoom_box);
-        world = self.draw_on_view(world, shape_win);
+        world = self.draw_on_view(world, shape_win, meta_data.file_path);
         (world, history)
     }
     fn mouse_released(
@@ -108,6 +111,7 @@ impl BBox {
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
+        meta_data: &MetaData,
     ) -> (World, History) {
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
@@ -119,7 +123,9 @@ impl BBox {
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // second click
-            let annos = get_annos_mut(&mut world).bbox_mut();
+            let annos = get_annos_mut(&mut world, meta_data.file_path)
+                .expect(MISSING_ANNO_MSG)
+                .bbox_mut();
             annos.bbs.push(BB::from_points(mp, pp));
             annos.selected_bbs.push(false);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
@@ -128,13 +134,15 @@ impl BBox {
         } else {
             // first click
             if event.key_held(VirtualKeyCode::LControl) {
-                let annos = &mut get_annos_mut(&mut world).bbox_mut();
-                let idx =
-                    mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &annos.bbs));
+                let annos = get_annos_mut(&mut world, meta_data.file_path)
+                    .expect(MISSING_ANNO_MSG)
+                    .bbox_mut();
+                let idx = mp_orig
+                    .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &annos.bbs));
                 if let Some(i) = idx {
                     annos.selected_bbs[i] = !annos.selected_bbs[i];
                 }
-                world = self.draw_on_view(world, shape_win);
+                world = self.draw_on_view(world, shape_win, meta_data.file_path);
             } else {
                 self.prev_pos = mouse_pos;
             }
@@ -148,9 +156,18 @@ impl BBox {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
+        meta_data: &MetaData,
     ) -> (World, History) {
         if event.key_released(VirtualKeyCode::Delete) {
-            let annos = get_annos_mut(&mut world).bbox_mut();
+            let annos = get_annos_mut(&mut world, meta_data.file_path)
+                .expect(MISSING_ANNO_MSG)
+                .bbox_mut();
+            annos.bbs = vec![];
+            annos.selected_bbs = vec![];
+        } else {
+            let annos = get_annos_mut(&mut world, meta_data.file_path)
+                .expect(MISSING_ANNO_MSG)
+                .bbox_mut();
             let bbs = mem::take(&mut annos.bbs);
             let selected_bbs = mem::take(&mut annos.selected_bbs);
             let keep_indices = selected_bbs
@@ -165,12 +182,7 @@ impl BBox {
             annos.bbs = bbs;
             annos.selected_bbs = selected_bbs;
 
-            world = self.draw_on_view(world, shape_win);
-            world.update_view(shape_win);
-        } else if world.ims_raw.has_annotations() {
-            let annos = get_annos_mut(&mut world).bbox_mut();
-            annos.bbs = vec![];
-            annos.selected_bbs = vec![];
+            world = self.draw_on_view(world, shape_win, meta_data.file_path);
             world.update_view(shape_win);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         }
@@ -209,7 +221,7 @@ impl Manipulate for BBox {
         event: &WinitInputHelper,
         meta_data: &MetaData,
     ) -> (World, History) {
-        world = initialize_anno_data(world);
+        world = initialize_anno_data(world, meta_data.file_path);
 
         if self.current_file_path.as_deref() != meta_data.file_path {
             self.current_file_path = meta_data.file_path.map(|s| s.to_string());
@@ -225,7 +237,7 @@ impl Manipulate for BBox {
             }
         }
         if let (Some(mp), Some(pp)) = (mouse_pos, self.prev_pos) {
-            world = self.draw_on_view(world, shape_win);
+            world = self.draw_on_view(world, shape_win, meta_data.file_path);
             let im_view = world.take_view();
             world.set_im_view(draw_bx_on_view(
                 im_view,
@@ -241,6 +253,7 @@ impl Manipulate for BBox {
             shape_win,
             mouse_pos,
             event,
+            meta_data,
             [
                 (mouse_released, LEFT_BTN),
                 (mouse_pressed, RIGHT_BTN),

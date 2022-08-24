@@ -89,6 +89,7 @@ impl Zoom {
         mouse_pos: Option<(usize, usize)>,
         world: World,
         history: History,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         if event.mouse_pressed(RIGHT_BTN) {
             self.mover.move_mouse_pressed(mouse_pos);
@@ -123,6 +124,7 @@ impl Zoom {
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
         history: History,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         if event.mouse_released(LEFT_BTN) {
             world = self.mouse_released_left_btn(world, shape_win, mouse_pos);
@@ -142,6 +144,7 @@ impl Zoom {
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
         history: History,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         if event.mouse_held(RIGHT_BTN) {
             let shape_orig = world.ims_raw.shape();
@@ -177,6 +180,7 @@ impl Zoom {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         history: History,
+        _meta_data: &MetaData,
     ) -> (World, History) {
         world.set_zoom_box(None, shape_win);
         (world, history)
@@ -197,7 +201,7 @@ impl Manipulate for Zoom {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
-        _meta_data: &MetaData,
+        meta_data: &MetaData,
     ) -> (World, History) {
         make_tool_transform!(
             self,
@@ -206,6 +210,7 @@ impl Manipulate for Zoom {
             shape_win,
             mouse_pos,
             event,
+            meta_data,
             [
                 (mouse_pressed, LEFT_BTN),
                 (mouse_pressed, RIGHT_BTN),
@@ -272,7 +277,14 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let im_view_old = world.im_view().clone();
     let im_orig_old = world.ims_raw.clone();
     let event = WinitInputHelper::new();
-    let (res, _) = z.mouse_pressed(&event, shape_win, mouse_pos, world, history);
+    let (res, _) = z.mouse_pressed(
+        &event,
+        shape_win,
+        mouse_pos,
+        world,
+        history,
+        &MetaData { file_path: None },
+    );
     assert_eq!(*res.im_view(), im_view_old);
     assert_eq!(res.ims_raw, im_orig_old);
     assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
