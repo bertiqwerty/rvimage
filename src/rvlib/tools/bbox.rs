@@ -84,7 +84,11 @@ impl BBox {
     }
     fn assert_initial_view(&mut self, world: &World, shape_win: Shape) {
         if self.initial_view.is_none() {
-            self.initial_view = Some(world.ims_raw.bg_to_unannotated_view(world.zoom_box(), shape_win));
+            self.initial_view = Some(
+                world
+                    .ims_raw
+                    .bg_to_unannotated_view(world.zoom_box(), shape_win),
+            );
         }
     }
     fn mouse_pressed(
@@ -269,7 +273,7 @@ impl Manipulate for BBox {
         meta_data: &MetaData,
     ) -> (World, History) {
         world = initialize_anno_data(world, meta_data.file_path);
-        self.assert_initial_view(&mut world, shape_win);
+        self.assert_initial_view(&world, shape_win);
         if self.current_file_path.as_deref() != meta_data.file_path {
             self.current_file_path = meta_data.file_path.map(|s| s.to_string());
         }

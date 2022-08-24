@@ -84,7 +84,7 @@ pub fn view_pos_to_orig_pos(
     shape_win: Shape,
     zoom_box: &Option<BB>,
 ) -> (u32, u32) {
-    let coord_trans_2_orig = |x: u32, n_transformed: u32, n_orig: u32, off: u32| -> u32 {
+    let coord_view_2_orig = |x: u32, n_transformed: u32, n_orig: u32, off: u32| -> u32 {
         let tmp = x as f64 * n_orig as f64 / n_transformed as f64;
         let tmp = if n_transformed > n_orig {
             tmp.ceil()
@@ -93,15 +93,33 @@ pub fn view_pos_to_orig_pos(
         };
         off + tmp as u32
     };
-    pos_transform(
-        view_pos,
-        shape_orig,
-        shape_win,
-        zoom_box,
-        coord_trans_2_orig,
-    )
+    pos_transform(view_pos, shape_orig, shape_win, zoom_box, coord_view_2_orig)
+}
+fn coord_orig_2_view(x: u32, n_transformed: u32, n_orig: u32, off: u32) -> u32 {
+    let tmp = (x - off) as f64 * n_transformed as f64 / n_orig as f64;
+    let tmp = if n_transformed > n_orig {
+        tmp.floor()
+    } else {
+        tmp.ceil()
+    };
+    tmp as u32
 }
 
+pub fn orig_coord_to_view_coord(
+    coord: u32,
+    n_coords: u32,
+    n_pixels_scaled: u32,
+    min_max: &Option<(u32, u32)>,
+) -> Option<u32> {
+    if let Some((min, max)) = min_max {
+        if &coord < min || max <= &coord {
+            return None;
+        }
+    }
+    let unscaled = min_max.map_or(n_coords, |mm| mm.1 - mm.0);
+    let off = min_max.map_or(0, |mm| mm.0);
+    Some(coord_orig_2_view(coord, n_pixels_scaled, unscaled, off))
+}
 /// Converts the position of a pixel in the view to the coordinates of the original image
 pub fn orig_pos_to_view_pos(
     orig_pos: (u32, u32),
@@ -114,21 +132,12 @@ pub fn orig_pos_to_view_pos(
             return None;
         }
     }
-    let coord_trans_2_view = |x: u32, n_transformed: u32, n_orig: u32, off: u32| -> u32 {
-        let tmp = (x - off) as f64 * n_transformed as f64 / n_orig as f64;
-        let tmp = if n_transformed > n_orig {
-            tmp.floor()
-        } else {
-            tmp.ceil()
-        };
-        tmp as u32
-    };
     Some(pos_transform(
         orig_pos,
         shape_orig,
         shape_win,
         zoom_box,
-        coord_trans_2_view,
+        coord_orig_2_view,
     ))
 }
 
@@ -200,7 +209,7 @@ where
         x1 + x2
     }
 }
-pub type CornerOptions = (Option<(u32, u32)>, Option<(u32, u32)>);
+pub type CornerOptions = ((Option<u32>, Option<u32>), (Option<u32>, Option<u32>));
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct BB {
     pub x: u32,
@@ -209,30 +218,71 @@ pub struct BB {
     pub h: u32,
 }
 impl BB {
+    pub fn min_max(&self, axis: usize) -> (u32, u32) {
+        if axis == 0 {
+            (self.x, self.x + self.w)
+        } else {
+            (self.y, self.y + self.h)
+        }
+    }
     pub fn to_view_corners(
         &self,
         shape_orig: Shape,
         shape_win: Shape,
         zoom_box: &Option<BB>,
     ) -> CornerOptions {
-        let (min, max) = match zoom_box {
+        let ((x_min, y_min), (x_max, y_max)) = match zoom_box {
             Some(zb) => {
-                let min = if zb.contains(self.min()) {
-                    Some(self.min())
-                } else {
+                let x_min = if zb.x > self.min().0 {
                     None
-                };
-                let max = if zb.extend_max((1, 1), None).contains(self.max()) {
-                    Some(self.max())
                 } else {
-                    None
+                    Some(self.min().0)
                 };
-                (min, max)
+                let y_min = if zb.y > self.min().1 {
+                    None
+                } else {
+                    Some(self.min().1)
+                };
+                let x_max = if zb.x > self.max().0 {
+                    None
+                } else {
+                    Some(self.max().0)
+                };
+                let y_max = if zb.y > self.max().1 {
+                    None
+                } else {
+                    Some(self.max().1)
+                };
+
+                ((x_min, y_min), (x_max, y_max))
             }
-            None => (Some(self.min()), Some(self.max())),
+            None => (
+                (Some(self.min().0), Some(self.min().1)),
+                (Some(self.max().0), Some(self.max().1)),
+            ),
         };
-        let tf = |x| orig_pos_to_view_pos(x, shape_orig, shape_win, zoom_box);
-        (min.and_then(tf), max.and_then(tf))
+        let s_unscaled = shape_unscaled(zoom_box, shape_orig);
+        let s_scaled = shape_scaled(s_unscaled, shape_win);
+        let tf_x = |x| {
+            orig_coord_to_view_coord(
+                x,
+                s_unscaled.w,
+                s_scaled.w,
+                &zoom_box.map(|zb| zb.min_max(0)),
+            )
+        };
+        let tf_y = |y| {
+            orig_coord_to_view_coord(
+                y,
+                s_unscaled.h,
+                s_scaled.h,
+                &zoom_box.map(|zb| zb.min_max(1)),
+            )
+        };
+        (
+            (x_min.and_then(tf_x), y_min.and_then(tf_y)),
+            (x_max.and_then(tf_x), y_max.and_then(tf_y)),
+        )
     }
 
     pub fn shape(&self) -> Shape {
@@ -549,21 +599,19 @@ fn test_view_pos_tf() {
 
 pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
     mut im: I,
-    corner_1: Option<(u32, u32)>,
-    corner_2: Option<(u32, u32)>,
+    corner_1: (Option<u32>, Option<u32>),
+    corner_2: (Option<u32>, Option<u32>),
     color: &I::Pixel,
     fn_inner_color: F,
 ) -> I {
-    if corner_1.is_none() && corner_2.is_none() {
-        return im;
-    }
-    
-    let tmp_c_1 = corner_1.unwrap_or((0, 0));
-    let tmp_c_2 = corner_2.unwrap_or((im.width(), im.height()));
-    let x_min = tmp_c_1.0.min(tmp_c_2.0);
-    let y_min = tmp_c_1.1.min(tmp_c_2.1);
-    let x_max = tmp_c_1.0.max(tmp_c_2.0);
-    let y_max = tmp_c_1.1.max(tmp_c_2.1);
+    let x_c1 = corner_1.0.unwrap_or(0);
+    let y_c1 = corner_1.1.unwrap_or(0);
+    let x_c2 = corner_2.0.unwrap_or_else(|| im.width());
+    let y_c2 = corner_2.1.unwrap_or_else(|| im.height());
+    let x_min = x_c1.min(x_c2);
+    let y_min = y_c1.min(y_c2);
+    let x_max = x_c1.max(x_c2);
+    let y_max = y_c1.max(y_c2);
     let draw_bx = BB {
         x: x_min as u32,
         y: y_min as u32,
@@ -576,7 +624,7 @@ pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
         im.put_pixel(x, y, fn_inner_color(&rgb));
     };
     {
-        let mut put_pixel = |c: Option<(u32, u32)>, x, y| {
+        let mut put_pixel = |c: Option<u32>, x, y| {
             if c.is_some() {
                 im.put_pixel(x, y, *color);
             } else {
@@ -584,12 +632,12 @@ pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
             }
         };
         for x in draw_bx.x_range() {
-            put_pixel(corner_1, x, draw_bx.y);
-            put_pixel(corner_2, x, draw_bx.y + draw_bx.h - 1);
+            put_pixel(corner_1.1, x, draw_bx.y);
+            put_pixel(corner_2.1, x, draw_bx.y + draw_bx.h - 1);
         }
         for y in draw_bx.y_range() {
-            put_pixel(corner_1, draw_bx.x, y);
-            put_pixel(corner_2, draw_bx.x + draw_bx.w - 1, y);
+            put_pixel(corner_1.0, draw_bx.x, y);
+            put_pixel(corner_2.0, draw_bx.x + draw_bx.w - 1, y);
         }
     }
     draw_bx.effect_per_inner_pixel(|x, y| inner_effect(x, y, &mut im));

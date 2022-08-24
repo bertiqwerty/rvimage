@@ -120,5 +120,11 @@ pub fn draw_bx_on_view(
             util::clipped_add(offset[2], rgb[2], 255),
         ])
     };
-    util::draw_bx_on_image(im, Some(corner_1), Some(corner_2), color, f)
+    util::draw_bx_on_image(
+        im,
+        (Some(corner_1.0), Some(corner_1.1)),
+        (Some(corner_2.0), Some(corner_2.1)),
+        color,
+        f,
+    )
 }
