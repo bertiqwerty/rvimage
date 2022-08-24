@@ -157,7 +157,7 @@ impl BBox {
         mut history: History,
         meta_data: &MetaData,
     ) -> (World, History) {
-        if event.key_released(VirtualKeyCode::Delete) {
+        if event.key_released(VirtualKeyCode::Back) {
             let annos = get_annos_mut(&mut world, meta_data.file_path)
                 .expect(MISSING_ANNO_MSG)
                 .bbox_mut();
@@ -180,11 +180,10 @@ impl BBox {
 
             annos.bbs = bbs;
             annos.selected_bbs = selected_bbs;
-
-            world = self.draw_on_view(world, shape_win, meta_data.file_path);
-            world.update_view(shape_win);
-            history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         }
+        world = self.draw_on_view(world, shape_win, meta_data.file_path);
+        world.update_view(shape_win);
+        history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         (world, history)
     }
 }
