@@ -142,7 +142,12 @@ use {
 fn test_history() -> RvResult<()> {
     let dummy_shape_win = Shape::new(128, 128);
     let im = ViewImage::new(64, 64);
-    let world = World::from_real_im(DynamicImage::ImageRgb8(im), HashMap::new(), "".to_string(), dummy_shape_win);
+    let world = World::from_real_im(
+        DynamicImage::ImageRgb8(im),
+        HashMap::new(),
+        "".to_string(),
+        dummy_shape_win,
+    );
     let mut hist = History::new();
 
     hist.push(Record {

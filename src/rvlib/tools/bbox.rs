@@ -36,6 +36,26 @@ fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
+fn move_bbs(
+    mut bbs: Vec<BB>,
+    selected_bbs: &[bool],
+    x_shift: i32,
+    y_shift: i32,
+    shape_orig: Shape,
+) -> Vec<BB> {
+    let selected_idxs = selected_bbs
+        .iter()
+        .enumerate()
+        .filter(|(_, x)| **x)
+        .map(|(i, _)| i);
+    for idx in selected_idxs {
+        if let Some(bb) = bbs[idx].translate(x_shift, y_shift, shape_orig) {
+            bbs[idx] = bb;
+        }
+    }
+    bbs
+}
+
 anno_data_initializer!(ACTOR_NAME, Bbox, BboxAnnotations);
 annotations_accessor_mut!(ACTOR_NAME, Bbox, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, Bbox, BboxAnnotations);
@@ -148,6 +168,33 @@ impl BBox {
         }
         (world, history)
     }
+    fn key_held(
+        &mut self,
+        event: &WinitInputHelper,
+        shape_win: Shape,
+        _mouse_pos: Option<(usize, usize)>,
+        mut world: World,
+        history: History,
+        meta_data: &MetaData,
+    ) -> (World, History) {
+        let shape_orig = world.ims_raw.shape();
+        let annos = get_annos_mut(&mut world, meta_data.file_path)
+            .expect(MISSING_ANNO_MSG)
+            .bbox_mut();
+        let taken_bbs = mem::take(&mut annos.bbs);
+        if event.key_held(VirtualKeyCode::Up) {
+            annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 0, -1, shape_orig);
+        } else if event.key_held(VirtualKeyCode::Down) {
+            annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 0, 1, shape_orig);
+        } else if event.key_held(VirtualKeyCode::Right) {
+            annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 1, 0, shape_orig);
+        } else if event.key_held(VirtualKeyCode::Left) {
+            annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, -1, 0, shape_orig);
+        }
+        world = self.draw_on_view(world, shape_win, meta_data.file_path);
+        world.update_view(shape_win);
+        (world, history)
+    }
     fn key_released(
         &mut self,
         event: &WinitInputHelper,
@@ -157,16 +204,13 @@ impl BBox {
         mut history: History,
         meta_data: &MetaData,
     ) -> (World, History) {
+        let annos = get_annos_mut(&mut world, meta_data.file_path)
+            .expect(MISSING_ANNO_MSG)
+            .bbox_mut();
         if event.key_released(VirtualKeyCode::Back) {
-            let annos = get_annos_mut(&mut world, meta_data.file_path)
-                .expect(MISSING_ANNO_MSG)
-                .bbox_mut();
             annos.bbs = vec![];
             annos.selected_bbs = vec![];
         } else {
-            let annos = get_annos_mut(&mut world, meta_data.file_path)
-                .expect(MISSING_ANNO_MSG)
-                .bbox_mut();
             let bbs = mem::take(&mut annos.bbs);
             let selected_bbs = mem::take(&mut annos.selected_bbs);
             let keep_indices = selected_bbs
@@ -223,7 +267,11 @@ impl Manipulate for BBox {
 
         if self.current_file_path.as_deref() != meta_data.file_path {
             self.current_file_path = meta_data.file_path.map(|s| s.to_string());
-            self.initial_view = Some(world.ims_raw.bg_to_unannotated_view(world.zoom_box(), shape_win));
+            self.initial_view = Some(
+                world
+                    .ims_raw
+                    .bg_to_unannotated_view(world.zoom_box(), shape_win),
+            );
         }
 
         if let Some(iv) = &self.initial_view {
@@ -269,7 +317,11 @@ impl Manipulate for BBox {
             ],
             [
                 (key_released, VirtualKeyCode::Back),
-                (key_released, VirtualKeyCode::Delete)
+                (key_released, VirtualKeyCode::Delete),
+                (key_held, VirtualKeyCode::Down),
+                (key_held, VirtualKeyCode::Up),
+                (key_held, VirtualKeyCode::Left),
+                (key_held, VirtualKeyCode::Right)
             ]
         )
     }

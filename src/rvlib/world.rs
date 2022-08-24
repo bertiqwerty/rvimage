@@ -7,7 +7,11 @@ use crate::util::{self, Shape, BB};
 use image::{imageops, imageops::FilterType, DynamicImage};
 use pixels::Pixels;
 
-pub fn raw_scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
+pub fn raw_scaled_to_win_view(
+    ims_raw: &ImsRaw,
+    zoom_box: &Option<BB>,
+    shape_win: Shape,
+) -> ViewImage {
     let shape_orig = ims_raw.shape();
     let unscaled = util::shape_unscaled(zoom_box, shape_orig);
     let new = util::shape_scaled(unscaled, shape_win);
@@ -149,7 +153,12 @@ impl World {
         }
     }
     /// real image in contrast to the loading image
-    pub fn from_real_im(im: DynamicImage, annotations: AnnotationsType, file_path: String, shape_win: Shape) -> Self {
+    pub fn from_real_im(
+        im: DynamicImage,
+        annotations: AnnotationsType,
+        file_path: String,
+        shape_win: Shape,
+    ) -> Self {
         Self::new(ImsRaw::new(im, annotations, file_path), None, shape_win)
     }
     pub fn view_from_annotations(&mut self, shape_win: Shape) {
@@ -220,7 +229,11 @@ fn test_scale_to_win() -> RvResult<()> {
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     im_test.put_pixel(10, 10, Rgb([23, 23, 23]));
     let im_scaled = scaled_to_win_view(
-        &ImsRaw::new(DynamicImage::ImageRgb8(im_test), HashMap::new(), "".to_string()),
+        &ImsRaw::new(
+            DynamicImage::ImageRgb8(im_test),
+            HashMap::new(),
+            "".to_string(),
+        ),
         &None,
         Shape { w: 128, h: 128 },
     );

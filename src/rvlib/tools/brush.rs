@@ -117,7 +117,11 @@ impl Manipulate for Brush {
     ) -> (World, History) {
         world = initialize_anno_data(world, meta_data.file_path);
         if self.initial_view.is_none() {
-            self.initial_view = Some(world.ims_raw.bg_to_unannotated_view(world.zoom_box(), shape_win));
+            self.initial_view = Some(
+                world
+                    .ims_raw
+                    .bg_to_unannotated_view(world.zoom_box(), shape_win),
+            );
         }
         make_tool_transform!(
             self,

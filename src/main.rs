@@ -273,17 +273,11 @@ fn main() -> Result<(), pixels::Error> {
                 framework.menu_mut().toggle();
             }
 
-            if input.key_pressed(VirtualKeyCode::Right)
-                || input.key_pressed(VirtualKeyCode::Down)
-                || input.key_pressed(VirtualKeyCode::PageDown)
-            {
+            if input.key_pressed(VirtualKeyCode::PageDown) {
                 framework.menu_mut().next();
             }
 
-            if input.key_pressed(VirtualKeyCode::Left)
-                || input.key_pressed(VirtualKeyCode::Up)
-                || input.key_pressed(VirtualKeyCode::PageUp)
-            {
+            if input.key_pressed(VirtualKeyCode::PageUp) {
                 framework.menu_mut().prev();
             }
 
@@ -326,38 +320,41 @@ fn main() -> Result<(), pixels::Error> {
                 // load new image
                 if let Some(selected) = &menu_file_selected {
                     let folder_label = make_folder_label();
-                    let file_path = menu_file_selected.and_then(|fs| Some(framework.menu().file_path(fs)?.to_string()));
-                    let read_image_and_idx = match (file_path, framework.menu_mut().read_image(*selected)) {
-                        (Some(fp), Some(ri)) => {
-                            let ims_raw = ImsRaw::new(ri, world.ims_raw.annotations.clone(), fp);
-                            if !undo_redo_load {
-                                history.push(Record {
-                                    ims_raw: ims_raw.clone(),
-                                    actor: LOAD_ACTOR_NAME,
-                                    file_label_idx: file_selected,
-                                    folder_label,
-                                });
+                    let file_path = menu_file_selected
+                        .and_then(|fs| Some(framework.menu().file_path(fs)?.to_string()));
+                    let read_image_and_idx =
+                        match (file_path, framework.menu_mut().read_image(*selected)) {
+                            (Some(fp), Some(ri)) => {
+                                let ims_raw =
+                                    ImsRaw::new(ri, world.ims_raw.annotations.clone(), fp);
+                                if !undo_redo_load {
+                                    history.push(Record {
+                                        ims_raw: ims_raw.clone(),
+                                        actor: LOAD_ACTOR_NAME,
+                                        file_label_idx: file_selected,
+                                        folder_label,
+                                    });
+                                }
+                                undo_redo_load = false;
+                                file_selected = menu_file_selected;
+                                is_loading_screen_active = false;
+                                (ims_raw, file_selected)
                             }
-                            undo_redo_load = false;
-                            file_selected = menu_file_selected;
-                            is_loading_screen_active = false;
-                            (ims_raw, file_selected)
-                        }
-                        _ => {
-                            thread::sleep(Duration::from_millis(20));
-                            let shape = world.shape_orig();
-                            file_selected = menu_file_selected;
-                            is_loading_screen_active = true;
-                            (
-                                ImsRaw::new(
-                                    loading_image(shape, counter),
-                                    world.ims_raw.annotations.clone(),
-                                    "".to_string(),
-                                ),
-                                file_selected,
-                            )
-                        }
-                    };
+                            _ => {
+                                thread::sleep(Duration::from_millis(20));
+                                let shape = world.shape_orig();
+                                file_selected = menu_file_selected;
+                                is_loading_screen_active = true;
+                                (
+                                    ImsRaw::new(
+                                        loading_image(shape, counter),
+                                        world.ims_raw.annotations.clone(),
+                                        "".to_string(),
+                                    ),
+                                    file_selected,
+                                )
+                            }
+                        };
                     Some(read_image_and_idx)
                 } else {
                     None
