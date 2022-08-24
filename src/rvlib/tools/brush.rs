@@ -1,4 +1,5 @@
 use crate::{
+    anno_data_initializer,
     annotations::{Annotate, Annotations, BrushAnnotations},
     annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
@@ -6,7 +7,7 @@ use crate::{
     types::ViewImage,
     util::{mouse_pos_to_orig_pos, Shape},
     world::World,
-    LEFT_BTN, anno_data_initializer,
+    LEFT_BTN,
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;

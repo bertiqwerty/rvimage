@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::core::Annotate;
 use crate::{
     types::ViewImage,
@@ -78,22 +76,8 @@ fn draw_bbs<'a, I1: Iterator<Item = &'a BB>, I2: Iterator<Item = &'a bool>>(
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
-    pub file_box_map: HashMap<String, (Vec<BB>, Vec<bool>)>,
-    pub current_file_path: String,
-}
-impl BboxAnnotations {
-    pub fn set_current_file_path(&mut self, cfp: String) {
-        if !self.file_box_map.contains_key(&cfp) {
-            self.file_box_map.insert(cfp.clone(), (vec![], vec![]));
-        }
-        self.current_file_path = cfp;
-    }
-    pub fn get_current_annos(&self) -> &(Vec<BB>, Vec<bool>) {
-        self.file_box_map.get(&self.current_file_path).unwrap()
-    }
-    pub fn get_current_annos_mut(&mut self) -> &mut (Vec<BB>, Vec<bool>) {
-        self.file_box_map.get_mut(&self.current_file_path).unwrap()
-    }
+    pub bbs: Vec<BB>,
+    pub selected_bbs: Vec<bool>,
 }
 impl Annotate for BboxAnnotations {
     fn draw_on_view(
@@ -108,8 +92,8 @@ impl Annotate for BboxAnnotations {
             shape_orig,
             shape_win,
             zoom_box,
-            self.file_box_map[&self.current_file_path].0.iter(),
-            self.file_box_map[&self.current_file_path].1.iter(),
+            self.bbs.iter(),
+            self.selected_bbs.iter(),
             &Rgb([255, 255, 255]),
         )
     }

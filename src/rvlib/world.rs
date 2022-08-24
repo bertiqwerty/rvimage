@@ -38,6 +38,7 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
 #[derive(Clone, Default, PartialEq)]
 pub struct ImsRaw {
     im_background: DynamicImage,
+    // name of the tool, i.e., ACTOR_NAME maps to its annotations
     pub annotations: HashMap<&'static str, Annotations>,
 }
 

@@ -5,8 +5,9 @@ use crate::tools::{
     Manipulate,
 };
 use crate::{
+    anno_data_initializer,
     annotations::{Annotate, Annotations, BboxAnnotations},
-    anno_data_initializer, annotations_accessor, annotations_accessor_mut,
+    annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
     make_tool_transform,
     types::ViewImage,
@@ -40,21 +41,10 @@ anno_data_initializer!(ACTOR_NAME, Bbox, BboxAnnotations);
 annotations_accessor_mut!(ACTOR_NAME, Bbox, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, Bbox, BboxAnnotations);
 
-fn current_file_path(world: &World) -> &String {
-    &get_annos(world)
-        .expect(MISSING_ANNO_MSG)
-        .bbox()
-        .current_file_path
-}
-fn set_current_file_path(world: &mut World, cfp: String) {
-    get_annos_mut(world).bbox_mut().set_current_file_path(cfp);
-}
 
-fn bbs_mut(world: &mut World) -> &mut (Vec<BB>, Vec<bool>) {
-    get_annos_mut(world).bbox_mut().get_current_annos_mut()
-}
 #[derive(Clone, Debug)]
 pub struct BBox {
+    current_file_path: Option<String>,
     prev_pos: Option<(usize, usize)>,
     initial_view: Option<ViewImage>,
     mover: Mover,
@@ -96,9 +86,9 @@ impl BBox {
         let orig_shape = world.ims_raw.shape();
         let zoom_box = *world.zoom_box();
         let move_boxes = |mpso, mpo| {
-            let (bbs, selecteds) = bbs_mut(&mut world);
-            for (bb, selected) in bbs.iter_mut().zip(selecteds.iter()) {
-                if *selected {
+            let annos = get_annos_mut(&mut world).bbox_mut();
+            for (bb, is_bb_selected) in annos.bbs.iter_mut().zip(annos.selected_bbs.iter()) {
+                if *is_bb_selected {
                     if let Some(bb_moved) = bb.follow_movement(mpso, mpo, orig_shape) {
                         *bb = bb_moved;
                     }
@@ -129,19 +119,20 @@ impl BBox {
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // second click
-            bbs_mut(&mut world).0.push(BB::from_points(mp, pp));
-            bbs_mut(&mut world).1.push(false);
+            let annos = get_annos_mut(&mut world).bbox_mut();
+            annos.bbs.push(BB::from_points(mp, pp));
+            annos.selected_bbs.push(false);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
 
             self.prev_pos = None;
         } else {
             // first click
             if event.key_held(VirtualKeyCode::LControl) {
-                let (bbs, selected_bbs) = bbs_mut(&mut world);
+                let annos = &mut get_annos_mut(&mut world).bbox_mut();
                 let idx =
-                    mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), bbs));
+                    mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &mut annos.bbs));
                 if let Some(i) = idx {
-                    selected_bbs[i] = !selected_bbs[i];
+                    annos.selected_bbs[i] = !annos.selected_bbs[i];
                 }
                 world = self.draw_on_view(world, shape_win);
             } else {
@@ -159,7 +150,9 @@ impl BBox {
         mut history: History,
     ) -> (World, History) {
         if event.key_released(VirtualKeyCode::Delete) {
-            let (bbs, selected_bbs) = mem::take(bbs_mut(&mut world));
+            let annos = get_annos_mut(&mut world).bbox_mut();
+            let bbs = mem::take(&mut annos.bbs);
+            let selected_bbs = mem::take(&mut annos.selected_bbs);
             let keep_indices = selected_bbs
                 .iter()
                 .enumerate()
@@ -169,12 +162,15 @@ impl BBox {
             // the selected ones have been deleted hence all remaining ones are unselected
             let selected_bbs = vec![false; bbs.len()];
 
-            *bbs_mut(&mut world) = (bbs, selected_bbs);
+            annos.bbs = bbs;
+            annos.selected_bbs = selected_bbs;
 
             world = self.draw_on_view(world, shape_win);
             world.update_view(shape_win);
         } else if world.ims_raw.has_annotations() {
-            *bbs_mut(&mut world) = (vec![], vec![]);
+            let annos = get_annos_mut(&mut world).bbox_mut();
+            annos.bbs = vec![];
+            annos.selected_bbs = vec![];
             world.update_view(shape_win);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
         }
@@ -185,6 +181,7 @@ impl BBox {
 impl Manipulate for BBox {
     fn new() -> Self {
         Self {
+            current_file_path: None,
             prev_pos: None,
             initial_view: None,
             mover: Mover::new(),
@@ -212,15 +209,13 @@ impl Manipulate for BBox {
         event: &WinitInputHelper,
         meta_data: &MetaData,
     ) -> (World, History) {
-        
         world = initialize_anno_data(world);
 
-        if let Some(mdfp) = meta_data.file_path {
-            if current_file_path(&world) != mdfp {
-                set_current_file_path(&mut world, mdfp.to_string());
-                self.initial_view = Some(world.im_view().clone());
-            }
+        if self.current_file_path.as_ref().map(|s| s.as_str()) != meta_data.file_path {
+            self.current_file_path = meta_data.file_path.map(|s| s.to_string());
+            self.initial_view = Some(world.im_view().clone());
         }
+
         if self.initial_view.is_none() {
             self.initial_view = Some(world.im_view().clone());
         }
