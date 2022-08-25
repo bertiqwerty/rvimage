@@ -18,8 +18,8 @@ use super::{core::MetaData, Manipulate};
 const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
 anno_data_initializer!(ACTOR_NAME, Brush, BrushAnnotations);
-annotations_accessor!(ACTOR_NAME, Brush, BrushAnnotations);
-annotations_accessor_mut!(ACTOR_NAME, Brush, BrushAnnotations);
+annotations_accessor!(ACTOR_NAME, Brush, BrushAnnotations, MISSING_ANNO_MSG);
+annotations_accessor_mut!(ACTOR_NAME, Brush, BrushAnnotations, MISSING_ANNO_MSG);
 
 #[derive(Clone, Debug)]
 pub struct Brush {
@@ -33,15 +33,12 @@ impl Brush {
         shape_win: Shape,
         current_file_path: Option<&str>,
     ) -> World {
-        let im_view = get_annos(&world, current_file_path)
-            .expect(MISSING_ANNO_MSG)
-            .brush()
-            .draw_on_view(
-                self.initial_view.clone().unwrap(),
-                world.zoom_box(),
-                world.ims_raw.shape(),
-                shape_win,
-            );
+        let im_view = get_annos(&world, current_file_path).brush().draw_on_view(
+            self.initial_view.clone().unwrap(),
+            world.zoom_box(),
+            world.ims_raw.shape(),
+            shape_win,
+        );
         world.set_im_view(im_view);
         world
     }
@@ -58,7 +55,6 @@ impl Brush {
             mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
         if let Some(mp) = mp_orig {
             get_annos_mut(&mut world, meta_data.file_path)
-                .expect(MISSING_ANNO_MSG)
                 .brush_mut()
                 .points
                 .last_mut()
@@ -91,7 +87,6 @@ impl Brush {
         meta_data: &MetaData,
     ) -> (World, History) {
         get_annos_mut(&mut world, meta_data.file_path)
-            .expect(MISSING_ANNO_MSG)
             .brush_mut()
             .points
             .clear();

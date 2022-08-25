@@ -1,6 +1,7 @@
 use std::{
     ffi::OsStr,
     io,
+    iter::once,
     ops::{Add, Range, Sub},
     path::{Path, PathBuf},
 };
@@ -225,6 +226,32 @@ impl BB {
             (self.y, self.y + self.h)
         }
     }
+
+    /// Iteration order of corners
+    /// 0   3
+    /// v   ʌ
+    /// 1 > 2
+    pub fn corners(&self) -> impl Iterator<Item = (u32, u32)> {
+        let iter_c1 = once(self.corner(0));
+        let iter_c2 = once(self.corner(1));
+        let iter_c3 = once(self.corner(2));
+        let iter_c4 = once(self.corner(3));
+        iter_c1.chain(iter_c2).chain(iter_c3).chain(iter_c4)
+    }
+    pub fn corner(&self, idx: usize) -> (u32, u32) {
+        let (x, y, w, h) = (self.x, self.y, self.w, self.h);
+        match idx {
+            0 => (x, y),
+            1 => (x, y + h - 1),
+            2 => (x + w - 1, y + h - 1),
+            3 => (x + w - 1, y),
+            _ => panic!("bounding boxes only have 4, {} is out of bounds", idx),
+        }
+    }
+    pub fn opposite_corner(&self, idx: usize) -> (u32, u32) {
+        self.corner((idx + 2) % 4)
+    }
+
     pub fn to_view_corners(
         &self,
         shape_orig: Shape,
@@ -466,6 +493,9 @@ pub fn effect_per_pixel<F: PixelEffect>(shape: Shape, mut f: F) {
     }
 }
 
+pub fn to_i64(x: (u32, u32)) -> (i64, i64) {
+    ((x.0 as i64), (x.1 as i64))
+}
 pub fn to_u32(x: (usize, usize)) -> (u32, u32) {
     ((x.0 as u32), (x.1 as u32))
 }
@@ -487,6 +517,54 @@ pub fn apply_alpha(pixel_rgb: &Rgb<u8>, color: &Rgb<u8>, alpha: u8) -> Rgb<u8> {
         apply_alpha_scalar(b_pixel, b_clr),
     ])
 }
+
+pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
+    mut im: I,
+    corner_1: (Option<u32>, Option<u32>),
+    corner_2: (Option<u32>, Option<u32>),
+    color: &I::Pixel,
+    fn_inner_color: F,
+) -> I {
+    let x_c1 = corner_1.0.unwrap_or(0);
+    let y_c1 = corner_1.1.unwrap_or(0);
+    let x_c2 = corner_2.0.unwrap_or_else(|| im.width());
+    let y_c2 = corner_2.1.unwrap_or_else(|| im.height());
+    let x_min = x_c1.min(x_c2);
+    let y_min = y_c1.min(y_c2);
+    let x_max = x_c1.max(x_c2);
+    let y_max = y_c1.max(y_c2);
+    let draw_bx = BB {
+        x: x_min as u32,
+        y: y_min as u32,
+        w: (x_max - x_min) as u32,
+        h: (y_max - y_min) as u32,
+    };
+
+    let inner_effect = |x, y, im: &mut I| {
+        let rgb = im.get_pixel(x, y);
+        im.put_pixel(x, y, fn_inner_color(&rgb));
+    };
+    {
+        let mut put_pixel = |c: Option<u32>, x, y| {
+            if c.is_some() {
+                im.put_pixel(x, y, *color);
+            } else {
+                inner_effect(x, y, &mut im);
+            }
+        };
+        for x in draw_bx.x_range() {
+            put_pixel(corner_1.1, x, draw_bx.y);
+            put_pixel(corner_2.1, x, draw_bx.y + draw_bx.h - 1);
+        }
+        for y in draw_bx.y_range() {
+            put_pixel(corner_1.0, draw_bx.x, y);
+            put_pixel(corner_2.0, draw_bx.x + draw_bx.w - 1, y);
+        }
+    }
+    draw_bx.effect_per_inner_pixel(|x, y| inner_effect(x, y, &mut im));
+    im
+}
+
 #[test]
 fn test_bb() {
     let bb = BB {
@@ -497,6 +575,17 @@ fn test_bb() {
     };
     assert!(!bb.contains((20, 20)));
     assert!(bb.contains((10, 10)));
+    assert_eq!(bb.corner(0), (10, 10));
+    assert_eq!(bb.corner(1), (10, 19));
+    assert_eq!(bb.corner(2), (19, 19));
+    assert_eq!(bb.corner(3), (19, 10));
+    assert_eq!(bb.opposite_corner(0), (19, 19));
+    assert_eq!(bb.opposite_corner(1), (19, 10));
+    assert_eq!(bb.opposite_corner(2), (10, 10));
+    assert_eq!(bb.opposite_corner(3), (10, 19));
+    for (c, i) in bb.corners().zip(0..4) {
+        assert_eq!(c, bb.corner(i));
+    }
 }
 #[test]
 fn test_to_orig_pos() {
@@ -595,51 +684,4 @@ fn test_view_pos_tf() {
         }),
         2,
     );
-}
-
-pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
-    mut im: I,
-    corner_1: (Option<u32>, Option<u32>),
-    corner_2: (Option<u32>, Option<u32>),
-    color: &I::Pixel,
-    fn_inner_color: F,
-) -> I {
-    let x_c1 = corner_1.0.unwrap_or(0);
-    let y_c1 = corner_1.1.unwrap_or(0);
-    let x_c2 = corner_2.0.unwrap_or_else(|| im.width());
-    let y_c2 = corner_2.1.unwrap_or_else(|| im.height());
-    let x_min = x_c1.min(x_c2);
-    let y_min = y_c1.min(y_c2);
-    let x_max = x_c1.max(x_c2);
-    let y_max = y_c1.max(y_c2);
-    let draw_bx = BB {
-        x: x_min as u32,
-        y: y_min as u32,
-        w: (x_max - x_min) as u32,
-        h: (y_max - y_min) as u32,
-    };
-
-    let inner_effect = |x, y, im: &mut I| {
-        let rgb = im.get_pixel(x, y);
-        im.put_pixel(x, y, fn_inner_color(&rgb));
-    };
-    {
-        let mut put_pixel = |c: Option<u32>, x, y| {
-            if c.is_some() {
-                im.put_pixel(x, y, *color);
-            } else {
-                inner_effect(x, y, &mut im);
-            }
-        };
-        for x in draw_bx.x_range() {
-            put_pixel(corner_1.1, x, draw_bx.y);
-            put_pixel(corner_2.1, x, draw_bx.y + draw_bx.h - 1);
-        }
-        for y in draw_bx.y_range() {
-            put_pixel(corner_1.0, draw_bx.x, y);
-            put_pixel(corner_2.0, draw_bx.x + draw_bx.w - 1, y);
-        }
-    }
-    draw_bx.effect_per_inner_pixel(|x, y| inner_effect(x, y, &mut im));
-    im
 }

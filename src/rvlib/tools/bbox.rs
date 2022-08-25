@@ -1,7 +1,3 @@
-use crate::tools::{
-    core::{MetaData, Mover},
-    Manipulate,
-};
 use crate::{
     anno_data_initializer,
     annotations::{Annotate, Annotations, BboxAnnotations},
@@ -9,9 +5,16 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     types::ViewImage,
-    util::{mouse_pos_to_orig_pos, Shape, BB},
+    util::{mouse_pos_to_orig_pos, orig_pos_to_view_pos, Shape, BB, shape_unscaled},
     world::World,
     LEFT_BTN, RIGHT_BTN,
+};
+use crate::{
+    tools::{
+        core::{MetaData, Mover},
+        Manipulate,
+    },
+    util::to_i64,
 };
 use std::collections::HashMap;
 use std::mem;
@@ -56,9 +59,29 @@ fn move_bbs(
     bbs
 }
 
+/// returns index of the bounding box and the index of the closest close corner
+fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option<(usize, usize)> {
+    let opf = to_i64(orig_pos);
+    bbs.iter()
+        .enumerate()
+        .map(|(bb_idx, bb)| {
+            let (min_corner_idx, min_corner_dist) = bb
+                .corners()
+                .map(to_i64)
+                .map(|c| (opf.0 - c.0).pow(2) + (opf.1 - c.1).pow(2))
+                .enumerate()
+                .min_by_key(|x| x.1)
+                .unwrap();
+            (bb_idx, min_corner_idx, min_corner_dist)
+        })
+        .filter(|(_, _, c_dist)| c_dist <= &tolerance)
+        .min_by_key(|c| c.2)
+        .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
+}
+
 anno_data_initializer!(ACTOR_NAME, Bbox, BboxAnnotations);
-annotations_accessor_mut!(ACTOR_NAME, Bbox, BboxAnnotations);
-annotations_accessor!(ACTOR_NAME, Bbox, BboxAnnotations);
+annotations_accessor_mut!(ACTOR_NAME, Bbox, BboxAnnotations, MISSING_ANNO_MSG);
+annotations_accessor!(ACTOR_NAME, Bbox, BboxAnnotations, MISSING_ANNO_MSG);
 
 #[derive(Clone, Debug)]
 pub struct BBox {
@@ -70,15 +93,12 @@ pub struct BBox {
 
 impl BBox {
     fn draw_on_view(&self, mut world: World, shape_win: Shape, file_path: Option<&str>) -> World {
-        let im_view = get_annos(&world, file_path)
-            .expect(MISSING_ANNO_MSG)
-            .bbox()
-            .draw_on_view(
-                self.initial_view.clone().unwrap(),
-                world.zoom_box(),
-                world.ims_raw.shape(),
-                shape_win,
-            );
+        let im_view = get_annos(&world, file_path).bbox().draw_on_view(
+            self.initial_view.clone().unwrap(),
+            world.zoom_box(),
+            world.ims_raw.shape(),
+            shape_win,
+        );
         world.set_im_view(im_view);
         world
     }
@@ -115,9 +135,7 @@ impl BBox {
         let orig_shape = world.ims_raw.shape();
         let zoom_box = *world.zoom_box();
         let move_boxes = |mpso, mpo| {
-            let annos = get_annos_mut(&mut world, meta_data.file_path)
-                .expect(MISSING_ANNO_MSG)
-                .bbox_mut();
+            let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
             for (bb, is_bb_selected) in annos.bbs.iter_mut().zip(annos.selected_bbs.iter()) {
                 if *is_bb_selected {
                     if let Some(bb_moved) = bb.follow_movement(mpso, mpo, orig_shape) {
@@ -150,28 +168,44 @@ impl BBox {
             world.zoom_box(),
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
-            // second click
-            let annos = get_annos_mut(&mut world, meta_data.file_path)
-                .expect(MISSING_ANNO_MSG)
-                .bbox_mut();
+            // second click new bb
+            let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
             annos.bbs.push(BB::from_points(mp, pp));
             annos.selected_bbs.push(false);
             history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
 
             self.prev_pos = None;
+        } else if event.key_held(VirtualKeyCode::LControl) {
+            let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
+            // selection
+            let idx = mp_orig
+                .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &annos.bbs));
+            if let Some(i) = idx {
+                annos.selected_bbs[i] = !annos.selected_bbs[i];
+            }
+            world = self.draw_on_view(world, shape_win, meta_data.file_path);
         } else {
-            // first click
-            if event.key_held(VirtualKeyCode::LControl) {
-                let annos = get_annos_mut(&mut world, meta_data.file_path)
-                    .expect(MISSING_ANNO_MSG)
-                    .bbox_mut();
-                let idx = mp_orig
-                    .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &annos.bbs));
-                if let Some(i) = idx {
-                    annos.selected_bbs[i] = !annos.selected_bbs[i];
-                }
-                world = self.draw_on_view(world, shape_win, meta_data.file_path);
+            let shape_orig = world.ims_raw.shape();
+            let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
+            let tolerance = (unscaled.w * unscaled.h / 5000).max(1);
+            let close_corner = mp_orig.and_then(|mp| {
+                find_close_corner(
+                    mp,
+                    &get_annos(&world, meta_data.file_path).bbox().bbs,
+                    tolerance as i64,
+                )
+            });
+            if let Some((bb_idx, idx)) = close_corner {
+                // move an existing corner
+                let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
+                let bb = annos.bbs.remove(bb_idx);
+                let oppo_corner = bb.opposite_corner(idx);
+                annos.selected_bbs.remove(bb_idx);
+                self.prev_pos =
+                    orig_pos_to_view_pos(oppo_corner, shape_orig, shape_win, world.zoom_box())
+                        .map(|(x, y)| (x as usize, y as usize));
             } else {
+                // first click new bb
                 self.prev_pos = mouse_pos;
             }
         }
@@ -187,9 +221,7 @@ impl BBox {
         meta_data: &MetaData,
     ) -> (World, History) {
         let shape_orig = world.ims_raw.shape();
-        let annos = get_annos_mut(&mut world, meta_data.file_path)
-            .expect(MISSING_ANNO_MSG)
-            .bbox_mut();
+        let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
         let taken_bbs = mem::take(&mut annos.bbs);
         if event.key_held(VirtualKeyCode::Up) {
             annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 0, -1, shape_orig);
@@ -213,9 +245,7 @@ impl BBox {
         mut history: History,
         meta_data: &MetaData,
     ) -> (World, History) {
-        let annos = get_annos_mut(&mut world, meta_data.file_path)
-            .expect(MISSING_ANNO_MSG)
-            .bbox_mut();
+        let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
         if event.key_released(VirtualKeyCode::Back) {
             annos.bbs = vec![];
             annos.selected_bbs = vec![];
@@ -296,6 +326,7 @@ impl Manipulate for BBox {
             world.zoom_box(),
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
+            // animation
             world = self.draw_on_view(world, shape_win, meta_data.file_path);
             let tmp_annos = BboxAnnotations {
                 bbs: vec![BB::from_points(mp, pp)],
