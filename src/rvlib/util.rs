@@ -16,7 +16,12 @@ use core::cmp::Ordering::{Greater, Less};
 use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb, Rgba};
 use pixels::Pixels;
 use std::str::FromStr;
-use winit::dpi::PhysicalSize;
+use winit::{dpi::PhysicalSize, event::VirtualKeyCode};
+
+
+pub fn with_control(key: VirtualKeyCode, f_event: impl Fn(VirtualKeyCode) -> bool) -> bool {
+    f_event(key) && (f_event(VirtualKeyCode::LControl) || f_event(VirtualKeyCode::RControl))
+}
 
 pub trait PixelEffect: FnMut(u32, u32) {}
 impl<T: FnMut(u32, u32)> PixelEffect for T {}
@@ -370,37 +375,37 @@ impl BB {
         let y_shift: i32 = to.1 as i32 - from.1 as i32;
         self.translate(x_shift, y_shift, shape)
     }
+    pub fn is_contained_in(&self, shape: Shape) -> bool {
+        self.x + self.w < shape.w && self.y + self.h < shape.h
+    }
     pub fn translate(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
-        let x_new = self.x as i32 + x_shift;
-        let y_new = self.y as i32 + y_shift;
-        if x_new >= 0
-            && y_new >= 0
-            && x_new as u32 + self.w < shape.w
-            && y_new as u32 + self.h < shape.h
-        {
-            Some(Self {
-                x: x_new as u32,
-                y: y_new as u32,
-                w: self.w,
-                h: self.h,
-            })
+        let x = (self.x as i32 + x_shift) as u32;
+        let y = (self.y as i32 + y_shift) as u32;
+
+        let bb = Self {
+            x,
+            y,
+            w: self.w,
+            h: self.h,
+        };
+        if bb.is_contained_in(shape) {
+            Some(bb)
         } else {
             None
         }
     }
-    pub fn extend_max(&self, amount: (u32, u32), shape: Option<Shape>) -> Self {
-        let (w, h) = match shape {
-            Some(shp) => (
-                (self.w + amount.0).min(shp.w),
-                (self.h + amount.1).min(shp.h),
-            ),
-            None => (self.w + amount.0, self.h + amount.1),
-        };
-        BB {
+    pub fn extend_max(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
+        let (w, h) = (self.w as i32 + x_shift, self.h as i32 + y_shift);
+        let bb = BB {
             x: self.x,
             y: self.y,
-            w,
-            h,
+            w: w as u32,
+            h: h as u32,
+        };
+        if bb.is_contained_in(shape) {
+            Some(bb)
+        } else {
+            None
         }
     }
 }
@@ -586,6 +591,48 @@ fn test_bb() {
     for (c, i) in bb.corners().zip(0..4) {
         assert_eq!(c, bb.corner(i));
     }
+    let shape = Shape::new(100, 100);
+    let bb1 = bb.translate(1, 1, shape);
+    assert_eq!(
+        bb1,
+        Some(BB {
+            x: 11,
+            y: 11,
+            w: 10,
+            h: 10
+        })
+    );
+    let shape = Shape::new(100, 100);
+    let bb1 = bb.extend_max(1, 1, shape);
+    assert_eq!(
+        bb1,
+        Some(BB {
+            x: 10,
+            y: 10,
+            w: 11,
+            h: 11
+        })
+    );
+    let bb1 = bb.extend_max(100, 1, shape);
+    assert_eq!(
+        bb1,
+        None
+    );
+    let bb1 = bb.extend_max(-1, -2, shape);
+    assert_eq!(
+        bb1,
+        Some(BB {
+            x: 10,
+            y: 10,
+            w: 9,
+            h: 8
+        })
+    );
+    let bb1 = bb.extend_max(-100, -200, shape);
+    assert_eq!(
+        bb1,
+        None
+    );
 }
 #[test]
 fn test_to_orig_pos() {

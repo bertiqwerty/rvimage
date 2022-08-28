@@ -5,7 +5,7 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     types::ViewImage,
-    util::{mouse_pos_to_orig_pos, orig_pos_to_view_pos, Shape, BB, shape_unscaled},
+    util::{mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB, self},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
@@ -37,6 +37,26 @@ fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
         })
         .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
         .map(|(i, _)| i)
+}
+
+fn resize_bbs(
+    mut bbs: Vec<BB>,
+    selected_bbs: &[bool],
+    x_shift: i32,
+    y_shift: i32,
+    shape_orig: Shape,
+) -> Vec<BB> {
+    let selected_idxs = selected_bbs
+        .iter()
+        .enumerate()
+        .filter(|(_, x)| **x)
+        .map(|(i, _)| i);
+    for idx in selected_idxs {
+        if let Some(bb) = bbs[idx].extend_max(x_shift, y_shift, shape_orig) {
+            bbs[idx] = bb;
+        }
+    }
+    bbs
 }
 
 fn move_bbs(
@@ -223,7 +243,15 @@ impl BBox {
         let shape_orig = world.ims_raw.shape();
         let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
         let taken_bbs = mem::take(&mut annos.bbs);
-        if event.key_held(VirtualKeyCode::Up) {
+        if util::with_control(VirtualKeyCode::Up, |x| event.key_held(x)) {
+            annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, 0, -1, shape_orig);
+        } else if util::with_control(VirtualKeyCode::Down, |x| event.key_held(x)) {
+            annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, 0, 1, shape_orig);
+        } else if util::with_control(VirtualKeyCode::Right, |x| event.key_held(x)) {
+            annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, 1, 0, shape_orig);
+        } else if util::with_control(VirtualKeyCode::Left, |x| event.key_held(x)) {
+            annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, -1, 0, shape_orig);
+        } else if event.key_held(VirtualKeyCode::Up) {
             annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 0, -1, shape_orig);
         } else if event.key_held(VirtualKeyCode::Down) {
             annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 0, 1, shape_orig);
@@ -361,12 +389,9 @@ impl Manipulate for BBox {
         )
     }
 }
-
 #[cfg(test)]
-use crate::result::RvResult;
-#[test]
-fn test_find_idx() -> RvResult<()> {
-    let bbs = vec![
+fn make_test_bbs() -> Vec<BB> {
+    vec![
         BB {
             x: 0,
             y: 0,
@@ -385,7 +410,11 @@ fn test_find_idx() -> RvResult<()> {
             w: 10,
             h: 10,
         },
-    ];
+    ]
+}
+#[test]
+fn test_find_idx() {
+    let bbs = make_test_bbs();
     assert_eq!(find_closest_boundary_idx((0, 20), &bbs), None);
     assert_eq!(find_closest_boundary_idx((0, 0), &bbs), Some(0));
     assert_eq!(find_closest_boundary_idx((3, 8), &bbs), Some(0));
@@ -393,5 +422,17 @@ fn test_find_idx() -> RvResult<()> {
     assert_eq!(find_closest_boundary_idx((7, 15), &bbs), None);
     assert_eq!(find_closest_boundary_idx((8, 8), &bbs), Some(0));
     assert_eq!(find_closest_boundary_idx((10, 12), &bbs), Some(2));
-    Ok(())
+}
+#[test]
+fn test_bbs() {
+    let bbs = make_test_bbs();
+    let shape_orig = Shape { w: 100, h: 100 };
+    let moved = move_bbs(bbs.clone(), &[false, true, true], 0, 1, shape_orig);
+    assert_eq!(moved[0], bbs[0]);
+    assert_eq!(BB::from_points((5, 6), (15, 16)), moved[1]);
+    assert_eq!(BB::from_points((9, 10), (19, 20)), moved[2]);
+    let resized = resize_bbs(bbs.clone(), &[false, true, true], -1, 1, shape_orig);
+    assert_eq!(resized[0], bbs[0]);
+    assert_eq!(BB::from_points((5, 5), (14, 16)), resized[1]);
+    assert_eq!(BB::from_points((9, 9), (18, 20)), resized[2]);
 }
