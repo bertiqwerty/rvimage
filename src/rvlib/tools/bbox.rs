@@ -23,6 +23,7 @@ use winit_input_helper::WinitInputHelper;
 
 const ACTOR_NAME: &str = "BBox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
+const CORNER_TOL_DENOMINATOR: u32 = 5000;
 
 fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
@@ -95,7 +96,7 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
             (bb_idx, min_corner_idx, min_corner_dist)
         })
         .filter(|(_, _, c_dist)| c_dist <= &tolerance)
-        .min_by_key(|c| c.2)
+        .min_by_key(|(_, _, c_dist)| *c_dist)
         .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
@@ -207,7 +208,7 @@ impl BBox {
         } else {
             let shape_orig = world.ims_raw.shape();
             let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
-            let tolerance = (unscaled.w * unscaled.h / 5000).max(1);
+            let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
             let close_corner = mp_orig.and_then(|mp| {
                 find_close_corner(
                     mp,
