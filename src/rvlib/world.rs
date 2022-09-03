@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::{fmt::Debug, mem};
 
 use crate::annotations::{Annotate, Annotations};
+use crate::tools::MetaData;
 use crate::types::ViewImage;
 use crate::util::{self, Shape, BB};
 use image::{imageops, imageops::FilterType, DynamicImage};
 use pixels::Pixels;
 
 pub fn raw_scaled_to_win_view(
-    ims_raw: &ImsRaw,
+    ims_raw: &DataRaw,
     zoom_box: &Option<BB>,
     shape_win: Shape,
 ) -> ViewImage {
@@ -29,7 +30,7 @@ pub fn raw_scaled_to_win_view(
     }
 }
 
-pub fn scaled_to_win_view(ims_raw: &ImsRaw, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
+pub fn scaled_to_win_view(ims_raw: &DataRaw, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
     let im_view = raw_scaled_to_win_view(ims_raw, zoom_box, shape_win);
     ims_raw.draw_annotations_on_view(im_view, zoom_box, ims_raw.shape(), shape_win)
 }
@@ -46,22 +47,25 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
 pub type AnnotationsType = HashMap<String, HashMap<&'static str, Annotations>>;
 
 #[derive(Clone, Default, PartialEq)]
-pub struct ImsRaw {
+pub struct DataRaw {
     im_background: DynamicImage,
     pub annotations: AnnotationsType,
     file_path: String,
+    pub meta_data: MetaData,
 }
 
-impl ImsRaw {
+impl DataRaw {
     pub fn new(
         im_background: DynamicImage,
         annotations: AnnotationsType,
         file_path: String,
+        meta_data: MetaData,
     ) -> Self {
-        ImsRaw {
+        DataRaw {
             im_background,
             annotations,
             file_path,
+            meta_data,
         }
     }
 
@@ -104,7 +108,7 @@ impl ImsRaw {
     }
 }
 
-impl Debug for ImsRaw {
+impl Debug for DataRaw {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -118,7 +122,7 @@ impl Debug for ImsRaw {
 /// Everything we need to draw
 #[derive(Clone, Default)]
 pub struct World {
-    pub ims_raw: ImsRaw,
+    pub data: DataRaw,
     im_view: ViewImage,
     is_redraw_requested: bool,
     // transforms coordinates from view to raw image
@@ -143,10 +147,10 @@ impl World {
             self.is_redraw_requested = false;
         }
     }
-    pub fn new(ims_raw: ImsRaw, zoom_box: Option<BB>, shape_win: Shape) -> Self {
+    pub fn new(ims_raw: DataRaw, zoom_box: Option<BB>, shape_win: Shape) -> Self {
         let im_view = scaled_to_win_view(&ims_raw, &zoom_box, shape_win);
         Self {
-            ims_raw,
+            data: ims_raw,
             im_view,
             is_redraw_requested: true,
             zoom_box,
@@ -159,13 +163,17 @@ impl World {
         file_path: String,
         shape_win: Shape,
     ) -> Self {
-        Self::new(ImsRaw::new(im, annotations, file_path), None, shape_win)
+        Self::new(
+            DataRaw::new(im, annotations, file_path, MetaData::new()),
+            None,
+            shape_win,
+        )
     }
     pub fn view_from_annotations(&mut self, shape_win: Shape) {
-        let im_view_tmp = self.ims_raw.draw_annotations_on_view(
-            self.ims_raw.bg_to_uncropped_view(),
+        let im_view_tmp = self.data.draw_annotations_on_view(
+            self.data.bg_to_uncropped_view(),
             &self.zoom_box,
-            self.ims_raw.shape(),
+            self.data.shape(),
             shape_win,
         );
 
@@ -183,14 +191,14 @@ impl World {
         self.is_redraw_requested = true;
     }
     pub fn update_view(&mut self, shape_win: Shape) {
-        self.im_view = scaled_to_win_view(&self.ims_raw, self.zoom_box(), shape_win);
+        self.im_view = scaled_to_win_view(&self.data, self.zoom_box(), shape_win);
         self.is_redraw_requested = true;
     }
     pub fn shape_orig(&self) -> Shape {
-        self.ims_raw.shape()
+        self.data.shape()
     }
     pub fn set_zoom_box(&mut self, zoom_box: Option<BB>, shape_win: Shape) {
-        self.im_view = scaled_to_win_view(&self.ims_raw, &zoom_box, shape_win);
+        self.im_view = scaled_to_win_view(&self.data, &zoom_box, shape_win);
         self.zoom_box = zoom_box;
         self.is_redraw_requested = true;
     }
@@ -203,7 +211,7 @@ impl Debug for World {
         write!(
             f,
             "\nims_raw {:?}\nim_view shape {:?}",
-            &self.ims_raw,
+            &self.data,
             Shape::from_im(&self.im_view)
         )
     }
@@ -229,10 +237,11 @@ fn test_scale_to_win() -> RvResult<()> {
     im_test.put_pixel(0, 0, Rgb([23, 23, 23]));
     im_test.put_pixel(10, 10, Rgb([23, 23, 23]));
     let im_scaled = scaled_to_win_view(
-        &ImsRaw::new(
+        &DataRaw::new(
             DynamicImage::ImageRgb8(im_test),
             HashMap::new(),
             "".to_string(),
+            MetaData { file_path: None },
         ),
         &None,
         Shape { w: 128, h: 128 },

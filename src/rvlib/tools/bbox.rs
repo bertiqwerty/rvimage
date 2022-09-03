@@ -5,15 +5,12 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     types::ViewImage,
-    util::{mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB, self},
+    util::{self, mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
 use crate::{
-    tools::{
-        core::{MetaData, Mover},
-        Manipulate,
-    },
+    tools::{core::Mover, Manipulate},
     util::to_i64,
 };
 use std::collections::HashMap;
@@ -113,11 +110,11 @@ pub struct BBox {
 }
 
 impl BBox {
-    fn draw_on_view(&self, mut world: World, shape_win: Shape, file_path: Option<&str>) -> World {
-        let im_view = get_annos(&world, file_path).bbox().draw_on_view(
+    fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
+        let im_view = get_annos(&world).bbox().draw_on_view(
             self.initial_view.clone().unwrap(),
             world.zoom_box(),
-            world.ims_raw.shape(),
+            world.data.shape(),
             shape_win,
         );
         world.set_im_view(im_view);
@@ -127,7 +124,7 @@ impl BBox {
         if self.initial_view.is_none() {
             self.initial_view = Some(
                 world
-                    .ims_raw
+                    .data
                     .bg_to_unannotated_view(world.zoom_box(), shape_win),
             );
         }
@@ -139,7 +136,6 @@ impl BBox {
         mouse_pos: Option<(usize, usize)>,
         world: World,
         history: History,
-        _meta_data: &MetaData,
     ) -> (World, History) {
         self.mover.move_mouse_pressed(mouse_pos);
         (world, history)
@@ -151,12 +147,11 @@ impl BBox {
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
         history: History,
-        meta_data: &MetaData,
     ) -> (World, History) {
-        let orig_shape = world.ims_raw.shape();
+        let orig_shape = world.data.shape();
         let zoom_box = *world.zoom_box();
         let move_boxes = |mpso, mpo| {
-            let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
+            let annos = get_annos_mut(&mut world).bbox_mut();
             for (bb, is_bb_selected) in annos.bbs.iter_mut().zip(annos.selected_bbs.iter()) {
                 if *is_bb_selected {
                     if let Some(bb_moved) = bb.follow_movement(mpso, mpo, orig_shape) {
@@ -168,7 +163,7 @@ impl BBox {
         };
         self.mover
             .move_mouse_held(move_boxes, mouse_pos, shape_win, orig_shape, &zoom_box);
-        world = self.draw_on_view(world, shape_win, meta_data.file_path);
+        world = self.draw_on_view(world, shape_win);
         (world, history)
     }
     fn mouse_released(
@@ -178,7 +173,6 @@ impl BBox {
         mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
-        meta_data: &MetaData,
     ) -> (World, History) {
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
@@ -190,35 +184,31 @@ impl BBox {
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // second click new bb
-            let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
+            let annos = get_annos_mut(&mut world).bbox_mut();
             annos.bbs.push(BB::from_points(mp, pp));
             annos.selected_bbs.push(false);
-            history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
+            history.push(Record::new(world.data.clone(), ACTOR_NAME));
 
             self.prev_pos = None;
         } else if event.key_held(VirtualKeyCode::LControl) {
-            let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
+            let annos = get_annos_mut(&mut world).bbox_mut();
             // selection
             let idx = mp_orig
                 .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &annos.bbs));
             if let Some(i) = idx {
                 annos.selected_bbs[i] = !annos.selected_bbs[i];
             }
-            world = self.draw_on_view(world, shape_win, meta_data.file_path);
+            world = self.draw_on_view(world, shape_win);
         } else {
-            let shape_orig = world.ims_raw.shape();
+            let shape_orig = world.data.shape();
             let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
             let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
             let close_corner = mp_orig.and_then(|mp| {
-                find_close_corner(
-                    mp,
-                    &get_annos(&world, meta_data.file_path).bbox().bbs,
-                    tolerance as i64,
-                )
+                find_close_corner(mp, &get_annos(&world).bbox().bbs, tolerance as i64)
             });
             if let Some((bb_idx, idx)) = close_corner {
                 // move an existing corner
-                let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
+                let annos = get_annos_mut(&mut world).bbox_mut();
                 let bb = annos.bbs.remove(bb_idx);
                 let oppo_corner = bb.opposite_corner(idx);
                 annos.selected_bbs.remove(bb_idx);
@@ -239,10 +229,9 @@ impl BBox {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         history: History,
-        meta_data: &MetaData,
     ) -> (World, History) {
-        let shape_orig = world.ims_raw.shape();
-        let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
+        let shape_orig = world.data.shape();
+        let annos = get_annos_mut(&mut world).bbox_mut();
         let taken_bbs = mem::take(&mut annos.bbs);
         if util::with_control(VirtualKeyCode::Up, |x| event.key_held(x)) {
             annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, 0, -1, shape_orig);
@@ -261,7 +250,7 @@ impl BBox {
         } else if event.key_held(VirtualKeyCode::Left) {
             annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, -1, 0, shape_orig);
         }
-        world = self.draw_on_view(world, shape_win, meta_data.file_path);
+        world = self.draw_on_view(world, shape_win);
         world.update_view(shape_win);
         (world, history)
     }
@@ -272,9 +261,8 @@ impl BBox {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
-        meta_data: &MetaData,
     ) -> (World, History) {
-        let annos = get_annos_mut(&mut world, meta_data.file_path).bbox_mut();
+        let annos = get_annos_mut(&mut world).bbox_mut();
         if event.key_released(VirtualKeyCode::Back) {
             annos.bbs = vec![];
             annos.selected_bbs = vec![];
@@ -293,9 +281,9 @@ impl BBox {
             annos.bbs = bbs;
             annos.selected_bbs = selected_bbs;
         }
-        world = self.draw_on_view(world, shape_win, meta_data.file_path);
+        world = self.draw_on_view(world, shape_win);
         world.update_view(shape_win);
-        history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
+        history.push(Record::new(world.data.clone(), ACTOR_NAME));
         (world, history)
     }
 }
@@ -310,12 +298,11 @@ impl Manipulate for BBox {
         }
     }
 
-    fn on_deactivate(
+    fn on_deactivate<'a>(
         &mut self,
         world: World,
         history: History,
         _shape_win: Shape,
-        _meta_data: &MetaData,
     ) -> (World, History) {
         self.prev_pos = None;
         self.initial_view = None;
@@ -329,12 +316,16 @@ impl Manipulate for BBox {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
-        meta_data: &MetaData,
     ) -> (World, History) {
-        world = initialize_anno_data(world, meta_data.file_path);
+        world = initialize_anno_data(world);
         self.assert_initial_view(&world, shape_win);
-        if self.current_file_path.as_deref() != meta_data.file_path {
-            self.current_file_path = meta_data.file_path.map(|s| s.to_string());
+        if self.current_file_path != world.data.meta_data.file_path {
+            self.current_file_path = world
+                .data
+                .meta_data
+                .file_path
+                .as_ref()
+                .map(|s| s.to_string());
         }
 
         if let Some(iv) = &self.initial_view {
@@ -342,28 +333,24 @@ impl Manipulate for BBox {
                 self.initial_view = Some(world.im_view().clone());
             }
         }
-        let mp_orig = mouse_pos_to_orig_pos(
-            mouse_pos,
-            world.ims_raw.shape(),
-            shape_win,
-            world.zoom_box(),
-        );
+        let mp_orig =
+            mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
         let pp_orig = mouse_pos_to_orig_pos(
             self.prev_pos,
-            world.ims_raw.shape(),
+            world.data.shape(),
             shape_win,
             world.zoom_box(),
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // animation
-            world = self.draw_on_view(world, shape_win, meta_data.file_path);
+            world = self.draw_on_view(world, shape_win);
             let tmp_annos = BboxAnnotations {
                 bbs: vec![BB::from_points(mp, pp)],
                 selected_bbs: vec![false],
             };
             let mut im_view = world.take_view();
             im_view =
-                tmp_annos.draw_on_view(im_view, world.zoom_box(), world.ims_raw.shape(), shape_win);
+                tmp_annos.draw_on_view(im_view, world.zoom_box(), world.data.shape(), shape_win);
             world.set_im_view(im_view);
         }
         make_tool_transform!(
@@ -373,7 +360,6 @@ impl Manipulate for BBox {
             shape_win,
             mouse_pos,
             event,
-            meta_data,
             [
                 (mouse_released, LEFT_BTN),
                 (mouse_pressed, RIGHT_BTN),

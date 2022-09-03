@@ -12,7 +12,7 @@ use rvlib::menu::{Framework, Info};
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Manipulate, MetaData, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
-use rvlib::world::{ImsRaw, World};
+use rvlib::world::{DataRaw, World};
 use rvlib::{apply_tool_method, httpserver};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -70,13 +70,8 @@ fn get_pixel_on_orig_str(
     mouse_pos: Option<(usize, usize)>,
     shape_win: Shape,
 ) -> Option<String> {
-    util::mouse_pos_to_orig_pos(
-        mouse_pos,
-        world.ims_raw.shape(),
-        shape_win,
-        world.zoom_box(),
-    )
-    .map(|(x, y)| pos_2_string(world.ims_raw.im_background(), x, y))
+    util::mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box())
+        .map(|(x, y)| pos_2_string(world.data.im_background(), x, y))
 }
 
 fn apply_tools(
@@ -86,7 +81,6 @@ fn apply_tools(
     shape_win: Shape,
     mouse_pos: Option<(usize, usize)>,
     input_event: &WinitInputHelper,
-    meta_data: &MetaData,
 ) -> (World, History) {
     for t in tools {
         if t.is_active() {
@@ -97,8 +91,7 @@ fn apply_tools(
                 history,
                 shape_win,
                 mouse_pos,
-                input_event,
-                meta_data
+                input_event
             );
         }
     }
@@ -224,8 +217,10 @@ fn main() -> Result<(), pixels::Error> {
             let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
 
             if framework.are_tools_active() {
-                let file_path = file_selected.and_then(|fs| framework.menu().file_path(fs));
+                let file_path = file_selected
+                    .and_then(|fs| framework.menu().file_path(fs).map(|s| s.to_string()));
                 let meta_data = MetaData { file_path };
+                world.data.meta_data = meta_data;
                 (world, history) = apply_tools(
                     &mut tools,
                     mem::take(&mut world),
@@ -233,7 +228,6 @@ fn main() -> Result<(), pixels::Error> {
                     shape_win,
                     mouse_pos,
                     &input,
-                    &meta_data,
                 );
             }
 
@@ -242,14 +236,12 @@ fn main() -> Result<(), pixels::Error> {
                     if i == idx_active {
                         t.activate();
                     } else {
-                        let file_path = file_selected.and_then(|fs| framework.menu().file_path(fs));
+                        let file_path = file_selected
+                            .and_then(|fs| framework.menu().file_path(fs).map(|s| s.to_string()));
                         let meta_data = MetaData { file_path };
-                        (world, history) = t.deactivate(
-                            mem::take(&mut world),
-                            mem::take(&mut history),
-                            shape_win,
-                            &meta_data,
-                        );
+                        world.data.meta_data = meta_data;
+                        (world, history) =
+                            t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
                     }
                 }
             }
@@ -258,14 +250,12 @@ fn main() -> Result<(), pixels::Error> {
             {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
-                    let file_path = file_selected.and_then(|fs| framework.menu().file_path(fs));
+                    let file_path = file_selected
+                        .and_then(|fs| framework.menu().file_path(fs).map(|s| s.to_string()));
                     let meta_data = MetaData { file_path };
-                    (world, history) = t.deactivate(
-                        mem::take(&mut world),
-                        mem::take(&mut history),
-                        shape_win,
-                        &meta_data,
-                    );
+                    world.data.meta_data = meta_data;
+                    (world, history) =
+                        t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
                 }
             }
 
@@ -325,8 +315,12 @@ fn main() -> Result<(), pixels::Error> {
                     let read_image_and_idx =
                         match (file_path, framework.menu_mut().read_image(*selected)) {
                             (Some(fp), Some(ri)) => {
-                                let ims_raw =
-                                    ImsRaw::new(ri, world.ims_raw.annotations.clone(), fp);
+                                let ims_raw = DataRaw::new(
+                                    ri,
+                                    world.data.annotations.clone(),
+                                    fp,
+                                    MetaData::new(),
+                                );
                                 if !undo_redo_load {
                                     history.push(Record {
                                         ims_raw: ims_raw.clone(),
@@ -346,10 +340,11 @@ fn main() -> Result<(), pixels::Error> {
                                 file_selected = menu_file_selected;
                                 is_loading_screen_active = true;
                                 (
-                                    ImsRaw::new(
+                                    DataRaw::new(
                                         loading_image(shape, counter),
-                                        world.ims_raw.annotations.clone(),
+                                        world.data.annotations.clone(),
                                         "".to_string(),
+                                        MetaData::new(),
                                     ),
                                     file_selected,
                                 )
@@ -372,7 +367,7 @@ fn main() -> Result<(), pixels::Error> {
                 if file_label_idx.is_some() {
                     framework.menu_mut().select_label_idx(file_label_idx);
                 }
-                let zoom_box = if ims_raw.shape() == world.ims_raw.shape() {
+                let zoom_box = if ims_raw.shape() == world.data.shape() {
                     *world.zoom_box()
                 } else {
                     None

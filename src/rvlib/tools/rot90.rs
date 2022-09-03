@@ -2,17 +2,17 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     util::Shape,
-    world::{ImsRaw, World},
+    world::{DataRaw, World},
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
-use super::{core::MetaData, Manipulate};
+use super::Manipulate;
 
 const ACTOR_NAME: &str = "Rot90";
 
 /// rotate 90 degrees counter clockwise
-fn rot90(ims: &ImsRaw) -> ImsRaw {
+fn rot90<'a>(ims: &DataRaw) -> DataRaw {
     let mut ims = ims.clone();
     ims.apply(|im| im.rotate270());
     ims
@@ -28,10 +28,9 @@ impl Rot90 {
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
-        _meta_data: &MetaData,
     ) -> (World, History) {
-        history.push(Record::new(world.ims_raw.clone(), ACTOR_NAME));
-        world = World::new(rot90(&world.ims_raw), *world.zoom_box(), shape_win);
+        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        world = World::new(rot90(&world.data), *world.zoom_box(), shape_win);
         (world, history)
     }
 }
@@ -48,7 +47,6 @@ impl Manipulate for Rot90 {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
-        meta_data: &MetaData,
     ) -> (World, History) {
         make_tool_transform!(
             self,
@@ -57,7 +55,6 @@ impl Manipulate for Rot90 {
             shape_win,
             mouse_pos,
             event,
-            meta_data,
             [],
             [(key_pressed, VirtualKeyCode::R)]
         )

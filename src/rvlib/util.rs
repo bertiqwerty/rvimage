@@ -18,7 +18,6 @@ use pixels::Pixels;
 use std::str::FromStr;
 use winit::{dpi::PhysicalSize, event::VirtualKeyCode};
 
-
 pub fn with_control(key: VirtualKeyCode, f_event: impl Fn(VirtualKeyCode) -> bool) -> bool {
     f_event(key) && (f_event(VirtualKeyCode::LControl) || f_event(VirtualKeyCode::RControl))
 }
@@ -614,10 +613,7 @@ fn test_bb() {
         })
     );
     let bb1 = bb.extend_max(100, 1, shape);
-    assert_eq!(
-        bb1,
-        None
-    );
+    assert_eq!(bb1, None);
     let bb1 = bb.extend_max(-1, -2, shape);
     assert_eq!(
         bb1,
@@ -629,10 +625,7 @@ fn test_bb() {
         })
     );
     let bb1 = bb.extend_max(-100, -200, shape);
-    assert_eq!(
-        bb1,
-        None
-    );
+    assert_eq!(bb1, None);
 }
 #[test]
 fn test_to_orig_pos() {

@@ -8,8 +8,14 @@ use crate::{
     world::World,
 };
 
-pub struct MetaData<'a> {
-    pub file_path: Option<&'a str>,
+#[derive(Clone, Default, PartialEq)]
+pub struct MetaData {
+    pub file_path: Option<String>,
+}
+impl MetaData {
+    pub fn new() -> Self {
+        MetaData { file_path: None }
+    }
 }
 
 pub trait Manipulate {
@@ -17,12 +23,11 @@ pub trait Manipulate {
     where
         Self: Sized;
 
-    fn on_deactivate(
+    fn on_deactivate<'a>(
         &mut self,
         world: World,
         history: History,
         _shape_win: Shape,
-        _meta_data: &MetaData,
     ) -> (World, History) {
         (world, history)
     }
@@ -35,7 +40,6 @@ pub trait Manipulate {
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         input_event: &WinitInputHelper,
-        meta_data: &MetaData,
     ) -> (World, History);
 }
 
@@ -87,7 +91,6 @@ macro_rules! make_tool_transform {
         $shape_win:expr,
         $mouse_pos:expr,
         $event:expr,
-        $meta_data:expr,
         [$(($mouse_event:ident, $mouse_btn:expr)),*],
         [$(($key_event:ident, $key_btn:expr)),*]
     ) => {
@@ -95,10 +98,10 @@ macro_rules! make_tool_transform {
             ($world, $history)
         }
         $(else if $event.$mouse_event($mouse_btn) {
-            $self.$mouse_event($event, $shape_win, $mouse_pos, $world, $history, $meta_data)
+            $self.$mouse_event($event, $shape_win, $mouse_pos, $world, $history)
         })*
         $(else if $event.$key_event($key_btn) {
-            $self.$key_event($event, $shape_win, $mouse_pos, $world, $history, $meta_data)
+            $self.$key_event($event, $shape_win, $mouse_pos, $world, $history)
         })*
         else {
             ($world, $history)

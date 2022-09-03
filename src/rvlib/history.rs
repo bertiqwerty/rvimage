@@ -1,16 +1,16 @@
-use crate::world::ImsRaw;
+use crate::world::DataRaw;
 use std::fmt::Debug;
 
 #[derive(Clone)]
 pub struct Record {
-    pub ims_raw: ImsRaw,
+    pub ims_raw: DataRaw,
     pub actor: &'static str,
     pub file_label_idx: Option<usize>,
     pub folder_label: Option<String>,
 }
 
-impl Record {
-    pub fn new(ims_raw: ImsRaw, actor: &'static str) -> Self {
+impl<'a> Record {
+    pub fn new(ims_raw: DataRaw, actor: &'static str) -> Self {
         Self {
             ims_raw,
             actor,
@@ -19,7 +19,7 @@ impl Record {
         }
     }
 
-    fn convert_to_im_idx_pair(self) -> (ImsRaw, Option<usize>) {
+    fn convert_to_im_idx_pair(self) -> (DataRaw, Option<usize>) {
         (self.ims_raw, self.file_label_idx)
     }
 }
@@ -83,7 +83,7 @@ impl History {
         idx_change: F1,
         pred: F2,
         folder_label: &Option<String>,
-    ) -> Option<(ImsRaw, Option<usize>)>
+    ) -> Option<(DataRaw, Option<usize>)>
     where
         F1: Fn(usize) -> usize,
         F2: FnOnce(usize) -> bool,
@@ -102,17 +102,23 @@ impl History {
         }
     }
 
-    pub fn prev_world(&mut self, folder_label: &Option<String>) -> Option<(ImsRaw, Option<usize>)> {
+    pub fn prev_world(
+        &mut self,
+        folder_label: &Option<String>,
+    ) -> Option<(DataRaw, Option<usize>)> {
         self.change_world(|idx| idx - 1, |idx| idx > 0, folder_label)
     }
 
-    pub fn next_world(&mut self, folder_label: &Option<String>) -> Option<(ImsRaw, Option<usize>)> {
+    pub fn next_world(
+        &mut self,
+        folder_label: &Option<String>,
+    ) -> Option<(DataRaw, Option<usize>)> {
         let n_recs = self.records.len();
         self.change_world(|idx| idx + 1, |idx| idx < n_recs - 1, folder_label)
     }
 }
 
-impl Debug for History {
+impl<'a> Debug for History {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -151,7 +157,7 @@ fn test_history() -> RvResult<()> {
     let mut hist = History::new();
 
     hist.push(Record {
-        ims_raw: world.ims_raw.clone(),
+        ims_raw: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: None,
@@ -163,7 +169,7 @@ fn test_history() -> RvResult<()> {
         dummy_shape_win,
     );
     hist.push(Record {
-        ims_raw: world.ims_raw.clone(),
+        ims_raw: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: None,
@@ -179,7 +185,7 @@ fn test_history() -> RvResult<()> {
         dummy_shape_win,
     );
     hist.push(Record {
-        ims_raw: world.ims_raw.clone(),
+        ims_raw: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: None,
@@ -189,7 +195,7 @@ fn test_history() -> RvResult<()> {
     assert_eq!(hist.records[1].ims_raw.shape().w, 16);
 
     hist.push(Record {
-        ims_raw: world.ims_raw.clone(),
+        ims_raw: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: Some("folder1".to_string()),
@@ -197,19 +203,19 @@ fn test_history() -> RvResult<()> {
     assert_eq!(hist.records.len(), 1);
 
     hist.push(Record {
-        ims_raw: world.ims_raw.clone(),
+        ims_raw: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),
     });
     hist.push(Record {
-        ims_raw: world.ims_raw.clone(),
+        ims_raw: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: None,
     });
     hist.push(Record {
-        ims_raw: world.ims_raw.clone(),
+        ims_raw: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),

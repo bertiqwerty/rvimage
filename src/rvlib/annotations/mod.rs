@@ -48,15 +48,15 @@ impl Annotate for Annotations {
 #[macro_export]
 macro_rules! anno_data_initializer {
     ($actor:expr, $variant:ident, $annotation_type:ident) => {
-        fn initialize_anno_data(mut world: World, current_file_path: Option<&str>) -> World {
-            if let Some(cfp) = current_file_path {
-                if world.ims_raw.annotations.get_mut(cfp).is_none() {
+        fn initialize_anno_data(mut world: World) -> World {
+            if let Some(cfp) = &world.data.meta_data.file_path {
+                if world.data.annotations.get_mut(cfp).is_none() {
                     world
-                        .ims_raw
+                        .data
                         .annotations
                         .insert(cfp.to_string(), HashMap::new());
                 }
-                let actor_annotations_map = world.ims_raw.annotations.get_mut(cfp).unwrap();
+                let actor_annotations_map = world.data.annotations.get_mut(cfp).unwrap();
                 if actor_annotations_map.get_mut($actor).is_none() {
                     actor_annotations_map
                         .insert($actor, Annotations::$variant($annotation_type::default()));
@@ -69,14 +69,15 @@ macro_rules! anno_data_initializer {
 #[macro_export]
 macro_rules! annotations_accessor_mut {
     ($actor:expr, $variant:ident, $annotation_type:ident, $error_msg:expr) => {
-        fn get_annos_mut<'a>(
-            world: &'a mut World,
-            current_file_path: Option<&str>,
-        ) -> &'a mut Annotations {
-            current_file_path
+        fn get_annos_mut<'a>(world: &'a mut World) -> &'a mut Annotations {
+            world
+                .data
+                .meta_data
+                .file_path
+                .as_ref()
                 .and_then(|cfp| {
                     world
-                        .ims_raw
+                        .data
                         .annotations
                         .get_mut(cfp)
                         .and_then(|x| x.get_mut($actor))
@@ -88,15 +89,13 @@ macro_rules! annotations_accessor_mut {
 #[macro_export]
 macro_rules! annotations_accessor {
     ($actor:expr, $variant:ident, $annotation_type:ident, $error_msg:expr) => {
-        fn get_annos<'a>(world: &'a World, current_file_path: Option<&str>) -> &'a Annotations {
-            current_file_path
-                .and_then(|cfp| {
-                    world
-                        .ims_raw
-                        .annotations
-                        .get(cfp)
-                        .and_then(|x| x.get($actor))
-                })
+        fn get_annos<'a>(world: &'a World) -> &'a Annotations {
+            world
+                .data
+                .meta_data
+                .file_path
+                .as_ref()
+                .and_then(|cfp| world.data.annotations.get(cfp).and_then(|x| x.get($actor)))
                 .expect($error_msg)
         }
     };
