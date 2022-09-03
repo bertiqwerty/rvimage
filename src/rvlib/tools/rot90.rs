@@ -12,7 +12,7 @@ use super::Manipulate;
 const ACTOR_NAME: &str = "Rot90";
 
 /// rotate 90 degrees counter clockwise
-fn rot90<'a>(ims: &DataRaw) -> DataRaw {
+fn rot90(ims: &DataRaw) -> DataRaw {
     let mut ims = ims.clone();
     ims.apply(|im| im.rotate270());
     ims

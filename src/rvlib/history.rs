@@ -9,7 +9,7 @@ pub struct Record {
     pub folder_label: Option<String>,
 }
 
-impl<'a> Record {
+impl Record {
     pub fn new(ims_raw: DataRaw, actor: &'static str) -> Self {
         Self {
             ims_raw,
@@ -118,7 +118,7 @@ impl History {
     }
 }
 
-impl<'a> Debug for History {
+impl Debug for History {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

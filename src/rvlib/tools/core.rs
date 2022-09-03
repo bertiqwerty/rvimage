@@ -8,7 +8,7 @@ use crate::{
     world::World,
 };
 
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct MetaData {
     pub file_path: Option<String>,
 }
@@ -23,7 +23,7 @@ pub trait Manipulate {
     where
         Self: Sized;
 
-    fn on_deactivate<'a>(
+    fn on_deactivate(
         &mut self,
         world: World,
         history: History,

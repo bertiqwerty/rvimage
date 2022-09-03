@@ -298,7 +298,7 @@ impl Manipulate for BBox {
         }
     }
 
-    fn on_deactivate<'a>(
+    fn on_deactivate(
         &mut self,
         world: World,
         history: History,
