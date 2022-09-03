@@ -33,7 +33,10 @@ impl InitialView {
         &self.image
     }
     pub fn new() -> Self {
-        Self {file_path: None, image: None}
+        Self {
+            file_path: None,
+            image: None,
+        }
     }
 }
 

@@ -14,7 +14,12 @@ pub struct CloneDummy;
 
 pub trait LoadImageForGui {
     /// read image with index file_selected_idx  
-    fn read_image(&mut self, file_selected_idx: usize, file_paths: &[String]) -> AsyncResultImage;
+    fn read_image(
+        &mut self,
+        file_selected_idx: usize,
+        file_paths: &[String],
+        reload: bool,
+    ) -> AsyncResultImage;
     /// get the user input of a new folder and open it
     fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector>;
 }
@@ -56,8 +61,15 @@ where
     CA: Clone,
     FP: ListFilesInFolder,
 {
-    fn read_image(&mut self, selected_file_idx: usize, file_paths: &[String]) -> AsyncResultImage {
-        let mut loaded = self.cache.load_from_cache(selected_file_idx, file_paths);
+    fn read_image(
+        &mut self,
+        selected_file_idx: usize,
+        file_paths: &[String],
+        reload: bool,
+    ) -> AsyncResultImage {
+        let mut loaded = self
+            .cache
+            .load_from_cache(selected_file_idx, file_paths, reload);
         let mut counter = 0usize;
         while let Err(e) = loaded {
             println!(
@@ -68,7 +80,9 @@ where
             );
             thread::sleep(Duration::from_millis(500));
             self.cache = C::new(self.cache_args.clone())?;
-            loaded = self.cache.load_from_cache(selected_file_idx, file_paths);
+            loaded = self
+                .cache
+                .load_from_cache(selected_file_idx, file_paths, reload);
             if counter == self.n_cache_recreations {
                 println!("max recreations (={}) reached.", counter);
                 return loaded;

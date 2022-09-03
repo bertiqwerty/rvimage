@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
-use super::{Manipulate, core::InitialView};
+use super::{core::InitialView, Manipulate};
 
 const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
@@ -103,7 +103,9 @@ impl Brush {
 
 impl Manipulate for Brush {
     fn new() -> Self {
-        Self { initial_view: InitialView::new() }
+        Self {
+            initial_view: InitialView::new(),
+        }
     }
 
     fn events_tf(

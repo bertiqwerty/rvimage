@@ -12,7 +12,12 @@ where
     reader_args_phantom: PhantomData<RA>,
 }
 impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
-    fn load_from_cache(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
+    fn load_from_cache(
+        &mut self,
+        selected_file_idx: usize,
+        files: &[String],
+        _reload: bool,
+    ) -> AsyncResultImage {
         self.reader.read(&files[selected_file_idx]).map(Some)
     }
     fn new(args: RA) -> RvResult<Self> {

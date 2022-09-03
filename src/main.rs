@@ -312,44 +312,47 @@ fn main() -> Result<(), pixels::Error> {
                     let folder_label = make_folder_label();
                     let file_path = menu_file_selected
                         .and_then(|fs| Some(framework.menu().file_path(fs)?.to_string()));
-                    let read_image_and_idx =
-                        match (file_path, framework.menu_mut().read_image(*selected)) {
-                            (Some(fp), Some(ri)) => {
-                                let ims_raw = DataRaw::new(
-                                    ri,
+                    let reload = false;
+                    let read_image_and_idx = match (
+                        file_path,
+                        framework.menu_mut().read_image(*selected, reload),
+                    ) {
+                        (Some(fp), Some(ri)) => {
+                            let ims_raw = DataRaw::new(
+                                ri,
+                                world.data.annotations.clone(),
+                                fp,
+                                MetaData::new(),
+                            );
+                            if !undo_redo_load {
+                                history.push(Record {
+                                    ims_raw: ims_raw.clone(),
+                                    actor: LOAD_ACTOR_NAME,
+                                    file_label_idx: file_selected,
+                                    folder_label,
+                                });
+                            }
+                            undo_redo_load = false;
+                            file_selected = menu_file_selected;
+                            is_loading_screen_active = false;
+                            (ims_raw, file_selected)
+                        }
+                        _ => {
+                            thread::sleep(Duration::from_millis(20));
+                            let shape = world.shape_orig();
+                            file_selected = menu_file_selected;
+                            is_loading_screen_active = true;
+                            (
+                                DataRaw::new(
+                                    loading_image(shape, counter),
                                     world.data.annotations.clone(),
-                                    fp,
+                                    "".to_string(),
                                     MetaData::new(),
-                                );
-                                if !undo_redo_load {
-                                    history.push(Record {
-                                        ims_raw: ims_raw.clone(),
-                                        actor: LOAD_ACTOR_NAME,
-                                        file_label_idx: file_selected,
-                                        folder_label,
-                                    });
-                                }
-                                undo_redo_load = false;
-                                file_selected = menu_file_selected;
-                                is_loading_screen_active = false;
-                                (ims_raw, file_selected)
-                            }
-                            _ => {
-                                thread::sleep(Duration::from_millis(20));
-                                let shape = world.shape_orig();
-                                file_selected = menu_file_selected;
-                                is_loading_screen_active = true;
-                                (
-                                    DataRaw::new(
-                                        loading_image(shape, counter),
-                                        world.data.annotations.clone(),
-                                        "".to_string(),
-                                        MetaData::new(),
-                                    ),
-                                    file_selected,
-                                )
-                            }
-                        };
+                                ),
+                                file_selected,
+                            )
+                        }
+                    };
                     Some(read_image_and_idx)
                 } else {
                     None

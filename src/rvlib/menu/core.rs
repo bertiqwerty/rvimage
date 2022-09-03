@@ -328,7 +328,11 @@ impl Menu {
             .map(|ps| ps.file_selected_path(file_idx))
     }
 
-    pub fn read_image(&mut self, file_label_selected_idx: usize) -> Option<DynamicImage> {
+    pub fn read_image(
+        &mut self,
+        file_label_selected_idx: usize,
+        reload: bool,
+    ) -> Option<DynamicImage> {
         let mut im_read = None;
         if let Some(r) = &mut self.reader {
             handle_error!(
@@ -340,7 +344,7 @@ impl Menu {
                     .as_ref()
                     .map_or(Ok(None), |ps| {
                         let ffp = ps.filtered_file_paths();
-                        r.read_image(file_label_selected_idx, &ffp)
+                        r.read_image(file_label_selected_idx, &ffp, reload)
                     }),
                 self
             )

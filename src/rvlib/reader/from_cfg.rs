@@ -76,8 +76,14 @@ impl ReaderFromCfg {
     }
 }
 impl LoadImageForGui for ReaderFromCfg {
-    fn read_image(&mut self, file_selected_idx: usize, file_paths: &[String]) -> AsyncResultImage {
-        self.reader.read_image(file_selected_idx, file_paths)
+    fn read_image(
+        &mut self,
+        file_selected_idx: usize,
+        file_paths: &[String],
+        reload: bool,
+    ) -> AsyncResultImage {
+        self.reader
+            .read_image(file_selected_idx, file_paths, reload)
     }
     fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector> {
         self.reader.open_folder(folder_path)

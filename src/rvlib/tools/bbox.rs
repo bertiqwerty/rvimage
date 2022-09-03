@@ -282,7 +282,6 @@ impl BBox {
 impl Manipulate for BBox {
     fn new() -> Self {
         Self {
-
             prev_pos: None,
             initial_view: InitialView::new(),
             mover: Mover::new(),

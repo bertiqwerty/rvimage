@@ -89,9 +89,17 @@ impl<RTC, RA> Cache<FileCacheArgs<RA>> for FileCache<RTC, RA>
 where
     RTC: ReadImageToCache<RA> + Send + Clone + 'static,
 {
-    fn load_from_cache(&mut self, selected_file_idx: usize, files: &[String]) -> AsyncResultImage {
+    fn load_from_cache(
+        &mut self,
+        selected_file_idx: usize,
+        files: &[String],
+        reload: bool,
+    ) -> AsyncResultImage {
         if files.is_empty() {
             return Err(RvError::new("no files to read from"));
+        }
+        if reload && self.cached_paths.contains_key(&files[selected_file_idx]) {
+            self.cached_paths.remove(&files[selected_file_idx]);
         }
         let start_idx = if selected_file_idx <= self.n_prev_images {
             0
@@ -220,7 +228,7 @@ fn test_file_cache() -> RvResult<()> {
             selected + cache.n_next_images
         };
         let files = files.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        cache.load_from_cache(selected, &files)?;
+        cache.load_from_cache(selected, &files, true)?;
         let n_millis = (max_i - min_i) * 100;
         println!("waiting {} millis", n_millis);
         thread::sleep(Duration::from_millis(n_millis as u64));
