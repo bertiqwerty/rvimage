@@ -4,7 +4,6 @@ use crate::{
     annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
     make_tool_transform,
-    types::ViewImage,
     util::{self, mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -17,6 +16,8 @@ use std::collections::HashMap;
 use std::mem;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
+
+use super::core::InitialView;
 
 const ACTOR_NAME: &str = "BBox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -103,31 +104,21 @@ annotations_accessor!(ACTOR_NAME, Bbox, BboxAnnotations, MISSING_ANNO_MSG);
 
 #[derive(Clone, Debug)]
 pub struct BBox {
-    current_file_path: Option<String>,
     prev_pos: Option<(usize, usize)>,
-    initial_view: Option<ViewImage>,
+    initial_view: InitialView,
     mover: Mover,
 }
 
 impl BBox {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
         let im_view = get_annos(&world).bbox().draw_on_view(
-            self.initial_view.clone().unwrap(),
+            self.initial_view.image().clone().unwrap(),
             world.zoom_box(),
             world.data.shape(),
             shape_win,
         );
         world.set_im_view(im_view);
         world
-    }
-    fn assert_initial_view(&mut self, world: &World, shape_win: Shape) {
-        if self.initial_view.is_none() {
-            self.initial_view = Some(
-                world
-                    .data
-                    .bg_to_unannotated_view(world.zoom_box(), shape_win),
-            );
-        }
     }
     fn mouse_pressed(
         &mut self,
@@ -291,9 +282,9 @@ impl BBox {
 impl Manipulate for BBox {
     fn new() -> Self {
         Self {
-            current_file_path: None,
+
             prev_pos: None,
-            initial_view: None,
+            initial_view: InitialView::new(),
             mover: Mover::new(),
         }
     }
@@ -305,7 +296,7 @@ impl Manipulate for BBox {
         _shape_win: Shape,
     ) -> (World, History) {
         self.prev_pos = None;
-        self.initial_view = None;
+        self.initial_view = InitialView::new();
         (world, history)
     }
 
@@ -318,21 +309,7 @@ impl Manipulate for BBox {
         event: &WinitInputHelper,
     ) -> (World, History) {
         world = initialize_anno_data(world);
-        self.assert_initial_view(&world, shape_win);
-        if self.current_file_path != world.data.meta_data.file_path {
-            self.current_file_path = world
-                .data
-                .meta_data
-                .file_path
-                .as_ref()
-                .map(|s| s.to_string());
-        }
-
-        if let Some(iv) = &self.initial_view {
-            if Shape::from_im(iv) != Shape::from_im(world.im_view()) {
-                self.initial_view = Some(world.im_view().clone());
-            }
-        }
+        self.initial_view.update(&world, shape_win);
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
         let pp_orig = mouse_pos_to_orig_pos(
@@ -361,9 +338,9 @@ impl Manipulate for BBox {
             mouse_pos,
             event,
             [
-                (mouse_released, LEFT_BTN),
                 (mouse_pressed, RIGHT_BTN),
-                (mouse_held, RIGHT_BTN)
+                (mouse_held, RIGHT_BTN),
+                (mouse_released, LEFT_BTN)
             ],
             [
                 (key_released, VirtualKeyCode::Back),

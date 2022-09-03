@@ -8,6 +8,35 @@ use crate::{
     world::World,
 };
 
+#[derive(Debug, Clone)]
+pub struct InitialView {
+    file_path: Option<String>,
+    image: Option<ViewImage>,
+}
+impl InitialView {
+    pub fn update(&mut self, world: &World, shape_win: Shape) {
+        if self.file_path != world.data.meta_data.file_path {
+            self.file_path = world
+                .data
+                .meta_data
+                .file_path
+                .as_ref()
+                .map(|s| s.to_string());
+            self.image = Some(
+                world
+                    .data
+                    .bg_to_unannotated_view(world.zoom_box(), shape_win),
+            );
+        }
+    }
+    pub fn image(&self) -> &Option<ViewImage> {
+        &self.image
+    }
+    pub fn new() -> Self {
+        Self {file_path: None, image: None}
+    }
+}
+
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct MetaData {
     pub file_path: Option<String>,
