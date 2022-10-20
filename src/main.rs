@@ -262,6 +262,9 @@ fn main() -> Result<(), pixels::Error> {
             if input.key_pressed(VirtualKeyCode::M) {
                 framework.menu_mut().toggle();
             }
+            if input.key_pressed(VirtualKeyCode::T) {
+                framework.toggle_tools_menu();
+            }
 
             if input.key_pressed(VirtualKeyCode::PageDown) {
                 framework.menu_mut().next();

@@ -136,6 +136,9 @@ impl Framework {
     pub fn activated_tool(&self) -> Option<usize> {
         self.tools_menu.activated_tool
     }
+    pub fn toggle_tools_menu(&mut self) {
+        self.tools_menu.toggle();
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -230,6 +233,13 @@ impl ToolsMenu {
             } else {
                 self.are_tools_active = true;
             }
+        }
+    }
+    pub fn toggle(&mut self) {
+        if self.window_open {
+            self.window_open = false;
+        } else {
+            self.window_open = true;
         }
     }
 }
