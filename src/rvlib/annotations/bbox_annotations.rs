@@ -132,7 +132,22 @@ fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
     }
     argmax_clr_dist(&new_clr_proposals, colors)
 }
-
+fn selected_or_deselected_indices<'a>(
+    selected_bbs: &'a [bool],
+    unselected: bool,
+) -> impl Iterator<Item = usize> + Clone + 'a {
+    selected_bbs
+        .iter()
+        .enumerate()
+        .filter(move |(_, is_selected)| unselected ^ **is_selected)
+        .map(|(i, _)| i)
+}
+fn deselected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
+    selected_or_deselected_indices(selected_bbs, true)
+}
+fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
+    selected_or_deselected_indices(selected_bbs, false)
+}
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
     bbs: Vec<BB>,
@@ -157,12 +172,7 @@ impl BboxAnnotations {
         self.bbs.remove(box_idx)
     }
     pub fn remove_selected(&mut self) {
-        let keep_indices = self
-            .selected_bbs
-            .iter()
-            .enumerate()
-            .filter(|(_, is_selected)| !**is_selected)
-            .map(|(i, _)| i);
+        let keep_indices = deselected_indices(&self.selected_bbs);
         self.bbs = keep_indices
             .clone()
             .map(|i| self.bbs[i])
@@ -171,10 +181,7 @@ impl BboxAnnotations {
             .clone()
             .map(|i| mem::take(&mut self.labels[i]))
             .collect::<Vec<_>>();
-        self.colors = keep_indices
-            .clone()
-            .map(|i| self.colors[i])
-            .collect::<Vec<_>>();
+        self.colors = keep_indices.map(|i| self.colors[i]).collect::<Vec<_>>();
         self.selected_bbs = vec![false; self.bbs.len()];
     }
 
@@ -220,21 +227,27 @@ impl BboxAnnotations {
             }
         }
     }
-    pub fn set_label(&mut self, idx: usize, label: &str) {
+    pub fn label_selected(&mut self, label: &str) {
+        let selected_inds = selected_indices(&self.selected_bbs);
         let existent_label = self
             .labels
             .iter()
             .enumerate()
-            .find(|(_, lab)| lab.as_str() == label);
+            .find(|(_, lab)| lab.as_str() == label)
+            .map(|(i, lab)| (i, lab.clone()));
         match existent_label {
             Some((exist_idx, exist_lab)) => {
-                self.colors[idx] = self.colors[exist_idx];
-                self.labels[idx] = exist_lab.to_string();
+                for idx in selected_inds {
+                    self.colors[idx] = self.colors[exist_idx];
+                    self.labels[idx] = exist_lab.to_string();
+                }
             }
             None => {
-                let new_clr = new_color(&self.colors);
-                self.labels[idx] = label.to_string();
-                self.colors[idx] = new_clr;
+                for idx in selected_inds {
+                    let new_clr = new_color(&self.colors);
+                    self.labels[idx] = label.to_string();
+                    self.colors[idx] = new_clr;
+                }
             }
         }
     }
@@ -318,7 +331,9 @@ fn test_bbs() {
 fn test_annos() {
     let mut annos = BboxAnnotations::new(make_test_bbs());
     let idx = 1;
-    annos.set_label(idx, "myclass");
+    assert!(!annos.selected_bbs[idx]);
+    annos.select(idx);
+    annos.label_selected("myclass");
     for i in 0..(annos.bbs.len()) {
         if i == idx {
             assert_eq!(annos.labels[i], "myclass");
@@ -328,4 +343,30 @@ fn test_annos() {
             assert_ne!(annos.colors[i], annos.colors[idx]);
         }
     }
+    assert!(annos.selected_bbs[idx]);
+    annos.deselect(idx);
+    assert!(!annos.selected_bbs[idx]);
+    annos.toggle_selection(idx);
+    assert!(annos.selected_bbs[idx]);
+    annos.remove_selected();
+    assert!(annos.bbs.len() == make_test_bbs().len() - 1);
+    assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
+    assert!(annos.colors.len() == make_test_bbs().len() - 1);
+    assert!(annos.labels.len() == make_test_bbs().len() - 1);
+    // this time nothing should be removed
+    annos.remove_selected();
+    assert!(annos.bbs.len() == make_test_bbs().len() - 1);
+    assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
+    assert!(annos.colors.len() == make_test_bbs().len() - 1);
+    assert!(annos.labels.len() == make_test_bbs().len() - 1);
+    annos.remove(0);
+    assert!(annos.bbs.len() == make_test_bbs().len() - 2);
+    assert!(annos.selected_bbs.len() == make_test_bbs().len() - 2);
+    assert!(annos.colors.len() == make_test_bbs().len() - 2);
+    assert!(annos.labels.len() == make_test_bbs().len() - 2);
+    annos.clear();
+    assert!(annos.bbs.len() == 0);
+    assert!(annos.selected_bbs.len() == 0);
+    assert!(annos.colors.len() == 0);
+    assert!(annos.labels.len() == 0);
 }
