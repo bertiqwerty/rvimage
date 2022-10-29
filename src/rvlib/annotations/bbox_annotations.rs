@@ -4,9 +4,10 @@ use crate::{
     util::{self, Shape, BB},
 };
 use image::Rgb;
+use imageproc::rect::Rect;
 use rand;
+use rusttype::{Font, Scale};
 use std::mem;
-
 const BBOX_ALPHA: u8 = 90;
 const BBOX_ALPHA_SELECTED: u8 = 170;
 
@@ -30,29 +31,26 @@ fn resize_bbs(
     bbs
 }
 
-fn draw_bbs<'a, I1, I2, I3>(
+fn draw_bbs<'a>(
     mut im: ViewImage,
     shape_orig: Shape,
     shape_win: Shape,
     zoom_box: &Option<BB>,
-    bbs: I1,
-    selected_bbs: I2,
-    colors: I3,
-) -> ViewImage
-where
-    I1: Iterator<Item = &'a BB>,
-    I2: Iterator<Item = &'a bool>,
-    I3: Iterator<Item = &'a [u8; 3]>,
-{
-    for ((bb, is_selected), color) in bbs.zip(selected_bbs).zip(colors) {
-        let alpha = if *is_selected {
+    bbs: &'a [BB],
+    selected_bbs: &'a [bool],
+    colors: &'a [[u8; 3]],
+    labels: &'a [String],
+) -> ViewImage {
+    for i in 0..bbs.len() {
+        let alpha = if selected_bbs[i] {
             BBOX_ALPHA_SELECTED
         } else {
             BBOX_ALPHA
         };
-        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, color, alpha);
-        let view_corners = bb.to_view_corners(shape_orig, shape_win, zoom_box);
-        let color_rgb = Rgb(*color);
+        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, &colors[i], alpha);
+        let view_corners = bbs[i].to_view_corners(shape_orig, shape_win, zoom_box);
+
+        let color_rgb = Rgb(colors[i]);
         im = util::draw_bx_on_image(
             im,
             view_corners.0,
@@ -60,6 +58,25 @@ where
             &color_rgb,
             f_inner_color,
         );
+        if &labels[i].len() > &0 {
+            if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
+                let w = x_max - x_min;
+                let scale = Scale { x: 12.0, y: 12.0 };
+                let font_data: &[u8] = include_bytes!("../../../Roboto/Roboto-Bold.ttf");
+                let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
+                let rect = Rect::at(x_min as i32, y_min as i32).of_size(w, 12);
+                imageproc::drawing::draw_filled_rect_mut(&mut im, rect, Rgb::<u8>([255, 255, 255]));
+                imageproc::drawing::draw_text_mut(
+                    &mut im,
+                    Rgb::<u8>([0, 0, 0]),
+                    x_min as i32,
+                    y_min as i32,
+                    scale,
+                    &font,
+                    &labels[i],
+                );
+            }
+        }
     }
     im
 }
@@ -173,6 +190,7 @@ impl BboxAnnotations {
             self.colors.push(new_clr);
         }
         self.labels.push(label.to_string());
+        println!("labels {:?}", self.labels);
         self.bbs.push(bb);
         self.selected_bbs.push(false);
     }
@@ -249,9 +267,10 @@ impl Annotate for BboxAnnotations {
             shape_orig,
             shape_win,
             zoom_box,
-            self.bbs.iter(),
-            self.selected_bbs.iter(),
-            self.colors.iter(),
+            &self.bbs,
+            &self.selected_bbs,
+            &self.colors,
+            &self.labels,
         )
     }
 }

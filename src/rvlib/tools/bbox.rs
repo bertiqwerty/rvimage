@@ -86,8 +86,6 @@ pub struct BBox {
 
 impl BBox {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let annos = get_annos_mut(&mut world).bbox();
-        println!("n before draw {}", annos.bbs().len());
         let im_view = get_annos(&world).bbox().draw_on_view(
             self.initial_view.image().clone().unwrap(),
             world.zoom_box(),
@@ -207,18 +205,14 @@ impl BBox {
     }
     fn key_released(
         &mut self,
-        event: &WinitInputHelper,
+        _event: &WinitInputHelper,
         shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
         let annos = get_annos_mut(&mut world).bbox_mut();
-        if event.key_released(VirtualKeyCode::Back) {
-            annos.clear();
-        } else {
-            annos.remove_selected();
-        }
+        annos.remove_selected();
         world = self.draw_on_view(world, shape_win);
         world.update_view(shape_win);
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
@@ -288,7 +282,6 @@ impl Manipulate for BBox {
                 (mouse_released, LEFT_BTN)
             ],
             [
-                (key_released, VirtualKeyCode::Back),
                 (key_released, VirtualKeyCode::Delete),
                 (key_held, VirtualKeyCode::Down),
                 (key_held, VirtualKeyCode::Up),

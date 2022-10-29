@@ -2161,6 +2161,7 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "rfd",
+ "rusttype",
  "serde",
  "ssh2",
  "toml",
