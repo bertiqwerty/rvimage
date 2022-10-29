@@ -13,9 +13,8 @@ use crate::{
     util::to_i64,
 };
 use std::collections::HashMap;
-use std::mem;
 use winit::event::VirtualKeyCode;
-use winit_input_helper::WinitInputHelper;
+use winit_input_helper::{TextChar, WinitInputHelper};
 
 use super::core::InitialView;
 
@@ -36,46 +35,6 @@ fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
         })
         .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
         .map(|(i, _)| i)
-}
-
-fn resize_bbs(
-    mut bbs: Vec<BB>,
-    selected_bbs: &[bool],
-    x_shift: i32,
-    y_shift: i32,
-    shape_orig: Shape,
-) -> Vec<BB> {
-    let selected_idxs = selected_bbs
-        .iter()
-        .enumerate()
-        .filter(|(_, x)| **x)
-        .map(|(i, _)| i);
-    for idx in selected_idxs {
-        if let Some(bb) = bbs[idx].extend_max(x_shift, y_shift, shape_orig) {
-            bbs[idx] = bb;
-        }
-    }
-    bbs
-}
-
-fn move_bbs(
-    mut bbs: Vec<BB>,
-    selected_bbs: &[bool],
-    x_shift: i32,
-    y_shift: i32,
-    shape_orig: Shape,
-) -> Vec<BB> {
-    let selected_idxs = selected_bbs
-        .iter()
-        .enumerate()
-        .filter(|(_, x)| **x)
-        .map(|(i, _)| i);
-    for idx in selected_idxs {
-        if let Some(bb) = bbs[idx].translate(x_shift, y_shift, shape_orig) {
-            bbs[idx] = bb;
-        }
-    }
-    bbs
 }
 
 /// returns index of the bounding box and the index of the closest close corner
@@ -107,6 +66,7 @@ pub struct BBox {
     prev_pos: Option<(usize, usize)>,
     initial_view: InitialView,
     mover: Mover,
+    current_label: String,
 }
 
 impl BBox {
@@ -143,13 +103,7 @@ impl BBox {
         let zoom_box = *world.zoom_box();
         let move_boxes = |mpso, mpo| {
             let annos = get_annos_mut(&mut world).bbox_mut();
-            for (bb, is_bb_selected) in annos.bbs.iter_mut().zip(annos.selected_bbs.iter()) {
-                if *is_bb_selected {
-                    if let Some(bb_moved) = bb.follow_movement(mpso, mpo, orig_shape) {
-                        *bb = bb_moved;
-                    }
-                }
-            }
+            annos.selected_follow_movement(mpso, mpo, orig_shape);
             Some(())
         };
         self.mover
@@ -176,8 +130,7 @@ impl BBox {
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // second click new bb
             let annos = get_annos_mut(&mut world).bbox_mut();
-            annos.bbs.push(BB::from_points(mp, pp));
-            annos.selected_bbs.push(false);
+            annos.add_bb(BB::from_points(mp, pp), &self.current_label);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
 
             self.prev_pos = None;
@@ -185,9 +138,9 @@ impl BBox {
             let annos = get_annos_mut(&mut world).bbox_mut();
             // selection
             let idx = mp_orig
-                .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), &annos.bbs));
+                .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), annos.bbs()));
             if let Some(i) = idx {
-                annos.selected_bbs[i] = !annos.selected_bbs[i];
+                annos.toggle_selection(i);
             }
             world = self.draw_on_view(world, shape_win);
         } else {
@@ -195,14 +148,13 @@ impl BBox {
             let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
             let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
             let close_corner = mp_orig.and_then(|mp| {
-                find_close_corner(mp, &get_annos(&world).bbox().bbs, tolerance as i64)
+                find_close_corner(mp, get_annos(&world).bbox().bbs(), tolerance as i64)
             });
             if let Some((bb_idx, idx)) = close_corner {
                 // move an existing corner
                 let annos = get_annos_mut(&mut world).bbox_mut();
-                let bb = annos.bbs.remove(bb_idx);
+                let bb = annos.remove(bb_idx);
                 let oppo_corner = bb.opposite_corner(idx);
-                annos.selected_bbs.remove(bb_idx);
                 self.prev_pos =
                     orig_pos_to_view_pos(oppo_corner, shape_orig, shape_win, world.zoom_box())
                         .map(|(x, y)| (x as usize, y as usize));
@@ -223,23 +175,14 @@ impl BBox {
     ) -> (World, History) {
         let shape_orig = world.data.shape();
         let annos = get_annos_mut(&mut world).bbox_mut();
-        let taken_bbs = mem::take(&mut annos.bbs);
         if util::with_control(VirtualKeyCode::Up, |x| event.key_held(x)) {
-            annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, 0, -1, shape_orig);
+            annos.resize_bbs(0, -1, shape_orig);
         } else if util::with_control(VirtualKeyCode::Down, |x| event.key_held(x)) {
-            annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, 0, 1, shape_orig);
+            annos.resize_bbs(0, 1, shape_orig);
         } else if util::with_control(VirtualKeyCode::Right, |x| event.key_held(x)) {
-            annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, 1, 0, shape_orig);
+            annos.resize_bbs(1, 0, shape_orig);
         } else if util::with_control(VirtualKeyCode::Left, |x| event.key_held(x)) {
-            annos.bbs = resize_bbs(taken_bbs, &annos.selected_bbs, -1, 0, shape_orig);
-        } else if event.key_held(VirtualKeyCode::Up) {
-            annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 0, -1, shape_orig);
-        } else if event.key_held(VirtualKeyCode::Down) {
-            annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 0, 1, shape_orig);
-        } else if event.key_held(VirtualKeyCode::Right) {
-            annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, 1, 0, shape_orig);
-        } else if event.key_held(VirtualKeyCode::Left) {
-            annos.bbs = move_bbs(taken_bbs, &annos.selected_bbs, -1, 0, shape_orig);
+            annos.resize_bbs(-1, 0, shape_orig);
         }
         world = self.draw_on_view(world, shape_win);
         world.update_view(shape_win);
@@ -255,22 +198,9 @@ impl BBox {
     ) -> (World, History) {
         let annos = get_annos_mut(&mut world).bbox_mut();
         if event.key_released(VirtualKeyCode::Back) {
-            annos.bbs = vec![];
-            annos.selected_bbs = vec![];
+            annos.clear();
         } else {
-            let bbs = mem::take(&mut annos.bbs);
-            let selected_bbs = mem::take(&mut annos.selected_bbs);
-            let keep_indices = selected_bbs
-                .iter()
-                .enumerate()
-                .filter(|(_, is_selected)| !**is_selected)
-                .map(|(i, _)| i);
-            let bbs = keep_indices.clone().map(|i| bbs[i]).collect::<Vec<_>>();
-            // the selected ones have been deleted hence all remaining ones are unselected
-            let selected_bbs = vec![false; bbs.len()];
-
-            annos.bbs = bbs;
-            annos.selected_bbs = selected_bbs;
+            annos.remove_selected();
         }
         world = self.draw_on_view(world, shape_win);
         world.update_view(shape_win);
@@ -285,6 +215,7 @@ impl Manipulate for BBox {
             prev_pos: None,
             initial_view: InitialView::new(),
             mover: Mover::new(),
+            current_label: "".to_string(),
         }
     }
 
@@ -317,13 +248,18 @@ impl Manipulate for BBox {
             shape_win,
             world.zoom_box(),
         );
+        let text = event
+            .text()
+            .iter()
+            .flat_map(|c| match c {
+                TextChar::Char(c) => Some(c),
+                _ => None,
+            })
+            .collect::<String>();
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // animation
             world = self.draw_on_view(world, shape_win);
-            let tmp_annos = BboxAnnotations {
-                bbs: vec![BB::from_points(mp, pp)],
-                selected_bbs: vec![false],
-            };
+            let tmp_annos = BboxAnnotations::new(vec![BB::from_points(mp, pp)]);
             let mut im_view = world.take_view();
             im_view =
                 tmp_annos.draw_on_view(im_view, world.zoom_box(), world.data.shape(), shape_win);
@@ -385,17 +321,4 @@ fn test_find_idx() {
     assert_eq!(find_closest_boundary_idx((7, 15), &bbs), None);
     assert_eq!(find_closest_boundary_idx((8, 8), &bbs), Some(0));
     assert_eq!(find_closest_boundary_idx((10, 12), &bbs), Some(2));
-}
-#[test]
-fn test_bbs() {
-    let bbs = make_test_bbs();
-    let shape_orig = Shape { w: 100, h: 100 };
-    let moved = move_bbs(bbs.clone(), &[false, true, true], 0, 1, shape_orig);
-    assert_eq!(moved[0], bbs[0]);
-    assert_eq!(BB::from_points((5, 6), (15, 16)), moved[1]);
-    assert_eq!(BB::from_points((9, 10), (19, 20)), moved[2]);
-    let resized = resize_bbs(bbs.clone(), &[false, true, true], -1, 1, shape_orig);
-    assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BB::from_points((5, 5), (14, 16)), resized[1]);
-    assert_eq!(BB::from_points((9, 9), (18, 20)), resized[2]);
 }
