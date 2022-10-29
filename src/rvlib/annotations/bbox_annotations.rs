@@ -132,8 +132,9 @@ fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
     }
     argmax_clr_dist(&new_clr_proposals, colors)
 }
+#[allow(clippy::needless_lifetimes)]
 fn selected_or_deselected_indices<'a>(
-    selected_bbs: &'a [bool],
+    selected_bbs: &'a[bool],
     unselected: bool,
 ) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_bbs
@@ -142,9 +143,11 @@ fn selected_or_deselected_indices<'a>(
         .filter(move |(_, is_selected)| unselected ^ **is_selected)
         .map(|(i, _)| i)
 }
+#[allow(clippy::needless_lifetimes)]
 fn deselected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_or_deselected_indices(selected_bbs, true)
 }
+#[allow(clippy::needless_lifetimes)]
 fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_or_deselected_indices(selected_bbs, false)
 }
