@@ -248,7 +248,7 @@ impl Manipulate for BBox {
             shape_win,
             world.zoom_box(),
         );
-        let text = event
+        let _text = event
             .text()
             .iter()
             .flat_map(|c| match c {
