@@ -244,11 +244,14 @@ impl Manipulate for BBox {
     fn events_tf(
         &mut self,
         mut world: World,
-        history: History,
+        mut history: History,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
     ) -> (World, History) {
+        if event.window_resized().is_some() {
+            (world, history) = self.on_deactivate(world, history, shape_win);
+        }
         world = initialize_anno_data(world);
         self.initial_view.update(&world, shape_win);
         self.current_label = update_label_text(mem::take(&mut self.current_label), event.text());

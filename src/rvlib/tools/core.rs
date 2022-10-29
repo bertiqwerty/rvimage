@@ -15,7 +15,9 @@ pub struct InitialView {
 }
 impl InitialView {
     pub fn update(&mut self, world: &World, shape_win: Shape) {
-        if self.file_path != world.data.meta_data.file_path {
+        if self.file_path != world.data.meta_data.file_path
+            || (self.file_path.is_some() && self.image.is_none())
+        {
             self.file_path = world
                 .data
                 .meta_data
