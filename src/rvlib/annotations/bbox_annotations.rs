@@ -3,7 +3,7 @@ use crate::{
     types::ViewImage,
     util::{self, Shape, BB},
 };
-use image::{GenericImage, Rgb};
+use image::Rgb;
 use rand;
 use std::mem;
 
@@ -30,24 +30,36 @@ fn resize_bbs(
     bbs
 }
 
-fn draw_bbs<'a, I1: Iterator<Item = &'a BB>, I2: Iterator<Item = &'a bool>>(
+fn draw_bbs<'a, I1, I2, I3>(
     mut im: ViewImage,
     shape_orig: Shape,
     shape_win: Shape,
     zoom_box: &Option<BB>,
     bbs: I1,
     selected_bbs: I2,
-    color: &Rgb<u8>,
-) -> ViewImage {
-    for (bb, is_selected) in bbs.zip(selected_bbs) {
+    colors: I3,
+) -> ViewImage
+where
+    I1: Iterator<Item = &'a BB>,
+    I2: Iterator<Item = &'a bool>,
+    I3: Iterator<Item = &'a [u8; 3]>,
+{
+    for ((bb, is_selected), color) in bbs.zip(selected_bbs).zip(colors) {
         let alpha = if *is_selected {
             BBOX_ALPHA_SELECTED
         } else {
             BBOX_ALPHA
         };
-        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(rgb, color, alpha);
+        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, color, alpha);
         let view_corners = bb.to_view_corners(shape_orig, shape_win, zoom_box);
-        im = util::draw_bx_on_image(im, view_corners.0, view_corners.1, color, f_inner_color);
+        let color_rgb = Rgb(*color);
+        im = util::draw_bx_on_image(
+            im,
+            view_corners.0,
+            view_corners.1,
+            &color_rgb,
+            f_inner_color,
+        );
     }
     im
 }
@@ -90,7 +102,7 @@ fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
 }
 #[allow(clippy::needless_lifetimes)]
 fn selected_or_deselected_indices<'a>(
-    selected_bbs: &'a[bool],
+    selected_bbs: &'a [bool],
     unselected: bool,
 ) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_bbs
@@ -149,11 +161,18 @@ impl BboxAnnotations {
         self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, x_shift, y_shift, shape_orig);
     }
     pub fn add_bb(&mut self, bb: BB, label: &str) {
-        if !self.labels.iter().any(|lab| lab == label) {
-            self.labels.push(label.to_string());
+        if let Some((box_idx, _)) = self
+            .labels
+            .iter()
+            .enumerate()
+            .find(|(_, lab)| lab == &label)
+        {
+            self.colors.push(self.colors[box_idx]);
+        } else {
             let new_clr = new_color(&self.colors);
             self.colors.push(new_clr);
         }
+        self.labels.push(label.to_string());
         self.bbs.push(bb);
         self.selected_bbs.push(false);
     }
@@ -232,7 +251,7 @@ impl Annotate for BboxAnnotations {
             zoom_box,
             self.bbs.iter(),
             self.selected_bbs.iter(),
-            &Rgb([255, 255, 255]),
+            self.colors.iter(),
         )
     }
 }
@@ -288,11 +307,19 @@ fn test_bbs() {
 }
 #[test]
 fn test_annos() {
+    fn len_check(annos: &BboxAnnotations) {
+        assert_eq!(annos.selected_bbs.len(), annos.bbs.len());
+        assert_eq!(annos.labels.len(), annos.bbs.len());
+        assert_eq!(annos.colors.len(), annos.bbs.len());
+    }
     let mut annos = BboxAnnotations::new(make_test_bbs());
+    len_check(&annos);
     let idx = 1;
     assert!(!annos.selected_bbs[idx]);
     annos.select(idx);
+    len_check(&annos);
     annos.label_selected("myclass");
+    len_check(&annos);
     for i in 0..(annos.bbs.len()) {
         if i == idx {
             assert_eq!(annos.labels[i], "myclass");
@@ -304,26 +331,36 @@ fn test_annos() {
     }
     assert!(annos.selected_bbs[idx]);
     annos.deselect(idx);
+    len_check(&annos);
     assert!(!annos.selected_bbs[idx]);
     annos.toggle_selection(idx);
+    len_check(&annos);
     assert!(annos.selected_bbs[idx]);
     annos.remove_selected();
+    len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.colors.len() == make_test_bbs().len() - 1);
     assert!(annos.labels.len() == make_test_bbs().len() - 1);
     // this time nothing should be removed
     annos.remove_selected();
+    len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.colors.len() == make_test_bbs().len() - 1);
     assert!(annos.labels.len() == make_test_bbs().len() - 1);
     annos.remove(0);
+    len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 2);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 2);
     assert!(annos.colors.len() == make_test_bbs().len() - 2);
     assert!(annos.labels.len() == make_test_bbs().len() - 2);
+    annos.add_bb(make_test_bbs()[0].clone(), "");
+    len_check(&annos);
+    annos.add_bb(make_test_bbs()[0].clone(), "123");
+    len_check(&annos);
     annos.clear();
+    len_check(&annos);
     assert!(annos.bbs.len() == 0);
     assert!(annos.selected_bbs.len() == 0);
     assert!(annos.colors.len() == 0);

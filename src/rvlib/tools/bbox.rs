@@ -12,7 +12,7 @@ use crate::{
     tools::{core::Mover, Manipulate},
     util::to_i64,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 use winit::event::VirtualKeyCode;
 use winit_input_helper::{TextChar, WinitInputHelper};
 
@@ -21,6 +21,21 @@ use super::core::InitialView;
 const ACTOR_NAME: &str = "BBox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
+
+fn update_label_text(mut current_label: String, new_text: Vec<TextChar>) -> String {
+    for c in new_text {
+        match c {
+            TextChar::Back if current_label.len() > 1 => {
+                current_label.remove(current_label.len() - 1);
+            }
+            TextChar::Char(c) => {
+                current_label.push(c);
+            }
+            _ => (),
+        }
+    }
+    current_label
+}
 
 fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
@@ -71,6 +86,8 @@ pub struct BBox {
 
 impl BBox {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
+        let annos = get_annos_mut(&mut world).bbox();
+        println!("n before draw {}", annos.bbs().len());
         let im_view = get_annos(&world).bbox().draw_on_view(
             self.initial_view.image().clone().unwrap(),
             world.zoom_box(),
@@ -132,8 +149,8 @@ impl BBox {
             let annos = get_annos_mut(&mut world).bbox_mut();
             annos.add_bb(BB::from_points(mp, pp), &self.current_label);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
-
             self.prev_pos = None;
+            world = self.draw_on_view(world, shape_win);
         } else if event.key_held(VirtualKeyCode::LControl) {
             let annos = get_annos_mut(&mut world).bbox_mut();
             // selection
@@ -240,6 +257,7 @@ impl Manipulate for BBox {
     ) -> (World, History) {
         world = initialize_anno_data(world);
         self.initial_view.update(&world, shape_win);
+        self.current_label = update_label_text(mem::take(&mut self.current_label), event.text());
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
         let pp_orig = mouse_pos_to_orig_pos(
@@ -248,14 +266,6 @@ impl Manipulate for BBox {
             shape_win,
             world.zoom_box(),
         );
-        let _text = event
-            .text()
-            .iter()
-            .flat_map(|c| match c {
-                TextChar::Char(c) => Some(c),
-                _ => None,
-            })
-            .collect::<String>();
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // animation
             world = self.draw_on_view(world, shape_win);

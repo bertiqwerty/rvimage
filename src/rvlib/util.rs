@@ -508,17 +508,17 @@ pub fn to_01(x: u8) -> f32 {
     x as f32 / 255.0
 }
 
-pub fn apply_alpha(pixel_rgb: &Rgb<u8>, color: &Rgb<u8>, alpha: u8) -> Rgb<u8> {
+pub fn apply_alpha(pixel_rgb: &[u8; 3], color: &[u8; 3], alpha: u8) -> Rgb<u8> {
     let alpha_amount = to_01(alpha);
     let apply_alpha_scalar = |x_anno, x_res| {
         ((to_01(x_anno) * alpha_amount + (1.0 - alpha_amount) * to_01(x_res)) * 255.0) as u8
     };
-    let [r_pixel, g_pixel, b_pixel] = pixel_rgb.0;
-    let [r_clr, g_clr, b_clr] = color.0;
+    let [r_pixel, g_pixel, b_pixel] = pixel_rgb;
+    let [r_clr, g_clr, b_clr] = color;
     Rgb([
-        apply_alpha_scalar(r_pixel, r_clr),
-        apply_alpha_scalar(g_pixel, g_clr),
-        apply_alpha_scalar(b_pixel, b_clr),
+        apply_alpha_scalar(*r_pixel, *r_clr),
+        apply_alpha_scalar(*g_pixel, *g_clr),
+        apply_alpha_scalar(*b_pixel, *b_clr),
     ])
 }
 
