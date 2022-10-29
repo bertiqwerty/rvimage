@@ -190,7 +190,6 @@ impl BboxAnnotations {
             self.colors.push(new_clr);
         }
         self.labels.push(label.to_string());
-        println!("labels {:?}", self.labels);
         self.bbs.push(bb);
         self.selected_bbs.push(false);
     }
