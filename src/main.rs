@@ -13,7 +13,7 @@ use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Manipulate, MetaData, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
 use rvlib::world::{DataRaw, World};
-use rvlib::{apply_tool_method, httpserver};
+use rvlib::{apply_tool_method_mut, httpserver};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
@@ -84,7 +84,7 @@ fn apply_tools(
 ) -> (World, History) {
     for t in tools {
         if t.is_active() {
-            (world, history) = apply_tool_method!(
+            (world, history) = apply_tool_method_mut!(
                 t,
                 events_tf,
                 world,
@@ -171,6 +171,7 @@ fn main() -> Result<(), pixels::Error> {
         World::from_real_im(
             DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
             HashMap::new(),
+            HashMap::new(),
             "".to_string(),
             Shape::new(START_WIDTH, START_HEIGHT),
         )
@@ -231,7 +232,7 @@ fn main() -> Result<(), pixels::Error> {
                 );
             }
 
-            if let Some(idx_active) = framework.activated_tool() {
+            if let Some(idx_active) = framework.recently_activated_tool() {
                 for (i, t) in tools.iter_mut().enumerate() {
                     if i == idx_active {
                         t.activate();
@@ -326,6 +327,7 @@ fn main() -> Result<(), pixels::Error> {
                                 world.data.annotations.clone(),
                                 fp,
                                 MetaData::new(),
+                                world.data.menu_data.clone(),
                             );
                             if !undo_redo_load {
                                 history.push(Record {
@@ -351,6 +353,8 @@ fn main() -> Result<(), pixels::Error> {
                                     world.data.annotations.clone(),
                                     "".to_string(),
                                     MetaData::new(),
+                                    world.data.menu_data.clone(),
+                                    
                                 ),
                                 file_selected,
                             )
@@ -444,7 +448,7 @@ fn main() -> Result<(), pixels::Error> {
                 world.draw(&mut pixels);
 
                 // Prepare egui
-                framework.prepare(&window, &mut tools);
+                framework.prepare(&window, &mut tools, &mut world.data.menu_data);
 
                 // Render everything together
                 let render_result = pixels.render_with(|encoder, render_target, context| {

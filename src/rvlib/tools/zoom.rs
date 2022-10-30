@@ -266,7 +266,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let mouse_pos = Some((30, 45));
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
-    let world = World::from_real_im(im_orig, HashMap::new(), "".to_string(), shape_win);
+    let world = World::from_real_im(im_orig, HashMap::new(), HashMap::new(), "".to_string(), shape_win);
     let history = History::new();
     let im_view_old = world.im_view().clone();
     let im_orig_old = world.data.clone();
@@ -284,7 +284,7 @@ fn test_on_mouse_released() -> RvResult<()> {
     let mouse_pos = Some((30, 70));
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
-    let world = World::from_real_im(im_orig, HashMap::new(), "".to_string(), shape_win);
+    let world = World::from_real_im(im_orig, HashMap::new(), HashMap::new(), "".to_string(), shape_win);
     z.set_mouse_start_zoom((40, 80), Some(world.im_view().clone()));
 
     let world = z.mouse_released_left_btn(world, shape_win, mouse_pos);

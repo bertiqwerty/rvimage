@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::{fmt::Debug, mem};
 
-use crate::annotations::{Annotate, Annotations};
+use crate::annotations::{Annotate, AnnotationsOfTools};
 use crate::tools::MetaData;
+use crate::tools_menus_data::ToolsMenuData;
 use crate::types::ViewImage;
 use crate::util::{self, Shape, BB};
 use image::{imageops, imageops::FilterType, DynamicImage};
@@ -44,28 +45,33 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
 }
 
 // filename -> (tool name -> annotations)
-pub type AnnotationsType = HashMap<String, HashMap<&'static str, Annotations>>;
+pub type AnnotationsMaps = HashMap<String, HashMap<&'static str, AnnotationsOfTools>>;
+// tool name -> tool's menu data type
+pub type ToolsMenuDataMap = HashMap<&'static str, ToolsMenuData>;
 
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
     im_background: DynamicImage,
-    pub annotations: AnnotationsType,
+    pub annotations: AnnotationsMaps,
     file_path: String,
     pub meta_data: MetaData,
+    pub menu_data: ToolsMenuDataMap,
 }
 
 impl DataRaw {
     pub fn new(
         im_background: DynamicImage,
-        annotations: AnnotationsType,
+        annotations: AnnotationsMaps,
         file_path: String,
         meta_data: MetaData,
+        menu_data: ToolsMenuDataMap,
     ) -> Self {
         DataRaw {
             im_background,
             annotations,
             file_path,
             meta_data,
+            menu_data,
         }
     }
 
@@ -159,12 +165,13 @@ impl World {
     /// real image in contrast to the loading image
     pub fn from_real_im(
         im: DynamicImage,
-        annotations: AnnotationsType,
+        annotations: AnnotationsMaps, 
+        menu_data: ToolsMenuDataMap,
         file_path: String,
         shape_win: Shape,
     ) -> Self {
         Self::new(
-            DataRaw::new(im, annotations, file_path, MetaData::new()),
+            DataRaw::new(im, annotations, file_path, MetaData::new(), menu_data),
             None,
             shape_win,
         )
@@ -242,6 +249,7 @@ fn test_scale_to_win() -> RvResult<()> {
             HashMap::new(),
             "".to_string(),
             MetaData { file_path: None },
+            HashMap::new(),
         ),
         &None,
         Shape { w: 128, h: 128 },

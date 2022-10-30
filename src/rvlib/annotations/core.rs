@@ -11,4 +11,5 @@ pub trait Annotate {
         shape_orig: Shape,
         shape_win: Shape,
     ) -> ViewImage;
+    
 }

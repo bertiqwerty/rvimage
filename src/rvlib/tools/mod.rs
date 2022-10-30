@@ -22,7 +22,7 @@ macro_rules! make_tools {
         pub fn make_tool_vec() -> Vec<ToolState> {
             vec![$(
                 ToolState {
-                    tool: ToolWrapper::$tool($tool::new()),
+                    tool_wrapper: ToolWrapper::$tool($tool::new()),
                     is_active: false,
                     name: stringify!($tool),
                     button_label: $label
@@ -33,9 +33,9 @@ macro_rules! make_tools {
 make_tools!((Rot90, "🔄"), (Zoom, "🔍"), (Brush, "✏"), (BBox, "⬜"));
 
 #[macro_export]
-macro_rules! apply_tool_method {
-    ($tool:expr, $f:ident, $($args:expr),*) => {
-        match &mut $tool.tool {
+macro_rules! apply_tool_method_mut {
+    ($tool_state:expr, $f:ident, $($args:expr),*) => {
+        match &mut $tool_state.tool_wrapper {
             ToolWrapper::Rot90(z) => z.$f($($args,)*),
             ToolWrapper::Zoom(z) => z.$f($($args,)*),
             ToolWrapper::Brush(z) => z.$f($($args,)*),
@@ -45,7 +45,7 @@ macro_rules! apply_tool_method {
 }
 
 pub struct ToolState {
-    pub tool: ToolWrapper,
+    pub tool_wrapper: ToolWrapper,
     is_active: bool,
     pub name: &'static str,
     pub button_label: &'static str,
@@ -61,7 +61,7 @@ impl ToolState {
         shape_win: Shape,
     ) -> (World, History) {
         if self.is_active {
-            (world, history) = apply_tool_method!(self, on_deactivate, world, history, shape_win);
+            (world, history) = apply_tool_method_mut!(self, on_deactivate, world, history, shape_win);
         }
         self.is_active = false;
         (world, history)

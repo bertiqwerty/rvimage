@@ -151,6 +151,7 @@ fn test_history() -> RvResult<()> {
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(im),
         HashMap::new(),
+        HashMap::new(),
         "".to_string(),
         dummy_shape_win,
     );
@@ -164,6 +165,7 @@ fn test_history() -> RvResult<()> {
     });
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(32, 32)),
+        HashMap::new(),
         HashMap::new(),
         "".to_string(),
         dummy_shape_win,
@@ -180,6 +182,7 @@ fn test_history() -> RvResult<()> {
     hist.prev_world(&None);
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(16, 16)),
+        HashMap::new(),
         HashMap::new(),
         "".to_string(),
         dummy_shape_win,

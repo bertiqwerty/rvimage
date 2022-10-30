@@ -1,9 +1,10 @@
 use crate::{
     anno_data_initializer,
-    annotations::{Annotate, Annotations, BboxAnnotations},
+    annotations::{Annotate, AnnotationsOfTools, BboxAnnotations},
     annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
-    make_tool_transform,
+    make_tool_transform, tools_menu_data_accessor, tools_menu_data_initializer,
+    tools_menus_data::{ToolSpecifics, ToolsMenuData},
     util::{self, mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -12,30 +13,16 @@ use crate::{
     tools::{core::Mover, Manipulate},
     util::to_i64,
 };
-use std::{collections::HashMap, mem};
+use std::collections::HashMap;
 use winit::event::VirtualKeyCode;
-use winit_input_helper::{TextChar, WinitInputHelper};
+use winit_input_helper::WinitInputHelper;
 
 use super::core::InitialView;
 
 const ACTOR_NAME: &str = "BBox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
+const MISSING_TOOLSMENU_MSG: &str = "bbox tools menu has not yet been initialized";
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
-
-fn update_label_text(mut current_label: String, new_text: Vec<TextChar>) -> String {
-    for c in new_text {
-        match c {
-            TextChar::Back if current_label.len() > 1 => {
-                current_label.remove(current_label.len() - 1);
-            }
-            TextChar::Char(c) => {
-                current_label.push(c);
-            }
-            _ => (),
-        }
-    }
-    current_label
-}
 
 fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
@@ -73,9 +60,13 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
 }
 
 anno_data_initializer!(ACTOR_NAME, Bbox, BboxAnnotations);
-annotations_accessor_mut!(ACTOR_NAME, Bbox, BboxAnnotations, MISSING_ANNO_MSG);
-annotations_accessor!(ACTOR_NAME, Bbox, BboxAnnotations, MISSING_ANNO_MSG);
-
+annotations_accessor_mut!(ACTOR_NAME, Bbox, MISSING_ANNO_MSG);
+annotations_accessor!(ACTOR_NAME, Bbox, MISSING_ANNO_MSG);
+tools_menu_data_initializer!(ACTOR_NAME, Bbox, String);
+tools_menu_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
+fn current_label(world: &World) -> &String {
+    get_menu_data(world).bbox()
+}
 #[derive(Clone, Debug)]
 pub struct BBox {
     prev_pos: Option<(usize, usize)>,
@@ -252,9 +243,11 @@ impl Manipulate for BBox {
         if event.window_resized().is_some() {
             (world, history) = self.on_deactivate(world, history, shape_win);
         }
+        world = initialize_tools_menu_data(world);
         world = initialize_anno_data(world);
+        world.data.menu_data.get_mut(ACTOR_NAME).unwrap().menu_active = true;
+        self.current_label = current_label(&world).clone();
         self.initial_view.update(&world, shape_win);
-        self.current_label = update_label_text(mem::take(&mut self.current_label), event.text());
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
         let pp_orig = mouse_pos_to_orig_pos(

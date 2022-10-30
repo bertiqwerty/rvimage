@@ -56,7 +56,7 @@ pub trait Manipulate {
     fn new() -> Self
     where
         Self: Sized;
-
+    
     fn on_deactivate(
         &mut self,
         world: World,
@@ -75,6 +75,7 @@ pub trait Manipulate {
         mouse_pos: Option<(usize, usize)>,
         input_event: &WinitInputHelper,
     ) -> (World, History);
+    
 }
 
 #[derive(Clone, Debug)]

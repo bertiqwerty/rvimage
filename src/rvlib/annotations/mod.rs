@@ -14,24 +14,24 @@ macro_rules! variant_access {
     ($variant:ident, $func_name:ident, $self_type:ty, $return_type:ty) => {
         pub fn $func_name(self: $self_type) -> $return_type {
             match self {
-                Annotations::$variant(x) => x,
+                AnnotationsOfTools::$variant(x) => x,
                 _ => panic!("this is not a {}", stringify!($variant)),
             }
         }
     };
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Annotations {
+pub enum AnnotationsOfTools {
     Bbox(BboxAnnotations),
     Brush(BrushAnnotations),
 }
-impl Annotations {
+impl AnnotationsOfTools {
     variant_access!(Bbox, bbox, &Self, &BboxAnnotations);
     variant_access!(Bbox, bbox_mut, &mut Self, &mut BboxAnnotations);
     variant_access!(Brush, brush, &Self, &BrushAnnotations);
     variant_access!(Brush, brush_mut, &mut Self, &mut BrushAnnotations);
 }
-impl Annotate for Annotations {
+impl Annotate for AnnotationsOfTools {
     fn draw_on_view(
         &self,
         im_view: ViewImage,
@@ -58,8 +58,10 @@ macro_rules! anno_data_initializer {
                 }
                 let actor_annotations_map = world.data.annotations.get_mut(cfp).unwrap();
                 if actor_annotations_map.get_mut($actor).is_none() {
-                    actor_annotations_map
-                        .insert($actor, Annotations::$variant($annotation_type::default()));
+                    actor_annotations_map.insert(
+                        $actor,
+                        AnnotationsOfTools::$variant($annotation_type::default()),
+                    );
                 }
             }
             world
@@ -68,8 +70,8 @@ macro_rules! anno_data_initializer {
 }
 #[macro_export]
 macro_rules! annotations_accessor_mut {
-    ($actor:expr, $variant:ident, $annotation_type:ident, $error_msg:expr) => {
-        fn get_annos_mut<'a>(world: &'a mut World) -> &'a mut Annotations {
+    ($actor:expr, $variant:ident, $error_msg:expr) => {
+        fn get_annos_mut<'a>(world: &'a mut World) -> &'a mut AnnotationsOfTools {
             world
                 .data
                 .meta_data
@@ -88,8 +90,8 @@ macro_rules! annotations_accessor_mut {
 }
 #[macro_export]
 macro_rules! annotations_accessor {
-    ($actor:expr, $variant:ident, $annotation_type:ident, $error_msg:expr) => {
-        fn get_annos<'a>(world: &'a World) -> &'a Annotations {
+    ($actor:expr, $variant:ident, $error_msg:expr) => {
+        fn get_annos<'a>(world: &'a World) -> &'a AnnotationsOfTools {
             world
                 .data
                 .meta_data

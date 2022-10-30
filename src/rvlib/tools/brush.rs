@@ -1,6 +1,6 @@
 use crate::{
     anno_data_initializer,
-    annotations::{Annotate, Annotations, BrushAnnotations},
+    annotations::{Annotate, AnnotationsOfTools, BrushAnnotations},
     annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
     make_tool_transform,
@@ -17,8 +17,8 @@ use super::{core::InitialView, Manipulate};
 const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
 anno_data_initializer!(ACTOR_NAME, Brush, BrushAnnotations);
-annotations_accessor!(ACTOR_NAME, Brush, BrushAnnotations, MISSING_ANNO_MSG);
-annotations_accessor_mut!(ACTOR_NAME, Brush, BrushAnnotations, MISSING_ANNO_MSG);
+annotations_accessor!(ACTOR_NAME, Brush, MISSING_ANNO_MSG);
+annotations_accessor_mut!(ACTOR_NAME, Brush, MISSING_ANNO_MSG);
 
 #[derive(Clone, Debug)]
 pub struct Brush {

@@ -4,14 +4,17 @@ use crate::{
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
     tools::ToolState,
+    tools_menus_data::ToolSpecifics,
+    world::ToolsMenuDataMap,
 };
 use egui::{ClippedPrimitive, Context, Id, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
 use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
+use std::mem;
 use winit::window::Window;
 
-use super::{open_folder::OpenFolder, paths_navigator::PathsNavigator};
+use super::{open_folder::OpenFolder, paths_navigator::PathsNavigator, tools_menus::bbox_menu};
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub struct Framework {
@@ -24,7 +27,7 @@ pub struct Framework {
     textures: TexturesDelta,
     // State for the GUI
     menu: Menu,
-    tools_menu: ToolsMenu,
+    tool_selection_menu: ToolSelectMenu,
 }
 
 impl Framework {
@@ -40,7 +43,7 @@ impl Framework {
         };
         let rpass = RenderPass::new(pixels.device(), pixels.render_texture_format(), 1);
         let menu = Menu::new();
-        let tools_menu = ToolsMenu::new();
+        let tools_menu = ToolSelectMenu::new();
         let textures = TexturesDelta::default();
         Self {
             egui_ctx,
@@ -50,7 +53,7 @@ impl Framework {
             paint_jobs: Vec::new(),
             textures,
             menu,
-            tools_menu,
+            tool_selection_menu: tools_menu,
         }
     }
 
@@ -72,13 +75,18 @@ impl Framework {
     }
 
     /// Prepare egui.
-    pub fn prepare(&mut self, window: &Window, tools: &mut [ToolState]) {
+    pub fn prepare(
+        &mut self,
+        window: &Window,
+        tools: &mut [ToolState],
+        tools_menu_map: &mut ToolsMenuDataMap,
+    ) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            // Draw the demo application.
+            // Draw menus.
             self.menu.ui(egui_ctx);
-            self.tools_menu.ui(egui_ctx, tools);
+            self.tool_selection_menu.ui(egui_ctx, tools, tools_menu_map);
         });
         self.textures.append(output.textures_delta);
         self.egui_state
@@ -131,13 +139,13 @@ impl Framework {
     }
 
     pub fn are_tools_active(&self) -> bool {
-        self.menu.are_tools_active && self.tools_menu.are_tools_active
+        self.menu.are_tools_active && self.tool_selection_menu.are_tools_active
     }
-    pub fn activated_tool(&self) -> Option<usize> {
-        self.tools_menu.activated_tool
+    pub fn recently_activated_tool(&self) -> Option<usize> {
+        self.tool_selection_menu.recently_activated_tool
     }
     pub fn toggle_tools_menu(&mut self) {
-        self.tools_menu.toggle();
+        self.tool_selection_menu.toggle();
     }
 }
 
@@ -200,32 +208,42 @@ macro_rules! handle_error {
     };
 }
 
-pub struct ToolsMenu {
+pub struct ToolSelectMenu {
     window_open: bool,      // Only show the egui window when true.
     are_tools_active: bool, // can deactivate all tools, overrides activated_tool
-    activated_tool: Option<usize>,
+    recently_activated_tool: Option<usize>,
 }
-impl ToolsMenu {
+impl ToolSelectMenu {
     fn new() -> Self {
         Self {
             window_open: true,
             are_tools_active: true,
-            activated_tool: None,
+            recently_activated_tool: None,
         }
     }
-    fn ui(&mut self, ctx: &Context, tools: &mut [ToolState]) {
+    fn ui(
+        &mut self,
+        ctx: &Context,
+        tools: &mut [ToolState],
+        tools_menu_map: &mut ToolsMenuDataMap,
+    ) {
         let window_response = egui::Window::new("tools")
             .vscroll(true)
             .title_bar(false)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
                 ui.horizontal_top(|ui| {
-                    self.activated_tool = tools
+                    self.recently_activated_tool = tools
                         .iter_mut()
                         .enumerate()
                         .find(|(_, t)| ui.selectable_label(t.is_active(), t.button_label).clicked())
                         .map(|(i, _)| i);
-                })
+                });
+                for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
+                    *v = match &mut v.specifics {
+                        ToolSpecifics::Bbox(x) => bbox_menu(ui, v.menu_active, mem::take(x)),
+                    };
+                }
             });
         if let Some(wr) = window_response {
             if wr.response.hovered() {
