@@ -1,3 +1,5 @@
+use tinyvec::{tiny_vec, TinyVec};
+
 #[macro_export]
 macro_rules! tools_menu_data_initializer {
     ($actor:expr, $variant:ident, $annotation_type:ident) => {
@@ -13,6 +15,14 @@ macro_rules! tools_menu_data_initializer {
     };
 }
 
+#[macro_export]
+macro_rules! tools_menu_data_accessor_mut {
+    ($actor:expr, $error_msg:expr) => {
+        fn get_menu_data_mut<'a>(world: &'a mut World) -> &'a mut ToolsMenuData {
+            world.data.menu_data.get_mut($actor).expect($error_msg)
+        }
+    };
+}
 #[macro_export]
 macro_rules! tools_menu_data_accessor {
     ($actor:expr, $error_msg:expr) => {
@@ -30,9 +40,45 @@ macro_rules! variant_access {
         }
     };
 }
+pub const N_LABELS_ON_STACK: usize = 24;
+type LabelsVec = TinyVec<[String; N_LABELS_ON_STACK]>;
+#[derive(Clone, Debug, PartialEq)]
+pub struct BboxSpecifics {
+    pub new_label: String,
+    labels: LabelsVec,
+    pub idx_current: usize,
+}
+impl BboxSpecifics {
+    pub fn remove(&mut self, idx: usize) {
+        if self.labels.len() > 1 {
+            self.labels.remove(idx);
+            if self.idx_current >= idx {
+                self.idx_current -= 1;
+            }
+        }
+    }
+    pub fn push(&mut self, elt: String) {
+        self.labels.push(elt);
+    }
+    pub fn labels(&self) -> &LabelsVec {
+        &self.labels
+    }
+}
+impl Default for BboxSpecifics {
+    fn default() -> Self {
+        let new_label = "".to_string();
+        let labels = tiny_vec!([String; N_LABELS_ON_STACK] => new_label.clone());
+        BboxSpecifics {
+            new_label,
+            labels,
+            idx_current: 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum ToolSpecifics {
-    Bbox(String),
+    Bbox(BboxSpecifics),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -47,5 +93,5 @@ impl ToolsMenuData {
             menu_active: false,
         }
     }
-    variant_access!(Bbox, bbox, &String);
+    variant_access!(Bbox, bbox, &BboxSpecifics);
 }

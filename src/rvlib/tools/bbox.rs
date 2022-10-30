@@ -3,8 +3,9 @@ use crate::{
     annotations::{Annotate, AnnotationsOfTools, BboxAnnotations},
     annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
-    make_tool_transform, tools_menu_data_accessor, tools_menu_data_initializer,
-    tools_menus_data::{ToolSpecifics, ToolsMenuData},
+    make_tool_transform, tools_menu_data_accessor, tools_menu_data_accessor_mut,
+    tools_menu_data_initializer,
+    tools_menus_data::{BboxSpecifics, ToolSpecifics, ToolsMenuData},
     util::{self, mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -62,10 +63,13 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
 anno_data_initializer!(ACTOR_NAME, Bbox, BboxAnnotations);
 annotations_accessor_mut!(ACTOR_NAME, Bbox, MISSING_ANNO_MSG);
 annotations_accessor!(ACTOR_NAME, Bbox, MISSING_ANNO_MSG);
-tools_menu_data_initializer!(ACTOR_NAME, Bbox, String);
+tools_menu_data_initializer!(ACTOR_NAME, Bbox, BboxSpecifics);
 tools_menu_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
+tools_menu_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 fn current_label(world: &World) -> &String {
-    get_menu_data(world).bbox()
+    let labels = get_menu_data(world).bbox().labels();
+    let idx = get_menu_data(world).bbox().idx_current;
+    &labels[idx]
 }
 #[derive(Clone, Debug)]
 pub struct BBox {
@@ -196,17 +200,21 @@ impl BBox {
     }
     fn key_released(
         &mut self,
-        _event: &WinitInputHelper,
+        event: &WinitInputHelper,
         shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        let annos = get_annos_mut(&mut world).bbox_mut();
-        annos.remove_selected();
-        world = self.draw_on_view(world, shape_win);
-        world.update_view(shape_win);
-        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        if event.key_released(VirtualKeyCode::L) && event.key_held(VirtualKeyCode::LControl) {
+            get_menu_data_mut(&mut world).menu_active = true;
+        } else {
+            let annos = get_annos_mut(&mut world).bbox_mut();
+            annos.remove_selected();
+            world = self.draw_on_view(world, shape_win);
+            world.update_view(shape_win);
+            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        }
         (world, history)
     }
 }
@@ -245,7 +253,6 @@ impl Manipulate for BBox {
         }
         world = initialize_tools_menu_data(world);
         world = initialize_anno_data(world);
-        world.data.menu_data.get_mut(ACTOR_NAME).unwrap().menu_active = true;
         self.current_label = current_label(&world).clone();
         self.initial_view.update(&world, shape_win);
         let mp_orig =
@@ -279,6 +286,7 @@ impl Manipulate for BBox {
             ],
             [
                 (key_released, VirtualKeyCode::Delete),
+                (key_released, VirtualKeyCode::L),
                 (key_held, VirtualKeyCode::Down),
                 (key_held, VirtualKeyCode::Up),
                 (key_held, VirtualKeyCode::Left),

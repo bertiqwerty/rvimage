@@ -230,8 +230,7 @@ fn main() -> Result<(), pixels::Error> {
                     mouse_pos,
                     &input,
                 );
-            }
-
+            } 
             if let Some(idx_active) = framework.recently_activated_tool() {
                 for (i, t) in tools.iter_mut().enumerate() {
                     if i == idx_active {

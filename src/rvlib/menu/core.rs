@@ -227,6 +227,7 @@ impl ToolSelectMenu {
         tools: &mut [ToolState],
         tools_menu_map: &mut ToolsMenuDataMap,
     ) {
+        let mut active = true;
         let window_response = egui::Window::new("tools")
             .vscroll(true)
             .title_bar(false)
@@ -236,7 +237,13 @@ impl ToolSelectMenu {
                     self.recently_activated_tool = tools
                         .iter_mut()
                         .enumerate()
-                        .find(|(_, t)| ui.selectable_label(t.is_active(), t.button_label).clicked())
+                        .find(|(_, t)| {
+                            let resp = ui.selectable_label(t.is_active(), t.button_label);
+                            if resp.hovered() || resp.interact_pointer_pos().is_some() {
+                                active = false;
+                            }
+                            resp.clicked()
+                        })
                         .map(|(i, _)| i);
                 });
                 for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
@@ -246,12 +253,16 @@ impl ToolSelectMenu {
                 }
             });
         if let Some(wr) = window_response {
-            if wr.response.hovered() {
-                self.are_tools_active = false;
-            } else {
-                self.are_tools_active = true;
+            if wr.response.hovered()
+                || wr.response.interact_pointer_pos().is_some()
+                || wr.response.drag_started()
+                || wr.response.drag_released()
+                || wr.response.dragged()
+            {
+                active = false;
             }
         }
+        self.are_tools_active = active;
     }
     pub fn toggle(&mut self) {
         if self.window_open {
