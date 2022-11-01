@@ -171,7 +171,6 @@ fn main() -> Result<(), pixels::Error> {
         World::from_real_im(
             DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
             HashMap::new(),
-            HashMap::new(),
             "".to_string(),
             Shape::new(START_WIDTH, START_HEIGHT),
         )
@@ -323,10 +322,9 @@ fn main() -> Result<(), pixels::Error> {
                         (Some(fp), Some(ri)) => {
                             let ims_raw = DataRaw::new(
                                 ri,
-                                world.data.annotations.clone(),
                                 fp,
                                 MetaData::new(),
-                                world.data.menu_data.clone(),
+                                world.data.tools_data_map.clone(),
                             );
                             if !undo_redo_load {
                                 history.push(Record {
@@ -349,10 +347,9 @@ fn main() -> Result<(), pixels::Error> {
                             (
                                 DataRaw::new(
                                     loading_image(shape, counter),
-                                    world.data.annotations.clone(),
                                     "".to_string(),
                                     MetaData::new(),
-                                    world.data.menu_data.clone(),
+                                    world.data.tools_data_map.clone(),
                                     
                                 ),
                                 file_selected,
@@ -447,7 +444,7 @@ fn main() -> Result<(), pixels::Error> {
                 world.draw(&mut pixels);
 
                 // Prepare egui
-                framework.prepare(&window, &mut tools, &mut world.data.menu_data);
+                framework.prepare(&window, &mut tools, &mut world.data.tools_data_map);
 
                 // Render everything together
                 let render_result = pixels.render_with(|encoder, render_target, context| {

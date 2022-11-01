@@ -6,15 +6,14 @@ use crate::{
     util::{orig_pos_to_view_pos, Shape, BB},
 };
 
-use super::Annotate;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BrushAnnotations {
     pub points: Vec<Vec<(u32, u32)>>,
     pub color: [u8; 3],
 }
-impl Annotate for BrushAnnotations {
-    fn draw_on_view(
+impl BrushAnnotations {
+    pub fn draw_on_view(
         &self,
         mut im_view: ViewImage,
         zoom_box: &Option<BB>,

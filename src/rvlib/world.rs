@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::{fmt::Debug, mem};
 
-use crate::annotations::{Annotate, AnnotationsOfTools};
 use crate::tools::MetaData;
-use crate::tools_menus_data::ToolsMenuData;
+use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
 use crate::util::{self, Shape, BB};
 use image::{imageops, imageops::FilterType, DynamicImage};
@@ -44,34 +43,32 @@ fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
 }
 
-// filename -> (tool name -> annotations)
-pub type AnnotationsMaps = HashMap<String, HashMap<&'static str, AnnotationsOfTools>>;
 // tool name -> tool's menu data type
-pub type ToolsMenuDataMap = HashMap<&'static str, ToolsMenuData>;
+pub type ToolsDataMap = HashMap<&'static str, ToolsData>;
 
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
     im_background: DynamicImage,
-    pub annotations: AnnotationsMaps,
-    file_path: String,
+    pub current_file_path: String,
     pub meta_data: MetaData,
-    pub menu_data: ToolsMenuDataMap,
+    pub tools_data_map: ToolsDataMap,
 }
 
 impl DataRaw {
+    pub fn current_file_path(&self) -> &str {
+        &self.current_file_path
+    }
     pub fn new(
         im_background: DynamicImage,
-        annotations: AnnotationsMaps,
-        file_path: String,
+        current_file_path: String,
         meta_data: MetaData,
-        menu_data: ToolsMenuDataMap,
+        tools_data_map: ToolsDataMap,
     ) -> Self {
         DataRaw {
             im_background,
-            annotations,
-            file_path,
+            current_file_path,
             meta_data,
-            menu_data,
+            tools_data_map,
         }
     }
 
@@ -82,10 +79,14 @@ impl DataRaw {
         shape_orig: Shape,
         shape_win: Shape,
     ) -> ViewImage {
-        if let Some(annos) = self.annotations.get(&self.file_path) {
-            for anno in annos.values() {
-                im_view = anno.draw_on_view(im_view, zoom_box, shape_orig, shape_win);
-            }
+        for td in self.tools_data_map.values() {
+            im_view = td.specifics.draw_on_view(
+                im_view,
+                zoom_box,
+                shape_orig,
+                shape_win,
+                &self.current_file_path,
+            );
         }
         im_view
     }
@@ -118,9 +119,9 @@ impl Debug for DataRaw {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "\nshape {:?}\nannotations {:?}",
+            "\nshape {:?}\ntools data {:?}",
             self.shape(),
-            self.annotations,
+            self.tools_data_map,
         )
     }
 }
@@ -165,13 +166,12 @@ impl World {
     /// real image in contrast to the loading image
     pub fn from_real_im(
         im: DynamicImage,
-        annotations: AnnotationsMaps, 
-        menu_data: ToolsMenuDataMap,
+        tools_data: ToolsDataMap,
         file_path: String,
         shape_win: Shape,
     ) -> Self {
         Self::new(
-            DataRaw::new(im, annotations, file_path, MetaData::new(), menu_data),
+            DataRaw::new(im, file_path, MetaData::new(), tools_data),
             None,
             shape_win,
         )
@@ -246,7 +246,6 @@ fn test_scale_to_win() -> RvResult<()> {
     let im_scaled = scaled_to_win_view(
         &DataRaw::new(
             DynamicImage::ImageRgb8(im_test),
-            HashMap::new(),
             "".to_string(),
             MetaData { file_path: None },
             HashMap::new(),

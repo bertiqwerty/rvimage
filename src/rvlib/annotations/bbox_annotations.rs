@@ -1,11 +1,9 @@
-use super::core::Annotate;
 use crate::{
     types::ViewImage,
     util::{self, Shape, BB},
 };
 use image::Rgb;
 use imageproc::rect::Rect;
-use rand;
 use rusttype::{Font, Scale};
 use std::mem;
 const BBOX_ALPHA: u8 = 90;
@@ -38,19 +36,22 @@ fn draw_bbs<'a>(
     zoom_box: &Option<BB>,
     bbs: &'a [BB],
     selected_bbs: &'a [bool],
+    cat_ids: &'a [usize],
     colors: &'a [[u8; 3]],
     labels: &'a [String],
 ) -> ViewImage {
-    for i in 0..bbs.len() {
-        let alpha = if selected_bbs[i] {
+    let font_data: &[u8] = include_bytes!("../../../Roboto/Roboto-Bold.ttf");
+    for box_idx in 0..bbs.len() {
+        let label_idx = cat_ids[box_idx];
+        let alpha = if selected_bbs[box_idx] {
             BBOX_ALPHA_SELECTED
         } else {
             BBOX_ALPHA
         };
-        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, &colors[i], alpha);
-        let view_corners = bbs[i].to_view_corners(shape_orig, shape_win, zoom_box);
+        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, &colors[label_idx], alpha);
+        let view_corners = bbs[box_idx].to_view_corners(shape_orig, shape_win, zoom_box);
 
-        let color_rgb = Rgb(colors[i]);
+        let color_rgb = Rgb(colors[label_idx]);
         im = util::draw_bx_on_image(
             im,
             view_corners.0,
@@ -58,11 +59,10 @@ fn draw_bbs<'a>(
             &color_rgb,
             f_inner_color,
         );
-        if &labels[i].len() > &0 {
+        if &labels[label_idx].len() > &0 {
             if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
                 let w = x_max - x_min;
                 let scale = Scale { x: 12.0, y: 12.0 };
-                let font_data: &[u8] = include_bytes!("../../../Roboto/Roboto-Bold.ttf");
                 let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
                 let rect = Rect::at(x_min as i32, y_min as i32).of_size(w, 12);
                 imageproc::drawing::draw_filled_rect_mut(&mut im, rect, Rgb::<u8>([255, 255, 255]));
@@ -73,7 +73,7 @@ fn draw_bbs<'a>(
                     y_min as i32,
                     scale,
                     &font,
-                    &labels[i],
+                    &labels[label_idx],
                 );
             }
         }
@@ -81,42 +81,6 @@ fn draw_bbs<'a>(
     im
 }
 
-fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
-    let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
-    (square_d(0) + square_d(1) + square_d(2)).sqrt()
-}
-
-fn random_clr() -> [u8; 3] {
-    let r = rand::random::<u8>();
-    let g = rand::random::<u8>();
-    let b = rand::random::<u8>();
-    [r, g, b]
-}
-
-fn argmax_clr_dist(picklist: &[[u8; 3]], legacylist: &[[u8; 3]]) -> [u8; 3] {
-    let (idx, _) = picklist
-        .iter()
-        .enumerate()
-        .map(|(i, pickclr)| {
-            let min_dist = legacylist
-                .iter()
-                .map(|legclr| color_dist(*legclr, *pickclr))
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap_or(0.0);
-            (i, min_dist)
-        })
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-        .unwrap();
-    picklist[idx]
-}
-
-fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
-    let mut new_clr_proposals = [[0u8, 0u8, 0u8]; 10];
-    for new_clr in &mut new_clr_proposals {
-        *new_clr = random_clr();
-    }
-    argmax_clr_dist(&new_clr_proposals, colors)
-}
 #[allow(clippy::needless_lifetimes)]
 fn selected_or_deselected_indices<'a>(
     selected_bbs: &'a [bool],
@@ -139,23 +103,36 @@ fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize>
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
     bbs: Vec<BB>,
-    labels: Vec<String>,
-    colors: Vec<[u8; 3]>,
+    cat_ids: Vec<usize>,
     selected_bbs: Vec<bool>,
 }
 impl BboxAnnotations {
-    pub fn new(bbs: Vec<BB>) -> BboxAnnotations {
+    pub const fn new() -> Self {
+        BboxAnnotations {
+            bbs: vec![],
+            cat_ids: vec![],
+            selected_bbs: vec![],
+        }
+    }
+    pub fn from_bbs(bbs: Vec<BB>) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
             bbs,
-            labels: vec!["".to_string(); bbs_len],
-            colors: vec![[255, 255, 255]; bbs_len],
+            cat_ids: vec![0; bbs_len],
             selected_bbs: vec![false; bbs_len],
         }
     }
+    pub fn remove_cat(&mut self, cat_id: usize) {
+        if cat_id > 0 {
+            for cid in self.cat_ids.iter_mut() {
+                if *cid >= cat_id {
+                    *cid = *cid - 1;
+                }
+            }
+        }
+    }
     pub fn remove(&mut self, box_idx: usize) -> BB {
-        self.labels.remove(box_idx);
-        self.colors.remove(box_idx);
+        self.cat_ids.remove(box_idx);
         self.selected_bbs.remove(box_idx);
         self.bbs.remove(box_idx)
     }
@@ -165,11 +142,7 @@ impl BboxAnnotations {
             .clone()
             .map(|i| self.bbs[i])
             .collect::<Vec<_>>();
-        self.labels = keep_indices
-            .clone()
-            .map(|i| mem::take(&mut self.labels[i]))
-            .collect::<Vec<_>>();
-        self.colors = keep_indices.map(|i| self.colors[i]).collect::<Vec<_>>();
+        self.cat_ids = keep_indices.map(|i| self.cat_ids[i]).collect::<Vec<_>>();
         self.selected_bbs = vec![false; self.bbs.len()];
     }
 
@@ -177,19 +150,8 @@ impl BboxAnnotations {
         let taken_bbs = mem::take(&mut self.bbs);
         self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, x_shift, y_shift, shape_orig);
     }
-    pub fn add_bb(&mut self, bb: BB, label: &str) {
-        if let Some((box_idx, _)) = self
-            .labels
-            .iter()
-            .enumerate()
-            .find(|(_, lab)| lab == &label)
-        {
-            self.colors.push(self.colors[box_idx]);
-        } else {
-            let new_clr = new_color(&self.colors);
-            self.colors.push(new_clr);
-        }
-        self.labels.push(label.to_string());
+    pub fn add_bb(&mut self, bb: BB, cat_id: usize) {
+        self.cat_ids.push(cat_id);
         self.bbs.push(bb);
         self.selected_bbs.push(false);
     }
@@ -222,44 +184,26 @@ impl BboxAnnotations {
             }
         }
     }
-    pub fn label_selected(&mut self, label: &str) {
+    pub fn label_selected(&mut self, cat_id: usize) {
         let selected_inds = selected_indices(&self.selected_bbs);
-        let existent_label = self
-            .labels
-            .iter()
-            .enumerate()
-            .find(|(_, lab)| lab.as_str() == label)
-            .map(|(i, lab)| (i, lab.clone()));
-        match existent_label {
-            Some((exist_idx, exist_lab)) => {
-                for idx in selected_inds {
-                    self.colors[idx] = self.colors[exist_idx];
-                    self.labels[idx] = exist_lab.to_string();
-                }
-            }
-            None => {
-                for idx in selected_inds {
-                    let new_clr = new_color(&self.colors);
-                    self.labels[idx] = label.to_string();
-                    self.colors[idx] = new_clr;
-                }
-            }
+        for idx in selected_inds {
+            self.cat_ids[idx] = cat_id;
         }
     }
     pub fn clear(&mut self) {
         self.bbs.clear();
         self.selected_bbs.clear();
-        self.labels.clear();
-        self.colors.clear();
+        self.cat_ids.clear();
     }
-}
-impl Annotate for BboxAnnotations {
-    fn draw_on_view(
+
+    pub fn draw_on_view(
         &self,
         im_view: ViewImage,
         zoom_box: &Option<BB>,
         shape_orig: Shape,
         shape_win: Shape,
+        labels: &[String],
+        colors: &[[u8; 3]],
     ) -> ViewImage {
         draw_bbs(
             im_view,
@@ -268,29 +212,13 @@ impl Annotate for BboxAnnotations {
             zoom_box,
             &self.bbs,
             &self.selected_bbs,
-            &self.colors,
-            &self.labels,
+            &self.cat_ids,
+            colors,
+            labels,
         )
     }
 }
 
-#[test]
-fn test_argmax() {
-    let picklist = [
-        [200, 200, 200u8],
-        [1, 7, 3],
-        [0, 0, 1],
-        [45, 43, 52],
-        [1, 10, 15],
-    ];
-    let legacylist = [
-        [17, 16, 15],
-        [199, 199, 201u8],
-        [50, 50, 50u8],
-        [255, 255, 255u8],
-    ];
-    assert_eq!(argmax_clr_dist(&picklist, &legacylist), [0, 0, 1]);
-}
 #[cfg(test)]
 fn make_test_bbs() -> Vec<BB> {
     vec![
@@ -327,24 +255,21 @@ fn test_bbs() {
 fn test_annos() {
     fn len_check(annos: &BboxAnnotations) {
         assert_eq!(annos.selected_bbs.len(), annos.bbs.len());
-        assert_eq!(annos.labels.len(), annos.bbs.len());
-        assert_eq!(annos.colors.len(), annos.bbs.len());
+        assert_eq!(annos.cat_ids.len(), annos.bbs.len());
     }
-    let mut annos = BboxAnnotations::new(make_test_bbs());
+    let mut annos = BboxAnnotations::from_bbs(make_test_bbs());
     len_check(&annos);
     let idx = 1;
     assert!(!annos.selected_bbs[idx]);
     annos.select(idx);
     len_check(&annos);
-    annos.label_selected("myclass");
+    annos.label_selected(3);
     len_check(&annos);
     for i in 0..(annos.bbs.len()) {
         if i == idx {
-            assert_eq!(annos.labels[i], "myclass");
-            assert_eq!(annos.colors[i], annos.colors[idx]);
+            assert_eq!(annos.cat_ids[i], 3);
         } else {
-            assert_eq!(annos.labels[i], "");
-            assert_ne!(annos.colors[i], annos.colors[idx]);
+            assert_eq!(annos.cat_ids[i], 0);
         }
     }
     assert!(annos.selected_bbs[idx]);
@@ -358,29 +283,26 @@ fn test_annos() {
     len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
-    assert!(annos.colors.len() == make_test_bbs().len() - 1);
-    assert!(annos.labels.len() == make_test_bbs().len() - 1);
+    assert!(annos.cat_ids.len() == make_test_bbs().len() - 1);
     // this time nothing should be removed
     annos.remove_selected();
     len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
-    assert!(annos.colors.len() == make_test_bbs().len() - 1);
-    assert!(annos.labels.len() == make_test_bbs().len() - 1);
+    assert!(annos.cat_ids.len() == make_test_bbs().len() - 1);
     annos.remove(0);
     len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 2);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 2);
-    assert!(annos.colors.len() == make_test_bbs().len() - 2);
-    assert!(annos.labels.len() == make_test_bbs().len() - 2);
-    annos.add_bb(make_test_bbs()[0].clone(), "");
+    assert!(annos.cat_ids.len() == make_test_bbs().len() - 2);
+    annos.add_bb(make_test_bbs()[0].clone(), 0);
     len_check(&annos);
-    annos.add_bb(make_test_bbs()[0].clone(), "123");
+    annos.add_bb(make_test_bbs()[0].clone(), 123);
     len_check(&annos);
     annos.clear();
     len_check(&annos);
     assert!(annos.bbs.len() == 0);
     assert!(annos.selected_bbs.len() == 0);
-    assert!(annos.colors.len() == 0);
-    assert!(annos.labels.len() == 0);
+    assert!(annos.cat_ids.len() == 0);
+    assert!(annos.cat_ids.len() == 0);
 }

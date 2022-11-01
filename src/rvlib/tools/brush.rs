@@ -1,24 +1,31 @@
 use crate::{
-    anno_data_initializer,
-    annotations::{Annotate, AnnotationsOfTools, BrushAnnotations},
-    annotations_accessor, annotations_accessor_mut,
+    annotations::BrushAnnotations,
+    annotations_accessor_mut,
     history::{History, Record},
     make_tool_transform,
+    tools_data::BrushSpecifics,
+    tools_data::{ToolSpecifics, ToolsData},
+    tools_menu_data_accessor, tools_menu_data_initializer,
     util::{mouse_pos_to_orig_pos, Shape},
     world::World,
     LEFT_BTN,
 };
-use std::collections::HashMap;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use super::{core::InitialView, Manipulate};
 
 const ACTOR_NAME: &str = "Brush";
-const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
-anno_data_initializer!(ACTOR_NAME, Brush, BrushAnnotations);
-annotations_accessor!(ACTOR_NAME, Brush, MISSING_ANNO_MSG);
-annotations_accessor_mut!(ACTOR_NAME, Brush, MISSING_ANNO_MSG);
+const MISSING_TOOLSMENU_MSG: &str = "brush data have not yet been initialized";
+
+tools_menu_data_initializer!(ACTOR_NAME, Brush, BrushSpecifics);
+tools_menu_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
+annotations_accessor_mut!(
+    ACTOR_NAME,
+    brush_mut,
+    MISSING_TOOLSMENU_MSG,
+    BrushAnnotations
+);
 
 #[derive(Clone, Debug)]
 pub struct Brush {
@@ -27,12 +34,16 @@ pub struct Brush {
 
 impl Brush {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let im_view = get_annos(&world).brush().draw_on_view(
-            self.initial_view.image().clone().unwrap(),
-            world.zoom_box(),
-            world.data.shape(),
-            shape_win,
-        );
+        let im_view = get_menu_data(&world)
+            .specifics
+            .brush()
+            .get_annos(world.data.current_file_path())
+            .draw_on_view(
+                self.initial_view.image().clone().unwrap(),
+                world.zoom_box(),
+                world.data.shape(),
+                shape_win,
+            );
         world.set_im_view(im_view);
         world
     }
@@ -44,11 +55,10 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        println!("PRESSED");
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
         if mp_orig.is_some() {
-            get_annos_mut(&mut world).brush_mut().points.push(vec![]);
+            get_annos_mut(&mut world).points.push(vec![]);
         }
         (world, history)
     }
@@ -65,7 +75,6 @@ impl Brush {
             mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
         if let Some(mp) = mp_orig {
             get_annos_mut(&mut world)
-                .brush_mut()
                 .points
                 .last_mut()
                 .unwrap()
@@ -94,7 +103,7 @@ impl Brush {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        get_annos_mut(&mut world).brush_mut().points.clear();
+        get_annos_mut(&mut world).points.clear();
         world = self.draw_on_view(world, shape_win);
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
         (world, history)
@@ -116,8 +125,8 @@ impl Manipulate for Brush {
         mouse_pos: Option<(usize, usize)>,
         event: &WinitInputHelper,
     ) -> (World, History) {
-        world = initialize_anno_data(world);
         self.initial_view.update(&world, shape_win);
+        world = initialize_tools_menu_data(world);
         make_tool_transform!(
             self,
             world,

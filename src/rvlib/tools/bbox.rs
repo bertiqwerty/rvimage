@@ -1,11 +1,10 @@
 use crate::{
-    anno_data_initializer,
-    annotations::{Annotate, AnnotationsOfTools, BboxAnnotations},
+    annotations::BboxAnnotations,
     annotations_accessor, annotations_accessor_mut,
     history::{History, Record},
-    make_tool_transform, tools_menu_data_accessor, tools_menu_data_accessor_mut,
-    tools_menu_data_initializer,
-    tools_menus_data::{BboxSpecifics, ToolSpecifics, ToolsMenuData},
+    make_tool_transform,
+    tools_data::{BboxSpecifics, ToolSpecifics, ToolsData},
+    tools_menu_data_accessor, tools_menu_data_accessor_mut, tools_menu_data_initializer,
     util::{self, mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -14,7 +13,6 @@ use crate::{
     tools::{core::Mover, Manipulate},
     util::to_i64,
 };
-use std::collections::HashMap;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
@@ -60,32 +58,34 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
         .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
-anno_data_initializer!(ACTOR_NAME, Bbox, BboxAnnotations);
-annotations_accessor_mut!(ACTOR_NAME, Bbox, MISSING_ANNO_MSG);
-annotations_accessor!(ACTOR_NAME, Bbox, MISSING_ANNO_MSG);
 tools_menu_data_initializer!(ACTOR_NAME, Bbox, BboxSpecifics);
 tools_menu_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 tools_menu_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
-fn current_label(world: &World) -> &String {
-    let labels = get_menu_data(world).bbox().labels();
-    let idx = get_menu_data(world).bbox().idx_current;
-    &labels[idx]
+annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
+annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
+
+fn current_cat_id(world: &World) -> usize {
+    get_menu_data(world).specifics.bbox().cat_id_current
 }
+
 #[derive(Clone, Debug)]
 pub struct BBox {
     prev_pos: Option<(usize, usize)>,
     initial_view: InitialView,
     mover: Mover,
-    current_label: String,
+    current_label: usize,
 }
 
 impl BBox {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let im_view = get_annos(&world).bbox().draw_on_view(
+        let bb_data = &get_menu_data(&world).specifics.bbox();
+        let im_view = get_annos(&world).draw_on_view(
             self.initial_view.image().clone().unwrap(),
             world.zoom_box(),
             world.data.shape(),
             shape_win,
+            bb_data.labels(),
+            bb_data.colors(),
         );
         world.set_im_view(im_view);
         world
@@ -112,7 +112,7 @@ impl BBox {
         let orig_shape = world.data.shape();
         let zoom_box = *world.zoom_box();
         let move_boxes = |mpso, mpo| {
-            let annos = get_annos_mut(&mut world).bbox_mut();
+            let annos = get_annos_mut(&mut world);
             annos.selected_follow_movement(mpso, mpo, orig_shape);
             Some(())
         };
@@ -139,13 +139,15 @@ impl BBox {
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // second click new bb
-            let annos = get_annos_mut(&mut world).bbox_mut();
-            annos.add_bb(BB::from_points(mp, pp), &self.current_label);
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
-            self.prev_pos = None;
-            world = self.draw_on_view(world, shape_win);
+            if (mp.0 as i32 - pp.0 as i32).abs() > 1 && (mp.1 as i32 - pp.1 as i32).abs() > 1 {
+                let annos = get_annos_mut(&mut world);
+                annos.add_bb(BB::from_points(mp, pp), self.current_label);
+                history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                self.prev_pos = None;
+                world = self.draw_on_view(world, shape_win);
+            }
         } else if event.key_held(VirtualKeyCode::LControl) {
-            let annos = get_annos_mut(&mut world).bbox_mut();
+            let annos = get_annos_mut(&mut world);
             // selection
             let idx = mp_orig
                 .and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), annos.bbs()));
@@ -157,12 +159,11 @@ impl BBox {
             let shape_orig = world.data.shape();
             let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
             let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
-            let close_corner = mp_orig.and_then(|mp| {
-                find_close_corner(mp, get_annos(&world).bbox().bbs(), tolerance as i64)
-            });
+            let close_corner = mp_orig
+                .and_then(|mp| find_close_corner(mp, get_annos(&world).bbs(), tolerance as i64));
             if let Some((bb_idx, idx)) = close_corner {
                 // move an existing corner
-                let annos = get_annos_mut(&mut world).bbox_mut();
+                let annos = get_annos_mut(&mut world);
                 let bb = annos.remove(bb_idx);
                 let oppo_corner = bb.opposite_corner(idx);
                 self.prev_pos =
@@ -184,7 +185,7 @@ impl BBox {
         history: History,
     ) -> (World, History) {
         let shape_orig = world.data.shape();
-        let annos = get_annos_mut(&mut world).bbox_mut();
+        let annos = get_annos_mut(&mut world);
         if util::with_control(VirtualKeyCode::Up, |x| event.key_held(x)) {
             annos.resize_bbs(0, -1, shape_orig);
         } else if util::with_control(VirtualKeyCode::Down, |x| event.key_held(x)) {
@@ -209,7 +210,7 @@ impl BBox {
         if event.key_released(VirtualKeyCode::L) && event.key_held(VirtualKeyCode::LControl) {
             get_menu_data_mut(&mut world).menu_active = true;
         } else {
-            let annos = get_annos_mut(&mut world).bbox_mut();
+            let annos = get_annos_mut(&mut world);
             annos.remove_selected();
             world = self.draw_on_view(world, shape_win);
             world.update_view(shape_win);
@@ -225,7 +226,7 @@ impl Manipulate for BBox {
             prev_pos: None,
             initial_view: InitialView::new(),
             mover: Mover::new(),
-            current_label: "".to_string(),
+            current_label: 0,
         }
     }
 
@@ -252,8 +253,8 @@ impl Manipulate for BBox {
             (world, history) = self.on_deactivate(world, history, shape_win);
         }
         world = initialize_tools_menu_data(world);
-        world = initialize_anno_data(world);
-        self.current_label = current_label(&world).clone();
+        self.current_label = current_cat_id(&world).clone();
+
         self.initial_view.update(&world, shape_win);
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
@@ -266,10 +267,17 @@ impl Manipulate for BBox {
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // animation
             world = self.draw_on_view(world, shape_win);
-            let tmp_annos = BboxAnnotations::new(vec![BB::from_points(mp, pp)]);
+            let tmp_annos = BboxAnnotations::from_bbs(vec![BB::from_points(mp, pp)]);
             let mut im_view = world.take_view();
-            im_view =
-                tmp_annos.draw_on_view(im_view, world.zoom_box(), world.data.shape(), shape_win);
+            let bb_data = get_menu_data(&world).specifics.bbox();
+            im_view = tmp_annos.draw_on_view(
+                im_view,
+                world.zoom_box(),
+                world.data.shape(),
+                shape_win,
+                bb_data.labels(),
+                bb_data.colors(),
+            );
             world.set_im_view(im_view);
         }
         make_tool_transform!(

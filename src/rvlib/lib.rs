@@ -10,7 +10,7 @@ pub mod result;
 mod ssh;
 mod threadpool;
 pub mod tools;
-pub mod tools_menus_data;
+pub mod tools_data;
 mod types;
 pub mod util;
 pub mod world;

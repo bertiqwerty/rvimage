@@ -4,8 +4,8 @@ use crate::{
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
     tools::ToolState,
-    tools_menus_data::ToolSpecifics,
-    world::ToolsMenuDataMap,
+    tools_data::ToolSpecifics,
+    world::ToolsDataMap,
 };
 use egui::{ClippedPrimitive, Context, Id, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
@@ -79,7 +79,7 @@ impl Framework {
         &mut self,
         window: &Window,
         tools: &mut [ToolState],
-        tools_menu_map: &mut ToolsMenuDataMap,
+        tools_menu_map: &mut ToolsDataMap,
     ) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
@@ -225,9 +225,8 @@ impl ToolSelectMenu {
         &mut self,
         ctx: &Context,
         tools: &mut [ToolState],
-        tools_menu_map: &mut ToolsMenuDataMap,
+        tools_menu_map: &mut ToolsDataMap,
     ) {
-        let mut active = true;
         let window_response = egui::Window::new("tools")
             .vscroll(true)
             .title_bar(false)
@@ -238,31 +237,25 @@ impl ToolSelectMenu {
                         .iter_mut()
                         .enumerate()
                         .find(|(_, t)| {
-                            let resp = ui.selectable_label(t.is_active(), t.button_label);
-                            if resp.hovered() || resp.interact_pointer_pos().is_some() {
-                                active = false;
-                            }
-                            resp.clicked()
+                            ui.selectable_label(t.is_active(), t.button_label).clicked()
                         })
                         .map(|(i, _)| i);
                 });
                 for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
                     *v = match &mut v.specifics {
                         ToolSpecifics::Bbox(x) => bbox_menu(ui, v.menu_active, mem::take(x)),
+                        ToolSpecifics::Brush(_) => mem::take(v),
                     };
                 }
             });
-        if let Some(wr) = window_response {
-            if wr.response.hovered()
-                || wr.response.interact_pointer_pos().is_some()
-                || wr.response.drag_started()
-                || wr.response.drag_released()
-                || wr.response.dragged()
-            {
-                active = false;
+        if let (Some(wr), Some(pos)) = (window_response, ctx.pointer_latest_pos()) {
+
+            if wr.response.rect.expand(5.0).contains(pos) {
+                self.are_tools_active = false;
+            } else {
+                self.are_tools_active = true;
             }
         }
-        self.are_tools_active = active;
     }
     pub fn toggle(&mut self) {
         if self.window_open {
