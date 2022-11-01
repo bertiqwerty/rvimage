@@ -51,8 +51,15 @@ pub struct ToolState {
     pub button_label: &'static str,
 }
 impl ToolState {
-    pub fn activate(&mut self) {
+    pub fn activate(
+        &mut self,
+        mut world: World,
+        mut history: History,
+        shape_win: Shape,
+    ) -> (World, History) {
         self.is_active = true;
+        (world, history) = apply_tool_method_mut!(self, on_activate, world, history, shape_win);
+        (world, history)
     }
     pub fn deactivate(
         &mut self,

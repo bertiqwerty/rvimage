@@ -11,11 +11,11 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecifics) ->
     for (label_idx, label) in data.labels().iter().enumerate() {
         let checked = label_idx == data.cat_id_current;
         ui.horizontal_top(|ui| {
+            if ui.button("x").clicked() {
+                to_be_removed = Some(label_idx);
+            }
             if ui.selectable_label(checked, label).clicked() {
                 new_idx = label_idx;
-            }
-            if ui.button("del").clicked() {
-                to_be_removed = Some(label_idx);
             }
         });
     }

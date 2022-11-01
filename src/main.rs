@@ -229,11 +229,15 @@ fn main() -> Result<(), pixels::Error> {
                     mouse_pos,
                     &input,
                 );
-            } 
-            if let Some(idx_active) = framework.recently_activated_tool() {
+            }
+            if let (Some(idx_active), Some(_)) = (
+                framework.recently_activated_tool(),
+                &world.data.meta_data.file_path,
+            ) {
                 for (i, t) in tools.iter_mut().enumerate() {
                     if i == idx_active {
-                        t.activate();
+                        (world, history) =
+                            t.activate(mem::take(&mut world), mem::take(&mut history), shape_win);
                     } else {
                         let file_path = file_selected
                             .and_then(|fs| framework.menu().file_path(fs).map(|s| s.to_string()));
@@ -350,7 +354,6 @@ fn main() -> Result<(), pixels::Error> {
                                     "".to_string(),
                                     MetaData::new(),
                                     world.data.tools_data_map.clone(),
-                                    
                                 ),
                                 file_selected,
                             )

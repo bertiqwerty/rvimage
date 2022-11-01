@@ -201,21 +201,17 @@ impl BBox {
     }
     fn key_released(
         &mut self,
-        event: &WinitInputHelper,
+        _event: &WinitInputHelper,
         shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        if event.key_released(VirtualKeyCode::L) && event.key_held(VirtualKeyCode::LControl) {
-            get_tools_data_mut(&mut world).menu_active = true;
-        } else {
-            let annos = get_annos_mut(&mut world);
-            annos.remove_selected();
-            world = self.draw_on_view(world, shape_win);
-            world.update_view(shape_win);
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
-        }
+        let annos = get_annos_mut(&mut world);
+        annos.remove_selected();
+        world = self.draw_on_view(world, shape_win);
+        world.update_view(shape_win);
+        history.push(Record::new(world.data.clone(), ACTOR_NAME));
         (world, history)
     }
 }
@@ -230,14 +226,27 @@ impl Manipulate for BBox {
         }
     }
 
-    fn on_deactivate(
+    fn on_activate(
         &mut self,
-        world: World,
+        mut world: World,
         history: History,
         _shape_win: Shape,
     ) -> (World, History) {
         self.prev_pos = None;
         self.initial_view = InitialView::new();
+        world = initialize_tools_menu_data(world);
+        get_tools_data_mut(&mut world).menu_active = true;
+        (world, history)
+    }
+    fn on_deactivate(
+        &mut self,
+        mut world: World,
+        history: History,
+        _shape_win: Shape,
+    ) -> (World, History) {
+        self.prev_pos = None;
+        self.initial_view = InitialView::new();
+        get_tools_data_mut(&mut world).menu_active = false;
         (world, history)
     }
 
@@ -250,9 +259,8 @@ impl Manipulate for BBox {
         event: &WinitInputHelper,
     ) -> (World, History) {
         if event.window_resized().is_some() {
-            (world, history) = self.on_deactivate(world, history, shape_win);
+            (world, history) = self.on_activate(world, history, shape_win);
         }
-        world = initialize_tools_menu_data(world);
         self.current_label = current_cat_id(&world);
 
         self.initial_view.update(&world, shape_win);
@@ -294,7 +302,6 @@ impl Manipulate for BBox {
             ],
             [
                 (key_released, VirtualKeyCode::Delete),
-                (key_released, VirtualKeyCode::L),
                 (key_held, VirtualKeyCode::Down),
                 (key_held, VirtualKeyCode::Up),
                 (key_held, VirtualKeyCode::Left),

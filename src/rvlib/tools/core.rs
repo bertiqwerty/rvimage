@@ -57,6 +57,14 @@ pub trait Manipulate {
     where
         Self: Sized;
     
+    fn on_activate(
+        &mut self,
+        world: World,
+        history: History,
+        _shape_win: Shape,
+    ) -> (World, History) {
+        (world, history)
+    }
     fn on_deactivate(
         &mut self,
         world: World,
