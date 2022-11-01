@@ -59,7 +59,7 @@ fn draw_bbs<'a>(
             &color_rgb,
             f_inner_color,
         );
-        if &labels[label_idx].len() > &0 {
+        if !labels[label_idx].is_empty() {
             if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
                 let w = x_max - x_min;
                 let scale = Scale { x: 12.0, y: 12.0 };
@@ -126,7 +126,7 @@ impl BboxAnnotations {
         if cat_id > 0 {
             for cid in self.cat_ids.iter_mut() {
                 if *cid >= cat_id {
-                    *cid = *cid - 1;
+                    *cid -= 1;
                 }
             }
         }

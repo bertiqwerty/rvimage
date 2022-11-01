@@ -7,7 +7,7 @@ pub use self::{bbox_data::BboxSpecifics, brush_data::BrushSpecifics};
 pub mod bbox_data;
 pub mod brush_data;
 #[macro_export]
-macro_rules! tools_menu_data_initializer {
+macro_rules! tools_data_initializer {
     ($actor:expr, $variant:ident, $tool_data_type:ident) => {
         fn initialize_tools_menu_data(mut world: World) -> World {
             if world.data.tools_data_map.get_mut($actor).is_none() {
@@ -40,17 +40,17 @@ macro_rules! annotations_accessor_mut {
     };
 }
 #[macro_export]
-macro_rules! tools_menu_data_accessor_mut {
+macro_rules! tools_data_accessor_mut {
     ($actor:expr, $error_msg:expr) => {
-        fn get_menu_data_mut<'a>(world: &'a mut World) -> &'a mut ToolsData {
+        fn get_tools_data_mut<'a>(world: &'a mut World) -> &'a mut ToolsData {
             world.data.tools_data_map.get_mut($actor).expect($error_msg)
         }
     };
 }
 #[macro_export]
-macro_rules! tools_menu_data_accessor {
+macro_rules! tools_data_accessor {
     ($actor:expr, $error_msg:expr) => {
-        fn get_menu_data<'a>(world: &'a World) -> &'a ToolsData {
+        fn get_tools_data<'a>(world: &'a World) -> &'a ToolsData {
             world.data.tools_data_map.get($actor).expect($error_msg)
         }
     };
@@ -67,7 +67,7 @@ macro_rules! variant_access {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ToolSpecifics {
     Bbox(BboxSpecifics),
     Brush(BrushSpecifics),
@@ -111,7 +111,7 @@ impl Default for ToolSpecifics {
         ToolSpecifics::Bbox(BboxSpecifics::default())
     }
 }
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ToolsData {
     pub specifics: ToolSpecifics,
     pub menu_active: bool,

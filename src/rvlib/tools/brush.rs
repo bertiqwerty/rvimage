@@ -5,7 +5,7 @@ use crate::{
     make_tool_transform,
     tools_data::BrushSpecifics,
     tools_data::{ToolSpecifics, ToolsData},
-    tools_menu_data_accessor, tools_menu_data_initializer,
+    tools_data_accessor, tools_data_initializer,
     util::{mouse_pos_to_orig_pos, Shape},
     world::World,
     LEFT_BTN,
@@ -18,8 +18,8 @@ use super::{core::InitialView, Manipulate};
 const ACTOR_NAME: &str = "Brush";
 const MISSING_TOOLSMENU_MSG: &str = "brush data have not yet been initialized";
 
-tools_menu_data_initializer!(ACTOR_NAME, Brush, BrushSpecifics);
-tools_menu_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
+tools_data_initializer!(ACTOR_NAME, Brush, BrushSpecifics);
+tools_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(
     ACTOR_NAME,
     brush_mut,
@@ -34,7 +34,7 @@ pub struct Brush {
 
 impl Brush {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let im_view = get_menu_data(&world)
+        let im_view = get_tools_data(&world)
             .specifics
             .brush()
             .get_annos(world.data.current_file_path())

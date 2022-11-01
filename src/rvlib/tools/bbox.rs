@@ -4,7 +4,7 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     tools_data::{BboxSpecifics, ToolSpecifics, ToolsData},
-    tools_menu_data_accessor, tools_menu_data_accessor_mut, tools_menu_data_initializer,
+    tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     util::{self, mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -58,14 +58,14 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
         .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
-tools_menu_data_initializer!(ACTOR_NAME, Bbox, BboxSpecifics);
-tools_menu_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
-tools_menu_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
+tools_data_initializer!(ACTOR_NAME, Bbox, BboxSpecifics);
+tools_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
+tools_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 
 fn current_cat_id(world: &World) -> usize {
-    get_menu_data(world).specifics.bbox().cat_id_current
+    get_tools_data(world).specifics.bbox().cat_id_current
 }
 
 #[derive(Clone, Debug)]
@@ -78,7 +78,7 @@ pub struct BBox {
 
 impl BBox {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let bb_data = &get_menu_data(&world).specifics.bbox();
+        let bb_data = &get_tools_data(&world).specifics.bbox();
         let im_view = get_annos(&world).draw_on_view(
             self.initial_view.image().clone().unwrap(),
             world.zoom_box(),
@@ -208,7 +208,7 @@ impl BBox {
         mut history: History,
     ) -> (World, History) {
         if event.key_released(VirtualKeyCode::L) && event.key_held(VirtualKeyCode::LControl) {
-            get_menu_data_mut(&mut world).menu_active = true;
+            get_tools_data_mut(&mut world).menu_active = true;
         } else {
             let annos = get_annos_mut(&mut world);
             annos.remove_selected();
@@ -253,7 +253,7 @@ impl Manipulate for BBox {
             (world, history) = self.on_deactivate(world, history, shape_win);
         }
         world = initialize_tools_menu_data(world);
-        self.current_label = current_cat_id(&world).clone();
+        self.current_label = current_cat_id(&world);
 
         self.initial_view.update(&world, shape_win);
         let mp_orig =
@@ -269,7 +269,7 @@ impl Manipulate for BBox {
             world = self.draw_on_view(world, shape_win);
             let tmp_annos = BboxAnnotations::from_bbs(vec![BB::from_points(mp, pp)]);
             let mut im_view = world.take_view();
-            let bb_data = get_menu_data(&world).specifics.bbox();
+            let bb_data = get_tools_data(&world).specifics.bbox();
             im_view = tmp_annos.draw_on_view(
                 im_view,
                 world.zoom_box(),

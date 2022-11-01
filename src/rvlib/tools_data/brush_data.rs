@@ -7,7 +7,7 @@ const fn default() -> BrushAnnotations {
 }
 
 static DEFAULT_BRUSH_ANNOTATION: BrushAnnotations = default();
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct BrushSpecifics {
     annotations_map: HashMap<String, BrushAnnotations>,
 }

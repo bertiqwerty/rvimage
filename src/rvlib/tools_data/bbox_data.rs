@@ -46,7 +46,7 @@ fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
 }
 
 static DEFAULT_BBOX_ANNOTATION: BboxAnnotations = BboxAnnotations::new();
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BboxSpecifics {
     pub new_label: String,
     labels: LabelsVec,
@@ -94,7 +94,7 @@ impl BboxSpecifics {
         let new_label = "".to_string();
         let new_color = [255, 255, 255];
         let labels = tiny_vec!([String; N_LABELS_ON_STACK] => new_label.clone());
-        let colors = tiny_vec!([[u8; 3]; N_LABELS_ON_STACK] => new_color.clone());
+        let colors = tiny_vec!([[u8; 3]; N_LABELS_ON_STACK] => new_color);
         BboxSpecifics {
             new_label,
             labels,
