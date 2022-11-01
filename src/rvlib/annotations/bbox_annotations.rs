@@ -29,6 +29,19 @@ fn resize_bbs(
     bbs
 }
 
+struct Cats<'a> {
+    cat_ids: &'a [usize],
+    labels: &'a [String],
+    colors: &'a [[u8; 3]],
+}
+impl<'a> Cats<'a> {
+    pub fn color_of_box(&self, box_idx: usize) -> &'a [u8; 3] {
+        &self.colors[self.cat_ids[box_idx]]
+    }
+    pub fn label_of_box(&self, box_idx: usize) -> &'a str {
+        self.labels[self.cat_ids[box_idx]].as_str()
+    }
+}
 fn draw_bbs<'a>(
     mut im: ViewImage,
     shape_orig: Shape,
@@ -36,22 +49,19 @@ fn draw_bbs<'a>(
     zoom_box: &Option<BB>,
     bbs: &'a [BB],
     selected_bbs: &'a [bool],
-    cat_ids: &'a [usize],
-    colors: &'a [[u8; 3]],
-    labels: &'a [String],
+    cats: Cats<'a>,
 ) -> ViewImage {
     let font_data: &[u8] = include_bytes!("../../../Roboto/Roboto-Bold.ttf");
     for box_idx in 0..bbs.len() {
-        let label_idx = cat_ids[box_idx];
         let alpha = if selected_bbs[box_idx] {
             BBOX_ALPHA_SELECTED
         } else {
             BBOX_ALPHA
         };
-        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, &colors[label_idx], alpha);
+        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, cats.color_of_box(box_idx), alpha);
         let view_corners = bbs[box_idx].to_view_corners(shape_orig, shape_win, zoom_box);
 
-        let color_rgb = Rgb(colors[label_idx]);
+        let color_rgb = Rgb(*cats.color_of_box(box_idx));
         im = util::draw_bx_on_image(
             im,
             view_corners.0,
@@ -59,7 +69,8 @@ fn draw_bbs<'a>(
             &color_rgb,
             f_inner_color,
         );
-        if !labels[label_idx].is_empty() {
+        // we do not show anything for the empty-string-label
+        if !cats.label_of_box(box_idx).is_empty() {
             if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
                 let w = x_max - x_min;
                 let scale = Scale { x: 12.0, y: 12.0 };
@@ -73,7 +84,7 @@ fn draw_bbs<'a>(
                     y_min as i32,
                     scale,
                     &font,
-                    &labels[label_idx],
+                    cats.label_of_box(box_idx),
                 );
             }
         }
@@ -212,9 +223,11 @@ impl BboxAnnotations {
             zoom_box,
             &self.bbs,
             &self.selected_bbs,
-            &self.cat_ids,
-            colors,
-            labels,
+            Cats {
+                cat_ids: &self.cat_ids,
+                colors,
+                labels,
+            },
         )
     }
 }

@@ -68,6 +68,7 @@ macro_rules! variant_access {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum ToolSpecifics {
     Bbox(BboxSpecifics),
     Brush(BrushSpecifics),
