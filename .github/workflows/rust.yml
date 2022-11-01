@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install reqs
-      run: sudo apt-get install -y libgtk-3-dev
+      run: sudo apt-get update && apt-get install -y libgtk-3-dev
     - name: Clippy
       run: cargo clippy -- -D warnings
     - name: Run tests
