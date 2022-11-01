@@ -61,7 +61,7 @@ impl BboxSpecifics {
         if self.labels.len() > 1 {
             self.labels.remove(cat_id);
             self.colors.remove(cat_id);
-            if self.cat_id_current >= cat_id.min(1) {
+            if self.cat_id_current >= cat_id.max(1) {
                 self.cat_id_current -= 1;
             }
             for anno in self.annotations_map.values_mut() {

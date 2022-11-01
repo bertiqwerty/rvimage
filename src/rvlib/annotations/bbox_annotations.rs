@@ -72,7 +72,7 @@ fn draw_bbs<'a>(
         // we do not show anything for the empty-string-label
         if !cats.label_of_box(box_idx).is_empty() {
             if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
-                let w = x_max - x_min;
+                let w = (x_max - x_min).max(1);
                 let scale = Scale { x: 12.0, y: 12.0 };
                 let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
                 let rect = Rect::at(x_min as i32, y_min as i32).of_size(w, 12);
