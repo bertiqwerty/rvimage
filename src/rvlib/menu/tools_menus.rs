@@ -4,8 +4,15 @@ use crate::tools_data::{bbox_data::BboxSpecifics, ToolSpecifics, ToolsData};
 
 pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecifics) -> ToolsData {
     let mut new_idx = data.cat_id_current;
+    let mut new_label = None;
     if ui.text_edit_singleline(&mut data.new_label).lost_focus() {
-        data.push(data.new_label.clone(), None);
+        new_label = Some(data.new_label.clone());
+    }
+    let empty = data.find_empty();
+    if let (Some(empty), Some(new_label)) = (empty, new_label.as_ref()) {
+        *empty = new_label.clone();
+    } else if let Some(new_label) = new_label {
+        data.push(new_label, None);
         new_idx = data.len() - 1;
     }
     let mut to_be_removed = None;

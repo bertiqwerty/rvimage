@@ -72,6 +72,10 @@ impl BboxSpecifics {
     pub fn len(&self) -> usize {
         self.colors.len()
     }
+    pub fn find_empty(&mut self) -> Option<&mut String> {
+        self.labels.iter_mut().find(|lab|lab==&"")
+        
+    }
     pub fn push(&mut self, label: String, color: Option<[u8; 3]>) {
         if let Some(idx) = self.labels.iter().position(|lab| lab == &label) {
             if let Some(clr) = color {
