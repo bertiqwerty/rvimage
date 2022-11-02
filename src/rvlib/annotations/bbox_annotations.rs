@@ -3,7 +3,6 @@ use crate::{
     util::{self, Shape, BB},
 };
 use image::Rgb;
-use imageproc::rect::Rect;
 use rusttype::{Font, Scale};
 use std::mem;
 const BBOX_ALPHA: u8 = 90;
@@ -58,7 +57,8 @@ fn draw_bbs<'a>(
         } else {
             BBOX_ALPHA
         };
-        let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, cats.color_of_box(box_idx), alpha);
+        let f_inner_color =
+            |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, cats.color_of_box(box_idx), alpha);
         let view_corners = bbs[box_idx].to_view_corners(shape_orig, shape_win, zoom_box);
 
         let color_rgb = Rgb(*cats.color_of_box(box_idx));
@@ -72,11 +72,22 @@ fn draw_bbs<'a>(
         // we do not show anything for the empty-string-label
         if !cats.label_of_box(box_idx).is_empty() {
             if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
-                let w = (x_max - x_min).max(1);
-                let scale = Scale { x: 12.0, y: 12.0 };
+                let label_box_height = 14;
+                let scale = Scale {
+                    x: label_box_height as f32,
+                    y: label_box_height as f32,
+                };
                 let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
-                let rect = Rect::at(x_min as i32, y_min as i32).of_size(w, 12);
-                imageproc::drawing::draw_filled_rect_mut(&mut im, rect, Rgb::<u8>([255, 255, 255]));
+                let white = [255, 255, 255];
+                let alpha = 150;
+                let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, &white, alpha);
+                im = util::draw_bx_on_image(
+                    im,
+                    view_corners.0,
+                    (Some(x_max), Some(y_min + label_box_height)),
+                    &Rgb(white),
+                    f_inner_color,
+                );
                 imageproc::drawing::draw_text_mut(
                     &mut im,
                     Rgb::<u8>([0, 0, 0]),
