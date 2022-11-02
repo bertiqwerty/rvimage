@@ -262,17 +262,21 @@ fn main() -> Result<(), pixels::Error> {
                 }
             }
 
-            if input.key_pressed(VirtualKeyCode::M) {
-                framework.menu_mut().toggle();
-            }
-            if input.key_pressed(VirtualKeyCode::T) {
+            if (input.key_held(VirtualKeyCode::RControl)
+                || input.key_held(VirtualKeyCode::LControl))
+                && input.key_pressed(VirtualKeyCode::T)
+            {
                 framework.toggle_tools_menu();
             }
-
+            if (input.key_held(VirtualKeyCode::RControl)
+                || input.key_held(VirtualKeyCode::LControl))
+                && input.key_pressed(VirtualKeyCode::M)
+            {
+                framework.menu_mut().toggle();
+            }
             if input.key_pressed(VirtualKeyCode::PageDown) {
                 framework.menu_mut().next();
             }
-
             if input.key_pressed(VirtualKeyCode::PageUp) {
                 framework.menu_mut().prev();
             }
