@@ -70,7 +70,6 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        println!("HELD");
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
         if let Some(mp) = mp_orig {

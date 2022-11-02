@@ -73,7 +73,7 @@ pub struct BBox {
     prev_pos: Option<(usize, usize)>,
     initial_view: InitialView,
     mover: Mover,
-    current_label: usize,
+    prev_label: usize,
 }
 
 impl BBox {
@@ -137,11 +137,12 @@ impl BBox {
             shape_win,
             world.zoom_box(),
         );
+        let in_menu_selected_label = current_cat_id(&world);
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // second click new bb
             if (mp.0 as i32 - pp.0 as i32).abs() > 1 && (mp.1 as i32 - pp.1 as i32).abs() > 1 {
                 let annos = get_annos_mut(&mut world);
-                annos.add_bb(BB::from_points(mp, pp), self.current_label);
+                annos.add_bb(BB::from_points(mp, pp), in_menu_selected_label);
                 history.push(Record::new(world.data.clone(), ACTOR_NAME));
                 self.prev_pos = None;
                 world = self.draw_on_view(world, shape_win);
@@ -222,7 +223,7 @@ impl Manipulate for BBox {
             prev_pos: None,
             initial_view: InitialView::new(),
             mover: Mover::new(),
-            current_label: 0,
+            prev_label: 0,
         }
     }
 
@@ -261,8 +262,11 @@ impl Manipulate for BBox {
         if event.window_resized().is_some() {
             (world, history) = self.on_activate(world, history, shape_win);
         }
-        self.current_label = current_cat_id(&world);
 
+        let in_menu_selected_label = current_cat_id(&world);
+        if self.prev_label != in_menu_selected_label {
+            world = self.draw_on_view(world, shape_win);
+        }
         self.initial_view.update(&world, shape_win);
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
@@ -276,7 +280,7 @@ impl Manipulate for BBox {
             // animation
             world = self.draw_on_view(world, shape_win);
             let tmp_annos =
-                BboxAnnotations::from_bbs(vec![BB::from_points(mp, pp)], self.current_label);
+                BboxAnnotations::from_bbs(vec![BB::from_points(mp, pp)], in_menu_selected_label);
             let mut im_view = world.take_view();
             let bb_data = get_tools_data(&world).specifics.bbox();
             im_view = tmp_annos.draw_on_view(
@@ -289,7 +293,7 @@ impl Manipulate for BBox {
             );
             world.set_im_view(im_view);
         }
-        make_tool_transform!(
+        (world, history) = make_tool_transform!(
             self,
             world,
             history,
@@ -308,7 +312,9 @@ impl Manipulate for BBox {
                 (key_held, VirtualKeyCode::Left),
                 (key_held, VirtualKeyCode::Right)
             ]
-        )
+        );
+        self.prev_label = in_menu_selected_label;
+        (world, history)
     }
 }
 #[cfg(test)]

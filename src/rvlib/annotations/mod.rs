@@ -17,6 +17,9 @@ macro_rules! implement_annotations_getters {
                 .get(file_path)
                 .unwrap_or(&$default)
         }
+        pub fn anno_iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut $tool_data_type)> {
+            self.annotations_map.iter_mut()
+        }
         pub fn anno_iter(&self) -> impl Iterator<Item = (&String, &$tool_data_type)> {
             self.annotations_map.iter()
         }

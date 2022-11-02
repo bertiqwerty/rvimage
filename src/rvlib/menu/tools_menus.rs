@@ -3,11 +3,12 @@ use egui::Ui;
 use crate::tools_data::{bbox_data::BboxSpecifics, ToolSpecifics, ToolsData};
 
 pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecifics) -> ToolsData {
+    let mut new_idx = data.cat_id_current;
     if ui.text_edit_singleline(&mut data.new_label).lost_focus() {
         data.push(data.new_label.clone(), None);
+        new_idx = data.len() - 1;
     }
     let mut to_be_removed = None;
-    let mut new_idx = data.cat_id_current;
     for (label_idx, label) in data.labels().iter().enumerate() {
         let checked = label_idx == data.cat_id_current;
         ui.horizontal_top(|ui| {
@@ -19,7 +20,12 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecifics) ->
             }
         });
     }
-    data.cat_id_current = new_idx;
+    if new_idx != data.cat_id_current {
+        for (_, anno) in data.anno_iter_mut() {
+            anno.label_selected(new_idx);
+        }
+        data.cat_id_current = new_idx;
+    }
     if let Some(idx) = to_be_removed {
         data.remove_cat(idx);
     }
