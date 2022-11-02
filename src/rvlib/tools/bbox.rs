@@ -275,7 +275,8 @@ impl Manipulate for BBox {
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // animation
             world = self.draw_on_view(world, shape_win);
-            let tmp_annos = BboxAnnotations::from_bbs(vec![BB::from_points(mp, pp)]);
+            let tmp_annos =
+                BboxAnnotations::from_bbs(vec![BB::from_points(mp, pp)], self.current_label);
             let mut im_view = world.take_view();
             let bb_data = get_tools_data(&world).specifics.bbox();
             im_view = tmp_annos.draw_on_view(

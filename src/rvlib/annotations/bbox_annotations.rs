@@ -125,11 +125,11 @@ impl BboxAnnotations {
             selected_bbs: vec![],
         }
     }
-    pub fn from_bbs(bbs: Vec<BB>) -> BboxAnnotations {
+    pub fn from_bbs(bbs: Vec<BB>, cat_id: usize) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
             bbs,
-            cat_ids: vec![0; bbs_len],
+            cat_ids: vec![cat_id; bbs_len],
             selected_bbs: vec![false; bbs_len],
         }
     }
@@ -270,7 +270,7 @@ fn test_annos() {
         assert_eq!(annos.selected_bbs.len(), annos.bbs.len());
         assert_eq!(annos.cat_ids.len(), annos.bbs.len());
     }
-    let mut annos = BboxAnnotations::from_bbs(make_test_bbs());
+    let mut annos = BboxAnnotations::from_bbs(make_test_bbs(), 0);
     len_check(&annos);
     let idx = 1;
     assert!(!annos.selected_bbs[idx]);
