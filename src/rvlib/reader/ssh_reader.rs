@@ -20,11 +20,6 @@ impl ListFilesInFolder for SshLister {
 }
 
 #[derive(Clone)]
-pub struct ReadImageFromSshArgs {
-    pub ssh_cfg: SshCfg,
-    pub tmpdir: String,
-}
-#[derive(Clone)]
 pub struct ReadImageFromSsh {
     sess: Session,
 }
