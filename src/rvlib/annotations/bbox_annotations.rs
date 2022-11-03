@@ -51,7 +51,18 @@ fn draw_bbs<'a>(
     cats: Cats<'a>,
 ) -> ViewImage {
     let font_data: &[u8] = include_bytes!("../../../Roboto/Roboto-Bold.ttf");
-    for box_idx in 0..bbs.len() {
+    // remove those box ids that are outside of the zoom box
+    let relevant_box_inds = (0..bbs.len()).filter(|box_idx| {
+        if let Some(zb) = zoom_box {
+            !bbs[*box_idx].y + bbs[*box_idx].h < zb.y
+                || bbs[*box_idx].x + bbs[*box_idx].w < zb.x
+                || bbs[*box_idx].x > zb.x + zb.w
+                || bbs[*box_idx].y > zb.y + zb.h
+        } else {
+            true
+        }
+    });
+    for box_idx in relevant_box_inds {
         let alpha = if selected_bbs[box_idx] {
             BBOX_ALPHA_SELECTED
         } else {
@@ -69,7 +80,9 @@ fn draw_bbs<'a>(
             &color_rgb,
             f_inner_color,
         );
-        // we do not show anything for the empty-string-label
+
+        // draw label field
+        // we do not the label field for the empty-string-label
         if !cats.label_of_box(box_idx).is_empty() {
             if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
                 let label_box_height = 14;
