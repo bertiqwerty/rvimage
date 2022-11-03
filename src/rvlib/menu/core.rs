@@ -7,7 +7,7 @@ use crate::{
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
 };
-use egui::{ClippedPrimitive, Context, Id, Response, TexturesDelta, Ui};
+use egui::{ClippedPrimitive, Context, Id, Pos2, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
 use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
@@ -221,24 +221,18 @@ impl ToolSelectMenu {
             recently_activated_tool: None,
         }
     }
-    fn ui(
-        &mut self,
-        ctx: &Context,
-        tools: &mut [ToolState],
-        tools_menu_map: &mut ToolsDataMap,
-    ) {
+    fn ui(&mut self, ctx: &Context, tools: &mut [ToolState], tools_menu_map: &mut ToolsDataMap) {
         let window_response = egui::Window::new("tools")
             .vscroll(true)
             .title_bar(false)
             .open(&mut self.window_open)
+            .default_pos(Pos2 { x: 500.0, y: 15.0 })
             .show(ctx, |ui| {
                 ui.horizontal_top(|ui| {
                     self.recently_activated_tool = tools
                         .iter_mut()
                         .enumerate()
-                        .find(|(_, t)| {
-                            ui.selectable_label(t.is_active(), t.button_label).clicked()
-                        })
+                        .find(|(_, t)| ui.selectable_label(t.is_active(), t.button_label).clicked())
                         .map(|(i, _)| i);
                 });
                 for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
@@ -492,17 +486,6 @@ impl Menu {
                     }
                 }
 
-                // help
-                ui.separator();
-                ui.label("activate zoom tool - shift+z");
-                ui.label("  zoom - drag left mouse");
-                ui.label("  move zoomed area - drag right mouse");
-                ui.label("  unzoom - backspace");
-                ui.label("activate rotate tool - shift+r");
-                ui.label("  rotate by 90 degrees - r");
-                ui.separator();
-                ui.label("open or close this menu - m");
-                ui.label("copy file path - right click on file label");
                 ui.separator();
                 ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
             });
