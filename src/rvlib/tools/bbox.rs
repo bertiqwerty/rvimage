@@ -90,10 +90,8 @@ impl BBox {
                 bb_data.colors(),
             );
             world.set_im_view(im_view);
-        } else {
-            if let Some(iv) = self.initial_view.image() {
-                world.set_im_view(iv.clone());
-            }
+        } else if let Some(iv) = self.initial_view.image() {
+            world.set_im_view(iv.clone());
         }
         world
     }
