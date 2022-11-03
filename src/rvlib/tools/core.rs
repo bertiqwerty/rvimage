@@ -2,6 +2,7 @@ use image::Rgb;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
+    cfg::{SshCfg},
     history::History,
     types::ViewImage,
     util::{self, Shape, BB},
@@ -45,18 +46,15 @@ impl InitialView {
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct MetaData {
     pub file_path: Option<String>,
-}
-impl MetaData {
-    pub fn new() -> Self {
-        MetaData { file_path: None }
-    }
+    pub ssh_cfg: Option<SshCfg>,
+    pub open_folder: Option<String>,
 }
 
 pub trait Manipulate {
     fn new() -> Self
     where
         Self: Sized;
-    
+
     fn on_activate(
         &mut self,
         world: World,
@@ -83,7 +81,6 @@ pub trait Manipulate {
         mouse_pos: Option<(usize, usize)>,
         input_event: &WinitInputHelper,
     ) -> (World, History);
-    
 }
 
 #[derive(Clone, Debug)]

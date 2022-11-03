@@ -277,6 +277,11 @@ impl Manipulate for BBox {
             (world, history) = self.on_activate(world, history, shape_win);
         }
 
+        //let tools_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+        //if tools_data.write_label_file {
+            // TODO: use world.data.meta_data and export
+        //}
+        
         let in_menu_selected_label = current_cat_id(&world);
         if self.prev_label != in_menu_selected_label {
             world = self.draw_on_view(world, shape_win);

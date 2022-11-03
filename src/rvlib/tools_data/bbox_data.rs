@@ -52,6 +52,7 @@ pub struct BboxSpecifics {
     labels: LabelsVec,
     colors: ColorsVec,
     pub cat_id_current: usize,
+    pub write_label_file: bool,
     // filename -> annotations per file
     annotations_map: HashMap<String, BboxAnnotations>,
 }
@@ -110,6 +111,7 @@ impl BboxSpecifics {
             labels,
             colors,
             cat_id_current: 0,
+            write_label_file: false,
             annotations_map: HashMap::new(),
         }
     }

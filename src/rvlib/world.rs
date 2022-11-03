@@ -171,7 +171,7 @@ impl World {
         shape_win: Shape,
     ) -> Self {
         Self::new(
-            DataRaw::new(im, file_path, MetaData::new(), tools_data),
+            DataRaw::new(im, file_path, MetaData::default(), tools_data),
             None,
             shape_win,
         )
@@ -247,7 +247,7 @@ fn test_scale_to_win() -> RvResult<()> {
         &DataRaw::new(
             DynamicImage::ImageRgb8(im_test),
             "".to_string(),
-            MetaData { file_path: None },
+            MetaData::default(),
             HashMap::new(),
         ),
         &None,

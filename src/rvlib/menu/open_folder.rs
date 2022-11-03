@@ -46,7 +46,7 @@ fn pick_folder_from_list(
     }
 }
 
-fn make_reader_from_cfg(cfg: &Cfg) -> (ReaderFromCfg, Info) {
+fn make_reader_from_cfg(cfg: Cfg) -> (ReaderFromCfg, Info) {
     match ReaderFromCfg::from_cfg(cfg) {
         Ok(rfc) => (rfc, Info::None),
         Err(e) => (
@@ -70,7 +70,7 @@ pub fn button(
     ) -> RvResult<(PathsNavigator, Option<u128>)> {
         Ok((
             PathsNavigator::new(None),
-            Some(tp.apply(Box::new(move || make_reader_from_cfg(&cfg)))?),
+            Some(tp.apply(Box::new(move || make_reader_from_cfg(cfg)))?),
         ))
     }
     if resp.clicked() {

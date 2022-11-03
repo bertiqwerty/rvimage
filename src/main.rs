@@ -217,9 +217,7 @@ fn main() -> Result<(), pixels::Error> {
             let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
 
             if framework.are_tools_active() {
-                let file_path = file_selected
-                    .and_then(|fs| framework.menu().file_path(fs).map(|s| s.to_string()));
-                let meta_data = MetaData { file_path };
+                let meta_data = framework.meta_data(file_selected);
                 world.data.meta_data = meta_data;
                 (world, history) = apply_tools(
                     &mut tools,
@@ -239,9 +237,7 @@ fn main() -> Result<(), pixels::Error> {
                         (world, history) =
                             t.activate(mem::take(&mut world), mem::take(&mut history), shape_win);
                     } else {
-                        let file_path = file_selected
-                            .and_then(|fs| framework.menu().file_path(fs).map(|s| s.to_string()));
-                        let meta_data = MetaData { file_path };
+                        let meta_data = framework.meta_data(file_selected);
                         world.data.meta_data = meta_data;
                         (world, history) =
                             t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
@@ -253,9 +249,7 @@ fn main() -> Result<(), pixels::Error> {
             {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
-                    let file_path = file_selected
-                        .and_then(|fs| framework.menu().file_path(fs).map(|s| s.to_string()));
-                    let meta_data = MetaData { file_path };
+                    let meta_data = framework.meta_data(file_selected);
                     world.data.meta_data = meta_data;
                     (world, history) =
                         t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
@@ -331,7 +325,7 @@ fn main() -> Result<(), pixels::Error> {
                             let ims_raw = DataRaw::new(
                                 ri,
                                 fp,
-                                MetaData::new(),
+                                MetaData::default(),
                                 world.data.tools_data_map.clone(),
                             );
                             if !undo_redo_load {
@@ -356,7 +350,7 @@ fn main() -> Result<(), pixels::Error> {
                                 DataRaw::new(
                                     loading_image(shape, counter),
                                     "".to_string(),
-                                    MetaData::new(),
+                                    MetaData::default(),
                                     world.data.tools_data_map.clone(),
                                 ),
                                 file_selected,

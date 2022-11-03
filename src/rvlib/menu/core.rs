@@ -3,7 +3,7 @@ use crate::{
     menu::{self, cfg_menu::CfgMenu},
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
-    tools::ToolState,
+    tools::{MetaData, ToolState},
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
 };
@@ -57,6 +57,28 @@ impl Framework {
         }
     }
 
+    pub fn cfg_of_opened_folder(&self) -> Option<&Cfg> {
+        self.menu.reader.as_ref().map(|r| r.cfg())
+    }
+
+    pub fn opened_folder(&self) -> Option<&String> {
+        match &self.menu.opened_folder {
+            OpenFolder::Some(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn meta_data(&self, file_selected: Option<usize>) -> MetaData {
+        let file_path =
+            file_selected.and_then(|fs| self.menu().file_path(fs).map(|s| s.to_string()));
+        let open_folder = self.opened_folder().cloned();
+        let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
+        MetaData {
+            file_path,
+            ssh_cfg,
+            open_folder,
+        }
+    }
     /// Handle input events from the window manager.
     pub fn handle_event(&mut self, event: &winit::event::WindowEvent) {
         self.egui_state.on_event(&self.egui_ctx, event);
@@ -141,9 +163,11 @@ impl Framework {
     pub fn are_tools_active(&self) -> bool {
         self.menu.are_tools_active && self.tool_selection_menu.are_tools_active
     }
+
     pub fn recently_activated_tool(&self) -> Option<usize> {
         self.tool_selection_menu.recently_activated_tool
     }
+
     pub fn toggle_tools_menu(&mut self) {
         self.tool_selection_menu.toggle();
     }
@@ -221,6 +245,7 @@ impl ToolSelectMenu {
             recently_activated_tool: None,
         }
     }
+
     fn ui(&mut self, ctx: &Context, tools: &mut [ToolState], tools_menu_map: &mut ToolsDataMap) {
         let window_response = egui::Window::new("tools")
             .vscroll(true)
@@ -250,6 +275,7 @@ impl ToolSelectMenu {
             }
         }
     }
+
     pub fn toggle(&mut self) {
         if self.window_open {
             self.window_open = false;
@@ -305,12 +331,15 @@ impl Menu {
             self.window_open = true;
         }
     }
+
     pub fn prev(&mut self) {
         self.paths_navigator.prev();
     }
+
     pub fn next(&mut self) {
         self.paths_navigator.next();
     }
+
     pub fn file_label_selected_idx(&self) -> Option<usize> {
         self.paths_navigator.file_label_selected_idx()
     }
@@ -328,13 +357,16 @@ impl Menu {
             None => "",
         }
     }
+
     pub fn select_file_label(&mut self, file_label: &str) {
         self.paths_navigator
             .select_label_idx(self.idx_of_file_label(file_label));
     }
+
     pub fn activate_scroll_to_label(&mut self) {
         self.paths_navigator.activate_scroll_to_selected_label();
     }
+
     pub fn select_label_idx(&mut self, file_label_idx: Option<usize>) {
         self.paths_navigator.select_label_idx(file_label_idx);
     }

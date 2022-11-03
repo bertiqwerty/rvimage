@@ -17,14 +17,19 @@ fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> RvResult<FileCacheC
 }
 
 pub struct ReaderFromCfg {
+    cfg: Cfg,
     reader: Box<dyn LoadImageForGui + Send>,
 }
 impl ReaderFromCfg {
+    pub fn cfg(&self) -> &Cfg {
+        &self.cfg
+    }
+
     pub fn new() -> RvResult<Self> {
         let cfg = cfg::get_default_cfg();
-        Self::from_cfg(&cfg)
+        Self::from_cfg(cfg)
     }
-    pub fn from_cfg(cfg: &Cfg) -> RvResult<Self> {
+    pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
         let n_ssh_reconnections = cfg.ssh_cfg.n_reconnection_attempts();
         let tmpdir = cfg.tmpdir()?.to_string();
         Ok(Self {
@@ -72,6 +77,7 @@ impl ReaderFromCfg {
                     )?)
                 }
             },
+            cfg
         })
     }
 }
