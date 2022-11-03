@@ -30,16 +30,16 @@ macro_rules! make_tools {
         }
     };
 }
-make_tools!((Rot90, "🔄"), (Zoom, "🔍"), (Brush, "✏"), (BBox, "⬜"));
+make_tools!((Rot90, "🔄"), (Brush, "✏"), (BBox, "⬜"), (Zoom, "🔍"));
 
 #[macro_export]
 macro_rules! apply_tool_method_mut {
     ($tool_state:expr, $f:ident, $($args:expr),*) => {
         match &mut $tool_state.tool_wrapper {
             ToolWrapper::Rot90(z) => z.$f($($args,)*),
-            ToolWrapper::Zoom(z) => z.$f($($args,)*),
             ToolWrapper::Brush(z) => z.$f($($args,)*),
             ToolWrapper::BBox(z) => z.$f($($args,)*),
+            ToolWrapper::Zoom(z) => z.$f($($args,)*),
         }
     };
 }
