@@ -54,10 +54,10 @@ fn draw_bbs<'a>(
     // remove those box ids that are outside of the zoom box
     let relevant_box_inds = (0..bbs.len()).filter(|box_idx| {
         if let Some(zb) = zoom_box {
-            !bbs[*box_idx].y + bbs[*box_idx].h < zb.y
+            !(bbs[*box_idx].y + bbs[*box_idx].h < zb.y
                 || bbs[*box_idx].x + bbs[*box_idx].w < zb.x
                 || bbs[*box_idx].x > zb.x + zb.w
-                || bbs[*box_idx].y > zb.y + zb.h
+                || bbs[*box_idx].y > zb.y + zb.h)
         } else {
             true
         }
