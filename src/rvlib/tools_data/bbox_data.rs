@@ -69,6 +69,9 @@ impl BboxSpecifics {
             }
         }
     }
+    pub fn is_empty(&self) -> bool {
+        self.colors.len() == 0
+    }
     pub fn len(&self) -> usize {
         self.colors.len()
     }
