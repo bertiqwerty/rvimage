@@ -74,20 +74,27 @@ pub struct BBox {
     initial_view: InitialView,
     mover: Mover,
     prev_label: usize,
+    are_boxes_visible: bool,
 }
 
 impl BBox {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let bb_data = &get_tools_data(&world).specifics.bbox();
-        let im_view = get_annos(&world).draw_on_view(
-            self.initial_view.image().clone().unwrap(),
-            world.zoom_box(),
-            world.data.shape(),
-            shape_win,
-            bb_data.labels(),
-            bb_data.colors(),
-        );
-        world.set_im_view(im_view);
+        if self.are_boxes_visible {
+            let bb_data = &get_tools_data(&world).specifics.bbox();
+            let im_view = get_annos(&world).draw_on_view(
+                self.initial_view.image().clone().unwrap(),
+                world.zoom_box(),
+                world.data.shape(),
+                shape_win,
+                bb_data.labels(),
+                bb_data.colors(),
+            );
+            world.set_im_view(im_view);
+        } else {
+            if let Some(iv) = self.initial_view.image() {
+                world.set_im_view(iv.clone());
+            }
+        }
         world
     }
     fn mouse_pressed(
@@ -202,17 +209,25 @@ impl BBox {
     }
     fn key_released(
         &mut self,
-        _event: &WinitInputHelper,
+        event: &WinitInputHelper,
         shape_win: Shape,
         _mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        let annos = get_annos_mut(&mut world);
-        annos.remove_selected();
-        world = self.draw_on_view(world, shape_win);
-        world.update_view(shape_win);
-        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        if event.key_released(VirtualKeyCode::H)
+            && (event.key_held(VirtualKeyCode::RControl)
+                || event.key_held(VirtualKeyCode::LControl))
+        {
+            self.are_boxes_visible = !self.are_boxes_visible;
+            world = self.draw_on_view(world, shape_win);
+        } else if event.key_released(VirtualKeyCode::Delete) {
+            let annos = get_annos_mut(&mut world);
+            annos.remove_selected();
+            world = self.draw_on_view(world, shape_win);
+            world.update_view(shape_win);
+            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        }
         (world, history)
     }
 }
@@ -224,6 +239,7 @@ impl Manipulate for BBox {
             initial_view: InitialView::new(),
             mover: Mover::new(),
             prev_label: 0,
+            are_boxes_visible: true,
         }
     }
 
@@ -307,6 +323,7 @@ impl Manipulate for BBox {
             ],
             [
                 (key_released, VirtualKeyCode::Delete),
+                (key_released, VirtualKeyCode::H),
                 (key_held, VirtualKeyCode::Down),
                 (key_held, VirtualKeyCode::Up),
                 (key_held, VirtualKeyCode::Left),

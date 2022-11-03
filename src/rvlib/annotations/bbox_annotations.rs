@@ -5,8 +5,8 @@ use crate::{
 use image::Rgb;
 use rusttype::{Font, Scale};
 use std::mem;
-const BBOX_ALPHA: u8 = 90;
-const BBOX_ALPHA_SELECTED: u8 = 170;
+const BBOX_ALPHA: u8 = 120;
+const BBOX_ALPHA_SELECTED: u8 = 50;
 
 fn resize_bbs(
     mut bbs: Vec<BB>,
