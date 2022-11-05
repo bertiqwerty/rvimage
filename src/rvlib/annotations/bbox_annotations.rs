@@ -210,14 +210,17 @@ impl BboxAnnotations {
         mpso: (u32, u32),
         mpo: (u32, u32),
         orig_shape: Shape,
-    ) {
+    ) -> bool {
+        let mut move_somebody = false;
         for (bb, is_bb_selected) in self.bbs.iter_mut().zip(self.selected_bbs.iter()) {
             if *is_bb_selected {
                 if let Some(bb_moved) = bb.follow_movement(mpso, mpo, orig_shape) {
+                    move_somebody = true;
                     *bb = bb_moved;
                 }
             }
         }
+        move_somebody
     }
     pub fn label_selected(&mut self, cat_id: usize) {
         let selected_inds = selected_indices(&self.selected_bbs);

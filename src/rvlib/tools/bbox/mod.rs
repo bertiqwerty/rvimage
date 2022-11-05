@@ -18,7 +18,7 @@ use self::{
         current_cat_id, draw_on_view, get_annos_mut, get_tools_data, get_tools_data_mut,
         initialize_tools_menu_data, ACTOR_NAME,
     },
-    on_events::{on_mouse_released_left, MouseReleaseParams},
+    on_events::{on_mouse_held_right, on_mouse_released_left, MouseHeldParams, MouseReleaseParams},
 };
 mod core;
 mod on_events;
@@ -49,20 +49,15 @@ impl BBox {
         _event: &WinitInputHelper,
         shape_win: Shape,
         mouse_pos: Option<(usize, usize)>,
-        mut world: World,
+        world: World,
         history: History,
     ) -> (World, History) {
-        let orig_shape = world.data.shape();
-        let zoom_box = *world.zoom_box();
-        let move_boxes = |mpso, mpo| {
-            let annos = get_annos_mut(&mut world);
-            annos.selected_follow_movement(mpso, mpo, orig_shape);
-            Some(())
+        let params = MouseHeldParams {
+            are_boxes_visible: self.are_boxes_visible,
+            initial_view: &self.initial_view,
+            mover: &mut self.mover,
         };
-        self.mover
-            .move_mouse_held(move_boxes, mouse_pos, shape_win, orig_shape, &zoom_box);
-        world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
-        (world, history)
+        on_mouse_held_right(shape_win, mouse_pos, params, world, history)
     }
     fn mouse_released(
         &mut self,
@@ -114,10 +109,7 @@ impl BBox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        if event.key_released(VirtualKeyCode::H)
-            && (event.key_held(VirtualKeyCode::RControl)
-                || event.key_held(VirtualKeyCode::LControl))
-        {
+        if event.key_released(VirtualKeyCode::H) && event.held_control() {
             self.are_boxes_visible = !self.are_boxes_visible;
             world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
         } else if event.key_released(VirtualKeyCode::Delete) {

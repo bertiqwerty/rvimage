@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 #[derive(Clone)]
 pub struct Record {
-    pub ims_raw: DataRaw,
+    pub data: DataRaw,
     pub actor: &'static str,
     pub file_label_idx: Option<usize>,
     pub folder_label: Option<String>,
@@ -12,7 +12,7 @@ pub struct Record {
 impl Record {
     pub fn new(ims_raw: DataRaw, actor: &'static str) -> Self {
         Self {
-            ims_raw,
+            data: ims_raw,
             actor,
             file_label_idx: None,
             folder_label: None,
@@ -20,7 +20,7 @@ impl Record {
     }
 
     fn convert_to_im_idx_pair(self) -> (DataRaw, Option<usize>) {
-        (self.ims_raw, self.file_label_idx)
+        (self.data, self.file_label_idx)
     }
 }
 
@@ -130,7 +130,7 @@ impl Debug for History {
                     "actor {}, file label idx {:?}, {:?}, folder label {:?}",
                     r.actor,
                     r.file_label_idx,
-                    &r.ims_raw.shape(),
+                    &r.data.shape(),
                     r.folder_label
                 ))
                 .collect::<Vec<_>>()
@@ -157,7 +157,7 @@ fn test_history() -> RvResult<()> {
     let mut hist = History::new();
 
     hist.push(Record {
-        ims_raw: world.data.clone(),
+        data: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: None,
@@ -169,14 +169,14 @@ fn test_history() -> RvResult<()> {
         dummy_shape_win,
     );
     hist.push(Record {
-        ims_raw: world.data.clone(),
+        data: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: None,
     });
     assert_eq!(hist.records.len(), 2);
-    assert_eq!(hist.records[0].ims_raw.shape().w, 64);
-    assert_eq!(hist.records[1].ims_raw.shape().w, 32);
+    assert_eq!(hist.records[0].data.shape().w, 64);
+    assert_eq!(hist.records[1].data.shape().w, 32);
     hist.prev_world(&None);
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(16, 16)),
@@ -185,17 +185,17 @@ fn test_history() -> RvResult<()> {
         dummy_shape_win,
     );
     hist.push(Record {
-        ims_raw: world.data.clone(),
+        data: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: None,
     });
     assert_eq!(hist.records.len(), 2);
-    assert_eq!(hist.records[0].ims_raw.shape().w, 64);
-    assert_eq!(hist.records[1].ims_raw.shape().w, 16);
+    assert_eq!(hist.records[0].data.shape().w, 64);
+    assert_eq!(hist.records[1].data.shape().w, 16);
 
     hist.push(Record {
-        ims_raw: world.data.clone(),
+        data: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: Some("folder1".to_string()),
@@ -203,19 +203,19 @@ fn test_history() -> RvResult<()> {
     assert_eq!(hist.records.len(), 1);
 
     hist.push(Record {
-        ims_raw: world.data.clone(),
+        data: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),
     });
     hist.push(Record {
-        ims_raw: world.data.clone(),
+        data: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: None,
     });
     hist.push(Record {
-        ims_raw: world.data.clone(),
+        data: world.data.clone(),
         actor: "",
         file_label_idx: None,
         folder_label: Some("folder2".to_string()),

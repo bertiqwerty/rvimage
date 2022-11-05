@@ -329,7 +329,7 @@ fn main() -> Result<(), pixels::Error> {
                             );
                             if !undo_redo_load {
                                 history.push(Record {
-                                    ims_raw: ims_raw.clone(),
+                                    data: ims_raw.clone(),
                                     actor: LOAD_ACTOR_NAME,
                                     file_label_idx: file_selected,
                                     folder_label,
