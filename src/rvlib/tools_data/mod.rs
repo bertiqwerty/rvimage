@@ -26,7 +26,14 @@ macro_rules! annotations_accessor {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
         pub(super) fn get_annos(world: &World) -> &$annotations_type {
             let current_file_path = &world.data.current_file_path;
-            world.data.tools_data_map.get($actor).expect($error_msg).specifics.$access_func().get_annos(&current_file_path)
+            world
+                .data
+                .tools_data_map
+                .get($actor)
+                .expect($error_msg)
+                .specifics
+                .$access_func()
+                .get_annos(&current_file_path)
         }
     };
 }
@@ -35,7 +42,14 @@ macro_rules! annotations_accessor_mut {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
         pub(super) fn get_annos_mut(world: &mut World) -> &mut $annotations_type {
             let current_file_path = &world.data.current_file_path;
-            world.data.tools_data_map.get_mut($actor).expect($error_msg).specifics.$access_func().get_annos_mut(&current_file_path)
+            world
+                .data
+                .tools_data_map
+                .get_mut($actor)
+                .expect($error_msg)
+                .specifics
+                .$access_func()
+                .get_annos_mut(&current_file_path)
         }
     };
 }

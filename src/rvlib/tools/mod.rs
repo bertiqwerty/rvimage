@@ -68,7 +68,8 @@ impl ToolState {
         shape_win: Shape,
     ) -> (World, History) {
         if self.is_active {
-            (world, history) = apply_tool_method_mut!(self, on_deactivate, world, history, shape_win);
+            (world, history) =
+                apply_tool_method_mut!(self, on_deactivate, world, history, shape_win);
         }
         self.is_active = false;
         (world, history)

@@ -77,7 +77,7 @@ impl ReaderFromCfg {
                     )?)
                 }
             },
-            cfg
+            cfg,
         })
     }
 }

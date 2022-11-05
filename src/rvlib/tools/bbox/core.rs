@@ -1,9 +1,11 @@
 use crate::{
     annotations::BboxAnnotations,
     annotations_accessor, annotations_accessor_mut,
+    tools::core::InitialView,
     tools_data::{BboxSpecifics, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
-    world::World, tools::core::InitialView, util::Shape,
+    util::Shape,
+    world::World,
 };
 
 pub const ACTOR_NAME: &str = "BBox";

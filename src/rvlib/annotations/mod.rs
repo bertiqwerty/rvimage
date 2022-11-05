@@ -13,9 +13,7 @@ macro_rules! implement_annotations_getters {
             self.annotations_map.get_mut(file_path).unwrap()
         }
         pub fn get_annos(&self, file_path: &str) -> &$tool_data_type {
-            self.annotations_map
-                .get(file_path)
-                .unwrap_or(&$default)
+            self.annotations_map.get(file_path).unwrap_or(&$default)
         }
         pub fn anno_iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut $tool_data_type)> {
             self.annotations_map.iter_mut()

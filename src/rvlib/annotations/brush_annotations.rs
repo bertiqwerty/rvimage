@@ -6,7 +6,6 @@ use crate::{
     util::{orig_pos_to_view_pos, Shape, BB},
 };
 
-
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BrushAnnotations {
     pub points: Vec<Vec<(u32, u32)>>,

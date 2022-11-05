@@ -55,10 +55,10 @@ pub(super) struct MouseReleaseParams<'a> {
     pub initial_view: &'a InitialView,
 }
 
-pub(super) fn on_mouse_released_left<'a>(
+pub(super) fn on_mouse_released_left(
     shape_win: Shape,
     mouse_pos: Option<(usize, usize)>,
-    params: MouseReleaseParams<'a>,
+    params: MouseReleaseParams,
     mut world: World,
     mut history: History,
 ) -> (World, History, Option<(usize, usize)>) {
@@ -78,7 +78,7 @@ pub(super) fn on_mouse_released_left<'a>(
             annos.add_bb(BB::from_points(mp, pp), in_menu_selected_label);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
             prev_pos = None;
-            world = draw_on_view(&initial_view, are_boxes_visible, world, shape_win);
+            world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
         }
     } else if is_ctrl_held {
         let annos = get_annos_mut(&mut world);

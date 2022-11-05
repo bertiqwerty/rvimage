@@ -2,7 +2,7 @@ use image::Rgb;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
-    cfg::{SshCfg},
+    cfg::SshCfg,
     history::History,
     types::ViewImage,
     util::{self, Shape, BB},
