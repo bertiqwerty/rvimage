@@ -9,7 +9,7 @@ pub mod brush_data;
 #[macro_export]
 macro_rules! tools_data_initializer {
     ($actor:expr, $variant:ident, $tool_data_type:ident) => {
-        fn initialize_tools_menu_data(mut world: World) -> World {
+        pub(super) fn initialize_tools_menu_data(mut world: World) -> World {
             if world.data.tools_data_map.get_mut($actor).is_none() {
                 world.data.tools_data_map.insert(
                     $actor,
@@ -24,7 +24,7 @@ macro_rules! tools_data_initializer {
 #[macro_export]
 macro_rules! annotations_accessor {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
-        fn get_annos(world: &World) -> &$annotations_type {
+        pub(super) fn get_annos(world: &World) -> &$annotations_type {
             let current_file_path = &world.data.current_file_path;
             world.data.tools_data_map.get($actor).expect($error_msg).specifics.$access_func().get_annos(&current_file_path)
         }
@@ -33,7 +33,7 @@ macro_rules! annotations_accessor {
 #[macro_export]
 macro_rules! annotations_accessor_mut {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
-        fn get_annos_mut(world: &mut World) -> &mut $annotations_type {
+        pub(super) fn get_annos_mut(world: &mut World) -> &mut $annotations_type {
             let current_file_path = &world.data.current_file_path;
             world.data.tools_data_map.get_mut($actor).expect($error_msg).specifics.$access_func().get_annos_mut(&current_file_path)
         }
@@ -42,7 +42,7 @@ macro_rules! annotations_accessor_mut {
 #[macro_export]
 macro_rules! tools_data_accessor_mut {
     ($actor:expr, $error_msg:expr) => {
-        fn get_tools_data_mut<'a>(world: &'a mut World) -> &'a mut ToolsData {
+        pub(super) fn get_tools_data_mut<'a>(world: &'a mut World) -> &'a mut ToolsData {
             world.data.tools_data_map.get_mut($actor).expect($error_msg)
         }
     };
@@ -50,7 +50,7 @@ macro_rules! tools_data_accessor_mut {
 #[macro_export]
 macro_rules! tools_data_accessor {
     ($actor:expr, $error_msg:expr) => {
-        fn get_tools_data<'a>(world: &'a World) -> &'a ToolsData {
+        pub(super) fn get_tools_data<'a>(world: &'a World) -> &'a ToolsData {
             world.data.tools_data_map.get($actor).expect($error_msg)
         }
     };
