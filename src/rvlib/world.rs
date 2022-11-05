@@ -49,24 +49,21 @@ pub type ToolsDataMap = HashMap<&'static str, ToolsData>;
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
     im_background: DynamicImage,
-    pub current_file_path: String,
     pub meta_data: MetaData,
     pub tools_data_map: ToolsDataMap,
 }
 
 impl DataRaw {
-    pub fn current_file_path(&self) -> &str {
-        &self.current_file_path
+    pub fn current_file_path(&self) -> &Option<String> {
+        &self.meta_data.file_path
     }
     pub fn new(
         im_background: DynamicImage,
-        current_file_path: String,
         meta_data: MetaData,
         tools_data_map: ToolsDataMap,
     ) -> Self {
         DataRaw {
             im_background,
-            current_file_path,
             meta_data,
             tools_data_map,
         }
@@ -79,14 +76,16 @@ impl DataRaw {
         shape_orig: Shape,
         shape_win: Shape,
     ) -> ViewImage {
-        for td in self.tools_data_map.values() {
-            im_view = td.specifics.draw_on_view(
-                im_view,
-                zoom_box,
-                shape_orig,
-                shape_win,
-                &self.current_file_path,
-            );
+        if let Some(current_file_path) = self.current_file_path() {
+            for td in self.tools_data_map.values() {
+                im_view = td.specifics.draw_on_view(
+                    im_view,
+                    zoom_box,
+                    shape_orig,
+                    shape_win,
+                    current_file_path,
+                );
+            }
         }
         im_view
     }
@@ -170,11 +169,8 @@ impl World {
         file_path: String,
         shape_win: Shape,
     ) -> Self {
-        Self::new(
-            DataRaw::new(im, file_path, MetaData::default(), tools_data),
-            None,
-            shape_win,
-        )
+        let meta_data = MetaData::from_filepath(file_path);
+        Self::new(DataRaw::new(im, meta_data, tools_data), None, shape_win)
     }
     pub fn view_from_annotations(&mut self, shape_win: Shape) {
         let im_view_tmp = self.data.draw_annotations_on_view(
@@ -246,8 +242,7 @@ fn test_scale_to_win() -> RvResult<()> {
     let im_scaled = scaled_to_win_view(
         &DataRaw::new(
             DynamicImage::ImageRgb8(im_test),
-            "".to_string(),
-            MetaData::default(),
+            MetaData::from_filepath("".to_string()),
             HashMap::new(),
         ),
         &None,

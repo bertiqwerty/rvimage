@@ -37,7 +37,7 @@ impl Brush {
         let im_view = get_tools_data(&world)
             .specifics
             .brush()
-            .get_annos(world.data.current_file_path())
+            .get_annos(world.data.current_file_path().as_ref().unwrap())
             .draw_on_view(
                 self.initial_view.image().clone().unwrap(),
                 world.zoom_box(),

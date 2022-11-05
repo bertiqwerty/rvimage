@@ -324,8 +324,7 @@ fn main() -> Result<(), pixels::Error> {
                         (Some(fp), Some(ri)) => {
                             let ims_raw = DataRaw::new(
                                 ri,
-                                fp,
-                                MetaData::default(),
+                                MetaData::from_filepath(fp),
                                 world.data.tools_data_map.clone(),
                             );
                             if !undo_redo_load {
@@ -349,7 +348,6 @@ fn main() -> Result<(), pixels::Error> {
                             (
                                 DataRaw::new(
                                     loading_image(shape, counter),
-                                    "".to_string(),
                                     MetaData::default(),
                                     world.data.tools_data_map.clone(),
                                 ),

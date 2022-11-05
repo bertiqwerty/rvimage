@@ -49,6 +49,15 @@ pub struct MetaData {
     pub ssh_cfg: Option<SshCfg>,
     pub open_folder: Option<String>,
 }
+impl MetaData {
+    pub fn from_filepath(file_path: String) -> Self {
+        MetaData {
+            file_path: Some(file_path),
+            ssh_cfg: None,
+            open_folder: None,
+        }
+    }
+}
 
 pub trait Manipulate {
     fn new() -> Self
