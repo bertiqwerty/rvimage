@@ -139,6 +139,8 @@ fn test_mouse_release() -> RvResult<()> {
         initial_view: &inital_view,
     };
     {
+        // If a previous position was registered, we expect that the second click creates the
+        // bounding box.
         let params = make_params(Some((30, 30)), false);
         let (world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
@@ -147,6 +149,8 @@ fn test_mouse_release() -> RvResult<()> {
         assert_eq!(annos.bbs().len(), 1);
     }
     {
+        // If no position was registered, a left click will set trigger the start
+        // of defining a new bounding box. The other corner will be defined by a second click.
         let params = make_params(None, false);
         let (world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
@@ -155,12 +159,24 @@ fn test_mouse_release() -> RvResult<()> {
         assert!(annos.bbs().is_empty());
     }
     {
+        // If ctrl is hold, a bounding box would be selected. Since no bounding boxes are selected,
+        // nothing should happen.
         let params = make_params(None, true);
         let (world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos, None);
         let annos = get_annos(&world);
         assert!(annos.bbs().is_empty());
+    }
+    {
+        // If ctrl is hold at the second click, this does not really make sense. We ignore it and assume this
+        // is the finishing box click.
+        let params = make_params(Some((30, 30)), true);
+        let (world, _, prev_pos) =
+            on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
+        assert_eq!(prev_pos, None);
+        let annos = get_annos(&world);
+        assert_eq!(annos.bbs().len(), 1);
     }
     Ok(())
 }
