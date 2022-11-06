@@ -67,9 +67,13 @@ pub(super) fn write_pickle(
 }
 
 #[cfg(test)]
-use {super::core::make_test_bbs, crate::util::DEFAULT_TMPDIR, serde_pickle::DeOptions};
+use {
+    super::core::make_test_bbs,
+    crate::{defer_file_removal, util::DEFAULT_TMPDIR},
+    serde_pickle::DeOptions,
+};
 #[cfg(test)]
-fn make_data(extension: &str) -> (BboxToolData, MetaData) {
+fn make_data(extension: &str) -> (BboxToolData, MetaData, PathBuf) {
     let opened_folder = "xi".to_string();
     let test_export_folder = DEFAULT_TMPDIR.clone();
     let test_export_path = DEFAULT_TMPDIR.join(format!("{}.{}", opened_folder, extension));
@@ -96,11 +100,12 @@ fn make_data(extension: &str) -> (BboxToolData, MetaData) {
     for bb in bbs {
         annos.add_bb(bb, 0);
     }
-    (bbox_data, meta)
+    (bbox_data, meta, test_export_path)
 }
 #[test]
 fn test_json_export() -> RvResult<()> {
-    let (bbox_data, meta) = make_data("json");
+    let (bbox_data, meta, path) = make_data("json");
+    defer_file_removal!(path);
     let written_path = write_json(&meta, bbox_data.clone())?;
     let s = fs::read_to_string(written_path).map_err(to_rv)?;
     let read: BboxDataIo = serde_json::from_str(s.as_str()).map_err(to_rv)?;
@@ -111,7 +116,8 @@ fn test_json_export() -> RvResult<()> {
 }
 #[test]
 fn test_pickle_export() -> RvResult<()> {
-    let (bbox_data, meta) = make_data("pickle");
+    let (bbox_data, meta, path) = make_data("pickle");
+    defer_file_removal!(path);
     let written_path = write_pickle(&meta, bbox_data.clone())?;
     let f = File::open(written_path).map_err(to_rv)?;
     let read: BboxDataIo = serde_pickle::from_reader(f, DeOptions::new()).map_err(to_rv)?;

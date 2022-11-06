@@ -1,6 +1,6 @@
 use std::{
     ffi::OsStr,
-    fmt::Display,
+    fmt::{Debug, Display},
     io,
     iter::once,
     ops::{Add, Range, Sub},
@@ -596,6 +596,24 @@ pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
     im
 }
 
+pub struct DeferFileRemoval<P: AsRef<Path> + Debug> {
+    pub path: P,
+}
+impl<P: AsRef<Path> + Debug> Drop for DeferFileRemoval<P> {
+    fn drop(&mut self) {
+        match std::fs::remove_file(&self.path) {
+            Ok(_) => println!("removed {:?}", self.path),
+            Err(e) => println!("could not remove {:?} due to {:?}", self.path, e),
+        }
+    }
+}
+#[macro_export]
+macro_rules! defer_file_removal {
+    ($path:expr) => {
+        use $crate::util::DeferFileRemoval;
+        let _dfr = DeferFileRemoval { path: $path };
+    };
+}
 #[test]
 fn test_bb() {
     let bb = BB {
