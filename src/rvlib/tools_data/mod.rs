@@ -3,7 +3,7 @@ use crate::{
     util::{Shape, BB},
 };
 
-pub use self::{bbox_data::BboxToolData, brush_data::BrushSpecifics};
+pub use self::{bbox_data::BboxToolData, brush_data::BrushToolData};
 pub mod bbox_data;
 pub mod brush_data;
 #[macro_export]
@@ -85,13 +85,13 @@ macro_rules! variant_access {
 #[allow(clippy::large_enum_variant)]
 pub enum ToolSpecifics {
     Bbox(BboxToolData),
-    Brush(BrushSpecifics),
+    Brush(BrushToolData),
 }
 impl ToolSpecifics {
     variant_access!(Bbox, bbox, &Self, &BboxToolData);
-    variant_access!(Brush, brush, &Self, &BrushSpecifics);
+    variant_access!(Brush, brush, &Self, &BrushToolData);
     variant_access!(Bbox, bbox_mut, &mut Self, &mut BboxToolData);
-    variant_access!(Brush, brush_mut, &mut Self, &mut BrushSpecifics);
+    variant_access!(Brush, brush_mut, &mut Self, &mut BrushToolData);
 
     pub fn draw_on_view(
         &self,

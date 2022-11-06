@@ -3,7 +3,7 @@ use crate::{
     annotations_accessor_mut,
     history::{History, Record},
     make_tool_transform,
-    tools_data::BrushSpecifics,
+    tools_data::BrushToolData,
     tools_data::{ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_initializer,
     util::{mouse_pos_to_orig_pos, Shape},
@@ -18,7 +18,7 @@ use super::{core::InitialView, Manipulate};
 const ACTOR_NAME: &str = "Brush";
 const MISSING_TOOLSMENU_MSG: &str = "brush data have not yet been initialized";
 
-tools_data_initializer!(ACTOR_NAME, Brush, BrushSpecifics);
+tools_data_initializer!(ACTOR_NAME, Brush, BrushToolData);
 tools_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(
     ACTOR_NAME,

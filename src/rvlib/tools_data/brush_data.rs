@@ -11,9 +11,9 @@ const fn default() -> BrushAnnotations {
 
 static DEFAULT_BRUSH_ANNOTATION: BrushAnnotations = default();
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
-pub struct BrushSpecifics {
+pub struct BrushToolData {
     annotations_map: HashMap<String, BrushAnnotations>,
 }
-impl BrushSpecifics {
+impl BrushToolData {
     implement_annotations_getters!(&DEFAULT_BRUSH_ANNOTATION, BrushAnnotations);
 }
