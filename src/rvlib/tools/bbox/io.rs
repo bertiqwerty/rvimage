@@ -91,6 +91,9 @@ use {
 fn make_data(extension: &str) -> (BboxToolData, MetaData, PathBuf, &'static str) {
     let opened_folder = "xi".to_string();
     let test_export_folder = DEFAULT_TMPDIR.clone();
+    if !test_export_folder.exists() {
+        fs::create_dir(&test_export_folder).unwrap();
+    }
     let test_export_path = DEFAULT_TMPDIR.join(format!("{}.{}", opened_folder, extension));
     let mut meta = MetaData::from_filepath(
         test_export_path
@@ -120,6 +123,15 @@ fn make_data(extension: &str) -> (BboxToolData, MetaData, PathBuf, &'static str)
     }
     (bbox_data, meta, test_export_path, key)
 }
+#[cfg(test)]
+fn assert(key: &str, meta: MetaData, read: BboxDataExport, bbox_data: BboxToolData) {
+    assert_eq!(read.opened_folder, meta.opened_folder.unwrap());
+    assert_eq!(read.connection_data, ConnectionData::Ssh(SshCfg::default()));
+    assert_eq!(read.labels, bbox_data.labels().clone());
+    assert_eq!(read.colors, bbox_data.colors().clone());
+    assert_eq!(&read.annotations[key].0, bbox_data.get_annos(key).bbs());
+    assert_eq!(&read.annotations[key].1, bbox_data.get_annos(key).cat_ids());
+}
 #[test]
 fn test_json_export() -> RvResult<()> {
     let (bbox_data, meta, path, key) = make_data("json");
@@ -127,12 +139,7 @@ fn test_json_export() -> RvResult<()> {
     let written_path = write_json(&meta, bbox_data.clone())?;
     let s = fs::read_to_string(written_path).map_err(to_rv)?;
     let read: BboxDataExport = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-    assert_eq!(read.opened_folder, meta.opened_folder.unwrap());
-    assert_eq!(read.connection_data, ConnectionData::Ssh(SshCfg::default()));
-    assert_eq!(read.labels, bbox_data.labels().clone());
-    assert_eq!(read.colors, bbox_data.colors().clone());
-    assert_eq!(&read.annotations[key].0, bbox_data.get_annos(key).bbs());
-    assert_eq!(&read.annotations[key].1, bbox_data.get_annos(key).cat_ids());
+    assert(key, meta, read, bbox_data);
     Ok(())
 }
 #[test]
@@ -142,11 +149,6 @@ fn test_pickle_export() -> RvResult<()> {
     let written_path = write_pickle(&meta, bbox_data.clone())?;
     let f = File::open(written_path).map_err(to_rv)?;
     let read: BboxDataExport = serde_pickle::from_reader(f, DeOptions::new()).map_err(to_rv)?;
-    assert_eq!(read.opened_folder, meta.opened_folder.unwrap());
-    assert_eq!(read.connection_data, ConnectionData::None);
-    assert_eq!(read.labels, bbox_data.labels().clone());
-    assert_eq!(read.colors, bbox_data.colors().clone());
-    assert_eq!(&read.annotations[key].0, bbox_data.get_annos(key).bbs());
-    assert_eq!(&read.annotations[key].1, bbox_data.get_annos(key).cat_ids());
+    assert(key, meta, read, bbox_data);
     Ok(())
 }
