@@ -6,7 +6,7 @@ mod zoom;
 
 use crate::{history::History, util::Shape, world::World};
 
-pub use self::core::{Manipulate, MetaData};
+pub use self::core::{ConnectionData, Manipulate, MetaData};
 pub use bbox::BBox;
 pub use brush::Brush;
 pub use rot90::Rot90;

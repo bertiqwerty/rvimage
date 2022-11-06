@@ -96,10 +96,10 @@ impl BboxToolData {
             }
         }
     }
-    pub fn colors(&self) -> &[[u8; 3]] {
+    pub fn colors(&self) -> &Vec<[u8; 3]> {
         &self.colors
     }
-    pub fn labels(&self) -> &[String] {
+    pub fn labels(&self) -> &Vec<String> {
         &self.labels
     }
     pub fn new() -> Self {

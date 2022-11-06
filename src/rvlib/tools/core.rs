@@ -1,4 +1,5 @@
 use image::Rgb;
+use serde::{Deserialize, Serialize};
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
@@ -42,11 +43,16 @@ impl InitialView {
         }
     }
 }
-
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
+pub enum ConnectionData {
+    Ssh(SshCfg),
+    #[default]
+    None,
+}
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct MetaData {
     pub file_path: Option<String>,
-    pub ssh_cfg: Option<SshCfg>,
+    pub connection_data: ConnectionData,
     pub opened_folder: Option<String>,
     pub export_folder: Option<String>,
 }
@@ -54,7 +60,7 @@ impl MetaData {
     pub fn from_filepath(file_path: String) -> Self {
         MetaData {
             file_path: Some(file_path),
-            ssh_cfg: None,
+            connection_data: ConnectionData::None,
             opened_folder: None,
             export_folder: None,
         }

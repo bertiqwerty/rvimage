@@ -63,7 +63,7 @@ pub enum Cache {
     FileCache,
     NoCache,
 }
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct SshCfg {
     pub remote_folder_paths: Vec<String>,
     pub address: String,

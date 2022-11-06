@@ -3,7 +3,7 @@ use crate::{
     menu::{self, cfg_menu::CfgMenu},
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
-    tools::{MetaData, ToolState},
+    tools::{ConnectionData, MetaData, ToolState},
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
 };
@@ -73,12 +73,16 @@ impl Framework {
             file_selected.and_then(|fs| self.menu().file_path(fs).map(|s| s.to_string()));
         let open_folder = self.opened_folder().cloned();
         let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
+        let connection_data = match ssh_cfg {
+            Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg),
+            None => ConnectionData::None,
+        };
         let export_folder = self
             .cfg_of_opened_folder()
             .map(|cfg| cfg.export_folder().map(|ef| ef.to_string()).unwrap());
         MetaData {
             file_path,
-            ssh_cfg,
+            connection_data,
             opened_folder: open_folder,
             export_folder,
         }
