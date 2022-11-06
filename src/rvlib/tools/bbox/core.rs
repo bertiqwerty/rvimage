@@ -2,7 +2,7 @@ use crate::{
     annotations::BboxAnnotations,
     annotations_accessor, annotations_accessor_mut,
     tools::core::InitialView,
-    tools_data::{BboxSpecifics, ToolSpecifics, ToolsData},
+    tools_data::{BboxToolData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     util::Shape,
     world::World,
@@ -11,7 +11,7 @@ use crate::{
 pub const ACTOR_NAME: &str = "BBox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
 const MISSING_TOOLSMENU_MSG: &str = "bbox tools menu has not yet been initialized";
-tools_data_initializer!(ACTOR_NAME, Bbox, BboxSpecifics);
+tools_data_initializer!(ACTOR_NAME, Bbox, BboxToolData);
 tools_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 tools_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
@@ -42,4 +42,31 @@ pub(super) fn draw_on_view(
         world.set_im_view(iv.clone());
     }
     world
+}
+
+#[cfg(test)]
+use crate::util::BB;
+
+#[cfg(test)]
+pub(super) fn make_test_bbs() -> Vec<BB> {
+    vec![
+        BB {
+            x: 0,
+            y: 0,
+            w: 10,
+            h: 10,
+        },
+        BB {
+            x: 5,
+            y: 5,
+            w: 10,
+            h: 10,
+        },
+        BB {
+            x: 9,
+            y: 9,
+            w: 10,
+            h: 10,
+        },
+    ]
 }

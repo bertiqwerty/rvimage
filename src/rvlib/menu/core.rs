@@ -73,10 +73,14 @@ impl Framework {
             file_selected.and_then(|fs| self.menu().file_path(fs).map(|s| s.to_string()));
         let open_folder = self.opened_folder().cloned();
         let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
+        let export_folder = self
+            .cfg_of_opened_folder()
+            .map(|cfg| cfg.export_folder().map(|ef| ef.to_string()).unwrap());
         MetaData {
             file_path,
             ssh_cfg,
-            open_folder,
+            opened_folder: open_folder,
+            export_folder,
         }
     }
     /// Handle input events from the window manager.

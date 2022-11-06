@@ -1,8 +1,11 @@
 use egui::Ui;
 
-use crate::tools_data::{bbox_data::BboxSpecifics, ToolSpecifics, ToolsData};
+use crate::tools_data::{
+    bbox_data::{BboxExportFileType, BboxToolData},
+    ToolSpecifics, ToolsData,
+};
 
-pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecifics) -> ToolsData {
+pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxToolData) -> ToolsData {
     let mut new_idx = data.cat_id_current;
     let mut new_label = None;
     if ui.text_edit_singleline(&mut data.new_label).lost_focus() {
@@ -35,6 +38,14 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecifics) ->
     }
     if let Some(idx) = to_be_removed {
         data.remove_cat(idx);
+    }
+    if ui.button("export pickle").clicked() {
+        data.export_file_type = BboxExportFileType::PICKLE;
+        data.write_label_file = true;
+    }
+    if ui.button("export json").clicked() {
+        data.export_file_type = BboxExportFileType::JSON;
+        data.write_label_file = true;
     }
     if ui.button("Close").clicked() {
         window_open = false;

@@ -47,14 +47,16 @@ impl InitialView {
 pub struct MetaData {
     pub file_path: Option<String>,
     pub ssh_cfg: Option<SshCfg>,
-    pub open_folder: Option<String>,
+    pub opened_folder: Option<String>,
+    pub export_folder: Option<String>,
 }
 impl MetaData {
     pub fn from_filepath(file_path: String) -> Self {
         MetaData {
             file_path: Some(file_path),
             ssh_cfg: None,
-            open_folder: None,
+            opened_folder: None,
+            export_folder: None,
         }
     }
 }

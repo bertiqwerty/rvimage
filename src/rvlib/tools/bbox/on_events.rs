@@ -1,6 +1,10 @@
 use crate::{
     history::Record,
-    tools::core::{InitialView, Mover},
+    tools::{
+        core::{InitialView, Mover},
+        MetaData,
+    },
+    tools_data::{bbox_data::BboxExportFileType, BboxToolData},
     util::{orig_pos_to_view_pos, shape_unscaled, to_i64, BB},
     {
         history::History,
@@ -9,7 +13,10 @@ use crate::{
     },
 };
 
-use super::core::{current_cat_id, draw_on_view, get_annos, get_annos_mut, ACTOR_NAME};
+use super::{
+    core::{current_cat_id, draw_on_view, get_annos, get_annos_mut, ACTOR_NAME},
+    io,
+};
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
 
@@ -46,6 +53,20 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
         .filter(|(_, _, c_dist)| c_dist <= &tolerance)
         .min_by_key(|(_, _, c_dist)| *c_dist)
         .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
+}
+
+pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: BboxToolData) -> bool {
+    let mut write_label_file = bbox_data.write_label_file;
+    if write_label_file {
+        let export_func = match bbox_data.export_file_type {
+            BboxExportFileType::JSON => io::write_json,
+            BboxExportFileType::PICKLE => io::write_pickle,
+        };
+        // TODO: don't crash just because export failed
+        export_func(meta_data, bbox_data).unwrap();
+        write_label_file = false;
+    }
+    write_label_file
 }
 
 pub(super) struct MouseHeldParams<'a> {
@@ -147,8 +168,8 @@ pub(super) fn on_mouse_released_left(
 }
 #[cfg(test)]
 use {
-    super::core::initialize_tools_menu_data, crate::types::ViewImage, image::DynamicImage,
-    std::collections::HashMap,
+    super::core::initialize_tools_menu_data, super::core::make_test_bbs, crate::types::ViewImage,
+    image::DynamicImage, std::collections::HashMap,
 };
 #[cfg(test)]
 fn test_data() -> (InitialView, Option<(usize, usize)>, Shape, World, History) {
@@ -259,29 +280,6 @@ fn test_mouse_release() {
         assert_eq!(annos.bbs().len(), 1);
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
-}
-#[cfg(test)]
-fn make_test_bbs() -> Vec<BB> {
-    vec![
-        BB {
-            x: 0,
-            y: 0,
-            w: 10,
-            h: 10,
-        },
-        BB {
-            x: 5,
-            y: 5,
-            w: 10,
-            h: 10,
-        },
-        BB {
-            x: 9,
-            y: 9,
-            w: 10,
-            h: 10,
-        },
-    ]
 }
 #[test]
 fn test_find_idx() {

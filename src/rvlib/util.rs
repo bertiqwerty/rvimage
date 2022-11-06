@@ -1,5 +1,6 @@
 use std::{
     ffi::OsStr,
+    fmt::Display,
     io,
     iter::once,
     ops::{Add, Range, Sub},
@@ -14,7 +15,9 @@ use crate::{
 };
 use core::cmp::Ordering::{Greater, Less};
 use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb, Rgba};
+use lazy_static::lazy_static;
 use pixels::Pixels;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use winit::{dpi::PhysicalSize, event::VirtualKeyCode};
 
@@ -215,7 +218,7 @@ where
     }
 }
 pub type CornerOptions = ((Option<u32>, Option<u32>), (Option<u32>, Option<u32>));
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct BB {
     pub x: u32,
     pub y: u32,
@@ -407,6 +410,30 @@ impl BB {
             None
         }
     }
+}
+impl Display for BB {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let bb_str = format!("[{}, {}, {} ,{}]", self.x, self.y, self.w, self.h);
+        f.write_str(bb_str.as_str())
+    }
+}
+impl FromStr for BB {
+    type Err = RvError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let err_parse = format_rverr!("could not parse '{}' into a bounding box", s);
+        let mut int_iter = s[1..(s.len() - 1)]
+            .split(',')
+            .map(|cse| cse.trim().parse::<u32>().map_err(to_rv));
+        let x = int_iter.next().ok_or_else(|| err_parse.clone())??;
+        let y = int_iter.next().ok_or_else(|| err_parse.clone())??;
+        let w = int_iter.next().ok_or_else(|| err_parse.clone())??;
+        let h = int_iter.next().ok_or(err_parse)??;
+        Ok(BB { x, y, w, h })
+    }
+}
+
+lazy_static! {
+    pub static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
 }
 
 pub fn apply_to_matched_image<FnRgb8, FnRgba8, FnLuma8, FnRgb32F, T>(

@@ -1,8 +1,8 @@
 use crate::{
     cache::FileCacheCfgArgs,
     result::{to_rv, RvError, RvResult},
+    util::DEFAULT_TMPDIR,
 };
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, fs, path::PathBuf};
 
@@ -85,12 +85,17 @@ pub struct Cfg {
     tmpdir: Option<String>,
     pub file_cache_args: Option<FileCacheCfgArgs>,
     pub ssh_cfg: SshCfg,
+    export_folder: Option<String>,
 }
 impl Cfg {
-    pub fn tmpdir(&self) -> RvResult<&str> {
-        lazy_static! {
-            static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
+    pub fn export_folder(&self) -> RvResult<&str> {
+        let ef = self.export_folder.as_deref();
+        match ef {
+            None => Ok(self.tmpdir()?),
+            Some(ef) => Ok(ef),
         }
+    }
+    pub fn tmpdir(&self) -> RvResult<&str> {
         match &self.tmpdir {
             Some(td) => Ok(td.as_str()),
             None => DEFAULT_TMPDIR

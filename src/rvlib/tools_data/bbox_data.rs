@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 
-use tinyvec::{tiny_vec, TinyVec};
+use serde::{Deserialize, Serialize};
 
 use crate::{annotations::BboxAnnotations, implement_annotations_getters};
-
-pub const N_LABELS_ON_STACK: usize = 24;
-type LabelsVec = TinyVec<[String; N_LABELS_ON_STACK]>;
-type ColorsVec = TinyVec<[[u8; 3]; N_LABELS_ON_STACK]>;
 
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
@@ -45,18 +41,24 @@ fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
     argmax_clr_dist(&new_clr_proposals, colors)
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub enum BboxExportFileType {
+    JSON,
+    PICKLE,
+}
 static DEFAULT_BBOX_ANNOTATION: BboxAnnotations = BboxAnnotations::new();
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BboxSpecifics {
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct BboxToolData {
     pub new_label: String,
-    labels: LabelsVec,
-    colors: ColorsVec,
+    labels: Vec<String>,
+    colors: Vec<[u8; 3]>,
     pub cat_id_current: usize,
     pub write_label_file: bool,
     // filename -> annotations per file
     annotations_map: HashMap<String, BboxAnnotations>,
+    pub export_file_type: BboxExportFileType,
 }
-impl BboxSpecifics {
+impl BboxToolData {
     implement_annotations_getters!(&DEFAULT_BBOX_ANNOTATION, BboxAnnotations);
     pub fn remove_cat(&mut self, cat_id: usize) {
         if self.labels.len() > 1 {
@@ -100,22 +102,23 @@ impl BboxSpecifics {
     pub fn labels(&self) -> &[String] {
         &self.labels
     }
-    fn new() -> Self {
+    pub fn new() -> Self {
         let new_label = "".to_string();
         let new_color = [255, 255, 255];
-        let labels = tiny_vec!([String; N_LABELS_ON_STACK] => new_label.clone());
-        let colors = tiny_vec!([[u8; 3]; N_LABELS_ON_STACK] => new_color);
-        BboxSpecifics {
+        let labels = vec![new_label.clone()];
+        let colors = vec![new_color];
+        BboxToolData {
             new_label,
             labels,
             colors,
             cat_id_current: 0,
             write_label_file: false,
             annotations_map: HashMap::new(),
+            export_file_type: BboxExportFileType::JSON,
         }
     }
 }
-impl Default for BboxSpecifics {
+impl Default for BboxToolData {
     fn default() -> Self {
         Self::new()
     }

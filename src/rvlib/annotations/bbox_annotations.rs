@@ -4,6 +4,7 @@ use crate::{
 };
 use image::Rgb;
 use rusttype::{Font, Scale};
+use serde::{Deserialize, Serialize};
 use std::mem;
 const BBOX_ALPHA: u8 = 120;
 const BBOX_ALPHA_SELECTED: u8 = 50;
@@ -135,7 +136,7 @@ fn deselected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usiz
 fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_or_deselected_indices(selected_bbs, false)
 }
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
     bbs: Vec<BB>,
     cat_ids: Vec<usize>,
@@ -189,6 +190,9 @@ impl BboxAnnotations {
         self.cat_ids.push(cat_id);
         self.bbs.push(bb);
         self.selected_bbs.push(false);
+    }
+    pub fn cat_ids(&self) -> &Vec<usize> {
+        &self.cat_ids
     }
     pub fn bbs(&self) -> &Vec<BB> {
         &self.bbs

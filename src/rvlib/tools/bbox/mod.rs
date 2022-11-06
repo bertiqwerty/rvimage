@@ -18,9 +18,13 @@ use self::{
         current_cat_id, draw_on_view, get_annos_mut, get_tools_data, get_tools_data_mut,
         initialize_tools_menu_data, ACTOR_NAME,
     },
-    on_events::{on_mouse_held_right, on_mouse_released_left, MouseHeldParams, MouseReleaseParams},
+    on_events::{
+        export_if_triggered, on_mouse_held_right, on_mouse_released_left, MouseHeldParams,
+        MouseReleaseParams,
+    },
 };
 mod core;
+mod io;
 mod on_events;
 
 #[derive(Clone, Debug)]
@@ -170,10 +174,12 @@ impl Manipulate for BBox {
             (world, history) = self.on_activate(world, history, shape_win);
         }
 
-        //let tools_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-        //if tools_data.write_label_file {
-        // TODO: use world.data.meta_data and export
-        //}
+        let bbox_data = get_tools_data(&world).specifics.bbox();
+        let write_label_file = export_if_triggered(&world.data.meta_data, bbox_data.clone());
+        get_tools_data_mut(&mut world)
+            .specifics
+            .bbox_mut()
+            .write_label_file = write_label_file;
 
         let in_menu_selected_label = current_cat_id(&world);
         if self.prev_label != in_menu_selected_label {
