@@ -596,36 +596,46 @@ pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
     im
 }
 
-pub struct DeferRemoval<'a, P: AsRef<Path> + Debug> {
-    pub path: &'a P,
-    pub func: fn(p: &'a P) -> io::Result<()>,
+pub struct Defer<F: FnMut()> {
+    pub func: F,
 }
-impl<'a, P: AsRef<Path> + Debug> Drop for DeferRemoval<'a, P> {
+impl<F: FnMut()> Drop for Defer<F> {
     fn drop(&mut self) {
-        match (self.func)(self.path) {
-            Ok(_) => println!("removed {:?}", self.path),
-            Err(e) => println!("could not remove {:?} due to {:?}", self.path, e),
-        }
+        (self.func)();
+    }
+}
+#[macro_export]
+macro_rules! defer {
+    ($f:expr) => {
+        use $crate::util::Defer;
+        let _dfr = Defer { func: $f };
+    };
+}
+pub fn checked_remove<'a, P: AsRef<Path> + Debug>(
+    path: &'a P,
+    func: fn(p: &'a P) -> io::Result<()>,
+) {
+    match func(path) {
+        Ok(_) => println!("removed {:?}", path),
+        Err(e) => println!("could not remove {:?} due to {:?}", path, e),
     }
 }
 #[macro_export]
 macro_rules! defer_folder_removal {
     ($path:expr) => {
-        use $crate::util::DeferRemoval;
-        let _dfr = DeferRemoval {
-            path: $path,
-            func: std::fs::remove_dir_all,
-        };
+        use $crate::defer;
+        use $crate::util::checked_remove;
+        let func = || checked_remove($path, std::fs::remove_dir_all);
+        defer!(func);
     };
 }
 #[macro_export]
 macro_rules! defer_file_removal {
     ($path:expr) => {
-        use $crate::util::DeferRemoval;
-        let _dfr = DeferRemoval {
-            path: $path,
-            func: std::fs::remove_file,
-        };
+        use $crate::defer;
+        use $crate::util::checked_remove;
+        let func = || checked_remove($path, std::fs::remove_file);
+        defer!(func);
     };
 }
 #[test]

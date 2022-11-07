@@ -8,12 +8,12 @@ use log::error;
 use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{self, Cfg};
 use rvlib::history::{History, Record};
-use rvlib::menu::{Framework, Info};
+use rvlib::menu::Framework;
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Manipulate, MetaData, ToolState, ToolWrapper};
 use rvlib::util::{self, Shape};
 use rvlib::world::{DataRaw, World};
-use rvlib::{apply_tool_method_mut, httpserver};
+use rvlib::{apply_tool_method_mut, defer, httpserver};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
@@ -127,23 +127,29 @@ fn loading_image(shape: Shape, counter: u128) -> DynamicImage {
     }))
 }
 
-fn remove_tmpdir() -> RvResult<()> {
-    let cfg = cfg::get_cfg()?;
-    match cfg.tmpdir() {
-        Ok(td) => match fs::remove_dir_all(Path::new(td)) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("couldn't remove tmpdir {:?} ", e)
-            }
-        },
+fn remove_tmpdir() {
+    match cfg::get_cfg() {
+        Ok(cfg) => {
+            match cfg.tmpdir() {
+                Ok(td) => match fs::remove_dir_all(Path::new(td)) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        println!("couldn't remove tmpdir {:?} ", e)
+                    }
+                },
+                Err(e) => {
+                    println!("couldn't remove tmpdir {:?} ", e)
+                }
+            };
+        }
         Err(e) => {
-            println!("couldn't remove tmpdir {:?} ", e)
+            println!("could not load cfg {:?}", e);
         }
     };
-    Ok(())
 }
 
 fn main() -> Result<(), pixels::Error> {
+    defer!(remove_tmpdir);
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -204,12 +210,6 @@ fn main() -> Result<(), pixels::Error> {
             // Close application
             if input.quit() {
                 *control_flow = ControlFlow::Exit;
-                if let Err(e) = remove_tmpdir() {
-                    framework
-                        .menu_mut()
-                        .popup(Info::Error(format!("could not delete tmpdir. {:?}", e)));
-                    thread::sleep(Duration::from_secs(5));
-                }
                 return;
             }
 
