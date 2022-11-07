@@ -98,8 +98,12 @@ where
         if files.is_empty() {
             return Err(RvError::new("no files to read from"));
         }
-        if reload && self.cached_paths.contains_key(&files[selected_file_idx]) {
-            self.cached_paths.remove(&files[selected_file_idx]);
+        if reload {
+            self.cached_paths.clear();
+            let tmp_path = Path::new(&self.tmpdir);
+            if tmp_path.exists() {
+                fs::remove_dir_all(tmp_path).map_err(to_rv)?;
+            }
         }
         let start_idx = if selected_file_idx <= self.n_prev_images {
             0

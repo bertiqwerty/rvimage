@@ -183,6 +183,7 @@ fn main() -> Result<(), pixels::Error> {
     let mut is_loading_screen_active = false;
     let mut undo_redo_load = false;
     let mut counter = 0;
+    let mut reload_cached_images = false;
     // http server state
     let mut rx_from_http: Option<Receiver<RvResult<String>>> = None;
     let mut http_addr = http_address().to_string();
@@ -256,17 +257,15 @@ fn main() -> Result<(), pixels::Error> {
                 }
             }
 
-            if (input.key_held(VirtualKeyCode::RControl)
-                || input.key_held(VirtualKeyCode::LControl))
-                && input.key_pressed(VirtualKeyCode::T)
-            {
+            if input.held_control() && input.key_pressed(VirtualKeyCode::T) {
                 framework.toggle_tools_menu();
             }
-            if (input.key_held(VirtualKeyCode::RControl)
-                || input.key_held(VirtualKeyCode::LControl))
-                && input.key_pressed(VirtualKeyCode::M)
-            {
+            if input.held_control() && input.key_pressed(VirtualKeyCode::M) {
                 framework.menu_mut().toggle();
+            }
+            if input.key_released(VirtualKeyCode::F5) {
+                reload_cached_images = true;
+                file_selected = None;
             }
             if input.key_pressed(VirtualKeyCode::PageDown) {
                 framework.menu_mut().next();
@@ -296,17 +295,11 @@ fn main() -> Result<(), pixels::Error> {
             let menu_file_selected = framework.menu().file_label_selected_idx();
             let make_folder_label = || framework.menu().folder_label().map(|s| s.to_string());
 
-            let ims_raw_idx_pair = if (input.key_held(VirtualKeyCode::RControl)
-                || input.key_held(VirtualKeyCode::LControl))
-                && input.key_pressed(VirtualKeyCode::Z)
-            {
+            let ims_raw_idx_pair = if input.held_control() && input.key_pressed(VirtualKeyCode::Z) {
                 // undo
                 undo_redo_load = true;
                 history.prev_world(&make_folder_label())
-            } else if (input.key_held(VirtualKeyCode::RControl)
-                || input.key_held(VirtualKeyCode::LControl))
-                && input.key_pressed(VirtualKeyCode::Y)
-            {
+            } else if input.held_control() && input.key_pressed(VirtualKeyCode::Y) {
                 // redo
                 undo_redo_load = true;
                 history.next_world(&make_folder_label())
@@ -316,10 +309,11 @@ fn main() -> Result<(), pixels::Error> {
                     let folder_label = make_folder_label();
                     let file_path = menu_file_selected
                         .and_then(|fs| Some(framework.menu().file_path(fs)?.to_string()));
-                    let reload = false;
                     let read_image_and_idx = match (
                         file_path,
-                        framework.menu_mut().read_image(*selected, reload),
+                        framework
+                            .menu_mut()
+                            .read_image(*selected, reload_cached_images),
                     ) {
                         (Some(fp), Some(ri)) => {
                             let ims_raw = DataRaw::new(
@@ -355,6 +349,7 @@ fn main() -> Result<(), pixels::Error> {
                             )
                         }
                     };
+                    reload_cached_images = false;
                     Some(read_image_and_idx)
                 } else {
                     None
