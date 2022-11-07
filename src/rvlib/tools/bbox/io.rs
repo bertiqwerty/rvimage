@@ -91,9 +91,14 @@ use {
 fn make_data(extension: &str) -> (BboxToolData, MetaData, PathBuf, &'static str) {
     let opened_folder = "xi".to_string();
     let test_export_folder = DEFAULT_TMPDIR.clone();
-    if !test_export_folder.exists() {
-        fs::create_dir(&test_export_folder).unwrap();
+
+    match fs::create_dir(&test_export_folder) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("{:?}", e);
+        }
     }
+
     let test_export_path = DEFAULT_TMPDIR.join(format!("{}.{}", opened_folder, extension));
     let mut meta = MetaData::from_filepath(
         test_export_path
@@ -135,7 +140,7 @@ fn assert(key: &str, meta: MetaData, read: BboxDataExport, bbox_data: BboxToolDa
 #[test]
 fn test_json_export() -> RvResult<()> {
     let (bbox_data, meta, path, key) = make_data("json");
-    defer_file_removal!(path);
+    defer_file_removal!(&path);
     let written_path = write_json(&meta, bbox_data.clone())?;
     let s = fs::read_to_string(written_path).map_err(to_rv)?;
     let read: BboxDataExport = serde_json::from_str(s.as_str()).map_err(to_rv)?;
@@ -145,7 +150,7 @@ fn test_json_export() -> RvResult<()> {
 #[test]
 fn test_pickle_export() -> RvResult<()> {
     let (bbox_data, meta, path, key) = make_data("pickle");
-    defer_file_removal!(path);
+    defer_file_removal!(&path);
     let written_path = write_pickle(&meta, bbox_data.clone())?;
     let f = File::open(written_path).map_err(to_rv)?;
     let read: BboxDataExport = serde_pickle::from_reader(f, DeOptions::new()).map_err(to_rv)?;

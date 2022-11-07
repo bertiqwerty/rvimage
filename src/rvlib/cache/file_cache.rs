@@ -186,7 +186,7 @@ where
 
 #[cfg(test)]
 use {
-    crate::cfg,
+    crate::{cfg, defer_folder_removal},
     image::DynamicImage,
     image::{ImageBuffer, Rgb},
     std::{thread, time::Duration},
@@ -197,6 +197,7 @@ fn test_file_cache() -> RvResult<()> {
     let cfg = cfg::get_cfg()?;
     let tmpdir_path = Path::new(cfg.tmpdir()?);
     fs::create_dir_all(tmpdir_path).map_err(to_rv)?;
+    defer_folder_removal!(&tmpdir_path);
     let test = |files: &[&str], selected: usize| -> RvResult<()> {
         #[derive(Clone)]
         struct DummyRead;
@@ -232,7 +233,8 @@ fn test_file_cache() -> RvResult<()> {
             selected + cache.n_next_images
         };
         let files = files.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        cache.load_from_cache(selected, &files, true)?;
+        let reload = false;
+        cache.load_from_cache(selected, &files, reload)?;
         let n_millis = (max_i - min_i) * 100;
         println!("waiting {} millis", n_millis);
         thread::sleep(Duration::from_millis(n_millis as u64));
@@ -264,6 +266,5 @@ fn test_file_cache() -> RvResult<()> {
         let f = format!("{}.png", i);
         assert!(Path::new(util::filename_in_tmpdir(f.as_str(), cfg.tmpdir()?)?.as_str()).exists());
     }
-    fs::remove_dir_all(tmpdir_path).map_err(to_rv)?;
     Ok(())
 }
