@@ -1,7 +1,3 @@
-use crate::tools::{
-    core::{InitialView, Mover},
-    Manipulate,
-};
 use crate::{
     annotations::BboxAnnotations,
     history::{History, Record},
@@ -9,6 +5,13 @@ use crate::{
     util::{self, mouse_pos_to_orig_pos, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
+};
+use crate::{
+    tools::{
+        core::{InitialView, Mover},
+        Manipulate,
+    },
+    tools_data::bbox_data::BboxExportFileType,
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
@@ -174,13 +177,15 @@ impl Manipulate for BBox {
             (world, history) = self.on_activate(world, history, shape_win);
         }
 
-        let bbox_data = get_tools_data(&world).specifics.bbox();
-        let write_label_file = export_if_triggered(&world.data.meta_data, bbox_data.clone());
-        get_tools_data_mut(&mut world)
-            .specifics
-            .bbox_mut()
-            .write_label_file = write_label_file;
-
+        {
+            // export label file if demanded
+            let bbox_data = get_tools_data(&world).specifics.bbox();
+            export_if_triggered(&world.data.meta_data, bbox_data.clone());
+            get_tools_data_mut(&mut world)
+                .specifics
+                .bbox_mut()
+                .export_file_type = BboxExportFileType::None;
+        }
         let in_menu_selected_label = current_cat_id(&world);
         if self.prev_label != in_menu_selected_label {
             world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);

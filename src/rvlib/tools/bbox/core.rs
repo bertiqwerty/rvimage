@@ -2,7 +2,7 @@ use crate::{
     annotations::BboxAnnotations,
     annotations_accessor, annotations_accessor_mut,
     tools::core::InitialView,
-    tools_data::{BboxToolData, ToolSpecifics, ToolsData},
+    tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     util::Shape,
     world::World,
@@ -11,7 +11,7 @@ use crate::{
 pub const ACTOR_NAME: &str = "BBox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
 const MISSING_TOOLSMENU_MSG: &str = "bbox tools menu has not yet been initialized";
-tools_data_initializer!(ACTOR_NAME, Bbox, BboxToolData);
+tools_data_initializer!(ACTOR_NAME, Bbox, BboxSpecificData);
 tools_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 tools_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);

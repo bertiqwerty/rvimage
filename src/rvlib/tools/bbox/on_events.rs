@@ -4,7 +4,7 @@ use crate::{
         core::{InitialView, Mover},
         MetaData,
     },
-    tools_data::{bbox_data::BboxExportFileType, BboxToolData},
+    tools_data::{bbox_data::BboxExportFileType, BboxSpecificData},
     util::{orig_pos_to_view_pos, shape_unscaled, to_i64, BB},
     {
         history::History,
@@ -55,18 +55,17 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
         .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
-pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: BboxToolData) -> bool {
-    let mut write_label_file = bbox_data.write_label_file;
-    if write_label_file {
-        let export_func = match bbox_data.export_file_type {
-            BboxExportFileType::JSON => io::write_json,
-            BboxExportFileType::PICKLE => io::write_pickle,
-        };
+pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: BboxSpecificData) {
+    match bbox_data.export_file_type {
         // TODO: don't crash just because export failed
-        export_func(meta_data, bbox_data).unwrap();
-        write_label_file = false;
-    }
-    write_label_file
+        BboxExportFileType::Json => {
+            io::write_json(meta_data, bbox_data).unwrap();
+        }
+        BboxExportFileType::Pickle => {
+            io::write_pickle(meta_data, bbox_data).unwrap();
+        }
+        BboxExportFileType::None => (),
+    };
 }
 
 pub(super) struct MouseHeldParams<'a> {

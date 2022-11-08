@@ -41,24 +41,25 @@ fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
     argmax_clr_dist(&new_clr_proposals, colors)
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Clone, Default, Debug, PartialEq, Eq)]
 pub enum BboxExportFileType {
-    JSON,
-    PICKLE,
+    Json,
+    Pickle,
+    #[default]
+    None,
 }
 static DEFAULT_BBOX_ANNOTATION: BboxAnnotations = BboxAnnotations::new();
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
-pub struct BboxToolData {
+pub struct BboxSpecificData {
     pub new_label: String,
     labels: Vec<String>,
     colors: Vec<[u8; 3]>,
     pub cat_id_current: usize,
-    pub write_label_file: bool,
     // filename -> annotations per file
     annotations_map: HashMap<String, BboxAnnotations>,
     pub export_file_type: BboxExportFileType,
 }
-impl BboxToolData {
+impl BboxSpecificData {
     implement_annotations_getters!(&DEFAULT_BBOX_ANNOTATION, BboxAnnotations);
     pub fn remove_cat(&mut self, cat_id: usize) {
         if self.labels.len() > 1 {
@@ -107,18 +108,17 @@ impl BboxToolData {
         let new_color = [255, 255, 255];
         let labels = vec![new_label.clone()];
         let colors = vec![new_color];
-        BboxToolData {
+        BboxSpecificData {
             new_label,
             labels,
             colors,
             cat_id_current: 0,
-            write_label_file: false,
             annotations_map: HashMap::new(),
-            export_file_type: BboxExportFileType::JSON,
+            export_file_type: BboxExportFileType::default(),
         }
     }
 }
-impl Default for BboxToolData {
+impl Default for BboxSpecificData {
     fn default() -> Self {
         Self::new()
     }
