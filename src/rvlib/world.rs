@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::{fmt::Debug, mem};
 
+use crate::domain::{self, Shape, BB};
+use crate::image_util;
 use crate::tools::MetaData;
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
-use crate::util::{self, Shape, BB};
 use image::{imageops, imageops::FilterType, DynamicImage};
 use pixels::Pixels;
 
@@ -14,8 +15,8 @@ pub fn raw_scaled_to_win_view(
     shape_win: Shape,
 ) -> ViewImage {
     let shape_orig = ims_raw.shape();
-    let unscaled = util::shape_unscaled(zoom_box, shape_orig);
-    let new = util::shape_scaled(unscaled, shape_win);
+    let unscaled = domain::shape_unscaled(zoom_box, shape_orig);
+    let new = domain::shape_scaled(unscaled, shape_win);
     let im_view = if let Some(c) = zoom_box {
         let mut ims_raw = ims_raw.clone();
         ims_raw.apply(|mut im| im.crop(c.x, c.y, c.w, c.h));
@@ -106,7 +107,7 @@ impl DataRaw {
     }
 
     pub fn bg_to_uncropped_view(&self) -> ViewImage {
-        util::orig_to_0_255(&self.im_background, &None)
+        image_util::orig_to_0_255(&self.im_background, &None)
     }
 
     pub fn bg_to_unannotated_view(&self, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {

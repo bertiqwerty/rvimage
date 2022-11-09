@@ -1,6 +1,6 @@
 use crate::{
+    domain::{Shape, BB},
     types::ViewImage,
-    util::{Shape, BB},
 };
 
 pub use self::{bbox_data::BboxSpecificData, brush_data::BrushToolData};

@@ -4,9 +4,10 @@ use winit_input_helper::WinitInputHelper;
 
 use crate::{
     cfg::SshCfg,
+    domain::{self, Shape, BB},
     history::History,
+    image_util,
     types::ViewImage,
-    util::{self, Shape, BB},
     world::World,
 };
 
@@ -119,8 +120,9 @@ impl Mover {
         zoom_box: &Option<BB>,
     ) -> Option<T> {
         let res = if let (Some(mps), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
-            let mps_orig = util::mouse_pos_to_orig_pos(Some(mps), shape_orig, shape_win, zoom_box);
-            let mp_orig = util::mouse_pos_to_orig_pos(Some(mp), shape_orig, shape_win, zoom_box);
+            let mps_orig =
+                domain::mouse_pos_to_orig_pos(Some(mps), shape_orig, shape_win, zoom_box);
+            let mp_orig = domain::mouse_pos_to_orig_pos(Some(mp), shape_orig, shape_win, zoom_box);
             match (mps_orig, mp_orig) {
                 (Some(mpso), Some(mpo)) => Some(f_move(mpso, mpo)),
                 _ => None,
@@ -175,12 +177,12 @@ pub fn draw_bx_on_view(
     let offset = Rgb([color[0] / 5, color[1] / 5, color[2] / 5]);
     let f = |rgb: &Rgb<u8>| {
         Rgb([
-            util::clipped_add(offset[0], rgb[0], 255),
-            util::clipped_add(offset[1], rgb[1], 255),
-            util::clipped_add(offset[2], rgb[2], 255),
+            image_util::clipped_add(offset[0], rgb[0], 255),
+            image_util::clipped_add(offset[1], rgb[1], 255),
+            image_util::clipped_add(offset[2], rgb[2], 255),
         ])
     };
-    util::draw_bx_on_image(
+    image_util::draw_bx_on_image(
         im,
         (Some(corner_1.0), Some(corner_1.1)),
         (Some(corner_2.0), Some(corner_2.1)),

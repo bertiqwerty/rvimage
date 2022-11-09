@@ -1,12 +1,12 @@
 use crate::{
     annotations::BrushAnnotations,
     annotations_accessor_mut,
+    domain::{mouse_pos_to_orig_pos, Shape},
     history::{History, Record},
     make_tool_transform,
     tools_data::BrushToolData,
     tools_data::{ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_initializer,
-    util::{mouse_pos_to_orig_pos, Shape},
     world::World,
     LEFT_BTN,
 };

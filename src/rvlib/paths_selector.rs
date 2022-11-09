@@ -1,18 +1,14 @@
 use std::path::Path;
 
-use crate::{
-    format_rverr,
-    result::{RvError, RvResult},
-    util,
-};
+use crate::{file_util, format_rverr, result::RvResult};
 
 pub fn to_stem_str(p: &Path) -> RvResult<&str> {
-    util::osstr_to_str(p.file_stem())
+    file_util::osstr_to_str(p.file_stem())
         .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
 }
 
 pub fn to_name_str(p: &Path) -> RvResult<&str> {
-    util::osstr_to_str(p.file_name())
+    file_util::osstr_to_str(p.file_name())
         .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
 }
 fn list_file_labels(file_paths: &[String], filter_str: &str) -> RvResult<Vec<(usize, String)>> {

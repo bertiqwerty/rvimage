@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use serde_pickle::SerOptions;
 
+use crate::domain::BB;
 use crate::format_rverr;
 use crate::result::{to_rv, RvError, RvResult};
 use crate::tools::core::ConnectionData;
 use crate::tools::MetaData;
 use crate::tools_data::BboxSpecificData;
-use crate::util::BB;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
@@ -125,7 +125,7 @@ pub(super) fn write_pickle(
 use {
     super::core::make_test_bbs,
     crate::cfg::SshCfg,
-    crate::{defer_file_removal, util::DEFAULT_TMPDIR},
+    crate::{defer_file_removal, file_util::DEFAULT_TMPDIR},
     serde_pickle::DeOptions,
 };
 #[cfg(test)]

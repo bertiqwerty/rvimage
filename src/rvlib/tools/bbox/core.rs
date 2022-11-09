@@ -1,10 +1,10 @@
 use crate::{
     annotations::BboxAnnotations,
     annotations_accessor, annotations_accessor_mut,
+    domain::Shape,
     tools::core::InitialView,
     tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
-    util::Shape,
     world::World,
 };
 
@@ -45,7 +45,7 @@ pub(super) fn draw_on_view(
 }
 
 #[cfg(test)]
-use crate::util::BB;
+use crate::domain::BB;
 
 #[cfg(test)]
 pub(super) fn make_test_bbs() -> Vec<BB> {

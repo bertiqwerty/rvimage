@@ -1,16 +1,13 @@
 use crate::{
+    domain::{mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
     history::Record,
+    image_util::to_i64,
     tools::{
         core::{InitialView, Mover},
         MetaData,
     },
     tools_data::{bbox_data::BboxExportFileType, BboxSpecificData},
-    util::{orig_pos_to_view_pos, shape_unscaled, to_i64, BB},
-    {
-        history::History,
-        util::{mouse_pos_to_orig_pos, Shape},
-        world::World,
-    },
+    {history::History, world::World},
 };
 
 use super::{

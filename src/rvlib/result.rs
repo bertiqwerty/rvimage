@@ -41,7 +41,7 @@ pub type RvResult<U> = Result<U, RvError>;
 #[macro_export]
 macro_rules! format_rverr {
     ($s:literal, $( $exps:expr ),*) => {
-        RvError::new(format!($s, $($exps,)*).as_str())
+        $crate::result::RvError::new(format!($s, $($exps,)*).as_str())
     }
 }
 

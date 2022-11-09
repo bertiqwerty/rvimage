@@ -215,7 +215,7 @@ fn show_popup(
     new_msg
 }
 
-pub fn get_cfg() -> (Cfg, Info) {
+pub(super) fn get_cfg() -> (Cfg, Info) {
     match cfg::get_cfg() {
         Ok(cfg) => (cfg, Info::None),
         Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{:?}", e))),
@@ -302,7 +302,7 @@ pub struct Menu {
     are_tools_active: bool,
     paths_navigator: PathsNavigator,
     cfg: Cfg,
-    ssh_cfg_str: String,
+    editable_ssh_cfg_str: String,
     tp: ThreadPool<(ReaderFromCfg, Info)>,
     last_open_folder_job_id: Option<u128>,
     scroll_offset: f32,
@@ -321,7 +321,7 @@ impl Menu {
             are_tools_active: true,
             paths_navigator: PathsNavigator::new(None),
             cfg,
-            ssh_cfg_str,
+            editable_ssh_cfg_str: ssh_cfg_str,
             tp: ThreadPool::new(1),
             last_open_folder_job_id: None,
             scroll_offset: 0.0,
@@ -454,7 +454,8 @@ impl Menu {
                         self
                     );
                     let popup_id = ui.make_persistent_id("cfg-popup");
-                    let cfg_gui = CfgMenu::new(popup_id, &mut self.cfg, &mut self.ssh_cfg_str);
+                    let cfg_gui =
+                        CfgMenu::new(popup_id, &mut self.cfg, &mut self.editable_ssh_cfg_str);
                     ui.add(cfg_gui);
                 });
 

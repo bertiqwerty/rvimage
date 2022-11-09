@@ -2,11 +2,10 @@ use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path}
 
 use crate::{
     cache::core::Cache,
-    format_rverr,
+    file_util, format_rverr, image_util,
     result::{to_rv, RvError, RvResult},
     threadpool::ThreadPoolQueued,
     types::{AsyncResultImage, ResultImage},
-    util,
 };
 
 use serde::{Deserialize, Serialize};
@@ -37,7 +36,7 @@ where
     fs::create_dir_all(Path::new(tmpdir)).map_err(to_rv)?;
     files
         .map(|(prio, file)| {
-            let dst_file = util::filename_in_tmpdir(file, tmpdir)?;
+            let dst_file = file_util::filename_in_tmpdir(file, tmpdir)?;
             let file_for_thread = file.clone();
             let reader_for_thread = reader.clone();
             let job = Box::new(move || {
@@ -150,13 +149,13 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => util::read_image(path_in_cache).map(Some),
+            ThreadResult::Ok(path_in_cache) => image_util::read_image(path_in_cache).map(Some),
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self.tpq.result(*job_id);
                 match path_in_cache {
                     Some(pic) => {
                         let pic = pic?;
-                        let res = util::read_image(&pic);
+                        let res = image_util::read_image(&pic);
                         *self.cached_paths.get_mut(selected_file).unwrap() = ThreadResult::Ok(pic);
                         res.map(Some)
                     }
@@ -247,9 +246,9 @@ fn test_file_cache() -> RvResult<()> {
             let f = file.as_str();
             println!(
                 "filename in tmpdir {:?}",
-                Path::new(util::filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str())
+                Path::new(file_util::filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str())
             );
-            assert!(Path::new(util::filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str()).exists());
+            assert!(Path::new(file_util::filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str()).exists());
         }
         Ok(())
     };
@@ -264,7 +263,9 @@ fn test_file_cache() -> RvResult<()> {
     test(&files_str, 36)?;
     for i in (14..25).chain(34..45) {
         let f = format!("{}.png", i);
-        assert!(Path::new(util::filename_in_tmpdir(f.as_str(), cfg.tmpdir()?)?.as_str()).exists());
+        assert!(
+            Path::new(file_util::filename_in_tmpdir(f.as_str(), cfg.tmpdir()?)?.as_str()).exists()
+        );
     }
     Ok(())
 }

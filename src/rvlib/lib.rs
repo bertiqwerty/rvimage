@@ -1,8 +1,11 @@
 pub mod annotations;
 mod cache;
 pub mod cfg;
+pub mod domain;
+pub mod file_util;
 pub mod history;
 pub mod httpserver;
+pub mod image_util;
 pub mod menu;
 mod paths_selector;
 mod reader;
@@ -12,7 +15,6 @@ mod threadpool;
 pub mod tools;
 pub mod tools_data;
 mod types;
-pub mod util;
 pub mod world;
 
 const LEFT_BTN: usize = 0;

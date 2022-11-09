@@ -7,13 +7,13 @@ use lazy_static::lazy_static;
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{self, Cfg};
+use rvlib::domain::{self, Shape};
 use rvlib::history::{History, Record};
 use rvlib::menu::Framework;
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Manipulate, MetaData, ToolState, ToolWrapper};
-use rvlib::util::{self, Shape};
 use rvlib::world::{DataRaw, World};
-use rvlib::{apply_tool_method_mut, defer, httpserver};
+use rvlib::{apply_tool_method_mut, defer, httpserver, image_util};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
@@ -56,7 +56,7 @@ where
 }
 
 fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
-    util::apply_to_matched_image(
+    image_util::apply_to_matched_image(
         im,
         |im| pos_2_string_gen(im, x, y),
         |im| pos_2_string_gen(im, x, y),
@@ -70,7 +70,7 @@ fn get_pixel_on_orig_str(
     mouse_pos: Option<(usize, usize)>,
     shape_win: Shape,
 ) -> Option<String> {
-    util::mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box())
+    domain::mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box())
         .map(|(x, y)| pos_2_string(world.data.im_background(), x, y))
 }
 
@@ -215,7 +215,7 @@ fn main() -> Result<(), pixels::Error> {
 
             // update world based on tools
             let shape_win = Shape::from_size(&window.inner_size());
-            let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
+            let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
 
             if framework.are_tools_active() {
                 let meta_data = framework.meta_data(file_selected);
@@ -245,9 +245,7 @@ fn main() -> Result<(), pixels::Error> {
                     }
                 }
             }
-            if (input.key_held(VirtualKeyCode::RShift) || input.key_held(VirtualKeyCode::LShift))
-                && input.key_pressed(VirtualKeyCode::Q)
-            {
+            if input.held_shift() && input.key_pressed(VirtualKeyCode::Q) {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
                     let meta_data = framework.meta_data(file_selected);
@@ -400,7 +398,7 @@ fn main() -> Result<(), pixels::Error> {
                     w: window.inner_size().width,
                     h: window.inner_size().height,
                 };
-                let mouse_pos = util::mouse_pos_transform(&pixels, input.mouse());
+                let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
                 let data_point = get_pixel_on_orig_str(&world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
                 let file_label = framework.menu().file_label(idx);

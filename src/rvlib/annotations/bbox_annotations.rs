@@ -1,6 +1,7 @@
 use crate::{
+    domain::{Shape, BB},
+    image_util,
     types::ViewImage,
-    util::{self, Shape, BB},
 };
 use image::Rgb;
 use rusttype::{Font, Scale};
@@ -70,11 +71,11 @@ fn draw_bbs<'a>(
             BBOX_ALPHA
         };
         let f_inner_color =
-            |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, cats.color_of_box(box_idx), alpha);
+            |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, cats.color_of_box(box_idx), alpha);
         let view_corners = bbs[box_idx].to_view_corners(shape_orig, shape_win, zoom_box);
 
         let color_rgb = Rgb(*cats.color_of_box(box_idx));
-        im = util::draw_bx_on_image(
+        im = image_util::draw_bx_on_image(
             im,
             view_corners.0,
             view_corners.1,
@@ -94,8 +95,8 @@ fn draw_bbs<'a>(
                 let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
                 let white = [255, 255, 255];
                 let alpha = 150;
-                let f_inner_color = |rgb: &Rgb<u8>| util::apply_alpha(&rgb.0, &white, alpha);
-                im = util::draw_bx_on_image(
+                let f_inner_color = |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, &white, alpha);
+                im = image_util::draw_bx_on_image(
                     im,
                     view_corners.0,
                     (Some(x_max), Some(y_min + label_box_height)),

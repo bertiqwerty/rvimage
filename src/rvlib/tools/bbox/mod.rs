@@ -1,8 +1,8 @@
 use crate::{
     annotations::BboxAnnotations,
+    domain::{mouse_pos_to_orig_pos, Shape, BB},
     history::{History, Record},
     make_tool_transform,
-    util::{self, mouse_pos_to_orig_pos, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
@@ -95,13 +95,13 @@ impl BBox {
         // up, down, left, right
         let shape_orig = world.data.shape();
         let annos = get_annos_mut(&mut world);
-        if util::with_control(VirtualKeyCode::Up, |x| event.key_held(x)) {
+        if event.key_held(VirtualKeyCode::Up) && event.held_control() {
             annos.resize_bbs(0, -1, shape_orig);
-        } else if util::with_control(VirtualKeyCode::Down, |x| event.key_held(x)) {
+        } else if event.key_held(VirtualKeyCode::Down) && event.held_control() {
             annos.resize_bbs(0, 1, shape_orig);
-        } else if util::with_control(VirtualKeyCode::Right, |x| event.key_held(x)) {
+        } else if event.key_held(VirtualKeyCode::Right) && event.held_control() {
             annos.resize_bbs(1, 0, shape_orig);
-        } else if util::with_control(VirtualKeyCode::Left, |x| event.key_held(x)) {
+        } else if event.key_held(VirtualKeyCode::Left) && event.held_control() {
             annos.resize_bbs(-1, 0, shape_orig);
         }
         world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);

@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     format_rverr,
-    result::{to_rv, RvError, RvResult},
+    result::{to_rv, RvResult},
 };
 
 #[derive(Debug, PartialEq)]

@@ -4,11 +4,12 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
+    domain::{self, Shape, BB},
     history::History,
+    image_util::to_u32,
     make_tool_transform,
     tools::core::{self, Manipulate},
     types::ViewImage,
-    util::{self, to_u32, Shape, BB},
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
@@ -25,9 +26,9 @@ fn make_zoom_on_release(
     zoom_box: &Option<BB>,
 ) -> Option<BB> {
     let prs_orig =
-        util::mouse_pos_to_orig_pos(Some(mouse_pos_start), shape_orig, shape_win, zoom_box);
+        domain::mouse_pos_to_orig_pos(Some(mouse_pos_start), shape_orig, shape_win, zoom_box);
     let rel_orig =
-        util::mouse_pos_to_orig_pos(Some(mouse_pos_release), shape_orig, shape_win, zoom_box);
+        domain::mouse_pos_to_orig_pos(Some(mouse_pos_release), shape_orig, shape_win, zoom_box);
 
     match (prs_orig, rel_orig) {
         (Some((px, py)), Some((rx, ry))) => {

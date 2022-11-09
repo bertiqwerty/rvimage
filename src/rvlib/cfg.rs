@@ -1,7 +1,7 @@
 use crate::{
     cache::FileCacheCfgArgs,
+    file_util::DEFAULT_TMPDIR,
     result::{to_rv, RvError, RvResult},
-    util::DEFAULT_TMPDIR,
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, fs, path::PathBuf};

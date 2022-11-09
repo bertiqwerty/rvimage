@@ -2,8 +2,8 @@ use image::Rgb;
 use imageproc::drawing;
 
 use crate::{
+    domain::{orig_pos_to_view_pos, Shape, BB},
     types::ViewImage,
-    util::{orig_pos_to_view_pos, Shape, BB},
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

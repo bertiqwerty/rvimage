@@ -1,7 +1,7 @@
 use crate::{
+    domain::Shape,
     history::{History, Record},
     make_tool_transform,
-    util::Shape,
     world::{DataRaw, World},
 };
 use winit::event::VirtualKeyCode;

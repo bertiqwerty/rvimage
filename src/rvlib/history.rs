@@ -140,7 +140,7 @@ impl Debug for History {
 
 #[cfg(test)]
 use {
-    crate::{result::RvResult, types::ViewImage, util::Shape, world::World},
+    crate::{domain::Shape, result::RvResult, types::ViewImage, world::World},
     image::DynamicImage,
     std::collections::HashMap,
 };

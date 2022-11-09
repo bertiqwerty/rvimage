@@ -4,7 +4,7 @@ mod core;
 mod rot90;
 mod zoom;
 
-use crate::{history::History, util::Shape, world::World};
+use crate::{domain::Shape, history::History, world::World};
 
 pub use self::core::{ConnectionData, Manipulate, MetaData};
 pub use bbox::BBox;
