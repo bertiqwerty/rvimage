@@ -1,6 +1,7 @@
 pub mod annotations;
 mod cache;
 pub mod cfg;
+pub mod control;
 pub mod domain;
 pub mod file_util;
 pub mod history;
@@ -16,6 +17,5 @@ pub mod tools;
 pub mod tools_data;
 mod types;
 pub mod world;
-
 const LEFT_BTN: usize = 0;
 const RIGHT_BTN: usize = 1;

@@ -1,5 +1,6 @@
 use crate::{
     cfg::{self, Cfg},
+    control::{paths_navigator::PathsNavigator, Info},
     menu::{self, cfg_menu::CfgMenu},
     reader::{LoadImageForGui, ReaderFromCfg},
     threadpool::ThreadPool,
@@ -14,7 +15,7 @@ use pixels::{wgpu, PixelsContext};
 use std::mem;
 use winit::window::Window;
 
-use super::{open_folder::OpenFolder, paths_navigator::PathsNavigator, tools_menus::bbox_menu};
+use super::{open_folder::OpenedFolder, tools_menus::bbox_menu};
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub struct Framework {
@@ -63,7 +64,7 @@ impl Framework {
 
     pub fn opened_folder(&self) -> Option<&String> {
         match &self.menu.opened_folder {
-            OpenFolder::Some(s) => Some(s),
+            OpenedFolder::Some(s) => Some(s),
             _ => None,
         }
     }
@@ -181,13 +182,6 @@ impl Framework {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum Info {
-    Error(String),
-    Warning(String),
-    None,
-}
-
 fn show_popup(
     ui: &mut Ui,
     msg: &str,
@@ -298,7 +292,7 @@ pub struct Menu {
     reader: Option<ReaderFromCfg>,
     info_message: Info,
     filter_string: String,
-    opened_folder: OpenFolder,
+    opened_folder: OpenedFolder,
     are_tools_active: bool,
     paths_navigator: PathsNavigator,
     cfg: Cfg,
@@ -317,7 +311,7 @@ impl Menu {
             reader: None,
             info_message: Info::None,
             filter_string: "".to_string(),
-            opened_folder: OpenFolder::None,
+            opened_folder: OpenedFolder::None,
             are_tools_active: true,
             paths_navigator: PathsNavigator::new(None),
             cfg,
@@ -441,7 +435,7 @@ impl Menu {
                     let button_resp = menu::open_folder::button(
                         ui,
                         &mut self.paths_navigator,
-                        std::mem::replace(&mut self.opened_folder, OpenFolder::None),
+                        std::mem::replace(&mut self.opened_folder, OpenedFolder::None),
                         self.cfg.clone(),
                         &mut self.last_open_folder_job_id,
                         &mut self.tp,
@@ -482,7 +476,7 @@ impl Menu {
                     self
                 );
                 if self.paths_navigator.paths_selector().is_none() {
-                    if let OpenFolder::Some(open_folder) = &self.opened_folder {
+                    if let OpenedFolder::Some(open_folder) = &self.opened_folder {
                         handle_error!(
                             |ps| {
                                 self.paths_navigator = PathsNavigator::new(ps);

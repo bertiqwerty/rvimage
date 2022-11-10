@@ -2,14 +2,14 @@ use egui::{Id, Response, Ui};
 
 use crate::{
     cfg::{Cfg, Connection},
-    menu::{core::Info, paths_navigator::PathsNavigator},
+    control::{paths_navigator::PathsNavigator, trigger_reader_creation, Info},
     paths_selector::PathsSelector,
     reader::ReaderFromCfg,
     result::{RvError, RvResult},
     threadpool::ThreadPool,
 };
 
-pub enum OpenFolder {
+pub enum OpenedFolder {
     None,
     PopupOpen,
     Some(String),
@@ -37,68 +37,53 @@ fn pick_folder_from_list(
     ui: &mut Ui,
     folder_list: &[String],
     response: &Response,
-) -> RvResult<OpenFolder> {
+) -> RvResult<OpenedFolder> {
     let popup_id = ui.make_persistent_id("ssh-folder-popup");
     let idx = show_folder_list_popup(ui, folder_list, popup_id, response);
     match idx {
-        Some(idx) => Ok(OpenFolder::Some(folder_list[idx].clone())),
-        None => Ok(OpenFolder::PopupOpen),
+        Some(idx) => Ok(OpenedFolder::Some(folder_list[idx].clone())),
+        None => Ok(OpenedFolder::PopupOpen),
     }
 }
 
-fn make_reader_from_cfg(cfg: Cfg) -> (ReaderFromCfg, Info) {
-    match ReaderFromCfg::from_cfg(cfg) {
-        Ok(rfc) => (rfc, Info::None),
-        Err(e) => (
-            ReaderFromCfg::new().expect("default cfg broken"),
-            Info::Warning(e.msg().to_string()),
-        ),
-    }
-}
 pub fn button(
     ui: &mut Ui,
     paths_navigator: &mut PathsNavigator,
-    open_folder: OpenFolder,
+    opened_folder: OpenedFolder,
     cfg: Cfg,
     last_open_folder_job_id: &mut Option<u128>,
     tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
-) -> RvResult<OpenFolder> {
+) -> RvResult<OpenedFolder> {
     let resp = ui.button("open folder");
-    fn open_effects(
-        tp: &mut ThreadPool<(ReaderFromCfg, Info)>,
-        cfg: Cfg,
-    ) -> RvResult<(PathsNavigator, Option<u128>)> {
-        Ok((
-            PathsNavigator::new(None),
-            Some(tp.apply(Box::new(move || make_reader_from_cfg(cfg)))?),
-        ))
-    }
     if resp.clicked() {
-        match cfg.connection {
-            Connection::Local => {
-                let sf = rfd::FileDialog::new()
-                    .pick_folder()
-                    .ok_or_else(|| RvError::new("Could not pick folder."))?;
-                (*paths_navigator, *last_open_folder_job_id) = open_effects(tp, cfg)?;
-                Ok(OpenFolder::Some(
-                    sf.to_str()
-                        .ok_or_else(|| RvError::new("could not transfer path to unicode string"))?
-                        .to_string(),
-                ))
-            }
-            Connection::Ssh => Ok(OpenFolder::PopupOpen),
-        }
+        Ok(OpenedFolder::PopupOpen)
     } else {
-        match open_folder {
-            OpenFolder::PopupOpen => {
-                let picked = pick_folder_from_list(ui, &cfg.ssh_cfg.remote_folder_paths, &resp)?;
-                if let OpenFolder::Some(_) = picked {
-                    // this is when in the openfolder popup a folder has been selected
-                    (*paths_navigator, *last_open_folder_job_id) = open_effects(tp, cfg)?;
+        match opened_folder {
+            OpenedFolder::PopupOpen => {
+                let picked = match cfg.connection {
+                    Connection::Local => {
+                        let sf = rfd::FileDialog::new()
+                            .pick_folder()
+                            .ok_or_else(|| RvError::new("Could not pick folder."))?;
+                        OpenedFolder::Some(
+                            sf.to_str()
+                                .ok_or_else(|| {
+                                    RvError::new("could not transfer path to unicode string")
+                                })?
+                                .to_string(),
+                        )
+                    }
+                    Connection::Ssh => {
+                        pick_folder_from_list(ui, &cfg.ssh_cfg.remote_folder_paths, &resp)?
+                    }
+                };
+                if let OpenedFolder::Some(_) = &picked {
+                    (*paths_navigator, *last_open_folder_job_id) =
+                        trigger_reader_creation(tp, cfg)?;
                 }
                 Ok(picked)
             }
-            _ => Ok(open_folder),
+            _ => Ok(opened_folder),
         }
     }
 }
