@@ -23,10 +23,14 @@ pub struct Control {
     pub opened_folder: Option<String>,
     tp: ThreadPool<(ReaderFromCfg, Info)>,
     last_open_folder_job_id: Option<u128>,
+    pub cfg: Cfg,
 }
 impl Control {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(cfg: Cfg) -> Self {
+        Self {
+            cfg,
+            ..Default::default()
+        }
     }
     pub fn reader(&self) -> Option<&ReaderFromCfg> {
         self.reader.as_ref()
@@ -49,8 +53,8 @@ impl Control {
             Some(self.tp.apply(Box::new(move || make_reader_from_cfg(cfg)))?);
         Ok(())
     }
-    pub fn open_folder(&mut self, new_folder: String, cfg: Cfg) -> RvResult<()> {
-        self.make_reader(cfg)?;
+    pub fn open_folder(&mut self, new_folder: String) -> RvResult<()> {
+        self.make_reader(self.cfg.clone())?;
         self.opened_folder = Some(new_folder);
         Ok(())
     }

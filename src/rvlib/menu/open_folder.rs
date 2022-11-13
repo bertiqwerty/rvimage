@@ -1,7 +1,7 @@
 use egui::{Id, Response, Ui};
 
 use crate::{
-    cfg::{Cfg, Connection},
+    cfg::Connection,
     control::Control,
     result::{RvError, RvResult},
 };
@@ -33,17 +33,12 @@ fn pick_folder_from_list(ui: &mut Ui, folder_list: &[String], response: &Respons
     idx.map(|idx| folder_list[idx].clone())
 }
 
-pub fn button(
-    ui: &mut Ui,
-    ctrl: &mut Control,
-    cfg: Cfg,
-    open_folder_popup_open: bool,
-) -> RvResult<bool> {
+pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> RvResult<bool> {
     let resp = ui.button("open folder");
     if resp.clicked() {
         Ok(true)
     } else if open_folder_popup_open {
-        let picked = match cfg.connection {
+        let picked = match &ctrl.cfg.connection {
             Connection::Local => {
                 let sf = rfd::FileDialog::new()
                     .pick_folder()
@@ -54,10 +49,12 @@ pub fn button(
                         .to_string(),
                 )
             }
-            Connection::Ssh => pick_folder_from_list(ui, &cfg.ssh_cfg.remote_folder_paths, &resp),
+            Connection::Ssh => {
+                pick_folder_from_list(ui, &ctrl.cfg.ssh_cfg.remote_folder_paths, &resp)
+            }
         };
         if let OpenedFolder::Some(new_folder) = picked {
-            ctrl.open_folder(new_folder, cfg)?;
+            ctrl.open_folder(new_folder)?;
             Ok(false)
         } else {
             Ok(true)

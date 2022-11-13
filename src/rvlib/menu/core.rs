@@ -289,7 +289,6 @@ pub struct Menu {
     info_message: Info,
     filter_string: String,
     are_tools_active: bool,
-    cfg: Cfg,
     editable_ssh_cfg_str: String,
     scroll_offset: f32,
     open_folder_popup_open: bool,
@@ -300,12 +299,11 @@ impl Menu {
         let (cfg, _) = get_cfg();
         let ssh_cfg_str = toml::to_string_pretty(&cfg.ssh_cfg).unwrap();
         Self {
-            control: Control::new(),
+            control: Control::new(cfg),
             window_open: true,
             info_message: Info::None,
             filter_string: "".to_string(),
             are_tools_active: true,
-            cfg,
             editable_ssh_cfg_str: ssh_cfg_str,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
@@ -421,12 +419,8 @@ impl Menu {
 
                 // Top row with open folder and settings button
                 ui.horizontal(|ui| {
-                    let button_resp = open_folder::button(
-                        ui,
-                        &mut self.control,
-                        self.cfg.clone(),
-                        self.open_folder_popup_open,
-                    );
+                    let button_resp =
+                        open_folder::button(ui, &mut self.control, self.open_folder_popup_open);
                     handle_error!(
                         |open| {
                             self.open_folder_popup_open = open;
@@ -435,8 +429,12 @@ impl Menu {
                         self
                     );
                     let popup_id = ui.make_persistent_id("cfg-popup");
-                    let cfg_gui =
-                        CfgMenu::new(popup_id, &mut self.cfg, &mut self.editable_ssh_cfg_str);
+
+                    let cfg_gui = CfgMenu::new(
+                        popup_id,
+                        &mut self.control.cfg,
+                        &mut self.editable_ssh_cfg_str,
+                    );
                     ui.add(cfg_gui);
                 });
 
