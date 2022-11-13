@@ -2,18 +2,13 @@ use egui::{Id, Response, Ui};
 
 use crate::{
     cfg::{Cfg, Connection},
-    control::{paths_navigator::PathsNavigator, trigger_reader_creation, Info},
+    control::{paths_navigator::PathsNavigator, trigger_reader_creation, Info, OpenedFolder},
     paths_selector::PathsSelector,
     reader::ReaderFromCfg,
     result::{RvError, RvResult},
     threadpool::ThreadPool,
 };
 
-pub enum OpenedFolder {
-    None,
-    PopupOpen,
-    Some(String),
-}
 fn show_folder_list_popup(
     ui: &mut Ui,
     folders: &[String],

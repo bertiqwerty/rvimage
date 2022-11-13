@@ -1,6 +1,6 @@
 use crate::{
     cfg::{self, Cfg},
-    control::{paths_navigator::PathsNavigator, Control, Info},
+    control::{paths_navigator::PathsNavigator, Control, Info, OpenedFolder},
     file_util::{ConnectionData, MetaData},
     menu::{self, cfg_menu::CfgMenu},
     reader::{LoadImageForGui, ReaderFromCfg},
@@ -16,7 +16,7 @@ use pixels::{wgpu, PixelsContext};
 use std::mem;
 use winit::window::Window;
 
-use super::{open_folder::OpenedFolder, tools_menus::bbox_menu};
+use super::tools_menus::bbox_menu;
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub struct Framework {
@@ -64,7 +64,7 @@ impl Framework {
     }
 
     pub fn opened_folder(&self) -> Option<&String> {
-        match &self.menu.opened_folder {
+        match &self.menu.control.opened_folder {
             OpenedFolder::Some(s) => Some(s),
             _ => None,
         }
@@ -293,7 +293,6 @@ pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
     filter_string: String,
-    opened_folder: OpenedFolder,
     are_tools_active: bool,
     cfg: Cfg,
     editable_ssh_cfg_str: String,
@@ -311,7 +310,6 @@ impl Menu {
             window_open: true,
             info_message: Info::None,
             filter_string: "".to_string(),
-            opened_folder: OpenedFolder::None,
             are_tools_active: true,
             cfg,
             editable_ssh_cfg_str: ssh_cfg_str,
@@ -433,14 +431,14 @@ impl Menu {
                     let button_resp = menu::open_folder::button(
                         ui,
                         &mut self.control.paths_navigator,
-                        std::mem::replace(&mut self.opened_folder, OpenedFolder::None),
+                        std::mem::replace(&mut self.control.opened_folder, OpenedFolder::None),
                         self.cfg.clone(),
                         &mut self.last_open_folder_job_id,
                         &mut self.tp,
                     );
                     handle_error!(
                         |folder| {
-                            self.opened_folder = folder;
+                            self.control.opened_folder = folder;
                         },
                         button_resp,
                         self
@@ -474,7 +472,7 @@ impl Menu {
                     self
                 );
                 if self.control.paths_navigator.paths_selector().is_none() {
-                    if let OpenedFolder::Some(open_folder) = &self.opened_folder {
+                    if let OpenedFolder::Some(open_folder) = &self.control.opened_folder {
                         handle_error!(
                             |ps| {
                                 self.control.paths_navigator = PathsNavigator::new(ps);

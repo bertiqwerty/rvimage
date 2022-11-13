@@ -7,6 +7,13 @@ pub mod paths_navigator;
 use crate::reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;
 
+#[derive(Default)]
+pub enum OpenedFolder {
+    #[default]
+    None,
+    PopupOpen,
+    Some(String),
+}
 #[derive(Clone, Debug)]
 pub enum Info {
     Error(String),
@@ -17,6 +24,7 @@ pub enum Info {
 pub struct Control {
     pub reader: Option<ReaderFromCfg>,
     pub paths_navigator: PathsNavigator,
+    pub opened_folder: OpenedFolder,
 }
 impl Control {
     pub fn new() -> Self {
