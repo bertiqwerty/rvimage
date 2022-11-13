@@ -1,13 +1,15 @@
 use std::{
+    collections::HashMap,
     ffi::OsStr,
     fmt::Debug,
     io,
     path::{Path, PathBuf},
 };
 
-use crate::format_rverr;
 use crate::result::{to_rv, RvResult};
+use crate::{cfg::SshCfg, domain::BB, format_rverr};
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 lazy_static! {
@@ -39,6 +41,43 @@ pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
                 format!("{:?} not convertible to unicode", p),
             )
         })
+}
+
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
+pub enum ConnectionData {
+    Ssh(SshCfg),
+    #[default]
+    None,
+}
+#[derive(Clone, Default, PartialEq, Eq)]
+pub struct MetaData {
+    pub file_path: Option<String>,
+    pub connection_data: ConnectionData,
+    pub opened_folder: Option<String>,
+    pub export_folder: Option<String>,
+}
+impl MetaData {
+    pub fn from_filepath(file_path: String) -> Self {
+        MetaData {
+            file_path: Some(file_path),
+            connection_data: ConnectionData::None,
+            opened_folder: None,
+            export_folder: None,
+        }
+    }
+}
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct BboxDataExport {
+    pub labels: Vec<String>,
+    pub colors: Vec<[u8; 3]>,
+    pub annotations: HashMap<String, (Vec<BB>, Vec<usize>)>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct ExportData {
+    pub opened_folder: String,
+    pub connection_data: ConnectionData,
+    pub bbox_data: Option<BboxDataExport>,
 }
 
 pub struct Defer<F: FnMut()> {

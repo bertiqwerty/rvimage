@@ -17,7 +17,7 @@ fn prev(file_selected_idx: usize, files_len: usize) -> usize {
         0
     }
 }
-
+#[derive(Default)]
 pub struct PathsNavigator {
     file_label_selected_idx: Option<usize>,
     paths_selector: Option<PathsSelector>,

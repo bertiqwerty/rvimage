@@ -1,11 +1,9 @@
 use crate::{
     domain::{mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
+    file_util::MetaData,
     history::Record,
     image_util::to_i64,
-    tools::{
-        core::{InitialView, Mover},
-        MetaData,
-    },
+    tools::core::{InitialView, Mover},
     tools_data::{bbox_data::BboxExportFileType, BboxSpecificData},
     {history::History, world::World},
 };

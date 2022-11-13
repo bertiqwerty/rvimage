@@ -151,6 +151,14 @@ impl BboxAnnotations {
             selected_bbs: vec![],
         }
     }
+    pub fn from_bbs_cats(bbs: Vec<BB>, cat_ids: Vec<usize>) -> BboxAnnotations {
+        let bbs_len = bbs.len();
+        BboxAnnotations {
+            bbs,
+            cat_ids,
+            selected_bbs: vec![false; bbs_len],
+        }
+    }
     pub fn from_bbs(bbs: Vec<BB>, cat_id: usize) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {

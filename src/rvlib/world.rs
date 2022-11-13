@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::{fmt::Debug, mem};
 
 use crate::domain::{self, Shape, BB};
+use crate::file_util::MetaData;
 use crate::image_util;
-use crate::tools::MetaData;
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
 use image::{imageops, imageops::FilterType, DynamicImage};

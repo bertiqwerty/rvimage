@@ -1,27 +1,16 @@
-use serde::{Deserialize, Serialize};
-use serde_pickle::SerOptions;
+use serde_pickle::{DeOptions, SerOptions};
 
-use crate::domain::BB;
+use crate::annotations::BboxAnnotations;
+use crate::file_util::{BboxDataExport, ExportData, MetaData};
 use crate::format_rverr;
 use crate::result::{to_rv, RvError, RvResult};
-use crate::tools::core::ConnectionData;
-use crate::tools::MetaData;
 use crate::tools_data::BboxSpecificData;
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
 
 use std::path::{self, Path, PathBuf};
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-struct BboxDataExport {
-    pub opened_folder: String,
-    pub connection_data: ConnectionData,
-    pub labels: Vec<String>,
-    pub colors: Vec<[u8; 3]>,
-    pub annotations: HashMap<String, (Vec<BB>, Vec<usize>)>,
-}
 fn get_last_part_of_path(path: &str, sep: char) -> Option<String> {
     if path.contains(sep) {
         let mark = if path.starts_with('\'') && path.ends_with('\'') {
@@ -48,7 +37,7 @@ fn write(
     meta_data: &MetaData,
     bbox_specifics: BboxSpecificData,
     extension: &str,
-    ser: fn(&BboxDataExport, &Path) -> RvResult<()>,
+    ser: fn(&ExportData, &Path) -> RvResult<()>,
 ) -> RvResult<PathBuf> {
     let ef = meta_data
         .export_folder
@@ -68,20 +57,22 @@ fn write(
         .opened_folder
         .as_ref()
         .ok_or_else(|| RvError::new("no folder opened"))?;
-    let data = BboxDataExport {
+    let data = ExportData {
         opened_folder: of.clone(),
         connection_data: meta_data.connection_data.clone(),
-        labels: bbox_specifics.labels().clone(),
-        colors: bbox_specifics.colors().clone(),
-        annotations: bbox_specifics
-            .anno_iter()
-            .map(|(filename, annos)| {
-                (
-                    filename.clone(),
-                    (annos.bbs().clone(), annos.cat_ids().clone()),
-                )
-            })
-            .collect::<HashMap<_, _>>(),
+        bbox_data: Some(BboxDataExport {
+            labels: bbox_specifics.labels().clone(),
+            colors: bbox_specifics.colors().clone(),
+            annotations: bbox_specifics
+                .anno_iter()
+                .map(|(filename, annos)| {
+                    (
+                        filename.clone(),
+                        (annos.bbs().clone(), annos.cat_ids().clone()),
+                    )
+                })
+                .collect::<HashMap<_, _>>(),
+        }),
     };
     let of_last_part_linux = get_last_part_of_path(of, '/');
     let of_last_part_windows =
@@ -101,7 +92,7 @@ pub(super) fn write_json(
     meta_data: &MetaData,
     bbox_specifics: BboxSpecificData,
 ) -> RvResult<PathBuf> {
-    let ser = |data: &BboxDataExport, path: &Path| {
+    let ser = |data: &ExportData, path: &Path| {
         let data_str = serde_json::to_string(&data).map_err(to_rv)?;
         fs::write(&path, data_str).map_err(to_rv)?;
         Ok(())
@@ -109,11 +100,36 @@ pub(super) fn write_json(
     write(meta_data, bbox_specifics, "json", ser)
 }
 
+fn _convert_read(read: ExportData) -> RvResult<BboxSpecificData> {
+    let bb_read = read
+        .bbox_data
+        .ok_or_else(|| RvError::new("import does not contain bbox data"))?;
+    let mut bbox_data = BboxSpecificData::new();
+    for (lab, clr) in bb_read.labels.into_iter().zip(bb_read.colors.into_iter()) {
+        bbox_data.push(lab, Some(clr));
+    }
+    bbox_data.remove_cat(0);
+    bbox_data.set_annotations_map(
+        bb_read
+            .annotations
+            .into_iter()
+            .map(|(s, (bbs, cat_ids))| (s, BboxAnnotations::from_bbs_cats(bbs, cat_ids)))
+            .collect(),
+    )?;
+    Ok(bbox_data)
+}
+
+pub(super) fn _read_json(filename: &str) -> RvResult<BboxSpecificData> {
+    let s = fs::read_to_string(filename).map_err(to_rv)?;
+    let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+    _convert_read(read)
+}
+
 pub(super) fn write_pickle(
     meta_data: &MetaData,
     bbox_specifics: BboxSpecificData,
 ) -> RvResult<PathBuf> {
-    let ser = |data: &BboxDataExport, path: &Path| {
+    let ser = |data: &ExportData, path: &Path| {
         let mut file = File::create(path).map_err(to_rv)?;
         serde_pickle::to_writer(&mut file, data, SerOptions::new()).map_err(to_rv)?;
         Ok(())
@@ -121,15 +137,22 @@ pub(super) fn write_pickle(
     write(meta_data, bbox_specifics, "pickle", ser)
 }
 
+pub(super) fn _read_pickle(filename: &str) -> RvResult<BboxSpecificData> {
+    let f = File::open(filename).map_err(to_rv)?;
+    let read: ExportData = serde_pickle::from_reader(f, DeOptions::new()).map_err(to_rv)?;
+    _convert_read(read)
+}
 #[cfg(test)]
 use {
     super::core::make_test_bbs,
     crate::cfg::SshCfg,
+    crate::file_util::osstr_to_str,
     crate::{defer_file_removal, file_util::DEFAULT_TMPDIR},
-    serde_pickle::DeOptions,
 };
 #[cfg(test)]
-fn make_data(extension: &str) -> (BboxSpecificData, MetaData, PathBuf, &'static str) {
+fn make_data(extension: &str) -> (BboxSpecificData, MetaData, PathBuf) {
+    use crate::file_util::ConnectionData;
+
     let opened_folder = "xi".to_string();
     let test_export_folder = DEFAULT_TMPDIR.clone();
 
@@ -167,35 +190,25 @@ fn make_data(extension: &str) -> (BboxSpecificData, MetaData, PathBuf, &'static 
     for bb in bbs {
         annos.add_bb(bb, 0);
     }
-    (bbox_data, meta, test_export_path, key)
-}
-#[cfg(test)]
-fn assert(key: &str, meta: MetaData, read: BboxDataExport, bbox_data: BboxSpecificData) {
-    assert_eq!(read.opened_folder, meta.opened_folder.unwrap());
-    assert_eq!(read.connection_data, ConnectionData::Ssh(SshCfg::default()));
-    assert_eq!(read.labels, bbox_data.labels().clone());
-    assert_eq!(read.colors, bbox_data.colors().clone());
-    assert_eq!(&read.annotations[key].0, bbox_data.get_annos(key).bbs());
-    assert_eq!(&read.annotations[key].1, bbox_data.get_annos(key).cat_ids());
+    (bbox_data, meta, test_export_path)
 }
 #[test]
 fn test_json_export() -> RvResult<()> {
-    let (bbox_data, meta, path, key) = make_data("json");
+    let (bbox_data, meta, path) = make_data("json");
     defer_file_removal!(&path);
     let written_path = write_json(&meta, bbox_data.clone())?;
-    let s = fs::read_to_string(written_path).map_err(to_rv)?;
-    let read: BboxDataExport = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-    assert(key, meta, read, bbox_data);
+    let bbox_data_read = _read_json(osstr_to_str(Some(written_path.as_os_str())).map_err(to_rv)?)?;
+    assert_eq!(bbox_data, bbox_data_read);
     Ok(())
 }
 #[test]
 fn test_pickle_export() -> RvResult<()> {
-    let (bbox_data, meta, path, key) = make_data("pickle");
+    let (bbox_data, meta, path) = make_data("pickle");
     defer_file_removal!(&path);
     let written_path = write_pickle(&meta, bbox_data.clone())?;
-    let f = File::open(written_path).map_err(to_rv)?;
-    let read: BboxDataExport = serde_pickle::from_reader(f, DeOptions::new()).map_err(to_rv)?;
-    assert(key, meta, read, bbox_data);
+    let bbox_data_read =
+        _read_pickle(osstr_to_str(Some(written_path.as_os_str())).map_err(to_rv)?)?;
+    assert_eq!(bbox_data, bbox_data_read);
     Ok(())
 }
 #[test]

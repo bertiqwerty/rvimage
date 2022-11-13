@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{annotations::BboxAnnotations, implement_annotations_getters};
+use crate::{
+    annotations::BboxAnnotations, format_rverr, implement_annotations_getters, result::RvResult,
+};
 
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
@@ -58,6 +60,7 @@ pub struct BboxSpecificData {
     // filename -> annotations per file
     annotations_map: HashMap<String, BboxAnnotations>,
     pub export_file_type: BboxExportFileType,
+    pub import_file: Option<String>,
 }
 impl BboxSpecificData {
     implement_annotations_getters!(&DEFAULT_BBOX_ANNOTATION, BboxAnnotations);
@@ -115,7 +118,24 @@ impl BboxSpecificData {
             cat_id_current: 0,
             annotations_map: HashMap::new(),
             export_file_type: BboxExportFileType::default(),
+            import_file: None,
         }
+    }
+    pub fn set_annotations_map(&mut self, map: HashMap<String, BboxAnnotations>) -> RvResult<()> {
+        for (_, annos) in map.iter() {
+            for cat_id in annos.cat_ids() {
+                let len = self.labels().len();
+                if *cat_id >= len {
+                    return Err(format_rverr!(
+                        "cat id {} does not have a label, out of bounds, {}",
+                        cat_id,
+                        len
+                    ));
+                }
+            }
+        }
+        self.annotations_map = map;
+        Ok(())
     }
 }
 impl Default for BboxSpecificData {
