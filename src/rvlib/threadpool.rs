@@ -170,6 +170,14 @@ impl<T: Send + 'static> ThreadPool<T> {
         }
     }
 }
+impl<T> Default for ThreadPool<T>
+where
+    T: Send + 'static,
+{
+    fn default() -> Self {
+        ThreadPool::new(1)
+    }
+}
 
 fn terminate_all_threads<T: Send + 'static>(tp: &ThreadPool<T>) -> RvResult<()> {
     for tx in &tp.txs_to_pool {

@@ -1,10 +1,8 @@
 use crate::{
     cfg::{self, Cfg},
-    control::{paths_navigator::PathsNavigator, Control, Info, OpenedFolder},
+    control::{Control, Info},
     file_util::{ConnectionData, MetaData},
-    menu::{self, cfg_menu::CfgMenu},
-    reader::{LoadImageForGui, ReaderFromCfg},
-    threadpool::ThreadPool,
+    menu::{self, cfg_menu::CfgMenu, open_folder},
     tools::ToolState,
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
@@ -64,10 +62,7 @@ impl Framework {
     }
 
     pub fn opened_folder(&self) -> Option<&String> {
-        match &self.menu.control.opened_folder {
-            OpenedFolder::Some(s) => Some(s),
-            _ => None,
-        }
+        self.menu.control.opened_folder.as_ref()
     }
 
     pub fn meta_data(&self, file_selected: Option<usize>) -> MetaData {
@@ -296,9 +291,8 @@ pub struct Menu {
     are_tools_active: bool,
     cfg: Cfg,
     editable_ssh_cfg_str: String,
-    tp: ThreadPool<(ReaderFromCfg, Info)>,
-    last_open_folder_job_id: Option<u128>,
     scroll_offset: f32,
+    open_folder_popup_open: bool,
 }
 
 impl Menu {
@@ -313,9 +307,8 @@ impl Menu {
             are_tools_active: true,
             cfg,
             editable_ssh_cfg_str: ssh_cfg_str,
-            tp: ThreadPool::new(1),
-            last_open_folder_job_id: None,
             scroll_offset: 0.0,
+            open_folder_popup_open: false,
         }
     }
 
@@ -428,17 +421,15 @@ impl Menu {
 
                 // Top row with open folder and settings button
                 ui.horizontal(|ui| {
-                    let button_resp = menu::open_folder::button(
+                    let button_resp = open_folder::button(
                         ui,
-                        &mut self.control.paths_navigator,
-                        std::mem::replace(&mut self.control.opened_folder, OpenedFolder::None),
+                        &mut self.control,
                         self.cfg.clone(),
-                        &mut self.last_open_folder_job_id,
-                        &mut self.tp,
+                        self.open_folder_popup_open,
                     );
                     handle_error!(
-                        |folder| {
-                            self.control.opened_folder = folder;
+                        |open| {
+                            self.open_folder_popup_open = open;
                         },
                         button_resp,
                         self
@@ -449,42 +440,18 @@ impl Menu {
                     ui.add(cfg_gui);
                 });
 
-                // check if connection is ready after open folder
-                let mut assign_open_folder_res = |reader_n_info: Option<(ReaderFromCfg, Info)>| {
-                    if let Some((reader, info)) = reader_n_info {
-                        self.control.reader = Some(reader);
-                        match info {
-                            Info::None => (),
-                            _ => {
-                                self.info_message = info;
-                            }
-                        }
-                    }
-                };
+                let mut connected = false;
                 handle_error!(
-                    assign_open_folder_res,
-                    menu::open_folder::check_if_connected(
-                        ui,
-                        &mut self.last_open_folder_job_id,
-                        self.control.paths_navigator.paths_selector(),
-                        &mut self.tp,
-                    ),
+                    |con| {
+                        connected = con;
+                    },
+                    self.control.check_if_connected(),
                     self
                 );
-                if self.control.paths_navigator.paths_selector().is_none() {
-                    if let OpenedFolder::Some(open_folder) = &self.control.opened_folder {
-                        handle_error!(
-                            |ps| {
-                                self.control.paths_navigator = PathsNavigator::new(ps);
-                            },
-                            {
-                                self.control
-                                    .reader()
-                                    .map_or(Ok(None), |r| r.open_folder(open_folder).map(Some))
-                            },
-                            self
-                        );
-                    }
+                if connected {
+                    ui.label(self.control.opened_folder_label().unwrap_or(""));
+                } else {
+                    ui.label("connecting...");
                 }
 
                 // filter text field
