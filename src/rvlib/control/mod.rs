@@ -1,4 +1,3 @@
-use crate::format_rverr;
 use crate::{
     cfg::Cfg, reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
     types::AsyncResultImage,
@@ -58,17 +57,20 @@ impl Control {
         self.opened_folder = Some(new_folder);
         Ok(())
     }
+    pub fn load_opened_folder_content(&mut self) -> RvResult<()> {
+        if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
+            let selector = reader.open_folder(opened_folder.as_str())?;
+            self.paths_navigator = PathsNavigator::new(Some(selector));
+        }
+        Ok(())
+    }
     pub fn check_if_connected(&mut self) -> RvResult<bool> {
         if let Some(job_id) = self.last_open_folder_job_id {
             let tp_res = self.tp.result(job_id);
             if let Some((reader, info)) = tp_res {
                 self.last_open_folder_job_id = None;
-                let opened_folder = self.opened_folder.as_deref().ok_or_else(|| {
-                    format_rverr!("failed to open folder '{:?}'", self.opened_folder)
-                })?;
-                self.paths_navigator =
-                    PathsNavigator::new(Some(reader.open_folder(opened_folder)?));
                 self.reader = Some(reader);
+                self.load_opened_folder_content()?;
                 self.info = info;
                 Ok(true)
             } else {

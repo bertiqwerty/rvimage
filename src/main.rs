@@ -263,8 +263,17 @@ fn main() -> Result<(), pixels::Error> {
                 framework.menu_mut().toggle();
             }
             if input.key_released(VirtualKeyCode::F5) {
+                let label_selected =
+                    file_selected.map(|idx| framework.menu().file_label(idx).to_string());
+                framework.menu_mut().reload_opened_folder();
                 reload_cached_images = true;
-                file_selected = None;
+                if let Some(label_selected) = label_selected {
+                    framework
+                        .menu_mut()
+                        .select_file_label(label_selected.as_str());
+                } else {
+                    file_selected = None;
+                }
             }
             if input.key_pressed(VirtualKeyCode::PageDown) {
                 framework.menu_mut().next();

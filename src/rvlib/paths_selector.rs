@@ -44,7 +44,7 @@ fn make_folder_label(folder_path: Option<&str>) -> RvResult<String> {
 
 pub struct PathsSelector {
     file_paths: Vec<String>,
-    filtered_file_labels: Vec<(usize, String)>,
+    filtered_file_labels: Vec<(usize, String)>, // index-string pairs necessary due to filtering
     folder_label: String,
 }
 

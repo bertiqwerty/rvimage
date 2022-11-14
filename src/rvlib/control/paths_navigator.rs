@@ -57,8 +57,14 @@ impl PathsNavigator {
     pub fn deactivate_scroll_to_selected_label(&mut self) {
         self.scroll_to_selected_label = false;
     }
+    /// makes sure the idx actually exists
     pub fn select_label_idx(&mut self, idx: Option<usize>) {
-        self.file_label_selected_idx = idx;
+        if let (Some(idx), Some(ps)) = (idx, self.paths_selector()) {
+            let exists_idx = ps.file_labels().iter().any(|(idx_i, _)| *idx_i == idx);
+            if exists_idx {
+                self.file_label_selected_idx = Some(idx);
+            }
+        }
     }
     pub fn paths_selector(&self) -> &Option<PathsSelector> {
         &self.paths_selector

@@ -341,6 +341,12 @@ impl Menu {
         }
     }
 
+    pub fn reload_opened_folder(&mut self) {
+        if let Err(e) = self.control.load_opened_folder_content() {
+            self.info_message = Info::Error(format!("{:?}", e));
+        }
+    }
+
     pub fn file_label(&self, idx: usize) -> &str {
         match self.control.paths_navigator.paths_selector() {
             Some(ps) => ps.file_labels()[idx].1.as_str(),
