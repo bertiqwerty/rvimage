@@ -18,6 +18,12 @@ lazy_static! {
     pub static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
 }
 
+pub fn read_to_string<P>(p: P) -> RvResult<String>
+where
+    P: AsRef<Path> + Debug,
+{
+    fs::read_to_string(&p).map_err(|e| format_rverr!("could not read {:?} due to {:?}", p, e))
+}
 pub trait PixelEffect: FnMut(u32, u32) {}
 impl<T: FnMut(u32, u32)> PixelEffect for T {}
 pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {

@@ -1,6 +1,6 @@
 use crate::{
     cache::FileCacheCfgArgs,
-    file_util::DEFAULT_TMPDIR,
+    file_util::{self, DEFAULT_TMPDIR},
     result::{to_rv, RvError, RvResult},
 };
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ pub fn get_cfg_path() -> RvResult<PathBuf> {
 pub fn get_cfg() -> RvResult<Cfg> {
     let cfg_toml_path = get_cfg_path()?;
     if cfg_toml_path.exists() {
-        let toml_str = fs::read_to_string(cfg_toml_path).map_err(to_rv)?;
+        let toml_str = file_util::read_to_string(cfg_toml_path)?;
         toml::from_str(&toml_str).map_err(to_rv)
     } else {
         Ok(get_default_cfg())

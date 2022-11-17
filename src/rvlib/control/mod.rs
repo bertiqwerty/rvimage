@@ -1,8 +1,8 @@
 use std::ffi::OsStr;
-use std::fs;
+use std::fmt::Debug;
 use std::path::Path;
 
-use crate::file_util::{ConnectionData, ExportData};
+use crate::file_util::{self, ConnectionData, ExportData};
 use crate::result::to_rv;
 use crate::tools::BBOX_NAME;
 use crate::tools_data::{ToolSpecifics, ToolsData};
@@ -35,10 +35,10 @@ pub struct Control {
 impl Control {
     pub fn import<P>(&mut self, filename: P, tools_data_map: &mut ToolsDataMap) -> RvResult<()>
     where
-        P: AsRef<Path>,
+        P: AsRef<Path> + Debug,
     {
         if filename.as_ref().extension() == Some(OsStr::new("json")) {
-            let s = fs::read_to_string(filename).map_err(to_rv)?;
+            let s = file_util::read_to_string(filename)?;
             let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
             match read.connection_data {
                 ConnectionData::Ssh(ssh_cfg) => {

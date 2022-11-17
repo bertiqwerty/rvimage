@@ -10,7 +10,7 @@ use serde_pickle::{DeOptions, SerOptions};
 use crate::{
     annotations::BboxAnnotations,
     domain::BB,
-    file_util::{ExportData, MetaData},
+    file_util::{self, ExportData, MetaData},
     format_rverr, implement_annotations_getters,
     result::{to_rv, RvError, RvResult},
 };
@@ -270,7 +270,7 @@ fn _convert_read(read: ExportData) -> RvResult<BboxSpecificData> {
 }
 
 pub fn _read_json(filename: &str) -> RvResult<BboxSpecificData> {
-    let s = fs::read_to_string(filename).map_err(to_rv)?;
+    let s = file_util::read_to_string(filename)?;
     let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
     _convert_read(read)
 }
@@ -293,7 +293,6 @@ pub fn _read_pickle(filename: &str) -> RvResult<BboxSpecificData> {
 use crate::{
     cfg::SshCfg,
     domain::make_test_bbs,
-    file_util,
     {defer_file_removal, file_util::DEFAULT_TMPDIR},
 };
 #[cfg(test)]
