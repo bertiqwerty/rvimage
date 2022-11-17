@@ -1,8 +1,16 @@
+use std::ffi::OsStr;
+use std::fs;
+use std::path::Path;
+
+use crate::file_util::{ConnectionData, ExportData};
+use crate::result::to_rv;
+use crate::tools::BBOX_NAME;
+use crate::tools_data::{ToolSpecifics, ToolsData};
+use crate::world::ToolsDataMap;
 use crate::{
     cfg::Cfg, reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
     types::AsyncResultImage,
 };
-
 pub mod paths_navigator;
 use crate::reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;
@@ -25,6 +33,33 @@ pub struct Control {
     pub cfg: Cfg,
 }
 impl Control {
+    pub fn import<P>(&mut self, filename: P, tools_data_map: &mut ToolsDataMap) -> RvResult<()>
+    where
+        P: AsRef<Path>,
+    {
+        if filename.as_ref().extension() == Some(OsStr::new("json")) {
+            let s = fs::read_to_string(filename).map_err(to_rv)?;
+            let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+            match read.connection_data {
+                ConnectionData::Ssh(ssh_cfg) => {
+                    self.cfg.ssh_cfg = ssh_cfg;
+                }
+                ConnectionData::None => (),
+            }
+            self.open_folder(read.opened_folder)?;
+            if let Some(bbox_data) = read.bbox_data {
+                let bbox_data = bbox_data.to_bbox_data()?;
+                let tools_data = tools_data_map.get_mut(BBOX_NAME);
+                if let Some(td) = tools_data {
+                    td.specifics = ToolSpecifics::Bbox(bbox_data);
+                } else {
+                    tools_data_map
+                        .insert(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)));
+                }
+            }
+        }
+        Ok(())
+    }
     pub fn new(cfg: Cfg) -> Self {
         Self {
             cfg,

@@ -43,30 +43,3 @@ pub(super) fn draw_on_view(
     }
     world
 }
-
-#[cfg(test)]
-use crate::domain::BB;
-
-#[cfg(test)]
-pub(super) fn make_test_bbs() -> Vec<BB> {
-    vec![
-        BB {
-            x: 0,
-            y: 0,
-            w: 10,
-            h: 10,
-        },
-        BB {
-            x: 5,
-            y: 5,
-            w: 10,
-            h: 10,
-        },
-        BB {
-            x: 9,
-            y: 9,
-            w: 10,
-            h: 10,
-        },
-    ]
-}

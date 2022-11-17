@@ -372,6 +372,29 @@ impl FromStr for BB {
         Ok(BB { x, y, w, h })
     }
 }
+#[cfg(test)]
+pub fn make_test_bbs() -> Vec<BB> {
+    vec![
+        BB {
+            x: 0,
+            y: 0,
+            w: 10,
+            h: 10,
+        },
+        BB {
+            x: 5,
+            y: 5,
+            w: 10,
+            h: 10,
+        },
+        BB {
+            x: 9,
+            y: 9,
+            w: 10,
+            h: 10,
+        },
+    ]
+}
 
 #[test]
 fn test_bb() {

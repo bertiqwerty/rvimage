@@ -1,13 +1,15 @@
 use std::{
-    collections::HashMap,
     ffi::OsStr,
     fmt::Debug,
-    io,
+    fs, io,
     path::{Path, PathBuf},
 };
 
-use crate::result::{to_rv, RvResult};
-use crate::{cfg::SshCfg, domain::BB, format_rverr};
+use crate::{cfg::SshCfg, format_rverr};
+use crate::{
+    result::{to_rv, RvResult},
+    tools_data::BboxExportData,
+};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -66,18 +68,12 @@ impl MetaData {
         }
     }
 }
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct BboxDataExport {
-    pub labels: Vec<String>,
-    pub colors: Vec<[u8; 3]>,
-    pub annotations: HashMap<String, (Vec<BB>, Vec<usize>)>,
-}
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct ExportData {
     pub opened_folder: String,
     pub connection_data: ConnectionData,
-    pub bbox_data: Option<BboxDataExport>,
+    pub bbox_data: Option<BboxExportData>,
 }
 
 pub struct Defer<F: FnMut()> {
@@ -121,4 +117,18 @@ macro_rules! defer_file_removal {
         let func = || checked_remove($path, std::fs::remove_file);
         defer!(func);
     };
+}
+
+pub fn exports_in_folder<P>(folder: P) -> io::Result<impl Iterator<Item = PathBuf>>
+where
+    P: AsRef<Path>,
+{
+    Ok(fs::read_dir(folder)?
+        .flatten()
+        .map(|de| de.path())
+        .filter(|p| {
+            p.is_file()
+                && (p.extension() == Some(OsStr::new("json"))
+                    || p.extension() == Some(OsStr::new("pickle")))
+        }))
 }

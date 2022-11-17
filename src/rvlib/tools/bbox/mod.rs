@@ -16,10 +16,11 @@ use crate::{
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
+pub use self::core::ACTOR_NAME;
 use self::{
     core::{
         current_cat_id, draw_on_view, get_annos_mut, get_tools_data, get_tools_data_mut,
-        initialize_tools_menu_data, ACTOR_NAME,
+        initialize_tools_menu_data,
     },
     on_events::{
         export_if_triggered, on_mouse_held_right, on_mouse_released_left, MouseHeldParams,
@@ -27,7 +28,6 @@ use self::{
     },
 };
 mod core;
-mod io;
 mod on_events;
 
 #[derive(Clone, Debug)]

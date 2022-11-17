@@ -87,7 +87,7 @@ pub struct Cfg {
     tmpdir: Option<String>,
     pub file_cache_args: Option<FileCacheCfgArgs>,
     pub ssh_cfg: SshCfg,
-    export_folder: Option<String>,
+    pub export_folder: Option<String>,
 }
 impl Cfg {
     pub fn export_folder(&self) -> RvResult<&str> {

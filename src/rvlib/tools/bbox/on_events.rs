@@ -4,14 +4,11 @@ use crate::{
     history::Record,
     image_util::to_i64,
     tools::core::{InitialView, Mover},
-    tools_data::{bbox_data::BboxExportFileType, BboxSpecificData},
+    tools_data::{self, bbox_data::BboxExportFileType, BboxSpecificData},
     {history::History, world::World},
 };
 
-use super::{
-    core::{current_cat_id, draw_on_view, get_annos, get_annos_mut, ACTOR_NAME},
-    io,
-};
+use super::core::{current_cat_id, draw_on_view, get_annos, get_annos_mut, ACTOR_NAME};
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
 
@@ -54,10 +51,10 @@ pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: BboxSpecificD
     match bbox_data.export_file_type {
         // TODO: don't crash just because export failed
         BboxExportFileType::Json => {
-            io::write_json(meta_data, bbox_data).unwrap();
+            tools_data::write_json(meta_data, bbox_data).unwrap();
         }
         BboxExportFileType::Pickle => {
-            io::write_pickle(meta_data, bbox_data).unwrap();
+            tools_data::write_pickle(meta_data, bbox_data).unwrap();
         }
         BboxExportFileType::None => (),
     };
@@ -162,8 +159,10 @@ pub(super) fn on_mouse_released_left(
 }
 #[cfg(test)]
 use {
-    super::core::initialize_tools_menu_data, super::core::make_test_bbs, crate::types::ViewImage,
-    image::DynamicImage, std::collections::HashMap,
+    super::core::initialize_tools_menu_data,
+    crate::{domain::make_test_bbs, types::ViewImage},
+    image::DynamicImage,
+    std::collections::HashMap,
 };
 #[cfg(test)]
 fn test_data() -> (InitialView, Option<(usize, usize)>, Shape, World, History) {

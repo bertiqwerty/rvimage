@@ -13,6 +13,8 @@ pub use rot90::Rot90;
 use std::fmt::Debug;
 pub use zoom::Zoom;
 
+pub const BBOX_NAME: &str = bbox::ACTOR_NAME;
+
 macro_rules! make_tools {
 ($(($tool:ident, $label:expr)),+) => {
         #[derive(Clone, Debug)]

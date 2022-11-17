@@ -1,8 +1,9 @@
 use crate::{
     cfg::{self, Cfg},
     control::{Control, Info},
-    file_util::{ConnectionData, MetaData},
+    file_util::{self, ConnectionData, MetaData},
     menu::{self, cfg_menu::CfgMenu, open_folder},
+    result::{to_rv, RvResult},
     tools::ToolState,
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
@@ -11,7 +12,7 @@ use egui::{ClippedPrimitive, Context, Id, Pos2, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
 use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
-use std::mem;
+use std::{mem, path::Path};
 use winit::window::Window;
 
 use super::tools_menus::bbox_menu;
@@ -106,14 +107,14 @@ impl Framework {
         &mut self,
         window: &Window,
         tools: &mut [ToolState],
-        tools_menu_map: &mut ToolsDataMap,
+        tools_data_map: &mut ToolsDataMap,
     ) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw menus.
-            self.menu.ui(egui_ctx);
-            self.tool_selection_menu.ui(egui_ctx, tools, tools_menu_map);
+            self.menu.ui(egui_ctx, tools_data_map);
+            self.tool_selection_menu.ui(egui_ctx, tools, tools_data_map);
         });
         self.textures.append(output.textures_delta);
         self.egui_state
@@ -292,6 +293,7 @@ pub struct Menu {
     editable_ssh_cfg_str: String,
     scroll_offset: f32,
     open_folder_popup_open: bool,
+    import_triggered: bool,
 }
 
 impl Menu {
@@ -307,6 +309,7 @@ impl Menu {
             editable_ssh_cfg_str: ssh_cfg_str,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
+            import_triggered: false,
         }
     }
 
@@ -405,7 +408,7 @@ impl Menu {
     }
 
     /// Create the UI using egui.
-    fn ui(&mut self, ctx: &Context) {
+    fn ui(&mut self, ctx: &Context, tools_data_map: &mut ToolsDataMap) {
         let window_response = egui::Window::new("menu")
             .vscroll(true)
             .open(&mut self.window_open)
@@ -436,6 +439,10 @@ impl Menu {
                     );
                     let popup_id = ui.make_persistent_id("cfg-popup");
 
+                    if ui.button("import").clicked() {
+                        self.import_triggered = true;
+                    }
+
                     let cfg_gui = CfgMenu::new(
                         popup_id,
                         &mut self.control.cfg,
@@ -444,6 +451,31 @@ impl Menu {
                     ui.add(cfg_gui);
                 });
 
+                if let Ok(folder) = self.control.cfg.export_folder() {
+                    if self.import_triggered {
+                        let mut filename_for_export = None;
+                        let mut exports = || -> RvResult<()> {
+                            for filename in file_util::exports_in_folder(folder)
+                                .map_err(to_rv)?
+                                .filter_map(|p| {
+                                    p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
+                                })
+                                .flatten()
+                            {
+                                if ui.button(&filename).clicked() {
+                                    filename_for_export = Some(filename);
+                                }
+                            }
+                            Ok(())
+                        };
+                        handle_error!(exports(), self);
+                        if let Some(ffe) = filename_for_export {
+                            let file_path = Path::new(folder).join(ffe);
+                            handle_error!(self.control.import(file_path, tools_data_map), self);
+                            self.import_triggered = false;
+                        }
+                    }
+                }
                 let mut connected = false;
                 handle_error!(
                     |con| {
