@@ -17,6 +17,12 @@ use std::str::FromStr;
 lazy_static! {
     pub static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
 }
+lazy_static! {
+    pub static ref DEFAULT_HOMEDIR: PathBuf = match dirs::home_dir() {
+        Some(p) => p.join(".rvimage"),
+        _ => std::env::temp_dir().join("rvimage"),
+    };
+}
 
 pub fn read_to_string<P>(p: P) -> RvResult<String>
 where

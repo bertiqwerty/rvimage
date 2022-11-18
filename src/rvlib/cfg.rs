@@ -1,6 +1,6 @@
 use crate::{
     cache::FileCacheCfgArgs,
-    file_util::{self, DEFAULT_TMPDIR},
+    file_util::{self, DEFAULT_HOMEDIR, DEFAULT_TMPDIR},
     result::{to_rv, RvError, RvResult},
 };
 use serde::{Deserialize, Serialize};
@@ -93,7 +93,9 @@ impl Cfg {
     pub fn export_folder(&self) -> RvResult<&str> {
         let ef = self.export_folder.as_deref();
         match ef {
-            None => Ok(self.tmpdir()?),
+            None => DEFAULT_HOMEDIR
+                .to_str()
+                .ok_or_else(|| RvError::new("could not get tmpdir")),
             Some(ef) => Ok(ef),
         }
     }

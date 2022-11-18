@@ -21,7 +21,7 @@ dirs = "4.0.0"
 edit = "0.1.4"
 egui = "~0.18"
 egui-wgpu = "~0.18"
-egui-winit = {version = "~0.18", default-features = false, features = ["links", "clipboard"]}
+egui-winit = { version = "~0.18", default-features = false, features = ["links", "clipboard"] }
 env_logger = "0.9"
 httparse = "~1.7"
 image = "0.24.2"
@@ -34,10 +34,10 @@ rand = "0.8.5"
 regex = "1"
 rfd = "~0.9"
 rusttype = "0.9.2"
-serde = {version = "1.0", features = ["derive"]}
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-pickle = "1.0"
-ssh2 = {version = "0.9", features = ["vendored-openssl"]}
+ssh2 = { version = "0.9", features = ["vendored-openssl"] }
 toml = "~0.5"
 walkdir = "2.3.2"
 winit = "0.26"

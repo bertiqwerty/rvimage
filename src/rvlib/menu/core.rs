@@ -2,7 +2,7 @@ use crate::{
     cfg::{self, Cfg},
     control::{Control, Info},
     file_util::{self, ConnectionData, MetaData},
-    menu::{self, cfg_menu::CfgMenu, open_folder},
+    menu::{self, cfg_menu::CfgMenu, open_folder, picklist},
     result::{to_rv, RvResult},
     tools::ToolState,
     tools_data::ToolSpecifics,
@@ -284,6 +284,11 @@ impl ToolSelectMenu {
     }
 }
 
+struct ImportBtnResp {
+    pub resp: Option<Response>,
+    pub popup_open: bool,
+}
+
 pub struct Menu {
     control: Control,
     window_open: bool, // Only show the egui window when true.
@@ -293,7 +298,7 @@ pub struct Menu {
     editable_ssh_cfg_str: String,
     scroll_offset: f32,
     open_folder_popup_open: bool,
-    import_triggered: bool,
+    import_button_resp: ImportBtnResp,
 }
 
 impl Menu {
@@ -309,7 +314,10 @@ impl Menu {
             editable_ssh_cfg_str: ssh_cfg_str,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
-            import_triggered: false,
+            import_button_resp: ImportBtnResp {
+                resp: None,
+                popup_open: false,
+            },
         }
     }
 
@@ -438,10 +446,7 @@ impl Menu {
                         self
                     );
                     let popup_id = ui.make_persistent_id("cfg-popup");
-
-                    if ui.button("import").clicked() {
-                        self.import_triggered = true;
-                    }
+                    self.import_button_resp.resp = Some(ui.button("import"));
 
                     let cfg_gui = CfgMenu::new(
                         popup_id,
@@ -452,27 +457,36 @@ impl Menu {
                 });
 
                 if let Ok(folder) = self.control.cfg.export_folder() {
-                    if self.import_triggered {
-                        let mut filename_for_export = None;
-                        let mut exports = || -> RvResult<()> {
-                            for filename in file_util::exports_in_folder(folder)
-                                .map_err(to_rv)?
-                                .filter_map(|p| {
-                                    p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
-                                })
-                                .flatten()
-                            {
-                                if ui.button(&filename).clicked() {
-                                    filename_for_export = Some(filename);
-                                }
+                    if let Some(import_btn_resp) = &self.import_button_resp.resp {
+                        if import_btn_resp.clicked() {
+                            self.import_button_resp.popup_open = true;
+                        }
+                        if self.import_button_resp.popup_open {
+                            let mut filename_for_export = None;
+                            let mut exports = || -> RvResult<()> {
+                                let files = file_util::exports_in_folder(folder)
+                                    .map_err(to_rv)?
+                                    .filter_map(|p| {
+                                        p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
+                                    })
+                                    .flatten()
+                                    .collect::<Vec<_>>();
+                                filename_for_export = picklist::pick(
+                                    ui,
+                                    files.iter().map(|s| s.as_str()),
+                                    200.0,
+                                    import_btn_resp,
+                                )
+                                .map(|s| s.to_string());
+                                Ok(())
+                            };
+                            handle_error!(exports(), self);
+                            if let Some(ffe) = filename_for_export {
+                                let file_path = Path::new(folder).join(ffe);
+                                handle_error!(self.control.import(file_path, tools_data_map), self);
+                                self.import_button_resp.resp = None;
+                                self.import_button_resp.popup_open = false;
                             }
-                            Ok(())
-                        };
-                        handle_error!(exports(), self);
-                        if let Some(ffe) = filename_for_export {
-                            let file_path = Path::new(folder).join(ffe);
-                            handle_error!(self.control.import(file_path, tools_data_map), self);
-                            self.import_triggered = false;
                         }
                     }
                 }
