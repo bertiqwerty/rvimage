@@ -125,6 +125,12 @@ impl BBox {
             world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
             world.update_view(shape_win);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        } else if event.key_released(VirtualKeyCode::A) && event.held_control() {
+            get_annos_mut(&mut world).select_all();
+            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
+        } else if event.key_released(VirtualKeyCode::D) && event.held_control() {
+            get_annos_mut(&mut world).deselect_all();
+            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
         }
         (world, history)
     }
@@ -231,6 +237,8 @@ impl Manipulate for BBox {
             [
                 (key_released, VirtualKeyCode::Delete),
                 (key_released, VirtualKeyCode::H),
+                (key_released, VirtualKeyCode::A),
+                (key_released, VirtualKeyCode::D),
                 (key_held, VirtualKeyCode::Down),
                 (key_held, VirtualKeyCode::Up),
                 (key_held, VirtualKeyCode::Left),

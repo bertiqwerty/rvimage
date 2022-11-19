@@ -209,6 +209,16 @@ impl BboxAnnotations {
     pub fn deselect(&mut self, box_idx: usize) {
         self.selected_bbs[box_idx] = false;
     }
+    pub fn select_all(&mut self) {
+        for s in &mut self.selected_bbs {
+            *s = true;
+        }
+    }
+    pub fn deselect_all(&mut self) {
+        for s in &mut self.selected_bbs {
+            *s = false;
+        }
+    }
     pub fn toggle_selection(&mut self, box_idx: usize) {
         self.selected_bbs[box_idx] = !self.selected_bbs[box_idx];
     }
