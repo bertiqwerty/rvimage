@@ -157,6 +157,53 @@ pub(super) fn on_mouse_released_left(
     }
     (world, history, prev_pos)
 }
+
+pub(super) enum ReleasedKey {
+    A,
+    D,
+    H,
+    Delete,
+}
+
+pub(super) struct KeyReleasedParams<'a> {
+    pub are_boxes_visible: bool,
+    pub initial_view: &'a InitialView,
+    pub is_ctrl_held: bool,
+    pub released_key: ReleasedKey,
+}
+
+pub(super) fn on_key_released(
+    mut world: World,
+    mut history: History,
+    shape_win: Shape,
+    params: KeyReleasedParams,
+) -> (bool, World, History) {
+    let mut are_boxes_visible = params.are_boxes_visible;
+    match params.released_key {
+        ReleasedKey::H if params.is_ctrl_held => {
+            are_boxes_visible = !are_boxes_visible;
+            world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+        }
+        ReleasedKey::Delete => {
+            let annos = get_annos_mut(&mut world);
+            annos.remove_selected();
+            world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+            world.update_view(shape_win);
+            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        }
+        ReleasedKey::A if params.is_ctrl_held => {
+            get_annos_mut(&mut world).select_all();
+            world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+        }
+        ReleasedKey::D if params.is_ctrl_held => {
+            get_annos_mut(&mut world).deselect_all();
+            world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+        }
+        _ => (),
+    }
+    (are_boxes_visible, world, history)
+}
+
 #[cfg(test)]
 use {
     super::core::initialize_tools_menu_data,
@@ -185,6 +232,61 @@ fn test_data() -> (InitialView, Option<(usize, usize)>, Shape, World, History) {
 fn history_equal(hist1: &History, hist2: &History) -> bool {
     format!("{:?}", hist1) == format!("{:?}", hist2)
 }
+
+#[test]
+fn test_key_released() {
+    let (initial_view, _, shape_win, mut world, history) = test_data();
+    let make_params = |released_key, is_ctrl_held| KeyReleasedParams {
+        are_boxes_visible: true,
+        initial_view: &initial_view,
+        is_ctrl_held,
+        released_key,
+    };
+    let annos = get_annos_mut(&mut world);
+    annos.add_bb(
+        BB {
+            x: 1,
+            y: 1,
+            h: 10,
+            w: 10,
+        },
+        0,
+    );
+    assert!(!annos.selected_bbs()[0]);
+
+    // select all boxes with ctrl+A
+    let params = make_params(ReleasedKey::A, false);
+    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    assert!(!get_annos(&world).selected_bbs()[0]);
+    let params = make_params(ReleasedKey::A, true);
+    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    assert!(get_annos(&world).selected_bbs()[0]);
+
+    // deselect all boxes with ctrl+D
+    let params = make_params(ReleasedKey::D, false);
+    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    assert!(get_annos(&world).selected_bbs()[0]);
+    let params = make_params(ReleasedKey::D, true);
+    let (is_visible, world, history) = on_key_released(world, history, shape_win, params);
+    assert!(is_visible);
+    assert!(!get_annos(&world).selected_bbs()[0]);
+
+    // hide all boxes with ctrl+H
+    let params = make_params(ReleasedKey::H, true);
+    let (is_visible, world, history) = on_key_released(world, history, shape_win, params);
+    assert!(!is_visible);
+
+    // delete all selected boxes with ctrl+Delete
+    let params = make_params(ReleasedKey::Delete, true);
+    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    assert!(!get_annos(&world).selected_bbs().is_empty());
+    let params = make_params(ReleasedKey::A, true);
+    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let params = make_params(ReleasedKey::Delete, true);
+    let (_, world, _) = on_key_released(world, history, shape_win, params);
+    assert!(get_annos(&world).selected_bbs().is_empty());
+}
+
 #[test]
 fn test_mouse_held() {
     let (initial_view, mouse_pos, shape_win, mut world, history) = test_data();

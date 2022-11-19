@@ -1,7 +1,7 @@
 use crate::{
     annotations::BboxAnnotations,
     domain::{mouse_pos_to_orig_pos, Shape, BB},
-    history::{History, Record},
+    history::History,
     make_tool_transform,
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -23,8 +23,8 @@ use self::{
         initialize_tools_menu_data,
     },
     on_events::{
-        export_if_triggered, on_mouse_held_right, on_mouse_released_left, MouseHeldParams,
-        MouseReleaseParams,
+        export_if_triggered, on_key_released, on_mouse_held_right, on_mouse_released_left,
+        KeyReleasedParams, MouseHeldParams, MouseReleaseParams, ReleasedKey,
     },
 };
 mod core;
@@ -116,22 +116,22 @@ impl BBox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        if event.key_released(VirtualKeyCode::H) && event.held_control() {
-            self.are_boxes_visible = !self.are_boxes_visible;
-            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
-        } else if event.key_released(VirtualKeyCode::Delete) {
-            let annos = get_annos_mut(&mut world);
-            annos.remove_selected();
-            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
-            world.update_view(shape_win);
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
-        } else if event.key_released(VirtualKeyCode::A) && event.held_control() {
-            get_annos_mut(&mut world).select_all();
-            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
-        } else if event.key_released(VirtualKeyCode::D) && event.held_control() {
-            get_annos_mut(&mut world).deselect_all();
-            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
-        }
+        let params = KeyReleasedParams {
+            are_boxes_visible: self.are_boxes_visible,
+            initial_view: &self.initial_view,
+            is_ctrl_held: event.held_control(),
+            released_key: if event.key_released(VirtualKeyCode::A) {
+                ReleasedKey::A
+            } else if event.key_released(VirtualKeyCode::D) {
+                ReleasedKey::D
+            } else if event.key_released(VirtualKeyCode::H) {
+                ReleasedKey::H
+            } else {
+                ReleasedKey::Delete
+            },
+        };
+        (self.are_boxes_visible, world, history) =
+            on_key_released(world, history, shape_win, params);
         (world, history)
     }
 }
