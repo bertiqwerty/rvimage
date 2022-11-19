@@ -51,6 +51,7 @@ impl BBox {
         self.mover.move_mouse_pressed(mouse_pos);
         (world, history)
     }
+
     fn mouse_held(
         &mut self,
         _event: &WinitInputHelper,
@@ -66,6 +67,7 @@ impl BBox {
         };
         on_mouse_held_right(shape_win, mouse_pos, params, world, history)
     }
+
     fn mouse_released(
         &mut self,
         event: &WinitInputHelper,
@@ -84,6 +86,7 @@ impl BBox {
             on_mouse_released_left(shape_win, mouse_pos, params, world, history);
         (world, history)
     }
+
     fn key_held(
         &mut self,
         event: &WinitInputHelper,
@@ -108,6 +111,7 @@ impl BBox {
         world.update_view(shape_win);
         (world, history)
     }
+
     fn key_released(
         &mut self,
         event: &WinitInputHelper,

@@ -15,6 +15,8 @@ use crate::{
     result::{to_rv, RvError, RvResult},
 };
 
+const DEFAULT_LABEL: &str = "foreground";
+
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
@@ -91,8 +93,8 @@ impl BboxSpecificData {
     pub fn len(&self) -> usize {
         self.colors.len()
     }
-    pub fn find_empty(&mut self) -> Option<&mut String> {
-        self.labels.iter_mut().find(|lab| lab == &"")
+    pub fn find_default(&mut self) -> Option<&mut String> {
+        self.labels.iter_mut().find(|lab| lab == &DEFAULT_LABEL)
     }
     pub fn push(&mut self, label: String, color: Option<[u8; 3]>) {
         if let Some(idx) = self.labels.iter().position(|lab| lab == &label) {
@@ -116,7 +118,7 @@ impl BboxSpecificData {
         &self.labels
     }
     pub fn new() -> Self {
-        let new_label = "".to_string();
+        let new_label = DEFAULT_LABEL.to_string();
         let new_color = [255, 255, 255];
         let labels = vec![new_label.clone()];
         let colors = vec![new_color];

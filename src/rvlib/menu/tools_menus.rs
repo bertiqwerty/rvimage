@@ -11,9 +11,9 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData)
     if ui.text_edit_singleline(&mut data.new_label).lost_focus() {
         new_label = Some(data.new_label.clone());
     }
-    let empty = data.find_empty();
-    if let (Some(empty), Some(new_label)) = (empty, new_label.as_ref()) {
-        *empty = new_label.clone();
+    let default_label = data.find_default();
+    if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
+        *default_label = new_label.clone();
     } else if let Some(new_label) = new_label {
         data.push(new_label, None);
         new_idx = data.len() - 1;
@@ -39,13 +39,14 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData)
     if let Some(idx) = to_be_removed {
         data.remove_cat(idx);
     }
+    ui.separator();
     if ui.button("export pickle").clicked() {
         data.export_file_type = BboxExportFileType::Pickle;
     }
     if ui.button("export json").clicked() {
         data.export_file_type = BboxExportFileType::Json;
     }
-    if ui.button("Close").clicked() {
+    if ui.button("close").clicked() {
         window_open = false;
     }
     ToolsData {
