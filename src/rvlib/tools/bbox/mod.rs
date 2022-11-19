@@ -155,10 +155,11 @@ impl Manipulate for BBox {
         &mut self,
         mut world: World,
         history: History,
-        _shape_win: Shape,
+        shape_win: Shape,
     ) -> (World, History) {
         self.prev_pos = None;
         self.initial_view = InitialView::new();
+        self.initial_view.update(&world, shape_win);
         world = initialize_tools_menu_data(world);
         get_tools_data_mut(&mut world).menu_active = true;
         (world, history)
