@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use serde_pickle::{DeOptions, SerOptions};
 
 use crate::{
-    annotations::BboxAnnotations,
-    domain::BB,
+    annotations::{selected_indices, BboxAnnotations},
+    domain::{Shape, BB},
     file_util::{self, ExportData, MetaData},
     format_rverr, implement_annotations_getters,
     result::{to_rv, RvError, RvResult},
@@ -62,6 +62,35 @@ pub enum BboxExportFileType {
     None,
 }
 static DEFAULT_BBOX_ANNOTATION: BboxAnnotations = BboxAnnotations::new();
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct ClipboardData {
+    bbs: Vec<BB>,
+    cat_ids: Vec<usize>,
+}
+
+impl ClipboardData {
+    pub fn from_annotations(annos: &BboxAnnotations) -> Self {
+        let selected_inds = selected_indices(annos.selected_bbs());
+        let bbs = selected_inds.clone().map(|idx| annos.bbs()[idx]).collect();
+        let cat_ids = selected_inds.map(|idx| annos.cat_ids()[idx]).collect();
+        ClipboardData { bbs, cat_ids }
+    }
+
+    pub fn to_annotations(
+        &self,
+        mut annos: BboxAnnotations,
+        shape_image: Shape,
+    ) -> BboxAnnotations {
+        for (bb, cat_id) in self.bbs.iter().zip(self.cat_ids.iter()) {
+            if bb.is_contained_in(shape_image) && !annos.bbs().contains(bb) {
+                annos.add_bb(*bb, *cat_id)
+            }
+        }
+        annos
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct BboxSpecificData {
     pub new_label: String,
@@ -72,6 +101,7 @@ pub struct BboxSpecificData {
     annotations_map: HashMap<String, BboxAnnotations>,
     pub export_file_type: BboxExportFileType,
     pub import_file: Option<String>,
+    pub clipboard: Option<ClipboardData>,
 }
 impl BboxSpecificData {
     implement_annotations_getters!(&DEFAULT_BBOX_ANNOTATION, BboxAnnotations);
@@ -130,6 +160,7 @@ impl BboxSpecificData {
             annotations_map: HashMap::new(),
             export_file_type: BboxExportFileType::default(),
             import_file: None,
+            clipboard: None,
         }
     }
     pub fn set_annotations_map(&mut self, map: HashMap<String, BboxAnnotations>) -> RvResult<()> {

@@ -128,6 +128,10 @@ impl BBox {
                 ReleasedKey::A
             } else if event.key_released(VirtualKeyCode::D) {
                 ReleasedKey::D
+            } else if event.key_released(VirtualKeyCode::C) {
+                ReleasedKey::C
+            } else if event.key_released(VirtualKeyCode::V) {
+                ReleasedKey::V
             } else if event.key_released(VirtualKeyCode::H) {
                 ReleasedKey::H
             } else {
@@ -244,6 +248,8 @@ impl Manipulate for BBox {
                 (key_released, VirtualKeyCode::H),
                 (key_released, VirtualKeyCode::A),
                 (key_released, VirtualKeyCode::D),
+                (key_released, VirtualKeyCode::C),
+                (key_released, VirtualKeyCode::V),
                 (key_held, VirtualKeyCode::Down),
                 (key_held, VirtualKeyCode::Up),
                 (key_held, VirtualKeyCode::Left),

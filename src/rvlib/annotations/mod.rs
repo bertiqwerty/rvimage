@@ -1,4 +1,4 @@
-pub use self::bbox_annotations::BboxAnnotations;
+pub use self::bbox_annotations::{selected_indices, BboxAnnotations};
 pub use self::brush_annotations::BrushAnnotations;
 mod bbox_annotations;
 mod brush_annotations;

@@ -134,7 +134,7 @@ fn deselected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usiz
     selected_or_deselected_indices(selected_bbs, true)
 }
 #[allow(clippy::needless_lifetimes)]
-fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
+pub fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_or_deselected_indices(selected_bbs, false)
 }
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
