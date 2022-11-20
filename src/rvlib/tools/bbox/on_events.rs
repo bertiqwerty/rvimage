@@ -12,6 +12,8 @@ use crate::{
     {history::History, world::World},
 };
 use std::mem;
+use winit::event::VirtualKeyCode;
+use winit_input_helper::WinitInputHelper;
 
 use super::core::{
     current_cat_id, draw_on_view, get_annos, get_annos_mut, get_tools_data_mut, ACTOR_NAME,
@@ -165,14 +167,26 @@ pub(super) fn on_mouse_released_left(
     (world, history, prev_pos)
 }
 
-pub(super) enum ReleasedKey {
-    A,
-    D,
-    H,
-    C,
-    V,
-    Delete,
+macro_rules! released_key {
+    ($($key:ident),*) => {
+        pub(super) enum ReleasedKey {
+            None,
+            $($key,)*
+        }
+        pub(super) fn map_released_key(event: &WinitInputHelper) -> ReleasedKey {
+            if false {
+                ReleasedKey::None
+            } $(else if event.key_released(VirtualKeyCode::$key) {
+                ReleasedKey::$key
+            })*
+            else {
+                ReleasedKey::None
+            }
+        }
+    };
 }
+
+released_key!(A, D, H, C, V, Delete);
 
 pub(super) struct KeyReleasedParams<'a> {
     pub are_boxes_visible: bool,
@@ -244,6 +258,7 @@ use {
     image::DynamicImage,
     std::collections::HashMap,
 };
+
 #[cfg(test)]
 fn test_data() -> (InitialView, Option<(usize, usize)>, Shape, World, History) {
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
@@ -261,6 +276,7 @@ fn test_data() -> (InitialView, Option<(usize, usize)>, Shape, World, History) {
     let mouse_pos = Some((32, 32));
     (inital_view, mouse_pos, shape_win, world, history)
 }
+
 #[cfg(test)]
 fn history_equal(hist1: &History, hist2: &History) -> bool {
     format!("{:?}", hist1) == format!("{:?}", hist2)
@@ -381,6 +397,7 @@ fn test_mouse_held() {
         assert!(!history_equal(&history, &new_hist));
     }
 }
+
 #[test]
 fn test_mouse_release() {
     let (initial_view, mouse_pos, shape_win, world, history) = test_data();
@@ -435,6 +452,7 @@ fn test_mouse_release() {
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
 }
+
 #[test]
 fn test_find_idx() {
     let bbs = make_test_bbs();

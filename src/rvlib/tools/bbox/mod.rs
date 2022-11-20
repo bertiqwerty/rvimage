@@ -23,8 +23,8 @@ use self::{
         initialize_tools_menu_data,
     },
     on_events::{
-        export_if_triggered, on_key_released, on_mouse_held_right, on_mouse_released_left,
-        KeyReleasedParams, MouseHeldParams, MouseReleaseParams, ReleasedKey,
+        export_if_triggered, map_released_key, on_key_released, on_mouse_held_right,
+        on_mouse_released_left, KeyReleasedParams, MouseHeldParams, MouseReleaseParams,
     },
 };
 mod core;
@@ -124,19 +124,7 @@ impl BBox {
             are_boxes_visible: self.are_boxes_visible,
             initial_view: &self.initial_view,
             is_ctrl_held: event.held_control(),
-            released_key: if event.key_released(VirtualKeyCode::A) {
-                ReleasedKey::A
-            } else if event.key_released(VirtualKeyCode::D) {
-                ReleasedKey::D
-            } else if event.key_released(VirtualKeyCode::C) {
-                ReleasedKey::C
-            } else if event.key_released(VirtualKeyCode::V) {
-                ReleasedKey::V
-            } else if event.key_released(VirtualKeyCode::H) {
-                ReleasedKey::H
-            } else {
-                ReleasedKey::Delete
-            },
+            released_key: map_released_key(event),
         };
         (self.are_boxes_visible, world, history) =
             on_key_released(world, history, shape_win, params);
