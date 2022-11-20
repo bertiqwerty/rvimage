@@ -9,7 +9,7 @@ use serde_pickle::{DeOptions, SerOptions};
 
 use crate::{
     annotations::{selected_indices, BboxAnnotations},
-    domain::{Shape, BB},
+    domain::BB,
     file_util::{self, ExportData, MetaData},
     format_rverr, implement_annotations_getters,
     result::{to_rv, RvError, RvResult},
@@ -77,17 +77,12 @@ impl ClipboardData {
         ClipboardData { bbs, cat_ids }
     }
 
-    pub fn to_annotations(
-        &self,
-        mut annos: BboxAnnotations,
-        shape_image: Shape,
-    ) -> BboxAnnotations {
-        for (bb, cat_id) in self.bbs.iter().zip(self.cat_ids.iter()) {
-            if bb.is_contained_in(shape_image) && !annos.bbs().contains(bb) {
-                annos.add_bb(*bb, *cat_id)
-            }
-        }
-        annos
+    pub fn bbs(&self) -> &Vec<BB> {
+        &self.bbs
+    }
+
+    pub fn cat_ids(&self) -> &Vec<usize> {
+        &self.cat_ids
     }
 }
 

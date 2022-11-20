@@ -116,7 +116,7 @@ impl BBox {
         &mut self,
         event: &WinitInputHelper,
         shape_win: Shape,
-        _mouse_pos: Option<(usize, usize)>,
+        mouse_pos: Option<(usize, usize)>,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
@@ -127,7 +127,7 @@ impl BBox {
             released_key: map_released_key(event),
         };
         (self.are_boxes_visible, world, history) =
-            on_key_released(world, history, shape_win, params);
+            on_key_released(world, history, mouse_pos, shape_win, params);
         (world, history)
     }
 }

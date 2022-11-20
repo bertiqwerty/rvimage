@@ -124,11 +124,12 @@ fn selected_or_deselected_indices<'a>(
     selected_bbs: &'a [bool],
     unselected: bool,
 ) -> impl Iterator<Item = usize> + Clone + 'a {
-    selected_bbs
+    let res = selected_bbs
         .iter()
         .enumerate()
         .filter(move |(_, is_selected)| unselected ^ **is_selected)
-        .map(|(i, _)| i)
+        .map(|(i, _)| i);
+    res
 }
 
 #[allow(clippy::needless_lifetimes)]
@@ -154,6 +155,18 @@ impl BboxAnnotations {
             bbs: vec![],
             cat_ids: vec![],
             selected_bbs: vec![],
+        }
+    }
+
+    pub fn extend<IB, IC>(&mut self, bbs: IB, cat_ids: IC, shape_image: Shape)
+    where
+        IB: Iterator<Item = BB>,
+        IC: Iterator<Item = usize>,
+    {
+        for (bb, cat_id) in bbs.zip(cat_ids) {
+            if bb.is_contained_in(shape_image) && !self.bbs().contains(&bb) {
+                self.add_bb(bb, cat_id)
+            }
         }
     }
 

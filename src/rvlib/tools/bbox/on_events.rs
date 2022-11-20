@@ -1,4 +1,5 @@
 use crate::{
+    annotations::selected_indices,
     domain::{mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
     file_util::MetaData,
     history::Record,
@@ -198,30 +199,36 @@ pub(super) struct KeyReleasedParams<'a> {
 pub(super) fn on_key_released(
     mut world: World,
     mut history: History,
+    mouse_pos: Option<(usize, usize)>,
     shape_win: Shape,
     params: KeyReleasedParams,
 ) -> (bool, World, History) {
     let mut are_boxes_visible = params.are_boxes_visible;
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {
+            // Hide all boxes (selected or not)
             are_boxes_visible = !are_boxes_visible;
             world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
         }
         ReleasedKey::Delete => {
+            // Remove selected
             let annos = get_annos_mut(&mut world);
             annos.remove_selected();
             world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
         }
         ReleasedKey::A if params.is_ctrl_held => {
+            // Select all
             get_annos_mut(&mut world).select_all();
             world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
         }
         ReleasedKey::D if params.is_ctrl_held => {
+            // Deselect all
             get_annos_mut(&mut world).deselect_all();
             world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
         }
         ReleasedKey::C if params.is_ctrl_held => {
+            // Copy to clipboard
             get_tools_data_mut(&mut world)
                 .specifics
                 .bbox_mut()
@@ -229,6 +236,7 @@ pub(super) fn on_key_released(
             world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
         }
         ReleasedKey::V if params.is_ctrl_held => {
+            // Paste from clipboard
             if let Some(clipboard) = mem::take(
                 &mut get_tools_data_mut(&mut world)
                     .specifics
@@ -236,13 +244,43 @@ pub(super) fn on_key_released(
                     .clipboard,
             ) {
                 let shape_orig = Shape::from_im(world.data.im_background());
-                let annos = mem::take(get_annos_mut(&mut world));
-                let annos = clipboard.to_annotations(annos, shape_orig);
-                *get_annos_mut(&mut world) = annos;
+                get_annos_mut(&mut world).extend(
+                    clipboard.bbs().iter().copied(),
+                    clipboard.cat_ids().iter().copied(),
+                    shape_orig,
+                );
                 get_tools_data_mut(&mut world)
                     .specifics
                     .bbox_mut()
                     .clipboard = Some(clipboard);
+                world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+            }
+        }
+        ReleasedKey::C => {
+            // Paste selection directly at current mouse position
+            let mp_orig =
+                mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
+            if let Some((x_shift, y_shift)) = mp_orig {
+                let shape_orig = world.shape_orig();
+                let annos = get_annos_mut(&mut world);
+                let selected_inds = selected_indices(annos.selected_bbs());
+                let translated = selected_inds.flat_map(|idx| {
+                    let bb = annos.bbs()[idx];
+                    bb.translate(
+                        x_shift as i32 - bb.x as i32,
+                        y_shift as i32 - bb.y as i32,
+                        shape_orig,
+                    )
+                    .map(|bb| (bb, annos.cat_ids()[idx]))
+                });
+                let translated_bbs = translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
+                let translated_cat_ids = translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
+
+                annos.extend(
+                    translated_bbs.iter().copied(),
+                    translated_cat_ids.iter().copied(),
+                    shape_orig,
+                );
                 world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
             }
         }
@@ -306,18 +344,23 @@ fn test_key_released() {
 
     // select all boxes with ctrl+A
     let params = make_params(ReleasedKey::A, false);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(!get_annos(&world).selected_bbs()[0]);
     let params = make_params(ReleasedKey::A, true);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_annos(&world).selected_bbs()[0]);
 
     // copy and paste boxes to and from clipboard
     let params = make_params(ReleasedKey::C, true);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_annos(&world).selected_bbs()[0]);
     if let Some(clipboard) = get_tools_data(&world).specifics.bbox().clipboard.clone() {
-        let annos = clipboard.to_annotations(BboxAnnotations::new(), Shape { w: 100, h: 100 });
+        let mut annos = BboxAnnotations::new();
+        annos.extend(
+            clipboard.bbs().iter().copied(),
+            clipboard.cat_ids().iter().copied(),
+            Shape { w: 100, h: 100 },
+        );
         assert_eq!(annos.bbs(), get_annos(&world).bbs());
         assert_eq!(annos.cat_ids(), get_annos(&world).cat_ids());
         assert_ne!(annos.selected_bbs(), get_annos(&world).selected_bbs());
@@ -325,40 +368,54 @@ fn test_key_released() {
         assert!(false);
     }
     let params = make_params(ReleasedKey::V, true);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_tools_data(&world).specifics.bbox().clipboard.is_some());
     assert_eq!(get_annos(&world).bbs(), annos_orig.bbs());
     let params = make_params(ReleasedKey::C, true);
-    let (_, mut world, history) = on_key_released(world, history, shape_win, params);
+    let (_, mut world, history) = on_key_released(world, history, None, shape_win, params);
     get_annos_mut(&mut world).remove(0);
     let params = make_params(ReleasedKey::V, true);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     assert_eq!(get_annos(&world).bbs(), annos_orig.bbs());
+
+    // clone box
+    let params = make_params(ReleasedKey::A, true);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
+    let params = make_params(ReleasedKey::C, false);
+    let (_, world, history) = on_key_released(world, history, Some((2, 2)), shape_win, params);
+    assert_eq!(get_annos(&world).bbs()[0], annos_orig.bbs()[0]);
+    assert_eq!(
+        get_annos(&world).bbs()[1],
+        annos_orig.bbs()[0]
+            .translate(2, 2, world.shape_orig())
+            .unwrap()
+    );
+    assert_eq!(get_annos(&world).bbs().len(), 2);
 
     // deselect all boxes with ctrl+D
     let params = make_params(ReleasedKey::A, true);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     let params = make_params(ReleasedKey::D, false);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_annos(&world).selected_bbs()[0]);
     let params = make_params(ReleasedKey::D, true);
-    let (is_visible, world, history) = on_key_released(world, history, shape_win, params);
+    let (is_visible, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(is_visible);
     assert!(!get_annos(&world).selected_bbs()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
-    let (is_visible, world, history) = on_key_released(world, history, shape_win, params);
+    let (is_visible, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(!is_visible);
 
     // delete all selected boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(!get_annos(&world).selected_bbs().is_empty());
     let params = make_params(ReleasedKey::A, true);
-    let (_, world, history) = on_key_released(world, history, shape_win, params);
+    let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     let params = make_params(ReleasedKey::Delete, true);
-    let (_, world, _) = on_key_released(world, history, shape_win, params);
+    let (_, world, _) = on_key_released(world, history, None, shape_win, params);
     assert!(get_annos(&world).selected_bbs().is_empty());
 }
 
