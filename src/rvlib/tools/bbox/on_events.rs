@@ -387,7 +387,7 @@ fn test_key_released() {
     assert_eq!(
         get_annos(&world).bbs()[1],
         annos_orig.bbs()[0]
-            .translate(2, 2, world.shape_orig())
+            .translate(1, 1, world.shape_orig())
             .unwrap()
     );
     assert_eq!(get_annos(&world).bbs().len(), 2);
