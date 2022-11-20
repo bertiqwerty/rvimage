@@ -7,8 +7,8 @@ use image::Rgb;
 use rusttype::{Font, Scale};
 use serde::{Deserialize, Serialize};
 use std::mem;
-const BBOX_ALPHA: u8 = 120;
-const BBOX_ALPHA_SELECTED: u8 = 50;
+const BBOX_ALPHA: u8 = 180;
+const BBOX_ALPHA_SELECTED: u8 = 120;
 
 fn resize_bbs<F>(mut bbs: Vec<BB>, selected_bbs: &[bool], resize: F) -> Vec<BB>
 where
