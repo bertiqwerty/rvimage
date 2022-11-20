@@ -322,30 +322,39 @@ impl BB {
         self.x + self.w < shape.w && self.y + self.h < shape.h
     }
 
-    pub fn new_shape_checked(x: u32, y: u32, w: u32, h: u32, shape: Shape) -> Option<Self> {
-        let bb = Self { x, y, w, h };
-        if bb.is_contained_in(shape) {
-            Some(bb)
-        } else {
+    pub fn new_shape_checked(x: i32, y: i32, w: i32, h: i32, shape: Shape) -> Option<Self> {
+        if x < 0 || y < 0 || w < 1 || h < 1 {
             None
+        } else {
+            let bb = Self {
+                x: x as u32,
+                y: y as u32,
+                w: w as u32,
+                h: h as u32,
+            };
+            if bb.is_contained_in(shape) {
+                Some(bb)
+            } else {
+                None
+            }
         }
     }
 
     pub fn translate(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
-        let x = (self.x as i32 + x_shift) as u32;
-        let y = (self.y as i32 + y_shift) as u32;
-        Self::new_shape_checked(x, y, self.w, self.h, shape)
+        let x = self.x as i32 + x_shift;
+        let y = self.y as i32 + y_shift;
+        Self::new_shape_checked(x, y, self.w as i32, self.h as i32, shape)
     }
 
     pub fn shift_max(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
         let (w, h) = (self.w as i32 + x_shift, self.h as i32 + y_shift);
-        Self::new_shape_checked(self.x, self.y, w as u32, h as u32, shape)
+        Self::new_shape_checked(self.x as i32, self.y as i32, w, h, shape)
     }
 
     pub fn shift_min(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
         let (x, y) = (self.x as i32 + x_shift, self.y as i32 + y_shift);
         let (w, h) = (self.w as i32 - x_shift, self.h as i32 - y_shift);
-        Self::new_shape_checked(x as u32, y as u32, w as u32, h as u32, shape)
+        Self::new_shape_checked(x, y, w, h, shape)
     }
 }
 

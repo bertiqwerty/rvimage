@@ -61,7 +61,10 @@ fn move_zoom_box(
     zoom_box: Option<BB>,
 ) -> Option<BB> {
     match zoom_box {
-        Some(zb) => zb.follow_movement(mpo, mpso, shape_orig),
+        Some(zb) => match zb.follow_movement(mpo, mpso, shape_orig) {
+            Some(zb) => Some(zb),
+            None => Some(zb),
+        },
         _ => zoom_box,
     }
 }
