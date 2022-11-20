@@ -310,7 +310,7 @@ fn test_key_released() {
     }
     let params = make_params(ReleasedKey::V, true);
     let (_, world, history) = on_key_released(world, history, shape_win, params);
-    assert!(get_tools_data(&world).specifics.bbox().clipboard.is_none());
+    assert!(get_tools_data(&world).specifics.bbox().clipboard.is_some());
     assert_eq!(get_annos(&world).bbs(), annos_orig.bbs());
     let params = make_params(ReleasedKey::C, true);
     let (_, mut world, history) = on_key_released(world, history, shape_win, params);
