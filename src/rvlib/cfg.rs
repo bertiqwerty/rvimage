@@ -4,7 +4,7 @@ use crate::{
     result::{to_rv, RvError, RvResult},
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, fs, path::PathBuf};
+use std::{fmt::Debug, path::PathBuf};
 
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
@@ -49,7 +49,7 @@ pub fn write_cfg(cfg: &Cfg) -> RvResult<()> {
 
 pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
     let cfg_toml_path = get_cfg_path()?;
-    fs::write(cfg_toml_path, cfg_str).map_err(to_rv)?;
+    file_util::write(cfg_toml_path, cfg_str)?;
     Ok(())
 }
 

@@ -144,3 +144,12 @@ where
                     || p.extension() == Some(OsStr::new("pickle")))
         }))
 }
+
+pub fn write<P, C>(path: P, contents: C) -> RvResult<()>
+where
+    P: AsRef<Path> + Debug,
+    C: AsRef<[u8]>,
+{
+    fs::write(&path, contents)
+        .map_err(|e| format_rverr!("could not write to {:?} since {:?}", path, e))
+}

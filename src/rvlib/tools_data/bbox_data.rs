@@ -289,7 +289,7 @@ fn write(
 pub fn write_json(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
     let ser = |data: &ExportData, path: &Path| {
         let data_str = serde_json::to_string(&data).map_err(to_rv)?;
-        fs::write(&path, data_str).map_err(to_rv)?;
+        file_util::write(&path, data_str)?;
         Ok(())
     };
     write(meta_data, bbox_specifics, "json", ser)

@@ -4,20 +4,26 @@ use ssh2::Session;
 
 use crate::{
     cfg::SshCfg,
-    result::{to_rv, RvResult},
+    format_rverr,
+    result::{to_rv, RvError, RvResult},
 };
 
 pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>> {
     let (mut remote_file, _) = sess
         .scp_recv(Path::new(remote_src_file_path))
         .map_err(to_rv)?;
-    let mut content = vec![];
-    remote_file.read_to_end(&mut content).map_err(to_rv)?;
-    remote_file.send_eof().map_err(to_rv)?;
-    remote_file.wait_eof().map_err(to_rv)?;
-    remote_file.close().map_err(to_rv)?;
-    remote_file.wait_close().map_err(to_rv)?;
-    Ok(content)
+    {
+        let mut content = vec![];
+        remote_file.read_to_end(&mut content).map_err(to_rv)?;
+        remote_file.send_eof().map_err(to_rv)?;
+        remote_file.wait_eof().map_err(to_rv)?;
+        remote_file.close().map_err(to_rv)?;
+        remote_file.wait_close().map_err(to_rv)?;
+        Ok(content)
+    }
+    .map_err(|e: RvError| {
+        format_rverr!("could not download {} due to {:?}", e, remote_src_file_path)
+    })
 }
 
 pub fn find(

@@ -43,6 +43,7 @@ impl<'a> Cats<'a> {
         self.labels[self.cat_ids[box_idx]].as_str()
     }
 }
+
 fn draw_bbs<'a>(
     mut im: ViewImage,
     shape_orig: Shape,
@@ -129,20 +130,24 @@ fn selected_or_deselected_indices<'a>(
         .filter(move |(_, is_selected)| unselected ^ **is_selected)
         .map(|(i, _)| i)
 }
+
 #[allow(clippy::needless_lifetimes)]
 fn deselected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_or_deselected_indices(selected_bbs, true)
 }
+
 #[allow(clippy::needless_lifetimes)]
 pub fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_or_deselected_indices(selected_bbs, false)
 }
+
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
     bbs: Vec<BB>,
     cat_ids: Vec<usize>,
     selected_bbs: Vec<bool>,
 }
+
 impl BboxAnnotations {
     pub const fn new() -> Self {
         BboxAnnotations {
@@ -151,6 +156,7 @@ impl BboxAnnotations {
             selected_bbs: vec![],
         }
     }
+
     pub fn from_bbs_cats(bbs: Vec<BB>, cat_ids: Vec<usize>) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
@@ -159,6 +165,7 @@ impl BboxAnnotations {
             selected_bbs: vec![false; bbs_len],
         }
     }
+
     pub fn from_bbs(bbs: Vec<BB>, cat_id: usize) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
@@ -167,6 +174,7 @@ impl BboxAnnotations {
             selected_bbs: vec![false; bbs_len],
         }
     }
+
     pub fn remove_cat(&mut self, cat_id: usize) {
         if cat_id > 0 {
             for cid in self.cat_ids.iter_mut() {
@@ -176,11 +184,13 @@ impl BboxAnnotations {
             }
         }
     }
+
     pub fn remove(&mut self, box_idx: usize) -> BB {
         self.cat_ids.remove(box_idx);
         self.selected_bbs.remove(box_idx);
         self.bbs.remove(box_idx)
     }
+
     pub fn remove_selected(&mut self) {
         let keep_indices = deselected_indices(&self.selected_bbs);
         self.bbs = keep_indices
@@ -195,39 +205,49 @@ impl BboxAnnotations {
         let taken_bbs = mem::take(&mut self.bbs);
         self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, x_shift, y_shift, shape_orig);
     }
+
     pub fn add_bb(&mut self, bb: BB, cat_id: usize) {
         self.cat_ids.push(cat_id);
         self.bbs.push(bb);
         self.selected_bbs.push(false);
     }
+
     pub fn cat_ids(&self) -> &Vec<usize> {
         &self.cat_ids
     }
+
     pub fn bbs(&self) -> &Vec<BB> {
         &self.bbs
     }
+
     pub fn deselect(&mut self, box_idx: usize) {
         self.selected_bbs[box_idx] = false;
     }
+
     pub fn select_all(&mut self) {
         for s in &mut self.selected_bbs {
             *s = true;
         }
     }
+
     pub fn deselect_all(&mut self) {
         for s in &mut self.selected_bbs {
             *s = false;
         }
     }
+
     pub fn toggle_selection(&mut self, box_idx: usize) {
         self.selected_bbs[box_idx] = !self.selected_bbs[box_idx];
     }
+
     pub fn select(&mut self, box_idx: usize) {
         self.selected_bbs[box_idx] = true;
     }
+
     pub fn selected_bbs(&self) -> &Vec<bool> {
         &self.selected_bbs
     }
+
     pub fn selected_follow_movement(
         &mut self,
         mpso: (u32, u32),
@@ -245,12 +265,14 @@ impl BboxAnnotations {
         }
         move_somebody
     }
+
     pub fn label_selected(&mut self, cat_id: usize) {
         let selected_inds = selected_indices(&self.selected_bbs);
         for idx in selected_inds {
             self.cat_ids[idx] = cat_id;
         }
     }
+
     pub fn clear(&mut self) {
         self.bbs.clear();
         self.selected_bbs.clear();
