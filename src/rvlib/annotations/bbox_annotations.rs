@@ -10,20 +10,17 @@ use std::mem;
 const BBOX_ALPHA: u8 = 120;
 const BBOX_ALPHA_SELECTED: u8 = 50;
 
-fn resize_bbs(
-    mut bbs: Vec<BB>,
-    selected_bbs: &[bool],
-    x_shift: i32,
-    y_shift: i32,
-    shape_orig: Shape,
-) -> Vec<BB> {
+fn resize_bbs<F>(mut bbs: Vec<BB>, selected_bbs: &[bool], resize: F) -> Vec<BB>
+where
+    F: Fn(BB) -> Option<BB>,
+{
     let selected_idxs = selected_bbs
         .iter()
         .enumerate()
         .filter(|(_, x)| **x)
         .map(|(i, _)| i);
     for idx in selected_idxs {
-        if let Some(bb) = bbs[idx].extend_max(x_shift, y_shift, shape_orig) {
+        if let Some(bb) = resize(bbs[idx]) {
             bbs[idx] = bb;
         }
     }
@@ -214,9 +211,24 @@ impl BboxAnnotations {
         self.selected_bbs = vec![false; self.bbs.len()];
     }
 
-    pub fn resize_bbs(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {
+    pub fn shift(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {
         let taken_bbs = mem::take(&mut self.bbs);
-        self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, x_shift, y_shift, shape_orig);
+        self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
+            bb.translate(x_shift, y_shift, shape_orig)
+        });
+    }
+    pub fn shift_min_bbs(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {
+        let taken_bbs = mem::take(&mut self.bbs);
+        self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
+            bb.shift_min(x_shift, y_shift, shape_orig)
+        });
+    }
+
+    pub fn shift_max_bbs(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {
+        let taken_bbs = mem::take(&mut self.bbs);
+        self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
+            bb.shift_max(x_shift, y_shift, shape_orig)
+        });
     }
 
     pub fn add_bb(&mut self, bb: BB, cat_id: usize) {
@@ -255,6 +267,10 @@ impl BboxAnnotations {
 
     pub fn select(&mut self, box_idx: usize) {
         self.selected_bbs[box_idx] = true;
+    }
+
+    pub fn select_last(&mut self) {
+        self.selected_bbs[self.bbs.len() - 1] = true;
     }
 
     pub fn selected_bbs(&self) -> &Vec<bool> {
@@ -344,10 +360,22 @@ fn make_test_bbs() -> Vec<BB> {
 fn test_bbs() {
     let bbs = make_test_bbs();
     let shape_orig = Shape { w: 100, h: 100 };
-    let resized = resize_bbs(bbs.clone(), &[false, true, true], -1, 1, shape_orig);
+
+    // shift max
+    let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
+        bb.shift_max(-1, 1, shape_orig)
+    });
     assert_eq!(resized[0], bbs[0]);
     assert_eq!(BB::from_points((5, 5), (14, 16)), resized[1]);
     assert_eq!(BB::from_points((9, 9), (18, 20)), resized[2]);
+
+    // shift min
+    let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
+        bb.shift_min(-1, 1, shape_orig)
+    });
+    assert_eq!(resized[0], bbs[0]);
+    assert_eq!(BB::from_points((4, 6), (15, 15)), resized[1]);
+    assert_eq!(BB::from_points((8, 10), (19, 19)), resized[2]);
 }
 #[test]
 fn test_annos() {

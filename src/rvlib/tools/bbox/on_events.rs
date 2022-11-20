@@ -281,6 +281,8 @@ pub(super) fn on_key_released(
                     translated_cat_ids.iter().copied(),
                     shape_orig,
                 );
+                annos.deselect_all();
+                annos.select_last();
                 world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
             }
         }

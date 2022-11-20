@@ -321,37 +321,34 @@ impl BB {
     pub fn is_contained_in(&self, shape: Shape) -> bool {
         self.x + self.w < shape.w && self.y + self.h < shape.h
     }
+
+    pub fn new_shape_checked(x: u32, y: u32, w: u32, h: u32, shape: Shape) -> Option<Self> {
+        let bb = Self { x, y, w, h };
+        if bb.is_contained_in(shape) {
+            Some(bb)
+        } else {
+            None
+        }
+    }
+
     pub fn translate(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
         let x = (self.x as i32 + x_shift) as u32;
         let y = (self.y as i32 + y_shift) as u32;
-
-        let bb = Self {
-            x,
-            y,
-            w: self.w,
-            h: self.h,
-        };
-        if bb.is_contained_in(shape) {
-            Some(bb)
-        } else {
-            None
-        }
+        Self::new_shape_checked(x, y, self.w, self.h, shape)
     }
-    pub fn extend_max(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
+
+    pub fn shift_max(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
         let (w, h) = (self.w as i32 + x_shift, self.h as i32 + y_shift);
-        let bb = BB {
-            x: self.x,
-            y: self.y,
-            w: w as u32,
-            h: h as u32,
-        };
-        if bb.is_contained_in(shape) {
-            Some(bb)
-        } else {
-            None
-        }
+        Self::new_shape_checked(self.x, self.y, w as u32, h as u32, shape)
+    }
+
+    pub fn shift_min(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
+        let (x, y) = (self.x as i32 + x_shift, self.y as i32 + y_shift);
+        let (w, h) = (self.w as i32 - x_shift, self.h as i32 - y_shift);
+        Self::new_shape_checked(x as u32, y as u32, w as u32, h as u32, shape)
     }
 }
+
 impl Display for BB {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bb_str = format!("[{}, {}, {} ,{}]", self.x, self.y, self.w, self.h);
@@ -429,7 +426,7 @@ fn test_bb() {
         })
     );
     let shape = Shape::new(100, 100);
-    let bb1 = bb.extend_max(1, 1, shape);
+    let bb1 = bb.shift_max(1, 1, shape);
     assert_eq!(
         bb1,
         Some(BB {
@@ -439,9 +436,9 @@ fn test_bb() {
             h: 11
         })
     );
-    let bb1 = bb.extend_max(100, 1, shape);
+    let bb1 = bb.shift_max(100, 1, shape);
     assert_eq!(bb1, None);
-    let bb1 = bb.extend_max(-1, -2, shape);
+    let bb1 = bb.shift_max(-1, -2, shape);
     assert_eq!(
         bb1,
         Some(BB {
@@ -451,7 +448,7 @@ fn test_bb() {
             h: 8
         })
     );
-    let bb1 = bb.extend_max(-100, -200, shape);
+    let bb1 = bb.shift_max(-100, -200, shape);
     assert_eq!(bb1, None);
 }
 #[test]
