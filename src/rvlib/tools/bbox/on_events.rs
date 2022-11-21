@@ -187,7 +187,7 @@ macro_rules! released_key {
     };
 }
 
-released_key!(A, D, H, C, V, Delete);
+released_key!(A, D, H, C, V, Delete, Left, Right, Up, Down);
 
 pub(super) struct KeyReleasedParams<'a> {
     pub are_boxes_visible: bool,
@@ -213,9 +213,11 @@ pub(super) fn on_key_released(
         ReleasedKey::Delete => {
             // Remove selected
             let annos = get_annos_mut(&mut world);
-            annos.remove_selected();
-            world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+            if !annos.selected_bbs().is_empty() {
+                annos.remove_selected();
+                world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+                history.push(Record::new(world.data.clone(), ACTOR_NAME));
+            }
         }
         ReleasedKey::A if params.is_ctrl_held => {
             // Select all
@@ -243,17 +245,21 @@ pub(super) fn on_key_released(
                     .bbox_mut()
                     .clipboard,
             ) {
-                let shape_orig = Shape::from_im(world.data.im_background());
-                get_annos_mut(&mut world).extend(
-                    clipboard.bbs().iter().copied(),
-                    clipboard.cat_ids().iter().copied(),
-                    shape_orig,
-                );
-                get_tools_data_mut(&mut world)
-                    .specifics
-                    .bbox_mut()
-                    .clipboard = Some(clipboard);
-                world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+                let cb_bbs = clipboard.bbs();
+                if !cb_bbs.is_empty() {
+                    let shape_orig = Shape::from_im(world.data.im_background());
+                    get_annos_mut(&mut world).extend(
+                        cb_bbs.iter().copied(),
+                        clipboard.cat_ids().iter().copied(),
+                        shape_orig,
+                    );
+                    get_tools_data_mut(&mut world)
+                        .specifics
+                        .bbox_mut()
+                        .clipboard = Some(clipboard);
+                    world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+                    history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                }
             }
         }
         ReleasedKey::C => {
@@ -276,15 +282,21 @@ pub(super) fn on_key_released(
                 let translated_bbs = translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
                 let translated_cat_ids = translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
 
-                annos.extend(
-                    translated_bbs.iter().copied(),
-                    translated_cat_ids.iter().copied(),
-                    shape_orig,
-                );
-                annos.deselect_all();
-                annos.select_last();
-                world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+                if !translated_bbs.is_empty() {
+                    annos.extend(
+                        translated_bbs.iter().copied(),
+                        translated_cat_ids.iter().copied(),
+                        shape_orig,
+                    );
+                    annos.deselect_all();
+                    annos.select_last();
+                    world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+                    history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                }
             }
+        }
+        ReleasedKey::Up | ReleasedKey::Down | ReleasedKey::Left | ReleasedKey::Right => {
+            history.push(Record::new(world.data.clone(), ACTOR_NAME));
         }
         _ => (),
     }

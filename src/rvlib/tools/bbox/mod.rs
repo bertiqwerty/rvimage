@@ -172,6 +172,7 @@ impl Manipulate for BBox {
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
         (world, history)
     }
+
     fn on_deactivate(
         &mut self,
         mut world: World,
@@ -254,6 +255,10 @@ impl Manipulate for BBox {
                 (key_released, VirtualKeyCode::D),
                 (key_released, VirtualKeyCode::C),
                 (key_released, VirtualKeyCode::V),
+                (key_released, VirtualKeyCode::Down),
+                (key_released, VirtualKeyCode::Up),
+                (key_released, VirtualKeyCode::Left),
+                (key_released, VirtualKeyCode::Right),
                 (key_held, VirtualKeyCode::Down),
                 (key_held, VirtualKeyCode::Up),
                 (key_held, VirtualKeyCode::Left),

@@ -31,6 +31,7 @@ pub struct Control {
     tp: ThreadPool<(ReaderFromCfg, Info)>,
     last_open_folder_job_id: Option<u128>,
     pub cfg: Cfg,
+    pub file_loaded: Option<usize>,
 }
 impl Control {
     pub fn import<P>(&mut self, filename: P, tools_data_map: &mut ToolsDataMap) -> RvResult<()>
