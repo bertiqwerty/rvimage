@@ -76,14 +76,18 @@ impl BBox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        let params = MouseReleaseParams {
-            prev_pos: self.prev_pos,
-            are_boxes_visible: self.are_boxes_visible,
-            is_ctrl_held: event.held_control(),
-            initial_view: &self.initial_view,
-        };
-        (world, history, self.prev_pos) =
-            on_mouse_released_left(shape_win, mouse_pos, params, world, history);
+        if event.mouse_released(LEFT_BTN) {
+            let params = MouseReleaseParams {
+                prev_pos: self.prev_pos,
+                are_boxes_visible: self.are_boxes_visible,
+                is_ctrl_held: event.held_control(),
+                initial_view: &self.initial_view,
+            };
+            (world, history, self.prev_pos) =
+                on_mouse_released_left(shape_win, mouse_pos, params, world, history);
+        } else {
+            history.push(Record::new(world.data.clone(), ACTOR_NAME))
+        }
         (world, history)
     }
 
@@ -248,7 +252,8 @@ impl Manipulate for BBox {
             [
                 (mouse_pressed, RIGHT_BTN),
                 (mouse_held, RIGHT_BTN),
-                (mouse_released, LEFT_BTN)
+                (mouse_released, LEFT_BTN),
+                (mouse_released, RIGHT_BTN)
             ],
             [
                 (key_released, VirtualKeyCode::Delete),
