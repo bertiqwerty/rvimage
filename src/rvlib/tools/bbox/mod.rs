@@ -19,7 +19,7 @@ use winit_input_helper::WinitInputHelper;
 pub use self::core::ACTOR_NAME;
 use self::{
     core::{
-        current_cat_id, draw_on_view, get_annos_mut, get_tools_data, get_tools_data_mut,
+        current_cat_idx, draw_on_view, get_annos_mut, get_tools_data, get_tools_data_mut,
         initialize_tools_menu_data,
     },
     on_events::{
@@ -206,7 +206,7 @@ impl Manipulate for BBox {
                 .bbox_mut()
                 .export_file_type = BboxExportFileType::None;
         }
-        let in_menu_selected_label = current_cat_id(&world);
+        let in_menu_selected_label = current_cat_idx(&world);
         if self.prev_label != in_menu_selected_label {
             world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
         }

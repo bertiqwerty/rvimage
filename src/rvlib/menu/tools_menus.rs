@@ -6,7 +6,7 @@ use crate::tools_data::{
 };
 
 pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData) -> ToolsData {
-    let mut new_idx = data.cat_id_current;
+    let mut new_idx = data.cat_idx_current;
     let mut new_label = None;
     if ui.text_edit_singleline(&mut data.new_label).lost_focus() {
         new_label = Some(data.new_label.clone());
@@ -20,7 +20,7 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData)
     }
     let mut to_be_removed = None;
     for (label_idx, label) in data.labels().iter().enumerate() {
-        let checked = label_idx == data.cat_id_current;
+        let checked = label_idx == data.cat_idx_current;
         ui.horizontal_top(|ui| {
             if ui.button("x").clicked() {
                 to_be_removed = Some(label_idx);
@@ -30,11 +30,11 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData)
             }
         });
     }
-    if new_idx != data.cat_id_current {
+    if new_idx != data.cat_idx_current {
         for (_, anno) in data.anno_iter_mut() {
             anno.label_selected(new_idx);
         }
-        data.cat_id_current = new_idx;
+        data.cat_idx_current = new_idx;
     }
     if let Some(idx) = to_be_removed {
         data.remove_cat(idx);

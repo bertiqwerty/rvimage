@@ -17,8 +17,8 @@ tools_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 
-pub(super) fn current_cat_id(world: &World) -> usize {
-    get_tools_data(world).specifics.bbox().cat_id_current
+pub(super) fn current_cat_idx(world: &World) -> usize {
+    get_tools_data(world).specifics.bbox().cat_idx_current
 }
 
 pub(super) fn draw_on_view(

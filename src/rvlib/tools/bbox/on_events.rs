@@ -17,7 +17,7 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use super::core::{
-    current_cat_id, draw_on_view, get_annos, get_annos_mut, get_tools_data_mut, ACTOR_NAME,
+    current_cat_idx, draw_on_view, get_annos, get_annos_mut, get_tools_data_mut, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
@@ -127,7 +127,7 @@ pub(super) fn on_mouse_released_left(
     } = params;
     let mp_orig = mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
     let pp_orig = mouse_pos_to_orig_pos(prev_pos, world.shape_orig(), shape_win, world.zoom_box());
-    let in_menu_selected_label = current_cat_id(&world);
+    let in_menu_selected_label = current_cat_idx(&world);
     if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
         // second click new bb
         if (mp.0 as i32 - pp.0 as i32).abs() > 1 && (mp.1 as i32 - pp.1 as i32).abs() > 1 {
@@ -250,7 +250,7 @@ pub(super) fn on_key_released(
                     let shape_orig = Shape::from_im(world.data.im_background());
                     get_annos_mut(&mut world).extend(
                         cb_bbs.iter().copied(),
-                        clipboard.cat_ids().iter().copied(),
+                        clipboard.cat_idxs().iter().copied(),
                         shape_orig,
                     );
                     get_tools_data_mut(&mut world)
@@ -277,7 +277,7 @@ pub(super) fn on_key_released(
                         y_shift as i32 - bb.y as i32,
                         shape_orig,
                     )
-                    .map(|bb| (bb, annos.cat_ids()[idx]))
+                    .map(|bb| (bb, annos.cat_idxs()[idx]))
                 });
                 let translated_bbs = translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
                 let translated_cat_ids = translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
@@ -372,11 +372,11 @@ fn test_key_released() {
         let mut annos = BboxAnnotations::new();
         annos.extend(
             clipboard.bbs().iter().copied(),
-            clipboard.cat_ids().iter().copied(),
+            clipboard.cat_idxs().iter().copied(),
             Shape { w: 100, h: 100 },
         );
         assert_eq!(annos.bbs(), get_annos(&world).bbs());
-        assert_eq!(annos.cat_ids(), get_annos(&world).cat_ids());
+        assert_eq!(annos.cat_idxs(), get_annos(&world).cat_idxs());
         assert_ne!(annos.selected_bbs(), get_annos(&world).selected_bbs());
     } else {
         assert!(false);
@@ -487,6 +487,7 @@ fn test_mouse_release() {
         assert_eq!(prev_pos, None);
         let annos = get_annos(&world);
         assert_eq!(annos.bbs().len(), 1);
+        assert_eq!(annos.cat_idxs()[0], 0);
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
     {

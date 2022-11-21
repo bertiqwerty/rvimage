@@ -142,7 +142,7 @@ pub fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = us
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
     bbs: Vec<BB>,
-    cat_ids: Vec<usize>,
+    cat_idxs: Vec<usize>,
     selected_bbs: Vec<bool>,
 }
 
@@ -150,7 +150,7 @@ impl BboxAnnotations {
     pub const fn new() -> Self {
         BboxAnnotations {
             bbs: vec![],
-            cat_ids: vec![],
+            cat_idxs: vec![],
             selected_bbs: vec![],
         }
     }
@@ -171,7 +171,7 @@ impl BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
             bbs,
-            cat_ids,
+            cat_idxs: cat_ids,
             selected_bbs: vec![false; bbs_len],
         }
     }
@@ -180,15 +180,15 @@ impl BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
             bbs,
-            cat_ids: vec![cat_id; bbs_len],
+            cat_idxs: vec![cat_id; bbs_len],
             selected_bbs: vec![false; bbs_len],
         }
     }
 
-    pub fn remove_cat(&mut self, cat_id: usize) {
-        if cat_id > 0 {
-            for cid in self.cat_ids.iter_mut() {
-                if *cid >= cat_id {
+    pub fn reduce_cat_idxs(&mut self, cat_idx: usize) {
+        if cat_idx > 0 {
+            for cid in self.cat_idxs.iter_mut() {
+                if *cid >= cat_idx {
                     *cid -= 1;
                 }
             }
@@ -196,7 +196,7 @@ impl BboxAnnotations {
     }
 
     pub fn remove(&mut self, box_idx: usize) -> BB {
-        self.cat_ids.remove(box_idx);
+        self.cat_idxs.remove(box_idx);
         self.selected_bbs.remove(box_idx);
         self.bbs.remove(box_idx)
     }
@@ -207,7 +207,7 @@ impl BboxAnnotations {
             .clone()
             .map(|i| self.bbs[i])
             .collect::<Vec<_>>();
-        self.cat_ids = keep_indices.map(|i| self.cat_ids[i]).collect::<Vec<_>>();
+        self.cat_idxs = keep_indices.map(|i| self.cat_idxs[i]).collect::<Vec<_>>();
         self.selected_bbs = vec![false; self.bbs.len()];
     }
 
@@ -231,14 +231,14 @@ impl BboxAnnotations {
         });
     }
 
-    pub fn add_bb(&mut self, bb: BB, cat_id: usize) {
-        self.cat_ids.push(cat_id);
+    pub fn add_bb(&mut self, bb: BB, cat_idx: usize) {
+        self.cat_idxs.push(cat_idx);
         self.bbs.push(bb);
         self.selected_bbs.push(false);
     }
 
-    pub fn cat_ids(&self) -> &Vec<usize> {
-        &self.cat_ids
+    pub fn cat_idxs(&self) -> &Vec<usize> {
+        &self.cat_idxs
     }
 
     pub fn bbs(&self) -> &Vec<BB> {
@@ -298,14 +298,14 @@ impl BboxAnnotations {
     pub fn label_selected(&mut self, cat_id: usize) {
         let selected_inds = selected_indices(&self.selected_bbs);
         for idx in selected_inds {
-            self.cat_ids[idx] = cat_id;
+            self.cat_idxs[idx] = cat_id;
         }
     }
 
     pub fn clear(&mut self) {
         self.bbs.clear();
         self.selected_bbs.clear();
-        self.cat_ids.clear();
+        self.cat_idxs.clear();
     }
 
     pub fn draw_on_view(
@@ -325,7 +325,7 @@ impl BboxAnnotations {
             &self.bbs,
             &self.selected_bbs,
             Cats {
-                cat_ids: &self.cat_ids,
+                cat_ids: &self.cat_idxs,
                 colors,
                 labels,
             },
@@ -381,7 +381,7 @@ fn test_bbs() {
 fn test_annos() {
     fn len_check(annos: &BboxAnnotations) {
         assert_eq!(annos.selected_bbs.len(), annos.bbs.len());
-        assert_eq!(annos.cat_ids.len(), annos.bbs.len());
+        assert_eq!(annos.cat_idxs.len(), annos.bbs.len());
     }
     let mut annos = BboxAnnotations::from_bbs(make_test_bbs(), 0);
     len_check(&annos);
@@ -393,9 +393,9 @@ fn test_annos() {
     len_check(&annos);
     for i in 0..(annos.bbs.len()) {
         if i == idx {
-            assert_eq!(annos.cat_ids[i], 3);
+            assert_eq!(annos.cat_idxs[i], 3);
         } else {
-            assert_eq!(annos.cat_ids[i], 0);
+            assert_eq!(annos.cat_idxs[i], 0);
         }
     }
     assert!(annos.selected_bbs[idx]);
@@ -409,18 +409,18 @@ fn test_annos() {
     len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
-    assert!(annos.cat_ids.len() == make_test_bbs().len() - 1);
+    assert!(annos.cat_idxs.len() == make_test_bbs().len() - 1);
     // this time nothing should be removed
     annos.remove_selected();
     len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
-    assert!(annos.cat_ids.len() == make_test_bbs().len() - 1);
+    assert!(annos.cat_idxs.len() == make_test_bbs().len() - 1);
     annos.remove(0);
     len_check(&annos);
     assert!(annos.bbs.len() == make_test_bbs().len() - 2);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 2);
-    assert!(annos.cat_ids.len() == make_test_bbs().len() - 2);
+    assert!(annos.cat_idxs.len() == make_test_bbs().len() - 2);
     annos.add_bb(make_test_bbs()[0].clone(), 0);
     len_check(&annos);
     annos.add_bb(make_test_bbs()[0].clone(), 123);
@@ -429,6 +429,6 @@ fn test_annos() {
     len_check(&annos);
     assert!(annos.bbs.len() == 0);
     assert!(annos.selected_bbs.len() == 0);
-    assert!(annos.cat_ids.len() == 0);
-    assert!(annos.cat_ids.len() == 0);
+    assert!(annos.cat_idxs.len() == 0);
+    assert!(annos.cat_idxs.len() == 0);
 }

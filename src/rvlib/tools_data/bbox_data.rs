@@ -66,23 +66,23 @@ static DEFAULT_BBOX_ANNOTATION: BboxAnnotations = BboxAnnotations::new();
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct ClipboardData {
     bbs: Vec<BB>,
-    cat_ids: Vec<usize>,
+    cat_idxs: Vec<usize>,
 }
 
 impl ClipboardData {
     pub fn from_annotations(annos: &BboxAnnotations) -> Self {
         let selected_inds = selected_indices(annos.selected_bbs());
         let bbs = selected_inds.clone().map(|idx| annos.bbs()[idx]).collect();
-        let cat_ids = selected_inds.map(|idx| annos.cat_ids()[idx]).collect();
-        ClipboardData { bbs, cat_ids }
+        let cat_idxs = selected_inds.map(|idx| annos.cat_idxs()[idx]).collect();
+        ClipboardData { bbs, cat_idxs }
     }
 
     pub fn bbs(&self) -> &Vec<BB> {
         &self.bbs
     }
 
-    pub fn cat_ids(&self) -> &Vec<usize> {
-        &self.cat_ids
+    pub fn cat_idxs(&self) -> &Vec<usize> {
+        &self.cat_idxs
     }
 }
 
@@ -91,36 +91,44 @@ pub struct BboxSpecificData {
     pub new_label: String,
     labels: Vec<String>,
     colors: Vec<[u8; 3]>,
-    pub cat_id_current: usize,
+    cat_ids: Vec<usize>,
+    pub cat_idx_current: usize,
     // filename -> annotations per file
     annotations_map: HashMap<String, BboxAnnotations>,
     pub export_file_type: BboxExportFileType,
     pub import_file: Option<String>,
     pub clipboard: Option<ClipboardData>,
 }
+
 impl BboxSpecificData {
     implement_annotations_getters!(&DEFAULT_BBOX_ANNOTATION, BboxAnnotations);
-    pub fn remove_cat(&mut self, cat_id: usize) {
+
+    pub fn remove_cat(&mut self, cat_idx: usize) {
         if self.labels.len() > 1 {
-            self.labels.remove(cat_id);
-            self.colors.remove(cat_id);
-            if self.cat_id_current >= cat_id.max(1) {
-                self.cat_id_current -= 1;
+            self.labels.remove(cat_idx);
+            self.colors.remove(cat_idx);
+            self.cat_ids.remove(cat_idx);
+            if self.cat_idx_current >= cat_idx.max(1) {
+                self.cat_idx_current -= 1;
             }
             for anno in self.annotations_map.values_mut() {
-                anno.remove_cat(cat_id);
+                anno.reduce_cat_idxs(cat_idx);
             }
         }
     }
+
     pub fn is_empty(&self) -> bool {
         self.colors.len() == 0
     }
+
     pub fn len(&self) -> usize {
         self.colors.len()
     }
+
     pub fn find_default(&mut self) -> Option<&mut String> {
         self.labels.iter_mut().find(|lab| lab == &DEFAULT_LABEL)
     }
+
     pub fn push(&mut self, label: String, color: Option<[u8; 3]>) {
         if let Some(idx) = self.labels.iter().position(|lab| lab == &label) {
             if let Some(clr) = color {
@@ -134,24 +142,38 @@ impl BboxSpecificData {
                 let new_clr = new_color(&self.colors);
                 self.colors.push(new_clr);
             }
+            if let Some(max_id) = self.cat_ids.iter().max() {
+                self.cat_ids.push(max_id + 1);
+            } else {
+                self.cat_ids.push(1);
+            }
         }
     }
+
     pub fn colors(&self) -> &Vec<[u8; 3]> {
         &self.colors
     }
+
     pub fn labels(&self) -> &Vec<String> {
         &self.labels
     }
+
+    pub fn cat_ids(&self) -> &Vec<usize> {
+        &self.cat_ids
+    }
+
     pub fn new() -> Self {
         let new_label = DEFAULT_LABEL.to_string();
         let new_color = [255, 255, 255];
         let labels = vec![new_label.clone()];
         let colors = vec![new_color];
+        let cat_ids = vec![1];
         BboxSpecificData {
             new_label,
             labels,
             colors,
-            cat_id_current: 0,
+            cat_ids,
+            cat_idx_current: 0,
             annotations_map: HashMap::new(),
             export_file_type: BboxExportFileType::default(),
             import_file: None,
@@ -160,12 +182,12 @@ impl BboxSpecificData {
     }
     pub fn set_annotations_map(&mut self, map: HashMap<String, BboxAnnotations>) -> RvResult<()> {
         for (_, annos) in map.iter() {
-            for cat_id in annos.cat_ids() {
+            for cat_idx in annos.cat_idxs() {
                 let len = self.labels().len();
-                if *cat_id >= len {
+                if *cat_idx >= len {
                     return Err(format_rverr!(
                         "cat id {} does not have a label, out of bounds, {}",
-                        cat_id,
+                        cat_idx,
                         len
                     ));
                 }
@@ -185,6 +207,7 @@ impl Default for BboxSpecificData {
 pub struct BboxExportData {
     pub labels: Vec<String>,
     pub colors: Vec<[u8; 3]>,
+    pub cat_ids: Vec<usize>,
     pub annotations: HashMap<String, (Vec<BB>, Vec<usize>)>,
 }
 
@@ -256,12 +279,13 @@ fn write(
         bbox_data: Some(BboxExportData {
             labels: bbox_specifics.labels().clone(),
             colors: bbox_specifics.colors().clone(),
+            cat_ids: bbox_specifics.cat_ids().clone(),
             annotations: bbox_specifics
                 .anno_iter()
                 .map(|(filename, annos)| {
                     (
                         filename.clone(),
-                        (annos.bbs().clone(), annos.cat_ids().clone()),
+                        (annos.bbs().clone(), annos.cat_idxs().clone()),
                     )
                 })
                 .collect::<HashMap<_, _>>(),
