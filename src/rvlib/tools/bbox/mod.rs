@@ -1,7 +1,7 @@
 use crate::{
     annotations::BboxAnnotations,
     domain::{mouse_pos_to_orig_pos, Shape, BB},
-    history::History,
+    history::{History, Record},
     make_tool_transform,
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -162,14 +162,14 @@ impl Manipulate for BBox {
     fn on_activate(
         &mut self,
         mut world: World,
-        history: History,
+        mut history: History,
         shape_win: Shape,
     ) -> (World, History) {
         self.prev_pos = None;
         self.initial_view = InitialView::new();
         self.initial_view.update(&world, shape_win);
-        world = initialize_tools_menu_data(world);
         get_tools_data_mut(&mut world).menu_active = true;
+        history.push(Record::new(world.data.clone(), ACTOR_NAME));
         (world, history)
     }
     fn on_deactivate(
@@ -195,7 +195,7 @@ impl Manipulate for BBox {
         if event.window_resized().is_some() {
             (world, history) = self.on_activate(world, history, shape_win);
         }
-
+        world = initialize_tools_menu_data(world);
         {
             // export label file if demanded
             let bbox_data = get_tools_data(&world).specifics.bbox();
