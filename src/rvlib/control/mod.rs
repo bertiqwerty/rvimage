@@ -60,15 +60,18 @@ impl Control {
         }
         Ok(())
     }
+
     pub fn new(cfg: Cfg) -> Self {
         Self {
             cfg,
             ..Default::default()
         }
     }
+
     pub fn reader(&self) -> Option<&ReaderFromCfg> {
         self.reader.as_ref()
     }
+
     pub fn read_image(&mut self, file_label_selected_idx: usize, reload: bool) -> AsyncResultImage {
         let wrapped_image = self.reader.as_mut().and_then(|r| {
             self.paths_navigator.paths_selector().as_ref().map(|ps| {
@@ -81,17 +84,20 @@ impl Control {
             Some(x) => Ok(x?),
         }
     }
+
     fn make_reader(&mut self, cfg: Cfg) -> RvResult<()> {
         self.paths_navigator = PathsNavigator::new(None);
         self.last_open_folder_job_id =
             Some(self.tp.apply(Box::new(move || make_reader_from_cfg(cfg)))?);
         Ok(())
     }
+
     pub fn open_folder(&mut self, new_folder: String) -> RvResult<()> {
         self.make_reader(self.cfg.clone())?;
         self.opened_folder = Some(new_folder);
         Ok(())
     }
+
     pub fn load_opened_folder_content(&mut self) -> RvResult<()> {
         if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
             let selector = reader.open_folder(opened_folder.as_str())?;
@@ -99,6 +105,7 @@ impl Control {
         }
         Ok(())
     }
+
     pub fn check_if_connected(&mut self) -> RvResult<bool> {
         if let Some(job_id) = self.last_open_folder_job_id {
             let tp_res = self.tp.result(job_id);
@@ -115,6 +122,7 @@ impl Control {
             Ok(true)
         }
     }
+
     pub fn opened_folder_label(&self) -> Option<&str> {
         self.paths_navigator
             .paths_selector()
