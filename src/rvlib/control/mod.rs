@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::path::Path;
 
-use crate::file_util::{self, ConnectionData, ExportData};
+use crate::file_util::{self, ConnectionData, ExportData, MetaData};
 use crate::result::to_rv;
 use crate::tools::BBOX_NAME;
 use crate::tools_data::{ToolSpecifics, ToolsData};
@@ -120,6 +120,41 @@ impl Control {
             .paths_selector()
             .as_ref()
             .map(|ps| ps.folder_label())
+    }
+
+    pub fn file_label(&self, idx: usize) -> &str {
+        match self.paths_navigator.paths_selector() {
+            Some(ps) => ps.file_labels()[idx].1.as_str(),
+            None => "",
+        }
+    }
+
+    fn cfg_of_opened_folder(&self) -> Option<&Cfg> {
+        self.reader().map(|r| r.cfg())
+    }
+
+    fn opened_folder(&self) -> Option<&String> {
+        self.opened_folder.as_ref()
+    }
+
+    pub fn meta_data(&self, file_selected: Option<usize>) -> MetaData {
+        let file_path =
+            file_selected.and_then(|fs| self.paths_navigator.file_path(fs).map(|s| s.to_string()));
+        let open_folder = self.opened_folder().cloned();
+        let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
+        let connection_data = match ssh_cfg {
+            Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg),
+            None => ConnectionData::None,
+        };
+        let export_folder = self
+            .cfg_of_opened_folder()
+            .map(|cfg| cfg.export_folder().map(|ef| ef.to_string()).unwrap());
+        MetaData {
+            file_path,
+            connection_data,
+            opened_folder: open_folder,
+            export_folder,
+        }
     }
 }
 fn make_reader_from_cfg(cfg: Cfg) -> (ReaderFromCfg, Info) {

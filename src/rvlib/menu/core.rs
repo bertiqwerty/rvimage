@@ -1,7 +1,7 @@
 use crate::{
     cfg::{self, Cfg},
     control::{Control, Info},
-    file_util::{self, ConnectionData, MetaData},
+    file_util,
     menu::{self, cfg_menu::CfgMenu, open_folder, picklist},
     result::{to_rv, RvResult},
     tools::ToolState,
@@ -10,7 +10,6 @@ use crate::{
 };
 use egui::{ClippedPrimitive, Context, Id, Pos2, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
-use image::DynamicImage;
 use pixels::{wgpu, PixelsContext};
 use std::{mem, path::Path};
 use winit::window::Window;
@@ -58,33 +57,6 @@ impl Framework {
         }
     }
 
-    pub fn cfg_of_opened_folder(&self) -> Option<&Cfg> {
-        self.menu.control.reader().map(|r| r.cfg())
-    }
-
-    pub fn opened_folder(&self) -> Option<&String> {
-        self.menu.control.opened_folder.as_ref()
-    }
-
-    pub fn meta_data(&self, file_selected: Option<usize>) -> MetaData {
-        let file_path =
-            file_selected.and_then(|fs| self.menu().file_path(fs).map(|s| s.to_string()));
-        let open_folder = self.opened_folder().cloned();
-        let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
-        let connection_data = match ssh_cfg {
-            Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg),
-            None => ConnectionData::None,
-        };
-        let export_folder = self
-            .cfg_of_opened_folder()
-            .map(|cfg| cfg.export_folder().map(|ef| ef.to_string()).unwrap());
-        MetaData {
-            file_path,
-            connection_data,
-            opened_folder: open_folder,
-            export_folder,
-        }
-    }
     /// Handle input events from the window manager.
     pub fn handle_event(&mut self, event: &winit::event::WindowEvent) {
         self.egui_state.on_event(&self.egui_ctx, event);
@@ -108,12 +80,13 @@ impl Framework {
         window: &Window,
         tools: &mut [ToolState],
         tools_data_map: &mut ToolsDataMap,
+        ctrl: &mut Control,
     ) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw menus.
-            self.menu.ui(egui_ctx, tools_data_map);
+            self.menu.ui(egui_ctx, ctrl, tools_data_map);
             self.tool_selection_menu.ui(egui_ctx, tools, tools_data_map);
         });
         self.textures.append(output.textures_delta);
@@ -290,7 +263,6 @@ struct ImportBtnResp {
 }
 
 pub struct Menu {
-    control: Control,
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
     filter_string: String,
@@ -306,7 +278,6 @@ impl Menu {
         let (cfg, _) = get_cfg();
         let ssh_cfg_str = toml::to_string_pretty(&cfg.ssh_cfg).unwrap();
         Self {
-            control: Control::new(cfg),
             window_open: true,
             info_message: Info::None,
             filter_string: "".to_string(),
@@ -333,90 +304,18 @@ impl Menu {
         }
     }
 
-    pub fn prev(&mut self) {
-        self.control.paths_navigator.prev();
-    }
-
-    pub fn next(&mut self) {
-        self.control.paths_navigator.next();
-    }
-
-    pub fn file_label_selected_idx(&self) -> Option<usize> {
-        self.control.paths_navigator.file_label_selected_idx()
-    }
-
-    fn idx_of_file_label(&self, file_label: &str) -> Option<usize> {
-        match self.control.paths_navigator.paths_selector() {
-            Some(ps) => ps.idx_of_file_label(file_label),
-            None => None,
-        }
-    }
-
-    pub fn reload_opened_folder(&mut self) {
-        if let Err(e) = self.control.load_opened_folder_content() {
+    pub fn reload_opened_folder(&mut self, ctrl: &mut Control) {
+        if let Err(e) = ctrl.load_opened_folder_content() {
             self.info_message = Info::Error(format!("{:?}", e));
         }
     }
 
-    pub fn file_label(&self, idx: usize) -> &str {
-        match self.control.paths_navigator.paths_selector() {
-            Some(ps) => ps.file_labels()[idx].1.as_str(),
-            None => "",
-        }
-    }
-
-    pub fn select_file_label(&mut self, file_label: &str) {
-        self.control
-            .paths_navigator
-            .select_label_idx(self.idx_of_file_label(file_label));
-    }
-
-    pub fn activate_scroll_to_label(&mut self) {
-        self.control
-            .paths_navigator
-            .activate_scroll_to_selected_label();
-    }
-
-    pub fn select_label_idx(&mut self, file_label_idx: Option<usize>) {
-        self.control
-            .paths_navigator
-            .select_label_idx(file_label_idx);
-    }
-
-    pub fn folder_label(&self) -> Option<&str> {
-        self.control
-            .paths_navigator
-            .paths_selector()
-            .as_ref()
-            .map(|ps| ps.folder_label())
-    }
-
-    pub fn file_path(&self, file_idx: usize) -> Option<&str> {
-        self.control
-            .paths_navigator
-            .paths_selector()
-            .as_ref()
-            .map(|ps| ps.file_selected_path(file_idx))
-    }
-
-    pub fn read_image(
-        &mut self,
-        file_label_selected_idx: usize,
-        reload: bool,
-    ) -> Option<DynamicImage> {
-        let mut im_res = None;
-        handle_error!(
-            |im| {
-                im_res = im;
-            },
-            self.control.read_image(file_label_selected_idx, reload),
-            self
-        );
-        im_res
+    pub fn show_info(&mut self, msg: Info) {
+        self.info_message = msg;
     }
 
     /// Create the UI using egui.
-    fn ui(&mut self, ctx: &Context, tools_data_map: &mut ToolsDataMap) {
+    fn ui(&mut self, ctx: &Context, ctrl: &mut Control, tools_data_map: &mut ToolsDataMap) {
         let window_response = egui::Window::new("menu")
             .vscroll(true)
             .open(&mut self.window_open)
@@ -436,8 +335,7 @@ impl Menu {
 
                 // Top row with open folder and settings button
                 ui.horizontal(|ui| {
-                    let button_resp =
-                        open_folder::button(ui, &mut self.control, self.open_folder_popup_open);
+                    let button_resp = open_folder::button(ui, ctrl, self.open_folder_popup_open);
                     handle_error!(
                         |open| {
                             self.open_folder_popup_open = open;
@@ -448,15 +346,12 @@ impl Menu {
                     let popup_id = ui.make_persistent_id("cfg-popup");
                     self.import_button_resp.resp = Some(ui.button("import"));
 
-                    let cfg_gui = CfgMenu::new(
-                        popup_id,
-                        &mut self.control.cfg,
-                        &mut self.editable_ssh_cfg_str,
-                    );
+                    let cfg_gui =
+                        CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.editable_ssh_cfg_str);
                     ui.add(cfg_gui);
                 });
 
-                if let Ok(folder) = self.control.cfg.export_folder() {
+                if let Ok(folder) = ctrl.cfg.export_folder() {
                     if let Some(import_btn_resp) = &self.import_button_resp.resp {
                         if import_btn_resp.clicked() {
                             self.import_button_resp.popup_open = true;
@@ -483,7 +378,7 @@ impl Menu {
                             handle_error!(exports(), self);
                             if let Some(ffe) = filename_for_export {
                                 let file_path = Path::new(folder).join(ffe);
-                                handle_error!(self.control.import(file_path, tools_data_map), self);
+                                handle_error!(ctrl.import(file_path, tools_data_map), self);
                                 self.import_button_resp.resp = None;
                                 self.import_button_resp.popup_open = false;
                             }
@@ -495,11 +390,11 @@ impl Menu {
                     |con| {
                         connected = con;
                     },
-                    self.control.check_if_connected(),
+                    ctrl.check_if_connected(),
                     self
                 );
                 if connected {
-                    ui.label(self.control.opened_folder_label().unwrap_or(""));
+                    ui.label(ctrl.opened_folder_label().unwrap_or(""));
                 } else {
                     ui.label("connecting...");
                 }
@@ -513,17 +408,13 @@ impl Menu {
                     self.are_tools_active = true;
                 }
                 if txt_field.changed() {
-                    handle_error!(
-                        self.control.paths_navigator.filter(&self.filter_string),
-                        self
-                    );
+                    handle_error!(ctrl.paths_navigator.filter(&self.filter_string), self);
                 }
 
                 // scroll area showing image file names
-                let scroll_to_selected = self.control.paths_navigator.scroll_to_selected_label();
-                let mut file_label_selected_idx =
-                    self.control.paths_navigator.file_label_selected_idx();
-                if let Some(ps) = &self.control.paths_navigator.paths_selector() {
+                let scroll_to_selected = ctrl.paths_navigator.scroll_to_selected_label();
+                let mut file_label_selected_idx = ctrl.paths_navigator.file_label_selected_idx();
+                if let Some(ps) = &ctrl.paths_navigator.paths_selector() {
                     self.scroll_offset = menu::scroll_area::scroll_area(
                         ui,
                         &mut file_label_selected_idx,
@@ -531,14 +422,9 @@ impl Menu {
                         scroll_to_selected,
                         self.scroll_offset,
                     );
-                    self.control
-                        .paths_navigator
-                        .deactivate_scroll_to_selected_label();
-                    if self.control.paths_navigator.file_label_selected_idx()
-                        != file_label_selected_idx
-                    {
-                        self.control
-                            .paths_navigator
+                    ctrl.paths_navigator.deactivate_scroll_to_selected_label();
+                    if ctrl.paths_navigator.file_label_selected_idx() != file_label_selected_idx {
+                        ctrl.paths_navigator
                             .select_label_idx(file_label_selected_idx);
                     }
                 }

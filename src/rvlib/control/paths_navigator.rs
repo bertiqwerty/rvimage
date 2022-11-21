@@ -66,9 +66,22 @@ impl PathsNavigator {
             }
         }
     }
+
+    fn idx_of_file_label(&self, file_label: &str) -> Option<usize> {
+        match self.paths_selector() {
+            Some(ps) => ps.idx_of_file_label(file_label),
+            None => None,
+        }
+    }
+
+    pub fn select_file_label(&mut self, file_label: &str) {
+        self.select_label_idx(self.idx_of_file_label(file_label));
+    }
+
     pub fn paths_selector(&self) -> &Option<PathsSelector> {
         &self.paths_selector
     }
+
     pub fn filter(&mut self, filter_string: &str) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
             let unfiltered_idx_before_filter =
@@ -91,6 +104,16 @@ impl PathsNavigator {
             };
         }
         Ok(())
+    }
+
+    pub fn folder_label(&self) -> Option<&str> {
+        self.paths_selector().as_ref().map(|ps| ps.folder_label())
+    }
+
+    pub fn file_path(&self, file_idx: usize) -> Option<&str> {
+        self.paths_selector()
+            .as_ref()
+            .map(|ps| ps.file_selected_path(file_idx))
     }
 }
 

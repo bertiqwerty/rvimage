@@ -7,6 +7,7 @@ use lazy_static::lazy_static;
 use log::error;
 use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{self, Cfg};
+use rvlib::control::{Control, Info};
 use rvlib::domain::{self, Shape};
 use rvlib::file_util::MetaData;
 use rvlib::history::{History, Record};
@@ -34,7 +35,7 @@ const START_HEIGHT: u32 = 480;
 const MIN_WIN_INNER_SIZE: LogicalSize<i32> = LogicalSize::new(32, 32);
 const LOAD_ACTOR_NAME: &str = "Load";
 
-fn cfg() -> &'static Cfg {
+fn cfg_static_ref() -> &'static Cfg {
     lazy_static! {
         static ref CFG: Cfg = cfg::get_cfg().expect("config broken");
     }
@@ -43,7 +44,7 @@ fn cfg() -> &'static Cfg {
 
 fn http_address() -> &'static str {
     lazy_static! {
-        static ref HTTP_ADDRESS: &'static str = cfg().http_address();
+        static ref HTTP_ADDRESS: &'static str = cfg_static_ref().http_address();
     }
     &HTTP_ADDRESS
 }
@@ -185,6 +186,10 @@ fn main() -> Result<(), pixels::Error> {
 
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
     let mut world = empty_world();
+    let mut ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
+        println!("could not read cfg due to {:?}, returning default", e);
+        cfg::get_default_cfg()
+    }));
     let mut history = History::new();
     let mut file_selected = None;
     let mut is_loading_screen_active = false;
@@ -198,7 +203,7 @@ fn main() -> Result<(), pixels::Error> {
         rx_from_http = Some(rx);
     }
     event_loop.run(move |event, _, control_flow| {
-        match cfg().connection {
+        match cfg_static_ref().connection {
             cfg::Connection::Ssh => {
                 *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(300));
             }
@@ -219,7 +224,7 @@ fn main() -> Result<(), pixels::Error> {
             let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
 
             if framework.are_tools_active() {
-                let meta_data = framework.meta_data(file_selected);
+                let meta_data = ctrl.meta_data(file_selected);
                 world.data.meta_data = meta_data;
                 (world, history) = apply_tools(
                     &mut tools,
@@ -239,7 +244,7 @@ fn main() -> Result<(), pixels::Error> {
                         (world, history) =
                             t.activate(mem::take(&mut world), mem::take(&mut history), shape_win);
                     } else {
-                        let meta_data = framework.meta_data(file_selected);
+                        let meta_data = ctrl.meta_data(file_selected);
                         world.data.meta_data = meta_data;
                         (world, history) =
                             t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
@@ -249,7 +254,7 @@ fn main() -> Result<(), pixels::Error> {
             if input.held_shift() && input.key_pressed(VirtualKeyCode::Q) {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
-                    let meta_data = framework.meta_data(file_selected);
+                    let meta_data = ctrl.meta_data(file_selected);
                     world.data.meta_data = meta_data;
                     (world, history) =
                         t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
@@ -263,30 +268,32 @@ fn main() -> Result<(), pixels::Error> {
                 framework.menu_mut().toggle();
             }
             if input.key_released(VirtualKeyCode::F5) {
-                let label_selected =
-                    file_selected.map(|idx| framework.menu().file_label(idx).to_string());
-                framework.menu_mut().reload_opened_folder();
-                reload_cached_images = true;
-                if let Some(label_selected) = label_selected {
+                let label_selected = file_selected.map(|idx| ctrl.file_label(idx).to_string());
+                if let Err(e) = ctrl.load_opened_folder_content() {
                     framework
                         .menu_mut()
+                        .show_info(Info::Error(format!("{:?}", e)));
+                }
+                reload_cached_images = true;
+                if let Some(label_selected) = label_selected {
+                    ctrl.paths_navigator
                         .select_file_label(label_selected.as_str());
                 } else {
                     file_selected = None;
                 }
             }
             if input.key_pressed(VirtualKeyCode::PageDown) {
-                framework.menu_mut().next();
+                ctrl.paths_navigator.next();
             }
             if input.key_pressed(VirtualKeyCode::PageUp) {
-                framework.menu_mut().prev();
+                ctrl.paths_navigator.prev();
             }
 
             // check for new image requests from http server
             let rx_match = &rx_from_http.as_ref().map(|rx| rx.try_iter().last());
             if let Some(Some(Ok(file_label))) = rx_match {
-                framework.menu_mut().select_file_label(file_label);
-                framework.menu_mut().activate_scroll_to_label();
+                ctrl.paths_navigator.select_file_label(file_label);
+                ctrl.paths_navigator.activate_scroll_to_selected_label();
             } else if let Some(Some(Err(e))) = rx_match {
                 // if the server thread sends an error we restart the server
                 println!("{:?}", e);
@@ -300,8 +307,8 @@ fn main() -> Result<(), pixels::Error> {
                     };
             }
 
-            let menu_file_selected = framework.menu().file_label_selected_idx();
-            let make_folder_label = || framework.menu().folder_label().map(|s| s.to_string());
+            let menu_file_selected = ctrl.paths_navigator.file_label_selected_idx();
+            let make_folder_label = || ctrl.paths_navigator.folder_label().map(|s| s.to_string());
 
             let ims_raw_idx_pair = if input.held_control() && input.key_pressed(VirtualKeyCode::Z) {
                 // undo
@@ -316,13 +323,17 @@ fn main() -> Result<(), pixels::Error> {
                 if let Some(selected) = &menu_file_selected {
                     let folder_label = make_folder_label();
                     let file_path = menu_file_selected
-                        .and_then(|fs| Some(framework.menu().file_path(fs)?.to_string()));
-                    let read_image_and_idx = match (
-                        file_path,
-                        framework
-                            .menu_mut()
-                            .read_image(*selected, reload_cached_images),
-                    ) {
+                        .and_then(|fs| Some(ctrl.paths_navigator.file_path(fs)?.to_string()));
+                    let im_read = match ctrl.read_image(*selected, reload_cached_images) {
+                        Ok(im) => im,
+                        Err(e) => {
+                            framework
+                                .menu_mut()
+                                .show_info(Info::Error(format!("{:?}", e)));
+                            None
+                        }
+                    };
+                    let read_image_and_idx = match (file_path, im_read) {
                         (Some(fp), Some(ri)) => {
                             let ims_raw = DataRaw::new(
                                 ri,
@@ -373,7 +384,7 @@ fn main() -> Result<(), pixels::Error> {
                 let size = window.inner_size();
                 let shape_win = Shape::from_size(&size);
                 if file_label_idx.is_some() {
-                    framework.menu_mut().select_label_idx(file_label_idx);
+                    ctrl.paths_navigator.select_label_idx(file_label_idx);
                 }
                 let zoom_box = if ims_raw.shape() == world.data.shape() {
                     *world.zoom_box()
@@ -403,7 +414,7 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             // show position and rgb value
-            if let Some(idx) = framework.menu_mut().file_label_selected_idx() {
+            if let Some(idx) = ctrl.paths_navigator.file_label_selected_idx() {
                 let shape_win = Shape {
                     w: window.inner_size().width,
                     h: window.inner_size().height,
@@ -411,7 +422,7 @@ fn main() -> Result<(), pixels::Error> {
                 let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
                 let data_point = get_pixel_on_orig_str(&world, mouse_pos, shape_win);
                 let shape = world.shape_orig();
-                let file_label = framework.menu().file_label(idx);
+                let file_label = ctrl.file_label(idx);
                 let active_tool = tools.iter().find(|t| t.is_active());
                 let tool_string = if let Some(t) = active_tool {
                     format!(" - {} tool is active - ", t.name)
@@ -446,7 +457,12 @@ fn main() -> Result<(), pixels::Error> {
                 world.draw(&mut pixels);
 
                 // Prepare egui
-                framework.prepare(&window, &mut tools, &mut world.data.tools_data_map);
+                framework.prepare(
+                    &window,
+                    &mut tools,
+                    &mut world.data.tools_data_map,
+                    &mut ctrl,
+                );
 
                 // Render everything together
                 let render_result = pixels.render_with(|encoder, render_target, context| {
