@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fs::{self, File},
+    mem,
     path::{Path, PathBuf},
 };
 
@@ -225,6 +226,18 @@ impl BboxExportData {
         )?;
         Ok(bbox_data)
     }
+
+    pub fn from_bbox_data(mut bbox_specifics: BboxSpecificData) -> Self {
+        BboxExportData {
+            labels: mem::take(&mut bbox_specifics.labels),
+            colors: mem::take(&mut bbox_specifics.colors),
+            cat_ids: mem::take(&mut bbox_specifics.cat_ids),
+            annotations: bbox_specifics
+                .anno_intoiter()
+                .map(|(filename, annos)| (filename, annos.to_data()))
+                .collect::<HashMap<_, _>>(),
+        }
+    }
 }
 fn get_last_part_of_path(path: &str, sep: char) -> Option<String> {
     if path.contains(sep) {
@@ -275,20 +288,7 @@ fn write(
     let data = ExportData {
         opened_folder: of.clone(),
         connection_data: meta_data.connection_data.clone(),
-        bbox_data: Some(BboxExportData {
-            labels: bbox_specifics.labels().clone(),
-            colors: bbox_specifics.colors().clone(),
-            cat_ids: bbox_specifics.cat_ids().clone(),
-            annotations: bbox_specifics
-                .anno_iter()
-                .map(|(filename, annos)| {
-                    (
-                        filename.clone(),
-                        (annos.bbs().clone(), annos.cat_idxs().clone()),
-                    )
-                })
-                .collect::<HashMap<_, _>>(),
-        }),
+        bbox_data: Some(BboxExportData::from_bbox_data(bbox_specifics)),
     };
     let of_last_part_linux = get_last_part_of_path(of, '/');
     let of_last_part_windows =

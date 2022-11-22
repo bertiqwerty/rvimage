@@ -21,5 +21,8 @@ macro_rules! implement_annotations_getters {
         pub fn anno_iter(&self) -> impl Iterator<Item = (&String, &$tool_data_type)> {
             self.annotations_map.iter()
         }
+        pub fn anno_intoiter(self) -> impl Iterator<Item = (String, $tool_data_type)> {
+            self.annotations_map.into_iter()
+        }
     };
 }

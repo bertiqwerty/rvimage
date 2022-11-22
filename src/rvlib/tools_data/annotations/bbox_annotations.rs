@@ -155,6 +155,10 @@ impl BboxAnnotations {
         }
     }
 
+    pub fn to_data(self) -> (Vec<BB>, Vec<usize>) {
+        (self.bbs, self.cat_idxs)
+    }
+
     pub fn extend<IB, IC>(&mut self, bbs: IB, cat_ids: IC, shape_image: Shape)
     where
         IB: Iterator<Item = BB>,
