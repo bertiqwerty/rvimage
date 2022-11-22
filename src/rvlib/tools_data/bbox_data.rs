@@ -7,14 +7,13 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_pickle::{DeOptions, SerOptions};
 
+use super::annotations::{selected_indices, BboxAnnotations};
 use crate::{
-    annotations::{selected_indices, BboxAnnotations},
     domain::BB,
     file_util::{self, ExportData, MetaData},
     format_rverr, implement_annotations_getters,
     result::{to_rv, RvError, RvResult},
 };
-
 const DEFAULT_LABEL: &str = "foreground";
 
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {

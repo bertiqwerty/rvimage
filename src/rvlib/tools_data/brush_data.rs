@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::{annotations::BrushAnnotations, implement_annotations_getters};
-
+use super::annotations::BrushAnnotations;
+use crate::implement_annotations_getters;
 const fn default() -> BrushAnnotations {
     BrushAnnotations {
         points: vec![],

@@ -7,6 +7,7 @@ pub use self::{
     bbox_data::write_json, bbox_data::write_pickle, bbox_data::BboxExportData,
     bbox_data::BboxSpecificData, brush_data::BrushToolData,
 };
+pub mod annotations;
 pub mod bbox_data;
 pub mod brush_data;
 #[macro_export]

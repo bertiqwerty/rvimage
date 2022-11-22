@@ -1,4 +1,3 @@
-pub mod annotations;
 mod cache;
 pub mod cfg;
 pub mod control;
@@ -19,3 +18,5 @@ mod types;
 pub mod world;
 const LEFT_BTN: usize = 0;
 const RIGHT_BTN: usize = 1;
+
+pub use tools_data::annotations;
