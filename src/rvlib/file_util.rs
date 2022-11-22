@@ -153,3 +153,10 @@ where
     fs::write(&path, contents)
         .map_err(|e| format_rverr!("could not write to {:?} since {:?}", path, e))
 }
+
+#[macro_export]
+macro_rules! p_to_rv {
+    ($path:expr, $expr:expr) => {
+        $expr.map_err(|e| format_rverr!("{:?}, failed on {:?}", e, $path))
+    };
+}
