@@ -43,3 +43,20 @@ address = "address:port"  # port is usually 22
 user = "your username"
 ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
 ```
+
+## Bounding Box Labeling Tool
+| event                       | action                                                             |
+| --------------------------- | ------------------------------------------------------------------ |
+| first left click            | start drawing box                                                  |
+| second left click           | finish drawing box                                                 |
+| left click on corner of box | move corner of box                                                 |
+| ctrl + left click on box    | select box                                                         |
+| ctrl + a                    | select all boxes                                                   |
+| delete                      | remove selected boxes                                              |
+| ctrl + d                    | deselect all boxes                                                 |
+| c                           | clone selected box at mouse position and move selection to new box |
+| ctrl + c                    | copy all selected boxes to clipboard                               |
+| ctrl + v                    | paste boxes from clipboard on another image                        |
+| left/right/up/down          | move bottom right corner                                           |
+| ctrl + left/right/up/down   | move top left corner                                               |
+| alt + left/right/up/down    | move box                                                           |
