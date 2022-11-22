@@ -57,6 +57,6 @@ ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
 | c                           | clone selected box at mouse position and move selection to new box |
 | ctrl + c                    | copy all selected boxes to clipboard                               |
 | ctrl + v                    | paste boxes from clipboard on another image                        |
-| left/right/up/down          | move bottom right corner                                           |
-| ctrl + left/right/up/down   | move top left corner                                               |
-| alt + left/right/up/down    | move box                                                           |
+| left/right/up/down          | move bottom right corner of all selected boxes                     |
+| ctrl + left/right/up/down   | move top left corner of all selected boxes                         |
+| alt + left/right/up/down    | move all selected boxes                                            |
