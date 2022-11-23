@@ -262,6 +262,7 @@ fn get_last_part_of_path(path: &str, sep: char) -> Option<String> {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(untagged)]
 enum CocoValue {
     Id(usize),
     String(String),
@@ -271,6 +272,7 @@ enum CocoValue {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(untagged)]
 enum HashMapOrVec {
     Map(HashMap<String, CocoValue>),
     Vec(Vec<HashMap<String, CocoValue>>),
