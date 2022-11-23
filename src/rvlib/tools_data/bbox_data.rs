@@ -22,7 +22,7 @@ fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
 }
 
-fn random_clr() -> [u8; 3] {
+pub fn random_clr() -> [u8; 3] {
     let r = rand::random::<u8>();
     let g = rand::random::<u8>();
     let b = rand::random::<u8>();
@@ -46,7 +46,7 @@ fn argmax_clr_dist(picklist: &[[u8; 3]], legacylist: &[[u8; 3]]) -> [u8; 3] {
     picklist[idx]
 }
 
-fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
+pub fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
     let mut new_clr_proposals = [[0u8, 0u8, 0u8]; 10];
     for new_clr in &mut new_clr_proposals {
         *new_clr = random_clr();
@@ -91,7 +91,7 @@ pub struct BboxSpecificData {
     pub new_label: String,
     labels: Vec<String>,
     colors: Vec<[u8; 3]>,
-    cat_ids: Vec<usize>,
+    cat_ids: Vec<u32>,
     pub cat_idx_current: usize,
     // filename -> annotations per file
     annotations_map: HashMap<String, BboxAnnotations>,
@@ -158,7 +158,7 @@ impl BboxSpecificData {
         &self.labels
     }
 
-    pub fn cat_ids(&self) -> &Vec<usize> {
+    pub fn cat_ids(&self) -> &Vec<u32> {
         &self.cat_ids
     }
 
@@ -207,7 +207,7 @@ impl Default for BboxSpecificData {
 pub struct BboxExportData {
     pub labels: Vec<String>,
     pub colors: Vec<[u8; 3]>,
-    pub cat_ids: Vec<usize>,
+    pub cat_ids: Vec<u32>,
     pub annotations: HashMap<String, (Vec<BB>, Vec<usize>)>,
 }
 

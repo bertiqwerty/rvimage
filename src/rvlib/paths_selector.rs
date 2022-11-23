@@ -2,15 +2,6 @@ use std::path::Path;
 
 use crate::{file_util, format_rverr, result::RvResult};
 
-pub fn to_stem_str(p: &Path) -> RvResult<&str> {
-    file_util::osstr_to_str(p.file_stem())
-        .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
-}
-
-pub fn to_name_str(p: &Path) -> RvResult<&str> {
-    file_util::osstr_to_str(p.file_name())
-        .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
-}
 fn list_file_labels(file_paths: &[String], filter_str: &str) -> RvResult<Vec<(usize, String)>> {
     file_paths
         .iter()
@@ -22,7 +13,7 @@ fn list_file_labels(file_paths: &[String], filter_str: &str) -> RvResult<Vec<(us
                 p.contains(filter_str)
             }
         })
-        .map(|(i, p)| Ok((i, to_name_str(Path::new(p))?.to_string())))
+        .map(|(i, p)| Ok((i, file_util::to_name_str(Path::new(p))?.to_string())))
         .collect::<RvResult<Vec<_>>>()
 }
 
@@ -33,8 +24,12 @@ fn make_folder_label(folder_path: Option<&str>) -> RvResult<String> {
             let last = folder_path.ancestors().next();
             let one_before_last = folder_path.ancestors().nth(1);
             match (one_before_last, last) {
-                (Some(obl), Some(l)) => Ok(format!("{}/{}", to_stem_str(obl)?, to_stem_str(l)?,)),
-                (None, Some(l)) => Ok(to_stem_str(l)?.to_string()),
+                (Some(obl), Some(l)) => Ok(format!(
+                    "{}/{}",
+                    file_util::to_stem_str(obl)?,
+                    file_util::to_stem_str(l)?,
+                )),
+                (None, Some(l)) => Ok(file_util::to_stem_str(l)?.to_string()),
                 _ => Err(format_rverr!("could not convert path {:?} to str", sf)),
             }
         }

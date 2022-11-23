@@ -1,4 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +12,10 @@ use crate::{
     result::{to_rv, RvError, RvResult},
 };
 
-use super::{BboxExportData, BboxSpecificData};
+use super::{
+    bbox_data::{new_color, random_clr},
+    BboxExportData, BboxSpecificData,
+};
 
 #[derive(Serialize, Deserialize)]
 struct CocoInfo {
@@ -146,6 +153,63 @@ fn bboxdata_to_coco(
     })
 }
 
+pub fn read_coco<P>(filename: P) -> RvResult<BboxSpecificData>
+where
+    P: AsRef<Path> + Debug,
+{
+    let s = file_util::read_to_string(filename)?;
+    let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+
+    coco_2_bboxdata(read)
+}
+
+fn coco_2_bboxdata(coco_data: CocoExportData) -> RvResult<BboxSpecificData> {
+    let cat_ids: Vec<u32> = coco_data
+        .categories
+        .iter()
+        .map(|coco_cat| coco_cat.id)
+        .collect();
+    let labels: Vec<String> = coco_data
+        .categories
+        .into_iter()
+        .map(|coco_cat| coco_cat.name)
+        .collect();
+    let mut colors: Vec<[u8; 3]> = vec![random_clr()];
+    for _ in 0..(labels.len() - 1) {
+        let color = new_color(&colors);
+        colors.push(color);
+    }
+    let id_image_map = coco_data
+        .images
+        .iter()
+        .map(|coco_image: &CocoImage| Ok((coco_image.id, coco_image.file_name.as_str())))
+        .collect::<RvResult<HashMap<u32, &str>>>()?;
+
+    let mut annotations: HashMap<String, (Vec<BB>, Vec<usize>)> = HashMap::new();
+    for coco_anno in coco_data.annotations {
+        let bb = BB::from_array(&coco_anno.bbox);
+        let cat_idx = cat_ids
+            .iter()
+            .position(|cat_id| *cat_id == coco_anno.category_id)
+            .ok_or_else(|| RvError::new("could not convert coco data"))?;
+        let k: &str = id_image_map[&coco_anno.image_id];
+        if let Some(annos_of_image) = annotations.get_mut(k) {
+            annos_of_image.0.push(bb);
+            annos_of_image.1.push(cat_idx);
+        } else {
+            annotations.insert(k.to_string(), (vec![bb], vec![cat_idx]));
+        }
+    }
+
+    BboxExportData {
+        labels,
+        colors,
+        cat_ids,
+        annotations,
+    }
+    .to_bbox_data()
+}
+
 #[cfg(test)]
 use {
     super::bbox_data::make_data,
@@ -165,5 +229,11 @@ fn test_coco_export() -> RvResult<()> {
     let (bbox_data, meta, _) = make_data("json", &file_path);
     let coco_file = write_coco(&meta, bbox_data.clone())?;
     defer_file_removal!(&coco_file);
+    let read = read_coco(&coco_file)?;
+    assert_eq!(bbox_data.cat_ids(), read.cat_ids());
+    assert_eq!(bbox_data.labels(), read.labels());
+    for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
+        assert_eq!(bbd_anno, read_anno);
+    }
     Ok(())
 }

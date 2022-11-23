@@ -57,6 +57,15 @@ pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
         })
 }
 
+pub fn to_stem_str(p: &Path) -> RvResult<&str> {
+    osstr_to_str(p.file_stem())
+        .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+}
+
+pub fn to_name_str(p: &Path) -> RvResult<&str> {
+    osstr_to_str(p.file_name())
+        .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+}
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 pub enum ConnectionData {
     Ssh(SshCfg),

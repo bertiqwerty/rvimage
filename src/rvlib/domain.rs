@@ -167,6 +167,15 @@ pub struct BB {
     pub h: u32,
 }
 impl BB {
+    pub fn from_array(a: &[u32; 4]) -> Self {
+        BB {
+            x: a[0],
+            y: a[1],
+            w: a[2],
+            h: a[3],
+        }
+    }
+
     pub fn min_max(&self, axis: usize) -> (u32, u32) {
         if axis == 0 {
             (self.x, self.x + self.w)
