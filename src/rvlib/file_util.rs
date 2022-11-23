@@ -99,8 +99,7 @@ impl<F: FnMut()> Drop for Defer<F> {
 #[macro_export]
 macro_rules! defer {
     ($f:expr) => {
-        use $crate::file_util::Defer;
-        let _dfr = Defer { func: $f };
+        let _dfr = $crate::file_util::Defer { func: $f };
     };
 }
 pub fn checked_remove<'a, P: AsRef<Path> + Debug>(
@@ -115,19 +114,15 @@ pub fn checked_remove<'a, P: AsRef<Path> + Debug>(
 #[macro_export]
 macro_rules! defer_folder_removal {
     ($path:expr) => {
-        use $crate::defer;
-        use $crate::file_util::checked_remove;
-        let func = || checked_remove($path, std::fs::remove_dir_all);
-        defer!(func);
+        let func = || $crate::file_util::checked_remove($path, std::fs::remove_dir_all);
+        $crate::defer!(func);
     };
 }
 #[macro_export]
 macro_rules! defer_file_removal {
     ($path:expr) => {
-        use $crate::defer;
-        use $crate::file_util::checked_remove;
-        let func = || checked_remove($path, std::fs::remove_file);
-        defer!(func);
+        let func = || $crate::file_util::checked_remove($path, std::fs::remove_file);
+        $crate::defer!(func);
     };
 }
 

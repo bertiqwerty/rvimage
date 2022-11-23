@@ -294,6 +294,7 @@ pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvR
     let coco_data = to_coco(meta_data, bbox_specifics)?;
     let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
     file_util::write(&coco_out_path, data_str)?;
+    println!("exported coco labels to {:?}", coco_out_path);
     Ok(coco_out_path)
 }
 
@@ -514,13 +515,14 @@ fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaData,
 fn test_coco_export() -> RvResult<()> {
     let image = ViewImage::new(32, 32);
     let tmpdir = get_cfg()?.tmpdir().unwrap().to_string();
-    let file_path = PathBuf::from_str(tmpdir.as_str())
-        .unwrap()
-        .join("test_image.png");
-    defer_file_removal!(&file_path);
+    let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
+    fs::create_dir_all(&tmpdir).unwrap();
+    let file_path = tmpdir.join("test_image.png");
     image.save(&file_path).unwrap();
+    defer_file_removal!(&file_path);
     let (bbox_data, meta, _) = make_data("json", &file_path);
-    write_coco(&meta, bbox_data.clone())?;
+    let coco_file = write_coco(&meta, bbox_data.clone())?;
+    defer_file_removal!(&coco_file);
     Ok(())
 }
 #[test]
