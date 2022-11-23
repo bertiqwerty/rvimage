@@ -10,6 +10,7 @@ pub use self::{
 pub mod annotations;
 pub mod bbox_data;
 pub mod brush_data;
+pub mod coco_io;
 #[macro_export]
 macro_rules! tools_data_initializer {
     ($actor:expr, $variant:ident, $tool_data_type:ident) => {

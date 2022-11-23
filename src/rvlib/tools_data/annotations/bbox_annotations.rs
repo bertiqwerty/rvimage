@@ -50,7 +50,7 @@ fn draw_bbs<'a>(
     selected_bbs: &'a [bool],
     cats: Cats<'a>,
 ) -> ViewImage {
-    let font_data: &[u8] = include_bytes!("../../../../Roboto/Roboto-Bold.ttf");
+    let font_data: &[u8] = include_bytes!("../../../../resources/Roboto/Roboto-Bold.ttf");
     // remove those box ids that are outside of the zoom box
     let relevant_box_inds = (0..bbs.len()).filter(|box_idx| {
         if let Some(zb) = zoom_box {

@@ -261,124 +261,6 @@ fn get_last_part_of_path(path: &str, sep: char) -> Option<String> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(untagged)]
-enum CocoValue {
-    Id(usize),
-    String(String),
-    Bbox([u32; 4]),
-    Seg(Vec<Vec<u32>>),
-    Area(f32),
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(untagged)]
-enum HashMapOrVec {
-    Map(HashMap<String, CocoValue>),
-    Vec(Vec<HashMap<String, CocoValue>>),
-}
-
-type CocoDataExport = HashMap<String, HashMapOrVec>;
-
-pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
-    let export_folder = Path::new(
-        meta_data
-            .export_folder
-            .as_ref()
-            .ok_or_else(|| RvError::new("no export folder given"))?,
-    );
-    let opened_folder = meta_data
-        .opened_folder
-        .as_deref()
-        .ok_or_else(|| RvError::new("no folder open"))?;
-    let file_name = format!("{}_coco.json", opened_folder);
-    let coco_out_path = export_folder.join(file_name);
-    let coco_data = to_coco(meta_data, bbox_specifics)?;
-    let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
-    file_util::write(&coco_out_path, data_str)?;
-    println!("exported coco labels to {:?}", coco_out_path);
-    Ok(coco_out_path)
-}
-
-fn to_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<CocoDataExport> {
-    let opened_folder = meta_data
-        .opened_folder
-        .as_deref()
-        .ok_or_else(|| RvError::new("no folder open"))?;
-
-    let info_str = "created with Rvimage, https://github.com/bertiqwerty/rvimage".to_string();
-    let info = HashMap::from([("description".to_string(), CocoValue::String(info_str))]);
-    let export_data = BboxExportData::from_bbox_data(bbox_specifics);
-
-    let make_image_map = |(idx, filename)| {
-        let file_path = Path::new(opened_folder)
-            .join(filename)
-            .into_os_string()
-            .into_string()
-            .map_err(to_rv)?;
-        println!("file path: {}", file_path);
-        let (w, h) = image::image_dimensions(&file_path).map_err(to_rv)?;
-        Ok(HashMap::from([
-            ("id".to_string(), CocoValue::Id(idx)),
-            ("width".to_string(), CocoValue::Id(w as usize)),
-            ("height".to_string(), CocoValue::Id(h as usize)),
-            ("file_name".to_string(), CocoValue::String(file_path)),
-        ]))
-    };
-    let images = export_data
-        .annotations
-        .keys()
-        .enumerate()
-        .map(make_image_map)
-        .collect::<RvResult<Vec<_>>>()?;
-
-    let categories = export_data
-        .labels
-        .iter()
-        .zip(export_data.cat_ids.iter())
-        .map(|(label, cat_id)| {
-            HashMap::from([
-                ("id".to_string(), CocoValue::Id(*cat_id)),
-                ("name".to_string(), CocoValue::String(label.clone())),
-            ])
-        })
-        .collect::<Vec<_>>();
-
-    let make_anno_map = |(image_idx, (bbs, cat_idxs)): (usize, &(Vec<BB>, Vec<usize>))| {
-        bbs.iter()
-            .zip(cat_idxs.iter())
-            .map(|(bb, cat_idx): (&BB, &usize)| {
-                HashMap::from([
-                    ("image_id".to_string(), CocoValue::Id(image_idx)),
-                    (
-                        "category_id".to_string(),
-                        CocoValue::Id(export_data.cat_ids[*cat_idx]),
-                    ),
-                    (
-                        "bbox".to_string(),
-                        CocoValue::Bbox([bb.x, bb.y, bb.w, bb.h]),
-                    ),
-                    ("segmentation".to_string(), CocoValue::Seg(vec![])),
-                    ("area".to_string(), CocoValue::Area((bb.h * bb.w) as f32)),
-                ])
-            })
-            .collect::<Vec<_>>()
-    };
-    let annotations = export_data
-        .annotations
-        .values()
-        .enumerate()
-        .flat_map(make_anno_map)
-        .collect::<Vec<_>>();
-
-    Ok(CocoDataExport::from([
-        ("info".to_string(), HashMapOrVec::Map(info)),
-        ("images".to_string(), HashMapOrVec::Vec(images)),
-        ("categories".to_string(), HashMapOrVec::Vec(categories)),
-        ("annotations".to_string(), HashMapOrVec::Vec(annotations)),
-    ]))
-}
-
 fn write(
     meta_data: &MetaData,
     bbox_specifics: BboxSpecificData,
@@ -461,16 +343,14 @@ pub fn _read_pickle(filename: &str) -> RvResult<BboxSpecificData> {
 #[cfg(test)]
 use {
     crate::{
-        cfg::get_cfg,
         cfg::SshCfg,
         domain::make_test_bbs,
-        types::ViewImage,
         {defer_file_removal, file_util::DEFAULT_TMPDIR},
     },
     std::str::FromStr,
 };
 #[cfg(test)]
-fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaData, PathBuf) {
+pub fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaData, PathBuf) {
     use crate::file_util::ConnectionData;
 
     let opened_folder = "xi".to_string();
@@ -513,20 +393,6 @@ fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaData,
     (bbox_data, meta, test_export_path)
 }
 
-#[test]
-fn test_coco_export() -> RvResult<()> {
-    let image = ViewImage::new(32, 32);
-    let tmpdir = get_cfg()?.tmpdir().unwrap().to_string();
-    let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
-    fs::create_dir_all(&tmpdir).unwrap();
-    let file_path = tmpdir.join("test_image.png");
-    image.save(&file_path).unwrap();
-    defer_file_removal!(&file_path);
-    let (bbox_data, meta, _) = make_data("json", &file_path);
-    let coco_file = write_coco(&meta, bbox_data.clone())?;
-    defer_file_removal!(&coco_file);
-    Ok(())
-}
 #[test]
 fn test_json_export() -> RvResult<()> {
     let (bbox_data, meta, path) = make_data("json", &PathBuf::from_str("dummyfile").unwrap());
