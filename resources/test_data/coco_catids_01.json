@@ -1,0 +1,90 @@
+{
+    "info": {
+        "year": 2022,
+        "version": "v0.1",
+        "description": "just a test file",
+        "contributor": "someone",
+        "url": ""
+    },
+    "images": [
+        {
+            "id": 0,
+            "width": 64,
+            "height": 32,
+            "file_name": "nowhere.png",
+            "license": "somelic",
+            "flickr_url": "",
+            "coco_url": ""
+        },
+        {
+            "id": 1,
+            "width": 64,
+            "height": 32,
+            "file_name": "nowhere2.png",
+            "license": "somelic",
+            "flickr_url": "",
+            "coco_url": ""
+        }
+    ],
+    "licenses": [
+        {
+            "id": 9,
+            "name": "rvimage license",
+            "url": "just.a.placeholder.so.no.url"
+        }
+    ],
+    "categories": [
+        {
+            "id": 0,
+            "name": "first label"
+        },
+        {
+            "id": 1,
+            "name": "second label"
+        }
+    ],
+    "annotations": [
+        {
+            "id": 0,
+            "image_id": 0,
+            "category_id": 0,
+            "segmentation": [],
+            "area": 16.0,
+            "bbox": [
+                1,
+                1,
+                5,
+                5
+            ],
+            "iscrowd": 0
+        },
+        {
+            "id": 1,
+            "image_id": 0,
+            "category_id": 0,
+            "segmentation": [],
+            "area": 16.0,
+            "bbox": [
+                11,
+                11,
+                15,
+                15
+            ],
+            "iscrowd": 0
+        },
+        {
+            "id": 2,
+            "image_id": 1,
+            "category_id": 1,
+            "segmentation": [],
+            "area": 16.0,
+            "bbox": [
+                1,
+                1,
+                5,
+                5
+            ],
+            "iscrowd": 0
+        }
+    ]
+}

@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::file_util::{self, ConnectionData, ExportData, MetaData};
 use crate::result::to_rv;
 use crate::tools::BBOX_NAME;
-use crate::tools_data::{ToolSpecifics, ToolsData};
+use crate::tools_data::{BboxSpecificData, ToolSpecifics, ToolsData};
 use crate::world::ToolsDataMap;
 use crate::{
     cfg::Cfg, reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
@@ -49,7 +49,7 @@ impl Control {
             }
             self.open_folder(read.opened_folder)?;
             if let Some(bbox_data) = read.bbox_data {
-                let bbox_data = bbox_data.to_bbox_data()?;
+                let bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
                 let tools_data = tools_data_map.get_mut(BBOX_NAME);
                 if let Some(td) = tools_data {
                     td.specifics = ToolSpecifics::Bbox(bbox_data);

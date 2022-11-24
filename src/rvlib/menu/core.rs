@@ -87,7 +87,12 @@ impl Framework {
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw menus.
             self.menu.ui(egui_ctx, ctrl, tools_data_map);
-            self.tool_selection_menu.ui(egui_ctx, tools, tools_data_map);
+            match self.tool_selection_menu.ui(egui_ctx, tools, tools_data_map) {
+                Ok(_) => (),
+                Err(e) => {
+                    self.menu.show_info(Info::Error(format!("{:?}", e)));
+                }
+            }
         });
         self.textures.append(output.textures_delta);
         self.egui_state
@@ -218,13 +223,18 @@ impl ToolSelectMenu {
         }
     }
 
-    fn ui(&mut self, ctx: &Context, tools: &mut [ToolState], tools_menu_map: &mut ToolsDataMap) {
+    fn ui(
+        &mut self,
+        ctx: &Context,
+        tools: &mut [ToolState],
+        tools_menu_map: &mut ToolsDataMap,
+    ) -> RvResult<()> {
         let window_response = egui::Window::new("tools")
             .vscroll(true)
             .title_bar(false)
             .open(&mut self.window_open)
             .default_pos(Pos2 { x: 500.0, y: 15.0 })
-            .show(ctx, |ui| {
+            .show(ctx, |ui| -> RvResult<()> {
                 ui.horizontal_top(|ui| {
                     self.recently_activated_tool = tools
                         .iter_mut()
@@ -233,11 +243,13 @@ impl ToolSelectMenu {
                         .map(|(i, _)| i);
                 });
                 for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
-                    *v = match &mut v.specifics {
+                    let tmp = match &mut v.specifics {
                         ToolSpecifics::Bbox(x) => bbox_menu(ui, v.menu_active, mem::take(x)),
-                        ToolSpecifics::Brush(_) => mem::take(v),
+                        ToolSpecifics::Brush(_) => Ok(mem::take(v)),
                     };
+                    *v = tmp?;
                 }
+                Ok(())
             });
         if let (Some(wr), Some(pos)) = (window_response, ctx.pointer_latest_pos()) {
             if wr.response.rect.expand(5.0).contains(pos) {
@@ -246,6 +258,7 @@ impl ToolSelectMenu {
                 self.are_tools_active = true;
             }
         }
+        Ok(())
     }
 
     pub fn toggle(&mut self) {

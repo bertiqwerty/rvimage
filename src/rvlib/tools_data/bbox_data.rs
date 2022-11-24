@@ -103,7 +103,37 @@ pub struct BboxSpecificData {
 impl BboxSpecificData {
     implement_annotations_getters!(&DEFAULT_BBOX_ANNOTATION, BboxAnnotations);
 
-    pub fn remove_cat(&mut self, cat_idx: usize) {
+    pub fn from_bbox_export_data(input_data: BboxExportData) -> RvResult<Self> {
+        let mut out_data = Self {
+            new_label: DEFAULT_LABEL.to_string(),
+            labels: vec![],
+            colors: vec![],
+            cat_ids: vec![],
+            cat_idx_current: 0,
+            annotations_map: HashMap::new(),
+            export_file_type: BboxExportFileType::default(),
+            import_file: None,
+            clipboard: None,
+        };
+        for ((lab, clr), cat_id) in input_data
+            .labels
+            .into_iter()
+            .zip(input_data.colors.into_iter())
+            .zip(input_data.cat_ids.into_iter())
+        {
+            out_data.push(lab, Some(clr), Some(cat_id))?;
+        }
+        out_data.set_annotations_map(
+            input_data
+                .annotations
+                .into_iter()
+                .map(|(s, (bbs, cat_ids))| (s, BboxAnnotations::from_bbs_cats(bbs, cat_ids)))
+                .collect(),
+        )?;
+        Ok(out_data)
+    }
+
+    pub fn remove_catidx(&mut self, cat_idx: usize) {
         if self.labels.len() > 1 {
             self.labels.remove(cat_idx);
             self.colors.remove(cat_idx);
@@ -129,24 +159,36 @@ impl BboxSpecificData {
         self.labels.iter_mut().find(|lab| lab == &DEFAULT_LABEL)
     }
 
-    pub fn push(&mut self, label: String, color: Option<[u8; 3]>) {
-        if let Some(idx) = self.labels.iter().position(|lab| lab == &label) {
-            if let Some(clr) = color {
-                self.colors[idx] = clr;
-            }
+    pub fn push(
+        &mut self,
+        label: String,
+        color: Option<[u8; 3]>,
+        cat_id: Option<u32>,
+    ) -> RvResult<()> {
+        if self.labels.contains(&label) {
+            Err(format_rverr!("label '{}' already exists", label))
         } else {
             self.labels.push(label);
             if let Some(clr) = color {
+                if self.colors.contains(&clr) {
+                    return Err(format_rverr!("color '{:?}' already exists", clr));
+                }
                 self.colors.push(clr);
             } else {
                 let new_clr = new_color(&self.colors);
                 self.colors.push(new_clr);
             }
-            if let Some(max_id) = self.cat_ids.iter().max() {
+            if let Some(cat_id) = cat_id {
+                if self.cat_ids.contains(&cat_id) {
+                    return Err(format_rverr!("cat id '{:?}' already exists", cat_id));
+                }
+                self.cat_ids.push(cat_id);
+            } else if let Some(max_id) = self.cat_ids.iter().max() {
                 self.cat_ids.push(max_id + 1);
             } else {
                 self.cat_ids.push(1);
             }
+            Ok(())
         }
     }
 
@@ -186,7 +228,7 @@ impl BboxSpecificData {
                 let len = self.labels().len();
                 if *cat_idx >= len {
                     return Err(format_rverr!(
-                        "cat id {} does not have a label, out of bounds, {}",
+                        "cat idx {} does not have a label, out of bounds, {}",
                         cat_idx,
                         len
                     ));
@@ -212,21 +254,6 @@ pub struct BboxExportData {
 }
 
 impl BboxExportData {
-    pub fn to_bbox_data(self) -> RvResult<BboxSpecificData> {
-        let mut bbox_data = BboxSpecificData::new();
-        for (lab, clr) in self.labels.into_iter().zip(self.colors.into_iter()) {
-            bbox_data.push(lab, Some(clr));
-        }
-        bbox_data.remove_cat(0);
-        bbox_data.set_annotations_map(
-            self.annotations
-                .into_iter()
-                .map(|(s, (bbs, cat_ids))| (s, BboxAnnotations::from_bbs_cats(bbs, cat_ids)))
-                .collect(),
-        )?;
-        Ok(bbox_data)
-    }
-
     pub fn from_bbox_data(mut bbox_specifics: BboxSpecificData) -> Self {
         BboxExportData {
             labels: mem::take(&mut bbox_specifics.labels),
@@ -317,7 +344,7 @@ fn _convert_read(read: ExportData) -> RvResult<BboxSpecificData> {
     let bb_read = read
         .bbox_data
         .ok_or_else(|| RvError::new("import does not contain bbox data"))?;
-    bb_read.to_bbox_data()
+    BboxSpecificData::from_bbox_export_data(bb_read)
 }
 
 pub fn _read_json(filename: &str) -> RvResult<BboxSpecificData> {
@@ -375,8 +402,8 @@ pub fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaD
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
     meta.connection_data = ConnectionData::Ssh(SshCfg::default());
     let mut bbox_data = BboxSpecificData::new();
-    bbox_data.push("x".to_string(), None);
-    bbox_data.remove_cat(0);
+    bbox_data.push("x".to_string(), None, None).unwrap();
+    bbox_data.remove_catidx(0);
     let mut bbs = make_test_bbs();
     bbs.extend(bbs.clone());
     bbs.extend(bbs.clone());
@@ -410,7 +437,13 @@ fn test_pickle_export() -> RvResult<()> {
     let written_path = write_pickle(&meta, bbox_data.clone())?;
     let bbox_data_read =
         _read_pickle(file_util::osstr_to_str(Some(written_path.as_os_str())).map_err(to_rv)?)?;
-    assert_eq!(bbox_data, bbox_data_read);
+    assert_eq!(bbox_data.labels(), bbox_data_read.labels());
+    assert_eq!(bbox_data.colors(), bbox_data_read.colors());
+    assert_eq!(bbox_data.cat_ids(), bbox_data_read.cat_ids());
+    assert_eq!(bbox_data.annotations_map, bbox_data_read.annotations_map);
+    assert_eq!(bbox_data.clipboard, bbox_data_read.clipboard);
+    assert_eq!(bbox_data.import_file, bbox_data_read.import_file);
+    assert_eq!(bbox_data.new_label, bbox_data_read.new_label);
     Ok(())
 }
 #[test]

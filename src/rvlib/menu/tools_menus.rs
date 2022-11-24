@@ -1,11 +1,18 @@
 use egui::Ui;
 
-use crate::tools_data::{
-    bbox_data::{BboxExportFileType, BboxSpecificData},
-    ToolSpecifics, ToolsData,
+use crate::{
+    result::RvResult,
+    tools_data::{
+        bbox_data::{BboxExportFileType, BboxSpecificData},
+        ToolSpecifics, ToolsData,
+    },
 };
 
-pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData) -> ToolsData {
+pub fn bbox_menu(
+    ui: &mut Ui,
+    mut window_open: bool,
+    mut data: BboxSpecificData,
+) -> RvResult<ToolsData> {
     let mut new_idx = data.cat_idx_current;
     let mut new_label = None;
     if ui.text_edit_singleline(&mut data.new_label).lost_focus() {
@@ -15,7 +22,7 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData)
     if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
         *default_label = new_label.clone();
     } else if let Some(new_label) = new_label {
-        data.push(new_label, None);
+        data.push(new_label, None, None)?;
         new_idx = data.len() - 1;
     }
     let mut to_be_removed = None;
@@ -37,7 +44,7 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData)
         data.cat_idx_current = new_idx;
     }
     if let Some(idx) = to_be_removed {
-        data.remove_cat(idx);
+        data.remove_catidx(idx);
     }
     ui.separator();
     if ui.button("export pickle").clicked() {
@@ -49,8 +56,8 @@ pub fn bbox_menu(ui: &mut Ui, mut window_open: bool, mut data: BboxSpecificData)
     if ui.button("close").clicked() {
         window_open = false;
     }
-    ToolsData {
+    Ok(ToolsData {
         specifics: ToolSpecifics::Bbox(data),
         menu_active: window_open,
-    }
+    })
 }
