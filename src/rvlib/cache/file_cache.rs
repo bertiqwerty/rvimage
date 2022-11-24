@@ -17,7 +17,7 @@ where
     F: Fn(&str) -> ResultImage,
 {
     let im = reader(path_or_url)?;
-    im.save(&target)
+    im.save(target)
         .map_err(|e| format_rverr!("could not save image to {:?}. {}", target, e.to_string()))?;
     Ok(())
 }
