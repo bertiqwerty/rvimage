@@ -9,8 +9,8 @@
     "images": [
         {
             "id": 0,
-            "width": 64,
-            "height": 32,
+            "width": 100,
+            "height": 1000,
             "file_name": "nowhere.png",
             "license": "somelic",
             "flickr_url": "",
@@ -18,8 +18,8 @@
         },
         {
             "id": 1,
-            "width": 64,
-            "height": 32,
+            "width": 1000,
+            "height": 100,
             "file_name": "nowhere2.png",
             "license": "somelic",
             "flickr_url": "",
@@ -35,11 +35,11 @@
     ],
     "categories": [
         {
-            "id": 0,
+            "id": 1,
             "name": "first label"
         },
         {
-            "id": 1,
+            "id": 2,
             "name": "second label"
         }
     ],
@@ -47,28 +47,26 @@
         {
             "id": 0,
             "image_id": 0,
-            "category_id": 0,
+            "category_id": 1,
             "segmentation": [],
-            "area": 16.0,
             "bbox": [
-                1,
-                1,
-                5,
-                5
+                0.1,
+                0.1,
+                0.5,
+                0.5
             ],
             "iscrowd": 0
         },
         {
             "id": 1,
             "image_id": 0,
-            "category_id": 0,
+            "category_id": 2,
             "segmentation": [],
-            "area": 16.0,
             "bbox": [
-                11,
-                11,
-                4,
-                7
+                0.91,
+                0.87,
+                0.15,
+                0.15
             ],
             "iscrowd": 0
         },
@@ -76,13 +74,12 @@
             "id": 2,
             "image_id": 1,
             "category_id": 1,
-            "segmentation": [],
-            "area": 16.0,
+            "segmentation": [[0.1, 0.4], [0.0, 0.0], [0.4, 0.5]],
             "bbox": [
-                1,
-                1,
-                5,
-                5
+                0.01,
+                0.01,
+                0.05,
+                0.05
             ],
             "iscrowd": 0
         }
