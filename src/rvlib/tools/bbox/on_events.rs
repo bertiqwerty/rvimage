@@ -66,6 +66,9 @@ pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: BboxSpecificD
         BboxExportFileType::Pickle => {
             tools_data::write_pickle(meta_data, bbox_data).unwrap();
         }
+        BboxExportFileType::Coco => {
+            tools_data::write_coco(meta_data, bbox_data).unwrap();
+        }
         BboxExportFileType::None => (),
     };
 }

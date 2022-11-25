@@ -53,6 +53,9 @@ pub fn bbox_menu(
     if ui.button("export json").clicked() {
         data.export_file_type = BboxExportFileType::Json;
     }
+    if ui.button("export coco").clicked() {
+        data.export_file_type = BboxExportFileType::Coco;
+    }
     if ui.button("close").clicked() {
         window_open = false;
     }

@@ -58,6 +58,7 @@ pub fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
 pub enum BboxExportFileType {
     Json,
     Pickle,
+    Coco,
     #[default]
     None,
 }

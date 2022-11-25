@@ -43,6 +43,8 @@ struct CocoAnnotation {
     image_id: u32,
     category_id: u32,
     bbox: [f32; 4],
+    segmentation: Option<Vec<f32>>,
+    area: Option<f32>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -101,12 +103,24 @@ impl CocoExportData {
             bbs.iter()
                 .zip(cat_idxs.iter())
                 .map(|(bb, cat_idx): (&BB, &usize)| {
+                    let bb_f = [bb.x as f32, bb.y as f32, bb.w as f32, bb.h as f32];
                     box_id += 1;
                     CocoAnnotation {
                         id: box_id - 1,
                         image_id: image_idx as u32,
                         category_id: export_data.cat_ids[*cat_idx] as u32,
-                        bbox: [bb.x as f32, bb.y as f32, bb.w as f32, bb.h as f32],
+                        bbox: bb_f,
+                        segmentation: Some(vec![
+                            bb_f[0],
+                            bb_f[1],
+                            bb_f[0] + bb_f[2],
+                            bb_f[1],
+                            bb_f[0] + bb_f[2],
+                            bb_f[1] + bb_f[3],
+                            bb_f[0],
+                            bb_f[1] + bb_f[3],
+                        ]),
+                        area: Some((bb.h * bb.w) as f32),
                     }
                 })
                 .collect::<Vec<_>>()
