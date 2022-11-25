@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::thread;
 use std::time::Duration;
 
@@ -12,6 +11,8 @@ pub const SUPPORTED_EXTENSIONS: [&str; 4] = [".png", ".jpg", ".tif", ".tiff"];
 #[derive(Clone)]
 pub struct CloneDummy;
 
+/// All [`Loader`](Loader) structs with their different generic parameters implement this trait
+/// such that the loader can be created dynamically based on the config.
 pub trait LoadImageForGui {
     /// read image with index file_selected_idx  
     fn read_image(
@@ -24,42 +25,33 @@ pub trait LoadImageForGui {
     fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector>;
 }
 
-pub trait ListFilesInFolder {
-    fn list(folder: &str) -> RvResult<Vec<String>>;
-}
-
-pub struct Loader<C, FP, CA>
+pub struct Loader<C, CA>
 where
     C: Cache<CA>,
-    FP: ListFilesInFolder,
 {
     cache: C,
     cache_args: CA,
     n_cache_recreations: usize,
-    pick_phantom: PhantomData<FP>,
 }
 
-impl<C, FP, CA> Loader<C, FP, CA>
+impl<C, CA> Loader<C, CA>
 where
     C: Cache<CA>,
     CA: Clone,
-    FP: ListFilesInFolder,
 {
     pub fn new(cache_args: CA, n_cache_recreations: usize) -> RvResult<Self> {
         Ok(Loader {
             cache: C::new(cache_args.clone())?,
             cache_args,
             n_cache_recreations,
-            pick_phantom: PhantomData {},
         })
     }
 }
 
-impl<C, FP, CA> LoadImageForGui for Loader<C, FP, CA>
+impl<C, CA> LoadImageForGui for Loader<C, CA>
 where
     C: Cache<CA>,
     CA: Clone,
-    FP: ListFilesInFolder,
 {
     fn read_image(
         &mut self,
@@ -92,7 +84,7 @@ where
         loaded
     }
     fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector> {
-        let file_paths = FP::list(folder_path)?;
+        let file_paths = self.cache.ls(folder_path)?;
         PathsSelector::new(file_paths, Some(folder_path.to_string()))
     }
 }

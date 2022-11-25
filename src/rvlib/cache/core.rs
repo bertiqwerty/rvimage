@@ -5,6 +5,7 @@ use crate::{
 
 pub trait ReadImageToCache<A> {
     fn read(&self, path: &str) -> ResultImage;
+    fn ls(&self, folder_path: &str) -> RvResult<Vec<String>>;
     fn new(args: A) -> RvResult<Self>
     where
         Self: Sized;
@@ -17,6 +18,7 @@ pub trait Cache<A> {
         files: &[String],
         reload: bool,
     ) -> AsyncResultImage;
+    fn ls(&self, folder_path: &str) -> RvResult<Vec<String>>;
     fn new(args: A) -> RvResult<Self>
     where
         Self: Sized;

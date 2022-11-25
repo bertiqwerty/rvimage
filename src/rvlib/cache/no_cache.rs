@@ -20,6 +20,9 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
     ) -> AsyncResultImage {
         self.reader.read(&files[selected_file_idx]).map(Some)
     }
+    fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
+        self.reader.ls(folder_path)
+    }
     fn new(args: RA) -> RvResult<Self> {
         Ok(Self {
             reader: RTC::new(args)?,

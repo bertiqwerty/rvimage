@@ -8,8 +8,8 @@ use crate::{
 
 use super::{
     core::{CloneDummy, LoadImageForGui, Loader},
-    local_reader::{LocalLister, ReadImageFromPath},
-    ssh_reader::{ReadImageFromSsh, SshLister},
+    local_reader::ReadImageFromPath,
+    ssh_reader::ReadImageFromSsh,
 };
 
 fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> RvResult<FileCacheCfgArgs> {
@@ -36,42 +36,37 @@ impl ReaderFromCfg {
             reader: match (&cfg.connection, &cfg.cache) {
                 (Connection::Local, Cache::FileCache) => {
                     let args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
-                    Box::new(
-                        Loader::<FileCache<ReadImageFromPath, _>, LocalLister, _>::new(
-                            FileCacheArgs {
-                                cfg_args: args,
-                                reader_args: CloneDummy {},
-                                tmpdir,
-                            },
-                            0,
-                        )?,
-                    )
+                    Box::new(Loader::<FileCache<ReadImageFromPath, _>, _>::new(
+                        FileCacheArgs {
+                            cfg_args: args,
+                            reader_args: CloneDummy {},
+                            tmpdir,
+                        },
+                        0,
+                    )?)
                 }
                 (Connection::Ssh, Cache::FileCache) => {
                     let args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
 
-                    Box::new(Loader::<
-                        FileCache<ReadImageFromSsh, _>,
-                        SshLister,
-                        FileCacheArgs<_>,
-                    >::new(
-                        FileCacheArgs {
-                            cfg_args: args,
-                            reader_args: cfg.ssh_cfg.clone(),
-                            tmpdir,
-                        },
-                        n_ssh_reconnections,
+                    Box::new(
+                        Loader::<FileCache<ReadImageFromSsh, _>, FileCacheArgs<_>>::new(
+                            FileCacheArgs {
+                                cfg_args: args,
+                                reader_args: cfg.ssh_cfg.clone(),
+                                tmpdir,
+                            },
+                            n_ssh_reconnections,
+                        )?,
+                    )
+                }
+                (Connection::Local, Cache::NoCache) => {
+                    Box::new(Loader::<NoCache<ReadImageFromPath, _>, _>::new(
+                        CloneDummy {},
+                        0,
                     )?)
                 }
-                (Connection::Local, Cache::NoCache) => Box::new(Loader::<
-                    NoCache<ReadImageFromPath, _>,
-                    LocalLister,
-                    _,
-                >::new(
-                    CloneDummy {}, 0
-                )?),
                 (Connection::Ssh, Cache::NoCache) => {
-                    Box::new(Loader::<NoCache<ReadImageFromSsh, _>, SshLister, _>::new(
+                    Box::new(Loader::<NoCache<ReadImageFromSsh, _>, _>::new(
                         cfg.ssh_cfg.clone(),
                         n_ssh_reconnections,
                     )?)

@@ -88,6 +88,9 @@ impl<RTC, RA> Cache<FileCacheArgs<RA>> for FileCache<RTC, RA>
 where
     RTC: ReadImageToCache<RA> + Send + Clone + 'static,
 {
+    fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
+        self.reader.ls(folder_path)
+    }
     fn load_from_cache(
         &mut self,
         selected_file_idx: usize,
@@ -203,6 +206,9 @@ fn test_file_cache() -> RvResult<()> {
         impl ReadImageToCache<()> for DummyRead {
             fn new(_: ()) -> RvResult<Self> {
                 Ok(Self {})
+            }
+            fn ls(&self, _folder_path: &str) -> RvResult<Vec<String>> {
+                Ok(vec![])
             }
             fn read(&self, _: &str) -> RvResult<DynamicImage> {
                 let dummy_image =

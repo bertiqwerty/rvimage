@@ -7,7 +7,7 @@ use crate::{
     types::ResultImage,
 };
 
-use super::core::{CloneDummy, ListFilesInFolder, SUPPORTED_EXTENSIONS};
+use super::core::{CloneDummy, SUPPORTED_EXTENSIONS};
 
 fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
     WalkDir::new(path)
@@ -25,13 +25,6 @@ fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
         .map(|p| Ok(file_util::path_to_str(p?.path())?.to_string()))
         .collect::<RvResult<Vec<String>>>()
 }
-pub struct LocalLister;
-impl ListFilesInFolder for LocalLister {
-    fn list(folder_path: &str) -> RvResult<Vec<String>> {
-        let image_paths = read_image_paths(folder_path)?;
-        Ok(image_paths)
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct ReadImageFromPath;
@@ -41,5 +34,9 @@ impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
     }
     fn read(&self, path: &str) -> ResultImage {
         image_util::read_image(path)
+    }
+    fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
+        let image_paths = read_image_paths(folder_path)?;
+        Ok(image_paths)
     }
 }

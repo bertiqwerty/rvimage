@@ -27,9 +27,9 @@ pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>>
 }
 
 pub fn find(
-    sess: Session,
     remote_folder_path: &str,
     filter_extensions: &[&str],
+    sess: &Session,
 ) -> RvResult<Vec<String>> {
     let mut channel = sess.channel_session().map_err(to_rv)?;
 
