@@ -6,7 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_pickle::{DeOptions, SerOptions};
+use serde_pickle::SerOptions;
 
 use super::annotations::{selected_indices, BboxAnnotations};
 use crate::{
@@ -341,19 +341,6 @@ pub fn write_json(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvR
     write(meta_data, bbox_specifics, "json", ser)
 }
 
-fn _convert_read(read: ExportData) -> RvResult<BboxSpecificData> {
-    let bb_read = read
-        .bbox_data
-        .ok_or_else(|| RvError::new("import does not contain bbox data"))?;
-    BboxSpecificData::from_bbox_export_data(bb_read)
-}
-
-pub fn _read_json(filename: &str) -> RvResult<BboxSpecificData> {
-    let s = file_util::read_to_string(filename)?;
-    let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-    _convert_read(read)
-}
-
 pub fn write_pickle(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
     let ser = |data: &ExportData, path: &Path| {
         let mut file = File::create(path).map_err(to_rv)?;
@@ -363,11 +350,31 @@ pub fn write_pickle(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> R
     write(meta_data, bbox_specifics, "pickle", ser)
 }
 
-pub fn _read_pickle(filename: &str) -> RvResult<BboxSpecificData> {
+#[cfg(test)]
+use serde_pickle::DeOptions;
+
+#[cfg(test)]
+fn convert_read(read: ExportData) -> RvResult<BboxSpecificData> {
+    let bb_read = read
+        .bbox_data
+        .ok_or_else(|| RvError::new("import does not contain bbox data"))?;
+    BboxSpecificData::from_bbox_export_data(bb_read)
+}
+
+#[cfg(test)]
+pub fn read_json(filename: &str) -> RvResult<BboxSpecificData> {
+    let s = file_util::read_to_string(filename)?;
+    let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+    convert_read(read)
+}
+
+#[cfg(test)]
+pub fn read_pickle(filename: &str) -> RvResult<BboxSpecificData> {
     let f = File::open(filename).map_err(to_rv)?;
     let read: ExportData = serde_pickle::from_reader(f, DeOptions::new()).map_err(to_rv)?;
-    _convert_read(read)
+    convert_read(read)
 }
+
 #[cfg(test)]
 use {
     crate::{
@@ -377,6 +384,7 @@ use {
     },
     std::str::FromStr,
 };
+
 #[cfg(test)]
 pub fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaData, PathBuf) {
     use crate::file_util::ConnectionData;
@@ -427,17 +435,18 @@ fn test_json_export() -> RvResult<()> {
     defer_file_removal!(&path);
     let written_path = write_json(&meta, bbox_data.clone())?;
     let bbox_data_read =
-        _read_json(file_util::osstr_to_str(Some(written_path.as_os_str())).map_err(to_rv)?)?;
+        read_json(file_util::osstr_to_str(Some(written_path.as_os_str())).map_err(to_rv)?)?;
     assert_eq!(bbox_data, bbox_data_read);
     Ok(())
 }
+
 #[test]
 fn test_pickle_export() -> RvResult<()> {
     let (bbox_data, meta, path) = make_data("pickle", &PathBuf::from_str("dummyfile").unwrap());
     defer_file_removal!(&path);
     let written_path = write_pickle(&meta, bbox_data.clone())?;
     let bbox_data_read =
-        _read_pickle(file_util::osstr_to_str(Some(written_path.as_os_str())).map_err(to_rv)?)?;
+        read_pickle(file_util::osstr_to_str(Some(written_path.as_os_str())).map_err(to_rv)?)?;
     assert_eq!(bbox_data.labels(), bbox_data_read.labels());
     assert_eq!(bbox_data.colors(), bbox_data_read.colors());
     assert_eq!(bbox_data.cat_ids(), bbox_data_read.cat_ids());
@@ -447,6 +456,7 @@ fn test_pickle_export() -> RvResult<()> {
     assert_eq!(bbox_data.new_label, bbox_data_read.new_label);
     Ok(())
 }
+
 #[test]
 fn last_folder_part() {
     assert_eq!(get_last_part_of_path("a/b/c", '/'), Some("c".to_string()));
