@@ -45,10 +45,3 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
             .collect())
     }
 }
-
-#[test]
-fn test_read_image() -> RvResult<()> {
-    let x = ReadImageFromPyHttp {};
-    x.ls("")?;
-    Ok(())
-}
