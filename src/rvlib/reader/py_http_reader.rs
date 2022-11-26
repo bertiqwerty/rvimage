@@ -14,11 +14,13 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
     fn new(_: ()) -> RvResult<Self> {
         Ok(Self {})
     }
+
     fn read(&self, url: &str) -> ResultImage {
         let resp = || reqwest::blocking::get(url)?.bytes();
         let image_byte_blob = resp().map_err(to_rv)?;
         image::load_from_memory(&image_byte_blob).map_err(to_rv)
     }
+
     fn ls(&self, server_address: &str) -> RvResult<Vec<String>> {
         lazy_static! {
             static ref LI_REGEX: Regex = Regex::new(r"<li>.*</li>").unwrap();

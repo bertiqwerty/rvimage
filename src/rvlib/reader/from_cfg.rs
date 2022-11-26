@@ -30,6 +30,7 @@ impl ReaderFromCfg {
         let cfg = cfg::get_default_cfg();
         Self::from_cfg(cfg)
     }
+
     pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
         let n_ssh_reconnections = cfg.ssh_cfg.n_reconnection_attempts();
         let tmpdir = cfg.tmpdir()?.to_string();
@@ -104,6 +105,7 @@ impl LoadImageForGui for ReaderFromCfg {
         self.reader
             .read_image(file_selected_idx, file_paths, reload)
     }
+
     fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector> {
         self.reader.open_folder(folder_path)
     }

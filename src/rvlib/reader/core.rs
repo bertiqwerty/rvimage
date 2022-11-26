@@ -83,6 +83,7 @@ where
         }
         loaded
     }
+
     fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector> {
         let file_paths = self.cache.ls(folder_path)?;
         PathsSelector::new(file_paths, Some(folder_path.to_string()))

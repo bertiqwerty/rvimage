@@ -68,7 +68,6 @@ pub fn bbox_menu(
         );
     });
     ui.separator();
-
     if ui.button("close").clicked() {
         window_open = false;
     }
