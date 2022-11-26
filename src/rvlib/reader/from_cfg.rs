@@ -9,6 +9,7 @@ use crate::{
 use super::{
     core::{CloneDummy, LoadImageForGui, Loader},
     local_reader::ReadImageFromPath,
+    py_http_reader::ReadImageFromPyHttp,
     ssh_reader::ReadImageFromSsh,
 };
 
@@ -70,6 +71,23 @@ impl ReaderFromCfg {
                         cfg.ssh_cfg.clone(),
                         n_ssh_reconnections,
                     )?)
+                }
+                (Connection::Http, Cache::FileCache) => {
+                    let args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
+
+                    Box::new(
+                        Loader::<FileCache<ReadImageFromPyHttp, _>, FileCacheArgs<_>>::new(
+                            FileCacheArgs {
+                                cfg_args: args,
+                                reader_args: (),
+                                tmpdir,
+                            },
+                            n_ssh_reconnections,
+                        )?,
+                    )
+                }
+                (Connection::Http, Cache::NoCache) => {
+                    Box::new(Loader::<NoCache<ReadImageFromPyHttp, _>, _>::new((), 0)?)
                 }
             },
             cfg,

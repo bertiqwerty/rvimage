@@ -56,6 +56,7 @@ pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
 #[derive(Deserialize, Serialize, Debug, Eq, PartialEq, Clone, Copy, Default)]
 pub enum Connection {
     Ssh,
+    Http,
     #[default]
     Local,
 }
@@ -79,6 +80,10 @@ impl SshCfg {
         self.n_reconnection_attempts.unwrap_or(default)
     }
 }
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct PyHttpReaderCfg {
+    pub server_address: String,
+}
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Cfg {
     pub connection: Connection,
@@ -88,6 +93,7 @@ pub struct Cfg {
     pub file_cache_args: Option<FileCacheCfgArgs>,
     pub ssh_cfg: SshCfg,
     pub export_folder: Option<String>,
+    pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
 }
 impl Cfg {
     pub fn export_folder(&self) -> RvResult<&str> {

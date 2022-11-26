@@ -65,6 +65,11 @@ impl<'a> Widget for CfgMenu<'a> {
                         ui.label("CONNECTION");
                         ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");
                         ui.radio_value(&mut self.cfg.connection, Connection::Ssh, "Ssh");
+                        ui.radio_value(
+                            &mut self.cfg.connection,
+                            Connection::Http,
+                            "Http served by 'python -m http.server'",
+                        );
                         ui.separator();
                         ui.label("CACHE");
                         ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File cache");
