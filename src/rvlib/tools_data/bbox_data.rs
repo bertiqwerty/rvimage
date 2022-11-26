@@ -223,6 +223,7 @@ impl BboxSpecificData {
             clipboard: None,
         }
     }
+
     pub fn set_annotations_map(&mut self, map: HashMap<String, BboxAnnotations>) -> RvResult<()> {
         for (_, annos) in map.iter() {
             for cat_idx in annos.cat_idxs() {
@@ -240,6 +241,7 @@ impl BboxSpecificData {
         Ok(())
     }
 }
+
 impl Default for BboxSpecificData {
     fn default() -> Self {
         Self::new()
@@ -267,6 +269,7 @@ impl BboxExportData {
         }
     }
 }
+
 fn get_last_part_of_path(path: &str, sep: char) -> Option<String> {
     if path.contains(sep) {
         let mark = if path.starts_with('\'') && path.ends_with('\'') {
