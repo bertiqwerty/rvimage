@@ -56,12 +56,18 @@ pub fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
 
 #[derive(Deserialize, Serialize, Clone, Default, Debug, PartialEq, Eq)]
 pub enum BboxExportFileType {
+    #[default]
     Json,
     Pickle,
     Coco,
-    #[default]
-    None,
 }
+
+#[derive(Deserialize, Serialize, Clone, Default, Debug, PartialEq, Eq)]
+pub struct BboxExportTrigger {
+    pub file_type: BboxExportFileType,
+    pub is_exported_triggered: bool,
+}
+
 static DEFAULT_BBOX_ANNOTATION: BboxAnnotations = BboxAnnotations::new();
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
@@ -96,7 +102,7 @@ pub struct BboxSpecificData {
     pub cat_idx_current: usize,
     // filename -> annotations per file
     annotations_map: HashMap<String, BboxAnnotations>,
-    pub export_file_type: BboxExportFileType,
+    pub export_trigger: BboxExportTrigger,
     pub import_file: Option<String>,
     pub clipboard: Option<ClipboardData>,
 }
@@ -112,7 +118,7 @@ impl BboxSpecificData {
             cat_ids: vec![],
             cat_idx_current: 0,
             annotations_map: HashMap::new(),
-            export_file_type: BboxExportFileType::default(),
+            export_trigger: BboxExportTrigger::default(),
             import_file: None,
             clipboard: None,
         };
@@ -218,7 +224,7 @@ impl BboxSpecificData {
             cat_ids,
             cat_idx_current: 0,
             annotations_map: HashMap::new(),
-            export_file_type: BboxExportFileType::default(),
+            export_trigger: BboxExportTrigger::default(),
             import_file: None,
             clipboard: None,
         }

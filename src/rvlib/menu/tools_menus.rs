@@ -47,15 +47,28 @@ pub fn bbox_menu(
         data.remove_catidx(idx);
     }
     ui.separator();
-    if ui.button("export pickle").clicked() {
-        data.export_file_type = BboxExportFileType::Pickle;
-    }
-    if ui.button("export json").clicked() {
-        data.export_file_type = BboxExportFileType::Json;
-    }
-    if ui.button("export coco").clicked() {
-        data.export_file_type = BboxExportFileType::Coco;
-    }
+    ui.horizontal(|ui| {
+        if ui.button("export").clicked() {
+            data.export_trigger.is_exported_triggered = true;
+        }
+        ui.radio_value(
+            &mut data.export_trigger.file_type,
+            BboxExportFileType::Json,
+            "Json",
+        );
+        ui.radio_value(
+            &mut data.export_trigger.file_type,
+            BboxExportFileType::Pickle,
+            "Pickle",
+        );
+        ui.radio_value(
+            &mut data.export_trigger.file_type,
+            BboxExportFileType::Coco,
+            "Coco",
+        );
+    });
+    ui.separator();
+
     if ui.button("close").clicked() {
         window_open = false;
     }
