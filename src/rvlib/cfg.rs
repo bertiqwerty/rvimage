@@ -56,7 +56,7 @@ pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
 #[derive(Deserialize, Serialize, Debug, Eq, PartialEq, Clone, Copy, Default)]
 pub enum Connection {
     Ssh,
-    Http,
+    PyHttp,
     #[default]
     Local,
 }
@@ -95,6 +95,7 @@ pub struct Cfg {
     pub export_folder: Option<String>,
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
 }
+
 impl Cfg {
     pub fn export_folder(&self) -> RvResult<&str> {
         let ef = self.export_folder.as_deref();
@@ -105,6 +106,7 @@ impl Cfg {
             Some(ef) => Ok(ef),
         }
     }
+
     pub fn tmpdir(&self) -> RvResult<&str> {
         match &self.tmpdir {
             Some(td) => Ok(td.as_str()),
@@ -113,6 +115,7 @@ impl Cfg {
                 .ok_or_else(|| RvError::new("could not get tmpdir")),
         }
     }
+
     pub fn http_address(&self) -> &str {
         match &self.http_address {
             Some(http_addr) => http_addr,

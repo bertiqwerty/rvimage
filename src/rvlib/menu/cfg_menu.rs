@@ -67,7 +67,7 @@ impl<'a> Widget for CfgMenu<'a> {
                         ui.radio_value(&mut self.cfg.connection, Connection::Ssh, "Ssh");
                         ui.radio_value(
                             &mut self.cfg.connection,
-                            Connection::Http,
+                            Connection::PyHttp,
                             "Http served by 'python -m http.server'",
                         );
                         ui.separator();

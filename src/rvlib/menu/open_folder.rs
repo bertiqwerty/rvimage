@@ -35,7 +35,7 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                 &resp,
             )
             .map(|s| s.to_string()),
-            Connection::Http => Some(
+            Connection::PyHttp => Some(
                 ctrl.cfg
                     .py_http_reader_cfg
                     .as_ref()

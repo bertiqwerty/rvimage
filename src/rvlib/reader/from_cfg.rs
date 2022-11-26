@@ -72,7 +72,7 @@ impl ReaderFromCfg {
                         n_ssh_reconnections,
                     )?)
                 }
-                (Connection::Http, Cache::FileCache) => {
+                (Connection::PyHttp, Cache::FileCache) => {
                     let args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
 
                     Box::new(
@@ -86,7 +86,7 @@ impl ReaderFromCfg {
                         )?,
                     )
                 }
-                (Connection::Http, Cache::NoCache) => {
+                (Connection::PyHttp, Cache::NoCache) => {
                     Box::new(Loader::<NoCache<ReadImageFromPyHttp, _>, _>::new((), 0)?)
                 }
             },
