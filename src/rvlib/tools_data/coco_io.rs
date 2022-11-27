@@ -139,6 +139,7 @@ impl CocoExportData {
             categories,
         })
     }
+
     fn convert_to_bboxdata(self) -> RvResult<BboxSpecificData> {
         let cat_ids: Vec<u32> = self.categories.iter().map(|coco_cat| coco_cat.id).collect();
         let labels: Vec<String> = self
@@ -210,7 +211,8 @@ impl CocoExportData {
         })
     }
 }
-pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
+
+fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
     let export_folder = Path::new(
         meta_data
             .export_folder
@@ -222,21 +224,23 @@ pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvR
         .as_deref()
         .ok_or_else(|| RvError::new("no folder open"))?;
     let file_name = format!("{}_coco.json", opened_folder);
-    let coco_out_path = export_folder.join(file_name);
+    Ok(export_folder.join(file_name))
+}
+
+pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
     let coco_data = CocoExportData::from_coco(meta_data, bbox_specifics)?;
     let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
+    let coco_out_path = meta_data_to_coco_path(meta_data)?;
     file_util::write(&coco_out_path, data_str)?;
     println!("exported coco labels to {:?}", coco_out_path);
     Ok(coco_out_path)
 }
 
-pub fn read_coco<P>(filename: P) -> RvResult<BboxSpecificData>
-where
-    P: AsRef<Path> + Debug,
-{
-    let s = file_util::read_to_string(filename)?;
+pub fn read_coco(meta_data: &MetaData) -> RvResult<BboxSpecificData> {
+    let filename = meta_data_to_coco_path(meta_data)?;
+    let s = file_util::read_to_string(&filename)?;
     let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-
+    println!("imported coco file from {:?}", filename);
     read.convert_to_bboxdata()
 }
 
@@ -244,6 +248,7 @@ where
 use {
     super::bbox_data::make_data,
     crate::{cfg::get_cfg, defer_file_removal, types::ViewImage},
+    file_util::ConnectionData,
     std::{fs, str::FromStr},
 };
 
@@ -259,7 +264,7 @@ fn test_coco_export() -> RvResult<()> {
     let (bbox_data, meta, _) = make_data("json", &file_path);
     let coco_file = write_coco(&meta, bbox_data.clone())?;
     defer_file_removal!(&coco_file);
-    let read = read_coco(&coco_file)?;
+    let read = read_coco(&meta)?;
     assert_eq!(bbox_data.cat_ids(), read.cat_ids());
     assert_eq!(bbox_data.labels(), read.labels());
     for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
@@ -268,10 +273,19 @@ fn test_coco_export() -> RvResult<()> {
     Ok(())
 }
 
+#[cfg(test)]
+const TEST_DATA_FOLDER: &str = "resources/test_data/";
+
 #[test]
 fn test_coco_import() -> RvResult<()> {
     fn test(filename: &str, cat_ids: Vec<u32>, bbs: &[(BB, &str)]) -> RvResult<()> {
-        let read = read_coco(filename)?;
+        let meta = MetaData {
+            file_path: None,
+            connection_data: ConnectionData::None,
+            opened_folder: Some(filename.to_string()),
+            export_folder: Some(TEST_DATA_FOLDER.to_string()),
+        };
+        let read = read_coco(&meta)?;
         assert_eq!(read.cat_ids(), &cat_ids);
         assert_eq!(read.labels(), &vec!["first label", "second label"]);
         for (bb, file_path) in bbs {
@@ -290,20 +304,8 @@ fn test_coco_import() -> RvResult<()> {
         (BB::from_array(&[91, 870, 15, 150]), "nowhere.png"),
         (BB::from_array(&[10, 1, 50, 5]), "nowhere2.png"),
     ];
-    test(
-        "resources/test_data/coco_catids_12.json",
-        vec![1, 2],
-        &bb_im_ref_abs,
-    )?;
-    test(
-        "resources/test_data/coco_catids_01.json",
-        vec![0, 1],
-        &bb_im_ref_abs,
-    )?;
-    test(
-        "resources/test_data/coco_catids_12_relative.json",
-        vec![1, 2],
-        &bb_im_ref_relative,
-    )?;
+    test("catids_12", vec![1, 2], &bb_im_ref_abs)?;
+    test("catids_01", vec![0, 1], &bb_im_ref_abs)?;
+    test("catids_12_relative", vec![1, 2], &bb_im_ref_relative)?;
     Ok(())
 }

@@ -49,6 +49,7 @@ pub fn bbox_menu(
     ui.separator();
     ui.horizontal(|ui| {
         if ui.button("export").clicked() {
+            println!("import triggered");
             data.export_trigger.is_exported_triggered = true;
         }
         ui.radio_value(
@@ -67,6 +68,11 @@ pub fn bbox_menu(
             "Coco",
         );
     });
+    ui.separator();
+    if ui.button("import coco").clicked() {
+        println!("import triggered");
+        data.is_coco_import_triggered = true;
+    }
     ui.separator();
     if ui.button("close").clicked() {
         window_open = false;

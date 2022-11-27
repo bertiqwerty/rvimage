@@ -20,8 +20,9 @@ use self::{
         initialize_tools_menu_data,
     },
     on_events::{
-        export_if_triggered, map_released_key, on_key_released, on_mouse_held_right,
-        on_mouse_released_left, KeyReleasedParams, MouseHeldParams, MouseReleaseParams,
+        export_if_triggered, import_coco_if_triggered, map_released_key, on_key_released,
+        on_mouse_held_right, on_mouse_released_left, KeyReleasedParams, MouseHeldParams,
+        MouseReleaseParams,
     },
 };
 mod core;
@@ -203,12 +204,29 @@ impl Manipulate for BBox {
         {
             // export label file if demanded
             let bbox_data = get_tools_data(&world).specifics.bbox();
-            export_if_triggered(&world.data.meta_data, bbox_data.clone());
+            export_if_triggered(&world.data.meta_data, bbox_data);
             get_tools_data_mut(&mut world)
                 .specifics
                 .bbox_mut()
                 .export_trigger
                 .is_exported_triggered = false;
+        }
+        {
+            // import coco if demanded
+            let is_coco_import_triggered = get_tools_data(&world)
+                .specifics
+                .bbox()
+                .is_coco_import_triggered;
+            if let Some(imported_data) =
+                import_coco_if_triggered(&world.data.meta_data, is_coco_import_triggered)
+            {
+                *get_tools_data_mut(&mut world).specifics.bbox_mut() = imported_data;
+            } else {
+                get_tools_data_mut(&mut world)
+                    .specifics
+                    .bbox_mut()
+                    .is_coco_import_triggered = false;
+            }
         }
         let in_menu_selected_label = current_cat_idx(&world);
         if self.prev_label != in_menu_selected_label {

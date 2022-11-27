@@ -103,7 +103,7 @@ pub struct BboxSpecificData {
     // filename -> annotations per file
     annotations_map: HashMap<String, BboxAnnotations>,
     pub export_trigger: BboxExportTrigger,
-    pub import_file: Option<String>,
+    pub is_coco_import_triggered: bool,
     pub clipboard: Option<ClipboardData>,
 }
 
@@ -119,7 +119,7 @@ impl BboxSpecificData {
             cat_idx_current: 0,
             annotations_map: HashMap::new(),
             export_trigger: BboxExportTrigger::default(),
-            import_file: None,
+            is_coco_import_triggered: false,
             clipboard: None,
         };
         for ((lab, clr), cat_id) in input_data
@@ -225,7 +225,7 @@ impl BboxSpecificData {
             cat_idx_current: 0,
             annotations_map: HashMap::new(),
             export_trigger: BboxExportTrigger::default(),
-            import_file: None,
+            is_coco_import_triggered: false,
             clipboard: None,
         }
     }
@@ -461,7 +461,10 @@ fn test_pickle_export() -> RvResult<()> {
     assert_eq!(bbox_data.cat_ids(), bbox_data_read.cat_ids());
     assert_eq!(bbox_data.annotations_map, bbox_data_read.annotations_map);
     assert_eq!(bbox_data.clipboard, bbox_data_read.clipboard);
-    assert_eq!(bbox_data.import_file, bbox_data_read.import_file);
+    assert_eq!(
+        bbox_data.is_coco_import_triggered,
+        bbox_data_read.is_coco_import_triggered
+    );
     assert_eq!(bbox_data.new_label, bbox_data_read.new_label);
     Ok(())
 }

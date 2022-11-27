@@ -57,18 +57,35 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
         .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
-pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: BboxSpecificData) {
+pub(super) fn import_coco_if_triggered(
+    meta_data: &MetaData,
+    is_coco_import_triggered: bool,
+) -> Option<BboxSpecificData> {
+    if is_coco_import_triggered {
+        match tools_data::coco_io::read_coco(meta_data) {
+            Ok(bbox_data) => Some(bbox_data),
+            Err(e) => {
+                println!("could not import coco due to {:?}", e);
+                None
+            }
+        }
+    } else {
+        None
+    }
+}
+
+pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecificData) {
     if bbox_data.export_trigger.is_exported_triggered {
         match bbox_data.export_trigger.file_type {
             // TODO: don't crash just because export failed
             BboxExportFileType::Json => {
-                tools_data::write_json(meta_data, bbox_data).unwrap();
+                tools_data::write_json(meta_data, bbox_data.clone()).unwrap();
             }
             BboxExportFileType::Pickle => {
-                tools_data::write_pickle(meta_data, bbox_data).unwrap();
+                tools_data::write_pickle(meta_data, bbox_data.clone()).unwrap();
             }
             BboxExportFileType::Coco => {
-                tools_data::write_coco(meta_data, bbox_data).unwrap();
+                tools_data::write_coco(meta_data, bbox_data.clone()).unwrap();
             }
         };
     }
