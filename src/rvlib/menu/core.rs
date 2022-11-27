@@ -11,7 +11,7 @@ use crate::{
 use egui::{ClippedPrimitive, Context, Id, Pos2, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
-use std::{mem, path::Path};
+use std::mem;
 use winit::window::Window;
 
 use super::tools_menus::bbox_menu;
@@ -283,7 +283,7 @@ pub struct Menu {
     editable_ssh_cfg_str: String,
     scroll_offset: f32,
     open_folder_popup_open: bool,
-    import_button_resp: ImportBtnResp,
+    load_button_resp: ImportBtnResp,
 }
 
 impl Menu {
@@ -298,7 +298,7 @@ impl Menu {
             editable_ssh_cfg_str: ssh_cfg_str,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
-            import_button_resp: ImportBtnResp {
+            load_button_resp: ImportBtnResp {
                 resp: None,
                 popup_open: false,
             },
@@ -357,7 +357,11 @@ impl Menu {
                         self
                     );
                     let popup_id = ui.make_persistent_id("cfg-popup");
-                    self.import_button_resp.resp = Some(ui.button("import"));
+                    self.load_button_resp.resp = Some(ui.button("load"));
+
+                    if ui.button("save").clicked() {
+                        handle_error!(ctrl.save(tools_data_map), self);
+                    }
 
                     let cfg_gui =
                         CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.editable_ssh_cfg_str);
@@ -365,35 +369,40 @@ impl Menu {
                 });
 
                 if let Ok(folder) = ctrl.cfg.export_folder() {
-                    if let Some(import_btn_resp) = &self.import_button_resp.resp {
-                        if import_btn_resp.clicked() {
-                            self.import_button_resp.popup_open = true;
+                    if let Some(load_btn_resp) = &self.load_button_resp.resp {
+                        if load_btn_resp.clicked() {
+                            self.load_button_resp.popup_open = true;
                         }
-                        if self.import_button_resp.popup_open {
-                            let mut filename_for_export = None;
+                        if self.load_button_resp.popup_open {
+                            let mut filename_for_import = None;
                             let mut exports = || -> RvResult<()> {
-                                let files = file_util::exports_in_folder(folder)
+                                let files = file_util::files_in_folder(folder, "json")
                                     .map_err(to_rv)?
                                     .filter_map(|p| {
                                         p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
                                     })
                                     .flatten()
                                     .collect::<Vec<_>>();
-                                filename_for_export = picklist::pick(
+                                filename_for_import = picklist::pick(
                                     ui,
                                     files.iter().map(|s| s.as_str()),
                                     200.0,
-                                    import_btn_resp,
+                                    load_btn_resp,
                                 )
                                 .map(|s| s.to_string());
                                 Ok(())
                             };
                             handle_error!(exports(), self);
-                            if let Some(ffe) = filename_for_export {
-                                let file_path = Path::new(folder).join(ffe);
-                                handle_error!(ctrl.import(file_path, tools_data_map), self);
-                                self.import_button_resp.resp = None;
-                                self.import_button_resp.popup_open = false;
+                            if let Some(filename) = filename_for_import {
+                                handle_error!(
+                                    |tdm| {
+                                        *tools_data_map = tdm;
+                                    },
+                                    ctrl.load(&filename, mem::take(tools_data_map)),
+                                    self
+                                );
+                                self.load_button_resp.resp = None;
+                                self.load_button_resp.popup_open = false;
                             }
                         }
                     }

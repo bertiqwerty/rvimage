@@ -135,18 +135,18 @@ macro_rules! defer_file_removal {
     };
 }
 
-pub fn exports_in_folder<P>(folder: P) -> io::Result<impl Iterator<Item = PathBuf>>
+#[allow(clippy::needless_lifetimes)]
+pub fn files_in_folder<'a, P>(
+    folder: P,
+    extension: &'a str,
+) -> io::Result<impl Iterator<Item = PathBuf> + 'a>
 where
     P: AsRef<Path>,
 {
     Ok(fs::read_dir(folder)?
         .flatten()
         .map(|de| de.path())
-        .filter(|p| {
-            p.is_file()
-                && (p.extension() == Some(OsStr::new("json"))
-                    || p.extension() == Some(OsStr::new("pickle")))
-        }))
+        .filter(|p| p.is_file() && (p.extension() == Some(OsStr::new(extension)))))
 }
 
 pub fn write<P, C>(path: P, contents: C) -> RvResult<()>

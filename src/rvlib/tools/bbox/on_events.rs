@@ -5,11 +5,7 @@ use crate::{
     history::Record,
     image_util::to_i64,
     tools::core::{InitialView, Mover},
-    tools_data::{
-        self,
-        bbox_data::{BboxExportFileType, ClipboardData},
-        BboxSpecificData,
-    },
+    tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
     {history::History, world::World},
 };
 use std::mem;
@@ -76,18 +72,8 @@ pub(super) fn import_coco_if_triggered(
 
 pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecificData) {
     if bbox_data.export_trigger.is_exported_triggered {
-        match bbox_data.export_trigger.file_type {
-            // TODO: don't crash just because export failed
-            BboxExportFileType::Json => {
-                tools_data::write_json(meta_data, bbox_data.clone()).unwrap();
-            }
-            BboxExportFileType::Pickle => {
-                tools_data::write_pickle(meta_data, bbox_data.clone()).unwrap();
-            }
-            BboxExportFileType::Coco => {
-                tools_data::write_coco(meta_data, bbox_data.clone()).unwrap();
-            }
-        };
+        // TODO: don't crash just because export failed
+        tools_data::write_coco(meta_data, bbox_data.clone()).unwrap();
     }
 }
 

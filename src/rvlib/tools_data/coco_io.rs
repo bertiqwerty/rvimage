@@ -246,11 +246,57 @@ pub fn read_coco(meta_data: &MetaData) -> RvResult<BboxSpecificData> {
 
 #[cfg(test)]
 use {
-    super::bbox_data::make_data,
-    crate::{cfg::get_cfg, defer_file_removal, types::ViewImage},
-    file_util::ConnectionData,
+    crate::{
+        cfg::{get_cfg, SshCfg},
+        defer_file_removal,
+        domain::make_test_bbs,
+        types::ViewImage,
+    },
+    file_util::{ConnectionData, DEFAULT_TMPDIR},
     std::{fs, str::FromStr},
 };
+
+#[cfg(test)]
+pub fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaData, PathBuf) {
+    let opened_folder = "xi".to_string();
+    let test_export_folder = DEFAULT_TMPDIR.clone();
+
+    match fs::create_dir(&test_export_folder) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("{:?}", e);
+        }
+    }
+
+    let test_export_path = DEFAULT_TMPDIR.join(format!("{}.{}", opened_folder, extension));
+    let mut meta = MetaData::from_filepath(
+        test_export_path
+            .with_extension("egal")
+            .to_str()
+            .unwrap()
+            .to_string(),
+    );
+    meta.opened_folder = Some(opened_folder);
+    meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
+    meta.connection_data = ConnectionData::Ssh(SshCfg::default());
+    let mut bbox_data = BboxSpecificData::new();
+    bbox_data.push("x".to_string(), None, None).unwrap();
+    bbox_data.remove_catidx(0);
+    let mut bbs = make_test_bbs();
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+
+    let annos = bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap());
+    for bb in bbs {
+        annos.add_bb(bb, 0);
+    }
+    (bbox_data, meta, test_export_path)
+}
 
 #[test]
 fn test_coco_export() -> RvResult<()> {

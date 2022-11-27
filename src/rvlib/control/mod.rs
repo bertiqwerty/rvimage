@@ -1,11 +1,8 @@
-use std::ffi::OsStr;
 use std::fmt::Debug;
-use std::path::Path;
+use std::path::PathBuf;
 
-use crate::file_util::{self, ConnectionData, ExportData, MetaData};
-use crate::result::to_rv;
-use crate::tools::BBOX_NAME;
-use crate::tools_data::{BboxSpecificData, ToolSpecifics, ToolsData};
+use crate::cfg::Connection;
+use crate::file_util::{ConnectionData, MetaData};
 use crate::world::ToolsDataMap;
 use crate::{
     cfg::Cfg, reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
@@ -15,6 +12,104 @@ pub mod paths_navigator;
 use crate::reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;
 
+mod detail {
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+    };
+
+    use crate::{
+        file_util::{self, ConnectionData, ExportData},
+        format_rverr,
+        result::{to_rv, RvResult},
+        tools::BBOX_NAME,
+        tools_data::{BboxExportData, BboxSpecificData, ToolSpecifics, ToolsData},
+        world::ToolsDataMap,
+    };
+
+    pub(super) fn get_last_part_of_path(path: &str, sep: char) -> Option<String> {
+        if path.contains(sep) {
+            let mark = if path.starts_with('\'') && path.ends_with('\'') {
+                "\'"
+            } else if path.starts_with('"') && path.ends_with('"') {
+                "\""
+            } else {
+                ""
+            };
+            let offset = mark.len();
+            let mut fp_slice = &path[offset..(path.len() - offset)];
+            let mut last_folder = fp_slice.split(sep).last().unwrap_or("");
+            while last_folder.is_empty() && !fp_slice.is_empty() {
+                fp_slice = &fp_slice[0..fp_slice.len() - 1];
+                last_folder = fp_slice.split(sep).last().unwrap_or("");
+            }
+            Some(format!("{}{}{}", mark, last_folder, mark))
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn load(
+        export_folder: &str,
+        file_name: &str,
+        mut tools_data_map: ToolsDataMap,
+    ) -> RvResult<(ToolsDataMap, String, ConnectionData)> {
+        let file_path = Path::new(export_folder).join(file_name);
+        let s = file_util::read_to_string(file_path)?;
+        let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+
+        if let Some(bbox_data) = read.bbox_data {
+            let bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
+            let tools_data = tools_data_map.get_mut(BBOX_NAME);
+            if let Some(td) = tools_data {
+                td.specifics = ToolSpecifics::Bbox(bbox_data);
+            } else {
+                tools_data_map.insert(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)));
+            }
+        }
+        Ok((tools_data_map, read.opened_folder, read.connection_data))
+    }
+
+    pub fn save(
+        opened_folder: Option<&String>,
+        tools_data_map: &ToolsDataMap,
+        connection_data: ConnectionData,
+        export_folder: &str,
+    ) -> RvResult<Option<PathBuf>> {
+        let mut res = None;
+        if let Some(of) = opened_folder {
+            let bbox_data = tools_data_map[BBOX_NAME].clone();
+            let data = ExportData {
+                opened_folder: of.to_string(),
+                bbox_data: Some(BboxExportData::from_bbox_data(
+                    bbox_data.specifics.bbox().clone(),
+                )),
+                connection_data,
+            };
+
+            let of_last_part_linux = get_last_part_of_path(of, '/');
+            let of_last_part_windows =
+                get_last_part_of_path(of_last_part_linux.as_ref().unwrap_or(of), '\\');
+            let of_last_part = of_last_part_windows
+                .unwrap_or_else(|| of_last_part_linux.unwrap_or_else(|| of.to_string()));
+            let ef_path = Path::new(export_folder);
+            match fs::create_dir_all(ef_path) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(format_rverr!(
+                    "could not create {:?} due to {:?}",
+                    ef_path,
+                    e
+                )),
+            }?;
+            let path = Path::new(ef_path).join(of_last_part).with_extension("json");
+            let data_str = serde_json::to_string(&data).map_err(to_rv)?;
+            file_util::write(&path, data_str)?;
+            res = Some(path);
+        }
+        Ok(res)
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub enum Info {
     Error(String),
@@ -22,6 +117,7 @@ pub enum Info {
     #[default]
     None,
 }
+
 #[derive(Default)]
 pub struct Control {
     pub reader: Option<ReaderFromCfg>,
@@ -33,33 +129,42 @@ pub struct Control {
     pub cfg: Cfg,
     pub file_loaded: Option<usize>,
 }
+
 impl Control {
-    pub fn import<P>(&mut self, filename: P, tools_data_map: &mut ToolsDataMap) -> RvResult<()>
-    where
-        P: AsRef<Path> + Debug,
-    {
-        if filename.as_ref().extension() == Some(OsStr::new("json")) {
-            let s = file_util::read_to_string(filename)?;
-            let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-            match read.connection_data {
-                ConnectionData::Ssh(ssh_cfg) => {
-                    self.cfg.ssh_cfg = ssh_cfg;
-                }
-                ConnectionData::None => (),
+    pub fn load(
+        &mut self,
+        file_name: &str,
+        mut tools_data_map: ToolsDataMap,
+    ) -> RvResult<ToolsDataMap> {
+        let export_folder = &self.cfg.export_folder()?;
+        let loaded = detail::load(export_folder, file_name, tools_data_map)?;
+        tools_data_map = loaded.0;
+        let to_be_opened_folder = loaded.1;
+        let connection_data = loaded.2;
+
+        self.open_folder(to_be_opened_folder)?;
+        match connection_data {
+            ConnectionData::Ssh(ssh_cfg) => {
+                self.cfg.ssh_cfg = ssh_cfg;
+                self.cfg.connection = Connection::Ssh;
             }
-            self.open_folder(read.opened_folder)?;
-            if let Some(bbox_data) = read.bbox_data {
-                let bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
-                let tools_data = tools_data_map.get_mut(BBOX_NAME);
-                if let Some(td) = tools_data {
-                    td.specifics = ToolSpecifics::Bbox(bbox_data);
-                } else {
-                    tools_data_map
-                        .insert(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)));
-                }
-            }
+            ConnectionData::None => (),
         }
-        Ok(())
+
+        Ok(tools_data_map)
+    }
+
+    pub fn save(&self, tools_data_map: &ToolsDataMap) -> RvResult<Option<PathBuf>> {
+        let opened_folder = self.opened_folder();
+        let connection_data = self.connection_data();
+        let export_folder = self.cfg.export_folder()?;
+
+        detail::save(
+            opened_folder,
+            tools_data_map,
+            connection_data,
+            export_folder,
+        )
     }
 
     pub fn new(cfg: Cfg) -> Self {
@@ -94,12 +199,14 @@ impl Control {
     }
 
     pub fn open_folder(&mut self, new_folder: String) -> RvResult<()> {
+        println!("opened_folder {}", new_folder);
         self.make_reader(self.cfg.clone())?;
         self.opened_folder = Some(new_folder);
         Ok(())
     }
 
     pub fn load_opened_folder_content(&mut self) -> RvResult<()> {
+        println!("{:?}", self.opened_folder);
         if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
             let selector = reader.open_folder(opened_folder.as_str())?;
             self.paths_navigator = PathsNavigator::new(Some(selector));
@@ -138,12 +245,20 @@ impl Control {
         }
     }
 
-    fn cfg_of_opened_folder(&self) -> Option<&Cfg> {
+    pub fn cfg_of_opened_folder(&self) -> Option<&Cfg> {
         self.reader().map(|r| r.cfg())
     }
 
     fn opened_folder(&self) -> Option<&String> {
         self.opened_folder.as_ref()
+    }
+
+    pub fn connection_data(&self) -> ConnectionData {
+        let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
+        match ssh_cfg {
+            Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg),
+            None => ConnectionData::None,
+        }
     }
 
     pub fn meta_data(&self, file_selected: Option<usize>) -> MetaData {
@@ -166,6 +281,7 @@ impl Control {
         }
     }
 }
+
 fn make_reader_from_cfg(cfg: Cfg) -> (ReaderFromCfg, Info) {
     match ReaderFromCfg::from_cfg(cfg) {
         Ok(rfc) => (rfc, Info::None),
@@ -174,4 +290,106 @@ fn make_reader_from_cfg(cfg: Cfg) -> (ReaderFromCfg, Info) {
             Info::Warning(e.msg().to_string()),
         ),
     }
+}
+
+#[cfg(test)]
+use {
+    crate::{
+        cfg, defer_file_removal,
+        domain::make_test_bbs,
+        file_util::DEFAULT_TMPDIR,
+        tools::BBOX_NAME,
+        tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
+    },
+    std::{collections::HashMap, fs, path::Path, str::FromStr},
+};
+#[cfg(test)]
+pub fn make_data(image_file: &Path) -> ToolsDataMap {
+    let test_export_folder = DEFAULT_TMPDIR.clone();
+
+    match fs::create_dir(&test_export_folder) {
+        Ok(_) => (),
+        Err(e) => {
+            println!("{:?}", e);
+        }
+    }
+
+    let mut bbox_data = BboxSpecificData::new();
+    bbox_data.push("x".to_string(), None, None).unwrap();
+    bbox_data.remove_catidx(0);
+    let mut bbs = make_test_bbs();
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+
+    let annos = bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap());
+    for bb in bbs {
+        annos.add_bb(bb, 0);
+    }
+    let tools_data_map =
+        HashMap::from([(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)))]);
+    tools_data_map
+}
+
+#[test]
+fn test_save_load() {
+    let tdm = make_data(&PathBuf::from_str("dummyfile").unwrap());
+    let cfg = cfg::get_default_cfg();
+
+    let opened_folder_name = "dummy_opened_folder";
+    let export_folder = cfg.tmpdir().unwrap();
+    let opened_folder = Some(opened_folder_name.to_string());
+    let path = detail::save(
+        opened_folder.as_ref(),
+        &tdm,
+        ConnectionData::None,
+        export_folder,
+    )
+    .unwrap()
+    .unwrap();
+
+    defer_file_removal!(&path);
+
+    let (tdm_imported, _, _) = detail::load(
+        export_folder,
+        format!("{}.json", opened_folder_name).as_str(),
+        tdm.clone(),
+    )
+    .unwrap();
+    assert_eq!(tdm, tdm_imported);
+}
+
+#[test]
+fn last_folder_part() {
+    assert_eq!(
+        detail::get_last_part_of_path("a/b/c", '/'),
+        Some("c".to_string())
+    );
+    assert_eq!(detail::get_last_part_of_path("a/b/c", '\\'), None);
+    assert_eq!(detail::get_last_part_of_path("a\\b\\c", '/'), None);
+    assert_eq!(
+        detail::get_last_part_of_path("a\\b\\c", '\\'),
+        Some("c".to_string())
+    );
+    assert_eq!(detail::get_last_part_of_path("", '/'), None);
+    assert_eq!(
+        detail::get_last_part_of_path("a/b/c/", '/'),
+        Some("c".to_string())
+    );
+    assert_eq!(
+        detail::get_last_part_of_path("aadfh//bdafl////aksjc/////", '/'),
+        Some("aksjc".to_string())
+    );
+    assert_eq!(
+        detail::get_last_part_of_path("\"aa dfh//bdafl////aks jc/////\"", '/'),
+        Some("\"aks jc\"".to_string())
+    );
+    assert_eq!(
+        detail::get_last_part_of_path("'aa dfh//bdafl////aks jc/////'", '/'),
+        Some("'aks jc'".to_string())
+    );
 }

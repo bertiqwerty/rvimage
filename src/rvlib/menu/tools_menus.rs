@@ -2,10 +2,7 @@ use egui::Ui;
 
 use crate::{
     result::RvResult,
-    tools_data::{
-        bbox_data::{BboxExportFileType, BboxSpecificData},
-        ToolSpecifics, ToolsData,
-    },
+    tools_data::{bbox_data::BboxSpecificData, ToolSpecifics, ToolsData},
 };
 
 pub fn bbox_menu(
@@ -48,25 +45,10 @@ pub fn bbox_menu(
     }
     ui.separator();
     ui.horizontal(|ui| {
-        if ui.button("export").clicked() {
-            println!("import triggered");
+        if ui.button("export coco").clicked() {
+            println!("export coco triggered");
             data.export_trigger.is_exported_triggered = true;
         }
-        ui.radio_value(
-            &mut data.export_trigger.file_type,
-            BboxExportFileType::Json,
-            "Json",
-        );
-        ui.radio_value(
-            &mut data.export_trigger.file_type,
-            BboxExportFileType::Pickle,
-            "Pickle",
-        );
-        ui.radio_value(
-            &mut data.export_trigger.file_type,
-            BboxExportFileType::Coco,
-            "Coco",
-        );
     });
     ui.separator();
     if ui.button("import coco").clicked() {
