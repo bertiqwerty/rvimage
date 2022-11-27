@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use crate::cfg::Connection;
 use crate::file_util::{ConnectionData, MetaData};
+use crate::result::RvError;
 use crate::world::ToolsDataMap;
 use crate::{
     cfg::Cfg, reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
@@ -43,7 +44,7 @@ mod detail {
                 fp_slice = &fp_slice[0..fp_slice.len() - 1];
                 last_folder = fp_slice.split(sep).last().unwrap_or("");
             }
-            Some(format!("{}{}{}", mark, last_folder, mark))
+            Some(format!("{}{}{}", mark, last_folder.replace(':', "_"), mark))
         } else {
             None
         }
@@ -77,8 +78,9 @@ mod detail {
         export_folder: &str,
     ) -> RvResult<Option<PathBuf>> {
         let mut res = None;
-        if let Some(of) = opened_folder {
-            let bbox_data = tools_data_map[BBOX_NAME].clone();
+        let bbox_data = tools_data_map.get(BBOX_NAME);
+        if let (Some(of), Some(bbox_data)) = (opened_folder, bbox_data) {
+            let bbox_data = bbox_data.clone();
             let data = ExportData {
                 opened_folder: of.to_string(),
                 bbox_data: Some(BboxExportData::from_bbox_data(
@@ -104,7 +106,12 @@ mod detail {
             let path = Path::new(ef_path).join(of_last_part).with_extension("json");
             let data_str = serde_json::to_string(&data).map_err(to_rv)?;
             file_util::write(&path, data_str)?;
+            println!("saved to {:?}", path);
             res = Some(path);
+        } else {
+            println!("did not save");
+            println!("  opened folder {:?}", opened_folder);
+            println!("  bbox data {:?}", bbox_data);
         }
         Ok(res)
     }
@@ -142,14 +149,20 @@ impl Control {
         let to_be_opened_folder = loaded.1;
         let connection_data = loaded.2;
 
-        self.open_folder(to_be_opened_folder)?;
         match connection_data {
             ConnectionData::Ssh(ssh_cfg) => {
                 self.cfg.ssh_cfg = ssh_cfg;
                 self.cfg.connection = Connection::Ssh;
             }
-            ConnectionData::None => (),
+            ConnectionData::PyHttp(pyhttp_cfg) => {
+                self.cfg.py_http_reader_cfg = Some(pyhttp_cfg);
+                self.cfg.connection = Connection::PyHttp;
+            }
+            ConnectionData::None => {
+                self.cfg.connection = Connection::Local;
+            }
         }
+        self.open_folder(to_be_opened_folder)?;
 
         Ok(tools_data_map)
     }
@@ -199,14 +212,13 @@ impl Control {
     }
 
     pub fn open_folder(&mut self, new_folder: String) -> RvResult<()> {
-        println!("opened_folder {}", new_folder);
+        println!("new opened folder {}", new_folder);
         self.make_reader(self.cfg.clone())?;
         self.opened_folder = Some(new_folder);
         Ok(())
     }
 
     pub fn load_opened_folder_content(&mut self) -> RvResult<()> {
-        println!("{:?}", self.opened_folder);
         if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
             let selector = reader.open_folder(opened_folder.as_str())?;
             self.paths_navigator = PathsNavigator::new(Some(selector));
@@ -254,10 +266,26 @@ impl Control {
     }
 
     pub fn connection_data(&self) -> ConnectionData {
-        let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
-        match ssh_cfg {
-            Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg),
-            None => ConnectionData::None,
+        match self.cfg.connection {
+            Connection::Ssh => {
+                let ssh_cfg = self
+                    .cfg_of_opened_folder()
+                    .map(|cfg| cfg.ssh_cfg.clone())
+                    .ok_or_else(|| RvError::new("save failed, opened folder needs a config"))
+                    .unwrap();
+                ConnectionData::Ssh(ssh_cfg)
+            }
+            Connection::Local => ConnectionData::None,
+            Connection::PyHttp => {
+                let pyhttp_cfg = self
+                    .cfg_of_opened_folder()
+                    .map(|cfg| cfg.py_http_reader_cfg.clone())
+                    .ok_or_else(|| RvError::new("save failed, opened folder needs a config"))
+                    .unwrap()
+                    .ok_or_else(|| RvError::new("cannot open pyhttp without pyhttp cfg"))
+                    .unwrap();
+                ConnectionData::PyHttp(pyhttp_cfg)
+            }
         }
     }
 

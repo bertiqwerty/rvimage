@@ -5,7 +5,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{cfg::SshCfg, format_rverr};
+use crate::{
+    cfg::{PyHttpReaderCfg, SshCfg},
+    format_rverr,
+};
 use crate::{
     result::{to_rv, RvResult},
     tools_data::BboxExportData,
@@ -69,6 +72,7 @@ pub fn to_name_str(p: &Path) -> RvResult<&str> {
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 pub enum ConnectionData {
     Ssh(SshCfg),
+    PyHttp(PyHttpReaderCfg),
     #[default]
     None,
 }
