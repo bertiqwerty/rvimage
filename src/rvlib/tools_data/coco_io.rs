@@ -223,7 +223,12 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
         .opened_folder
         .as_deref()
         .ok_or_else(|| RvError::new("no folder open"))?;
-    let file_name = format!("{}_coco.json", opened_folder);
+    let opened_folder_name = Path::new(opened_folder)
+        .file_stem()
+        .and_then(|of| of.to_str())
+        .ok_or_else(|| format_rverr!("cannot find folder name  of {}", opened_folder))?;
+
+    let file_name = format!("{}_coco.json", opened_folder_name);
     Ok(export_folder.join(file_name))
 }
 
