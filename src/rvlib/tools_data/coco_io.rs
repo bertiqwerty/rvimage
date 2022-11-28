@@ -202,7 +202,6 @@ impl CocoExportData {
                 annotations.insert(k.to_string(), (vec![bb], vec![cat_idx]));
             }
         }
-
         BboxSpecificData::from_bbox_export_data(BboxExportData {
             labels,
             colors,

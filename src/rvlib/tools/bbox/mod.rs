@@ -221,6 +221,7 @@ impl Manipulate for BBox {
                 import_coco_if_triggered(&world.data.meta_data, is_coco_import_triggered)
             {
                 *get_tools_data_mut(&mut world).specifics.bbox_mut() = imported_data;
+                world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
             } else {
                 get_tools_data_mut(&mut world)
                     .specifics
