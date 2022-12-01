@@ -109,20 +109,21 @@ impl ToolSpecifics {
     ) -> ViewImage {
         match &self {
             ToolSpecifics::Bbox(bb_data) => {
-                im_view = bb_data.get_annos(file_path).unwrap().draw_on_view(
-                    im_view,
-                    zoom_box,
-                    shape_orig,
-                    shape_win,
-                    bb_data.labels(),
-                    bb_data.colors(),
-                );
+                if let Some(annos) = bb_data.get_annos(file_path) {
+                    im_view = annos.draw_on_view(
+                        im_view,
+                        zoom_box,
+                        shape_orig,
+                        shape_win,
+                        bb_data.labels(),
+                        bb_data.colors(),
+                    );
+                }
             }
             ToolSpecifics::Brush(brush_data) => {
-                im_view = brush_data
-                    .get_annos(file_path)
-                    .unwrap()
-                    .draw_on_view(im_view, zoom_box, shape_orig, shape_win);
+                if let Some(annos) = brush_data.get_annos(file_path) {
+                    im_view = annos.draw_on_view(im_view, zoom_box, shape_orig, shape_win);
+                }
             }
         }
         im_view
