@@ -29,7 +29,7 @@ macro_rules! tools_data_initializer {
 #[macro_export]
 macro_rules! annotations_accessor {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
-        pub(super) fn get_annos(world: &World) -> &$annotations_type {
+        pub(super) fn get_annos(world: &World) -> Option<&$annotations_type> {
             let current_file_path = world.data.meta_data.file_path.as_ref().unwrap();
             world
                 .data
@@ -47,6 +47,7 @@ macro_rules! annotations_accessor_mut {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
         pub(super) fn get_annos_mut(world: &mut World) -> &mut $annotations_type {
             let current_file_path = world.data.meta_data.file_path.as_ref().unwrap();
+            let shape = world.data.shape();
             world
                 .data
                 .tools_data_map
@@ -54,7 +55,7 @@ macro_rules! annotations_accessor_mut {
                 .expect($error_msg)
                 .specifics
                 .$access_func()
-                .get_annos_mut(&current_file_path)
+                .get_annos_mut(&current_file_path, shape)
         }
     };
 }
@@ -108,7 +109,7 @@ impl ToolSpecifics {
     ) -> ViewImage {
         match &self {
             ToolSpecifics::Bbox(bb_data) => {
-                im_view = bb_data.get_annos(file_path).draw_on_view(
+                im_view = bb_data.get_annos(file_path).unwrap().draw_on_view(
                     im_view,
                     zoom_box,
                     shape_orig,
@@ -120,6 +121,7 @@ impl ToolSpecifics {
             ToolSpecifics::Brush(brush_data) => {
                 im_view = brush_data
                     .get_annos(file_path)
+                    .unwrap()
                     .draw_on_view(im_view, zoom_box, shape_orig, shape_win);
             }
         }

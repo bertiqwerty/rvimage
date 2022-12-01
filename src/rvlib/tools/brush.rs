@@ -1,12 +1,12 @@
 use crate::{
     annotations::BrushAnnotations,
-    annotations_accessor_mut,
+    annotations_accessor, annotations_accessor_mut,
     domain::{mouse_pos_to_orig_pos, Shape},
     history::{History, Record},
     make_tool_transform,
     tools_data::BrushToolData,
     tools_data::{ToolSpecifics, ToolsData},
-    tools_data_accessor, tools_data_initializer,
+    tools_data_initializer,
     world::World,
     LEFT_BTN,
 };
@@ -16,16 +16,11 @@ use winit_input_helper::WinitInputHelper;
 use super::{core::InitialView, Manipulate};
 
 const ACTOR_NAME: &str = "Brush";
-const MISSING_TOOLSMENU_MSG: &str = "brush data have not yet been initialized";
+const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
 
 tools_data_initializer!(ACTOR_NAME, Brush, BrushToolData);
-tools_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
-annotations_accessor_mut!(
-    ACTOR_NAME,
-    brush_mut,
-    MISSING_TOOLSMENU_MSG,
-    BrushAnnotations
-);
+annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
+annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
 
 #[derive(Clone, Debug)]
 pub struct Brush {
@@ -34,19 +29,18 @@ pub struct Brush {
 
 impl Brush {
     fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        let im_view = get_tools_data(&world)
-            .specifics
-            .brush()
-            .get_annos(world.data.current_file_path().as_ref().unwrap())
-            .draw_on_view(
+        if let Some(annos) = get_annos(&world) {
+            let im_view = annos.draw_on_view(
                 self.initial_view.image().clone().unwrap(),
                 world.zoom_box(),
                 world.data.shape(),
                 shape_win,
             );
-        world.set_im_view(im_view);
+            world.set_im_view(im_view);
+        }
         world
     }
+
     fn mouse_pressed(
         &mut self,
         _event: &WinitInputHelper,

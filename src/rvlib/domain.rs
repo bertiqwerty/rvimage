@@ -119,7 +119,7 @@ pub fn mouse_pos_to_orig_pos(
         .filter(|(x_orig, y_orig)| x_orig < &shape_orig.w && y_orig < &shape_orig.h)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Shape {
     pub w: u32,
     pub h: u32,

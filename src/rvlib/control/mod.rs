@@ -320,7 +320,7 @@ fn make_reader_from_cfg(cfg: Cfg) -> (ReaderFromCfg, Info) {
 use {
     crate::{
         cfg, defer_file_removal,
-        domain::make_test_bbs,
+        domain::{make_test_bbs, Shape},
         file_util::DEFAULT_TMPDIR,
         tools::BBOX_NAME,
         tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
@@ -350,7 +350,8 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
     bbs.extend(bbs.clone());
     bbs.extend(bbs.clone());
 
-    let annos = bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap());
+    let annos =
+        bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), Shape::new(10, 10));
     for bb in bbs {
         annos.add_bb(bb, 0);
     }

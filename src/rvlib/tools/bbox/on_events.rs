@@ -158,8 +158,9 @@ pub(super) fn on_mouse_released_left(
         let shape_orig = world.data.shape();
         let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
         let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
-        let close_corner =
-            mp_orig.and_then(|mp| find_close_corner(mp, get_annos(&world).bbs(), tolerance as i64));
+        let close_corner = mp_orig.and_then(|mp| {
+            get_annos(&world).and_then(|a| find_close_corner(mp, a.bbs(), tolerance as i64))
+        });
         if let Some((bb_idx, idx)) = close_corner {
             // move an existing corner
             let annos = get_annos_mut(&mut world);
@@ -238,11 +239,13 @@ pub(super) fn on_key_released(
         }
         ReleasedKey::C if params.is_ctrl_held => {
             // Copy to clipboard
-            get_tools_data_mut(&mut world)
-                .specifics
-                .bbox_mut()
-                .clipboard = Some(ClipboardData::from_annotations(get_annos(&world)));
-            world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+            if let Some(annos) = get_annos(&world) {
+                get_tools_data_mut(&mut world)
+                    .specifics
+                    .bbox_mut()
+                    .clipboard = Some(ClipboardData::from_annotations(annos));
+                world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+            }
         }
         ReleasedKey::V if params.is_ctrl_held => {
             // Paste from clipboard
@@ -366,15 +369,15 @@ fn test_key_released() {
     // select all boxes with ctrl+A
     let params = make_params(ReleasedKey::A, false);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
-    assert!(!get_annos(&world).selected_bbs()[0]);
+    assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
     let params = make_params(ReleasedKey::A, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
-    assert!(get_annos(&world).selected_bbs()[0]);
+    assert!(get_annos(&world).unwrap().selected_bbs()[0]);
 
     // copy and paste boxes to and from clipboard
     let params = make_params(ReleasedKey::C, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
-    assert!(get_annos(&world).selected_bbs()[0]);
+    assert!(get_annos(&world).unwrap().selected_bbs()[0]);
     if let Some(clipboard) = get_tools_data(&world).specifics.bbox().clipboard.clone() {
         let mut annos = BboxAnnotations::new();
         annos.extend(
@@ -382,47 +385,50 @@ fn test_key_released() {
             clipboard.cat_idxs().iter().copied(),
             Shape { w: 100, h: 100 },
         );
-        assert_eq!(annos.bbs(), get_annos(&world).bbs());
-        assert_eq!(annos.cat_idxs(), get_annos(&world).cat_idxs());
-        assert_ne!(annos.selected_bbs(), get_annos(&world).selected_bbs());
+        assert_eq!(annos.bbs(), get_annos(&world).unwrap().bbs());
+        assert_eq!(annos.cat_idxs(), get_annos(&world).unwrap().cat_idxs());
+        assert_ne!(
+            annos.selected_bbs(),
+            get_annos(&world).unwrap().selected_bbs()
+        );
     } else {
         assert!(false);
     }
     let params = make_params(ReleasedKey::V, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_tools_data(&world).specifics.bbox().clipboard.is_some());
-    assert_eq!(get_annos(&world).bbs(), annos_orig.bbs());
+    assert_eq!(get_annos(&world).unwrap().bbs(), annos_orig.bbs());
     let params = make_params(ReleasedKey::C, true);
     let (_, mut world, history) = on_key_released(world, history, None, shape_win, params);
     get_annos_mut(&mut world).remove(0);
     let params = make_params(ReleasedKey::V, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
-    assert_eq!(get_annos(&world).bbs(), annos_orig.bbs());
+    assert_eq!(get_annos(&world).unwrap().bbs(), annos_orig.bbs());
 
     // clone box
     let params = make_params(ReleasedKey::A, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     let params = make_params(ReleasedKey::C, false);
     let (_, world, history) = on_key_released(world, history, Some((2, 2)), shape_win, params);
-    assert_eq!(get_annos(&world).bbs()[0], annos_orig.bbs()[0]);
+    assert_eq!(get_annos(&world).unwrap().bbs()[0], annos_orig.bbs()[0]);
     assert_eq!(
-        get_annos(&world).bbs()[1],
+        get_annos(&world).unwrap().bbs()[1],
         annos_orig.bbs()[0]
             .translate(1, 1, world.shape_orig())
             .unwrap()
     );
-    assert_eq!(get_annos(&world).bbs().len(), 2);
+    assert_eq!(get_annos(&world).unwrap().bbs().len(), 2);
 
     // deselect all boxes with ctrl+D
     let params = make_params(ReleasedKey::A, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     let params = make_params(ReleasedKey::D, false);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
-    assert!(get_annos(&world).selected_bbs()[0]);
+    assert!(get_annos(&world).unwrap().selected_bbs()[0]);
     let params = make_params(ReleasedKey::D, true);
     let (is_visible, world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(is_visible);
-    assert!(!get_annos(&world).selected_bbs()[0]);
+    assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
@@ -432,12 +438,12 @@ fn test_key_released() {
     // delete all selected boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
-    assert!(!get_annos(&world).selected_bbs().is_empty());
+    assert!(!get_annos(&world).unwrap().selected_bbs().is_empty());
     let params = make_params(ReleasedKey::A, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params);
     let params = make_params(ReleasedKey::Delete, true);
     let (_, world, _) = on_key_released(world, history, None, shape_win, params);
-    assert!(get_annos(&world).selected_bbs().is_empty());
+    assert!(get_annos(&world).unwrap().selected_bbs().is_empty());
 }
 
 #[test]
@@ -456,7 +462,7 @@ fn test_mouse_held() {
         };
         let (world, new_hist) =
             on_mouse_held_right(shape_win, mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(get_annos(&world).bbs()[0], bbs[0]);
+        assert_eq!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -471,7 +477,7 @@ fn test_mouse_held() {
         annos.select(0);
         let (world, new_hist) =
             on_mouse_held_right(shape_win, mouse_pos, params, world, history.clone());
-        assert_ne!(get_annos(&world).bbs()[0], bbs[0]);
+        assert_ne!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
         assert!(!history_equal(&history, &new_hist));
     }
 }
@@ -493,8 +499,8 @@ fn test_mouse_release() {
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos, None);
         let annos = get_annos(&world);
-        assert_eq!(annos.bbs().len(), 1);
-        assert_eq!(annos.cat_idxs()[0], 0);
+        assert_eq!(annos.unwrap().bbs().len(), 1);
+        assert_eq!(annos.unwrap().cat_idxs()[0], 0);
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
     {
@@ -505,7 +511,7 @@ fn test_mouse_release() {
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos, mouse_pos);
         let annos = get_annos(&world);
-        assert!(annos.bbs().is_empty());
+        assert!(annos.is_none() || annos.unwrap().bbs().is_empty());
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -516,7 +522,7 @@ fn test_mouse_release() {
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos, None);
         let annos = get_annos(&world);
-        assert!(annos.bbs().is_empty());
+        assert!(annos.is_none() || annos.unwrap().bbs().is_empty());
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -527,7 +533,7 @@ fn test_mouse_release() {
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos, None);
         let annos = get_annos(&world);
-        assert_eq!(annos.bbs().len(), 1);
+        assert_eq!(annos.unwrap().bbs().len(), 1);
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
 }

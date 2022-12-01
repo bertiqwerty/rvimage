@@ -32,9 +32,9 @@ pub type RvResult<U> = Result<U, RvError>;
 /// Creates an [`RvError`](RvError) with a formatted message.
 /// ```rust
 /// # use std::error::Error;
-/// use rvlib::{format_rverr, {result::RvError}};
+/// use rvlib::{rverr, {result::RvError}};
 /// # fn main() -> Result<(), Box<dyn Error>> {
-/// assert_eq!(format_rverr!("some error {}", 1), RvError::new(format!("some error {}", 1).as_str()));
+/// assert_eq!(rverr!("some error {}", 1), RvError::new(format!("some error {}", 1).as_str()));
 /// # Ok(())
 /// # }
 /// ```

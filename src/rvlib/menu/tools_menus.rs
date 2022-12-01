@@ -35,7 +35,7 @@ pub fn bbox_menu(
         });
     }
     if new_idx != data.cat_idx_current {
-        for (_, anno) in data.anno_iter_mut() {
+        for (_, (anno, _)) in data.anno_iter_mut() {
             anno.label_selected(new_idx);
         }
         data.cat_idx_current = new_idx;

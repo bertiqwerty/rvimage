@@ -29,15 +29,17 @@ pub(super) fn draw_on_view(
 ) -> World {
     if are_boxes_visible {
         let bb_data = &get_tools_data(&world).specifics.bbox();
-        let im_view = get_annos(&world).draw_on_view(
-            initial_view.image().clone().unwrap(),
-            world.zoom_box(),
-            world.data.shape(),
-            shape_win,
-            bb_data.labels(),
-            bb_data.colors(),
-        );
-        world.set_im_view(im_view);
+        if let Some(annos) = get_annos(&world) {
+            let im_view = annos.draw_on_view(
+                initial_view.image().clone().unwrap(),
+                world.zoom_box(),
+                world.data.shape(),
+                shape_win,
+                bb_data.labels(),
+                bb_data.colors(),
+            );
+            world.set_im_view(im_view);
+        }
     } else if let Some(iv) = initial_view.image() {
         world.set_im_view(iv.clone());
     }

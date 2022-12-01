@@ -3,8 +3,16 @@ use std::{collections::HashMap, mem};
 use serde::{Deserialize, Serialize};
 
 use super::annotations::{selected_indices, BboxAnnotations};
-use crate::{domain::BB, implement_annotations_getters, result::RvResult, rverr};
+use crate::{
+    domain::{Shape, BB},
+    implement_annotations_getters,
+    result::RvResult,
+    rverr,
+};
 const DEFAULT_LABEL: &str = "foreground";
+
+/// filename -> (annotations per file, file dimensions)
+type AnnotationsMap = HashMap<String, (BboxAnnotations, Shape)>;
 
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
@@ -48,8 +56,6 @@ pub struct BboxExportTrigger {
     pub is_exported_triggered: bool,
 }
 
-static DEFAULT_BBOX_ANNOTATION: BboxAnnotations = BboxAnnotations::new();
-
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct ClipboardData {
     bbs: Vec<BB>,
@@ -80,15 +86,14 @@ pub struct BboxSpecificData {
     colors: Vec<[u8; 3]>,
     cat_ids: Vec<u32>,
     pub cat_idx_current: usize,
-    // filename -> annotations per file
-    annotations_map: HashMap<String, BboxAnnotations>,
+    annotations_map: AnnotationsMap,
     pub export_trigger: BboxExportTrigger,
     pub is_coco_import_triggered: bool,
     pub clipboard: Option<ClipboardData>,
 }
 
 impl BboxSpecificData {
-    implement_annotations_getters!(&DEFAULT_BBOX_ANNOTATION, BboxAnnotations);
+    implement_annotations_getters!(BboxAnnotations);
 
     pub fn from_bbox_export_data(input_data: BboxExportData) -> RvResult<Self> {
         let mut out_data = Self {
@@ -114,7 +119,9 @@ impl BboxSpecificData {
             input_data
                 .annotations
                 .into_iter()
-                .map(|(s, (bbs, cat_ids))| (s, BboxAnnotations::from_bbs_cats(bbs, cat_ids)))
+                .map(|(s, (bbs, cat_ids, dims))| {
+                    (s, (BboxAnnotations::from_bbs_cats(bbs, cat_ids), dims))
+                })
                 .collect(),
         )?;
         Ok(out_data)
@@ -128,7 +135,7 @@ impl BboxSpecificData {
             if self.cat_idx_current >= cat_idx.max(1) {
                 self.cat_idx_current -= 1;
             }
-            for anno in self.annotations_map.values_mut() {
+            for (anno, _) in self.annotations_map.values_mut() {
                 anno.reduce_cat_idxs(cat_idx);
             }
         }
@@ -210,8 +217,8 @@ impl BboxSpecificData {
         }
     }
 
-    pub fn set_annotations_map(&mut self, map: HashMap<String, BboxAnnotations>) -> RvResult<()> {
-        for (_, annos) in map.iter() {
+    pub fn set_annotations_map(&mut self, map: AnnotationsMap) -> RvResult<()> {
+        for (_, (annos, _)) in map.iter() {
             for cat_idx in annos.cat_idxs() {
                 let len = self.labels().len();
                 if *cat_idx >= len {
@@ -239,7 +246,8 @@ pub struct BboxExportData {
     pub labels: Vec<String>,
     pub colors: Vec<[u8; 3]>,
     pub cat_ids: Vec<u32>,
-    pub annotations: HashMap<String, (Vec<BB>, Vec<usize>)>,
+    // filename, bounding boxes, classes of the boxes, dimensions of the image
+    pub annotations: HashMap<String, (Vec<BB>, Vec<usize>, Shape)>,
 }
 
 impl BboxExportData {
@@ -250,7 +258,10 @@ impl BboxExportData {
             cat_ids: mem::take(&mut bbox_specifics.cat_ids),
             annotations: bbox_specifics
                 .anno_intoiter()
-                .map(|(filename, annos)| (filename, annos.to_data()))
+                .map(|(filename, (annos, shape))| {
+                    let (bbs, labels) = annos.to_data();
+                    (filename, (bbs, labels, shape))
+                })
                 .collect::<HashMap<_, _>>(),
         }
     }

@@ -7,7 +7,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::BB,
+    domain::{Shape, BB},
     file_util::{self, MetaData},
     result::{to_rv, RvError, RvResult},
     rverr,
@@ -67,23 +67,23 @@ impl CocoExportData {
         };
         let export_data = BboxExportData::from_bbox_data(bbox_specifics);
 
-        let make_image_map = |(idx, filename)| {
+        type AnnotationMapValue<'a> = (&'a String, &'a (Vec<BB>, Vec<usize>, Shape));
+        let make_image_map = |(idx, (filename, (_, _, shape))): (usize, AnnotationMapValue)| {
             let file_path = Path::new(opened_folder)
                 .join(filename)
                 .into_os_string()
                 .into_string()
                 .map_err(to_rv)?;
-            let (w, h) = image::image_dimensions(&file_path).map_err(to_rv)?;
             Ok(CocoImage {
                 id: idx as u32,
-                width: w,
-                height: h,
+                width: shape.w,
+                height: shape.h,
                 file_name: file_path,
             })
         };
         let images = export_data
             .annotations
-            .keys()
+            .iter()
             .enumerate()
             .map(make_image_map)
             .collect::<RvResult<Vec<_>>>()?;
@@ -99,32 +99,33 @@ impl CocoExportData {
             .collect::<Vec<_>>();
 
         let mut box_id = 0;
-        let make_anno_map = |(image_idx, (bbs, cat_idxs)): (usize, &(Vec<BB>, Vec<usize>))| {
-            bbs.iter()
-                .zip(cat_idxs.iter())
-                .map(|(bb, cat_idx): (&BB, &usize)| {
-                    let bb_f = [bb.x as f32, bb.y as f32, bb.w as f32, bb.h as f32];
-                    box_id += 1;
-                    CocoAnnotation {
-                        id: box_id - 1,
-                        image_id: image_idx as u32,
-                        category_id: export_data.cat_ids[*cat_idx] as u32,
-                        bbox: bb_f,
-                        segmentation: Some(vec![
-                            bb_f[0],
-                            bb_f[1],
-                            bb_f[0] + bb_f[2],
-                            bb_f[1],
-                            bb_f[0] + bb_f[2],
-                            bb_f[1] + bb_f[3],
-                            bb_f[0],
-                            bb_f[1] + bb_f[3],
-                        ]),
-                        area: Some((bb.h * bb.w) as f32),
-                    }
-                })
-                .collect::<Vec<_>>()
-        };
+        let make_anno_map =
+            |(image_idx, (bbs, cat_idxs, _)): (usize, &(Vec<BB>, Vec<usize>, Shape))| {
+                bbs.iter()
+                    .zip(cat_idxs.iter())
+                    .map(|(bb, cat_idx): (&BB, &usize)| {
+                        let bb_f = [bb.x as f32, bb.y as f32, bb.w as f32, bb.h as f32];
+                        box_id += 1;
+                        CocoAnnotation {
+                            id: box_id - 1,
+                            image_id: image_idx as u32,
+                            category_id: export_data.cat_ids[*cat_idx] as u32,
+                            bbox: bb_f,
+                            segmentation: Some(vec![
+                                bb_f[0],
+                                bb_f[1],
+                                bb_f[0] + bb_f[2],
+                                bb_f[1],
+                                bb_f[0] + bb_f[2],
+                                bb_f[1] + bb_f[3],
+                                bb_f[0],
+                                bb_f[1] + bb_f[3],
+                            ]),
+                            area: Some((bb.h * bb.w) as f32),
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            };
         let annotations = export_data
             .annotations
             .values()
@@ -167,7 +168,7 @@ impl CocoExportData {
             })
             .collect::<RvResult<HashMap<u32, (&str, u32, u32)>>>()?;
 
-        let mut annotations: HashMap<String, (Vec<BB>, Vec<usize>)> = HashMap::new();
+        let mut annotations: HashMap<String, (Vec<BB>, Vec<usize>, Shape)> = HashMap::new();
         for coco_anno in self.annotations {
             let (file_name, w, h) = id_image_map[&coco_anno.image_id];
 
@@ -199,7 +200,7 @@ impl CocoExportData {
                 annos_of_image.0.push(bb);
                 annos_of_image.1.push(cat_idx);
             } else {
-                annotations.insert(k.to_string(), (vec![bb], vec![cat_idx]));
+                annotations.insert(k.to_string(), (vec![bb], vec![cat_idx], Shape::new(w, h)));
             }
         }
         BboxSpecificData::from_bbox_export_data(BboxExportData {
@@ -224,16 +225,18 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
         .ok_or_else(|| RvError::new("no folder open"))?;
     let parent = Path::new(opened_folder)
         .parent()
-        .unwrap_or_else(|| Path::new(""))
-        .file_stem()
-        .and_then(|parent| parent.to_str())
-        .ok_or_else(|| rverr!("invalid folder parent of {}", opened_folder))?;
+        .and_then(|p| p.file_stem())
+        .and_then(|p| p.to_str());
+
     let opened_folder_name = Path::new(opened_folder)
         .file_stem()
         .and_then(|of| of.to_str())
         .ok_or_else(|| rverr!("cannot find folder name  of {}", opened_folder))?;
-    let file_stem = [parent, opened_folder_name].join("_");
-    let file_name = format!("{}_coco.json", file_stem);
+    let file_name = if let Some(p) = parent {
+        format!("{}_{}_coco.json", p, opened_folder_name)
+    } else {
+        format!("{}_coco.json", opened_folder_name)
+    };
     Ok(export_folder.join(file_name))
 }
 
@@ -301,7 +304,8 @@ pub fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaD
     bbs.extend(bbs.clone());
     bbs.extend(bbs.clone());
 
-    let annos = bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap());
+    let annos =
+        bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), Shape::new(10, 10));
     for bb in bbs {
         annos.add_bb(bb, 0);
     }
@@ -334,21 +338,20 @@ const TEST_DATA_FOLDER: &str = "resources/test_data/";
 
 #[test]
 fn test_coco_import() -> RvResult<()> {
-    fn test(filename: &str, cat_ids: Vec<u32>, bbs: &[(BB, &str)]) -> RvResult<()> {
+    fn test(filename: &str, cat_ids: Vec<u32>, bbs: &[(BB, &str)]) {
         let meta = MetaData {
             file_path: None,
             connection_data: ConnectionData::None,
             opened_folder: Some(filename.to_string()),
             export_folder: Some(TEST_DATA_FOLDER.to_string()),
         };
-        let read = read_coco(&meta)?;
+        let read = read_coco(&meta).unwrap();
         assert_eq!(read.cat_ids(), &cat_ids);
         assert_eq!(read.labels(), &vec!["first label", "second label"]);
         for (bb, file_path) in bbs {
             let annos = read.get_annos(file_path);
-            assert!(annos.bbs().contains(bb));
+            assert!(annos.unwrap().bbs().contains(bb));
         }
-        Ok(())
     }
     let bb_im_ref_abs = [
         (BB::from_array(&[1, 1, 5, 5]), "nowhere.png"),
@@ -360,8 +363,8 @@ fn test_coco_import() -> RvResult<()> {
         (BB::from_array(&[91, 870, 15, 150]), "nowhere.png"),
         (BB::from_array(&[10, 1, 50, 5]), "nowhere2.png"),
     ];
-    test("catids_12", vec![1, 2], &bb_im_ref_abs)?;
-    test("catids_01", vec![0, 1], &bb_im_ref_abs)?;
-    test("catids_12_relative", vec![1, 2], &bb_im_ref_relative)?;
+    test("catids_12", vec![1, 2], &bb_im_ref_abs);
+    test("catids_01", vec![0, 1], &bb_im_ref_abs);
+    test("catids_12_relative", vec![1, 2], &bb_im_ref_relative);
     Ok(())
 }
