@@ -1,6 +1,6 @@
 use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
-    cfg::{self, Cache, Cfg, Connection},
+    cfg::{Cache, Cfg, Connection},
     paths_selector::PathsSelector,
     result::{RvError, RvResult},
     types::AsyncResultImage,
@@ -24,11 +24,6 @@ pub struct ReaderFromCfg {
 impl ReaderFromCfg {
     pub fn cfg(&self) -> &Cfg {
         &self.cfg
-    }
-
-    pub fn new() -> RvResult<Self> {
-        let cfg = cfg::get_default_cfg();
-        Self::from_cfg(cfg)
     }
 
     pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {

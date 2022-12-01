@@ -39,14 +39,14 @@ pub type RvResult<U> = Result<U, RvError>;
 /// # }
 /// ```
 #[macro_export]
-macro_rules! format_rverr {
+macro_rules! rverr {
     ($s:literal, $( $exps:expr ),*) => {
         $crate::result::RvError::new(format!($s, $($exps,)*).as_str())
     }
 }
 
 pub fn to_rv<E: Debug>(e: E) -> RvError {
-    format_rverr!(
+    rverr!(
         "original error type is '{:?}', error message is '{:?}'",
         std::any::type_name::<E>(),
         e

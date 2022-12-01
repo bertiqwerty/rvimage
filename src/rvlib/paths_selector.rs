@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{file_util, format_rverr, result::RvResult};
+use crate::{file_util, result::RvResult, rverr};
 
 fn list_file_labels(file_paths: &[String], filter_str: &str) -> RvResult<Vec<(usize, String)>> {
     file_paths
@@ -30,7 +30,7 @@ fn make_folder_label(folder_path: Option<&str>) -> RvResult<String> {
                     file_util::to_stem_str(l)?,
                 )),
                 (None, Some(l)) => Ok(file_util::to_stem_str(l)?.to_string()),
-                _ => Err(format_rverr!("could not convert path {:?} to str", sf)),
+                _ => Err(rverr!("could not convert path {:?} to str", sf)),
             }
         }
         None => Ok("no folder selected".to_string()),

@@ -6,8 +6,8 @@ use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma
 use crate::{
     domain::{Shape, BB},
     file_util::PixelEffect,
-    format_rverr,
     result::to_rv,
+    rverr,
     types::{ResultImage, ViewImage},
 };
 
@@ -17,7 +17,7 @@ pub fn read_image(path: &str) -> ResultImage {
         .with_guessed_format()
         .map_err(to_rv)?
         .decode()
-        .map_err(|e| format_rverr!("could not decode image {:?}. {:?}", path, e))
+        .map_err(|e| rverr!("could not decode image {:?}. {:?}", path, e))
 }
 
 pub fn clipped_add<T>(x1: T, x2: T, clip_value: T) -> T

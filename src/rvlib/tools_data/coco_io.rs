@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     domain::BB,
     file_util::{self, MetaData},
-    format_rverr,
     result::{to_rv, RvError, RvResult},
+    rverr,
 };
 
 use super::{
@@ -188,7 +188,7 @@ impl CocoExportData {
                 .iter()
                 .position(|cat_id| *cat_id == coco_anno.category_id)
                 .ok_or_else(|| {
-                    format_rverr!(
+                    rverr!(
                         "could not find cat id {}, we only have {:?}",
                         coco_anno.category_id,
                         cat_ids
@@ -222,12 +222,18 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
         .opened_folder
         .as_deref()
         .ok_or_else(|| RvError::new("no folder open"))?;
+    let parent = Path::new(opened_folder)
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .file_stem()
+        .and_then(|parent| parent.to_str())
+        .ok_or_else(|| rverr!("invalid folder parent of {}", opened_folder))?;
     let opened_folder_name = Path::new(opened_folder)
         .file_stem()
         .and_then(|of| of.to_str())
-        .ok_or_else(|| format_rverr!("cannot find folder name  of {}", opened_folder))?;
-
-    let file_name = format!("{}_coco.json", opened_folder_name);
+        .ok_or_else(|| rverr!("cannot find folder name  of {}", opened_folder))?;
+    let file_stem = [parent, opened_folder_name].join("_");
+    let file_name = format!("{}_coco.json", file_stem);
     Ok(export_folder.join(file_name))
 }
 

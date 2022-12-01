@@ -7,8 +7,8 @@ use std::{fmt::Display, iter::once, ops::Range, str::FromStr};
 
 use crate::{
     file_util::PixelEffect,
-    format_rverr,
     result::{to_rv, RvError},
+    rverr,
 };
 
 pub fn mouse_pos_transform(
@@ -376,7 +376,7 @@ impl Display for BB {
 impl FromStr for BB {
     type Err = RvError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err_parse = format_rverr!("could not parse '{}' into a bounding box", s);
+        let err_parse = rverr!("could not parse '{}' into a bounding box", s);
         let mut int_iter = s[1..(s.len() - 1)]
             .split(',')
             .map(|cse| cse.trim().parse::<u32>().map_err(to_rv));

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use crate::cfg::Connection;
+use crate::cfg::{get_default_cfg, Connection};
 use crate::file_util::{ConnectionData, MetaData};
 use crate::result::RvError;
 use crate::world::ToolsDataMap;
@@ -21,8 +21,8 @@ mod detail {
 
     use crate::{
         file_util::{self, ConnectionData, ExportData},
-        format_rverr,
         result::{to_rv, RvResult},
+        rverr,
         tools::BBOX_NAME,
         tools_data::{BboxExportData, BboxSpecificData, ToolSpecifics, ToolsData},
         world::ToolsDataMap,
@@ -97,11 +97,7 @@ mod detail {
             let ef_path = Path::new(export_folder);
             match fs::create_dir_all(ef_path) {
                 Ok(_) => Ok(()),
-                Err(e) => Err(format_rverr!(
-                    "could not create {:?} due to {:?}",
-                    ef_path,
-                    e
-                )),
+                Err(e) => Err(rverr!("could not create {:?} due to {:?}", ef_path, e)),
             }?;
             let path = Path::new(ef_path).join(of_last_part).with_extension("json");
             let data_str = serde_json::to_string(&data).map_err(to_rv)?;
@@ -314,7 +310,7 @@ fn make_reader_from_cfg(cfg: Cfg) -> (ReaderFromCfg, Info) {
     match ReaderFromCfg::from_cfg(cfg) {
         Ok(rfc) => (rfc, Info::None),
         Err(e) => (
-            ReaderFromCfg::new().expect("default cfg broken"),
+            ReaderFromCfg::from_cfg(get_default_cfg()).expect("default cfg broken"),
             Info::Warning(e.msg().to_string()),
         ),
     }

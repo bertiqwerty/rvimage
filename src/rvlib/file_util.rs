@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     cfg::{PyHttpReaderCfg, SshCfg},
-    format_rverr,
+    rverr,
 };
 use crate::{
     result::{to_rv, RvResult},
@@ -31,7 +31,7 @@ pub fn read_to_string<P>(p: P) -> RvResult<String>
 where
     P: AsRef<Path> + Debug,
 {
-    fs::read_to_string(&p).map_err(|e| format_rverr!("could not read {:?} due to {:?}", p, e))
+    fs::read_to_string(&p).map_err(|e| rverr!("could not read {:?} due to {:?}", p, e))
 }
 pub trait PixelEffect: FnMut(u32, u32) {}
 impl<T: FnMut(u32, u32)> PixelEffect for T {}
@@ -42,12 +42,12 @@ pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
         .join(fname)
         .to_str()
         .map(|s| s.to_string())
-        .ok_or_else(|| format_rverr!("could not transform {:?} to &str", fname))
+        .ok_or_else(|| rverr!("could not transform {:?} to &str", fname))
 }
 
 pub fn path_to_str(p: &Path) -> RvResult<&str> {
     osstr_to_str(Some(p.as_os_str()))
-        .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+        .map_err(|e| rverr!("could not transform '{:?}' due to '{:?}'", p, e))
 }
 pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
     p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
@@ -62,12 +62,12 @@ pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
 
 pub fn to_stem_str(p: &Path) -> RvResult<&str> {
     osstr_to_str(p.file_stem())
-        .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+        .map_err(|e| rverr!("could not transform '{:?}' due to '{:?}'", p, e))
 }
 
 pub fn to_name_str(p: &Path) -> RvResult<&str> {
     osstr_to_str(p.file_name())
-        .map_err(|e| format_rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+        .map_err(|e| rverr!("could not transform '{:?}' due to '{:?}'", p, e))
 }
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 pub enum ConnectionData {
@@ -158,8 +158,7 @@ where
     P: AsRef<Path> + Debug,
     C: AsRef<[u8]>,
 {
-    fs::write(&path, contents)
-        .map_err(|e| format_rverr!("could not write to {:?} since {:?}", path, e))
+    fs::write(&path, contents).map_err(|e| rverr!("could not write to {:?} since {:?}", path, e))
 }
 
 #[macro_export]

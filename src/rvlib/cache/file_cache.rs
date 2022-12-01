@@ -2,8 +2,9 @@ use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path}
 
 use crate::{
     cache::core::Cache,
-    file_util, format_rverr, image_util,
+    file_util, image_util,
     result::{to_rv, RvError, RvResult},
+    rverr,
     threadpool::ThreadPoolQueued,
     types::{AsyncResultImage, ResultImage},
 };
@@ -18,7 +19,7 @@ where
 {
     let im = reader(path_or_url)?;
     im.save(target)
-        .map_err(|e| format_rverr!("could not save image to {:?}. {}", target, e.to_string()))?;
+        .map_err(|e| rverr!("could not save image to {:?}. {}", target, e.to_string()))?;
     Ok(())
 }
 

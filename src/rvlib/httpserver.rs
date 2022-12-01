@@ -9,8 +9,8 @@ use std::{
 };
 
 use crate::{
-    format_rverr,
     result::{to_rv, RvResult},
+    rverr,
 };
 
 #[derive(Debug, PartialEq)]
@@ -39,8 +39,8 @@ fn handle_connection(buffer: &[u8]) -> RvResult<HandleResult> {
         None => {
             let msg = "could not find path in stream";
             match str::from_utf8(buffer) {
-                Ok(b) => Err(format_rverr!("{} '{}'", msg, b)),
-                Err(e) => Err(format_rverr!("{}, {:?}", msg, e)),
+                Ok(b) => Err(rverr!("{} '{}'", msg, b)),
+                Err(e) => Err(rverr!("{}, {:?}", msg, e)),
             }
         }
     }
@@ -55,8 +55,8 @@ where
         Err(e) => {
             let error_str = format!("{:?}", e);
             match tx.send(Err(to_rv(e))) {
-                Ok(()) => Err(format_rverr!("error in http server, {}", error_str)),
-                Err(e) => Err(format_rverr!("error {}, send error {:?}", error_str, e)),
+                Ok(()) => Err(rverr!("error in http server, {}", error_str)),
+                Err(e) => Err(rverr!("error {}, send error {:?}", error_str, e)),
             }
         }
     }
@@ -123,10 +123,10 @@ fn increase_port(address: &str) -> RvResult<String> {
                 (port.parse::<usize>().map_err(to_rv)? + 1)
             ))
         } else {
-            Err(format_rverr!("is address of {} missing?", address))
+            Err(rverr!("is address of {} missing?", address))
         }
     } else {
-        Err(format_rverr!("is port of address {} missing?", address))
+        Err(rverr!("is port of address {} missing?", address))
     }
 }
 

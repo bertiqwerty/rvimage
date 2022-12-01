@@ -3,7 +3,7 @@ use std::{collections::HashMap, mem};
 use serde::{Deserialize, Serialize};
 
 use super::annotations::{selected_indices, BboxAnnotations};
-use crate::{domain::BB, format_rverr, implement_annotations_getters, result::RvResult};
+use crate::{domain::BB, implement_annotations_getters, result::RvResult, rverr};
 const DEFAULT_LABEL: &str = "foreground";
 
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
@@ -153,12 +153,12 @@ impl BboxSpecificData {
         cat_id: Option<u32>,
     ) -> RvResult<()> {
         if self.labels.contains(&label) {
-            Err(format_rverr!("label '{}' already exists", label))
+            Err(rverr!("label '{}' already exists", label))
         } else {
             self.labels.push(label);
             if let Some(clr) = color {
                 if self.colors.contains(&clr) {
-                    return Err(format_rverr!("color '{:?}' already exists", clr));
+                    return Err(rverr!("color '{:?}' already exists", clr));
                 }
                 self.colors.push(clr);
             } else {
@@ -167,7 +167,7 @@ impl BboxSpecificData {
             }
             if let Some(cat_id) = cat_id {
                 if self.cat_ids.contains(&cat_id) {
-                    return Err(format_rverr!("cat id '{:?}' already exists", cat_id));
+                    return Err(rverr!("cat id '{:?}' already exists", cat_id));
                 }
                 self.cat_ids.push(cat_id);
             } else if let Some(max_id) = self.cat_ids.iter().max() {
@@ -215,7 +215,7 @@ impl BboxSpecificData {
             for cat_idx in annos.cat_idxs() {
                 let len = self.labels().len();
                 if *cat_idx >= len {
-                    return Err(format_rverr!(
+                    return Err(rverr!(
                         "cat idx {} does not have a label, out of bounds, {}",
                         cat_idx,
                         len
