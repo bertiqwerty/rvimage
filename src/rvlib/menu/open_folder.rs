@@ -35,14 +35,16 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                 &resp,
             )
             .map(|s| s.to_string()),
-            Connection::PyHttp => Some(
-                ctrl.cfg
+            Connection::PyHttp => {
+                let address = ctrl
+                    .cfg
                     .py_http_reader_cfg
                     .as_ref()
-                    .ok_or_else(|| RvError::new("no http reader server address given in cfg"))?
+                    .ok_or_else(|| RvError::new("no http reader cfg given in cfg"))?
                     .server_address
-                    .clone(),
-            ),
+                    .clone();
+                Some(address)
+            }
         };
         if let Some(new_folder) = picked {
             ctrl.open_folder(new_folder)?;

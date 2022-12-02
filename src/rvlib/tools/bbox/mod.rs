@@ -1,7 +1,3 @@
-use crate::tools::{
-    core::{InitialView, Mover},
-    Manipulate,
-};
 use crate::{
     annotations::BboxAnnotations,
     domain::{mouse_pos_to_orig_pos, Shape, BB},
@@ -9,6 +5,13 @@ use crate::{
     make_tool_transform,
     world::World,
     LEFT_BTN, RIGHT_BTN,
+};
+use crate::{
+    tools::{
+        core::{InitialView, Mover},
+        Manipulate,
+    },
+    tools_data::bbox_data::AnnotationsMap,
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
@@ -199,6 +202,15 @@ impl Manipulate for BBox {
         if event.window_resized().is_some() {
             (world, history) = self.on_activate(world, history, shape_win);
         }
+        let is_anno_rm_triggered = get_tools_data(&world).specifics.bbox().is_anno_rm_triggered;
+        if is_anno_rm_triggered {
+            let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+            bbox_data
+                .set_annotations_map(AnnotationsMap::new())
+                .unwrap();
+            bbox_data.is_anno_rm_triggered = false;
+            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
+        }
         // this is necessary in addition to the call in on_activate due to undo/redo
         world = initialize_tools_menu_data(world);
         {
@@ -209,7 +221,7 @@ impl Manipulate for BBox {
                 .specifics
                 .bbox_mut()
                 .export_trigger
-                .is_exported_triggered = false;
+                .is_export_triggered = false;
         }
         {
             // import coco if demanded

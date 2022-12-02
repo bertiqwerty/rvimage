@@ -20,35 +20,13 @@ mod detail {
     };
 
     use crate::{
-        file_util::{self, ConnectionData, ExportData},
+        file_util::{self, get_last_part_of_path, ConnectionData, ExportData},
         result::{to_rv, RvResult},
         rverr,
         tools::BBOX_NAME,
         tools_data::{BboxExportData, BboxSpecificData, ToolSpecifics, ToolsData},
         world::ToolsDataMap,
     };
-
-    pub(super) fn get_last_part_of_path(path: &str, sep: char) -> Option<String> {
-        if path.contains(sep) {
-            let mark = if path.starts_with('\'') && path.ends_with('\'') {
-                "\'"
-            } else if path.starts_with('"') && path.ends_with('"') {
-                "\""
-            } else {
-                ""
-            };
-            let offset = mark.len();
-            let mut fp_slice = &path[offset..(path.len() - offset)];
-            let mut last_folder = fp_slice.split(sep).last().unwrap_or("");
-            while last_folder.is_empty() && !fp_slice.is_empty() {
-                fp_slice = &fp_slice[0..fp_slice.len() - 1];
-                last_folder = fp_slice.split(sep).last().unwrap_or("");
-            }
-            Some(format!("{}{}{}", mark, last_folder.replace(':', "_"), mark))
-        } else {
-            None
-        }
-    }
 
     pub(super) fn load(
         export_folder: &str,
@@ -89,11 +67,9 @@ mod detail {
                 connection_data,
             };
 
-            let of_last_part_linux = get_last_part_of_path(of, '/');
-            let of_last_part_windows =
-                get_last_part_of_path(of_last_part_linux.as_ref().unwrap_or(of), '\\');
-            let of_last_part = of_last_part_windows
-                .unwrap_or_else(|| of_last_part_linux.unwrap_or_else(|| of.to_string()));
+            let of_last_part = get_last_part_of_path(of)
+                .map(|lp| lp.name())
+                .unwrap_or_else(|| of.to_string());
             let ef_path = Path::new(export_folder);
             match fs::create_dir_all(ef_path) {
                 Ok(_) => Ok(()),
@@ -386,35 +362,4 @@ fn test_save_load() {
     )
     .unwrap();
     assert_eq!(tdm, tdm_imported);
-}
-
-#[test]
-fn last_folder_part() {
-    assert_eq!(
-        detail::get_last_part_of_path("a/b/c", '/'),
-        Some("c".to_string())
-    );
-    assert_eq!(detail::get_last_part_of_path("a/b/c", '\\'), None);
-    assert_eq!(detail::get_last_part_of_path("a\\b\\c", '/'), None);
-    assert_eq!(
-        detail::get_last_part_of_path("a\\b\\c", '\\'),
-        Some("c".to_string())
-    );
-    assert_eq!(detail::get_last_part_of_path("", '/'), None);
-    assert_eq!(
-        detail::get_last_part_of_path("a/b/c/", '/'),
-        Some("c".to_string())
-    );
-    assert_eq!(
-        detail::get_last_part_of_path("aadfh//bdafl////aksjc/////", '/'),
-        Some("aksjc".to_string())
-    );
-    assert_eq!(
-        detail::get_last_part_of_path("\"aa dfh//bdafl////aks jc/////\"", '/'),
-        Some("\"aks jc\"".to_string())
-    );
-    assert_eq!(
-        detail::get_last_part_of_path("'aa dfh//bdafl////aks jc/////'", '/'),
-        Some("'aks jc'".to_string())
-    );
 }

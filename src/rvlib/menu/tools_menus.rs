@@ -44,17 +44,20 @@ pub fn bbox_menu(
         data.remove_catidx(idx);
     }
     ui.separator();
+    if ui.button("clear all annotations").clicked() {
+        data.is_anno_rm_triggered = true;
+    }
+    ui.separator();
     ui.horizontal(|ui| {
         if ui.button("export coco").clicked() {
             println!("export coco triggered");
-            data.export_trigger.is_exported_triggered = true;
+            data.export_trigger.is_export_triggered = true;
+        }
+        if ui.button("import coco").clicked() {
+            println!("import triggered");
+            data.is_coco_import_triggered = true;
         }
     });
-    ui.separator();
-    if ui.button("import coco").clicked() {
-        println!("import triggered");
-        data.is_coco_import_triggered = true;
-    }
     ui.separator();
     if ui.button("close").clicked() {
         window_open = false;

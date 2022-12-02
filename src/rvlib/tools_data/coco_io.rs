@@ -55,12 +55,7 @@ struct CocoExportData {
     categories: Vec<CocoBboxCategory>,
 }
 impl CocoExportData {
-    fn from_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<Self> {
-        let opened_folder = meta_data
-            .opened_folder
-            .as_deref()
-            .ok_or_else(|| RvError::new("no folder open"))?;
-
+    fn from_coco(bbox_specifics: BboxSpecificData) -> RvResult<Self> {
         let info_str = "created with Rvimage, https://github.com/bertiqwerty/rvimage".to_string();
         let info = CocoInfo {
             description: info_str,
@@ -68,17 +63,12 @@ impl CocoExportData {
         let export_data = BboxExportData::from_bbox_data(bbox_specifics);
 
         type AnnotationMapValue<'a> = (&'a String, &'a (Vec<BB>, Vec<usize>, Shape));
-        let make_image_map = |(idx, (filename, (_, _, shape))): (usize, AnnotationMapValue)| {
-            let file_path = Path::new(opened_folder)
-                .join(filename)
-                .into_os_string()
-                .into_string()
-                .map_err(to_rv)?;
+        let make_image_map = |(idx, (file_path, (_, _, shape))): (usize, AnnotationMapValue)| {
             Ok(CocoImage {
                 id: idx as u32,
                 width: shape.w,
                 height: shape.h,
-                file_name: file_path,
+                file_name: file_path.clone(),
             })
         };
         let images = export_data
@@ -241,7 +231,7 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
 }
 
 pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
-    let coco_data = CocoExportData::from_coco(meta_data, bbox_specifics)?;
+    let coco_data = CocoExportData::from_coco(bbox_specifics)?;
     let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
     let coco_out_path = meta_data_to_coco_path(meta_data)?;
     file_util::write(&coco_out_path, data_str)?;
@@ -263,21 +253,30 @@ use {
         cfg::{get_cfg, SshCfg},
         defer_file_removal,
         domain::make_test_bbs,
-        types::ViewImage,
     },
     file_util::{ConnectionData, DEFAULT_TMPDIR},
     std::{fs, str::FromStr},
 };
 
 #[cfg(test)]
-pub fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaData, PathBuf) {
-    let opened_folder = "xi".to_string();
+pub fn make_data(
+    extension: &str,
+    image_file: &Path,
+    opened_folder: Option<&Path>,
+) -> (BboxSpecificData, MetaData, PathBuf) {
+    let opened_folder = if let Some(of) = opened_folder {
+        of.to_str().unwrap().to_string()
+    } else {
+        "xi".to_string()
+    };
     let test_export_folder = DEFAULT_TMPDIR.clone();
 
-    match fs::create_dir(&test_export_folder) {
-        Ok(_) => (),
-        Err(e) => {
-            println!("{:?}", e);
+    if !test_export_folder.exists() {
+        match fs::create_dir(&test_export_folder) {
+            Ok(_) => (),
+            Err(e) => {
+                println!("{:?}", e);
+            }
         }
     }
 
@@ -314,22 +313,28 @@ pub fn make_data(extension: &str, image_file: &Path) -> (BboxSpecificData, MetaD
 
 #[test]
 fn test_coco_export() -> RvResult<()> {
-    let image = ViewImage::new(32, 32);
+    fn test(file_path: &Path, opened_folder: Option<&Path>) -> RvResult<()> {
+        let (bbox_data, meta, _) = make_data("json", &file_path, opened_folder);
+        let coco_file = write_coco(&meta, bbox_data.clone())?;
+        defer_file_removal!(&coco_file);
+        let read = read_coco(&meta)?;
+        assert_eq!(bbox_data.cat_ids(), read.cat_ids());
+        assert_eq!(bbox_data.labels(), read.labels());
+        for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
+            assert_eq!(bbd_anno, read_anno);
+        }
+        Ok(())
+    }
     let tmpdir = get_cfg()?.tmpdir().unwrap().to_string();
     let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
-    fs::create_dir_all(&tmpdir).unwrap();
-    let file_path = tmpdir.join("test_image.png");
-    image.save(&file_path).unwrap();
-    defer_file_removal!(&file_path);
-    let (bbox_data, meta, _) = make_data("json", &file_path);
-    let coco_file = write_coco(&meta, bbox_data.clone())?;
-    defer_file_removal!(&coco_file);
-    let read = read_coco(&meta)?;
-    assert_eq!(bbox_data.cat_ids(), read.cat_ids());
-    assert_eq!(bbox_data.labels(), read.labels());
-    for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
-        assert_eq!(bbd_anno, read_anno);
+    if !tmpdir.exists() {
+        // fs::create_dir_all(&tmpdir).unwrap();
     }
+    let file_path = tmpdir.join("test_image.png");
+    test(&file_path, None)?;
+    let folder = Path::new("http://localhost:8000/some_path");
+    let file = Path::new("http://localhost:8000/some_path/xyz.png");
+    test(file, Some(folder))?;
     Ok(())
 }
 

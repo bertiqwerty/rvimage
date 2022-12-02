@@ -167,3 +167,112 @@ macro_rules! p_to_rv {
         $expr.map_err(|e| format_rverr!("{:?}, failed on {:?}", e, $path))
     };
 }
+
+pub struct LastPartOfPath<'a> {
+    pub last_folder: &'a str,
+    // will transform /a/b/c/ to /a/b/c
+    pub path_wo_final_sep: &'a str,
+    // offset is defined by " or ' that might by at the beginning and end of the path
+    pub offset: usize,
+    // ', ", or empty string depending on their existence
+    pub mark: &'a str,
+    // separators can be / on Linux or for http and \ on Windows
+    pub n_removed_separators: usize,
+}
+
+impl<'a> LastPartOfPath<'a> {
+    pub fn name(&self) -> String {
+        format!(
+            "{}{}{}",
+            self.mark,
+            self.last_folder.replace(':', "_"),
+            self.mark
+        )
+    }
+}
+
+fn get_last_part_of_path_by_sep(path: &str, sep: char) -> Option<LastPartOfPath> {
+    if path.contains(sep) {
+        let mark = if path.starts_with('\'') && path.ends_with('\'') {
+            "\'"
+        } else if path.starts_with('"') && path.ends_with('"') {
+            "\""
+        } else {
+            ""
+        };
+        let offset = mark.len();
+        let mut path_wo_final_sep = &path[offset..(path.len() - offset)];
+        let n_fp_slice_initial = path_wo_final_sep.len();
+        let mut last_folder = path_wo_final_sep.split(sep).last().unwrap_or("");
+        while last_folder.is_empty() && !path_wo_final_sep.is_empty() {
+            path_wo_final_sep = &path_wo_final_sep[0..path_wo_final_sep.len() - 1];
+            last_folder = path_wo_final_sep.split(sep).last().unwrap_or("");
+        }
+        Some(LastPartOfPath {
+            last_folder,
+            path_wo_final_sep,
+            offset,
+            mark,
+            n_removed_separators: n_fp_slice_initial - path_wo_final_sep.len(),
+        })
+    } else {
+        None
+    }
+}
+
+pub fn get_last_part_of_path(path: &str) -> Option<LastPartOfPath> {
+    let lp_fw = get_last_part_of_path_by_sep(path, '/');
+    if let Some(lp) = &lp_fw {
+        if let Some(lp_fwbw) = get_last_part_of_path_by_sep(lp.last_folder, '\\') {
+            Some(lp_fwbw)
+        } else {
+            lp_fw
+        }
+    } else {
+        get_last_part_of_path_by_sep(path, '\\')
+    }
+}
+
+#[test]
+fn get_last_part() {
+    let path = "http://localhost:8000/a/21%20%20b/Beg.png";
+    let lp = get_last_part_of_path(path).unwrap();
+    assert_eq!(lp.last_folder, "Beg.png");
+}
+
+#[test]
+fn last_folder_part() {
+    assert_eq!(
+        get_last_part_of_path("a/b/c").map(|lp| lp.name()),
+        Some("c".to_string())
+    );
+    assert_eq!(
+        get_last_part_of_path_by_sep("a/b/c", '\\').map(|lp| lp.name()),
+        None
+    );
+    assert_eq!(
+        get_last_part_of_path_by_sep("a\\b\\c", '/').map(|lp| lp.name()),
+        None
+    );
+    assert_eq!(
+        get_last_part_of_path("a\\b\\c").map(|lp| lp.name()),
+        Some("c".to_string())
+    );
+    assert_eq!(get_last_part_of_path("").map(|lp| lp.name()), None);
+    assert_eq!(
+        get_last_part_of_path("a/b/c/").map(|lp| lp.name()),
+        Some("c".to_string())
+    );
+    assert_eq!(
+        get_last_part_of_path("aadfh//bdafl////aksjc/////").map(|lp| lp.name()),
+        Some("aksjc".to_string())
+    );
+    assert_eq!(
+        get_last_part_of_path("\"aa dfh//bdafl////aks jc/////\"").map(|lp| lp.name()),
+        Some("\"aks jc\"".to_string())
+    );
+    assert_eq!(
+        get_last_part_of_path("'aa dfh//bdafl////aks jc/////'").map(|lp| lp.name()),
+        Some("'aks jc'".to_string())
+    );
+}

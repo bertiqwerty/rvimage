@@ -12,7 +12,7 @@ use crate::{
 const DEFAULT_LABEL: &str = "foreground";
 
 /// filename -> (annotations per file, file dimensions)
-type AnnotationsMap = HashMap<String, (BboxAnnotations, Shape)>;
+pub type AnnotationsMap = HashMap<String, (BboxAnnotations, Shape)>;
 
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
@@ -53,7 +53,7 @@ pub fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
 
 #[derive(Deserialize, Serialize, Clone, Default, Debug, PartialEq, Eq)]
 pub struct BboxExportTrigger {
-    pub is_exported_triggered: bool,
+    pub is_export_triggered: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
@@ -90,6 +90,7 @@ pub struct BboxSpecificData {
     pub export_trigger: BboxExportTrigger,
     pub is_coco_import_triggered: bool,
     pub clipboard: Option<ClipboardData>,
+    pub is_anno_rm_triggered: bool,
 }
 
 impl BboxSpecificData {
@@ -106,6 +107,7 @@ impl BboxSpecificData {
             export_trigger: BboxExportTrigger::default(),
             is_coco_import_triggered: false,
             clipboard: None,
+            is_anno_rm_triggered: false,
         };
         for ((lab, clr), cat_id) in input_data
             .labels
@@ -214,6 +216,7 @@ impl BboxSpecificData {
             export_trigger: BboxExportTrigger::default(),
             is_coco_import_triggered: false,
             clipboard: None,
+            is_anno_rm_triggered: false,
         }
     }
 
