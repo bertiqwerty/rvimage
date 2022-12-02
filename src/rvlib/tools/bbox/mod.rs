@@ -291,6 +291,7 @@ impl Manipulate for BBox {
                 (key_released, VirtualKeyCode::D),
                 (key_released, VirtualKeyCode::C),
                 (key_released, VirtualKeyCode::V),
+                (key_released, VirtualKeyCode::L),
                 (key_released, VirtualKeyCode::Down),
                 (key_released, VirtualKeyCode::Up),
                 (key_released, VirtualKeyCode::Left),

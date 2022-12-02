@@ -195,7 +195,7 @@ macro_rules! released_key {
     };
 }
 
-released_key!(A, D, H, C, V, Delete, Left, Right, Up, Down);
+released_key!(A, D, H, C, V, L, Delete, Left, Right, Up, Down);
 
 pub(super) struct KeyReleasedParams<'a> {
     pub are_boxes_visible: bool,
@@ -271,6 +271,15 @@ pub(super) fn on_key_released(
                     history.push(Record::new(world.data.clone(), ACTOR_NAME));
                 }
             }
+        }
+        ReleasedKey::L if params.is_ctrl_held => {
+            let show_label = if let Some(annos) = get_annos(&world) {
+                annos.show_labels
+            } else {
+                false
+            };
+            get_annos_mut(&mut world).show_labels = !show_label;
+            world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
         }
         ReleasedKey::C => {
             // Paste selection directly at current mouse position

@@ -49,6 +49,7 @@ fn draw_bbs<'a>(
     bbs: &'a [BB],
     selected_bbs: &'a [bool],
     cats: Cats<'a>,
+    show_label: bool,
 ) -> ViewImage {
     let font_data: &[u8] = include_bytes!("../../../../resources/Roboto/Roboto-Bold.ttf");
     // remove those box ids that are outside of the zoom box
@@ -83,7 +84,7 @@ fn draw_bbs<'a>(
 
         // draw label field
         // we do not the label field for the empty-string-label
-        if !cats.label_of_box(box_idx).is_empty() {
+        if !cats.label_of_box(box_idx).is_empty() && show_label {
             if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
                 let label_box_height = 14;
                 let scale = Scale {
@@ -144,6 +145,7 @@ pub struct BboxAnnotations {
     bbs: Vec<BB>,
     cat_idxs: Vec<usize>,
     selected_bbs: Vec<bool>,
+    pub show_labels: bool,
 }
 
 impl BboxAnnotations {
@@ -152,6 +154,7 @@ impl BboxAnnotations {
             bbs: vec![],
             cat_idxs: vec![],
             selected_bbs: vec![],
+            show_labels: false,
         }
     }
 
@@ -177,6 +180,7 @@ impl BboxAnnotations {
             bbs,
             cat_idxs: cat_ids,
             selected_bbs: vec![false; bbs_len],
+            show_labels: false,
         }
     }
 
@@ -186,6 +190,7 @@ impl BboxAnnotations {
             bbs,
             cat_idxs: vec![cat_id; bbs_len],
             selected_bbs: vec![false; bbs_len],
+            show_labels: false,
         }
     }
 
@@ -333,6 +338,7 @@ impl BboxAnnotations {
                 colors,
                 labels,
             },
+            self.show_labels,
         )
     }
 }
