@@ -41,17 +41,27 @@ impl<'a> Cats<'a> {
     }
 }
 
-fn draw_bbs<'a>(
+struct BbParams<'a> {
+    pub bbs: &'a [BB],
+    pub selected_bbs: &'a [bool],
+    pub cats: Cats<'a>,
+    show_label: bool,
+}
+
+fn draw_bbs(
     mut im: ViewImage,
     shape_orig: Shape,
     shape_win: Shape,
     zoom_box: &Option<BB>,
-    bbs: &'a [BB],
-    selected_bbs: &'a [bool],
-    cats: Cats<'a>,
-    show_label: bool,
+    bb_params: BbParams,
 ) -> ViewImage {
     let font_data: &[u8] = include_bytes!("../../../../resources/Roboto/Roboto-Bold.ttf");
+    let BbParams {
+        bbs,
+        selected_bbs,
+        cats,
+        show_label,
+    } = bb_params;
     // remove those box ids that are outside of the zoom box
     let relevant_box_inds = (0..bbs.len()).filter(|box_idx| {
         if let Some(zb) = zoom_box {
@@ -331,14 +341,16 @@ impl BboxAnnotations {
             shape_orig,
             shape_win,
             zoom_box,
-            &self.bbs,
-            &self.selected_bbs,
-            Cats {
-                cat_ids: &self.cat_idxs,
-                colors,
-                labels,
+            BbParams {
+                bbs: &self.bbs,
+                selected_bbs: &self.selected_bbs,
+                cats: Cats {
+                    cat_ids: &self.cat_idxs,
+                    colors,
+                    labels,
+                },
+                show_label: self.show_labels,
             },
-            self.show_labels,
         )
     }
 }
