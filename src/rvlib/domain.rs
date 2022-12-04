@@ -450,13 +450,13 @@ fn test_bb() {
     assert!(!bb.contains((20, 20)));
     assert!(bb.contains((10, 10)));
     assert_eq!(bb.corner(0), (10, 10));
-    assert_eq!(bb.corner(1), (10, 19));
-    assert_eq!(bb.corner(2), (19, 19));
-    assert_eq!(bb.corner(3), (19, 10));
-    assert_eq!(bb.opposite_corner(0), (19, 19));
-    assert_eq!(bb.opposite_corner(1), (19, 10));
+    assert_eq!(bb.corner(1), (10, 20));
+    assert_eq!(bb.corner(2), (20, 20));
+    assert_eq!(bb.corner(3), (20, 10));
+    assert_eq!(bb.opposite_corner(0), (20, 20));
+    assert_eq!(bb.opposite_corner(1), (20, 10));
     assert_eq!(bb.opposite_corner(2), (10, 10));
-    assert_eq!(bb.opposite_corner(3), (10, 19));
+    assert_eq!(bb.opposite_corner(3), (10, 20));
     for (c, i) in bb.corners().zip(0..4) {
         assert_eq!(c, bb.corner(i));
     }
