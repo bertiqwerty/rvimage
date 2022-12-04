@@ -115,6 +115,8 @@ pub(super) fn on_mouse_held_right(
 pub(super) struct MouseReleaseParams<'a> {
     pub prev_pos: Option<(usize, usize)>,
     pub are_boxes_visible: bool,
+    pub is_alt_held: bool,
+    pub is_shift_held: bool,
     pub is_ctrl_held: bool,
     pub initial_view: &'a InitialView,
 }
@@ -129,6 +131,8 @@ pub(super) fn on_mouse_released_left(
     let MouseReleaseParams {
         mut prev_pos,
         are_boxes_visible,
+        is_alt_held,
+        is_shift_held,
         is_ctrl_held,
         initial_view,
     } = params;
@@ -144,13 +148,42 @@ pub(super) fn on_mouse_released_left(
             prev_pos = None;
             world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
         }
-    } else if is_ctrl_held {
+    } else if is_ctrl_held || is_alt_held || is_shift_held {
         // selection
         let annos = get_annos_mut(&mut world);
         let idx =
             mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), annos.bbs()));
         if let Some(i) = idx {
-            annos.toggle_selection(i);
+            if is_shift_held {
+                // If shift is held a new selection box will be spanned between the currently clicked
+                // box and the selected box that has the maximum distance in terms of max-corner-dist.
+                // All boxes that have overlap with this new selection box will be selected. If no box
+                // is selected only the currently clicked box will be selected.
+                annos.select(i);
+                let newly_selected_bb = &annos.bbs()[i];
+                let sel_indxs = selected_indices(annos.selected_bbs());
+                if let Some((bbidx, (csidx, coidx, _))) = sel_indxs
+                    .map(|i| (i, newly_selected_bb.max_corner_squaredist(&annos.bbs()[i])))
+                    .max_by_key(|(_, (_, _, d))| *d)
+                {
+                    let spanned_bb = BB::from_points(
+                        newly_selected_bb.corner(csidx),
+                        annos.bbs()[bbidx].corner(coidx),
+                    );
+                    let n_bbs = annos.bbs().len();
+                    for i in 0..n_bbs {
+                        if annos.bbs()[i].has_overlap(&spanned_bb) {
+                            annos.select(i);
+                        }
+                    }
+                }
+            } else if is_alt_held {
+                annos.deselect_all();
+                annos.select(i)
+            } else {
+                // ctrl
+                annos.toggle_selection(i);
+            }
         }
         world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
     } else {
@@ -497,6 +530,8 @@ fn test_mouse_release() {
     let make_params = |prev_pos, is_ctrl_held| MouseReleaseParams {
         prev_pos,
         are_boxes_visible: true,
+        is_alt_held: false,
+        is_shift_held: false,
         is_ctrl_held,
         initial_view: &initial_view,
     };
@@ -513,7 +548,7 @@ fn test_mouse_release() {
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
     {
-        // If no position was registered, a left click will set trigger the start
+        // If no position was registered, a left click will trigger the start
         // of defining a new bounding box. The other corner will be defined by a second click.
         let params = make_params(None, false);
         let (world, new_hist, prev_pos) =

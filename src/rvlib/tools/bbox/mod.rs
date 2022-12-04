@@ -81,6 +81,8 @@ impl BBox {
             let params = MouseReleaseParams {
                 prev_pos: self.prev_pos,
                 are_boxes_visible: self.are_boxes_visible,
+                is_alt_held: event.held_alt(),
+                is_shift_held: event.held_shift(),
                 is_ctrl_held: event.held_control(),
                 initial_view: &self.initial_view,
             };

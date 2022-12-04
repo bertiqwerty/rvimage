@@ -167,6 +167,7 @@ pub struct BB {
     pub h: u32,
 }
 impl BB {
+    /// `[x, y, w, h]`
     pub fn from_array(a: &[u32; 4]) -> Self {
         BB {
             x: a[0],
@@ -174,6 +175,25 @@ impl BB {
             w: a[2],
             h: a[3],
         }
+    }
+
+    pub fn max_corner_squaredist(&self, other: &BB) -> (usize, usize, i64) {
+        (0..4)
+            .map(|csidx| {
+                let (coidx, d) = (0..4)
+                    .map(|coidx| {
+                        let cs = self.corner(csidx);
+                        let co = other.corner(coidx);
+                        let d =
+                            (co.0 as i64 - cs.0 as i64).pow(2) + (co.1 as i64 - cs.1 as i64).pow(2);
+                        (coidx, d)
+                    })
+                    .max_by_key(|(_, d)| *d)
+                    .unwrap();
+                (csidx, coidx, d)
+            })
+            .max_by_key(|(_, _, d)| *d)
+            .unwrap()
     }
 
     pub fn min_max(&self, axis: usize) -> (u32, u32) {
@@ -199,9 +219,9 @@ impl BB {
         let (x, y, w, h) = (self.x, self.y, self.w, self.h);
         match idx {
             0 => (x, y),
-            1 => (x, y + h - 1),
-            2 => (x + w - 1, y + h - 1),
-            3 => (x + w - 1, y),
+            1 => (x, y + h),
+            2 => (x + w, y + h),
+            3 => (x + w, y),
             _ => panic!("bounding boxes only have 4, {} is out of bounds", idx),
         }
     }
@@ -327,7 +347,7 @@ impl BB {
         let y_shift: i32 = to.1 as i32 - from.1 as i32;
         self.translate(x_shift, y_shift, shape)
     }
-    pub fn is_contained_in(&self, shape: Shape) -> bool {
+    pub fn is_contained_in_image(&self, shape: Shape) -> bool {
         self.x + self.w < shape.w && self.y + self.h < shape.h
     }
 
@@ -341,7 +361,7 @@ impl BB {
                 w: w as u32,
                 h: h as u32,
             };
-            if bb.is_contained_in(shape) {
+            if bb.is_contained_in_image(shape) {
                 Some(bb)
             } else {
                 None
@@ -364,6 +384,14 @@ impl BB {
         let (x, y) = (self.x as i32 + x_shift, self.y as i32 + y_shift);
         let (w, h) = (self.w as i32 - x_shift, self.h as i32 - y_shift);
         Self::new_shape_checked(x, y, w, h, shape)
+    }
+
+    pub fn has_overlap(&self, other: &BB) -> bool {
+        if self.corners().any(|c| other.contains(c)) {
+            true
+        } else {
+            other.corners().any(|c| self.contains(c))
+        }
     }
 }
 
@@ -566,4 +594,44 @@ fn test_view_pos_tf() {
         }),
         2,
     );
+}
+
+#[test]
+fn test_has_overlap() {
+    let bb1 = BB::from_array(&[5, 5, 10, 10]);
+    let bb2 = BB::from_array(&[5, 5, 10, 10]);
+    assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[0, 0, 10, 10]);
+    assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[0, 0, 11, 11]);
+    assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[2, 2, 5, 5]);
+    assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[5, 5, 9, 9]);
+    assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[7, 7, 12, 12]);
+    assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[17, 17, 112, 112]);
+    assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[17, 17, 112, 112]);
+    assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[17, 3, 112, 112]);
+    assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
+    let bb2 = BB::from_array(&[3, 17, 112, 112]);
+    assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
+}
+
+#[test]
+fn test_max_corner_dist() {
+    let bb1 = BB::from_array(&[5, 5, 10, 10]);
+    let bb2 = BB::from_array(&[5, 5, 10, 10]);
+    assert_eq!(bb1.max_corner_squaredist(&bb2), (3, 1, 200));
+    let bb2 = BB::from_array(&[6, 5, 10, 10]);
+    assert_eq!(bb1.max_corner_squaredist(&bb2), (1, 3, 221));
+    let bb2 = BB::from_array(&[6, 6, 10, 10]);
+    assert_eq!(bb1.max_corner_squaredist(&bb2), (0, 2, 242));
+    let bb2 = BB::from_array(&[15, 15, 10, 10]);
+    assert_eq!(bb1.max_corner_squaredist(&bb2), (0, 2, 800));
+    let bb2 = BB::from_array(&[15, 5, 10, 10]);
+    assert_eq!(bb1.max_corner_squaredist(&bb2), (1, 3, 500));
 }

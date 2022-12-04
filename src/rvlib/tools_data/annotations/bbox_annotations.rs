@@ -178,7 +178,7 @@ impl BboxAnnotations {
         IC: Iterator<Item = usize>,
     {
         for (bb, cat_id) in bbs.zip(cat_ids) {
-            if bb.is_contained_in(shape_image) && !self.bbs().contains(&bb) {
+            if bb.is_contained_in_image(shape_image) && !self.bbs().contains(&bb) {
                 self.add_bb(bb, cat_id)
             }
         }
