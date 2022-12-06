@@ -1,6 +1,6 @@
 [![CI workflow](https://github.com/bertiqwerty/rvimage/actions/workflows/rust.yml/badge.svg)](https://github.com/bertiqwerty/rvimage)
 # RV Image
-**R**emote **v**iewer for **image**s written in Rust. So far only tested on Windows 10. RV Image is mainly based on [`egui`](https://crates.io/crates/egui), [`image`](https://crates.io/crates/image), and [`pixels`](https://crates.io/crates/pixels).
+**R**emote **v**iewer for **image**s written in Rust. It can view images on remote SSH servers or Azure blob storages among other and is shipped with a smiple bounding box labeling tool. So far only tested on Windows 10. RV Image is mainly based on [`egui`](https://crates.io/crates/egui), [`image`](https://crates.io/crates/image), and [`pixels`](https://crates.io/crates/pixels).
 
 
 ![grafik](https://user-images.githubusercontent.com/50267830/168975976-45ab6567-ef5e-41a8-8027-2ff210dfda3c.png)
