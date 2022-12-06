@@ -15,11 +15,16 @@ path = "src/main.rs"
 [features]
 default = ["optimize", "azure_blob"]
 optimize = ["log/release_max_level_warn"]
-azure_blob = ["dep:futures", "dep:tokio"]
+azure_blob = [
+    "dep:futures",
+    "dep:tokio",
+    "dep:azure_storage",
+    "dep:azure_storage_blobs",
+]
 
 [dependencies]
-azure_storage = "0.7.0"
-azure_storage_blobs = "0.7.0"
+azure_storage = { version = "0.7.0", optional = true }
+azure_storage_blobs = { version = "0.7.0", optional = true }
 dirs = "4.0.0"
 edit = "0.1.4"
 egui = "~0.18"
