@@ -130,6 +130,11 @@ impl Control {
                 self.cfg.py_http_reader_cfg = Some(pyhttp_cfg);
                 self.cfg.connection = Connection::PyHttp;
             }
+            #[cfg(feature = "azure_blob")]
+            ConnectionData::AzureBlobCfg(azure_blob_cfg) => {
+                self.cfg.azure_blob_cfg = Some(azure_blob_cfg);
+                self.cfg.connection = Connection::AzureBlob;
+            }
             ConnectionData::None => {
                 self.cfg.connection = Connection::Local;
             }
@@ -257,6 +262,17 @@ impl Control {
                     .ok_or_else(|| RvError::new("cannot open pyhttp without pyhttp cfg"))
                     .unwrap();
                 ConnectionData::PyHttp(pyhttp_cfg)
+            }
+            #[cfg(feature = "azure_blob")]
+            Connection::AzureBlob => {
+                let azure_blob_cfg = self
+                    .cfg_of_opened_folder()
+                    .map(|cfg| cfg.azure_blob_cfg.clone())
+                    .ok_or_else(|| RvError::new("save failed, opened folder needs a config"))
+                    .unwrap()
+                    .ok_or_else(|| RvError::new("cannot open azure blob without cfg"))
+                    .unwrap();
+                ConnectionData::AzureBlobCfg(azure_blob_cfg)
             }
         }
     }

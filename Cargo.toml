@@ -13,10 +13,13 @@ name = "rvimage"
 path = "src/main.rs"
 
 [features]
-default = ["optimize"]
+default = ["optimize", "azure_blob"]
 optimize = ["log/release_max_level_warn"]
+azure_blob = ["dep:futures", "dep:tokio"]
 
 [dependencies]
+azure_storage = "0.7.0"
+azure_storage_blobs = "0.7.0"
 dirs = "4.0.0"
 edit = "0.1.4"
 egui = "~0.18"
@@ -26,6 +29,7 @@ egui-winit = { version = "~0.18", default-features = false, features = [
     "clipboard",
 ] }
 env_logger = "0.9"
+futures = { version = "0.3", optional = true }
 httparse = "~1.7"
 image = "0.24.2"
 imageproc = "~0.23"
@@ -46,3 +50,4 @@ toml = "~0.5"
 walkdir = "2.3.2"
 winit = "0.26"
 winit_input_helper = "0.11"
+tokio = { version = "1.22.0", optional = true }

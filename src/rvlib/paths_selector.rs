@@ -19,18 +19,26 @@ fn list_file_labels(file_paths: &[String], filter_str: &str) -> RvResult<Vec<(us
 
 fn make_folder_label(folder_path: Option<&str>) -> RvResult<String> {
     match folder_path {
-        Some(sf) => {
-            let folder_path = Path::new(sf);
+        Some(fp) => {
+            let folder_path = Path::new(fp);
             let last = folder_path.ancestors().next();
             let one_before_last = folder_path.ancestors().nth(1);
             match (one_before_last, last) {
-                (Some(obl), Some(l)) => Ok(format!(
-                    "{}/{}",
-                    file_util::to_stem_str(obl)?,
-                    file_util::to_stem_str(l)?,
-                )),
-                (None, Some(l)) => Ok(file_util::to_stem_str(l)?.to_string()),
-                _ => Err(rverr!("could not convert path {:?} to str", sf)),
+                (Some(obl), Some(last)) => Ok(if obl.to_string_lossy().is_empty() {
+                    file_util::to_stem_str(last)?.to_string()
+                } else {
+                    format!(
+                        "{}/{}",
+                        file_util::to_stem_str(obl)?,
+                        file_util::to_stem_str(last)?,
+                    )
+                }),
+                (None, Some(l)) => Ok(if fp.is_empty() {
+                    "".to_string()
+                } else {
+                    file_util::to_stem_str(l)?.to_string()
+                }),
+                _ => Err(rverr!("could not convert path {:?} to str", fp)),
             }
         }
         None => Ok("no folder selected".to_string()),

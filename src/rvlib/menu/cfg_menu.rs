@@ -70,6 +70,12 @@ impl<'a> Widget for CfgMenu<'a> {
                             Connection::PyHttp,
                             "Http served by 'python -m http.server'",
                         );
+                        #[cfg(feature = "azure_blob")]
+                        ui.radio_value(
+                            &mut self.cfg.connection,
+                            Connection::AzureBlob,
+                            "Azure blob experimental",
+                        );
                         ui.separator();
                         ui.label("CACHE");
                         ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File cache");

@@ -5,6 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(feature = "azure_blob")]
+use crate::cfg::AzureBlobCfg;
 use crate::{
     cfg::{PyHttpReaderCfg, SshCfg},
     rverr,
@@ -73,6 +75,8 @@ pub fn to_name_str(p: &Path) -> RvResult<&str> {
 pub enum ConnectionData {
     Ssh(SshCfg),
     PyHttp(PyHttpReaderCfg),
+    #[cfg(feature = "azure_blob")]
+    AzureBlobCfg(AzureBlobCfg),
     #[default]
     None,
 }

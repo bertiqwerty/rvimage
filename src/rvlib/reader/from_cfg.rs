@@ -5,6 +5,11 @@ use crate::{
     result::{RvError, RvResult},
     types::AsyncResultImage,
 };
+#[cfg(feature = "azure_blob")]
+use {
+    super::azure_blob_reader::{AzureConnectionData, ReadImageFromAzureBlob},
+    crate::rverr,
+};
 
 use super::{
     core::{CloneDummy, LoadImageForGui, Loader},
@@ -84,6 +89,44 @@ impl ReaderFromCfg {
                 }
                 (Connection::PyHttp, Cache::NoCache) => {
                     Box::new(Loader::<NoCache<ReadImageFromPyHttp, _>, _>::new((), 0)?)
+                }
+                #[cfg(feature = "azure_blob")]
+                (Connection::AzureBlob, Cache::FileCache) => {
+                    let cache_args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
+                    let azure_cfg = cfg
+                        .azure_blob_cfg
+                        .as_ref()
+                        .ok_or_else(|| rverr!("no azure cfg found",))?;
+                    let connection_string = azure_cfg.connection_string.clone();
+                    let container_name = azure_cfg.container_name.clone();
+
+                    Box::new(Loader::<
+                        FileCache<ReadImageFromAzureBlob, _>,
+                        FileCacheArgs<_>,
+                    >::new(
+                        FileCacheArgs {
+                            cfg_args: cache_args,
+                            reader_args: AzureConnectionData {
+                                connection_string,
+                                container_name,
+                            },
+                            tmpdir,
+                        },
+                        n_ssh_reconnections,
+                    )?)
+                }
+                #[cfg(feature = "azure_blob")]
+                _ => {
+                    Err(rverr!(
+                        "configuration option ({:?}, {:?}) not implemented",
+                        cfg.connection,
+                        cfg.cache
+                    ))?;
+                    // return a dummy such that the compiler is happy
+                    Box::new(Loader::<NoCache<ReadImageFromPath, _>, _>::new(
+                        CloneDummy {},
+                        0,
+                    )?)
                 }
             },
             cfg,

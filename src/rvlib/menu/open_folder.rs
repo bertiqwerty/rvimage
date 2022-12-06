@@ -45,6 +45,17 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                     .clone();
                 Some(address)
             }
+            #[cfg(feature = "azure_blob")]
+            Connection::AzureBlob => {
+                let address = ctrl
+                    .cfg
+                    .azure_blob_cfg
+                    .as_ref()
+                    .ok_or_else(|| RvError::new("no azure blob cfg given in cfg"))?
+                    .prefix
+                    .clone();
+                Some(address)
+            }
         };
         if let Some(new_folder) = picked {
             ctrl.open_folder(new_folder)?;

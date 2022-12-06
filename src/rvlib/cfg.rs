@@ -57,6 +57,8 @@ pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
 pub enum Connection {
     Ssh,
     PyHttp,
+    #[cfg(feature = "azure_blob")]
+    AzureBlob,
     #[default]
     Local,
 }
@@ -80,10 +82,20 @@ impl SshCfg {
         self.n_reconnection_attempts.unwrap_or(default)
     }
 }
+
+#[cfg(feature = "azure_blob")]
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct AzureBlobCfg {
+    pub connection_string: String,
+    pub container_name: String,
+    pub prefix: String,
+}
+
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct PyHttpReaderCfg {
     pub server_address: String,
 }
+
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Cfg {
     pub connection: Connection,
@@ -94,6 +106,8 @@ pub struct Cfg {
     pub ssh_cfg: SshCfg,
     pub export_folder: Option<String>,
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
+    #[cfg(feature = "azure_blob")]
+    pub azure_blob_cfg: Option<AzureBlobCfg>,
 }
 
 impl Cfg {
