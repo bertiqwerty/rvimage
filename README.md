@@ -7,12 +7,15 @@
 
 
 ## Connect to remote
+
 RV Image connects to 
 
-* SSH/SCP using the [`ssh2` crate](https://crates.io/crates/ssh2) and 
-* local folders that might be mounts of remote storage. 
+* **SSH/SCP** using the [`ssh2` crate](https://crates.io/crates/ssh2), 
+* **local folders** that might be mounts of remote storage, 
+* **http-servers** spawned via `python -m http.server`, and
+* **Azure blob storages***. 
 
-Images are cached locally in a temporary directory. 
+Example configuration for the connection types can be found below. Images are cached locally in a temporary directory. 
 
 ## Optional http server 
 
@@ -21,18 +24,26 @@ get-request to `/file_label` the image `file_label` is loaded. For this to work,
 be in the currently opened folder. 
 
 ## Configuration
+
 Create a file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) with the following content. Currently, only authorization with key-files without passphrase is supported.
 ```
-connection = "Ssh" # "Local" or "Ssh", Local for local folder
-cache = "FileCache"  # "NoCache" for not caching at all or "FileCache" for caching files in a temp dir.
+ # We support the connections "Local", "Ssh", "PyHttp", or "AzureBlob"
+connection = "Ssh"
+
+# "NoCache" for not caching at all or "FileCache" for caching files in a temp dir.
+cache = "FileCache"  
+
 # Address of the http server, default is 127.0.0.1:5432
 # http_address = address:port
+
 # If you do not want to use the temporary directory of your OS, you can add something else.
 # tmpdir = 
+
 [file_cache_args]
 n_prev_images = 2  # number of images to be cached previous to the selected one
 n_next_images = 8  # number of images to be cached following the selected one
 n_threads = 4  # number of threads to be used for background file caching
+
 [ssh_cfg]             
 # Local folders can interactively be chosen via file dialog. Remote folders are restricted to one of the following list. 
 remote_folder_paths = [
@@ -42,21 +53,45 @@ remote_folder_paths = [
 address = "address:port"  # port is usually 22
 user = "your username"
 ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
+
+[py_http_reader_cfg]
+# The server is expected to be started via `python -m http.server` in some folder.
+# The content of this folder is than accessible.  
+server_address = 'http://localhost:8000/'
+
+[azure_blob_cfg]
+# With a connection string you can view the images inside a blob storage
+connection_string = ''
+container_name = ''
+# The prefix is also called folder in the Microsoft Azure Storage Explorer.
+# Currently, you cannot chose this interactively.
+prefix = ''
+
+
 ```
 
 ## Bounding Box Labeling Tool
-| event                       | action                                                             |
-| --------------------------- | ------------------------------------------------------------------ |
-| first left click            | start drawing box                                                  |
-| second left click           | finish drawing box                                                 |
-| left click on corner of box | move corner of box                                                 |
-| ctrl + left click on box    | select box                                                         |
-| ctrl + a                    | select all boxes                                                   |
-| delete                      | remove selected boxes                                              |
-| ctrl + d                    | deselect all boxes                                                 |
-| c                           | clone selected box at mouse position and move selection to new box |
-| ctrl + c                    | copy all selected boxes to clipboard                               |
-| ctrl + v                    | paste boxes from clipboard on another image                        |
-| left/right/up/down          | move bottom right corner of all selected boxes                     |
-| ctrl + left/right/up/down   | move top left corner of all selected boxes                         |
-| alt + left/right/up/down    | move all selected boxes                                            |
+
+RV Image comes with a simple bounding box labeling that can export to and import from the [Coco format](https://cocodataset.org/#format-data).
+For an import to work, the folder that contains the images needs to be opened beforehand.
+
+| event                       | action                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| first left click            | start drawing box                                                                        |
+| second left click           | finish drawing box                                                                       |
+| left click on corner of box | move corner of box                                                                       |
+| ctrl + left click on box    | select box                                                                               |
+| alt + left click on box     | select box and deselect others                                                           |
+| shift + left click on box   | select all boxes with overlap with the maximal span of this box and other selected boxes |
+| ctrl + a                    | select all boxes                                                                         |
+| delete                      | remove selected boxes                                                                    |
+| ctrl + d                    | deselect all boxes                                                                       |
+| c                           | clone selected box at mouse position and move selection to new box                       |
+| ctrl + c                    | copy all selected boxes to clipboard                                                     |
+| ctrl + v                    | paste boxes from clipboard on another image                                              |
+| left/right/up/down          | move bottom right corner of all selected boxes                                           |
+| ctrl + left/right/up/down   | move top left corner of all selected boxes                                               |
+| alt + left/right/up/down    | move all selected boxes                                                                  |
+
+---
+\* <sub>The connection to Azure blob storages has `tokio`, `futures`, `azure_storage`, and `azure_storage_blob` as additional dependencies, since the used [Azure SDK](https://github.com/Azure/azure-sdk-for-rust) is implemented `async`hronously and needs `tokio`. However, the rest of RV Image uses its own small threadpool implementation. Hence, the Azure blob storage connection is implemented as Cargo-Feature `azure_blob` that is enabled by default.</sub>
