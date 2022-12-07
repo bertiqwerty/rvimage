@@ -64,7 +64,7 @@ server_address = 'http://localhost:8000/'
 connection_string = ''
 container_name = ''
 # The prefix is also called folder in the Microsoft Azure Storage Explorer.
-# Currently, you cannot chose this interactively.
+# Currently, you cannot choose this interactively.
 prefix = ''
 
 
