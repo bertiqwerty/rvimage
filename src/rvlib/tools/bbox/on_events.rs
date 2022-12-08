@@ -322,28 +322,34 @@ pub(super) fn on_key_released(
                 let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
                 let selected_inds = selected_indices(annos.selected_bbs());
-                let translated = selected_inds.flat_map(|idx| {
-                    let bb = annos.bbs()[idx];
-                    bb.translate(
-                        x_shift as i32 - bb.x as i32,
-                        y_shift as i32 - bb.y as i32,
-                        shape_orig,
-                    )
-                    .map(|bb| (bb, annos.cat_idxs()[idx]))
-                });
-                let translated_bbs = translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
-                let translated_cat_ids = translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
+                let first_idx = selected_indices(annos.selected_bbs()).next();
+                if let Some(first_idx) = first_idx {
+                    let translated = selected_inds.flat_map(|idx| {
+                        let bb = annos.bbs()[idx];
+                        let first = annos.bbs()[first_idx];
+                        bb.translate(
+                            x_shift as i32 - first.x as i32,
+                            y_shift as i32 - first.y as i32,
+                            shape_orig,
+                        )
+                        .map(|bb| (bb, annos.cat_idxs()[idx]))
+                    });
+                    let translated_bbs = translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
+                    let translated_cat_ids =
+                        translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
 
-                if !translated_bbs.is_empty() {
-                    annos.extend(
-                        translated_bbs.iter().copied(),
-                        translated_cat_ids.iter().copied(),
-                        shape_orig,
-                    );
-                    annos.deselect_all();
-                    annos.select_last();
-                    world = draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
-                    history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                    if !translated_bbs.is_empty() {
+                        annos.extend(
+                            translated_bbs.iter().copied(),
+                            translated_cat_ids.iter().copied(),
+                            shape_orig,
+                        );
+                        annos.deselect_all();
+                        annos.select_last_n(translated_bbs.len());
+                        world =
+                            draw_on_view(params.initial_view, are_boxes_visible, world, shape_win);
+                        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                    }
                 }
             }
         }

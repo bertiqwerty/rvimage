@@ -288,8 +288,11 @@ impl BboxAnnotations {
         self.selected_bbs[box_idx] = true;
     }
 
-    pub fn select_last(&mut self) {
-        self.selected_bbs[self.bbs.len() - 1] = true;
+    pub fn select_last_n(&mut self, n: usize) {
+        let len = self.bbs.len();
+        for i in (len - n)..len {
+            self.selected_bbs[i] = true;
+        }
     }
 
     pub fn selected_bbs(&self) -> &Vec<bool> {
