@@ -82,7 +82,7 @@ impl PathsNavigator {
         &self.paths_selector
     }
 
-    pub fn filter(&mut self, filter_string: &str) -> RvResult<()> {
+    pub fn filter(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
             let unfiltered_idx_before_filter =
                 if let Some(filtered_idx) = self.file_label_selected_idx {
@@ -92,7 +92,7 @@ impl PathsNavigator {
                 } else {
                     None
                 };
-            ps.filter(filter_string.trim())?;
+            ps.filter(filter_predicate)?;
             self.file_label_selected_idx = match unfiltered_idx_before_filter {
                 Some(unfiltered_idx) => ps
                     .file_labels()
@@ -103,6 +103,19 @@ impl PathsNavigator {
                 None => None,
             };
         }
+        Ok(())
+    }
+
+    pub fn filter_str(&mut self, s: &str) -> RvResult<()> {
+        let trimmed = s.trim();
+        let filter_pred = |path: &str| {
+            if path.is_empty() {
+                true
+            } else {
+                path.contains(trimmed)
+            }
+        };
+        self.filter(filter_pred)?;
         Ok(())
     }
 

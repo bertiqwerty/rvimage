@@ -2,17 +2,14 @@ use std::path::Path;
 
 use crate::{file_util, result::RvResult, rverr};
 
-fn list_file_labels(file_paths: &[String], filter_str: &str) -> RvResult<Vec<(usize, String)>> {
+fn list_file_labels(
+    file_paths: &[String],
+    mut filter_predicate: impl FnMut(&str) -> bool,
+) -> RvResult<Vec<(usize, String)>> {
     file_paths
         .iter()
         .enumerate()
-        .filter(|(_, p)| {
-            if filter_str.is_empty() {
-                true
-            } else {
-                p.contains(filter_str)
-            }
-        })
+        .filter(|(_, p)| filter_predicate(p))
         .map(|(i, p)| Ok((i, file_util::to_name_str(Path::new(p))?.to_string())))
         .collect::<RvResult<Vec<_>>>()
 }
@@ -58,7 +55,7 @@ impl PathsSelector {
 
     pub fn new(mut file_paths: Vec<String>, folder_path: Option<String>) -> RvResult<Self> {
         file_paths.sort();
-        let filtered_file_labels = list_file_labels(&file_paths, "")?;
+        let filtered_file_labels = list_file_labels(&file_paths, |_| true)?;
         let folder_label = make_folder_label(folder_path.as_deref())?;
         Ok(PathsSelector {
             file_paths,
@@ -71,8 +68,8 @@ impl PathsSelector {
         self.file_paths[self.label_idx_2_path_idx(label_selected_idx)].as_str()
     }
 
-    pub fn filter(&mut self, filter_str: &str) -> RvResult<()> {
-        self.filtered_file_labels = list_file_labels(&self.file_paths, filter_str)?;
+    pub fn filter(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
+        self.filtered_file_labels = list_file_labels(&self.file_paths, filter_predicate)?;
         Ok(())
     }
 
