@@ -5,7 +5,7 @@ use crate::paths_selector::PathsSelector;
 
 pub fn scroll_area(
     ui: &mut Ui,
-    file_selected_idx: &mut Option<usize>,
+    selected_filtered_label_idx: &mut Option<usize>,
     paths_selector: &PathsSelector,
     scroll_to_selected_label: bool,
     scroll_offset: f32,
@@ -17,8 +17,8 @@ pub fn scroll_area(
     let spacing_y = ui.spacing().item_spacing.y;
     let area_offset = ui.cursor();
 
-    let target_y =
-        file_selected_idx.map(|idx| area_offset.top() + idx as f32 * (row_height + spacing_y));
+    let target_y = selected_filtered_label_idx
+        .map(|idx| area_offset.top() + idx as f32 * (row_height + spacing_y));
     let target_rect = target_y.map(|y| Rect {
         min: Pos2 {
             x: 0.0,
@@ -29,10 +29,10 @@ pub fn scroll_area(
             y: y + row_height - scroll_offset,
         },
     });
-    let mut add_content = |ui: &mut Ui, filtered_idx: usize| {
-        let file_label = paths_selector.file_labels()[filtered_idx].1.as_str();
-        let sl = if *file_selected_idx == Some(filtered_idx) {
-            let path = paths_selector.file_selected_path(filtered_idx);
+    let mut add_content = |ui: &mut Ui, filtered_label_idx: usize| {
+        let file_label = paths_selector.file_labels()[filtered_label_idx].1.as_str();
+        let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
+            let path = paths_selector.file_selected_path(filtered_label_idx);
             let sl_ = ui.selectable_label(true, file_label).on_hover_text(path);
             if scroll_to_selected_label {
                 sl_.scroll_to_me(Some(Align::Center));
@@ -42,10 +42,15 @@ pub fn scroll_area(
             ui.selectable_label(false, file_label)
         };
         if sl.clicked_by(egui::PointerButton::Secondary) {
-            Clipboard::default().set(paths_selector.file_selected_path(filtered_idx).to_string());
+            Clipboard::default().set(
+                paths_selector
+                    .file_selected_path(filtered_label_idx)
+                    .to_string(),
+            );
         }
         if sl.clicked() {
-            *file_selected_idx = Some(filtered_idx);
+            println!("index is {}", filtered_label_idx);
+            *selected_filtered_label_idx = Some(filtered_label_idx);
         }
     };
     if scroll_to_selected_label {

@@ -191,7 +191,7 @@ fn main() -> Result<(), pixels::Error> {
         cfg::get_default_cfg()
     }));
     let mut history = History::new();
-    let mut file_selected = None;
+    let mut file_selected_idx = None;
     let mut is_loading_screen_active = false;
     let mut undo_redo_load = false;
     let mut counter = 0;
@@ -223,18 +223,6 @@ fn main() -> Result<(), pixels::Error> {
             let shape_win = Shape::from_size(&window.inner_size());
             let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
 
-            if framework.are_tools_active() {
-                let meta_data = ctrl.meta_data(file_selected);
-                world.data.meta_data = meta_data;
-                (world, history) = apply_tools(
-                    &mut tools,
-                    mem::take(&mut world),
-                    mem::take(&mut history),
-                    shape_win,
-                    mouse_pos,
-                    &input,
-                );
-            }
             if let (Some(idx_active), Some(_)) = (
                 framework.recently_activated_tool(),
                 &world.data.meta_data.file_path,
@@ -244,7 +232,7 @@ fn main() -> Result<(), pixels::Error> {
                         (world, history) =
                             t.activate(mem::take(&mut world), mem::take(&mut history), shape_win);
                     } else {
-                        let meta_data = ctrl.meta_data(file_selected);
+                        let meta_data = ctrl.meta_data(file_selected_idx);
                         world.data.meta_data = meta_data;
                         (world, history) =
                             t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
@@ -254,7 +242,7 @@ fn main() -> Result<(), pixels::Error> {
             if input.held_shift() && input.key_pressed(VirtualKeyCode::Q) {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
-                    let meta_data = ctrl.meta_data(file_selected);
+                    let meta_data = ctrl.meta_data(file_selected_idx);
                     world.data.meta_data = meta_data;
                     (world, history) =
                         t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
@@ -268,7 +256,7 @@ fn main() -> Result<(), pixels::Error> {
                 framework.menu_mut().toggle();
             }
             if input.key_released(VirtualKeyCode::F5) {
-                let label_selected = file_selected.map(|idx| ctrl.file_label(idx).to_string());
+                let label_selected = file_selected_idx.map(|idx| ctrl.file_label(idx).to_string());
                 if let Err(e) = ctrl.load_opened_folder_content() {
                     framework
                         .menu_mut()
@@ -279,7 +267,7 @@ fn main() -> Result<(), pixels::Error> {
                     ctrl.paths_navigator
                         .select_file_label(label_selected.as_str());
                 } else {
-                    file_selected = None;
+                    file_selected_idx = None;
                 }
             }
             if input.key_pressed(VirtualKeyCode::PageDown) {
@@ -318,7 +306,7 @@ fn main() -> Result<(), pixels::Error> {
                 // redo
                 undo_redo_load = true;
                 history.next_world(&make_folder_label())
-            } else if file_selected != menu_file_selected || is_loading_screen_active {
+            } else if file_selected_idx != menu_file_selected || is_loading_screen_active {
                 // load new image
                 if let Some(selected) = &menu_file_selected {
                     let folder_label = make_folder_label();
@@ -344,19 +332,19 @@ fn main() -> Result<(), pixels::Error> {
                                 history.push(Record {
                                     data: ims_raw.clone(),
                                     actor: LOAD_ACTOR_NAME,
-                                    file_label_idx: file_selected,
+                                    file_label_idx: file_selected_idx,
                                     folder_label,
                                 });
                             }
                             undo_redo_load = false;
-                            file_selected = menu_file_selected;
+                            file_selected_idx = menu_file_selected;
                             is_loading_screen_active = false;
-                            (ims_raw, file_selected)
+                            (ims_raw, file_selected_idx)
                         }
                         _ => {
                             thread::sleep(Duration::from_millis(20));
                             let shape = world.shape_orig();
-                            file_selected = menu_file_selected;
+                            file_selected_idx = menu_file_selected;
                             is_loading_screen_active = true;
                             (
                                 DataRaw::new(
@@ -364,7 +352,7 @@ fn main() -> Result<(), pixels::Error> {
                                     MetaData::default(),
                                     world.data.tools_data_map.clone(),
                                 ),
-                                file_selected,
+                                file_selected_idx,
                             )
                         }
                     };
@@ -413,6 +401,18 @@ fn main() -> Result<(), pixels::Error> {
                 }
             }
 
+            if framework.are_tools_active() {
+                let meta_data = ctrl.meta_data(file_selected_idx);
+                world.data.meta_data = meta_data;
+                (world, history) = apply_tools(
+                    &mut tools,
+                    mem::take(&mut world),
+                    mem::take(&mut history),
+                    shape_win,
+                    mouse_pos,
+                    &input,
+                );
+            }
             // show position and rgb value
             if let Some(idx) = ctrl.paths_navigator.file_label_selected_idx() {
                 let shape_win = Shape {

@@ -64,8 +64,8 @@ impl PathsSelector {
         })
     }
 
-    pub fn file_selected_path(&self, label_selected_idx: usize) -> &str {
-        self.file_paths[self.label_idx_2_path_idx(label_selected_idx)].as_str()
+    pub fn file_selected_path(&self, filtered_label_idx: usize) -> &str {
+        self.file_paths[self.label_idx_2_path_idx(filtered_label_idx)].as_str()
     }
 
     pub fn filter(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {

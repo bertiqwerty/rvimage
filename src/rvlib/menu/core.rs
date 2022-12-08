@@ -435,19 +435,21 @@ impl Menu {
 
                 // scroll area showing image file names
                 let scroll_to_selected = ctrl.paths_navigator.scroll_to_selected_label();
-                let mut file_label_selected_idx = ctrl.paths_navigator.file_label_selected_idx();
+                let mut filtered_label_selected_idx =
+                    ctrl.paths_navigator.file_label_selected_idx();
                 if let Some(ps) = &ctrl.paths_navigator.paths_selector() {
                     self.scroll_offset = menu::scroll_area::scroll_area(
                         ui,
-                        &mut file_label_selected_idx,
+                        &mut filtered_label_selected_idx,
                         ps,
                         scroll_to_selected,
                         self.scroll_offset,
                     );
                     ctrl.paths_navigator.deactivate_scroll_to_selected_label();
-                    if ctrl.paths_navigator.file_label_selected_idx() != file_label_selected_idx {
+                    if ctrl.paths_navigator.file_label_selected_idx() != filtered_label_selected_idx
+                    {
                         ctrl.paths_navigator
-                            .select_label_idx(file_label_selected_idx);
+                            .select_label_idx(filtered_label_selected_idx);
                     }
                 }
 
