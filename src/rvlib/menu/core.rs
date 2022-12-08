@@ -430,7 +430,11 @@ impl Menu {
                     self.are_tools_active = true;
                 }
                 if txt_field.changed() {
-                    handle_error!(ctrl.paths_navigator.filter_str(&self.filter_string), self);
+                    handle_error!(
+                        ctrl.paths_navigator
+                            .filter(&self.filter_string, tools_data_map),
+                        self
+                    );
                 }
 
                 // scroll area showing image file names

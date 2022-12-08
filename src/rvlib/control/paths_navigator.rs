@@ -1,4 +1,4 @@
-use crate::{paths_selector::PathsSelector, result::RvResult};
+use crate::{paths_selector::PathsSelector, result::RvResult, tools, world::ToolsDataMap};
 
 fn next(file_selected_idx: usize, files_len: usize) -> usize {
     if file_selected_idx < files_len - 1 {
@@ -81,7 +81,7 @@ impl PathsNavigator {
         &self.paths_selector
     }
 
-    pub fn filter(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
+    pub fn filter_by_pred(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
             let unfiltered_idx_before_filter =
                 if let Some(filtered_idx) = self.file_label_selected_idx {
@@ -105,16 +105,36 @@ impl PathsNavigator {
         Ok(())
     }
 
-    pub fn filter_str(&mut self, s: &str) -> RvResult<()> {
-        let trimmed = s.trim();
-        let filter_pred = |path: &str| {
-            if path.is_empty() {
-                true
-            } else {
-                path.contains(trimmed)
-            }
-        };
-        self.filter(filter_pred)?;
+    pub fn filter(&mut self, s: &str, tools_data_map: &ToolsDataMap) -> RvResult<()> {
+        let labels_keyword = "label:";
+        if let Some(needle) = s.strip_prefix(labels_keyword) {
+            let labels = tools_data_map[tools::BBOX_NAME].specifics.bbox().labels();
+            let filter_pred = |path: &str| {
+                let annos = tools_data_map[tools::BBOX_NAME]
+                    .specifics
+                    .bbox()
+                    .get_annos(path);
+                if let Some(annos) = annos {
+                    annos
+                        .cat_idxs()
+                        .iter()
+                        .any(|cat_idx| labels[*cat_idx].contains(needle))
+                } else {
+                    false
+                }
+            };
+            self.filter_by_pred(filter_pred)?;
+        } else {
+            let trimmed = s.trim();
+            let filter_pred = |path: &str| {
+                if path.is_empty() {
+                    true
+                } else {
+                    path.contains(trimmed)
+                }
+            };
+            self.filter_by_pred(filter_pred)?;
+        }
         Ok(())
     }
 

@@ -73,7 +73,7 @@ prefix = ''
 ## Bounding Box Labeling Tool
 
 RV Image comes with a simple bounding box labeling that can export to and import from the [Coco format](https://cocodataset.org/#format-data).
-For an import to work, the folder that contains the images needs to be opened beforehand.
+For an import to work, the folder that contains the images needs to be opened beforehand. To filter for files that contain bounding boxes of a specific label, one can put `label:<name-of-label>` into the filter text field. Thereby, `<name-of-label>` needs to be replaced by the real name of the label. 
 
 | event                       | action                                                                                   |
 | --------------------------- | ---------------------------------------------------------------------------------------- |
