@@ -1,4 +1,4 @@
-use std::{io::Read, net::TcpStream, path::Path};
+use std::{fmt::Debug, io::Read, net::TcpStream, path::Path};
 
 use ssh2::Session;
 
@@ -7,6 +7,31 @@ use crate::{
     result::{to_rv, RvError, RvResult},
     rverr,
 };
+
+fn to_cmd_err<E>(cmd: &str, e: E) -> RvError
+where
+    E: Debug,
+{
+    rverr!("could not run {} due to {:?}", cmd, e)
+}
+
+fn command(cmd: &str, sess: &Session) -> RvResult<String> {
+    let mut channel = sess.channel_session().map_err(|e| to_cmd_err(cmd, e))?;
+
+    let mut s = String::new();
+    channel.exec(cmd).map_err(|e| to_cmd_err(cmd, e))?;
+
+    channel
+        .read_to_string(&mut s)
+        .map_err(|e| to_cmd_err(cmd, e))?;
+    channel.wait_close().map_err(|e| to_cmd_err(cmd, e))?;
+    Ok(s)
+}
+
+pub fn file_info(path: &str, sess: &Session) -> RvResult<String> {
+    let cmd = format!("ls -lh {}", path);
+    command(cmd.as_str(), sess)
+}
 
 pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>> {
     let (mut remote_file, _) = sess
@@ -29,15 +54,8 @@ pub fn find(
     filter_extensions: &[&str],
     sess: &Session,
 ) -> RvResult<Vec<String>> {
-    let mut channel = sess.channel_session().map_err(to_rv)?;
-
-    let mut s = String::new();
-    channel
-        .exec(format!("find '{}'", remote_folder_path).as_str())
-        .map_err(to_rv)?;
-
-    channel.read_to_string(&mut s).map_err(to_rv)?;
-    channel.wait_close().map_err(to_rv)?;
+    let cmd = format!("find '{}'", remote_folder_path);
+    let s = command(cmd.as_str(), sess)?;
     fn ext_predicate(s: &str, filter_extensions: &[&str]) -> bool {
         let n_s = s.len();
         filter_extensions
