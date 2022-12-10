@@ -6,7 +6,7 @@ use crate::{
     result::{to_rv, RvError, RvResult},
     rverr,
     threadpool::ThreadPoolQueued,
-    types::{AsyncResultImage, ResultImage},
+    types::{AsyncResultImage, ImageInfoPair, ResultImage},
 };
 
 use serde::{Deserialize, Serialize};
@@ -55,9 +55,15 @@ where
 }
 
 #[derive(Debug)]
+struct LocalImagePathInfoPair {
+    path: String,
+    info: String,
+}
+
+#[derive(Debug)]
 enum ThreadResult {
     Running(u128),
-    Ok(String),
+    Ok(LocalImagePathInfoPair),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -153,15 +159,31 @@ where
         let selected_file = &files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
-            ThreadResult::Ok(path_in_cache) => image_util::read_image(path_in_cache).map(Some),
+            ThreadResult::Ok(path_info_pair) => {
+                let LocalImagePathInfoPair { path, info } = path_info_pair;
+                image_util::read_image(path).map(|im| {
+                    Some(ImageInfoPair {
+                        im,
+                        info: info.clone(),
+                    })
+                })
+            }
             ThreadResult::Running(job_id) => {
                 let path_in_cache = self.tpq.result(*job_id);
                 match path_in_cache {
                     Some(pic) => {
                         let pic = pic?;
                         let res = image_util::read_image(&pic);
-                        *self.cached_paths.get_mut(selected_file).unwrap() = ThreadResult::Ok(pic);
-                        res.map(Some)
+                        let info = self
+                            .reader
+                            .file_info(selected_file)
+                            .unwrap_or_else(|_| file_util::local_file_info(&pic));
+                        *self.cached_paths.get_mut(selected_file).unwrap() =
+                            ThreadResult::Ok(LocalImagePathInfoPair {
+                                path: pic,
+                                info: info.clone(),
+                            });
+                        res.map(|im| Some(ImageInfoPair { im, info }))
                     }
                     None => Ok(None),
                 }
@@ -215,6 +237,9 @@ fn test_file_cache() -> RvResult<()> {
                 let dummy_image =
                     DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, Vec<u8>>::new(20, 20));
                 Ok(dummy_image)
+            }
+            fn file_info(&self, _: &str) -> RvResult<String> {
+                Ok("".to_string())
             }
         }
 

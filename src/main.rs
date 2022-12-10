@@ -192,6 +192,7 @@ fn main() -> Result<(), pixels::Error> {
     }));
     let mut history = History::new();
     let mut file_selected_idx = None;
+    let mut file_info_selected = None;
     let mut is_loading_screen_active = false;
     let mut undo_redo_load = false;
     let mut counter = 0;
@@ -323,8 +324,9 @@ fn main() -> Result<(), pixels::Error> {
                     };
                     let read_image_and_idx = match (file_path, im_read) {
                         (Some(fp), Some(ri)) => {
+                            file_info_selected = Some(ri.info);
                             let ims_raw = DataRaw::new(
-                                ri,
+                                ri.im,
                                 MetaData::from_filepath(fp),
                                 world.data.tools_data_map.clone(),
                             );
@@ -462,6 +464,7 @@ fn main() -> Result<(), pixels::Error> {
                     &mut tools,
                     &mut world.data.tools_data_map,
                     &mut ctrl,
+                    file_info_selected.as_deref(),
                 );
 
                 // Render everything together

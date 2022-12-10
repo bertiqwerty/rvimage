@@ -30,4 +30,8 @@ impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
         let image_paths = ssh::find(folder_path, &SUPPORTED_EXTENSIONS, &self.sess)?;
         Ok(image_paths)
     }
+
+    fn file_info(&self, path: &str) -> RvResult<String> {
+        ssh::file_info(path, &self.sess)
+    }
 }

@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use crate::{result::RvResult, types::AsyncResultImage};
+use crate::{
+    result::RvResult,
+    types::{AsyncResultImage, ImageInfoPair},
+};
 
 use super::{Cache, ReadImageToCache};
 
@@ -18,7 +21,16 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
         files: &[String],
         _reload: bool,
     ) -> AsyncResultImage {
-        self.reader.read(&files[selected_file_idx]).map(Some)
+        let path = &files[selected_file_idx];
+        self.reader.read(path).map(|im| {
+            Some(ImageInfoPair {
+                im,
+                info: self
+                    .reader
+                    .file_info(path)
+                    .unwrap_or_else(|_| "".to_string()),
+            })
+        })
     }
     fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
         self.reader.ls(folder_path)

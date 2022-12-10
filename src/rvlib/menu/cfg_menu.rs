@@ -41,26 +41,37 @@ impl<'a> Widget for CfgMenu<'a> {
             let area_response = area
                 .show(ui.ctx(), |ui| {
                     Frame::popup(ui.style()).show(ui, |ui| {
-                        if ui.button("open in editor").clicked() {
-                            match cfg::get_cfg_path() {
-                                Ok(p) => {
-                                    if let Err(e) = edit::edit_file(p) {
-                                        println!("{:?}", e);
-                                        println!("could not open editor. {:?}", edit::get_editor());
+                        ui.horizontal(|ui| {
+                            if ui.button("open in editor").clicked() {
+                                match cfg::get_cfg_path() {
+                                    Ok(p) => {
+                                        if let Err(e) = edit::edit_file(p) {
+                                            println!("{:?}", e);
+                                            println!(
+                                                "could not open editor. {:?}",
+                                                edit::get_editor()
+                                            );
+                                        }
+                                    }
+                                    Err(e) => {
+                                        println!("could not open config file. {:?}", e);
                                     }
                                 }
-                                Err(e) => {
-                                    println!("could not open config file. {:?}", e);
+                                if let Ok(cfg) = cfg::get_cfg() {
+                                    *self.cfg = cfg;
+                                    *self.ssh_cfg_str =
+                                        toml::to_string_pretty(&self.cfg.ssh_cfg).unwrap();
+                                } else {
+                                    println!("could not reload cfg from file");
                                 }
                             }
-                            if let Ok(cfg) = cfg::get_cfg() {
-                                *self.cfg = cfg;
-                                *self.ssh_cfg_str =
-                                    toml::to_string_pretty(&self.cfg.ssh_cfg).unwrap();
-                            } else {
-                                println!("could not reload cfg from file");
+                            if ui.button("OK").clicked() {
+                                close = Close::Yes(true);
                             }
-                        }
+                            if ui.button("cancel").clicked() {
+                                close = Close::Yes(false);
+                            }
+                        });
                         ui.separator();
                         ui.label("CONNECTION");
                         ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");

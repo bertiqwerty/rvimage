@@ -4,6 +4,7 @@ use regex::Regex;
 use crate::{
     cache::ReadImageToCache,
     result::{to_rv, RvResult},
+    rverr,
     types::ResultImage,
 };
 
@@ -47,5 +48,8 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
                 })
             })
             .collect())
+    }
+    fn file_info(&self, _: &str) -> RvResult<String> {
+        Err(rverr!("http reader cannot read file info",))
     }
 }

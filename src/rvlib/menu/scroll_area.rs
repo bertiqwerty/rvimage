@@ -7,6 +7,7 @@ pub fn scroll_area(
     ui: &mut Ui,
     selected_filtered_label_idx: &mut Option<usize>,
     paths_selector: &PathsSelector,
+    file_info_selected: Option<&str>,
     scroll_to_selected_label: bool,
     scroll_offset: f32,
 ) -> f32 {
@@ -33,7 +34,13 @@ pub fn scroll_area(
         let file_label = paths_selector.file_labels()[filtered_label_idx].1.as_str();
         let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
             let path = paths_selector.file_selected_path(filtered_label_idx);
-            let sl_ = ui.selectable_label(true, file_label).on_hover_text(path);
+            let sl_ = ui.selectable_label(true, file_label);
+            let sl_ = if let Some(fis) = file_info_selected {
+                sl_.on_hover_text(format!("{}\n{}", path, fis))
+            } else {
+                sl_.on_hover_text(path)
+            };
+
             if scroll_to_selected_label {
                 sl_.scroll_to_me(Some(Align::Center));
             }

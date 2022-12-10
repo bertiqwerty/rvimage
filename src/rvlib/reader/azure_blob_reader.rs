@@ -80,4 +80,8 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
         let res = RT.block_on(blob_list(&self.container_client, prefix));
         res
     }
+
+    fn file_info(&self, _: &str) -> RvResult<String> {
+        Err(rverr!("cannot read file info from azure blob",))
+    }
 }

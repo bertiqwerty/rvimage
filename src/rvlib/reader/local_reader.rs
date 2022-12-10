@@ -39,4 +39,7 @@ impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
         let image_paths = read_image_paths(folder_path)?;
         Ok(image_paths)
     }
+    fn file_info(&self, path: &str) -> RvResult<String> {
+        Ok(file_util::local_file_info(path))
+    }
 }

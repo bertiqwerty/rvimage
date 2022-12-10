@@ -51,6 +51,7 @@ pub fn path_to_str(p: &Path) -> RvResult<&str> {
     osstr_to_str(Some(p.as_os_str()))
         .map_err(|e| rverr!("could not transform '{:?}' due to '{:?}'", p, e))
 }
+
 pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
     p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
         .to_str()
@@ -235,6 +236,24 @@ pub fn get_last_part_of_path(path: &str) -> Option<LastPartOfPath> {
     } else {
         get_last_part_of_path_by_sep(path, '\\')
     }
+}
+
+pub fn local_file_info<P>(p: P) -> String
+where
+    P: AsRef<Path>,
+{
+    fs::metadata(p)
+        .map(|md| {
+            let n_bytes = md.len();
+            if n_bytes < 1024 {
+                format!("{}b", md.len())
+            } else if n_bytes < 1024u64.pow(2) {
+                format!("{:.3}kb", md.len() as f64 / 1024f64)
+            } else {
+                format!("{:.3}mb", md.len() as f64 / 1024f64.powi(2))
+            }
+        })
+        .unwrap_or_else(|_| "".to_string())
 }
 
 #[test]
