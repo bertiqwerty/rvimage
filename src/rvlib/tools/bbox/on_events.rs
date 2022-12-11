@@ -571,7 +571,7 @@ fn test_mouse_release() {
         assert!(history_equal(&history, &new_hist));
     }
     {
-        // If ctrl is hold, a bounding box would be selected. Since no bounding boxes are selected,
+        // If ctrl is hold, a bounding box would be selected. Since no bounding boxes exist,
         // nothing should happen.
         let params = make_params(None, true);
         let (world, new_hist, prev_pos) =

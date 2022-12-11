@@ -235,12 +235,13 @@ impl Manipulate for BBox {
         if event.window_resized().is_some() {
             (world, history) = self.on_activate(world, history, shape_win);
         }
-        let file_path = world.data.meta_data.file_path.clone();
-        if file_path != self.previous_file {
+        let is_file_new = self.previous_file != world.data.meta_data.file_path;
+        if is_file_new {
             let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
             for (_, (anno, _)) in bbox_data.anno_iter_mut() {
                 anno.deselect_all();
             }
+            self.previous_file = world.data.meta_data.file_path.clone();
         }
         let is_anno_rm_triggered = get_tools_data(&world).specifics.bbox().is_anno_rm_triggered;
         if is_anno_rm_triggered {

@@ -288,21 +288,29 @@ impl BboxAnnotations {
         self.selected_bbs[box_idx] = true;
     }
 
-    fn select_multi(&mut self, box_idxs: impl Iterator<Item = usize>) {
+    pub fn select_multi(
+        &mut self,
+        box_idxs: impl Iterator<Item = usize>,
+        cat_idx_current: Option<usize>,
+    ) {
         for box_idx in box_idxs {
-            let cat_idx = self.cat_idxs[box_idx];
+            let cat_idx = if let Some(cic) = cat_idx_current {
+                cic
+            } else {
+                self.cat_idxs[box_idx]
+            };
             self.select(box_idx, cat_idx);
         }
     }
 
     pub fn select_all(&mut self) {
         let n_bbs = self.bbs.len();
-        self.select_multi(0..n_bbs);
+        self.select_multi(0..n_bbs, None);
     }
 
     pub fn select_last_n(&mut self, n: usize) {
         let len = self.bbs.len();
-        self.select_multi((len - n)..len);
+        self.select_multi((len - n)..len, None);
     }
 
     pub fn selected_bbs(&self) -> &Vec<bool> {
