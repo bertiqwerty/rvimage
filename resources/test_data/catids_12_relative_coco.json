@@ -48,7 +48,7 @@
             "id": 0,
             "image_id": 0,
             "category_id": 1,
-            "segmentation": [],
+            "segmentation": [[]],
             "bbox": [
                 0.1,
                 0.1,
@@ -61,7 +61,7 @@
             "id": 1,
             "image_id": 0,
             "category_id": 2,
-            "segmentation": [],
+            "segmentation": [[]],
             "bbox": [
                 0.91,
                 0.87,
@@ -74,7 +74,7 @@
             "id": 2,
             "image_id": 1,
             "category_id": 1,
-            "segmentation": [0.1, 0.4, 0.0, 0.0, 0.4, 0.5],
+            "segmentation": [[0.1, 0.4, 0.0, 0.0, 0.4, 0.5]],
             "bbox": [
                 0.01,
                 0.01,
