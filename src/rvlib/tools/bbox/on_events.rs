@@ -159,7 +159,7 @@ pub(super) fn on_mouse_released_left(
                 // box and the selected box that has the maximum distance in terms of max-corner-dist.
                 // All boxes that have overlap with this new selection box will be selected. If no box
                 // is selected only the currently clicked box will be selected.
-                annos.select(i);
+                annos.select(i, in_menu_selected_label);
                 let newly_selected_bb = &annos.bbs()[i];
                 let sel_indxs = selected_indices(annos.selected_bbs());
                 if let Some((bbidx, (csidx, coidx, _))) = sel_indxs
@@ -173,16 +173,16 @@ pub(super) fn on_mouse_released_left(
                     let n_bbs = annos.bbs().len();
                     for i in 0..n_bbs {
                         if annos.bbs()[i].has_overlap(&spanned_bb) {
-                            annos.select(i);
+                            annos.select(i, in_menu_selected_label);
                         }
                     }
                 }
             } else if is_alt_held {
                 annos.deselect_all();
-                annos.select(i)
+                annos.select(i, in_menu_selected_label)
             } else {
                 // ctrl
-                annos.toggle_selection(i);
+                annos.toggle_selection(i, in_menu_selected_label);
             }
         }
         world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
@@ -528,7 +528,7 @@ fn test_mouse_held() {
             mover: &mut mover,
         };
         let annos = get_annos_mut(&mut world);
-        annos.select(0);
+        annos.select(0, 0);
         let (world, new_hist) =
             on_mouse_held_right(shape_win, mouse_pos, params, world, history.clone());
         assert_ne!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
@@ -613,7 +613,7 @@ fn test_mouse_release() {
         let mut params = make_params(None, true);
         params.is_alt_held = true;
         let annos = get_annos_mut(&mut world);
-        annos.select(1);
+        annos.select(1, 0);
         let (mut world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
@@ -625,7 +625,7 @@ fn test_mouse_release() {
         params.is_shift_held = true;
         let annos = get_annos_mut(&mut world);
         annos.deselect(0);
-        annos.select(3);
+        annos.select(3, 0);
         let (world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
