@@ -67,6 +67,7 @@ pub struct BBox {
     mover: Mover,
     prev_label: usize,
     are_boxes_visible: bool,
+    previous_file: Option<String>,
 }
 
 impl BBox {
@@ -192,6 +193,7 @@ impl Manipulate for BBox {
             mover: Mover::new(),
             prev_label: 0,
             are_boxes_visible: true,
+            previous_file: None,
         }
     }
 
@@ -232,6 +234,13 @@ impl Manipulate for BBox {
     ) -> (World, History) {
         if event.window_resized().is_some() {
             (world, history) = self.on_activate(world, history, shape_win);
+        }
+        let file_path = world.data.meta_data.file_path.clone();
+        if file_path != self.previous_file {
+            let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+            for (_, (anno, _)) in bbox_data.anno_iter_mut() {
+                anno.deselect_all();
+            }
         }
         let is_anno_rm_triggered = get_tools_data(&world).specifics.bbox().is_anno_rm_triggered;
         if is_anno_rm_triggered {
