@@ -96,6 +96,19 @@ pub struct BboxSpecificData {
 impl BboxSpecificData {
     implement_annotations_getters!(BboxAnnotations);
 
+    pub fn n_annotated_images(&self, paths: &[&str]) -> usize {
+        paths
+            .iter()
+            .filter(|p| {
+                if let Some((anno, _)) = self.annotations_map.get(**p) {
+                    !anno.bbs().is_empty()
+                } else {
+                    false
+                }
+            })
+            .count()
+    }
+
     pub fn from_bbox_export_data(input_data: BboxExportData) -> RvResult<Self> {
         let mut out_data = Self {
             new_label: DEFAULT_LABEL.to_string(),

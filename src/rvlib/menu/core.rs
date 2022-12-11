@@ -3,8 +3,9 @@ use crate::{
     control::{Control, Info},
     file_util,
     menu::{self, cfg_menu::CfgMenu, open_folder, picklist},
+    paths_selector::PathsSelector,
     result::{to_rv, RvResult},
-    tools::ToolState,
+    tools::{ToolState, BBOX_NAME},
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
 };
@@ -277,6 +278,12 @@ struct ImportBtnResp {
     pub popup_open: bool,
 }
 
+#[derive(Default)]
+struct Stats {
+    n_files_filtered_info: Option<String>,
+    n_files_annotated_info: Option<String>,
+}
+
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
@@ -286,6 +293,7 @@ pub struct Menu {
     scroll_offset: f32,
     open_folder_popup_open: bool,
     load_button_resp: ImportBtnResp,
+    stats: Stats,
 }
 
 impl Menu {
@@ -304,6 +312,7 @@ impl Menu {
                 resp: None,
                 popup_open: false,
             },
+            stats: Stats::default(),
         }
     }
 
@@ -464,6 +473,44 @@ impl Menu {
                         ctrl.paths_navigator
                             .select_label_idx(filtered_label_selected_idx);
                     }
+                }
+
+                ui.separator();
+                if let Some(info) = &self.stats.n_files_filtered_info {
+                    ui.label(info);
+                }
+                if let Some(info) = &self.stats.n_files_annotated_info {
+                    ui.label(info);
+                }
+                let get_file_info = |ps: &PathsSelector| {
+                    let n_files_filtered = ps.filtered_idx_file_label_pairs().len();
+                    Some(format!("{} files", n_files_filtered))
+                };
+                let get_annotation_info = |ps: &PathsSelector| {
+                    if let Some(bbox_data) = tools_data_map.get(BBOX_NAME) {
+                        let n_files_annotated = bbox_data
+                            .specifics
+                            .bbox()
+                            .n_annotated_images(&ps.filtered_file_paths());
+                        Some(format!("{} files with bbox annotations", n_files_annotated))
+                    } else {
+                        None
+                    }
+                };
+                if let Some(ps) = ctrl.paths_navigator.paths_selector() {
+                    if self.stats.n_files_filtered_info.is_none() {
+                        self.stats.n_files_filtered_info = get_file_info(ps);
+                    }
+                    if self.stats.n_files_annotated_info.is_none() {
+                        self.stats.n_files_annotated_info = get_annotation_info(ps);
+                    }
+                    if ui.button("re-compute stats").clicked() {
+                        self.stats.n_files_filtered_info = get_file_info(ps);
+                        self.stats.n_files_annotated_info = get_annotation_info(ps);
+                    }
+                } else {
+                    self.stats.n_files_filtered_info = None;
+                    self.stats.n_files_annotated_info = None;
                 }
 
                 ui.separator();

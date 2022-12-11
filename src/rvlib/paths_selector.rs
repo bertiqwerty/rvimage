@@ -73,14 +73,14 @@ impl PathsSelector {
         Ok(())
     }
 
-    pub fn file_labels(&self) -> &Vec<(usize, String)> {
+    pub fn filtered_idx_file_label_pairs(&self) -> &Vec<(usize, String)> {
         &self.filtered_file_labels
     }
 
-    pub fn filtered_file_paths(&self) -> Vec<String> {
+    pub fn filtered_file_paths(&self) -> Vec<&str> {
         self.filtered_file_labels
             .iter()
-            .map(|(idx, _)| self.file_paths[*idx].clone())
+            .map(|(idx, _)| self.file_paths[*idx].as_str())
             .collect()
     }
 

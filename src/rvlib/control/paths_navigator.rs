@@ -34,7 +34,8 @@ impl PathsNavigator {
     fn pn(&mut self, f: fn(usize, usize) -> usize) {
         if let Some(idx) = self.file_label_selected_idx {
             if let Some(ps) = &self.paths_selector {
-                self.file_label_selected_idx = Some(f(idx, ps.file_labels().len()));
+                self.file_label_selected_idx =
+                    Some(f(idx, ps.filtered_idx_file_label_pairs().len()));
                 self.scroll_to_selected_label = true;
             }
         }
@@ -60,7 +61,7 @@ impl PathsNavigator {
     /// makes sure the idx actually exists
     pub fn select_label_idx(&mut self, filtered_label_idx: Option<usize>) {
         if let (Some(idx), Some(ps)) = (filtered_label_idx, self.paths_selector()) {
-            if idx < ps.file_labels().len() {
+            if idx < ps.filtered_idx_file_label_pairs().len() {
                 self.file_label_selected_idx = Some(idx);
             }
         }
@@ -86,7 +87,7 @@ impl PathsNavigator {
             let unfiltered_idx_before_filter =
                 if let Some(filtered_idx) = self.file_label_selected_idx {
                     self.scroll_to_selected_label = true;
-                    let (unfiltered_idx, _) = ps.file_labels()[filtered_idx];
+                    let (unfiltered_idx, _) = ps.filtered_idx_file_label_pairs()[filtered_idx];
                     Some(unfiltered_idx)
                 } else {
                     None
@@ -94,7 +95,7 @@ impl PathsNavigator {
             ps.filter(filter_predicate)?;
             self.file_label_selected_idx = match unfiltered_idx_before_filter {
                 Some(unfiltered_idx) => ps
-                    .file_labels()
+                    .filtered_idx_file_label_pairs()
                     .iter()
                     .enumerate()
                     .find(|(_, (uidx, _))| *uidx == unfiltered_idx)

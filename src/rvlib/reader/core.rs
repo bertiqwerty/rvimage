@@ -18,7 +18,7 @@ pub trait LoadImageForGui {
     fn read_image(
         &mut self,
         file_selected_idx: usize,
-        file_paths: &[String],
+        file_paths: &[&str],
         reload: bool,
     ) -> AsyncResultImage;
     /// get the user input of a new folder and open it
@@ -56,7 +56,7 @@ where
     fn read_image(
         &mut self,
         selected_file_idx: usize,
-        file_paths: &[String],
+        file_paths: &[&str],
         reload: bool,
     ) -> AsyncResultImage {
         let mut loaded = self

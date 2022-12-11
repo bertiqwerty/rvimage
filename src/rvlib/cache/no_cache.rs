@@ -18,7 +18,7 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
     fn load_from_cache(
         &mut self,
         selected_file_idx: usize,
-        files: &[String],
+        files: &[&str],
         _reload: bool,
     ) -> AsyncResultImage {
         let path = &files[selected_file_idx];

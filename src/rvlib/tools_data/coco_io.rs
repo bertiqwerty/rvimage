@@ -43,7 +43,7 @@ struct CocoAnnotation {
     image_id: u32,
     category_id: u32,
     bbox: [f32; 4],
-    segmentation: Option<Vec<f32>>,
+    segmentation: Option<Vec<Vec<f32>>>,
     area: Option<f32>,
 }
 
@@ -101,7 +101,7 @@ impl CocoExportData {
                             image_id: image_idx as u32,
                             category_id: export_data.cat_ids[*cat_idx] as u32,
                             bbox: bb_f,
-                            segmentation: Some(vec![
+                            segmentation: Some(vec![vec![
                                 bb_f[0],
                                 bb_f[1],
                                 bb_f[0] + bb_f[2],
@@ -110,7 +110,7 @@ impl CocoExportData {
                                 bb_f[1] + bb_f[3],
                                 bb_f[0],
                                 bb_f[1] + bb_f[3],
-                            ]),
+                            ]]),
                             area: Some((bb.h * bb.w) as f32),
                         }
                     })

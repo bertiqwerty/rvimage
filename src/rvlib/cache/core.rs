@@ -16,7 +16,7 @@ pub trait Cache<A> {
     fn load_from_cache(
         &mut self,
         selected_file_idx: usize,
-        files: &[String],
+        files: &[&str],
         reload: bool,
     ) -> AsyncResultImage;
     fn ls(&self, folder_path: &str) -> RvResult<Vec<String>>;

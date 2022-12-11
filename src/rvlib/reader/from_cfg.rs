@@ -137,7 +137,7 @@ impl LoadImageForGui for ReaderFromCfg {
     fn read_image(
         &mut self,
         file_selected_idx: usize,
-        file_paths: &[String],
+        file_paths: &[&str],
         reload: bool,
     ) -> AsyncResultImage {
         self.reader

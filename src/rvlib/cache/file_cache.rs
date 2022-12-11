@@ -30,7 +30,7 @@ fn preload<'a, I, RTC, A>(
     tmpdir: &str,
 ) -> RvResult<HashMap<String, ThreadResult>>
 where
-    I: Iterator<Item = (usize, &'a String)>,
+    I: Iterator<Item = (usize, &'a str)>,
     RTC: ReadImageToCache<A> + Clone + Send + 'static,
 {
     let delay_ms = 10;
@@ -38,7 +38,7 @@ where
     files
         .map(|(prio, file)| {
             let dst_file = file_util::filename_in_tmpdir(file, tmpdir)?;
-            let file_for_thread = file.clone();
+            let file_for_thread = file.to_string();
             let reader_for_thread = reader.clone();
             let job = Box::new(move || {
                 match copy(&file_for_thread, |p| reader_for_thread.read(p), &dst_file) {
@@ -47,7 +47,7 @@ where
                 }
             });
             Ok((
-                file.clone(),
+                file.to_string(),
                 ThreadResult::Running(tp.apply(job, prio, delay_ms)?),
             ))
         })
@@ -101,7 +101,7 @@ where
     fn load_from_cache(
         &mut self,
         selected_file_idx: usize,
-        files: &[String],
+        files: &[&str],
         reload: bool,
     ) -> AsyncResultImage {
         if files.is_empty() {
@@ -136,15 +136,16 @@ where
         // update priorities of in cache files
         let files_in_cache = prio_file_pairs
             .clone()
-            .filter(|(_, file)| self.cached_paths.contains_key(*file));
+            .filter(|(_, file)| self.cached_paths.contains_key(**file));
         for (prio, file) in files_in_cache {
-            if let ThreadResult::Running(job_id) = self.cached_paths[file] {
+            if let ThreadResult::Running(job_id) = self.cached_paths[*file] {
                 self.tpq.update_prio(job_id, Some(prio))?;
             }
         }
         // trigger caching of not in cache files
-        let files_not_in_cache =
-            prio_file_pairs.filter(|(_, file)| !self.cached_paths.contains_key(*file));
+        let files_not_in_cache = prio_file_pairs
+            .filter(|(_, file)| !self.cached_paths.contains_key(**file))
+            .map(|(i, file)| (i, *file));
         let cache = preload(
             files_not_in_cache,
             &mut self.tpq,
@@ -156,7 +157,7 @@ where
             let (file, th_res) = elt;
             self.cached_paths.insert(file, th_res);
         }
-        let selected_file = &files[selected_file_idx];
+        let selected_file = files[selected_file_idx];
         let selected_file_state = &self.cached_paths[selected_file];
         match selected_file_state {
             ThreadResult::Ok(path_info_pair) => {
@@ -263,9 +264,8 @@ fn test_file_cache() -> RvResult<()> {
         } else {
             selected + cache.n_next_images
         };
-        let files = files.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let reload = false;
-        cache.load_from_cache(selected, &files, reload)?;
+        cache.load_from_cache(selected, files, reload)?;
         let n_millis = (max_i - min_i) * 100;
         println!("waiting {} millis", n_millis);
         thread::sleep(Duration::from_millis(n_millis as u64));
@@ -275,12 +275,13 @@ fn test_file_cache() -> RvResult<()> {
             .enumerate()
             .filter(|(i, _)| min_i <= *i && *i < max_i)
         {
-            let f = file.as_str();
             println!(
                 "filename in tmpdir {:?}",
-                Path::new(file_util::filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str())
+                Path::new(file_util::filename_in_tmpdir(file, cfg.tmpdir()?)?.as_str())
             );
-            assert!(Path::new(file_util::filename_in_tmpdir(f, cfg.tmpdir()?)?.as_str()).exists());
+            assert!(
+                Path::new(file_util::filename_in_tmpdir(file, cfg.tmpdir()?)?.as_str()).exists()
+            );
         }
         Ok(())
     };

@@ -229,7 +229,7 @@ impl Control {
 
     pub fn file_label(&self, idx: usize) -> &str {
         match self.paths_navigator.paths_selector() {
-            Some(ps) => ps.file_labels()[idx].1.as_str(),
+            Some(ps) => ps.filtered_idx_file_label_pairs()[idx].1.as_str(),
             None => "",
         }
     }
