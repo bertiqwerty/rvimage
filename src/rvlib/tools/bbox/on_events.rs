@@ -597,11 +597,20 @@ fn test_mouse_release() {
         // If ctrl is hold the box is selected.
         let params = make_params(None, true);
         let mut world = world.clone();
+        get_tools_data_mut(&mut world)
+            .specifics
+            .bbox_mut()
+            .push("label2".to_string(), None, None)
+            .unwrap();
+        get_tools_data_mut(&mut world)
+            .specifics
+            .bbox_mut()
+            .cat_idx_current = 1;
         let annos = get_annos_mut(&mut world);
-        annos.add_bb(BB::from_array(&[20, 20, 20, 20]), 1);
-        annos.add_bb(BB::from_array(&[50, 50, 5, 5]), 1);
+        annos.add_bb(BB::from_array(&[20, 20, 20, 20]), 0);
+        annos.add_bb(BB::from_array(&[50, 50, 5, 5]), 0);
         annos.add_bb(BB::from_array(&[20, 50, 3, 3]), 1);
-        annos.add_bb(BB::from_array(&[20, 55, 3, 3]), 1);
+        annos.add_bb(BB::from_array(&[20, 55, 3, 3]), 0);
 
         let (mut world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
@@ -609,10 +618,19 @@ fn test_mouse_release() {
         assert_eq!(prev_pos, None);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
+        assert_eq!(annos.cat_idxs()[0], 1);
+        assert_eq!(annos.cat_idxs()[1], 0);
+        assert_eq!(annos.cat_idxs()[2], 1);
+        assert_eq!(annos.cat_idxs()[3], 0);
         // alt
+        get_tools_data_mut(&mut world)
+            .specifics
+            .bbox_mut()
+            .cat_idx_current = 0;
         let mut params = make_params(None, true);
         params.is_alt_held = true;
         let annos = get_annos_mut(&mut world);
+        annos.deselect_all();
         annos.select(1, 0);
         let (mut world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
@@ -620,11 +638,14 @@ fn test_mouse_release() {
         assert_eq!(prev_pos, None);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
+        assert_eq!(annos.cat_idxs()[0], 0);
+        assert_eq!(annos.cat_idxs()[1], 0);
+        assert_eq!(annos.cat_idxs()[2], 1);
+        assert_eq!(annos.cat_idxs()[3], 0);
         // shift
         let mut params = make_params(None, true);
         params.is_shift_held = true;
         let annos = get_annos_mut(&mut world);
-        annos.deselect(0);
         annos.select(3, 0);
         let (world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
@@ -634,6 +655,10 @@ fn test_mouse_release() {
         assert!(!annos.selected_bbs()[1]);
         assert!(annos.selected_bbs()[2]);
         assert!(annos.selected_bbs()[3]);
+        assert_eq!(annos.cat_idxs()[0], 0);
+        assert_eq!(annos.cat_idxs()[1], 0);
+        assert_eq!(annos.cat_idxs()[2], 0);
+        assert_eq!(annos.cat_idxs()[3], 0);
     }
 }
 
