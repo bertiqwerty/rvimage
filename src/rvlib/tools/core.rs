@@ -16,20 +16,23 @@ pub struct InitialView {
 }
 impl InitialView {
     pub fn update(&mut self, world: &World, shape_win: Shape) {
-        if self.file_path != world.data.meta_data.file_path
-            || (self.file_path.is_some() && self.image.is_none())
-        {
-            self.file_path = world
-                .data
-                .meta_data
-                .file_path
-                .as_ref()
-                .map(|s| s.to_string());
-            self.image = Some(
-                world
+        if let Some(ilsa) = world.data.meta_data.is_loading_screen_active {
+            if !ilsa
+                && (self.file_path != world.data.meta_data.file_path
+                    || (self.file_path.is_some() && self.image.is_none()))
+            {
+                self.file_path = world
                     .data
-                    .bg_to_unannotated_view(world.zoom_box(), shape_win),
-            );
+                    .meta_data
+                    .file_path
+                    .as_ref()
+                    .map(|s| s.to_string());
+                self.image = Some(
+                    world
+                        .data
+                        .bg_to_unannotated_view(world.zoom_box(), shape_win),
+                );
+            }
         }
     }
     pub fn image(&self) -> &Option<ViewImage> {

@@ -193,6 +193,7 @@ fn main() -> Result<(), pixels::Error> {
     let mut history = History::new();
     let mut file_selected_idx = None;
     let mut file_info_selected = None;
+    let mut recently_activated_tool_idx = None;
     let mut is_loading_screen_active = false;
     let mut undo_redo_load = false;
     let mut counter = 0;
@@ -223,27 +224,39 @@ fn main() -> Result<(), pixels::Error> {
             // update world based on tools
             let shape_win = Shape::from_size(&window.inner_size());
             let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
-
-            if let (Some(idx_active), Some(_)) = (
-                framework.recently_activated_tool(),
-                &world.data.meta_data.file_path,
-            ) {
-                for (i, t) in tools.iter_mut().enumerate() {
-                    if i == idx_active {
-                        (world, history) =
-                            t.activate(mem::take(&mut world), mem::take(&mut history), shape_win);
-                    } else {
-                        let meta_data = ctrl.meta_data(file_selected_idx);
-                        world.data.meta_data = meta_data;
-                        (world, history) =
-                            t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
+            if recently_activated_tool_idx.is_none() {
+                recently_activated_tool_idx = framework.recently_activated_tool();
+            }
+            if let (Some(idx_active), Some(_)) =
+                (recently_activated_tool_idx, &world.data.meta_data.file_path)
+            {
+                if !is_loading_screen_active {
+                    for (i, t) in tools.iter_mut().enumerate() {
+                        if i == idx_active {
+                            (world, history) = t.activate(
+                                mem::take(&mut world),
+                                mem::take(&mut history),
+                                shape_win,
+                            );
+                        } else {
+                            let meta_data =
+                                ctrl.meta_data(file_selected_idx, Some(is_loading_screen_active));
+                            world.data.meta_data = meta_data;
+                            (world, history) = t.deactivate(
+                                mem::take(&mut world),
+                                mem::take(&mut history),
+                                shape_win,
+                            );
+                        }
                     }
+                    recently_activated_tool_idx = None;
                 }
             }
             if input.held_shift() && input.key_pressed(VirtualKeyCode::Q) {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
-                    let meta_data = ctrl.meta_data(file_selected_idx);
+                    let meta_data =
+                        ctrl.meta_data(file_selected_idx, Some(is_loading_screen_active));
                     world.data.meta_data = meta_data;
                     (world, history) =
                         t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
@@ -404,7 +417,7 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             if framework.are_tools_active() {
-                let meta_data = ctrl.meta_data(file_selected_idx);
+                let meta_data = ctrl.meta_data(file_selected_idx, Some(is_loading_screen_active));
                 world.data.meta_data = meta_data;
                 (world, history) = apply_tools(
                     &mut tools,

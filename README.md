@@ -81,7 +81,7 @@ For an import to work, the folder that contains the images needs to be opened be
 | second left click           | finish drawing box                                                                       |
 | left click on corner of box | move corner of box                                                                       |
 | ctrl + left click on box    | select box                                                                               |
-| alt + left click on box     | select box and deselect others                                                           |
+| alt + left click on box     | select box and deselect others and switch to currently selected label                    |
 | shift + left click on box   | select all boxes with overlap with the maximal span of this box and other selected boxes |
 | ctrl + a                    | select all boxes                                                                         |
 | delete                      | remove selected boxes                                                                    |

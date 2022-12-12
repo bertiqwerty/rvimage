@@ -159,7 +159,7 @@ pub(super) fn on_mouse_released_left(
                 // box and the selected box that has the maximum distance in terms of max-corner-dist.
                 // All boxes that have overlap with this new selection box will be selected. If no box
                 // is selected only the currently clicked box will be selected.
-                annos.select(i, in_menu_selected_label);
+                annos.select(i);
                 let newly_selected_bb = &annos.bbs()[i];
                 let sel_indxs = selected_indices(annos.selected_bbs());
                 if let Some((bbidx, (csidx, coidx, _))) = sel_indxs
@@ -170,19 +170,22 @@ pub(super) fn on_mouse_released_left(
                         newly_selected_bb.corner(csidx),
                         annos.bbs()[bbidx].corner(coidx),
                     );
-                    let n_bbs = annos.bbs().len();
-                    for i in 0..n_bbs {
-                        if annos.bbs()[i].has_overlap(&spanned_bb) {
-                            annos.select(i, in_menu_selected_label);
-                        }
-                    }
+                    let to_be_selected_inds = annos
+                        .bbs()
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, bb)| bb.has_overlap(&spanned_bb))
+                        .map(|(i, _)| i)
+                        .collect::<Vec<_>>();
+                    annos.select_multi(to_be_selected_inds.iter().copied());
                 }
             } else if is_alt_held {
                 annos.deselect_all();
-                annos.select(i, in_menu_selected_label)
+                annos.select(i);
+                annos.label_selected(in_menu_selected_label);
             } else {
                 // ctrl
-                annos.toggle_selection(i, in_menu_selected_label);
+                annos.toggle_selection(i);
             }
         }
         world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
@@ -380,6 +383,7 @@ fn test_data() -> (InitialView, Option<(usize, usize)>, Shape, World, History) {
         shape_win,
     );
     let mut world = initialize_tools_menu_data(world);
+    world.data.meta_data.is_loading_screen_active = Some(false);
     let tools_data = get_tools_data_mut(&mut world);
     tools_data
         .specifics
@@ -528,7 +532,7 @@ fn test_mouse_held() {
             mover: &mut mover,
         };
         let annos = get_annos_mut(&mut world);
-        annos.select(0, 0);
+        annos.select(0);
         let (world, new_hist) =
             on_mouse_held_right(shape_win, mouse_pos, params, world, history.clone());
         assert_ne!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
@@ -618,7 +622,7 @@ fn test_mouse_release() {
         assert_eq!(prev_pos, None);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
-        assert_eq!(annos.cat_idxs()[0], 1);
+        assert_eq!(annos.cat_idxs()[0], 0);
         assert_eq!(annos.cat_idxs()[1], 0);
         assert_eq!(annos.cat_idxs()[2], 1);
         assert_eq!(annos.cat_idxs()[3], 0);
@@ -626,19 +630,19 @@ fn test_mouse_release() {
         get_tools_data_mut(&mut world)
             .specifics
             .bbox_mut()
-            .cat_idx_current = 0;
+            .cat_idx_current = 1;
         let mut params = make_params(None, true);
         params.is_alt_held = true;
         let annos = get_annos_mut(&mut world);
         annos.deselect_all();
-        annos.select(1, 0);
+        annos.select(1);
         let (mut world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
         assert_eq!(prev_pos, None);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
-        assert_eq!(annos.cat_idxs()[0], 0);
+        assert_eq!(annos.cat_idxs()[0], 1);
         assert_eq!(annos.cat_idxs()[1], 0);
         assert_eq!(annos.cat_idxs()[2], 1);
         assert_eq!(annos.cat_idxs()[3], 0);
@@ -646,7 +650,7 @@ fn test_mouse_release() {
         let mut params = make_params(None, true);
         params.is_shift_held = true;
         let annos = get_annos_mut(&mut world);
-        annos.select(3, 0);
+        annos.select(3);
         let (world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
@@ -655,9 +659,9 @@ fn test_mouse_release() {
         assert!(!annos.selected_bbs()[1]);
         assert!(annos.selected_bbs()[2]);
         assert!(annos.selected_bbs()[3]);
-        assert_eq!(annos.cat_idxs()[0], 0);
+        assert_eq!(annos.cat_idxs()[0], 1);
         assert_eq!(annos.cat_idxs()[1], 0);
-        assert_eq!(annos.cat_idxs()[2], 0);
+        assert_eq!(annos.cat_idxs()[2], 1);
         assert_eq!(annos.cat_idxs()[3], 0);
     }
 }

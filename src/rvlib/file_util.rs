@@ -87,6 +87,7 @@ pub struct MetaData {
     pub connection_data: ConnectionData,
     pub opened_folder: Option<String>,
     pub export_folder: Option<String>,
+    pub is_loading_screen_active: Option<bool>,
 }
 impl MetaData {
     pub fn from_filepath(file_path: String) -> Self {
@@ -95,6 +96,7 @@ impl MetaData {
             connection_data: ConnectionData::None,
             opened_folder: None,
             export_folder: None,
+            is_loading_screen_active: None,
         }
     }
 }

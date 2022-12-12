@@ -277,7 +277,11 @@ impl Control {
         }
     }
 
-    pub fn meta_data(&self, file_selected: Option<usize>) -> MetaData {
+    pub fn meta_data(
+        &self,
+        file_selected: Option<usize>,
+        is_loading_screen_active: Option<bool>,
+    ) -> MetaData {
         let file_path =
             file_selected.and_then(|fs| self.paths_navigator.file_path(fs).map(|s| s.to_string()));
         let open_folder = self.opened_folder().cloned();
@@ -294,6 +298,7 @@ impl Control {
             connection_data,
             opened_folder: open_folder,
             export_folder,
+            is_loading_screen_active,
         }
     }
 }

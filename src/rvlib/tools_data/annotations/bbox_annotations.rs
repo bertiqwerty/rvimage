@@ -274,43 +274,33 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn toggle_selection(&mut self, box_idx: usize, cat_idx_current: usize) {
+    pub fn toggle_selection(&mut self, box_idx: usize) {
         let is_selected = self.selected_bbs[box_idx];
         if is_selected {
             self.deselect(box_idx);
         } else {
-            self.select(box_idx, cat_idx_current);
+            self.select(box_idx);
         }
     }
 
-    pub fn select(&mut self, box_idx: usize, cat_idx_current: usize) {
-        self.cat_idxs[box_idx] = cat_idx_current;
+    pub fn select(&mut self, box_idx: usize) {
         self.selected_bbs[box_idx] = true;
     }
 
-    pub fn select_multi(
-        &mut self,
-        box_idxs: impl Iterator<Item = usize>,
-        cat_idx_current: Option<usize>,
-    ) {
+    pub fn select_multi(&mut self, box_idxs: impl Iterator<Item = usize>) {
         for box_idx in box_idxs {
-            let cat_idx = if let Some(cic) = cat_idx_current {
-                cic
-            } else {
-                self.cat_idxs[box_idx]
-            };
-            self.select(box_idx, cat_idx);
+            self.select(box_idx);
         }
     }
 
     pub fn select_all(&mut self) {
         let n_bbs = self.bbs.len();
-        self.select_multi(0..n_bbs, None);
+        self.select_multi(0..n_bbs);
     }
 
     pub fn select_last_n(&mut self, n: usize) {
         let len = self.bbs.len();
-        self.select_multi((len - n)..len, None);
+        self.select_multi((len - n)..len);
     }
 
     pub fn selected_bbs(&self) -> &Vec<bool> {
@@ -430,7 +420,7 @@ fn test_annos() {
     len_check(&annos);
     let idx = 1;
     assert!(!annos.selected_bbs[idx]);
-    annos.select(idx, 0);
+    annos.select(idx);
     len_check(&annos);
     annos.label_selected(3);
     len_check(&annos);
@@ -445,7 +435,7 @@ fn test_annos() {
     annos.deselect(idx);
     len_check(&annos);
     assert!(!annos.selected_bbs[idx]);
-    annos.toggle_selection(idx, 0);
+    annos.toggle_selection(idx);
     len_check(&annos);
     assert!(annos.selected_bbs[idx]);
     annos.remove_selected();

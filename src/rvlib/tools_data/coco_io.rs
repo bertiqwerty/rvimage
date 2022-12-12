@@ -349,6 +349,7 @@ fn test_coco_import() -> RvResult<()> {
             connection_data: ConnectionData::None,
             opened_folder: Some(filename.to_string()),
             export_folder: Some(TEST_DATA_FOLDER.to_string()),
+            is_loading_screen_active: None,
         };
         let read = read_coco(&meta).unwrap();
         assert_eq!(read.cat_ids(), &cat_ids);
