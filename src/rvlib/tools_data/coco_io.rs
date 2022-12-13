@@ -174,7 +174,7 @@ impl CocoExportData {
                 (h_factor * coco_anno.bbox[3]).round() as u32,
             ];
 
-            let bb = BB::from_array(&bbox);
+            let bb = BB::from_arr(&bbox);
             let cat_idx = cat_ids
                 .iter()
                 .position(|cat_id| *cat_id == coco_anno.category_id)
@@ -360,14 +360,14 @@ fn test_coco_import() -> RvResult<()> {
         }
     }
     let bb_im_ref_abs = [
-        (BB::from_array(&[1, 1, 5, 5]), "nowhere.png"),
-        (BB::from_array(&[11, 11, 4, 7]), "nowhere.png"),
-        (BB::from_array(&[1, 1, 5, 5]), "nowhere2.png"),
+        (BB::from_arr(&[1, 1, 5, 5]), "nowhere.png"),
+        (BB::from_arr(&[11, 11, 4, 7]), "nowhere.png"),
+        (BB::from_arr(&[1, 1, 5, 5]), "nowhere2.png"),
     ];
     let bb_im_ref_relative = [
-        (BB::from_array(&[10, 100, 50, 500]), "nowhere.png"),
-        (BB::from_array(&[91, 870, 15, 150]), "nowhere.png"),
-        (BB::from_array(&[10, 1, 50, 5]), "nowhere2.png"),
+        (BB::from_arr(&[10, 100, 50, 500]), "nowhere.png"),
+        (BB::from_arr(&[91, 870, 15, 150]), "nowhere.png"),
+        (BB::from_arr(&[10, 1, 50, 5]), "nowhere2.png"),
     ];
     test("catids_12", vec![1, 2], &bb_im_ref_abs);
     test("catids_01", vec![0, 1], &bb_im_ref_abs);

@@ -168,7 +168,7 @@ pub struct BB {
 }
 impl BB {
     /// `[x, y, w, h]`
-    pub fn from_array(a: &[u32; 4]) -> Self {
+    pub fn from_arr(a: &[u32; 4]) -> Self {
         BB {
             x: a[0],
             y: a[1],
@@ -323,6 +323,12 @@ impl BB {
             }
         }
     }
+    pub fn center_f(&self) -> (f32, f32) {
+        (
+            self.w as f32 * 0.5 + self.x as f32,
+            self.h as f32 * 0.5 + self.y as f32,
+        )
+    }
     pub fn center(&self) -> (u32, u32) {
         (self.x + self.w / 2, self.y + self.h / 2)
     }
@@ -375,6 +381,42 @@ impl BB {
         Self::new_shape_checked(x, y, self.w as i32, self.h as i32, shape)
     }
 
+    pub fn new_fit_to_image(x: i32, y: i32, w: i32, h: i32, shape: Shape) -> BB {
+        let x = x.max(0);
+        let y = y.max(0);
+        let w = (w + x).min(shape.w as i32) - x;
+        let h = (h + y).min(shape.h as i32) - y;
+        BB::from_arr(&[x as u32, y as u32, w as u32, h as u32])
+    }
+
+    pub fn translate_and_center_scale(
+        &self,
+        x_shift: f32,
+        y_shift: f32,
+        factor: f32,
+        shape: Shape,
+    ) -> Self {
+        let x = self.x as f32 + x_shift;
+        let y = self.y as f32 + y_shift;
+        let w = self.w as f32;
+        let h = self.h as f32;
+        let (cx, cy) = (w * 0.5 + x, h * 0.5 + y);
+        let topleft = (cx + factor * (x - cx), cy + factor * (y - cy));
+        let btmright = (cx + factor * ((x + w) - cx), cy + factor * ((y + h) - cy));
+        println!("cx {:?}", cx);
+        println!("cy {:?}", cy);
+        println!("topleft {:?}", topleft);
+        println!("btmright {:?}", btmright);
+        let (x_tl, y_tl) = topleft;
+        let (x_br, y_br) = btmright;
+        let w = (x_br - x_tl) as i32;
+        let h = (y_br - y_tl) as i32;
+        let x = x_tl as i32;
+        let y = y_tl as i32;
+
+        Self::new_fit_to_image(x, y, w, h, shape)
+    }
+
     pub fn shift_max(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
         let (w, h) = (self.w as i32 + x_shift, self.h as i32 + y_shift);
         Self::new_shape_checked(self.x as i32, self.y as i32, w, h, shape)
@@ -415,6 +457,36 @@ impl FromStr for BB {
         Ok(BB { x, y, w, h })
     }
 }
+
+pub fn zoom_box_around_mouse(
+    zoom_box: Option<BB>,
+    mouse: Option<(f32, f32)>,
+    shape_win: Shape,
+    y_delta: f32,
+) -> Option<BB> {
+    if let Some(mp) = mouse {
+        let y_delta = if y_delta < 0.0 {
+            1.0 / (1.0 - y_delta)
+        } else {
+            y_delta + 1.0
+        };
+        let current_zb = if let Some(zb) = zoom_box {
+            zb
+        } else {
+            BB::from_arr(&[0, 0, shape_win.w, shape_win.h])
+        };
+        let (cx, cy) = current_zb.center_f();
+        let x_shift = mp.0 - cx;
+        let y_shift = mp.1 - cy;
+
+        let current_zb =
+            current_zb.translate_and_center_scale(x_shift, y_shift, y_delta, shape_win);
+        Some(current_zb)
+    } else {
+        zoom_box
+    }
+}
+
 #[cfg(test)]
 pub fn make_test_bbs() -> Vec<BB> {
     vec![
@@ -437,6 +509,43 @@ pub fn make_test_bbs() -> Vec<BB> {
             h: 10,
         },
     ]
+}
+
+#[test]
+
+fn test_zb() {
+    fn test(zb: Option<BB>, mouse: Option<(f32, f32)>, y_delta: f32, bb_coords: &[u32; 4]) {
+        let shape = Shape::new(200, 100);
+        let zb_new = zoom_box_around_mouse(zb, mouse, shape, y_delta);
+        assert_eq!(zb_new, Some(BB::from_arr(bb_coords)));
+    }
+    test(None, Some((100.0, 50.0)), -1.0, &[50, 25, 100, 50]);
+    test(None, Some((100.0, 50.0)), 1.0, &[0, 0, 200, 100]);
+    test(
+        Some(BB::from_arr(&[0, 0, 200, 100])),
+        Some((100.0, 50.0)),
+        -1.0,
+        &[50, 25, 100, 50],
+    );
+    test(None, Some((50.0, 25.0)), -1.0, &[0, 0, 100, 50]);
+    test(
+        Some(BB::from_arr(&[50, 25, 100, 50])),
+        Some((150.0, 75.0)),
+        -1.0,
+        &[125, 62, 50, 25],
+    );
+    test(
+        Some(BB::from_arr(&[0, 0, 100, 50])),
+        Some((100.0, 50.0)),
+        1.0,
+        &[0, 0, 200, 100],
+    );
+    test(
+        Some(BB::from_arr(&[0, 0, 100, 50])),
+        Some((100.0, 50.0)),
+        4.0,
+        &[0, 0, 200, 100],
+    );
 }
 
 #[test]
@@ -598,40 +707,40 @@ fn test_view_pos_tf() {
 
 #[test]
 fn test_has_overlap() {
-    let bb1 = BB::from_array(&[5, 5, 10, 10]);
-    let bb2 = BB::from_array(&[5, 5, 10, 10]);
+    let bb1 = BB::from_arr(&[5, 5, 10, 10]);
+    let bb2 = BB::from_arr(&[5, 5, 10, 10]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[0, 0, 10, 10]);
+    let bb2 = BB::from_arr(&[0, 0, 10, 10]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[0, 0, 11, 11]);
+    let bb2 = BB::from_arr(&[0, 0, 11, 11]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[2, 2, 5, 5]);
+    let bb2 = BB::from_arr(&[2, 2, 5, 5]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[5, 5, 9, 9]);
+    let bb2 = BB::from_arr(&[5, 5, 9, 9]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[7, 7, 12, 12]);
+    let bb2 = BB::from_arr(&[7, 7, 12, 12]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[17, 17, 112, 112]);
+    let bb2 = BB::from_arr(&[17, 17, 112, 112]);
     assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[17, 17, 112, 112]);
+    let bb2 = BB::from_arr(&[17, 17, 112, 112]);
     assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[17, 3, 112, 112]);
+    let bb2 = BB::from_arr(&[17, 3, 112, 112]);
     assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
-    let bb2 = BB::from_array(&[3, 17, 112, 112]);
+    let bb2 = BB::from_arr(&[3, 17, 112, 112]);
     assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
 }
 
 #[test]
 fn test_max_corner_dist() {
-    let bb1 = BB::from_array(&[5, 5, 10, 10]);
-    let bb2 = BB::from_array(&[5, 5, 10, 10]);
+    let bb1 = BB::from_arr(&[5, 5, 10, 10]);
+    let bb2 = BB::from_arr(&[5, 5, 10, 10]);
     assert_eq!(bb1.max_corner_squaredist(&bb2), (3, 1, 200));
-    let bb2 = BB::from_array(&[6, 5, 10, 10]);
+    let bb2 = BB::from_arr(&[6, 5, 10, 10]);
     assert_eq!(bb1.max_corner_squaredist(&bb2), (1, 3, 221));
-    let bb2 = BB::from_array(&[6, 6, 10, 10]);
+    let bb2 = BB::from_arr(&[6, 6, 10, 10]);
     assert_eq!(bb1.max_corner_squaredist(&bb2), (0, 2, 242));
-    let bb2 = BB::from_array(&[15, 15, 10, 10]);
+    let bb2 = BB::from_arr(&[15, 15, 10, 10]);
     assert_eq!(bb1.max_corner_squaredist(&bb2), (0, 2, 800));
-    let bb2 = BB::from_array(&[15, 5, 10, 10]);
+    let bb2 = BB::from_arr(&[15, 5, 10, 10]);
     assert_eq!(bb1.max_corner_squaredist(&bb2), (1, 3, 500));
 }

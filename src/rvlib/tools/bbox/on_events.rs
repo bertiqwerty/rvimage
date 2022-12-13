@@ -611,10 +611,10 @@ fn test_mouse_release() {
             .bbox_mut()
             .cat_idx_current = 1;
         let annos = get_annos_mut(&mut world);
-        annos.add_bb(BB::from_array(&[20, 20, 20, 20]), 0);
-        annos.add_bb(BB::from_array(&[50, 50, 5, 5]), 0);
-        annos.add_bb(BB::from_array(&[20, 50, 3, 3]), 1);
-        annos.add_bb(BB::from_array(&[20, 55, 3, 3]), 0);
+        annos.add_bb(BB::from_arr(&[20, 20, 20, 20]), 0);
+        annos.add_bb(BB::from_arr(&[50, 50, 5, 5]), 0);
+        annos.add_bb(BB::from_arr(&[20, 50, 3, 3]), 1);
+        annos.add_bb(BB::from_arr(&[20, 55, 3, 3]), 0);
 
         let (mut world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());

@@ -8,7 +8,7 @@ use log::error;
 use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{self, Cfg};
 use rvlib::control::{Control, Info};
-use rvlib::domain::{self, Shape};
+use rvlib::domain::{self, zoom_box_around_mouse, Shape};
 use rvlib::history::History;
 use rvlib::menu::Framework;
 use rvlib::result::RvResult;
@@ -23,7 +23,7 @@ use std::path::Path;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
-use winit::event::{Event, VirtualKeyCode};
+use winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
@@ -216,9 +216,10 @@ fn main() -> Result<(), pixels::Error> {
                     recently_activated_tool_idx = None;
                 }
             }
+
             if input.held_shift() && input.key_pressed(VirtualKeyCode::Q) {
+                println!("deactivate all tools");
                 for t in tools.iter_mut() {
-                    println!("deactivated all tools");
                     let meta_data = ctrl.meta_data(
                         ctrl.file_selected_idx,
                         Some(ctrl.flags().is_loading_screen_active),
@@ -267,7 +268,7 @@ fn main() -> Result<(), pixels::Error> {
                     };
             }
 
-            // load new image
+            // load new image if requested by a menu click or by the http server
             let ims_raw_idx_pair = if input.held_control() && input.key_pressed(VirtualKeyCode::Z) {
                 ctrl.undo(&mut history)
             } else if input.held_control() && input.key_pressed(VirtualKeyCode::Y) {
@@ -305,6 +306,20 @@ fn main() -> Result<(), pixels::Error> {
                 framework.scale_factor(scale_factor);
             }
 
+            if let Event::WindowEvent { event, .. } = &event {
+                if let WindowEvent::MouseWheel { delta, .. } = event {
+                    if let MouseScrollDelta::LineDelta(_, y_delta) = delta {
+                        let zb = zoom_box_around_mouse(
+                            *world.zoom_box(),
+                            input.mouse(),
+                            shape_win,
+                            *y_delta,
+                        );
+                        world.set_zoom_box(zb, shape_win);
+                    }
+                    println!("{:?}", event);
+                }
+            }
             // Resize the window
             if let Some(size) = input.window_resized() {
                 let shape_win = Shape::from_size(&size);
