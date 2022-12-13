@@ -285,6 +285,8 @@ fn main() -> Result<(), pixels::Error> {
                         }
                     };
             }
+
+            // load new image
             let ims_raw_idx_pair = if input.held_control() && input.key_pressed(VirtualKeyCode::Z) {
                 ctrl.undo(&mut history)
             } else if input.held_control() && input.key_pressed(VirtualKeyCode::Y) {
@@ -300,79 +302,7 @@ fn main() -> Result<(), pixels::Error> {
                     }
                 }
             };
-            // let menu_file_selected = ctrl.paths_navigator.file_label_selected_idx();
-            // let make_folder_label = || ctrl.paths_navigator.folder_label().map(|s| s.to_string());
-            // let ims_raw_idx_pair = if input.held_control() && input.key_pressed(VirtualKeyCode::Z) {
-            //     // undo
-            //     undo_redo_load = true;
-            //     history.prev_world(&make_folder_label())
-            // } else if input.held_control() && input.key_pressed(VirtualKeyCode::Y) {
-            //     // redo
-            //     undo_redo_load = true;
-            //     history.next_world(&make_folder_label())
-            // } else if file_selected_idx != menu_file_selected || is_loading_screen_active {
-            //     // load new image
-            //     if let Some(selected) = &menu_file_selected {
-            //         let folder_label = make_folder_label();
-            //         let file_path = menu_file_selected
-            //             .and_then(|fs| Some(ctrl.paths_navigator.file_path(fs)?.to_string()));
-            //         let im_read = match ctrl.read_image(*selected, reload_cached_images) {
-            //             Ok(im) => im,
-            //             Err(e) => {
-            //                 framework
-            //                     .menu_mut()
-            //                     .show_info(Info::Error(format!("{:?}", e)));
-            //                 None
-            //             }
-            //         };
-            //         let read_image_and_idx = match (file_path, im_read) {
-            //             (Some(fp), Some(ri)) => {
-            //                 file_info_selected = Some(ri.info);
-            //                 let ims_raw = DataRaw::new(
-            //                     ri.im,
-            //                     MetaData::from_filepath(fp),
-            //                     world.data.tools_data_map.clone(),
-            //                 );
-            //                 if !undo_redo_load {
-            //                     history.push(Record {
-            //                         data: ims_raw.clone(),
-            //                         actor: LOAD_ACTOR_NAME,
-            //                         file_label_idx: file_selected_idx,
-            //                         folder_label,
-            //                     });
-            //                 }
-            //                 undo_redo_load = false;
-            //                 file_selected_idx = menu_file_selected;
-            //                 is_loading_screen_active = false;
-            //                 (ims_raw, file_selected_idx)
-            //             }
-            //             _ => {
-            //                 thread::sleep(Duration::from_millis(20));
-            //                 let shape = world.shape_orig();
-            //                 file_selected_idx = menu_file_selected;
-            //                 is_loading_screen_active = true;
-            //                 (
-            //                     DataRaw::new(
-            //                         loading_image(shape, counter),
-            //                         MetaData::default(),
-            //                         world.data.tools_data_map.clone(),
-            //                     ),
-            //                     file_selected_idx,
-            //                 )
-            //             }
-            //         };
-            //         reload_cached_images = false;
-            //         Some(read_image_and_idx)
-            //     } else {
-            //         None
-            //     }
-            // } else {
-            //     None
-            // };
-            // counter += 1;
-            // if counter == u128::MAX {
-            //     counter = 0;
-            // }
+
             if let Some((ims_raw, file_label_idx)) = ims_raw_idx_pair {
                 let size = window.inner_size();
                 let shape_win = Shape::from_size(&size);
@@ -421,6 +351,7 @@ fn main() -> Result<(), pixels::Error> {
                     &input,
                 );
             }
+
             // show position and rgb value
             if let Some(idx) = ctrl.paths_navigator.file_label_selected_idx() {
                 let shape_win = Shape {
