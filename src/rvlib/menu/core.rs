@@ -82,14 +82,12 @@ impl Framework {
         tools: &mut [ToolState],
         tools_data_map: &mut ToolsDataMap,
         ctrl: &mut Control,
-        file_info_selected: Option<&str>,
     ) {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw menus.
-            self.menu
-                .ui(egui_ctx, ctrl, tools_data_map, file_info_selected);
+            self.menu.ui(egui_ctx, ctrl, tools_data_map);
             match self.tool_selection_menu.ui(egui_ctx, tools, tools_data_map) {
                 Ok(_) => (),
                 Err(e) => {
@@ -339,13 +337,7 @@ impl Menu {
     }
 
     /// Create the UI using egui.
-    fn ui(
-        &mut self,
-        ctx: &Context,
-        ctrl: &mut Control,
-        tools_data_map: &mut ToolsDataMap,
-        file_info_selected: Option<&str>,
-    ) {
+    fn ui(&mut self, ctx: &Context, ctrl: &mut Control, tools_data_map: &mut ToolsDataMap) {
         let window_response = egui::Window::new("menu")
             .vscroll(true)
             .open(&mut self.window_open)
@@ -463,7 +455,7 @@ impl Menu {
                         ui,
                         &mut filtered_label_selected_idx,
                         ps,
-                        file_info_selected,
+                        ctrl.file_info_selected.as_deref(),
                         scroll_to_selected,
                         self.scroll_offset,
                     );

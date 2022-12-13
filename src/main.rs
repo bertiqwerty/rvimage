@@ -9,12 +9,11 @@ use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{self, Cfg};
 use rvlib::control::{Control, Info};
 use rvlib::domain::{self, Shape};
-use rvlib::file_util::MetaData;
-use rvlib::history::{History, Record};
+use rvlib::history::History;
 use rvlib::menu::Framework;
 use rvlib::result::RvResult;
 use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper};
-use rvlib::world::{DataRaw, World};
+use rvlib::world::World;
 use rvlib::{apply_tool_method_mut, defer, httpserver, image_util};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -22,7 +21,6 @@ use std::fs;
 use std::mem;
 use std::path::Path;
 use std::sync::mpsc::Receiver;
-use std::thread;
 use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
@@ -33,7 +31,6 @@ use winit_input_helper::WinitInputHelper;
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 const MIN_WIN_INNER_SIZE: LogicalSize<i32> = LogicalSize::new(32, 32);
-const LOAD_ACTOR_NAME: &str = "Load";
 
 fn cfg_static_ref() -> &'static Cfg {
     lazy_static! {
@@ -100,35 +97,6 @@ fn apply_tools(
     (world, history)
 }
 
-fn loading_image(shape: Shape, counter: u128) -> DynamicImage {
-    let radius = 7i32;
-    let centers = [
-        (shape.w - 70, shape.h - 20),
-        (shape.w - 50, shape.h - 20),
-        (shape.w - 30, shape.h - 20),
-    ];
-    let off_center_dim = |c_idx: usize, counter_mod: usize, rgb: &[u8; 3]| {
-        let mut res = *rgb;
-        for (rgb_idx, val) in rgb.iter().enumerate() {
-            if counter_mod != c_idx {
-                res[rgb_idx] = (*val as f32 * 0.7) as u8;
-            } else {
-                res[rgb_idx] = *val;
-            }
-        }
-        res
-    };
-    DynamicImage::ImageRgb8(ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
-        for (c_idx, ctr) in centers.iter().enumerate() {
-            if (ctr.0 as i32 - x as i32).pow(2) + (ctr.1 as i32 - y as i32).pow(2) < radius.pow(2) {
-                let counter_mod = ((counter / 5) % 3) as usize;
-                return image::Rgb(off_center_dim(c_idx, counter_mod, &[195u8, 255u8, 205u8]));
-            }
-        }
-        image::Rgb([77u8, 77u8, 87u8])
-    }))
-}
-
 fn remove_tmpdir() {
     match cfg::get_cfg() {
         Ok(cfg) => {
@@ -191,13 +159,13 @@ fn main() -> Result<(), pixels::Error> {
         cfg::get_default_cfg()
     }));
     let mut history = History::new();
-    let mut file_selected_idx = None;
-    let mut file_info_selected = None;
+    // let mut file_selected_idx = None;
+    // let mut file_info_selected = None;
     let mut recently_activated_tool_idx = None;
-    let mut is_loading_screen_active = false;
-    let mut undo_redo_load = false;
-    let mut counter = 0;
-    let mut reload_cached_images = false;
+    // let mut is_loading_screen_active = false;
+    // let mut undo_redo_load = false;
+    // let mut counter = 0;
+    // let mut reload_cached_images = false;
     // http server state
     let mut rx_from_http: Option<Receiver<RvResult<String>>> = None;
     let mut http_addr = http_address().to_string();
@@ -230,7 +198,7 @@ fn main() -> Result<(), pixels::Error> {
             if let (Some(idx_active), Some(_)) =
                 (recently_activated_tool_idx, &world.data.meta_data.file_path)
             {
-                if !is_loading_screen_active {
+                if !ctrl.flags().is_loading_screen_active {
                     for (i, t) in tools.iter_mut().enumerate() {
                         if i == idx_active {
                             (world, history) = t.activate(
@@ -239,8 +207,10 @@ fn main() -> Result<(), pixels::Error> {
                                 shape_win,
                             );
                         } else {
-                            let meta_data =
-                                ctrl.meta_data(file_selected_idx, Some(is_loading_screen_active));
+                            let meta_data = ctrl.meta_data(
+                                ctrl.file_selected_idx,
+                                Some(ctrl.flags().is_loading_screen_active),
+                            );
                             world.data.meta_data = meta_data;
                             (world, history) = t.deactivate(
                                 mem::take(&mut world),
@@ -255,8 +225,10 @@ fn main() -> Result<(), pixels::Error> {
             if input.held_shift() && input.key_pressed(VirtualKeyCode::Q) {
                 for t in tools.iter_mut() {
                     println!("deactivated all tools");
-                    let meta_data =
-                        ctrl.meta_data(file_selected_idx, Some(is_loading_screen_active));
+                    let meta_data = ctrl.meta_data(
+                        ctrl.file_selected_idx,
+                        Some(ctrl.flags().is_loading_screen_active),
+                    );
                     world.data.meta_data = meta_data;
                     (world, history) =
                         t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
@@ -270,19 +242,24 @@ fn main() -> Result<(), pixels::Error> {
                 framework.menu_mut().toggle();
             }
             if input.key_released(VirtualKeyCode::F5) {
-                let label_selected = file_selected_idx.map(|idx| ctrl.file_label(idx).to_string());
-                if let Err(e) = ctrl.load_opened_folder_content() {
+                if let Err(e) = ctrl.reload() {
                     framework
                         .menu_mut()
                         .show_info(Info::Error(format!("{:?}", e)));
                 }
-                reload_cached_images = true;
-                if let Some(label_selected) = label_selected {
-                    ctrl.paths_navigator
-                        .select_file_label(label_selected.as_str());
-                } else {
-                    file_selected_idx = None;
-                }
+                //     let label_selected = ctrl.file_selected_idx.map(|idx| ctrl.file_label(idx).to_string());
+                //     if let Err(e) = ctrl.load_opened_folder_content() {
+                //         framework
+                //             .menu_mut()
+                //             .show_info(Info::Error(format!("{:?}", e)));
+                //     }
+                //     ctrl.flags().reload_cached_images = true;
+                //     if let Some(label_selected) = label_selected {
+                //         ctrl.paths_navigator
+                //             .select_file_label(label_selected.as_str());
+                //     } else {
+                //         ctrl.file_selected_idx = None;
+                //     }
             }
             if input.key_pressed(VirtualKeyCode::PageDown) {
                 ctrl.paths_navigator.next();
@@ -308,81 +285,94 @@ fn main() -> Result<(), pixels::Error> {
                         }
                     };
             }
-
-            let menu_file_selected = ctrl.paths_navigator.file_label_selected_idx();
-            let make_folder_label = || ctrl.paths_navigator.folder_label().map(|s| s.to_string());
-
             let ims_raw_idx_pair = if input.held_control() && input.key_pressed(VirtualKeyCode::Z) {
-                // undo
-                undo_redo_load = true;
-                history.prev_world(&make_folder_label())
+                ctrl.undo(&mut history)
             } else if input.held_control() && input.key_pressed(VirtualKeyCode::Y) {
-                // redo
-                undo_redo_load = true;
-                history.next_world(&make_folder_label())
-            } else if file_selected_idx != menu_file_selected || is_loading_screen_active {
-                // load new image
-                if let Some(selected) = &menu_file_selected {
-                    let folder_label = make_folder_label();
-                    let file_path = menu_file_selected
-                        .and_then(|fs| Some(ctrl.paths_navigator.file_path(fs)?.to_string()));
-                    let im_read = match ctrl.read_image(*selected, reload_cached_images) {
-                        Ok(im) => im,
-                        Err(e) => {
-                            framework
-                                .menu_mut()
-                                .show_info(Info::Error(format!("{:?}", e)));
-                            None
-                        }
-                    };
-                    let read_image_and_idx = match (file_path, im_read) {
-                        (Some(fp), Some(ri)) => {
-                            file_info_selected = Some(ri.info);
-                            let ims_raw = DataRaw::new(
-                                ri.im,
-                                MetaData::from_filepath(fp),
-                                world.data.tools_data_map.clone(),
-                            );
-                            if !undo_redo_load {
-                                history.push(Record {
-                                    data: ims_raw.clone(),
-                                    actor: LOAD_ACTOR_NAME,
-                                    file_label_idx: file_selected_idx,
-                                    folder_label,
-                                });
-                            }
-                            undo_redo_load = false;
-                            file_selected_idx = menu_file_selected;
-                            is_loading_screen_active = false;
-                            (ims_raw, file_selected_idx)
-                        }
-                        _ => {
-                            thread::sleep(Duration::from_millis(20));
-                            let shape = world.shape_orig();
-                            file_selected_idx = menu_file_selected;
-                            is_loading_screen_active = true;
-                            (
-                                DataRaw::new(
-                                    loading_image(shape, counter),
-                                    MetaData::default(),
-                                    world.data.tools_data_map.clone(),
-                                ),
-                                file_selected_idx,
-                            )
-                        }
-                    };
-                    reload_cached_images = false;
-                    Some(read_image_and_idx)
-                } else {
-                    None
-                }
+                ctrl.redo(&mut history)
             } else {
-                None
+                match ctrl.load_new_image_if_triggered(&world, &mut history) {
+                    Ok(iip) => iip,
+                    Err(e) => {
+                        framework
+                            .menu_mut()
+                            .show_info(Info::Error(format!("{:?}", e)));
+                        None
+                    }
+                }
             };
-            counter += 1;
-            if counter == u128::MAX {
-                counter = 0;
-            }
+            // let menu_file_selected = ctrl.paths_navigator.file_label_selected_idx();
+            // let make_folder_label = || ctrl.paths_navigator.folder_label().map(|s| s.to_string());
+            // let ims_raw_idx_pair = if input.held_control() && input.key_pressed(VirtualKeyCode::Z) {
+            //     // undo
+            //     undo_redo_load = true;
+            //     history.prev_world(&make_folder_label())
+            // } else if input.held_control() && input.key_pressed(VirtualKeyCode::Y) {
+            //     // redo
+            //     undo_redo_load = true;
+            //     history.next_world(&make_folder_label())
+            // } else if file_selected_idx != menu_file_selected || is_loading_screen_active {
+            //     // load new image
+            //     if let Some(selected) = &menu_file_selected {
+            //         let folder_label = make_folder_label();
+            //         let file_path = menu_file_selected
+            //             .and_then(|fs| Some(ctrl.paths_navigator.file_path(fs)?.to_string()));
+            //         let im_read = match ctrl.read_image(*selected, reload_cached_images) {
+            //             Ok(im) => im,
+            //             Err(e) => {
+            //                 framework
+            //                     .menu_mut()
+            //                     .show_info(Info::Error(format!("{:?}", e)));
+            //                 None
+            //             }
+            //         };
+            //         let read_image_and_idx = match (file_path, im_read) {
+            //             (Some(fp), Some(ri)) => {
+            //                 file_info_selected = Some(ri.info);
+            //                 let ims_raw = DataRaw::new(
+            //                     ri.im,
+            //                     MetaData::from_filepath(fp),
+            //                     world.data.tools_data_map.clone(),
+            //                 );
+            //                 if !undo_redo_load {
+            //                     history.push(Record {
+            //                         data: ims_raw.clone(),
+            //                         actor: LOAD_ACTOR_NAME,
+            //                         file_label_idx: file_selected_idx,
+            //                         folder_label,
+            //                     });
+            //                 }
+            //                 undo_redo_load = false;
+            //                 file_selected_idx = menu_file_selected;
+            //                 is_loading_screen_active = false;
+            //                 (ims_raw, file_selected_idx)
+            //             }
+            //             _ => {
+            //                 thread::sleep(Duration::from_millis(20));
+            //                 let shape = world.shape_orig();
+            //                 file_selected_idx = menu_file_selected;
+            //                 is_loading_screen_active = true;
+            //                 (
+            //                     DataRaw::new(
+            //                         loading_image(shape, counter),
+            //                         MetaData::default(),
+            //                         world.data.tools_data_map.clone(),
+            //                     ),
+            //                     file_selected_idx,
+            //                 )
+            //             }
+            //         };
+            //         reload_cached_images = false;
+            //         Some(read_image_and_idx)
+            //     } else {
+            //         None
+            //     }
+            // } else {
+            //     None
+            // };
+            // counter += 1;
+            // if counter == u128::MAX {
+            //     counter = 0;
+            // }
             if let Some((ims_raw, file_label_idx)) = ims_raw_idx_pair {
                 let size = window.inner_size();
                 let shape_win = Shape::from_size(&size);
@@ -417,7 +407,10 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             if framework.are_tools_active() {
-                let meta_data = ctrl.meta_data(file_selected_idx, Some(is_loading_screen_active));
+                let meta_data = ctrl.meta_data(
+                    ctrl.file_selected_idx,
+                    Some(ctrl.flags().is_loading_screen_active),
+                );
                 world.data.meta_data = meta_data;
                 (world, history) = apply_tools(
                     &mut tools,
@@ -477,7 +470,6 @@ fn main() -> Result<(), pixels::Error> {
                     &mut tools,
                     &mut world.data.tools_data_map,
                     &mut ctrl,
-                    file_info_selected.as_deref(),
                 );
 
                 // Render everything together

@@ -1,10 +1,13 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
+use std::thread;
+use std::time::Duration;
 
 use crate::cfg::{get_default_cfg, Connection};
 use crate::file_util::{ConnectionData, MetaData};
+use crate::history::{History, Record};
 use crate::result::RvError;
-use crate::world::ToolsDataMap;
+use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
     cfg::Cfg, reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
     types::AsyncResultImage,
@@ -19,7 +22,10 @@ mod detail {
         path::{Path, PathBuf},
     };
 
+    use image::{DynamicImage, ImageBuffer};
+
     use crate::{
+        domain::Shape,
         file_util::{self, get_last_part_of_path, ConnectionData, ExportData},
         result::{to_rv, RvResult},
         rverr,
@@ -87,7 +93,38 @@ mod detail {
         }
         Ok(res)
     }
+    pub(super) fn loading_image(shape: Shape, counter: u128) -> DynamicImage {
+        let radius = 7i32;
+        let centers = [
+            (shape.w - 70, shape.h - 20),
+            (shape.w - 50, shape.h - 20),
+            (shape.w - 30, shape.h - 20),
+        ];
+        let off_center_dim = |c_idx: usize, counter_mod: usize, rgb: &[u8; 3]| {
+            let mut res = *rgb;
+            for (rgb_idx, val) in rgb.iter().enumerate() {
+                if counter_mod != c_idx {
+                    res[rgb_idx] = (*val as f32 * 0.7) as u8;
+                } else {
+                    res[rgb_idx] = *val;
+                }
+            }
+            res
+        };
+        DynamicImage::ImageRgb8(ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
+            for (c_idx, ctr) in centers.iter().enumerate() {
+                if (ctr.0 as i32 - x as i32).pow(2) + (ctr.1 as i32 - y as i32).pow(2)
+                    < radius.pow(2)
+                {
+                    let counter_mod = ((counter / 5) % 3) as usize;
+                    return image::Rgb(off_center_dim(c_idx, counter_mod, &[195u8, 255u8, 205u8]));
+                }
+            }
+            image::Rgb([77u8, 77u8, 87u8])
+        }))
+    }
 }
+const LOAD_ACTOR_NAME: &str = "Load";
 
 #[derive(Clone, Debug, Default)]
 pub enum Info {
@@ -98,6 +135,12 @@ pub enum Info {
 }
 
 #[derive(Default)]
+pub struct ControlFlags {
+    pub undo_redo_load: bool,
+    pub is_loading_screen_active: bool,
+    pub reload_cached_images: bool,
+}
+#[derive(Default)]
 pub struct Control {
     pub reader: Option<ReaderFromCfg>,
     pub info: Info,
@@ -107,9 +150,30 @@ pub struct Control {
     last_open_folder_job_id: Option<u128>,
     pub cfg: Cfg,
     pub file_loaded: Option<usize>,
+    pub file_selected_idx: Option<usize>,
+    pub file_info_selected: Option<String>,
+    flags: ControlFlags,
+    pub loading_screen_animation_counter: u128,
 }
 
 impl Control {
+    pub fn flags(&self) -> &ControlFlags {
+        &self.flags
+    }
+    pub fn reload(&mut self) -> RvResult<()> {
+        let label_selected = self
+            .file_selected_idx
+            .map(|idx| self.file_label(idx).to_string());
+        self.load_opened_folder_content()?;
+        self.flags.reload_cached_images = true;
+        if let Some(label_selected) = label_selected {
+            self.paths_navigator
+                .select_file_label(label_selected.as_str());
+        } else {
+            self.file_selected_idx = None;
+        }
+        Ok(())
+    }
     pub fn load(
         &mut self,
         file_name: &str,
@@ -300,6 +364,85 @@ impl Control {
             export_folder,
             is_loading_screen_active,
         }
+    }
+
+    fn make_folder_label(&self) -> Option<String> {
+        self.paths_navigator.folder_label().map(|s| s.to_string())
+    }
+    pub fn undo(&mut self, history: &mut History) -> Option<(DataRaw, Option<usize>)> {
+        self.flags.undo_redo_load = true;
+        history.next_world(&self.make_folder_label())
+    }
+    pub fn redo(&mut self, history: &mut History) -> Option<(DataRaw, Option<usize>)> {
+        self.flags.undo_redo_load = true;
+        history.prev_world(&self.make_folder_label())
+    }
+
+    pub fn load_new_image_if_triggered(
+        &mut self,
+        world: &World,
+        history: &mut History,
+    ) -> RvResult<Option<(DataRaw, Option<usize>)>> {
+        let menu_file_selected = self.paths_navigator.file_label_selected_idx();
+
+        let ims_raw_idx_pair = if self.file_selected_idx != menu_file_selected
+            || self.flags.is_loading_screen_active
+        {
+            // load new image
+            if let Some(selected) = &menu_file_selected {
+                let folder_label = self.make_folder_label();
+                let file_path = menu_file_selected
+                    .and_then(|fs| Some(self.paths_navigator.file_path(fs)?.to_string()));
+                let im_read = self.read_image(*selected, self.flags.reload_cached_images)?;
+                let read_image_and_idx = match (file_path, im_read) {
+                    (Some(fp), Some(ri)) => {
+                        self.file_info_selected = Some(ri.info);
+                        let ims_raw = DataRaw::new(
+                            ri.im,
+                            MetaData::from_filepath(fp),
+                            world.data.tools_data_map.clone(),
+                        );
+                        if !self.flags.undo_redo_load {
+                            history.push(Record {
+                                data: ims_raw.clone(),
+                                actor: LOAD_ACTOR_NAME,
+                                file_label_idx: self.file_selected_idx,
+                                folder_label,
+                            });
+                        }
+                        self.flags.undo_redo_load = false;
+                        self.file_selected_idx = menu_file_selected;
+                        self.flags.is_loading_screen_active = false;
+                        (ims_raw, self.file_selected_idx)
+                    }
+                    _ => {
+                        thread::sleep(Duration::from_millis(20));
+                        let shape = world.shape_orig();
+                        self.file_selected_idx = menu_file_selected;
+                        self.flags.is_loading_screen_active = true;
+                        (
+                            DataRaw::new(
+                                detail::loading_image(shape, self.loading_screen_animation_counter),
+                                MetaData::default(),
+                                world.data.tools_data_map.clone(),
+                            ),
+                            self.file_selected_idx,
+                        )
+                    }
+                };
+                self.flags.reload_cached_images = false;
+                Some(read_image_and_idx)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        self.loading_screen_animation_counter += 1;
+        if self.loading_screen_animation_counter == u128::MAX {
+            self.loading_screen_animation_counter = 0;
+        }
+        Ok(ims_raw_idx_pair)
     }
 }
 
