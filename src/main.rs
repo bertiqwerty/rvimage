@@ -159,13 +159,7 @@ fn main() -> Result<(), pixels::Error> {
         cfg::get_default_cfg()
     }));
     let mut history = History::new();
-    // let mut file_selected_idx = None;
-    // let mut file_info_selected = None;
     let mut recently_activated_tool_idx = None;
-    // let mut is_loading_screen_active = false;
-    // let mut undo_redo_load = false;
-    // let mut counter = 0;
-    // let mut reload_cached_images = false;
     // http server state
     let mut rx_from_http: Option<Receiver<RvResult<String>>> = None;
     let mut http_addr = http_address().to_string();
@@ -247,19 +241,6 @@ fn main() -> Result<(), pixels::Error> {
                         .menu_mut()
                         .show_info(Info::Error(format!("{:?}", e)));
                 }
-                //     let label_selected = ctrl.file_selected_idx.map(|idx| ctrl.file_label(idx).to_string());
-                //     if let Err(e) = ctrl.load_opened_folder_content() {
-                //         framework
-                //             .menu_mut()
-                //             .show_info(Info::Error(format!("{:?}", e)));
-                //     }
-                //     ctrl.flags().reload_cached_images = true;
-                //     if let Some(label_selected) = label_selected {
-                //         ctrl.paths_navigator
-                //             .select_file_label(label_selected.as_str());
-                //     } else {
-                //         ctrl.file_selected_idx = None;
-                //     }
             }
             if input.key_pressed(VirtualKeyCode::PageDown) {
                 ctrl.paths_navigator.next();
