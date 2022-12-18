@@ -372,13 +372,13 @@ fn main() -> Result<(), pixels::Error> {
 
         match event {
             Event::WindowEvent { event, .. } => {
-                if let WindowEvent::MouseWheel { delta, .. } = event {
-                    if let MouseScrollDelta::LineDelta(_, y_delta) = delta {
-                        let zb =
-                            zoom_box_mouse_wheel(*world.zoom_box(), world.data.shape(), y_delta);
-                        world.set_zoom_box(zb, shape_win);
-                    }
-                    println!("{:?}", event);
+                if let WindowEvent::MouseWheel {
+                    delta: MouseScrollDelta::LineDelta(_, y_delta),
+                    ..
+                } = event
+                {
+                    let zb = zoom_box_mouse_wheel(*world.zoom_box(), world.data.shape(), y_delta);
+                    world.set_zoom_box(zb, shape_win);
                 }
                 // Update egui inputs
                 framework.handle_event(&event);

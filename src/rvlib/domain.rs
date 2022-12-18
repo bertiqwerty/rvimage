@@ -404,9 +404,6 @@ impl BB {
         let (cx, cy) = (w * 0.5 + x, h * 0.5 + y);
         let topleft = (cx + factor * (x - cx), cy + factor * (y - cy));
         let btmright = (cx + factor * (x + w - cx), cy + factor * (y + h - cy));
-        println!("self {:?}", self);
-        println!("tl {:?}", topleft);
-        println!("br {:?}", btmright);
         let (x_tl, y_tl) = topleft;
         let (x_br, y_br) = btmright;
         let w = (x_br - x_tl).round() as i32;
@@ -464,13 +461,13 @@ pub fn zoom_box_mouse_wheel(zoom_box: Option<BB>, shape_orig: Shape, y_delta: f3
     } else {
         BB::from_arr(&[0, 0, shape_orig.w, shape_orig.h])
     };
-    let clip_val = 9.0;
+    let clip_val = 1.0;
     let y_delta_clipped = if y_delta > 0.0 {
         y_delta.min(clip_val)
     } else {
         y_delta.max(-clip_val)
     };
-    let factor = 1.0 + y_delta_clipped * 0.1;
+    let factor = 1.0 - y_delta_clipped * 0.1;
 
     Some(current_zb.center_scale(factor, shape_orig))
 }
@@ -507,20 +504,8 @@ fn test_zb() {
         let zb_new = zoom_box_mouse_wheel(zb, shape, y_delta);
         assert_eq!(zb_new, Some(BB::from_arr(reference_coords)));
     }
-    test(Some(BB::from_arr(&[0, 0, 100, 50])), 2.0, &[0, 0, 110, 55]);
-    test(Some(BB::from_arr(&[0, 0, 100, 50])), -2.0, &[10, 5, 80, 40]);
-    test(
-        Some(BB::from_arr(&[50, 25, 100, 50])),
-        2.0,
-        &[40, 20, 120, 60],
-    );
-    test(
-        Some(BB::from_arr(&[50, 25, 100, 50])),
-        -2.0,
-        &[60, 30, 80, 40],
-    );
-    test(None, -1.0, &[10, 5, 180, 90]);
-    test(None, 1.0, &[0, 0, 200, 100]);
+    test(None, 1.0, &[10, 5, 180, 90]);
+    test(None, -1.0, &[0, 0, 200, 100]);
 }
 
 #[test]
