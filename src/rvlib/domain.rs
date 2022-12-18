@@ -382,37 +382,37 @@ impl BB {
     }
 
     pub fn new_fit_to_image(x: i32, y: i32, w: i32, h: i32, shape: Shape) -> BB {
-        let x = x.max(0);
-        let y = y.max(0);
-        let w = (w + x).min(shape.w as i32) - x;
-        let h = (h + y).min(shape.h as i32) - y;
+        let clip = |var: i32, size_bx: i32, size_im: i32| {
+            if var < 0 {
+                let size_bx: i32 = size_bx + var;
+                (0, size_bx.min(size_im))
+            } else {
+                (var, (size_bx + var).min(size_im) - var)
+            }
+        };
+        let (x, w) = clip(x, w, shape.w as i32);
+        let (y, h) = clip(y, h, shape.h as i32);
+
         BB::from_arr(&[x as u32, y as u32, w as u32, h as u32])
     }
 
-    pub fn translate_and_center_scale(
-        &self,
-        x_shift: f32,
-        y_shift: f32,
-        factor: f32,
-        shape: Shape,
-    ) -> Self {
-        let x = self.x as f32 + x_shift;
-        let y = self.y as f32 + y_shift;
+    pub fn center_scale(&self, factor: f32, shape: Shape) -> Self {
+        let x = self.x as f32;
+        let y = self.y as f32;
         let w = self.w as f32;
         let h = self.h as f32;
         let (cx, cy) = (w * 0.5 + x, h * 0.5 + y);
         let topleft = (cx + factor * (x - cx), cy + factor * (y - cy));
-        let btmright = (cx + factor * ((x + w) - cx), cy + factor * ((y + h) - cy));
-        println!("cx {:?}", cx);
-        println!("cy {:?}", cy);
-        println!("topleft {:?}", topleft);
-        println!("btmright {:?}", btmright);
+        let btmright = (cx + factor * (x + w - cx), cy + factor * (y + h - cy));
+        println!("self {:?}", self);
+        println!("tl {:?}", topleft);
+        println!("br {:?}", btmright);
         let (x_tl, y_tl) = topleft;
         let (x_br, y_br) = btmright;
-        let w = (x_br - x_tl) as i32;
-        let h = (y_br - y_tl) as i32;
-        let x = x_tl as i32;
-        let y = y_tl as i32;
+        let w = (x_br - x_tl).round() as i32;
+        let h = (y_br - y_tl).round() as i32;
+        let x = x_tl.round() as i32;
+        let y = y_tl.round() as i32;
 
         Self::new_fit_to_image(x, y, w, h, shape)
     }
@@ -458,33 +458,21 @@ impl FromStr for BB {
     }
 }
 
-pub fn zoom_box_around_mouse(
-    zoom_box: Option<BB>,
-    mouse: Option<(f32, f32)>,
-    shape_win: Shape,
-    y_delta: f32,
-) -> Option<BB> {
-    if let Some(mp) = mouse {
-        let y_delta = if y_delta < 0.0 {
-            1.0 / (1.0 - y_delta)
-        } else {
-            y_delta + 1.0
-        };
-        let current_zb = if let Some(zb) = zoom_box {
-            zb
-        } else {
-            BB::from_arr(&[0, 0, shape_win.w, shape_win.h])
-        };
-        let (cx, cy) = current_zb.center_f();
-        let x_shift = mp.0 - cx;
-        let y_shift = mp.1 - cy;
-
-        let current_zb =
-            current_zb.translate_and_center_scale(x_shift, y_shift, y_delta, shape_win);
-        Some(current_zb)
+pub fn zoom_box_mouse_wheel(zoom_box: Option<BB>, shape_orig: Shape, y_delta: f32) -> Option<BB> {
+    let current_zb = if let Some(zb) = zoom_box {
+        zb
     } else {
-        zoom_box
-    }
+        BB::from_arr(&[0, 0, shape_orig.w, shape_orig.h])
+    };
+    let clip_val = 9.0;
+    let y_delta_clipped = if y_delta > 0.0 {
+        y_delta.min(clip_val)
+    } else {
+        y_delta.max(-clip_val)
+    };
+    let factor = 1.0 + y_delta_clipped * 0.1;
+
+    Some(current_zb.center_scale(factor, shape_orig))
 }
 
 #[cfg(test)]
@@ -512,40 +500,27 @@ pub fn make_test_bbs() -> Vec<BB> {
 }
 
 #[test]
-
 fn test_zb() {
-    fn test(zb: Option<BB>, mouse: Option<(f32, f32)>, y_delta: f32, bb_coords: &[u32; 4]) {
+    fn test(zb: Option<BB>, y_delta: f32, reference_coords: &[u32; 4]) {
+        println!("y_delta {}", y_delta);
         let shape = Shape::new(200, 100);
-        let zb_new = zoom_box_around_mouse(zb, mouse, shape, y_delta);
-        assert_eq!(zb_new, Some(BB::from_arr(bb_coords)));
+        let zb_new = zoom_box_mouse_wheel(zb, shape, y_delta);
+        assert_eq!(zb_new, Some(BB::from_arr(reference_coords)));
     }
-    test(None, Some((100.0, 50.0)), -1.0, &[50, 25, 100, 50]);
-    test(None, Some((100.0, 50.0)), 1.0, &[0, 0, 200, 100]);
-    test(
-        Some(BB::from_arr(&[0, 0, 200, 100])),
-        Some((100.0, 50.0)),
-        -1.0,
-        &[50, 25, 100, 50],
-    );
-    test(None, Some((50.0, 25.0)), -1.0, &[0, 0, 100, 50]);
+    test(Some(BB::from_arr(&[0, 0, 100, 50])), 2.0, &[0, 0, 110, 55]);
+    test(Some(BB::from_arr(&[0, 0, 100, 50])), -2.0, &[10, 5, 80, 40]);
     test(
         Some(BB::from_arr(&[50, 25, 100, 50])),
-        Some((150.0, 75.0)),
-        -1.0,
-        &[125, 62, 50, 25],
+        2.0,
+        &[40, 20, 120, 60],
     );
     test(
-        Some(BB::from_arr(&[0, 0, 100, 50])),
-        Some((100.0, 50.0)),
-        1.0,
-        &[0, 0, 200, 100],
+        Some(BB::from_arr(&[50, 25, 100, 50])),
+        -2.0,
+        &[60, 30, 80, 40],
     );
-    test(
-        Some(BB::from_arr(&[0, 0, 100, 50])),
-        Some((100.0, 50.0)),
-        4.0,
-        &[0, 0, 200, 100],
-    );
+    test(None, -1.0, &[10, 5, 180, 90]);
+    test(None, 1.0, &[0, 0, 200, 100]);
 }
 
 #[test]

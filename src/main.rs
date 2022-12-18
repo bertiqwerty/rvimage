@@ -8,7 +8,7 @@ use log::error;
 use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{self, Cfg};
 use rvlib::control::{Control, Info};
-use rvlib::domain::{self, zoom_box_around_mouse, Shape};
+use rvlib::domain::{self, zoom_box_mouse_wheel, Shape};
 use rvlib::history::History;
 use rvlib::menu::Framework;
 use rvlib::result::RvResult;
@@ -175,6 +175,8 @@ fn main() -> Result<(), pixels::Error> {
                 *control_flow = ControlFlow::Poll;
             }
         }
+        let shape_win = Shape::from_size(&window.inner_size());
+        let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
         // Handle input events
         if input.update(&event) {
             // Close application
@@ -184,8 +186,6 @@ fn main() -> Result<(), pixels::Error> {
             }
 
             // update world based on tools
-            let shape_win = Shape::from_size(&window.inner_size());
-            let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
             if recently_activated_tool_idx.is_none() {
                 recently_activated_tool_idx = framework.recently_activated_tool();
             }
@@ -249,6 +249,9 @@ fn main() -> Result<(), pixels::Error> {
             if input.key_pressed(VirtualKeyCode::PageUp) {
                 ctrl.paths_navigator.prev();
             }
+            if input.key_pressed(VirtualKeyCode::Escape) {
+                world.set_zoom_box(None, shape_win);
+            }
 
             // check for new image requests from http server
             let rx_match = &rx_from_http.as_ref().map(|rx| rx.try_iter().last());
@@ -306,20 +309,6 @@ fn main() -> Result<(), pixels::Error> {
                 framework.scale_factor(scale_factor);
             }
 
-            if let Event::WindowEvent { event, .. } = &event {
-                if let WindowEvent::MouseWheel { delta, .. } = event {
-                    if let MouseScrollDelta::LineDelta(_, y_delta) = delta {
-                        let zb = zoom_box_around_mouse(
-                            *world.zoom_box(),
-                            input.mouse(),
-                            shape_win,
-                            *y_delta,
-                        );
-                        world.set_zoom_box(zb, shape_win);
-                    }
-                    println!("{:?}", event);
-                }
-            }
             // Resize the window
             if let Some(size) = input.window_resized() {
                 let shape_win = Shape::from_size(&size);
@@ -383,6 +372,14 @@ fn main() -> Result<(), pixels::Error> {
 
         match event {
             Event::WindowEvent { event, .. } => {
+                if let WindowEvent::MouseWheel { delta, .. } = event {
+                    if let MouseScrollDelta::LineDelta(_, y_delta) = delta {
+                        let zb =
+                            zoom_box_mouse_wheel(*world.zoom_box(), world.data.shape(), y_delta);
+                        world.set_zoom_box(zb, shape_win);
+                    }
+                    println!("{:?}", event);
+                }
                 // Update egui inputs
                 framework.handle_event(&event);
             }

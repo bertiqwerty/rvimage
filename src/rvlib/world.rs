@@ -154,6 +154,7 @@ impl World {
             self.is_redraw_requested = false;
         }
     }
+
     pub fn new(ims_raw: DataRaw, zoom_box: Option<BB>, shape_win: Shape) -> Self {
         let im_view = scaled_to_win_view(&ims_raw, &zoom_box, shape_win);
         Self {
@@ -163,6 +164,7 @@ impl World {
             zoom_box,
         }
     }
+
     /// real image in contrast to the loading image
     pub fn from_real_im(
         im: DynamicImage,
@@ -173,6 +175,7 @@ impl World {
         let meta_data = MetaData::from_filepath(file_path);
         Self::new(DataRaw::new(im, meta_data, tools_data), None, shape_win)
     }
+
     pub fn view_from_annotations(&mut self, shape_win: Shape) {
         let im_view_tmp = self.data.draw_annotations_on_view(
             self.data.bg_to_uncropped_view(),
@@ -184,28 +187,44 @@ impl World {
         self.set_im_view(im_view_tmp);
         self.update_view(shape_win);
     }
+
     pub fn take_view(&mut self) -> ViewImage {
         mem::take(&mut self.im_view)
     }
+
     pub fn im_view(&self) -> &ViewImage {
         &self.im_view
     }
+
     pub fn set_im_view(&mut self, im_view: ViewImage) {
         self.im_view = im_view;
         self.is_redraw_requested = true;
     }
+
     pub fn update_view(&mut self, shape_win: Shape) {
         self.im_view = scaled_to_win_view(&self.data, self.zoom_box(), shape_win);
         self.is_redraw_requested = true;
     }
+
     pub fn shape_orig(&self) -> Shape {
         self.data.shape()
     }
+
     pub fn set_zoom_box(&mut self, zoom_box: Option<BB>, shape_win: Shape) {
-        self.im_view = scaled_to_win_view(&self.data, &zoom_box, shape_win);
-        self.zoom_box = zoom_box;
-        self.is_redraw_requested = true;
+        let mut set_zb = || {
+            self.im_view = scaled_to_win_view(&self.data, &zoom_box, shape_win);
+            self.zoom_box = zoom_box;
+            self.is_redraw_requested = true;
+        };
+        if let Some(zb) = zoom_box {
+            if zb.h > 1 && zb.w > 1 {
+                set_zb();
+            }
+        } else {
+            set_zb();
+        }
     }
+
     pub fn zoom_box(&self) -> &Option<BB> {
         &self.zoom_box
     }
