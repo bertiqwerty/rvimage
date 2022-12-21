@@ -15,7 +15,6 @@ use crate::{
 };
 
 use super::core::Mover;
-
 const MIN_ZOOM: u32 = 2;
 
 fn make_zoom_on_release(

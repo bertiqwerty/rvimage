@@ -12,7 +12,7 @@ use rvlib::domain::{self, zoom_box_mouse_wheel, Shape};
 use rvlib::history::History;
 use rvlib::menu::Framework;
 use rvlib::result::RvResult;
-use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper};
+use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
 use rvlib::world::World;
 use rvlib::{apply_tool_method_mut, defer, httpserver, image_util};
 use std::collections::HashMap;
@@ -114,6 +114,21 @@ fn remove_tmpdir() {
         }
         Err(e) => {
             println!("could not load cfg {:?}", e);
+        }
+    };
+}
+
+macro_rules! activate_tool_event {
+    ($key:ident, $name:expr, $input:expr, $rat:expr, $tools:expr) => {
+        if $input.held_shift() && $input.key_pressed(VirtualKeyCode::$key) {
+            $rat = Some(
+                $tools
+                    .iter()
+                    .enumerate()
+                    .find(|(_, t)| t.name == $name)
+                    .unwrap()
+                    .0,
+            );
         }
     };
 }
@@ -229,6 +244,8 @@ fn main() -> Result<(), pixels::Error> {
                         t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
                 }
             }
+            activate_tool_event!(B, BBOX_NAME, input, recently_activated_tool_idx, tools);
+            activate_tool_event!(Z, ZOOM_NAME, input, recently_activated_tool_idx, tools);
 
             if input.held_control() && input.key_pressed(VirtualKeyCode::T) {
                 framework.toggle_tools_menu();

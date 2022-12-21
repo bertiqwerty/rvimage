@@ -14,9 +14,12 @@ use std::fmt::Debug;
 pub use zoom::Zoom;
 
 pub const BBOX_NAME: &str = bbox::ACTOR_NAME;
+pub const BRUSH_NAME: &str = "Brush";
+pub const ZOOM_NAME: &str = "Zoom";
+pub const ROT90_NAME: &str = "Rot90";
 
 macro_rules! make_tools {
-($(($tool:ident, $label:expr)),+) => {
+($(($tool:ident, $label:expr, $name:expr)),+) => {
         #[derive(Clone, Debug)]
         pub enum ToolWrapper {
             $($tool($tool)),+
@@ -26,13 +29,18 @@ macro_rules! make_tools {
                 ToolState {
                     tool_wrapper: ToolWrapper::$tool($tool::new()),
                     is_active: false,
-                    name: stringify!($tool),
+                    name: $name,
                     button_label: $label
                 }),+]
         }
     };
 }
-make_tools!((Rot90, "🔄"), (Brush, "✏"), (BBox, "⬜"), (Zoom, "🔍"));
+make_tools!(
+    (Rot90, "🔄", ROT90_NAME),
+    (Brush, "✏", BRUSH_NAME),
+    (BBox, "⬜", BBOX_NAME),
+    (Zoom, "🔍", ZOOM_NAME)
+);
 
 #[macro_export]
 macro_rules! apply_tool_method_mut {
