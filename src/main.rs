@@ -232,7 +232,7 @@ fn main() -> Result<(), pixels::Error> {
                 }
             }
 
-            if input.held_shift() && input.key_pressed(VirtualKeyCode::Q) {
+            if input.held_alt() && input.key_pressed(VirtualKeyCode::Q) {
                 println!("deactivate all tools");
                 for t in tools.iter_mut() {
                     let meta_data = ctrl.meta_data(
