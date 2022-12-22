@@ -17,6 +17,23 @@ use crate::{
 use super::core::Mover;
 const MIN_ZOOM: u32 = 2;
 
+pub fn move_zoom_box(
+    mut mover: Mover,
+    mut world: World,
+    mouse_pos: Option<(usize, usize)>,
+    shape_win: Shape,
+) -> (Mover, World) {
+    let shape_orig = world.data.shape();
+    let zoom_box = *world.zoom_box();
+    let f_move = |mpso, mpo| follow_zoom_box(mpso, mpo, shape_orig, zoom_box);
+    let opt_opt_zoom_box =
+        mover.move_mouse_held(f_move, mouse_pos, shape_win, shape_orig, &zoom_box);
+    if let Some(zoom_box) = opt_opt_zoom_box {
+        world.set_zoom_box(zoom_box, shape_win);
+    }
+    (mover, world)
+}
+
 fn make_zoom_on_release(
     mouse_pos_start: (usize, usize),
     mouse_pos_release: (usize, usize),
@@ -53,7 +70,7 @@ fn make_zoom_on_release(
     }
 }
 
-fn move_zoom_box(
+fn follow_zoom_box(
     mpso: (u32, u32),
     mpo: (u32, u32),
     shape_orig: Shape,
@@ -147,15 +164,7 @@ impl Zoom {
         history: History,
     ) -> (World, History) {
         if event.mouse_held(RIGHT_BTN) {
-            let shape_orig = world.data.shape();
-            let zoom_box = *world.zoom_box();
-            let f_move = |mpso, mpo| move_zoom_box(mpso, mpo, shape_orig, zoom_box);
-            let opt_opt_zoom_box = self
-                .mover
-                .move_mouse_held(f_move, mouse_pos, shape_win, shape_orig, &zoom_box);
-            if let Some(zoom_box) = opt_opt_zoom_box {
-                world.set_zoom_box(zoom_box, shape_win);
-            }
+            (self.mover, world) = move_zoom_box(self.mover, world, mouse_pos, shape_win);
             (world, history)
         } else if event.mouse_held(LEFT_BTN) {
             if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, mouse_pos) {
@@ -258,7 +267,7 @@ fn test_move_zoom() -> RvResult<()> {
         let mpp = (mpp.0 as u32, mpp.1 as u32);
         let mph = (mph.0 as u32, mph.1 as u32);
         let shape_orig = Shape { w: 80, h: 80 };
-        assert_eq!(move_zoom_box(mpp, mph, shape_orig, zoom_box), expected);
+        assert_eq!(follow_zoom_box(mpp, mph, shape_orig, zoom_box), expected);
     }
     test((4, 4), (12, 8), mk_z(12, 16, 40, 40), mk_z(4, 12, 40, 40));
     Ok(())

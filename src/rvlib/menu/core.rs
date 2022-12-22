@@ -240,6 +240,7 @@ impl ToolSelectMenu {
                     self.recently_activated_tool = tools
                         .iter_mut()
                         .enumerate()
+                        .filter(|(_, t)| !t.is_always_active())
                         .find(|(_, t)| ui.selectable_label(t.is_active(), t.button_label).clicked())
                         .map(|(i, _)| i);
                 });

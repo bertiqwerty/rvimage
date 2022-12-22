@@ -1,3 +1,4 @@
+mod always_active_zoom;
 mod bbox;
 mod brush;
 mod core;
@@ -7,6 +8,7 @@ mod zoom;
 use crate::{domain::Shape, history::History, world::World};
 
 pub use self::core::Manipulate;
+pub use always_active_zoom::AlwaysActiveZoom;
 pub use bbox::BBox;
 pub use brush::Brush;
 pub use rot90::Rot90;
@@ -17,9 +19,10 @@ pub const BBOX_NAME: &str = bbox::ACTOR_NAME;
 pub const BRUSH_NAME: &str = "Brush";
 pub const ZOOM_NAME: &str = "Zoom";
 pub const ROT90_NAME: &str = "Rot90";
+pub const ALWAYS_ACTIVE_ZOOM: &str = "AlwaysActiveZoom";
 
 macro_rules! make_tools {
-($(($tool:ident, $label:expr, $name:expr)),+) => {
+($(($tool:ident, $label:expr, $name:expr, $active:expr, $always_active:expr)),+) => {
         #[derive(Clone, Debug)]
         pub enum ToolWrapper {
             $($tool($tool)),+
@@ -28,7 +31,8 @@ macro_rules! make_tools {
             vec![$(
                 ToolState {
                     tool_wrapper: ToolWrapper::$tool($tool::new()),
-                    is_active: false,
+                    is_active: $active,
+                    is_always_active: $always_active,
                     name: $name,
                     button_label: $label
                 }),+]
@@ -36,10 +40,11 @@ macro_rules! make_tools {
     };
 }
 make_tools!(
-    (Rot90, "🔄", ROT90_NAME),
-    (Brush, "✏", BRUSH_NAME),
-    (BBox, "⬜", BBOX_NAME),
-    (Zoom, "🔍", ZOOM_NAME)
+    (Rot90, "🔄", ROT90_NAME, false, false),
+    (Brush, "✏", BRUSH_NAME, false, false),
+    (BBox, "⬜", BBOX_NAME, false, false),
+    (Zoom, "🔍", ZOOM_NAME, false, false),
+    (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true)
 );
 
 #[macro_export]
@@ -50,6 +55,7 @@ macro_rules! apply_tool_method_mut {
             ToolWrapper::Brush(z) => z.$f($($args,)*),
             ToolWrapper::BBox(z) => z.$f($($args,)*),
             ToolWrapper::Zoom(z) => z.$f($($args,)*),
+            ToolWrapper::AlwaysActiveZoom(z) => z.$f($($args,)*),
         }
     };
 }
@@ -57,6 +63,7 @@ macro_rules! apply_tool_method_mut {
 pub struct ToolState {
     pub tool_wrapper: ToolWrapper,
     is_active: bool,
+    is_always_active: bool, // no entry in the menu
     pub name: &'static str,
     pub button_label: &'static str,
 }
@@ -81,10 +88,15 @@ impl ToolState {
             (world, history) =
                 apply_tool_method_mut!(self, on_deactivate, world, history, shape_win);
         }
-        self.is_active = false;
+        if !self.is_always_active {
+            self.is_active = false;
+        }
         (world, history)
     }
     pub fn is_active(&self) -> bool {
         self.is_active
+    }
+    pub fn is_always_active(&self) -> bool {
+        self.is_always_active
     }
 }

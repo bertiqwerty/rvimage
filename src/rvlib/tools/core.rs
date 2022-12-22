@@ -79,7 +79,7 @@ pub trait Manipulate {
     ) -> (World, History);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Mover {
     mouse_pos_start: Option<(usize, usize)>,
 }
