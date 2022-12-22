@@ -369,11 +369,11 @@ impl Control {
     fn make_folder_label(&self) -> Option<String> {
         self.paths_navigator.folder_label().map(|s| s.to_string())
     }
-    pub fn undo(&mut self, history: &mut History) -> Option<(DataRaw, Option<usize>)> {
+    pub fn redo(&mut self, history: &mut History) -> Option<(DataRaw, Option<usize>)> {
         self.flags.undo_redo_load = true;
         history.next_world(&self.make_folder_label())
     }
-    pub fn redo(&mut self, history: &mut History) -> Option<(DataRaw, Option<usize>)> {
+    pub fn undo(&mut self, history: &mut History) -> Option<(DataRaw, Option<usize>)> {
         self.flags.undo_redo_load = true;
         history.prev_world(&self.make_folder_label())
     }
