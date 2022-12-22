@@ -343,11 +343,11 @@ impl Control {
 
     pub fn meta_data(
         &self,
-        file_selected: Option<usize>,
+        file_selected_idx: Option<usize>,
         is_loading_screen_active: Option<bool>,
     ) -> MetaData {
-        let file_path =
-            file_selected.and_then(|fs| self.paths_navigator.file_path(fs).map(|s| s.to_string()));
+        let file_path = file_selected_idx
+            .and_then(|fsidx| self.paths_navigator.file_path(fsidx).map(|s| s.to_string()));
         let open_folder = self.opened_folder().cloned();
         let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
         let connection_data = match ssh_cfg {

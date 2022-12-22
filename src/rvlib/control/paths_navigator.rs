@@ -108,13 +108,14 @@ impl PathsNavigator {
 
     pub fn filter(&mut self, s: &str, tools_data_map: &ToolsDataMap) -> RvResult<()> {
         let labels_keyword = "label:";
-        if let Some(needle) = s.strip_prefix(labels_keyword) {
-            let labels = tools_data_map[tools::BBOX_NAME].specifics.bbox().labels();
+        let no_labels_keyword = "nolabel:";
+        if let (Some(needle), Some(bbox_data)) = (
+            s.strip_prefix(labels_keyword),
+            tools_data_map.get(tools::BBOX_NAME),
+        ) {
+            let labels = bbox_data.specifics.bbox().labels();
             let filter_pred = |path: &str| {
-                let annos = tools_data_map[tools::BBOX_NAME]
-                    .specifics
-                    .bbox()
-                    .get_annos(path);
+                let annos = bbox_data.specifics.bbox().get_annos(path);
                 if let Some(annos) = annos {
                     annos
                         .cat_idxs()
@@ -122,6 +123,17 @@ impl PathsNavigator {
                         .any(|cat_idx| labels[*cat_idx].contains(needle))
                 } else {
                     false
+                }
+            };
+            self.filter_by_pred(filter_pred)?;
+        } else if s.strip_prefix(no_labels_keyword).is_some() {
+            let filter_pred = |path: &str| {
+                let bb_tool = tools_data_map.get(tools::BBOX_NAME);
+                let annos = bb_tool.and_then(|bbt| bbt.specifics.bbox().get_annos(path));
+                if let Some(annos) = annos {
+                    annos.cat_idxs().is_empty()
+                } else {
+                    true
                 }
             };
             self.filter_by_pred(filter_pred)?;
@@ -146,7 +158,7 @@ impl PathsNavigator {
     pub fn file_path(&self, file_idx: usize) -> Option<&str> {
         self.paths_selector()
             .as_ref()
-            .map(|ps| ps.file_selected_path(file_idx))
+            .and_then(|ps| ps.file_selected_path(file_idx))
     }
 }
 

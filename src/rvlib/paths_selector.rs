@@ -49,8 +49,12 @@ pub struct PathsSelector {
 }
 
 impl PathsSelector {
-    fn label_idx_2_path_idx(&self, label_idx: usize) -> usize {
-        self.filtered_file_labels[label_idx].0
+    fn label_idx_2_path_idx(&self, label_idx: usize) -> Option<usize> {
+        if label_idx >= self.filtered_file_labels.len() {
+            None
+        } else {
+            Some(self.filtered_file_labels[label_idx].0)
+        }
     }
 
     pub fn new(mut file_paths: Vec<String>, folder_path: Option<String>) -> RvResult<Self> {
@@ -64,12 +68,14 @@ impl PathsSelector {
         })
     }
 
-    pub fn file_selected_path(&self, filtered_label_idx: usize) -> &str {
-        self.file_paths[self.label_idx_2_path_idx(filtered_label_idx)].as_str()
+    pub fn file_selected_path(&self, filtered_label_idx: usize) -> Option<&str> {
+        let idx = self.label_idx_2_path_idx(filtered_label_idx);
+        idx.map(|idx| self.file_paths[idx].as_str())
     }
 
     pub fn filter(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
         self.filtered_file_labels = list_file_labels(&self.file_paths, filter_predicate)?;
+        println!("assigned {} file labels", self.filtered_file_labels.len());
         Ok(())
     }
 

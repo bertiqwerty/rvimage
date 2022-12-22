@@ -7,7 +7,7 @@ use std::{fmt::Display, iter::once, ops::Range, str::FromStr};
 
 use crate::{
     file_util::PixelEffect,
-    result::{to_rv, RvError},
+    result::{to_rv, RvError, RvResult},
     rverr,
 };
 
@@ -159,6 +159,50 @@ pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
 }
 
 pub type CornerOptions = ((Option<u32>, Option<u32>), (Option<u32>, Option<u32>));
+
+pub type Point = (u32, u32);
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+pub struct Polygon {
+    pub points: Vec<Point>,
+}
+impl Polygon {
+    pub fn from_bb(bb: BB) -> Self {
+        let points = bb.corners().collect();
+        Polygon { points }
+    }
+    pub fn enclosing_bb(&self) -> Option<BB> {
+        let (mut x_min, mut y_min, mut x_max, mut y_max) = (None, None, None, None);
+
+        let check_for_new_champion = |v: Option<u32>, new_v, cmp: fn(u32, u32) -> bool| {
+            if let Some(v) = v {
+                if cmp(new_v, v) {
+                    Some(new_v)
+                } else {
+                    Some(v)
+                }
+            } else {
+                Some(new_v)
+            }
+        };
+
+        let smaller = |a, b| a < b;
+        let greater = |a, b| a > b;
+
+        for p in &self.points {
+            x_min = check_for_new_champion(x_min, p.0, smaller);
+            y_min = check_for_new_champion(y_min, p.1, smaller);
+            x_max = check_for_new_champion(x_max, p.0, greater);
+            y_max = check_for_new_champion(y_max, p.1, greater);
+        }
+        if let (Some(x_min), Some(y_min), Some(x_max), Some(y_max)) = (x_min, y_min, x_max, y_max) {
+            Some(BB::from_points((x_min, y_min), (x_max, y_max)))
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct BB {
     pub x: u32,
@@ -442,7 +486,7 @@ impl Display for BB {
 }
 impl FromStr for BB {
     type Err = RvError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> RvResult<Self> {
         let err_parse = rverr!("could not parse '{}' into a bounding box", s);
         let mut int_iter = s[1..(s.len() - 1)]
             .split(',')
@@ -494,6 +538,13 @@ pub fn make_test_bbs() -> Vec<BB> {
             h: 10,
         },
     ]
+}
+
+#[test]
+fn test_polygon() {
+    let bbs = make_test_bbs();
+    let poly = Polygon::from_bb(bbs[2]);
+    assert_eq!(poly.enclosing_bb(), Some(bbs[2]));
 }
 
 #[test]

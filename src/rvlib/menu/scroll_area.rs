@@ -36,26 +36,28 @@ pub fn scroll_area(
             .as_str();
         let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
             let path = paths_selector.file_selected_path(filtered_label_idx);
-            let sl_ = ui.selectable_label(true, file_label);
-            let sl_ = if let Some(fis) = file_info_selected {
-                sl_.on_hover_text(format!("{}\n{}", path, fis))
-            } else {
-                sl_.on_hover_text(path)
-            };
+            if let Some(path) = path {
+                let sl_ = ui.selectable_label(true, file_label);
+                let sl_ = if let Some(fis) = file_info_selected {
+                    sl_.on_hover_text(format!("{}\n{}", path, fis))
+                } else {
+                    sl_.on_hover_text(path)
+                };
 
-            if scroll_to_selected_label {
-                sl_.scroll_to_me(Some(Align::Center));
+                if scroll_to_selected_label {
+                    sl_.scroll_to_me(Some(Align::Center));
+                }
+                sl_
+            } else {
+                ui.selectable_label(false, file_label)
             }
-            sl_
         } else {
             ui.selectable_label(false, file_label)
         };
         if sl.clicked_by(egui::PointerButton::Secondary) {
-            Clipboard::default().set(
-                paths_selector
-                    .file_selected_path(filtered_label_idx)
-                    .to_string(),
-            );
+            if let Some(fsp) = paths_selector.file_selected_path(filtered_label_idx) {
+                Clipboard::default().set(fsp.to_string());
+            }
         }
         if sl.clicked() {
             println!("index is {}", filtered_label_idx);
