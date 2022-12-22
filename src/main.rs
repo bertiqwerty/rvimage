@@ -120,7 +120,7 @@ fn remove_tmpdir() {
 
 macro_rules! activate_tool_event {
     ($key:ident, $name:expr, $input:expr, $rat:expr, $tools:expr) => {
-        if $input.held_shift() && $input.key_pressed(VirtualKeyCode::$key) {
+        if $input.held_alt() && $input.key_pressed(VirtualKeyCode::$key) {
             $rat = Some(
                 $tools
                     .iter()
