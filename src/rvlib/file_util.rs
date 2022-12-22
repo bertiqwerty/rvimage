@@ -198,6 +198,10 @@ impl<'a> LastPartOfPath<'a> {
     }
 }
 
+pub fn url_encode(url: &str) -> String {
+    url.replace(' ', "%20")
+}
+
 fn get_last_part_of_path_by_sep(path: &str, sep: char) -> Option<LastPartOfPath> {
     if path.contains(sep) {
         let mark = if path.starts_with('\'') && path.ends_with('\'') {

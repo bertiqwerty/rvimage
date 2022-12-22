@@ -5,13 +5,14 @@ use crate::{
     annotations::BboxAnnotations,
     annotations_accessor, annotations_accessor_mut,
     domain::{mouse_pos_to_orig_pos, Shape, BB},
+    file_util,
     history::{History, Record},
     make_tool_transform,
     tools::{
         core::{InitialView, Mover},
         Manipulate,
     },
-    tools_data::{bbox_data::AnnotationsMap, BboxSpecificData, ToolSpecifics, ToolsData},
+    tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -245,10 +246,17 @@ impl Manipulate for BBox {
         }
         let is_anno_rm_triggered = get_tools_data(&world).specifics.bbox().is_anno_rm_triggered;
         if is_anno_rm_triggered {
+            let opened_folder = world
+                .data
+                .meta_data
+                .opened_folder
+                .as_ref()
+                .map(|of| file_util::url_encode(of));
             let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-            bbox_data
-                .set_annotations_map(AnnotationsMap::new())
-                .unwrap();
+            if let Some(opened_folder) = &opened_folder {
+                bbox_data.retain_fileannos_in_folder(opened_folder);
+            }
+
             bbox_data.is_anno_rm_triggered = false;
             world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
         }

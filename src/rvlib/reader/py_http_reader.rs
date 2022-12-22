@@ -3,6 +3,7 @@ use regex::Regex;
 
 use crate::{
     cache::ReadImageToCache,
+    file_util,
     result::{to_rv, RvResult},
     rverr,
     types::ResultImage,
@@ -30,7 +31,7 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
             static ref HREF_REGEX: Regex = Regex::new("href\\s*=\\s*\".*\"").unwrap();
         }
         println!("{}", address);
-        let address = address.replace(' ', "%20");
+        let address = file_util::url_encode(address);
         let resp = || reqwest::blocking::get(&address)?.text();
         let text = resp().map_err(to_rv)?;
         Ok(LI_REGEX

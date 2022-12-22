@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::annotations::{selected_indices, BboxAnnotations};
 use crate::{
     domain::{Shape, BB},
-    implement_annotations_getters,
+    file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
 };
@@ -199,6 +199,11 @@ impl BboxSpecificData {
             }
             Ok(())
         }
+    }
+
+    pub fn retain_fileannos_in_folder(&mut self, folder: &str) {
+        self.annotations_map
+            .retain(|f, _| file_util::url_encode(f).starts_with(folder));
     }
 
     pub fn colors(&self) -> &Vec<[u8; 3]> {

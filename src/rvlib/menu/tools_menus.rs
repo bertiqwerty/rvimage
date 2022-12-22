@@ -44,7 +44,7 @@ pub fn bbox_menu(
         data.remove_catidx(idx);
     }
     ui.separator();
-    if ui.button("clear all annotations").clicked() {
+    if ui.button("clear out of folder annotations").clicked() {
         data.is_anno_rm_triggered = true;
     }
     ui.separator();
