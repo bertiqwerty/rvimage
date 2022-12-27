@@ -86,7 +86,7 @@ For an import to work, the folder that contains the images needs to be opened be
 | ctrl + a                    | select all boxes                                                                         |
 | delete                      | remove selected boxes                                                                    |
 | ctrl + d                    | deselect all boxes                                                                       |
-| c                           | clone selected box at mouse position and move selection to new box                       |
+| c                           | clone selected boxes at mouse position and move selection to new box                       |
 | ctrl + c                    | copy all selected boxes to clipboard                                                     |
 | ctrl + v                    | paste boxes from clipboard on another image                                              |
 | left/right/up/down          | move bottom right corner of all selected boxes                                           |
