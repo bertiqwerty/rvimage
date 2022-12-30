@@ -303,6 +303,7 @@ impl BB {
     pub fn corners<'a>(&'a self) -> impl Iterator<Item = (u32, u32)> + 'a {
         chain_corners(|i| self.corner(i))
     }
+
     pub fn corner(&self, idx: usize) -> (u32, u32) {
         let (x, y, w, h) = (self.x, self.y, self.w, self.h);
         match idx {
@@ -323,6 +324,7 @@ impl BB {
             h: self.h,
         }
     }
+
     pub fn from_points(p1: (u32, u32), p2: (u32, u32)) -> Self {
         let x_min = p1.0.min(p2.0);
         let y_min = p1.1.min(p2.1);
@@ -335,42 +337,57 @@ impl BB {
             h: y_max - y_min,
         }
     }
+
     pub fn x_range(&self) -> Range<u32> {
         self.x..(self.x + self.w)
     }
+
     pub fn y_range(&self) -> Range<u32> {
         self.y..(self.y + self.h)
     }
+
     pub fn center_f(&self) -> (f32, f32) {
         (
             self.w as f32 * 0.5 + self.x as f32,
             self.h as f32 * 0.5 + self.y as f32,
         )
     }
+
     pub fn center(&self) -> (u32, u32) {
         (self.x + self.w / 2, self.y + self.h / 2)
     }
-    pub fn contains(&self, p: (u32, u32)) -> bool {
-        let BB { x, y, h, w } = self;
-        x <= &p.0 && p.0 < x + w && y <= &p.1 && p.1 < y + h
-    }
+
     pub fn min_usize(&self) -> (usize, usize) {
         (self.x as usize, self.y as usize)
     }
+
     pub fn max_usize(&self) -> (usize, usize) {
         ((self.x + self.w) as usize, (self.y + self.h) as usize)
     }
+
     pub fn min(&self) -> (u32, u32) {
         (self.x, self.y)
     }
+
     pub fn max(&self) -> (u32, u32) {
         (self.x + self.w, self.y + self.h)
     }
+
     pub fn follow_movement(&self, from: (u32, u32), to: (u32, u32), shape: Shape) -> Option<Self> {
         let x_shift: i32 = to.0 as i32 - from.0 as i32;
         let y_shift: i32 = to.1 as i32 - from.1 as i32;
         self.translate(x_shift, y_shift, shape)
     }
+
+    pub fn contains(&self, p: (u32, u32)) -> bool {
+        let BB { x, y, h, w } = self;
+        x <= &p.0 && p.0 < x + w && y <= &p.1 && p.1 < y + h
+    }
+
+    pub fn contains_bb(&self, other: BB) -> bool {
+        self.contains(other.min()) && self.contains(other.max())
+    }
+
     pub fn is_contained_in_image(&self, shape: Shape) -> bool {
         self.x + self.w < shape.w && self.y + self.h < shape.h
     }

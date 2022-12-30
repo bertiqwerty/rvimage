@@ -94,47 +94,45 @@ fn draw_bbs(
             f_inner_color,
         );
 
-        let encl_view_corners = bbs[box_idx]
-            .enclosing_bb()
-            .to_viewcorners(shape_orig, shape_win, zoom_box);
-        let ((x_min, y_min), (x_max, _)) = encl_view_corners;
-        // draw label field
-        // we do show not the label field for empty-string-labels
-        if !cats.label_of_box(box_idx).is_empty() && show_label {
-            if let (Some(x_min), Some(y_min), Some(x_max)) = (x_min, y_min, x_max) {
-                let label_box_height = 14;
-                let scale = Scale {
-                    x: label_box_height as f32,
-                    y: label_box_height as f32,
-                };
-                let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
-                let white = [255, 255, 255];
-                let alpha = 150;
-                let f_inner_color = |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, &white, alpha);
-                let label_box = BB::from_points((x_min, y_min), (x_max, y_min + label_box_height));
-                let (boundary_points, inner_points) = label_box.points_on_view(
-                    Shape::from_im(&im_view),
-                    shape_orig,
-                    shape_win,
-                    zoom_box,
-                );
-                im_view = image_util::draw_geo_on_image(
-                    im_view,
-                    boundary_points,
-                    inner_points,
-                    &Rgb(white),
-                    f_inner_color,
-                );
-                imageproc::drawing::draw_text_mut(
-                    &mut im_view,
-                    Rgb::<u8>([0, 0, 0]),
-                    x_min as i32,
-                    y_min as i32,
-                    scale,
-                    &font,
-                    cats.label_of_box(box_idx),
-                );
-            }
+        let bb_encl = bbs[box_idx].enclosing_bb();
+        // draw label field, we do show not the label field for empty-string-labels
+        if (!cats.label_of_box(box_idx).is_empty() && show_label)
+            && (zoom_box.is_none() || zoom_box.unwrap().contains_bb(bb_encl))
+        {
+            let label_box_height = 14;
+            let scale = Scale {
+                x: label_box_height as f32,
+                y: label_box_height as f32,
+            };
+            let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
+            let white = [255, 255, 255];
+            let alpha = 150;
+            let f_inner_color = |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, &white, alpha);
+            let label_box = BB::from_points(
+                bb_encl.min(),
+                (bb_encl.max().0, bb_encl.min().1 + label_box_height),
+            );
+            let (boundary_points, inner_points) =
+                label_box.points_on_view(Shape::from_im(&im_view), shape_orig, shape_win, zoom_box);
+            im_view = image_util::draw_geo_on_image(
+                im_view,
+                boundary_points,
+                inner_points,
+                &Rgb(white),
+                f_inner_color,
+            );
+            let viewcorners = label_box.to_viewcorners(shape_orig, shape_win, zoom_box);
+            let x_min = viewcorners.0 .0.unwrap();
+            let y_min = viewcorners.0 .1.unwrap();
+            imageproc::drawing::draw_text_mut(
+                &mut im_view,
+                Rgb::<u8>([0, 0, 0]),
+                x_min as i32,
+                y_min as i32,
+                scale,
+                &font,
+                cats.label_of_box(box_idx),
+            );
         }
     }
     im_view
