@@ -122,8 +122,8 @@ fn draw_bbs(
                 f_inner_color,
             );
             let viewcorners = label_box.to_viewcorners(shape_orig, shape_win, zoom_box);
-            let x_min = viewcorners.0 .0.unwrap();
-            let y_min = viewcorners.0 .1.unwrap();
+            let x_min = viewcorners.x_min.unwrap();
+            let y_min = viewcorners.y_min.unwrap();
             imageproc::drawing::draw_text_mut(
                 &mut im_view,
                 Rgb::<u8>([0, 0, 0]),

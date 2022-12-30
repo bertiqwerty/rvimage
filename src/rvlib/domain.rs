@@ -15,16 +15,6 @@ use crate::{
     rverr,
 };
 
-fn viewcorners_to_arr(view_corners: ViewCorners) -> [Option<(u32, u32)>; 4] {
-    let ((x_min, y_min), (x_max, y_max)) = view_corners;
-    [
-        x_min.and_then(|xmin| y_min.map(|ymin| (xmin, ymin))),
-        x_min.and_then(|xmin| y_max.map(|ymax| (xmin, ymax))),
-        x_max.and_then(|xmax| y_max.map(|ymax| (xmax, ymax))),
-        x_max.and_then(|xmax| y_min.map(|ymin| (xmax, ymin))),
-    ]
-}
-
 pub fn mouse_pos_transform(
     pixels: &Pixels,
     input_pos: Option<(f32, f32)>,
@@ -257,14 +247,6 @@ impl BB {
             y: a[1],
             w: a[2],
             h: a[3],
-        }
-    }
-
-    pub fn from_viewcorners(view_corners: ViewCorners) -> Option<Self> {
-        if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(y_max))) = view_corners {
-            Some(BB::from_points((x_min, y_min), (x_max, y_max)))
-        } else {
-            None
         }
     }
 
@@ -519,13 +501,52 @@ impl BB {
                 &zoom_box.map(|zb| zb.min_max(1)),
             )
         };
-        ((tf_x(x_min), tf_y(y_min)), (tf_x(x_max), tf_y(y_max)))
+        ViewCorners::new(tf_x(x_min), tf_y(y_min), tf_x(x_max), tf_y(y_max))
     }
 }
 
 // if any boundary line is out of view, the corresponding value is None
-// ((x_min, y_min), (x_max, y_max))
-type ViewCorners = ((Option<u32>, Option<u32>), (Option<u32>, Option<u32>));
+#[derive(Clone, Copy, Debug)]
+pub struct ViewCorners {
+    pub x_min: Option<u32>,
+    pub y_min: Option<u32>,
+    pub x_max: Option<u32>,
+    pub y_max: Option<u32>,
+}
+impl ViewCorners {
+    pub fn new(
+        x_min: Option<u32>,
+        y_min: Option<u32>,
+        x_max: Option<u32>,
+        y_max: Option<u32>,
+    ) -> Self {
+        Self {
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+        }
+    }
+    pub fn to_tuple(self) -> (Option<u32>, Option<u32>, Option<u32>, Option<u32>) {
+        (self.x_min, self.y_min, self.x_max, self.y_max)
+    }
+    pub fn to_bb(self) -> Option<BB> {
+        if let (Some(xmin), Some(ymin), Some(xmax), Some(ymax)) = self.to_tuple() {
+            Some(BB::from_points((xmin, ymin), (xmax, ymax)))
+        } else {
+            None
+        }
+    }
+    fn to_arr(self) -> [Option<(u32, u32)>; 4] {
+        let (x_min, y_min, x_max, y_max) = self.to_tuple();
+        [
+            x_min.and_then(|xmin| y_min.map(|ymin| (xmin, ymin))),
+            x_min.and_then(|xmin| y_max.map(|ymax| (xmin, ymax))),
+            x_max.and_then(|xmax| y_max.map(|ymax| (xmax, ymax))),
+            x_max.and_then(|xmax| y_min.map(|ymin| (xmax, ymin))),
+        ]
+    }
+}
 
 /// Iterate corners that are in view
 pub struct BbViewCornerIterator {
@@ -534,7 +555,7 @@ pub struct BbViewCornerIterator {
 impl BbViewCornerIterator {
     pub fn new(view_corners: ViewCorners) -> Self {
         Self {
-            arriter: viewcorners_to_arr(view_corners).into_iter().flatten(),
+            arriter: view_corners.to_arr().into_iter().flatten(),
         }
     }
 }
@@ -553,7 +574,7 @@ pub struct BbViewPointIterator {
 
 impl BbViewPointIterator {
     pub fn new(view_corners: ViewCorners, view_shape: Shape) -> Self {
-        let ((x_min, y_min), (x_max, y_max)) = view_corners;
+        let (x_min, y_min, x_max, y_max) = view_corners.to_tuple();
         let x_min = x_min.unwrap_or(0);
         let y_min = y_min.unwrap_or(0);
         let x_max = x_max.unwrap_or(view_shape.w);
@@ -897,7 +918,7 @@ fn test_view_corners() {
     let bb = BB::from_arr(&[5, 5, 10, 10]);
     let shape = Shape::new(40, 80);
     let view_corners = bb.to_viewcorners(shape, shape, &None);
-    let bb_vc = BB::from_viewcorners(view_corners);
+    let bb_vc = view_corners.to_bb();
     assert_eq!(Some(bb), bb_vc);
 }
 
