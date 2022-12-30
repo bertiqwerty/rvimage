@@ -86,7 +86,7 @@ fn draw_bbs(
         let (boundary_points, inner_points) =
             bbs[box_idx].points_on_view(Shape::from_im(&im_view), shape_orig, shape_win, zoom_box);
         let color_rgb = Rgb(*cats.color_of_box(box_idx));
-        im_view = image_util::draw_geo_on_image(
+        im_view = image_util::draw_on_image(
             im_view,
             boundary_points,
             inner_points,
@@ -114,7 +114,7 @@ fn draw_bbs(
             );
             let (boundary_points, inner_points) =
                 label_box.points_on_view(Shape::from_im(&im_view), shape_orig, shape_win, zoom_box);
-            im_view = image_util::draw_geo_on_image(
+            im_view = image_util::draw_on_image(
                 im_view,
                 boundary_points,
                 inner_points,

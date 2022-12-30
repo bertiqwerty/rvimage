@@ -28,7 +28,7 @@ fn draw_zoombox_on_view(im: ViewImage, zoombox: BB, color: &Rgb<u8>) -> ViewImag
     };
     let corners = zoombox.corners();
     let inner_points = BbViewPointIterator::from_bb(zoombox);
-    image_util::draw_geo_on_image(im, corners, inner_points, color, f)
+    image_util::draw_on_image(im, corners, inner_points, color, f)
 }
 pub fn move_zoom_box(
     mut mover: Mover,

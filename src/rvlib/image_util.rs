@@ -148,7 +148,7 @@ pub fn apply_alpha(pixel_rgb: &[u8; 3], color: &[u8; 3], alpha: u8) -> Rgb<u8> {
     ])
 }
 
-pub fn draw_geo_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
+pub fn draw_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
     mut im: I,
     mut boundary_points: impl Iterator<Item = (u32, u32)>,
     inner_points: impl Iterator<Item = (u32, u32)>,
