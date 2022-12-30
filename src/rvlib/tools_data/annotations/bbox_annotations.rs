@@ -96,7 +96,7 @@ fn draw_bbs(
 
         let encl_view_corners = bbs[box_idx]
             .enclosing_bb()
-            .to_view_corners(shape_orig, shape_win, zoom_box);
+            .to_viewcorners(shape_orig, shape_win, zoom_box);
         let ((x_min, y_min), (x_max, _)) = encl_view_corners;
         // draw label field
         // we do show not the label field for empty-string-labels

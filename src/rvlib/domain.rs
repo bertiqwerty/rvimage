@@ -451,7 +451,7 @@ impl BB {
         }
     }
 
-    pub fn to_view_corners(
+    pub fn to_viewcorners(
         &self,
         shape_orig: Shape,
         shape_win: Shape,
@@ -584,7 +584,7 @@ impl MakeDrawable for BB {
         shape_win: Shape,
         zoom_box: &Option<BB>,
     ) -> (Self::BoundaryPointIterator, Self::PointIterator) {
-        let view_corners = self.to_view_corners(shape_orig, shape_win, zoom_box);
+        let view_corners = self.to_viewcorners(shape_orig, shape_win, zoom_box);
         let boundary = BbViewCornerIterator::new(view_corners);
         let inner = BbViewPointIterator::new(view_corners, shape_view);
         (boundary, inner)
@@ -879,7 +879,7 @@ fn test_max_corner_dist() {
 fn test_view_corners() {
     let bb = BB::from_arr(&[5, 5, 10, 10]);
     let shape = Shape::new(40, 80);
-    let view_corners = bb.to_view_corners(shape, shape, &None);
+    let view_corners = bb.to_viewcorners(shape, shape, &None);
     let bb_vc = BB::from_viewcorners(view_corners);
     assert_eq!(Some(bb), bb_vc);
 }
