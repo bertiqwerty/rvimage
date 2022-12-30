@@ -15,6 +15,16 @@ use crate::{
     rverr,
 };
 
+fn viewcorners_to_arr(view_corners: ViewCorners) -> [Option<(u32, u32)>; 4] {
+    let ((x_min, y_min), (x_max, y_max)) = view_corners;
+    [
+        x_min.and_then(|xmin| y_min.map(|ymin| (xmin, ymin))),
+        x_min.and_then(|xmin| y_max.map(|ymax| (xmin, ymax))),
+        x_max.and_then(|xmax| y_max.map(|ymax| (xmax, ymax))),
+        x_max.and_then(|xmax| y_min.map(|ymin| (xmax, ymin))),
+    ]
+}
+
 pub fn mouse_pos_transform(
     pixels: &Pixels,
     input_pos: Option<(f32, f32)>,
@@ -247,6 +257,14 @@ impl BB {
             y: a[1],
             w: a[2],
             h: a[3],
+        }
+    }
+
+    pub fn from_viewcorners(view_corners: ViewCorners) -> Option<Self> {
+        if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(y_max))) = view_corners {
+            Some(BB::from_points((x_min, y_min), (x_max, y_max)))
+        } else {
+            None
         }
     }
 
@@ -488,22 +506,18 @@ impl BB {
     }
 }
 
+// if any boundary line is out of view, the corresponding value is None
+// ((x_min, y_min), (x_max, y_max))
 type ViewCorners = ((Option<u32>, Option<u32>), (Option<u32>, Option<u32>));
+
+/// Iterate corners that are in view
 pub struct BbViewCornerIterator {
-    // x_min, y_min, x_max, y_max
     arriter: Flatten<core::array::IntoIter<Option<(u32, u32)>, 4>>,
 }
 impl BbViewCornerIterator {
-    fn new(view_corners: ViewCorners) -> Self {
-        let ((x_min, y_min), (x_max, y_max)) = view_corners;
-        let arr = [
-            x_min.and_then(|xmin| y_min.map(|ymin| (xmin, ymin))),
-            x_min.and_then(|xmin| y_max.map(|ymax| (xmin, ymax))),
-            x_max.and_then(|xmax| y_max.map(|ymax| (xmax, ymax))),
-            x_max.and_then(|xmax| y_min.map(|ymin| (xmax, ymin))),
-        ];
+    pub fn new(view_corners: ViewCorners) -> Self {
         Self {
-            arriter: arr.into_iter().flatten(),
+            arriter: viewcorners_to_arr(view_corners).into_iter().flatten(),
         }
     }
 }
@@ -859,6 +873,15 @@ fn test_max_corner_dist() {
     assert_eq!(bb1.max_corner_squaredist(&bb2), (0, 2, 800));
     let bb2 = BB::from_arr(&[15, 5, 10, 10]);
     assert_eq!(bb1.max_corner_squaredist(&bb2), (1, 3, 500));
+}
+
+#[test]
+fn test_view_corners() {
+    let bb = BB::from_arr(&[5, 5, 10, 10]);
+    let shape = Shape::new(40, 80);
+    let view_corners = bb.to_view_corners(shape, shape, &None);
+    let bb_vc = BB::from_viewcorners(view_corners);
+    assert_eq!(Some(bb), bb_vc);
 }
 
 #[test]
