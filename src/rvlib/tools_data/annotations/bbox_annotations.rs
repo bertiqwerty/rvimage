@@ -1,5 +1,5 @@
 use crate::{
-    domain::{MakeDrawable, Shape, BB},
+    domain::{BbPointIterator, MakeDrawable, Shape, BB},
     image_util,
     types::ViewImage,
 };
@@ -94,45 +94,42 @@ fn draw_bbs(
             f_inner_color,
         );
 
-        let bb_encl = bbs[box_idx].enclosing_bb();
         // draw label field, we do show not the label field for empty-string-labels
-        if (!cats.label_of_box(box_idx).is_empty() && show_label)
-            && (zoom_box.is_none() || zoom_box.unwrap().contains_bb(bb_encl))
-        {
-            let label_box_height = 14;
-            let scale = Scale {
-                x: label_box_height as f32,
-                y: label_box_height as f32,
-            };
-            let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
-            let white = [255, 255, 255];
-            let alpha = 150;
-            let f_inner_color = |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, &white, alpha);
-            let label_box = BB::from_points(
-                bb_encl.min(),
-                (bb_encl.max().0, bb_encl.min().1 + label_box_height),
-            );
-            let (boundary_points, inner_points) =
-                label_box.points_on_view(Shape::from_im(&im_view), shape_orig, shape_win, zoom_box);
-            im_view = image_util::draw_on_image(
-                im_view,
-                boundary_points,
-                inner_points,
-                &Rgb(white),
-                f_inner_color,
-            );
-            let viewcorners = label_box.to_viewcorners(shape_orig, shape_win, zoom_box);
-            let x_min = viewcorners.x_min.unwrap();
-            let y_min = viewcorners.y_min.unwrap();
-            imageproc::drawing::draw_text_mut(
-                &mut im_view,
-                Rgb::<u8>([0, 0, 0]),
-                x_min as i32,
-                y_min as i32,
-                scale,
-                &font,
-                cats.label_of_box(box_idx),
-            );
+        if !cats.label_of_box(box_idx).is_empty() && show_label {
+            let encl_viewcorners = bbs[box_idx]
+                .enclosing_bb()
+                .to_viewcorners(shape_orig, shape_win, zoom_box);
+            if let Some((x_min, y_min, x_max, _)) = encl_viewcorners.to_tuple() {
+                let label_box_height = 14;
+                let scale = Scale {
+                    x: label_box_height as f32,
+                    y: label_box_height as f32,
+                };
+                let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
+                let white = [255, 255, 255];
+                let alpha = 150;
+                let f_inner_color = |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, &white, alpha);
+                let label_view_box =
+                    BB::from_points((x_min, y_min), (x_max, y_min + label_box_height));
+                let inner_points = BbPointIterator::from_bb(label_view_box);
+                let boundary_points = label_view_box.corners();
+                im_view = image_util::draw_on_image(
+                    im_view,
+                    boundary_points,
+                    inner_points,
+                    &Rgb(white),
+                    f_inner_color,
+                );
+                imageproc::drawing::draw_text_mut(
+                    &mut im_view,
+                    Rgb::<u8>([0, 0, 0]),
+                    x_min as i32,
+                    y_min as i32,
+                    scale,
+                    &font,
+                    cats.label_of_box(box_idx),
+                );
+            }
         }
     }
     im_view

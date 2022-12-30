@@ -527,18 +527,37 @@ impl ViewCorners {
             y_max,
         }
     }
-    pub fn to_tuple(self) -> (Option<u32>, Option<u32>, Option<u32>, Option<u32>) {
-        (self.x_min, self.y_min, self.x_max, self.y_max)
+    pub fn from_some(x_min: u32, y_min: u32, x_max: u32, y_max: u32) -> Self {
+        Self::new(Some(x_min), Some(y_min), Some(x_max), Some(y_max))
+    }
+
+    pub fn to_tuple(self) -> Option<(u32, u32, u32, u32)> {
+        if let Self {
+            x_min: Some(x_min),
+            y_min: Some(y_min),
+            x_max: Some(x_max),
+            y_max: Some(y_max),
+        } = self
+        {
+            Some((x_min, y_min, x_max, y_max))
+        } else {
+            None
+        }
     }
     pub fn to_bb(self) -> Option<BB> {
-        if let (Some(xmin), Some(ymin), Some(xmax), Some(ymax)) = self.to_tuple() {
+        if let Some((xmin, ymin, xmax, ymax)) = self.to_tuple() {
             Some(BB::from_points((xmin, ymin), (xmax, ymax)))
         } else {
             None
         }
     }
     fn to_arr(self) -> [Option<(u32, u32)>; 4] {
-        let (x_min, y_min, x_max, y_max) = self.to_tuple();
+        let Self {
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+        } = self;
         [
             x_min.and_then(|xmin| y_min.map(|ymin| (xmin, ymin))),
             x_min.and_then(|xmin| y_max.map(|ymax| (xmin, ymax))),
@@ -566,15 +585,20 @@ impl Iterator for BbViewCornerIterator {
     }
 }
 
-pub struct BbViewPointIterator {
+pub struct BbPointIterator {
     bb: BB,
     x: u32,
     y: u32,
 }
 
-impl BbViewPointIterator {
+impl BbPointIterator {
     pub fn new(view_corners: ViewCorners, view_shape: Shape) -> Self {
-        let (x_min, y_min, x_max, y_max) = view_corners.to_tuple();
+        let ViewCorners {
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+        } = view_corners;
         let x_min = x_min.unwrap_or(0);
         let y_min = y_min.unwrap_or(0);
         let x_max = x_max.unwrap_or(view_shape.w);
@@ -587,14 +611,14 @@ impl BbViewPointIterator {
         }
     }
     pub fn from_bb(bb: BB) -> Self {
-        BbViewPointIterator {
+        BbPointIterator {
             bb,
             x: bb.x,
             y: bb.y,
         }
     }
 }
-impl Iterator for BbViewPointIterator {
+impl Iterator for BbPointIterator {
     type Item = (u32, u32);
     fn next(&mut self) -> Option<Self::Item> {
         let (x, y) = (self.x, self.y);
@@ -614,7 +638,7 @@ impl Iterator for BbViewPointIterator {
 
 impl MakeDrawable for BB {
     type BoundaryPointIterator = BbViewCornerIterator;
-    type PointIterator = BbViewPointIterator;
+    type PointIterator = BbPointIterator;
     fn points_on_view(
         &self,
         shape_view: Shape,
@@ -624,7 +648,7 @@ impl MakeDrawable for BB {
     ) -> (Self::BoundaryPointIterator, Self::PointIterator) {
         let view_corners = self.to_viewcorners(shape_orig, shape_win, zoom_box);
         let boundary = BbViewCornerIterator::new(view_corners);
-        let inner = BbViewPointIterator::new(view_corners, shape_view);
+        let inner = BbPointIterator::new(view_corners, shape_view);
         (boundary, inner)
     }
     fn enclosing_bb(&self) -> BB {
