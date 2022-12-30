@@ -2642,6 +2642,7 @@ version = "0.1.1"
 dependencies = [
  "azure_storage",
  "azure_storage_blobs",
+ "conv",
  "dirs",
  "edit",
  "egui",

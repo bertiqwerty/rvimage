@@ -1,10 +1,14 @@
 use core::cmp::Ordering::{Greater, Less};
 use std::ops::{Add, Sub};
 
-use image::{buffer::ConvertBuffer, DynamicImage, GenericImage, ImageBuffer, Luma, Rgb, Rgba};
+use image::{
+    buffer::ConvertBuffer, DynamicImage, GenericImage, GenericImageView, ImageBuffer, Luma, Rgb,
+    Rgba,
+};
+use imageproc::definitions::Clamp;
 
 use crate::{
-    domain::{Shape, BB},
+    domain::Shape,
     file_util::PixelEffect,
     result::to_rv,
     rverr,
@@ -144,49 +148,35 @@ pub fn apply_alpha(pixel_rgb: &[u8; 3], color: &[u8; 3], alpha: u8) -> Rgb<u8> {
     ])
 }
 
-pub fn draw_bx_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
+pub fn draw_geo_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
     mut im: I,
-    corner_1: (Option<u32>, Option<u32>),
-    corner_2: (Option<u32>, Option<u32>),
+    mut boundary_points: impl Iterator<Item = (u32, u32)>,
+    inner_points: impl Iterator<Item = (u32, u32)>,
     color: &I::Pixel,
     fn_inner_color: F,
-) -> I {
-    let x_c1 = corner_1.0.unwrap_or(0);
-    let y_c1 = corner_1.1.unwrap_or(0);
-    let x_c2 = corner_2.0.unwrap_or_else(|| im.width());
-    let y_c2 = corner_2.1.unwrap_or_else(|| im.height());
-    let x_min = x_c1.min(x_c2);
-    let y_min = y_c1.min(y_c2);
-    let x_max = x_c1.max(x_c2);
-    let y_max = y_c1.max(y_c2);
-    let draw_bx = BB {
-        x: x_min as u32,
-        y: y_min as u32,
-        w: (x_max - x_min) as u32,
-        h: (y_max - y_min) as u32,
-    };
-
-    let inner_effect = |x, y, im: &mut I| {
+) -> I
+where
+    <<I as GenericImageView>::Pixel as image::Pixel>::Subpixel: Clamp<f32>,
+    f32: conv::ValueFrom<<<I as GenericImageView>::Pixel as image::Pixel>::Subpixel>,
+{
+    for inner_point in inner_points {
+        let (x, y) = inner_point;
         let rgb = im.get_pixel(x, y);
         im.put_pixel(x, y, fn_inner_color(&rgb));
-    };
-    {
-        let mut put_pixel = |c: Option<u32>, x, y| {
-            if c.is_some() {
-                im.put_pixel(x, y, *color);
-            } else {
-                inner_effect(x, y, &mut im);
-            }
-        };
-        for x in draw_bx.x_range() {
-            put_pixel(corner_1.1, x, draw_bx.y);
-            put_pixel(corner_2.1, x, draw_bx.y + draw_bx.h - 1);
-        }
-        for y in draw_bx.y_range() {
-            put_pixel(corner_1.0, draw_bx.x, y);
-            put_pixel(corner_2.0, draw_bx.x + draw_bx.w - 1, y);
-        }
     }
-    draw_bx.effect_per_inner_pixel(|x, y| inner_effect(x, y, &mut im));
+
+    let first = boundary_points.next().unwrap();
+    let first = (first.0 as i32, first.1 as i32);
+    let mut prev = (first.0 as i32, first.1 as i32);
+    let blend = imageproc::pixelops::interpolate::<I::Pixel>;
+    for bp in boundary_points {
+        let start = prev;
+        let end = (bp.0 as i32, bp.1 as i32);
+        imageproc::drawing::draw_antialiased_line_segment_mut(&mut im, start, end, *color, blend);
+        prev = end;
+    }
+
+    imageproc::drawing::draw_antialiased_line_segment_mut(&mut im, prev, first, *color, blend);
+
     im
 }

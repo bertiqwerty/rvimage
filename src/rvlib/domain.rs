@@ -3,10 +3,14 @@ use pixels::Pixels;
 use serde::{Deserialize, Serialize};
 use winit::dpi::PhysicalSize;
 
-use std::{fmt::Display, iter::once, ops::Range, str::FromStr};
+use std::{
+    fmt::Display,
+    iter::{self, Flatten},
+    ops::Range,
+    str::FromStr,
+};
 
 use crate::{
-    file_util::PixelEffect,
     result::{to_rv, RvError, RvResult},
     rverr,
 };
@@ -162,44 +166,69 @@ pub type CornerOptions = ((Option<u32>, Option<u32>), (Option<u32>, Option<u32>)
 
 pub type Point = (u32, u32);
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
-pub struct Polygon {
-    pub points: Vec<Point>,
-}
-impl Polygon {
-    pub fn from_bb(bb: BB) -> Self {
-        let points = bb.corners().collect();
-        Polygon { points }
-    }
-    pub fn enclosing_bb(&self) -> Option<BB> {
-        let (mut x_min, mut y_min, mut x_max, mut y_max) = (None, None, None, None);
-
-        let check_for_new_champion = |v: Option<u32>, new_v, cmp: fn(u32, u32) -> bool| {
-            if let Some(v) = v {
-                if cmp(new_v, v) {
-                    Some(new_v)
-                } else {
-                    Some(v)
-                }
+#[cfg(test)]
+fn find_enclosing_bb(points: &Vec<(u32, u32)>) -> RvResult<BB> {
+    if points.is_empty() {
+        Err(rverr!("need points to compute enclosing bounding box",))
+    } else {
+        fn pick_better(v: u32, new_v: u32, cmp: fn(u32, u32) -> bool) -> u32 {
+            if cmp(new_v, v) {
+                new_v
             } else {
-                Some(new_v)
+                v
             }
-        };
+        }
 
         let smaller = |a, b| a < b;
         let greater = |a, b| a > b;
 
-        for p in &self.points {
-            x_min = check_for_new_champion(x_min, p.0, smaller);
-            y_min = check_for_new_champion(y_min, p.1, smaller);
-            x_max = check_for_new_champion(x_max, p.0, greater);
-            y_max = check_for_new_champion(y_max, p.1, greater);
+        let (mut x_min, mut y_min, mut x_max, mut y_max) = (u32::MAX, u32::MAX, u32::MIN, u32::MIN);
+        for p in points {
+            x_min = pick_better(x_min, p.0, smaller);
+            y_min = pick_better(y_min, p.1, smaller);
+            x_max = pick_better(x_max, p.0, greater);
+            y_max = pick_better(y_max, p.1, greater);
         }
-        if let (Some(x_min), Some(y_min), Some(x_max), Some(y_max)) = (x_min, y_min, x_max, y_max) {
-            Some(BB::from_points((x_min, y_min), (x_max, y_max)))
-        } else {
-            None
+        Ok(BB::from_points((x_min, y_min), (x_max, y_max)))
+    }
+}
+
+fn chain_corners<T>(select: impl Fn(usize) -> T) -> impl Iterator<Item = T> {
+    let iter_c1 = iter::once(select(0));
+    let iter_c2 = iter::once(select(1));
+    let iter_c3 = iter::once(select(2));
+    let iter_c4 = iter::once(select(3));
+    iter_c1.chain(iter_c2).chain(iter_c3).chain(iter_c4)
+}
+
+pub trait MakeDrawable {
+    type BoundaryPointIterator;
+    type PointIterator;
+    fn points_on_view(
+        &self,
+        shape_view: Shape,
+        shape_orig: Shape,
+        shape_win: Shape,
+        zoom_box: &Option<BB>,
+    ) -> (Self::BoundaryPointIterator, Self::PointIterator);
+    fn enclosing_bb(&self) -> BB;
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+pub struct Polygon {
+    points: Vec<Point>, // should NEVER be empty, hence private!
+    enclosing_bb: BB,
+}
+impl Polygon {
+    pub fn from_bb(bb: BB) -> Self {
+        let points = vec![(bb.x, bb.y), (bb.x + bb.w - 1, bb.y + bb.h - 1)];
+        Polygon {
+            points,
+            enclosing_bb: bb,
         }
+    }
+    pub fn enclosing_bb(&self) -> BB {
+        self.enclosing_bb
     }
 }
 
@@ -252,12 +281,9 @@ impl BB {
     /// 0   3
     /// v   ʌ
     /// 1 > 2
-    pub fn corners(&self) -> impl Iterator<Item = (u32, u32)> {
-        let iter_c1 = once(self.corner(0));
-        let iter_c2 = once(self.corner(1));
-        let iter_c3 = once(self.corner(2));
-        let iter_c4 = once(self.corner(3));
-        iter_c1.chain(iter_c2).chain(iter_c3).chain(iter_c4)
+    #[allow(clippy::needless_lifetimes)]
+    pub fn corners<'a>(&'a self) -> impl Iterator<Item = (u32, u32)> + 'a {
+        chain_corners(|i| self.corner(i))
     }
     pub fn corner(&self, idx: usize) -> (u32, u32) {
         let (x, y, w, h) = (self.x, self.y, self.w, self.h);
@@ -271,66 +297,6 @@ impl BB {
     }
     pub fn opposite_corner(&self, idx: usize) -> (u32, u32) {
         self.corner((idx + 2) % 4)
-    }
-
-    pub fn to_view_corners(
-        &self,
-        shape_orig: Shape,
-        shape_win: Shape,
-        zoom_box: &Option<BB>,
-    ) -> CornerOptions {
-        let ((x_min, y_min), (x_max, y_max)) = match zoom_box {
-            Some(zb) => {
-                let x_min = if zb.x > self.min().0 {
-                    None
-                } else {
-                    Some(self.min().0)
-                };
-                let y_min = if zb.y > self.min().1 {
-                    None
-                } else {
-                    Some(self.min().1)
-                };
-                let x_max = if zb.x > self.max().0 {
-                    None
-                } else {
-                    Some(self.max().0)
-                };
-                let y_max = if zb.y > self.max().1 {
-                    None
-                } else {
-                    Some(self.max().1)
-                };
-
-                ((x_min, y_min), (x_max, y_max))
-            }
-            None => (
-                (Some(self.min().0), Some(self.min().1)),
-                (Some(self.max().0), Some(self.max().1)),
-            ),
-        };
-        let s_unscaled = shape_unscaled(zoom_box, shape_orig);
-        let s_scaled = shape_scaled(s_unscaled, shape_win);
-        let tf_x = |x| {
-            orig_coord_to_view_coord(
-                x,
-                s_unscaled.w,
-                s_scaled.w,
-                &zoom_box.map(|zb| zb.min_max(0)),
-            )
-        };
-        let tf_y = |y| {
-            orig_coord_to_view_coord(
-                y,
-                s_unscaled.h,
-                s_scaled.h,
-                &zoom_box.map(|zb| zb.min_max(1)),
-            )
-        };
-        (
-            (x_min.and_then(tf_x), y_min.and_then(tf_y)),
-            (x_max.and_then(tf_x), y_max.and_then(tf_y)),
-        )
     }
 
     pub fn shape(&self) -> Shape {
@@ -356,16 +322,6 @@ impl BB {
     }
     pub fn y_range(&self) -> Range<u32> {
         self.y..(self.y + self.h)
-    }
-    pub fn effect_per_inner_pixel<F>(&self, mut effect: F)
-    where
-        F: PixelEffect,
-    {
-        for y in (self.y + 1)..(self.y + self.h - 1) {
-            for x in (self.x + 1)..(self.x + self.w - 1) {
-                effect(x, y);
-            }
-        }
     }
     pub fn center_f(&self) -> (f32, f32) {
         (
@@ -476,8 +432,153 @@ impl BB {
             other.corners().any(|c| self.contains(c))
         }
     }
+
+    pub fn to_view_corners(
+        &self,
+        shape_orig: Shape,
+        shape_win: Shape,
+        zoom_box: &Option<BB>,
+    ) -> ViewCorners {
+        let ((x_min, y_min), (x_max, y_max)) = match zoom_box {
+            Some(zb) => {
+                let x_min = if zb.x > self.min().0 {
+                    zb.x
+                } else {
+                    self.min().0
+                };
+                let y_min = if zb.y > self.min().1 {
+                    zb.y
+                } else {
+                    self.min().1
+                };
+                let x_max = if zb.max().0 < self.max().0 {
+                    zb.max().0
+                } else {
+                    self.max().0
+                };
+                let y_max = if zb.max().1 < self.max().1 {
+                    zb.max().1
+                } else {
+                    self.max().1
+                };
+
+                ((x_min, y_min), (x_max, y_max))
+            }
+            None => (self.min(), self.max()),
+        };
+        let s_unscaled = shape_unscaled(zoom_box, shape_orig);
+        let s_scaled = shape_scaled(s_unscaled, shape_win);
+        let tf_x = |x| {
+            orig_coord_to_view_coord(
+                x,
+                s_unscaled.w,
+                s_scaled.w,
+                &zoom_box.map(|zb| zb.min_max(0)),
+            )
+        };
+        let tf_y = |y| {
+            orig_coord_to_view_coord(
+                y,
+                s_unscaled.h,
+                s_scaled.h,
+                &zoom_box.map(|zb| zb.min_max(1)),
+            )
+        };
+        ((tf_x(x_min), tf_y(y_min)), (tf_x(x_max), tf_y(y_max)))
+    }
 }
 
+type ViewCorners = ((Option<u32>, Option<u32>), (Option<u32>, Option<u32>));
+pub struct BbViewCornerIterator {
+    // x_min, y_min, x_max, y_max
+    arriter: Flatten<core::array::IntoIter<Option<(u32, u32)>, 4>>,
+}
+impl BbViewCornerIterator {
+    fn new(view_corners: ViewCorners) -> Self {
+        let ((x_min, y_min), (x_max, y_max)) = view_corners;
+        let arr = [
+            x_min.and_then(|xmin| y_min.map(|ymin| (xmin, ymin))),
+            x_min.and_then(|xmin| y_max.map(|ymax| (xmin, ymax))),
+            x_max.and_then(|xmax| y_max.map(|ymax| (xmax, ymax))),
+            x_max.and_then(|xmax| y_min.map(|ymin| (xmax, ymin))),
+        ];
+        Self {
+            arriter: arr.into_iter().flatten(),
+        }
+    }
+}
+impl Iterator for BbViewCornerIterator {
+    type Item = (u32, u32);
+    fn next(&mut self) -> Option<Self::Item> {
+        self.arriter.next()
+    }
+}
+
+pub struct BbViewPointIterator {
+    bb: BB,
+    x: u32,
+    y: u32,
+}
+
+impl BbViewPointIterator {
+    pub fn new(view_corners: ViewCorners, view_shape: Shape) -> Self {
+        let ((x_min, y_min), (x_max, y_max)) = view_corners;
+        let x_min = x_min.unwrap_or(0);
+        let y_min = y_min.unwrap_or(0);
+        let x_max = x_max.unwrap_or(view_shape.w);
+        let y_max = y_max.unwrap_or(view_shape.h);
+        let bb = BB::from_arr(&[x_min, y_min, x_max - x_min, y_max - y_min]);
+        Self {
+            bb,
+            x: bb.x,
+            y: bb.y,
+        }
+    }
+    pub fn from_bb(bb: BB) -> Self {
+        BbViewPointIterator {
+            bb,
+            x: bb.x,
+            y: bb.y,
+        }
+    }
+}
+impl Iterator for BbViewPointIterator {
+    type Item = (u32, u32);
+    fn next(&mut self) -> Option<Self::Item> {
+        let (x, y) = (self.x, self.y);
+        let (x_max_excl, y_max_excl) = self.bb.max();
+        if self.y == y_max_excl {
+            None
+        } else {
+            (self.x, self.y) = if self.x == x_max_excl - 1 {
+                (self.bb.x, self.y + 1)
+            } else {
+                (self.x + 1, self.y)
+            };
+            Some((x, y))
+        }
+    }
+}
+
+impl MakeDrawable for BB {
+    type BoundaryPointIterator = BbViewCornerIterator;
+    type PointIterator = BbViewPointIterator;
+    fn points_on_view(
+        &self,
+        shape_view: Shape,
+        shape_orig: Shape,
+        shape_win: Shape,
+        zoom_box: &Option<BB>,
+    ) -> (Self::BoundaryPointIterator, Self::PointIterator) {
+        let view_corners = self.to_view_corners(shape_orig, shape_win, zoom_box);
+        let boundary = BbViewCornerIterator::new(view_corners);
+        let inner = BbViewPointIterator::new(view_corners, shape_view);
+        (boundary, inner)
+    }
+    fn enclosing_bb(&self) -> BB {
+        *self
+    }
+}
 impl Display for BB {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bb_str = format!("[{}, {}, {} ,{}]", self.x, self.y, self.w, self.h);
@@ -544,7 +645,11 @@ pub fn make_test_bbs() -> Vec<BB> {
 fn test_polygon() {
     let bbs = make_test_bbs();
     let poly = Polygon::from_bb(bbs[2]);
-    assert_eq!(poly.enclosing_bb(), Some(bbs[2]));
+    assert_eq!(poly.enclosing_bb(), bbs[2]);
+    let corners = bbs[0].corners().collect();
+    let ebb = find_enclosing_bb(&corners).unwrap();
+    let poly = Polygon::from_bb(ebb);
+    assert_eq!(poly.enclosing_bb(), ebb);
 }
 
 #[test]
@@ -754,4 +859,38 @@ fn test_max_corner_dist() {
     assert_eq!(bb1.max_corner_squaredist(&bb2), (0, 2, 800));
     let bb2 = BB::from_arr(&[15, 5, 10, 10]);
     assert_eq!(bb1.max_corner_squaredist(&bb2), (1, 3, 500));
+}
+
+#[test]
+fn test_point_iterators() {
+    fn test(zb: Option<BB>, bb: BB, ref_bb: BB) {
+        let shape = Shape::new(2100, 100);
+        let (boundary, inners) = bb.points_on_view(shape, shape, shape, &zb);
+        assert_eq!(
+            ref_bb.corners().collect::<Vec<_>>(),
+            boundary.collect::<Vec<_>>()
+        );
+        let ips = inners.collect::<Vec<_>>();
+
+        for y in ref_bb.y_range() {
+            for x in ref_bb.x_range() {
+                assert!(ips.contains(&(x, y)));
+            }
+        }
+
+        for ip in ips {
+            assert!(ip.0 >= ref_bb.min().0);
+            assert!(ip.0 < ref_bb.max().0);
+            assert!(ip.1 >= ref_bb.min().1);
+            assert!(ip.1 < ref_bb.max().1);
+        }
+    }
+    let bb = BB::from_arr(&[5, 5, 10, 10]);
+    test(None, bb, bb);
+    test(Some(BB::from_arr(&[0, 0, 100, 100])), bb, bb);
+    test(
+        Some(BB::from_arr(&[5, 5, 80, 80])),
+        bb,
+        BB::from_arr(&[0, 0, 12, 12]),
+    );
 }

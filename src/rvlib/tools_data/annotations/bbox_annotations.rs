@@ -1,5 +1,5 @@
 use crate::{
-    domain::{Shape, BB},
+    domain::{MakeDrawable, Shape, BB},
     image_util,
     types::ViewImage,
 };
@@ -10,9 +10,9 @@ use std::mem;
 const BBOX_ALPHA: u8 = 180;
 const BBOX_ALPHA_SELECTED: u8 = 120;
 
-fn resize_bbs<F>(mut bbs: Vec<BB>, selected_bbs: &[bool], resize: F) -> Vec<BB>
+fn resize_bbs<F>(mut bbs: Vec<InstanceGeo>, selected_bbs: &[bool], resize: F) -> Vec<InstanceGeo>
 where
-    F: Fn(BB) -> Option<BB>,
+    F: Fn(InstanceGeo) -> Option<InstanceGeo>,
 {
     let selected_idxs = selected_bbs
         .iter()
@@ -42,14 +42,14 @@ impl<'a> Cats<'a> {
 }
 
 struct BbParams<'a> {
-    pub bbs: &'a [BB],
+    pub bbs: &'a [InstanceGeo],
     pub selected_bbs: &'a [bool],
     pub cats: Cats<'a>,
     show_label: bool,
 }
 
 fn draw_bbs(
-    mut im: ViewImage,
+    mut im_view: ViewImage,
     shape_orig: Shape,
     shape_win: Shape,
     zoom_box: &Option<BB>,
@@ -65,10 +65,11 @@ fn draw_bbs(
     // remove those box ids that are outside of the zoom box
     let relevant_box_inds = (0..bbs.len()).filter(|box_idx| {
         if let Some(zb) = zoom_box {
-            !(bbs[*box_idx].y + bbs[*box_idx].h < zb.y
-                || bbs[*box_idx].x + bbs[*box_idx].w < zb.x
-                || bbs[*box_idx].x > zb.x + zb.w
-                || bbs[*box_idx].y > zb.y + zb.h)
+            let encl_b = bbs[*box_idx].enclosing_bb();
+            !(encl_b.y + encl_b.h < zb.y
+                || encl_b.x + encl_b.w < zb.x
+                || encl_b.x > zb.x + zb.w
+                || encl_b.y > zb.y + zb.h)
         } else {
             true
         }
@@ -81,21 +82,26 @@ fn draw_bbs(
         };
         let f_inner_color =
             |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, cats.color_of_box(box_idx), alpha);
-        let view_corners = bbs[box_idx].to_view_corners(shape_orig, shape_win, zoom_box);
 
+        let (boundary_points, inner_points) =
+            bbs[box_idx].points_on_view(Shape::from_im(&im_view), shape_orig, shape_win, zoom_box);
         let color_rgb = Rgb(*cats.color_of_box(box_idx));
-        im = image_util::draw_bx_on_image(
-            im,
-            view_corners.0,
-            view_corners.1,
+        im_view = image_util::draw_geo_on_image(
+            im_view,
+            boundary_points,
+            inner_points,
             &color_rgb,
             f_inner_color,
         );
 
+        let encl_view_corners = bbs[box_idx]
+            .enclosing_bb()
+            .to_view_corners(shape_orig, shape_win, zoom_box);
+        let ((x_min, y_min), (x_max, _)) = encl_view_corners;
         // draw label field
-        // we do not the label field for the empty-string-label
+        // we do show not the label field for empty-string-labels
         if !cats.label_of_box(box_idx).is_empty() && show_label {
-            if let ((Some(x_min), Some(y_min)), (Some(x_max), Some(_))) = view_corners {
+            if let (Some(x_min), Some(y_min), Some(x_max)) = (x_min, y_min, x_max) {
                 let label_box_height = 14;
                 let scale = Scale {
                     x: label_box_height as f32,
@@ -105,15 +111,22 @@ fn draw_bbs(
                 let white = [255, 255, 255];
                 let alpha = 150;
                 let f_inner_color = |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, &white, alpha);
-                im = image_util::draw_bx_on_image(
-                    im,
-                    view_corners.0,
-                    (Some(x_max), Some(y_min + label_box_height)),
+                let label_box = BB::from_points((x_min, y_min), (x_max, y_min + label_box_height));
+                let (boundary_points, inner_points) = label_box.points_on_view(
+                    Shape::from_im(&im_view),
+                    shape_orig,
+                    shape_win,
+                    zoom_box,
+                );
+                im_view = image_util::draw_geo_on_image(
+                    im_view,
+                    boundary_points,
+                    inner_points,
                     &Rgb(white),
                     f_inner_color,
                 );
                 imageproc::drawing::draw_text_mut(
-                    &mut im,
+                    &mut im_view,
                     Rgb::<u8>([0, 0, 0]),
                     x_min as i32,
                     y_min as i32,
@@ -124,7 +137,7 @@ fn draw_bbs(
             }
         }
     }
-    im
+    im_view
 }
 
 #[allow(clippy::needless_lifetimes)]
@@ -150,9 +163,11 @@ pub fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = us
     selected_or_deselected_indices(selected_bbs, false)
 }
 
+pub type InstanceGeo = BB;
+
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
-    bbs: Vec<BB>,
+    bbs: Vec<InstanceGeo>,
     cat_idxs: Vec<usize>,
     selected_bbs: Vec<bool>,
     pub show_labels: bool,
@@ -168,13 +183,13 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn to_data(self) -> (Vec<BB>, Vec<usize>) {
+    pub fn to_data(self) -> (Vec<InstanceGeo>, Vec<usize>) {
         (self.bbs, self.cat_idxs)
     }
 
     pub fn extend<IB, IC>(&mut self, bbs: IB, cat_ids: IC, shape_image: Shape)
     where
-        IB: Iterator<Item = BB>,
+        IB: Iterator<Item = InstanceGeo>,
         IC: Iterator<Item = usize>,
     {
         for (bb, cat_id) in bbs.zip(cat_ids) {
@@ -184,7 +199,7 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn from_bbs_cats(bbs: Vec<BB>, cat_ids: Vec<usize>) -> BboxAnnotations {
+    pub fn from_bbs_cats(bbs: Vec<InstanceGeo>, cat_ids: Vec<usize>) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
             bbs,
@@ -194,7 +209,7 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn from_bbs(bbs: Vec<BB>, cat_id: usize) -> BboxAnnotations {
+    pub fn from_bbs(bbs: Vec<InstanceGeo>, cat_id: usize) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
             bbs,
@@ -214,7 +229,7 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn remove(&mut self, box_idx: usize) -> BB {
+    pub fn remove(&mut self, box_idx: usize) -> InstanceGeo {
         self.cat_idxs.remove(box_idx);
         self.selected_bbs.remove(box_idx);
         self.bbs.remove(box_idx)
@@ -250,7 +265,7 @@ impl BboxAnnotations {
         });
     }
 
-    pub fn add_bb(&mut self, bb: BB, cat_idx: usize) {
+    pub fn add_bb(&mut self, bb: InstanceGeo, cat_idx: usize) {
         self.cat_idxs.push(cat_idx);
         self.bbs.push(bb);
         self.selected_bbs.push(false);
@@ -260,7 +275,7 @@ impl BboxAnnotations {
         &self.cat_idxs
     }
 
-    pub fn bbs(&self) -> &Vec<BB> {
+    pub fn bbs(&self) -> &Vec<InstanceGeo> {
         &self.bbs
     }
 
@@ -399,16 +414,16 @@ fn test_bbs() {
         bb.shift_max(-1, 1, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BB::from_points((5, 5), (14, 16)), resized[1]);
-    assert_eq!(BB::from_points((9, 9), (18, 20)), resized[2]);
+    assert_eq!(InstanceGeo::from_points((5, 5), (14, 16)), resized[1]);
+    assert_eq!(InstanceGeo::from_points((9, 9), (18, 20)), resized[2]);
 
     // shift min
     let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
         bb.shift_min(-1, 1, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BB::from_points((4, 6), (15, 15)), resized[1]);
-    assert_eq!(BB::from_points((8, 10), (19, 19)), resized[2]);
+    assert_eq!(InstanceGeo::from_points((4, 6), (15, 15)), resized[1]);
+    assert_eq!(InstanceGeo::from_points((8, 10), (19, 19)), resized[2]);
 }
 #[test]
 fn test_annos() {

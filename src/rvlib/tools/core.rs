@@ -1,10 +1,8 @@
-use image::Rgb;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
     domain::{self, Shape, BB},
     history::History,
-    image_util,
     types::ViewImage,
     world::World,
 };
@@ -144,27 +142,4 @@ macro_rules! make_tool_transform {
             ($world, $history)
         }
     };
-}
-
-pub fn draw_bx_on_view(
-    im: ViewImage,
-    corner_1: (u32, u32),
-    corner_2: (u32, u32),
-    color: &Rgb<u8>,
-) -> ViewImage {
-    let offset = Rgb([color[0] / 5, color[1] / 5, color[2] / 5]);
-    let f = |rgb: &Rgb<u8>| {
-        Rgb([
-            image_util::clipped_add(offset[0], rgb[0], 255),
-            image_util::clipped_add(offset[1], rgb[1], 255),
-            image_util::clipped_add(offset[2], rgb[2], 255),
-        ])
-    };
-    image_util::draw_bx_on_image(
-        im,
-        (Some(corner_1.0), Some(corner_1.1)),
-        (Some(corner_2.0), Some(corner_2.1)),
-        color,
-        f,
-    )
 }

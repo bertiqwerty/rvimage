@@ -4,11 +4,11 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
-    domain::{self, Shape, BB},
+    domain::{self, BbViewPointIterator, Shape, BB},
     history::History,
-    image_util::to_u32,
+    image_util::{self, to_u32},
     make_tool_transform,
-    tools::core::{self, Manipulate},
+    tools::core::Manipulate,
     types::ViewImage,
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -17,6 +17,19 @@ use crate::{
 use super::core::Mover;
 const MIN_ZOOM: u32 = 2;
 
+fn draw_zoombox_on_view(im: ViewImage, zoombox: BB, color: &Rgb<u8>) -> ViewImage {
+    let offset = Rgb([color[0] / 5, color[1] / 5, color[2] / 5]);
+    let f = |rgb: &Rgb<u8>| {
+        Rgb([
+            image_util::clipped_add(offset[0], rgb[0], 255),
+            image_util::clipped_add(offset[1], rgb[1], 255),
+            image_util::clipped_add(offset[2], rgb[2], 255),
+        ])
+    };
+    let corners = zoombox.corners();
+    let inner_points = BbViewPointIterator::from_bb(zoombox);
+    image_util::draw_geo_on_image(im, corners, inner_points, color, f)
+}
 pub fn move_zoom_box(
     mut mover: Mover,
     mut world: World,
@@ -169,10 +182,9 @@ impl Zoom {
         } else if event.mouse_held(LEFT_BTN) {
             if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, mouse_pos) {
                 let initial_view = self.initial_view.clone();
-                world.set_im_view(core::draw_bx_on_view(
+                world.set_im_view(draw_zoombox_on_view(
                     initial_view.unwrap(),
-                    to_u32(mps),
-                    to_u32(m),
+                    BB::from_points(to_u32(mps), to_u32(m)),
                     &Rgb([255, 255, 255]),
                 ));
             }
