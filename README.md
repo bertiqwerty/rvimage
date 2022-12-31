@@ -86,12 +86,13 @@ For an import to work, the folder that contains the images needs to be opened be
 | ctrl + a                    | select all boxes                                                                         |
 | delete                      | remove selected boxes                                                                    |
 | ctrl + d                    | deselect all boxes                                                                       |
-| c                           | clone selected boxes at mouse position and move selection to new box                       |
+| c                           | clone selected boxes at mouse position and move selection to new box                     |
 | ctrl + c                    | copy all selected boxes to clipboard                                                     |
-| ctrl + v                    | paste boxes from clipboard on another image                                              |
+| ctrl + v                    | paste boxes without existing duplicate from clipboard                                    |
 | left/right/up/down          | move bottom right corner of all selected boxes                                           |
 | ctrl + left/right/up/down   | move top left corner of all selected boxes                                               |
 | alt + left/right/up/down    | move all selected boxes                                                                  |
+| ctrl + l                    | toggle category names                                                                    |
 
 ---
 \* <sub>The connection to Azure blob storages has `tokio`, `futures`, `azure_storage`, and `azure_storage_blob` as additional dependencies, since the used [Azure SDK](https://github.com/Azure/azure-sdk-for-rust) is implemented `async`hronously and needs `tokio`. However, the rest of RV Image uses its own small threadpool implementation. Hence, the Azure blob storage connection is implemented as Cargo-Feature `azure_blob` that is enabled by default.</sub>
