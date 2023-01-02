@@ -263,6 +263,14 @@ impl BB {
         )
     }
 
+    pub fn intersect_or_self(&self, other: Option<BB>) -> BB {
+        if let Some(other) = other {
+            self.intersect(other)
+        } else {
+            *self
+        }
+    }
+
     pub fn max_corner_squaredist(&self, other: &BB) -> (usize, usize, i64) {
         (0..4)
             .map(|csidx| {
@@ -999,6 +1007,11 @@ fn test_intersect() {
     assert_eq!(bb.intersect(bb), bb);
     assert_eq!(
         bb.intersect(BB::from_arr(&[5, 7, 10, 10])),
+        BB::from_arr(&[10, 15, 5, 2])
+    );
+    assert_eq!(bb.intersect_or_self(None), bb);
+    assert_eq!(
+        bb.intersect_or_self(Some(BB::from_arr(&[5, 7, 10, 10]))),
         BB::from_arr(&[10, 15, 5, 2])
     );
 }
