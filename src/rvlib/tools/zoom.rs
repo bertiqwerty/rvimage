@@ -61,10 +61,10 @@ fn make_zoom_on_release(
 
     match (prs_orig, rel_orig) {
         (Some((px, py)), Some((rx, ry))) => {
-            let x_min = px.min(rx) as u32;
-            let y_min = py.min(ry) as u32;
-            let x_max = px.max(rx) as u32;
-            let y_max = py.max(ry) as u32;
+            let x_min = px.min(rx);
+            let y_min = py.min(ry);
+            let x_max = px.max(rx);
+            let y_max = py.max(ry);
 
             let w = x_max - x_min;
             let h = y_max - y_min;

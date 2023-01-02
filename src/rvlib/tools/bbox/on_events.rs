@@ -151,8 +151,7 @@ pub(super) fn on_mouse_released_left(
     } else if is_ctrl_held || is_alt_held || is_shift_held {
         // selection
         let annos = get_annos_mut(&mut world);
-        let idx =
-            mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x as u32, y as u32), annos.bbs()));
+        let idx = mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x, y), annos.bbs()));
         if let Some(i) = idx {
             if is_shift_held {
                 // If shift is held a new selection box will be spanned between the currently clicked

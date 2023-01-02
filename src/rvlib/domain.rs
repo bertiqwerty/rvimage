@@ -250,6 +250,19 @@ impl BB {
         }
     }
 
+    pub fn intersect(&self, other: BB) -> BB {
+        BB::from_points(
+            (
+                self.min().0.max(other.min().0),
+                self.min().1.max(other.min().1),
+            ),
+            (
+                self.max().0.min(other.max().0),
+                self.max().1.min(other.max().1),
+            ),
+        )
+    }
+
     pub fn max_corner_squaredist(&self, other: &BB) -> (usize, usize, i64) {
         (0..4)
             .map(|csidx| {
@@ -977,5 +990,15 @@ fn test_point_iterators() {
         Some(BB::from_arr(&[5, 5, 80, 80])),
         bb,
         BB::from_arr(&[0, 0, 12, 12]),
+    );
+}
+
+#[test]
+fn test_intersect() {
+    let bb = BB::from_arr(&[10, 15, 20, 10]);
+    assert_eq!(bb.intersect(bb), bb);
+    assert_eq!(
+        bb.intersect(BB::from_arr(&[5, 7, 10, 10])),
+        BB::from_arr(&[10, 15, 5, 2])
     );
 }

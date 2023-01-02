@@ -167,7 +167,7 @@ where
 
     let first = boundary_points.next().unwrap();
     let first = (first.0 as i32, first.1 as i32);
-    let mut prev = (first.0 as i32, first.1 as i32);
+    let mut prev = (first.0, first.1);
     let blend = imageproc::pixelops::interpolate::<I::Pixel>;
     for bp in boundary_points {
         let start = prev;

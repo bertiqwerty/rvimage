@@ -83,7 +83,7 @@ impl CocoExportData {
             .iter()
             .zip(export_data.cat_ids.iter())
             .map(|(label, cat_id)| CocoBboxCategory {
-                id: *cat_id as u32,
+                id: *cat_id,
                 name: label.clone(),
             })
             .collect::<Vec<_>>();
@@ -99,7 +99,7 @@ impl CocoExportData {
                         CocoAnnotation {
                             id: box_id - 1,
                             image_id: image_idx as u32,
-                            category_id: export_data.cat_ids[*cat_idx] as u32,
+                            category_id: export_data.cat_ids[*cat_idx],
                             bbox: bb_f,
                             segmentation: Some(vec![vec![
                                 bb_f[0],
