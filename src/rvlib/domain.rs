@@ -250,15 +250,20 @@ impl BB {
         }
     }
 
+    pub fn y_max(&self) -> u32 {
+        self.y + self.h
+    }
+
+    pub fn x_max(&self) -> u32 {
+        self.x + self.w
+    }
+
     pub fn intersect(&self, other: BB) -> BB {
         BB::from_points(
+            (self.x.max(other.x), self.y.max(other.y)),
             (
-                self.min().0.max(other.min().0),
-                self.min().1.max(other.min().1),
-            ),
-            (
-                self.max().0.min(other.max().0),
-                self.max().1.min(other.max().1),
+                self.x_max().min(other.x_max()),
+                self.y_max().min(other.y_max()),
             ),
         )
     }
@@ -477,50 +482,47 @@ impl BB {
         shape_win: Shape,
         zoom_box: &Option<BB>,
     ) -> ViewCorners {
-        let ((x_min, y_min), (x_max, y_max)) = match zoom_box {
+        let (x_min, y_min, x_max, y_max) = match zoom_box {
             Some(zb) => {
-                let x_min = if zb.x > self.min().0 {
-                    zb.x
+                let x_min = if zb.x > self.x { None } else { Some(self.x) };
+                let y_min = if zb.y > self.y { None } else { Some(self.y) };
+                let x_max = if zb.x_max() < self.x_max() {
+                    None
                 } else {
-                    self.min().0
+                    Some(self.x_max())
                 };
-                let y_min = if zb.y > self.min().1 {
-                    zb.y
+                let y_max = if zb.y_max() < self.y_max() {
+                    None
                 } else {
-                    self.min().1
-                };
-                let x_max = if zb.max().0 < self.max().0 {
-                    zb.max().0
-                } else {
-                    self.max().0
-                };
-                let y_max = if zb.max().1 < self.max().1 {
-                    zb.max().1
-                } else {
-                    self.max().1
+                    Some(self.y_max())
                 };
 
-                ((x_min, y_min), (x_max, y_max))
+                (x_min, y_min, x_max, y_max)
             }
-            None => (self.min(), self.max()),
+            None => ViewCorners::from_some(self.x, self.y, self.x_max(), self.y_max())
+                .to_tuple_of_options(),
         };
         let s_unscaled = shape_unscaled(zoom_box, shape_orig);
         let s_scaled = shape_scaled(s_unscaled, shape_win);
-        let tf_x = |x| {
-            orig_coord_to_view_coord(
-                x,
-                s_unscaled.w,
-                s_scaled.w,
-                &zoom_box.map(|zb| zb.min_max(0)),
-            )
+        let tf_x = |x: Option<u32>| {
+            x.and_then(|x| {
+                orig_coord_to_view_coord(
+                    x,
+                    s_unscaled.w,
+                    s_scaled.w,
+                    &zoom_box.map(|zb| zb.min_max(0)),
+                )
+            })
         };
-        let tf_y = |y| {
-            orig_coord_to_view_coord(
-                y,
-                s_unscaled.h,
-                s_scaled.h,
-                &zoom_box.map(|zb| zb.min_max(1)),
-            )
+        let tf_y = |y: Option<u32>| {
+            y.and_then(|y| {
+                orig_coord_to_view_coord(
+                    y,
+                    s_unscaled.h,
+                    s_scaled.h,
+                    &zoom_box.map(|zb| zb.min_max(1)),
+                )
+            })
         };
         ViewCorners::new(tf_x(x_min), tf_y(y_min), tf_x(x_max), tf_y(y_max))
     }
@@ -552,7 +554,7 @@ impl ViewCorners {
         Self::new(Some(x_min), Some(y_min), Some(x_max), Some(y_max))
     }
 
-    pub fn to_tuple(self) -> Option<(u32, u32, u32, u32)> {
+    pub fn to_optional_tuple(self) -> Option<(u32, u32, u32, u32)> {
         if let Self {
             x_min: Some(x_min),
             y_min: Some(y_min),
@@ -565,8 +567,13 @@ impl ViewCorners {
             None
         }
     }
+
+    pub fn to_tuple_of_options(self) -> (Option<u32>, Option<u32>, Option<u32>, Option<u32>) {
+        (self.x_min, self.y_min, self.x_max, self.y_max)
+    }
+
     pub fn to_bb(self) -> Option<BB> {
-        if let Some((xmin, ymin, xmax, ymax)) = self.to_tuple() {
+        if let Some((xmin, ymin, xmax, ymax)) = self.to_optional_tuple() {
             Some(BB::from_points((xmin, ymin), (xmax, ymax)))
         } else {
             None
@@ -644,7 +651,8 @@ impl Iterator for BbPointIterator {
     fn next(&mut self) -> Option<Self::Item> {
         let (x, y) = (self.x, self.y);
         let (x_max_excl, y_max_excl) = self.bb.max();
-        if self.y == y_max_excl {
+        // we need to check also for x since we might have a degenerated box with width 0
+        if self.y == y_max_excl || self.x == x_max_excl {
             None
         } else {
             (self.x, self.y) = if self.x == x_max_excl - 1 {
@@ -985,10 +993,10 @@ fn test_point_iterators() {
         }
 
         for ip in ips {
-            assert!(ip.0 >= ref_bb.min().0);
-            assert!(ip.0 < ref_bb.max().0);
-            assert!(ip.1 >= ref_bb.min().1);
-            assert!(ip.1 < ref_bb.max().1);
+            assert!(ip.0 >= ref_bb.x);
+            assert!(ip.0 < ref_bb.x_max());
+            assert!(ip.1 >= ref_bb.y);
+            assert!(ip.1 < ref_bb.y_max());
         }
     }
     let bb = BB::from_arr(&[5, 5, 10, 10]);
@@ -999,6 +1007,12 @@ fn test_point_iterators() {
         bb,
         BB::from_arr(&[0, 0, 12, 12]),
     );
+    let bb_degenerated_y = BB::from_arr(&[10, 10, 5, 0]);
+    test(None, bb_degenerated_y, bb_degenerated_y);
+    let bb_degenerated_x = BB::from_arr(&[10, 10, 0, 5]);
+    test(None, bb_degenerated_x, bb_degenerated_x);
+    let bb_degenerated = BB::from_arr(&[10, 10, 0, 0]);
+    test(None, bb_degenerated, bb_degenerated);
 }
 
 #[test]

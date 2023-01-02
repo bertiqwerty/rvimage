@@ -99,7 +99,7 @@ fn draw_bbs(
             let encl_viewcorners = bbs[box_idx]
                 .enclosing_bb()
                 .to_viewcorners(shape_orig, shape_win, zoom_box);
-            if let Some((x_min, y_min, x_max, _)) = encl_viewcorners.to_tuple() {
+            if let Some((x_min, y_min, x_max, _)) = encl_viewcorners.to_optional_tuple() {
                 let label_box_height = 14;
                 let scale = Scale {
                     x: label_box_height as f32,
