@@ -1,6 +1,15 @@
 name: CI
-on: [push, pull_request]
-
+on:
+  pull_requests:
+    paths:
+      - '**.rs'
+      - '**.toml'
+      - '**.yml'
+  push:
+    paths:
+      - '**.rs'
+      - '**.toml'
+      - '**.yml'
 env:
   CARGO_TERM_COLOR: always
 
