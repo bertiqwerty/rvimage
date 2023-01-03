@@ -80,6 +80,7 @@ For an import to work, the folder that contains the images needs to be opened be
 | first left click                                                                     | start drawing box                                                                        |
 | second left click                                                                    | finish drawing box                                                                       |
 | left click on corner of box                                                          | move corner of box                                                                       |
+| hold right button                                                                    | move selected boxes                                                                      |
 | <kbd>Ctrl</kbd> + left click on box                                                  | select box                                                                               |
 | <kbd>Alt</kbd> + left click on box                                                   | select box and deselect others and switch to currently selected label                    |
 | <kbd>Shift</kbd> + left click on box                                                 | select all boxes with overlap with the maximal span of this box and other selected boxes |
