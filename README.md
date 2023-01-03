@@ -75,24 +75,24 @@ prefix = ''
 RV Image comes with a simple bounding box labeling that can export to and import from the [Coco format](https://cocodataset.org/#format-data).
 For an import to work, the folder that contains the images needs to be opened beforehand. To filter for files that contain bounding boxes of a specific label, one can put `label:<name-of-label>` into the filter text field. Thereby, `<name-of-label>` needs to be replaced by the real name of the label. To filter for unlabeled files use `unlabeled:`.
 
-| event                       | action                                                                                   |
-| --------------------------- | ---------------------------------------------------------------------------------------- |
-| first left click            | start drawing box                                                                        |
-| second left click           | finish drawing box                                                                       |
-| left click on corner of box | move corner of box                                                                       |
-| ctrl + left click on box    | select box                                                                               |
-| alt + left click on box     | select box and deselect others and switch to currently selected label                    |
-| shift + left click on box   | select all boxes with overlap with the maximal span of this box and other selected boxes |
-| ctrl + a                    | select all boxes                                                                         |
-| delete                      | remove selected boxes                                                                    |
-| ctrl + d                    | deselect all boxes                                                                       |
-| c                           | clone selected boxes at mouse position and move selection to new box                     |
-| ctrl + c                    | copy all selected boxes to clipboard                                                     |
-| ctrl + v                    | paste boxes without existing duplicate from clipboard                                    |
-| left/right/up/down          | move bottom right corner of all selected boxes                                           |
-| ctrl + left/right/up/down   | move top left corner of all selected boxes                                               |
-| alt + left/right/up/down    | move all selected boxes                                                                  |
-| ctrl + l                    | toggle category names, the letter is a lower case L                                      |
+| event                                                                                | action                                                                                   |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| first left click                                                                     | start drawing box                                                                        |
+| second left click                                                                    | finish drawing box                                                                       |
+| left click on corner of box                                                          | move corner of box                                                                       |
+| <kbd>Ctrl</kbd> + left click on box                                                  | select box                                                                               |
+| <kbd>Alt</kbd> + left click on box                                                   | select box and deselect others and switch to currently selected label                    |
+| <kbd>Shift</kbd> + left click on box                                                 | select all boxes with overlap with the maximal span of this box and other selected boxes |
+| <kbd>Ctrl</kbd> + <kbd>A</kbd>                                                       | select all boxes                                                                         |
+| <kbd>Delete</kbd>                                                                    | remove selected boxes                                                                    |
+| <kbd>Ctrl</kbd> + <kbd>D</kbd>                                                       | deselect all boxes                                                                       |
+| <kbd>C</kbd>                                                                         | clone selected boxes at mouse position and move selection to new box                     |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd>                                                       | copy all selected boxes to clipboard                                                     |
+| <kbd>Ctrl</kbd> + <kbd>V</kbd>                                                       | paste boxes without existing duplicate from clipboard                                    |
+| <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>                   | move bottom right corner of all selected boxes                                           |
+| <kbd>Ctrl</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd> | move top left corner of all selected boxes                                               |
+| <kbd>Alt</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>  | move all selected boxes                                                                  |
+| <kbd>Ctrl</kbd> + <kbd>L</kbd>                                                       | toggle category names                                                                    |
 
 ---
 \* <sub>The connection to Azure blob storages has `tokio`, `futures`, `azure_storage`, and `azure_storage_blob` as additional dependencies, since the used [Azure SDK](https://github.com/Azure/azure-sdk-for-rust) is implemented `async`hronously and needs `tokio`. However, the rest of RV Image uses its own small threadpool implementation. Hence, the Azure blob storage connection is implemented as Cargo-feature `azure_blob` that is enabled by default.</sub>
