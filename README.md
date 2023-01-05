@@ -17,7 +17,7 @@ RV Image connects to
 
 Example configuration for the connection types can be found below. Images are cached locally in a temporary directory. 
 
-## Optional http server to control image selection 
+## Optional http navigation server 
 
 When RV Image is started, also an http server is launched as aditional navigation option besides the graphical user interface. The default address is `127.0.0.1:5432`. If occupied, the port will be increased. When sending a
 get-request to `/file_label` the image `file_label` is loaded. For this to work, `file_label` must
