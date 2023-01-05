@@ -25,7 +25,7 @@ be in the currently opened folder.
 
 ## Configuration
 
-Create a file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) with the following content. Currently, only authorization with key-files without passphrase is supported.
+Create a file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) with the following content. For SSH currently, only authorization with key-files without passphrase is supported.
 ```
  # We support the connections "Local", "Ssh", "PyHttp", or "AzureBlob"
 connection = "Ssh"
