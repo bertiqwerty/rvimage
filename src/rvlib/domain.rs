@@ -550,6 +550,7 @@ impl ViewCorners {
             y_max,
         }
     }
+
     pub fn from_some(x_min: u32, y_min: u32, x_max: u32, y_max: u32) -> Self {
         Self::new(Some(x_min), Some(y_min), Some(x_max), Some(y_max))
     }
@@ -579,30 +580,40 @@ impl ViewCorners {
             None
         }
     }
-    fn to_arr(self) -> [Option<(u32, u32)>; 4] {
+
+    pub fn corner(&self, i: usize) -> Option<(u32, u32)> {
         let Self {
             x_min,
             y_min,
             x_max,
             y_max,
         } = self;
-        [
-            x_min.and_then(|xmin| y_min.map(|ymin| (xmin, ymin))),
-            x_min.and_then(|xmin| y_max.map(|ymax| (xmin, ymax))),
-            x_max.and_then(|xmax| y_max.map(|ymax| (xmax, ymax))),
-            x_max.and_then(|xmax| y_min.map(|ymin| (xmax, ymin))),
-        ]
+        match i {
+            0 => x_min.and_then(|xmin| y_min.map(|ymin| (xmin, ymin))),
+            1 => x_min.and_then(|xmin| y_max.map(|ymax| (xmin, ymax))),
+            2 => x_max.and_then(|xmax| y_max.map(|ymax| (xmax, ymax))),
+            3 => x_max.and_then(|xmax| y_min.map(|ymin| (xmax, ymin))),
+            _ => panic!("there are only 4 corners"),
+        }
     }
 }
 
 /// Iterate corners that are in view
 pub struct BbViewCornerIterator {
-    arriter: Flatten<core::array::IntoIter<Option<(u32, u32)>, 4>>,
+    arriter: Flatten<core::array::IntoIter<Option<(u32, u32)>, 5>>,
 }
 impl BbViewCornerIterator {
     pub fn new(view_corners: ViewCorners) -> Self {
         Self {
-            arriter: view_corners.to_arr().into_iter().flatten(),
+            arriter: [
+                view_corners.corner(0),
+                view_corners.corner(1),
+                view_corners.corner(2),
+                view_corners.corner(3),
+                view_corners.corner(0),
+            ]
+            .into_iter()
+            .flatten(),
         }
     }
 }

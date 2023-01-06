@@ -266,6 +266,7 @@ impl ToolSelectMenu {
     pub fn toggle(&mut self) {
         if self.window_open {
             self.window_open = false;
+            self.are_tools_active = true;
         } else {
             self.window_open = true;
         }
@@ -321,6 +322,7 @@ impl Menu {
 
     pub fn toggle(&mut self) {
         if self.window_open {
+            self.are_tools_active = true;
             self.window_open = false;
         } else {
             self.window_open = true;
@@ -341,6 +343,7 @@ impl Menu {
     fn ui(&mut self, ctx: &Context, ctrl: &mut Control, tools_data_map: &mut ToolsDataMap) {
         let window_response = egui::Window::new("menu")
             .vscroll(true)
+            .title_bar(false)
             .open(&mut self.window_open)
             .show(ctx, |ui| {
                 // Popup for error messages
