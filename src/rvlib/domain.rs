@@ -992,7 +992,10 @@ fn test_point_iterators() {
         let shape = Shape::new(2100, 100);
         let (boundary, inners) = bb.points_on_view(shape, shape, shape, &zb);
         assert_eq!(
-            ref_bb.corners().collect::<Vec<_>>(),
+            ref_bb
+                .corners()
+                .chain(iter::once(ref_bb.corner(0)))
+                .collect::<Vec<_>>(),
             boundary.collect::<Vec<_>>()
         );
         let ips = inners.collect::<Vec<_>>();
