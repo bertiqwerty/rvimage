@@ -159,24 +159,26 @@ where
     <<I as GenericImageView>::Pixel as image::Pixel>::Subpixel: Clamp<f32>,
     f32: conv::ValueFrom<<<I as GenericImageView>::Pixel as image::Pixel>::Subpixel>,
 {
-    for inner_point in inner_points {
-        let (x, y) = inner_point;
-        let rgb = im.get_pixel(x, y);
-        im.put_pixel(x, y, fn_inner_color(&rgb));
+    if let Some(first) = boundary_points.next() {
+        for inner_point in inner_points {
+            let (x, y) = inner_point;
+            let rgb = im.get_pixel(x, y);
+            im.put_pixel(x, y, fn_inner_color(&rgb));
+        }
+
+        let first = (first.0 as i32, first.1 as i32);
+        let mut prev = (first.0, first.1);
+        let blend = imageproc::pixelops::interpolate::<I::Pixel>;
+        for bp in boundary_points {
+            let start = prev;
+            let end = (bp.0 as i32, bp.1 as i32);
+            imageproc::drawing::draw_antialiased_line_segment_mut(
+                &mut im, start, end, *color, blend,
+            );
+            prev = end;
+        }
+
+        imageproc::drawing::draw_antialiased_line_segment_mut(&mut im, prev, first, *color, blend);
     }
-
-    let first = boundary_points.next().unwrap();
-    let first = (first.0 as i32, first.1 as i32);
-    let mut prev = (first.0, first.1);
-    let blend = imageproc::pixelops::interpolate::<I::Pixel>;
-    for bp in boundary_points {
-        let start = prev;
-        let end = (bp.0 as i32, bp.1 as i32);
-        imageproc::drawing::draw_antialiased_line_segment_mut(&mut im, start, end, *color, blend);
-        prev = end;
-    }
-
-    imageproc::drawing::draw_antialiased_line_segment_mut(&mut im, prev, first, *color, blend);
-
     im
 }
