@@ -54,6 +54,5 @@ serde-pickle = "1.0"
 ssh2 = { version = "0.9", features = ["vendored-openssl"] }
 toml = "0.7.2"
 walkdir = "2.3.2"
-winit = "0.26"
 winit_input_helper = "0.11.0"
 tokio = { version = "1.23.1", optional = true }

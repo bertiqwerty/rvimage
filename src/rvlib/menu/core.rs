@@ -13,7 +13,7 @@ use egui::{ClippedPrimitive, Context, Id, Pos2, Response, TexturesDelta, Ui};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use std::mem;
-use winit::window::Window;
+use egui_winit::winit::window::Window;
 
 use super::tools_menus::bbox_menu;
 
@@ -59,7 +59,7 @@ impl Framework {
     }
 
     /// Handle input events from the window manager.
-    pub fn handle_event(&mut self, event: &winit::event::WindowEvent) {
+    pub fn handle_event(&mut self, event: &egui_winit::winit::event::WindowEvent) {
         self.egui_state.on_event(&self.egui_ctx, event);
     }
 

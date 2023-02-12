@@ -2728,7 +2728,6 @@ dependencies = [
  "tokio",
  "toml 0.7.2",
  "walkdir",
- "winit",
  "winit_input_helper",
 ]
 

@@ -22,10 +22,10 @@ use std::mem;
 use std::path::Path;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
-use winit::dpi::LogicalSize;
-use winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
+use egui_winit::winit::dpi::LogicalSize;
+use egui_winit::winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
+use egui_winit::winit::event_loop::{ControlFlow, EventLoop};
+use egui_winit::winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
 const START_WIDTH: u32 = 640;

@@ -9,7 +9,7 @@ use crate::{
     {history::History, world::World},
 };
 use std::mem;
-use winit::event::VirtualKeyCode;
+use egui_winit::winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use super::core::{

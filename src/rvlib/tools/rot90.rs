@@ -4,7 +4,7 @@ use crate::{
     make_tool_transform,
     world::{DataRaw, World},
 };
-use winit::event::VirtualKeyCode;
+use egui_winit::winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use super::Manipulate;
