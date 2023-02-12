@@ -26,14 +26,14 @@ impl<'a> Widget for CfgMenu<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let edit_cfg_btn_resp = ui.button("settings");
         if edit_cfg_btn_resp.clicked() {
-            ui.memory().toggle_popup(self.id);
+            ui.memory_mut(|m| m.toggle_popup(self.id));
         }
         enum Close {
             Yes(bool),
             No,
         }
         let mut close = Close::No;
-        if ui.memory().is_popup_open(self.id) {
+        if ui.memory(|m| m.is_popup_open(self.id)) {
             let area = Area::new(self.id)
                 .order(Order::Foreground)
                 .default_pos(edit_cfg_btn_resp.rect.left_bottom());
@@ -126,10 +126,10 @@ impl<'a> Widget for CfgMenu<'a> {
                     let tmp = menu::core::get_cfg();
                     *self.cfg = tmp.0;
                 }
-                ui.memory().toggle_popup(self.id);
+                ui.memory_mut(|m| m.toggle_popup(self.id));
             }
             if !edit_cfg_btn_resp.clicked() && area_response.clicked_elsewhere() {
-                ui.memory().toggle_popup(self.id);
+                ui.memory_mut(|m| m.toggle_popup(self.id));
                 let tmp = menu::core::get_cfg();
                 *self.cfg = tmp.0;
             }

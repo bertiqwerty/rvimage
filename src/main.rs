@@ -22,10 +22,13 @@ use std::mem;
 use std::path::Path;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
-use egui_winit::winit::dpi::LogicalSize;
-use egui_winit::winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
-use egui_winit::winit::event_loop::{ControlFlow, EventLoop};
-use egui_winit::winit::window::WindowBuilder;
+use winit::dpi::LogicalSize;
+use winit::event_loop::EventLoop;
+use winit::window::WindowBuilder;
+use winit::{
+    event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
+};
 use winit_input_helper::WinitInputHelper;
 
 const START_WIDTH: u32 = 640;
@@ -153,8 +156,13 @@ fn main() -> Result<(), pixels::Error> {
         let scale_factor = window.scale_factor() as f32;
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
         let pixels = Pixels::new(START_WIDTH, START_HEIGHT, surface_texture)?;
-        let framework =
-            Framework::new(window_size.width, window_size.height, scale_factor, &pixels);
+        let framework = Framework::new(
+            &event_loop,
+            window_size.width,
+            window_size.height,
+            scale_factor,
+            &pixels,
+        );
         (pixels, framework)
     };
 
@@ -195,7 +203,7 @@ fn main() -> Result<(), pixels::Error> {
         // Handle input events
         if input.update(&event) {
             // Close application
-            if input.quit() {
+            if input.close_requested() || input.destroyed() {
                 *control_flow = ControlFlow::Exit;
                 return;
             }
@@ -319,7 +327,9 @@ fn main() -> Result<(), pixels::Error> {
                 world = World::new(ims_raw, zoom_box, shape_win);
 
                 let Shape { w, h } = Shape::from_im(world.im_view());
-                pixels.resize_buffer(w, h);
+                if let Err(e) = pixels.resize_buffer(w, h) {
+                    println!("{e:?}");
+                }
             }
             // Update the scale factor
             if let Some(scale_factor) = input.scale_factor() {
@@ -332,9 +342,13 @@ fn main() -> Result<(), pixels::Error> {
                 if shape_win.h > 0 && shape_win.w > 0 {
                     world.update_view(shape_win);
                     let Shape { w, h } = Shape::from_im(world.im_view());
-                    pixels.resize_buffer(w, h);
+                    if let Err(e) = pixels.resize_buffer(w, h) {
+                        println!("{e:?}");
+                    }
                     framework.resize(size.width, size.height);
-                    pixels.resize_surface(size.width, size.height);
+                    if let Err(e) = pixels.resize_surface(size.width, size.height) {
+                        println!("{e:?}");
+                    }
                 }
             }
 
@@ -406,7 +420,9 @@ fn main() -> Result<(), pixels::Error> {
             // Draw the current frame
             Event::RedrawRequested(_) => {
                 // Draw the world
-                world.draw(&mut pixels);
+                if let Err(e) = world.draw(&mut pixels) {
+                    println!("{e:?}");
+                }
 
                 // Prepare egui
                 framework.prepare(

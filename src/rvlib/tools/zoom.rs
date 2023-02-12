@@ -1,6 +1,6 @@
 use image::Rgb;
 use std::fmt::Debug;
-use egui_winit::winit::event::VirtualKeyCode;
+use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{

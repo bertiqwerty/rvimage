@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::{fmt::Debug, mem};
-
 use crate::domain::{self, Shape, BB};
 use crate::file_util::MetaData;
 use crate::image_util;
+use crate::result::{to_rv, RvResult};
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
 use image::{imageops, imageops::FilterType, DynamicImage};
 use pixels::Pixels;
+use std::collections::HashMap;
+use std::{fmt::Debug, mem};
 
 pub fn raw_scaled_to_win_view(
     ims_raw: &DataRaw,
@@ -137,15 +137,15 @@ pub struct World {
 }
 
 impl World {
-    pub fn draw(&mut self, pixels: &mut Pixels) {
+    pub fn draw(&mut self, pixels: &mut Pixels) -> RvResult<()> {
         if self.is_redraw_requested {
             let frame_len = pixels.get_frame().len() as u32;
             let w_view = self.im_view.width();
             let h_view = self.im_view.height();
             if frame_len != w_view * h_view * 4 {
-                pixels.resize_buffer(w_view, h_view);
+                pixels.resize_buffer(w_view, h_view).map_err(to_rv)?;
             }
-            let frame = pixels.get_frame();
+            let frame = pixels.get_frame_mut();
 
             for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
                 let rgba = rgba_at(i, &self.im_view);
@@ -153,6 +153,7 @@ impl World {
             }
             self.is_redraw_requested = false;
         }
+        Ok(())
     }
 
     pub fn new(ims_raw: DataRaw, zoom_box: Option<BB>, shape_win: Shape) -> Self {
@@ -241,7 +242,7 @@ impl Debug for World {
 }
 
 #[cfg(test)]
-use {crate::result::RvResult, image::Rgb};
+use image::Rgb;
 
 #[test]
 fn test_rgba() {

@@ -10,7 +10,7 @@ fn show_list_popup<'a, I>(
 where
     I: Iterator<Item = &'a str>,
 {
-    ui.memory().open_popup(popup_id);
+    ui.memory_mut(|m| m.open_popup(popup_id));
     let mut selected_idx = None;
     egui::popup_below_widget(ui, popup_id, below_respone, |ui| {
         ui.set_min_width(min_width);

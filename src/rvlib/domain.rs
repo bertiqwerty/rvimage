@@ -1,7 +1,7 @@
 use image::GenericImage;
 use pixels::Pixels;
 use serde::{Deserialize, Serialize};
-use egui_winit::winit::dpi::PhysicalSize;
+use winit::dpi::PhysicalSize;
 
 use std::{
     fmt::Display,

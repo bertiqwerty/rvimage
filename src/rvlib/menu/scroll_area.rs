@@ -56,7 +56,7 @@ pub fn scroll_area(
         };
         if sl.clicked_by(egui::PointerButton::Secondary) {
             if let Some(fsp) = paths_selector.file_selected_path(filtered_label_idx) {
-                Clipboard::default().set(fsp.to_string());
+                Clipboard::new(None).set(fsp.to_string());
             }
         }
         if sl.clicked() {

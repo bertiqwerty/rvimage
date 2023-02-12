@@ -10,10 +10,10 @@ use crate::{
     world::ToolsDataMap,
 };
 use egui::{ClippedPrimitive, Context, Id, Pos2, Response, TexturesDelta, Ui};
-use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
+use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use std::mem;
-use egui_winit::winit::window::Window;
+use winit::{event_loop::EventLoopWindowTarget, window::Window};
 
 use super::tools_menus::bbox_menu;
 
@@ -23,7 +23,7 @@ pub struct Framework {
     egui_ctx: Context,
     egui_state: egui_winit::State,
     screen_descriptor: ScreenDescriptor,
-    rpass: RenderPass,
+    renderer: Renderer,
     paint_jobs: Vec<ClippedPrimitive>,
     textures: TexturesDelta,
     // State for the GUI
@@ -33,16 +33,23 @@ pub struct Framework {
 
 impl Framework {
     /// Create egui.
-    pub fn new(width: u32, height: u32, scale_factor: f32, pixels: &pixels::Pixels) -> Self {
+    pub fn new<T>(
+        event_loop: &EventLoopWindowTarget<T>,
+        width: u32,
+        height: u32,
+        scale_factor: f32,
+        pixels: &pixels::Pixels,
+    ) -> Self {
         let egui_ctx = Context::default();
         let max_texture_size = pixels.device().limits().max_texture_dimension_2d as usize;
-        let egui_state = egui_winit::State::from_pixels_per_point(max_texture_size, scale_factor);
-
+        let mut egui_state = egui_winit::State::new(event_loop);
+        egui_state.set_max_texture_side(max_texture_size);
+        egui_state.set_pixels_per_point(scale_factor);
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [width, height],
             pixels_per_point: scale_factor,
         };
-        let rpass = RenderPass::new(pixels.device(), pixels.render_texture_format(), 1);
+        let renderer = Renderer::new(pixels.device(), pixels.render_texture_format(), None, 1);
         let menu = Menu::new();
         let tools_menu = ToolSelectMenu::new();
         let textures = TexturesDelta::default();
@@ -50,7 +57,7 @@ impl Framework {
             egui_ctx,
             egui_state,
             screen_descriptor,
-            rpass,
+            renderer,
             paint_jobs: Vec::new(),
             textures,
             menu,
@@ -60,7 +67,7 @@ impl Framework {
 
     /// Handle input events from the window manager.
     pub fn handle_event(&mut self, event: &egui_winit::winit::event::WindowEvent) {
-        self.egui_state.on_event(&self.egui_ctx, event);
+        let _ = self.egui_state.on_event(&self.egui_ctx, event);
     }
 
     /// Resize egui.
@@ -110,30 +117,40 @@ impl Framework {
     ) {
         // Upload all resources to the GPU.
         for (id, image_delta) in &self.textures.set {
-            self.rpass
+            self.renderer
                 .update_texture(&context.device, &context.queue, *id, image_delta);
         }
 
-        self.rpass.update_buffers(
+        self.renderer.update_buffers(
             &context.device,
             &context.queue,
-            &self.paint_jobs,
-            &self.screen_descriptor,
-        );
-
-        // Record all render passes.
-        self.rpass.execute(
             encoder,
-            render_target,
             &self.paint_jobs,
             &self.screen_descriptor,
-            None,
         );
+        // Render egui with WGPU
+        {
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("egui"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: render_target,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+
+            self.renderer
+                .render(&mut rpass, &self.paint_jobs, &self.screen_descriptor);
+        }
 
         // Cleanup
         let textures = std::mem::take(&mut self.textures);
         for id in &textures.free {
-            self.rpass.free_texture(id);
+            self.renderer.free_texture(id);
         }
     }
 
@@ -166,7 +183,7 @@ fn show_popup(
     info_message: Info,
     below_respone: &Response,
 ) -> Info {
-    ui.memory().open_popup(popup_id);
+    ui.memory_mut(|m| m.open_popup(popup_id));
     let mut new_msg = Info::None;
     egui::popup_below_widget(ui, popup_id, below_respone, |ui| {
         let max_msg_len = 500;
