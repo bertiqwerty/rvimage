@@ -23,37 +23,37 @@ azure_blob = [
 ]
 
 [dependencies]
-azure_storage = { version = "0.7.0", optional = true }
-azure_storage_blobs = { version = "0.7.0", optional = true }
+azure_storage = { version = "0.9.0", optional = true }
+azure_storage_blobs = { version = "0.9.0", optional = true }
 conv = "0.3.3"
 dirs = "4.0.0"
 edit = "0.1.4"
-egui = "~0.18"
+egui = "0.18"
 egui-wgpu = "~0.18"
 egui-winit = { version = "~0.18", default-features = false, features = [
     "links",
     "clipboard",
 ] }
-env_logger = "0.9"
+env_logger = "0.10"
 futures = { version = "0.3", optional = true }
-httparse = "~1.7"
+httparse = "~1.8"
 image = "0.24.2"
 imageproc = "~0.23"
 lazy_static = "1.4.0"
 log = "0.4"
-percent-encoding = "~2.1"
+percent-encoding = "2.2.0"
 pixels = "0.9.0"
 rand = "0.8.5"
-regex = "1"
+regex = "1.7.1"
 reqwest = { version = "0.11.13", features = ["blocking", "json"] }
-rfd = "~0.9"
+rfd = "0.11.1"
 rusttype = "0.9.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-pickle = "1.0"
 ssh2 = { version = "0.9", features = ["vendored-openssl"] }
-toml = "~0.5"
+toml = "0.7.2"
 walkdir = "2.3.2"
 winit = "0.26"
-winit_input_helper = "0.11"
+winit_input_helper = "0.11.0"
 tokio = { version = "1.23.1", optional = true }
