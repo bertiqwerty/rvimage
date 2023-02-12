@@ -30,7 +30,7 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
         lazy_static! {
             static ref HREF_REGEX: Regex = Regex::new("href\\s*=\\s*\".*\"").unwrap();
         }
-        println!("{}", address);
+        println!("{address}");
         let address = file_util::url_encode(address);
         let resp = || reqwest::blocking::get(&address)?.text();
         let text = resp().map_err(to_rv)?;

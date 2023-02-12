@@ -53,12 +53,12 @@ pub fn path_to_str(p: &Path) -> RvResult<&str> {
 }
 
 pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
-    p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{:?} not found", p)))?
+    p.ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{p:?} not found")))?
         .to_str()
         .ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("{:?} not convertible to unicode", p),
+                format!("{p:?} not convertible to unicode"),
             )
         })
 }
@@ -127,8 +127,8 @@ pub fn checked_remove<'a, P: AsRef<Path> + Debug>(
     func: fn(p: &'a P) -> io::Result<()>,
 ) {
     match func(path) {
-        Ok(_) => println!("removed {:?}", path),
-        Err(e) => println!("could not remove {:?} due to {:?}", path, e),
+        Ok(_) => println!("removed {path:?}"),
+        Err(e) => println!("could not remove {path:?} due to {e:?}"),
     }
 }
 #[macro_export]
@@ -171,7 +171,7 @@ where
 #[macro_export]
 macro_rules! p_to_rv {
     ($path:expr, $expr:expr) => {
-        $expr.map_err(|e| format_rverr!("{:?}, failed on {:?}", e, $path))
+        $expr.map_err(|e| format_rverr!("{:?}, failed on {e:?}", $path))
     };
 }
 

@@ -91,7 +91,7 @@ impl Framework {
             match self.tool_selection_menu.ui(egui_ctx, tools, tools_data_map) {
                 Ok(_) => (),
                 Err(e) => {
-                    self.menu.show_info(Info::Error(format!("{:?}", e)));
+                    self.menu.show_info(Info::Error(format!("{e:?}")));
                 }
             }
         });
@@ -175,7 +175,7 @@ fn show_popup(
         } else {
             msg
         };
-        ui.label(format!("{} {}", icon, shortened_msg));
+        ui.label(format!("{icon} {shortened_msg}"));
         new_msg = if ui.button("close").clicked() {
             Info::None
         } else {
@@ -188,7 +188,7 @@ fn show_popup(
 pub(super) fn get_cfg() -> (Cfg, Info) {
     match cfg::get_cfg() {
         Ok(cfg) => (cfg, Info::None),
-        Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{:?}", e))),
+        Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{e:?}"))),
     }
 }
 // evaluates an expression that is expected to return Result,
@@ -331,7 +331,7 @@ impl Menu {
 
     pub fn reload_opened_folder(&mut self, ctrl: &mut Control) {
         if let Err(e) = ctrl.load_opened_folder_content() {
-            self.info_message = Info::Error(format!("{:?}", e));
+            self.info_message = Info::Error(format!("{e:?}"));
         }
     }
 
@@ -480,7 +480,7 @@ impl Menu {
                 }
                 let get_file_info = |ps: &PathsSelector| {
                     let n_files_filtered = ps.filtered_idx_file_label_pairs().len();
-                    Some(format!("{} files", n_files_filtered))
+                    Some(format!("{n_files_filtered} files"))
                 };
                 let get_annotation_info = |ps: &PathsSelector| {
                     if let Some(bbox_data) = tools_data_map.get(BBOX_NAME) {
@@ -488,7 +488,7 @@ impl Menu {
                             .specifics
                             .bbox()
                             .n_annotated_images(&ps.filtered_file_paths());
-                        Some(format!("{} files with bbox annotations", n_files_annotated))
+                        Some(format!("{n_files_annotated} files with bbox annotations"))
                     } else {
                         None
                     }

@@ -84,12 +84,12 @@ mod detail {
             let path = Path::new(ef_path).join(of_last_part).with_extension("json");
             let data_str = serde_json::to_string(&data).map_err(to_rv)?;
             file_util::write(&path, data_str)?;
-            println!("saved to {:?}", path);
+            println!("saved to {path:?}");
             res = Some(path);
         } else {
             println!("did not save");
-            println!("  opened folder {:?}", opened_folder);
-            println!("  bbox data {:?}", bbox_data);
+            println!("  opened folder {opened_folder:?}");
+            println!("  bbox data {bbox_data:?}");
         }
         Ok(res)
     }
@@ -253,7 +253,7 @@ impl Control {
     }
 
     pub fn open_folder(&mut self, new_folder: String) -> RvResult<()> {
-        println!("new opened folder {}", new_folder);
+        println!("new opened folder {new_folder}");
         self.make_reader(self.cfg.clone())?;
         self.opened_folder = Some(new_folder);
         Ok(())
@@ -474,7 +474,7 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
     match fs::create_dir(&test_export_folder) {
         Ok(_) => (),
         Err(e) => {
-            println!("{:?}", e);
+            println!("{e:?}");
         }
     }
 

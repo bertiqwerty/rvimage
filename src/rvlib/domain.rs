@@ -319,7 +319,7 @@ impl BB {
             1 => (x, y + h),
             2 => (x + w, y + h),
             3 => (x + w, y),
-            _ => panic!("bounding boxes only have 4, {} is out of bounds", idx),
+            _ => panic!("bounding boxes only have 4, {idx} is out of bounds"),
         }
     }
     pub fn opposite_corner(&self, idx: usize) -> (u32, u32) {

@@ -223,9 +223,9 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
         .and_then(|of| of.to_str())
         .ok_or_else(|| rverr!("cannot find folder name  of {}", opened_folder))?;
     let file_name = if let Some(p) = parent {
-        format!("{}_{}_coco.json", p, opened_folder_name)
+        format!("{p}_{opened_folder_name}_coco.json")
     } else {
-        format!("{}_coco.json", opened_folder_name)
+        format!("{opened_folder_name}_coco.json")
     };
     Ok(export_folder.join(file_name))
 }
@@ -235,7 +235,7 @@ pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvR
     let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
     let coco_out_path = meta_data_to_coco_path(meta_data)?;
     file_util::write(&coco_out_path, data_str)?;
-    println!("exported coco labels to {:?}", coco_out_path);
+    println!("exported coco labels to {coco_out_path:?}");
     Ok(coco_out_path)
 }
 
@@ -243,7 +243,7 @@ pub fn read_coco(meta_data: &MetaData) -> RvResult<BboxSpecificData> {
     let filename = meta_data_to_coco_path(meta_data)?;
     let s = file_util::read_to_string(&filename)?;
     let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-    println!("imported coco file from {:?}", filename);
+    println!("imported coco file from {filename:?}");
     read.convert_to_bboxdata()
 }
 
@@ -275,7 +275,7 @@ pub fn make_data(
         match fs::create_dir(&test_export_folder) {
             Ok(_) => (),
             Err(e) => {
-                println!("{:?}", e);
+                println!("{e:?}");
             }
         }
     }

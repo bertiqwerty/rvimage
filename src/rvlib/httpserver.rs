@@ -53,7 +53,7 @@ where
     match x {
         Ok(r) => Ok(r),
         Err(e) => {
-            let error_str = format!("{:?}", e);
+            let error_str = format!("{e:?}");
             match tx.send(Err(to_rv(e))) {
                 Ok(()) => Err(rverr!("error in http server, {}", error_str)),
                 Err(e) => Err(rverr!("error {}, send error {:?}", error_str, e)),
@@ -63,7 +63,7 @@ where
 }
 pub type LaunchResultType = RvResult<(JoinHandle<RvResult<()>>, Receiver<RvResult<String>>)>;
 pub fn launch(address: String) -> LaunchResultType {
-    println!("spawning httpserver at {}", address);
+    println!("spawning httpserver at {address}");
     let (tx_from_server, rx_from_server) = mpsc::channel();
     let handle = thread::spawn(move || -> RvResult<()> {
         let bind_result = TcpListener::bind(address);
@@ -99,7 +99,7 @@ pub fn launch(address: String) -> LaunchResultType {
                     HandleResult::Path(p_) => {
                         println!("tcp listener sending result...");
                         let send_result = tx_from_server.send(Ok(p_));
-                        println!("done. {:?}", send_result);
+                        println!("done. {send_result:?}");
                         to_rv_or_send(&tx_from_server, send_result)?;
                     }
                 }

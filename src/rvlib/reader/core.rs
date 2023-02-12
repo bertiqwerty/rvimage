@@ -76,7 +76,7 @@ where
                 .cache
                 .load_from_cache(selected_file_idx, file_paths, reload);
             if counter == self.n_cache_recreations {
-                println!("max recreations (={}) reached.", counter);
+                println!("max recreations (={counter}) reached.");
                 return loaded;
             }
             counter += 1;

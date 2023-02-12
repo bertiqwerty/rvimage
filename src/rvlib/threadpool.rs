@@ -78,12 +78,12 @@ fn send_answer_message<T>(
     let send_result = tx_from_pool.send((job_id, f()));
     match send_result {
         Ok(_) => {
-            println!("thread {} send a result.", idx_thread);
+            println!("thread {idx_thread} send a result.");
             Some(())
         }
         Err(e) => {
-            println!("thread {} terminated. receiver gone.", idx_thread);
-            println!("error: {:?}", e);
+            println!("thread {idx_thread} terminated. receiver gone.");
+            println!("error: {e:?}");
             Some(())
         }
     }
@@ -108,12 +108,12 @@ impl<T: Send + 'static> ThreadPool<T> {
             txs_to_pool.push(tx_to_pool);
             let tx = tx_from_pool.clone();
             let thread = move || -> RvResult<()> {
-                println!("spawning thread {}", idx_thread);
+                println!("spawning thread {idx_thread}");
                 loop {
                     let received_msg = rx_to_pool.recv().map_err(to_rv)?;
                     match received_msg {
                         Message::Terminate => {
-                            println!("shut down thread {}", idx_thread);
+                            println!("shut down thread {idx_thread}");
                             return Ok(());
                         }
                         Message::NewJob((i, f)) => {
@@ -142,7 +142,7 @@ impl<T: Send + 'static> ThreadPool<T> {
         if self.next_thread == self.txs_to_pool.len() {
             self.next_thread = 0;
         }
-        println!("sending id {:?}", job_id);
+        println!("sending id {job_id:?}");
         self.txs_to_pool[self.next_thread]
             .send(Message::NewJob((job_id, f)))
             .map_err(|e| RvError::new(&e.to_string()))?;
@@ -191,7 +191,7 @@ impl<T: Send + 'static> Drop for ThreadPool<T> {
         match terminate_all_threads(self) {
             Ok(_) => (),
             Err(e) => {
-                println!("error when dropping threadpool, {:?}", e);
+                println!("error when dropping threadpool, {e:?}");
             }
         }
     }
@@ -363,7 +363,7 @@ impl<T: Send + 'static> Drop for ThreadPoolQueued<T> {
         match self.tx_job_to_pool.send(Message::Terminate) {
             Ok(_) => (),
             Err(e) => {
-                println!("error when dropping ThreadPoolQueued, {:?}", e);
+                println!("error when dropping ThreadPoolQueued, {e:?}");
             }
         }
     }

@@ -61,7 +61,7 @@ pub(super) fn import_coco_if_triggered(
         match tools_data::coco_io::read_coco(meta_data) {
             Ok(bbox_data) => Some(bbox_data),
             Err(e) => {
-                println!("could not import coco due to {:?}", e);
+                println!("could not import coco due to {e:?}");
                 None
             }
         }

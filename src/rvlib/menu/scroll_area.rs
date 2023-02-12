@@ -39,7 +39,7 @@ pub fn scroll_area(
             if let Some(path) = path {
                 let sl_ = ui.selectable_label(true, file_label);
                 let sl_ = if let Some(fis) = file_info_selected {
-                    sl_.on_hover_text(format!("{}\n{}", path, fis))
+                    sl_.on_hover_text(format!("{path}\n{fis}"))
                 } else {
                     sl_.on_hover_text(path)
                 };
@@ -60,7 +60,7 @@ pub fn scroll_area(
             }
         }
         if sl.clicked() {
-            println!("index is {}", filtered_label_idx);
+            println!("index is {filtered_label_idx}");
             *selected_filtered_label_idx = Some(filtered_label_idx);
         }
     };

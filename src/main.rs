@@ -51,7 +51,7 @@ where
     <T as GenericImageView>::Pixel: Debug,
 {
     let p = im.get_pixel(x, y);
-    format!("({}, {}) -> ({:?})", x, y, p)
+    format!("({x}, {y}) -> ({p:?})")
 }
 
 fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
@@ -104,16 +104,16 @@ fn remove_tmpdir() {
                 Ok(td) => match fs::remove_dir_all(Path::new(td)) {
                     Ok(_) => {}
                     Err(e) => {
-                        println!("couldn't remove tmpdir {:?} ", e)
+                        println!("couldn't remove tmpdir {e:?}")
                     }
                 },
                 Err(e) => {
-                    println!("couldn't remove tmpdir {:?} ", e)
+                    println!("couldn't remove tmpdir {e:?}")
                 }
             };
         }
         Err(e) => {
-            println!("could not load cfg {:?}", e);
+            println!("could not load cfg {e:?}");
         }
     };
 }
@@ -170,7 +170,7 @@ fn main() -> Result<(), pixels::Error> {
     // application state to create pixels buffer, i.e., everything not part of framework.gui()
     let mut world = empty_world();
     let mut ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
-        println!("could not read cfg due to {:?}, returning default", e);
+        println!("could not read cfg due to {e:?}, returning default");
         cfg::get_default_cfg()
     }));
     let mut history = History::new();
@@ -257,7 +257,7 @@ fn main() -> Result<(), pixels::Error> {
                 if let Err(e) = ctrl.reload() {
                     framework
                         .menu_mut()
-                        .show_info(Info::Error(format!("{:?}", e)));
+                        .show_info(Info::Error(format!("{e:?}")));
                 }
             }
             if input.key_pressed(VirtualKeyCode::PageDown) {
@@ -277,12 +277,12 @@ fn main() -> Result<(), pixels::Error> {
                 ctrl.paths_navigator.activate_scroll_to_selected_label();
             } else if let Some(Some(Err(e))) = rx_match {
                 // if the server thread sends an error we restart the server
-                println!("{:?}", e);
+                println!("{e:?}");
                 (http_addr, rx_from_http) =
                     match httpserver::restart_with_increased_port(&http_addr) {
                         Ok(x) => x,
                         Err(e) => {
-                            println!("{:?}", e);
+                            println!("{e:?}");
                             (http_addr.to_string(), None)
                         }
                     };
@@ -299,7 +299,7 @@ fn main() -> Result<(), pixels::Error> {
                     Err(e) => {
                         framework
                             .menu_mut()
-                            .show_info(Info::Error(format!("{:?}", e)));
+                            .show_info(Info::Error(format!("{e:?}")));
                         None
                     }
                 }

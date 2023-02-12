@@ -29,7 +29,7 @@ fn command(cmd: &str, sess: &Session) -> RvResult<String> {
 }
 
 pub fn file_info(path: &str, sess: &Session) -> RvResult<String> {
-    let cmd = format!("ls -lh {}", path);
+    let cmd = format!("ls -lh {path}");
     command(cmd.as_str(), sess)
 }
 
@@ -46,7 +46,7 @@ pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>>
         remote_file.wait_close().map_err(to_rv)?;
         Ok(content)
     }
-    .map_err(|e: RvError| rverr!("could not download {} due to {:?}", e, remote_src_file_path))
+    .map_err(|e: RvError| rverr!("could not download {} due to {e:?}", remote_src_file_path))
 }
 
 pub fn find(
@@ -54,7 +54,7 @@ pub fn find(
     filter_extensions: &[&str],
     sess: &Session,
 ) -> RvResult<Vec<String>> {
-    let cmd = format!("find '{}'", remote_folder_path);
+    let cmd = format!("find '{remote_folder_path}'");
     let s = command(cmd.as_str(), sess)?;
     fn ext_predicate(s: &str, filter_extensions: &[&str]) -> bool {
         let n_s = s.len();
