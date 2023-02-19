@@ -2870,6 +2870,7 @@ dependencies = [
  "ssh2",
  "tokio",
  "toml 0.7.2",
+ "uuid",
  "walkdir",
  "winit",
  "winit_input_helper",
@@ -3610,6 +3611,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1674845326ee10d37ca60470760d4288a6f80f304007d92e5c53bab78c9cfd79"
 dependencies = [
  "getrandom 0.2.8",
+ "rand 0.8.5",
 ]
 
 [[package]]

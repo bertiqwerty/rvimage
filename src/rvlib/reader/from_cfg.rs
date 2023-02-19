@@ -33,7 +33,7 @@ impl ReaderFromCfg {
 
     pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
         let n_ssh_reconnections = cfg.ssh_cfg.n_reconnection_attempts();
-        let tmpdir = cfg.tmpdir()?.to_string();
+        let tmpdir = format!("{}/{}", cfg.tmpdir()?, uuid::Uuid::new_v4());
         Ok(Self {
             reader: match (&cfg.connection, &cfg.cache) {
                 (Connection::Local, Cache::FileCache) => {
