@@ -75,7 +75,6 @@ impl PathsSelector {
 
     pub fn filter(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
         self.filtered_file_labels = list_file_labels(&self.file_paths, filter_predicate)?;
-        println!("assigned {} file labels", self.filtered_file_labels.len());
         Ok(())
     }
 
