@@ -139,13 +139,13 @@ pub struct World {
 impl World {
     pub fn draw(&mut self, pixels: &mut Pixels) -> RvResult<()> {
         if self.is_redraw_requested {
-            let frame_len = pixels.get_frame().len() as u32;
+            let frame_len = pixels.frame().len() as u32;
             let w_view = self.im_view.width();
             let h_view = self.im_view.height();
             if frame_len != w_view * h_view * 4 {
                 pixels.resize_buffer(w_view, h_view).map_err(to_rv)?;
             }
-            let frame = pixels.get_frame_mut();
+            let frame = pixels.frame_mut();
 
             for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
                 let rgba = rgba_at(i, &self.im_view);
