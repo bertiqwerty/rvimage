@@ -62,7 +62,7 @@ macro_rules! annotations_accessor_mut {
 #[macro_export]
 macro_rules! tools_data_accessor_mut {
     ($actor:expr, $error_msg:expr) => {
-        pub(super) fn get_tools_data_mut<'a>(world: &'a mut World) -> &'a mut ToolsData {
+        pub(super) fn get_tools_data_mut(world: &mut World) -> &mut ToolsData {
             world.data.tools_data_map.get_mut($actor).expect($error_msg)
         }
     };
@@ -70,7 +70,7 @@ macro_rules! tools_data_accessor_mut {
 #[macro_export]
 macro_rules! tools_data_accessor {
     ($actor:expr, $error_msg:expr) => {
-        pub(super) fn get_tools_data<'a>(world: &'a World) -> &'a ToolsData {
+        pub(super) fn get_tools_data(world: &World) -> &ToolsData {
             world.data.tools_data_map.get($actor).expect($error_msg)
         }
     };
