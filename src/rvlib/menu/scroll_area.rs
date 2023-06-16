@@ -1,5 +1,4 @@
 use egui::{Align, Pos2, Rect, Ui};
-use egui_winit::clipboard::Clipboard;
 
 use crate::paths_selector::PathsSelector;
 
@@ -56,7 +55,7 @@ pub fn scroll_area(
         };
         if sl.clicked_by(egui::PointerButton::Secondary) {
             if let Some(fsp) = paths_selector.file_selected_path(filtered_label_idx) {
-                Clipboard::new(None).set(fsp.to_string());
+                ui.output_mut(|po| po.copied_text = fsp.to_string());
             }
         }
         if sl.clicked() {
