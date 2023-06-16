@@ -1,6 +1,3 @@
-use winit::event::VirtualKeyCode;
-use winit_input_helper::WinitInputHelper;
-
 use crate::{
     annotations::BboxAnnotations,
     annotations_accessor, annotations_accessor_mut,
@@ -17,10 +14,13 @@ use crate::{
     world::World,
     LEFT_BTN, RIGHT_BTN,
 };
+use std::mem;
+use winit::event::VirtualKeyCode;
+use winit_input_helper::WinitInputHelper;
 
 use super::on_events::{
     export_if_triggered, import_coco_if_triggered, map_released_key, on_key_released,
-    on_mouse_held_right, on_mouse_released_left, KeyReleasedParams, MouseHeldParams,
+    on_mouse_held_right, on_mouse_released_left, Flags, KeyReleasedParams, MouseHeldParams,
     MouseReleaseParams,
 };
 pub const ACTOR_NAME: &str = "BBox";
@@ -31,6 +31,39 @@ tools_data_accessor!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 tools_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
+
+pub(super) fn paste(
+    initial_view: &InitialView,
+    shape_win: Shape,
+    mut world: World,
+    mut history: History,
+) -> (World, History) {
+    // Paste from clipboard
+    if let Some(clipboard) = mem::take(
+        &mut get_tools_data_mut(&mut world)
+            .specifics
+            .bbox_mut()
+            .clipboard,
+    ) {
+        let cb_bbs = clipboard.bbs();
+        if !cb_bbs.is_empty() {
+            let shape_orig = Shape::from_im(world.data.im_background());
+            get_annos_mut(&mut world).extend(
+                cb_bbs.iter().copied(),
+                clipboard.cat_idxs().iter().copied(),
+                shape_orig,
+            );
+            get_tools_data_mut(&mut world)
+                .specifics
+                .bbox_mut()
+                .clipboard = Some(clipboard);
+            let are_boxes_visible = true;
+            world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
+            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        }
+    }
+    (world, history)
+}
 
 pub(super) fn current_cat_idx(world: &World) -> usize {
     get_tools_data(world).specifics.bbox().cat_idx_current
@@ -69,6 +102,7 @@ pub struct BBox {
     prev_label: usize,
     are_boxes_visible: bool,
     previous_file: Option<String>,
+    auto_paste: bool,
 }
 
 impl BBox {
@@ -175,13 +209,18 @@ impl BBox {
         mut history: History,
     ) -> (World, History) {
         let params = KeyReleasedParams {
-            are_boxes_visible: self.are_boxes_visible,
             initial_view: &self.initial_view,
             is_ctrl_held: event.held_control(),
             released_key: map_released_key(event),
         };
-        (self.are_boxes_visible, world, history) =
-            on_key_released(world, history, mouse_pos, shape_win, params);
+        let mut flags = Flags {
+            are_boxes_visible: self.are_boxes_visible,
+            auto_paste: self.auto_paste,
+        };
+        (flags, world, history) =
+            on_key_released(world, history, mouse_pos, shape_win, params, flags);
+        self.are_boxes_visible = flags.are_boxes_visible;
+        self.auto_paste = flags.auto_paste;
         (world, history)
     }
 }
@@ -195,6 +234,7 @@ impl Manipulate for BBox {
             prev_label: 0,
             are_boxes_visible: true,
             previous_file: None,
+            auto_paste: false,
         }
     }
 
@@ -243,6 +283,9 @@ impl Manipulate for BBox {
                 anno.deselect_all();
             }
             self.previous_file = world.data.meta_data.file_path.clone();
+            if self.auto_paste {
+                (world, history) = paste(&self.initial_view, shape_win, world, history);
+            }
         }
         let is_anno_rm_triggered = get_tools_data(&world).specifics.bbox().is_anno_rm_triggered;
         if is_anno_rm_triggered {
