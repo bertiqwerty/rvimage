@@ -203,7 +203,7 @@ fn main() -> Result<(), pixels::Error> {
         // Handle input events
         if input.update(&event) {
             // Close application
-            if input.quit() {
+            if input.close_requested() || input.destroyed() {
                 *control_flow = ControlFlow::Exit;
                 return;
             }
