@@ -488,7 +488,8 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::A, true);
     let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
     let params = make_params(ReleasedKey::C, false);
-    let (_, world, history) = on_key_released(world, history, Some((2, 2)), shape_win, params, flags);
+    let (_, world, history) =
+        on_key_released(world, history, Some((2, 2)), shape_win, params, flags);
     assert_eq!(get_annos(&world).unwrap().bbs()[0], annos_orig.bbs()[0]);
     assert_eq!(
         get_annos(&world).unwrap().bbs()[1],
