@@ -79,6 +79,13 @@ impl ClipboardData {
     }
 }
 
+#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub struct Flags {
+    pub are_boxes_visible: bool,
+    pub auto_paste: bool,
+    pub is_anno_rm_triggered: bool,
+    pub is_coco_import_triggered: bool,
+}
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct BboxSpecificData {
     pub new_label: String,
@@ -88,9 +95,8 @@ pub struct BboxSpecificData {
     pub cat_idx_current: usize,
     annotations_map: AnnotationsMap,
     pub export_trigger: BboxExportTrigger,
-    pub is_coco_import_triggered: bool,
     pub clipboard: Option<ClipboardData>,
-    pub is_anno_rm_triggered: bool,
+    pub flags: Flags,
 }
 
 impl BboxSpecificData {
@@ -118,9 +124,13 @@ impl BboxSpecificData {
             cat_idx_current: 0,
             annotations_map: HashMap::new(),
             export_trigger: BboxExportTrigger::default(),
-            is_coco_import_triggered: false,
             clipboard: None,
-            is_anno_rm_triggered: false,
+            flags: Flags {
+                is_coco_import_triggered: false,
+                is_anno_rm_triggered: false,
+                auto_paste: false,
+                are_boxes_visible: true,
+            },
         };
         for ((lab, clr), cat_id) in input_data
             .labels
@@ -232,9 +242,13 @@ impl BboxSpecificData {
             cat_idx_current: 0,
             annotations_map: HashMap::new(),
             export_trigger: BboxExportTrigger::default(),
-            is_coco_import_triggered: false,
             clipboard: None,
-            is_anno_rm_triggered: false,
+            flags: Flags {
+                is_coco_import_triggered: false,
+                is_anno_rm_triggered: false,
+                auto_paste: false,
+                are_boxes_visible: true,
+            },
         }
     }
 

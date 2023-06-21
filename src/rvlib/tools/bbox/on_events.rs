@@ -237,20 +237,14 @@ pub(super) struct KeyReleasedParams<'a> {
     pub released_key: ReleasedKey,
 }
 
-#[derive(Clone, Copy)]
-pub(super) struct Flags {
-    pub are_boxes_visible: bool,
-    pub auto_paste: bool,
-}
-
 pub(super) fn on_key_released(
     mut world: World,
     mut history: History,
     mouse_pos: Option<(usize, usize)>,
     shape_win: Shape,
     params: KeyReleasedParams,
-    mut flags: Flags,
-) -> (Flags, World, History) {
+) -> (World, History) {
+    let mut flags = get_tools_data_mut(&mut world).specifics.bbox_mut().flags;
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {
             // Hide all boxes (selected or not)
@@ -379,7 +373,8 @@ pub(super) fn on_key_released(
         }
         _ => (),
     }
-    (flags, world, history)
+    get_tools_data_mut(&mut world).specifics.bbox_mut().flags = flags;
+    (world, history)
 }
 
 #[cfg(test)]
@@ -428,10 +423,6 @@ fn test_key_released() {
         is_ctrl_held,
         released_key,
     };
-    let flags = Flags {
-        are_boxes_visible: true,
-        auto_paste: false,
-    };
     let annos = get_annos_mut(&mut world);
     annos.add_bb(
         BB {
@@ -447,15 +438,15 @@ fn test_key_released() {
 
     // select all boxes with ctrl+A
     let params = make_params(ReleasedKey::A, false);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
     let params = make_params(ReleasedKey::A, true);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_annos(&world).unwrap().selected_bbs()[0]);
 
     // copy and paste boxes to and from clipboard
     let params = make_params(ReleasedKey::C, true);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_annos(&world).unwrap().selected_bbs()[0]);
     if let Some(clipboard) = get_tools_data(&world).specifics.bbox().clipboard.clone() {
         let mut annos = BboxAnnotations::new();
@@ -474,22 +465,21 @@ fn test_key_released() {
         assert!(false);
     }
     let params = make_params(ReleasedKey::V, true);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_tools_data(&world).specifics.bbox().clipboard.is_some());
     assert_eq!(get_annos(&world).unwrap().bbs(), annos_orig.bbs());
     let params = make_params(ReleasedKey::C, true);
-    let (_, mut world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (mut world, history) = on_key_released(world, history, None, shape_win, params);
     get_annos_mut(&mut world).remove(0);
     let params = make_params(ReleasedKey::V, true);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     assert_eq!(get_annos(&world).unwrap().bbs(), annos_orig.bbs());
 
     // clone box
     let params = make_params(ReleasedKey::A, true);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     let params = make_params(ReleasedKey::C, false);
-    let (_, world, history) =
-        on_key_released(world, history, Some((2, 2)), shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, Some((2, 2)), shape_win, params);
     assert_eq!(get_annos(&world).unwrap().bbs()[0], annos_orig.bbs()[0]);
     assert_eq!(
         get_annos(&world).unwrap().bbs()[1],
@@ -501,28 +491,30 @@ fn test_key_released() {
 
     // deselect all boxes with ctrl+D
     let params = make_params(ReleasedKey::A, true);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     let params = make_params(ReleasedKey::D, false);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(get_annos(&world).unwrap().selected_bbs()[0]);
     let params = make_params(ReleasedKey::D, true);
-    let (flags, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let flags = get_tools_data(&world).specifics.bbox().flags;
     assert!(flags.are_boxes_visible);
     assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
-    let (flags, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let flags = get_tools_data(&world).specifics.bbox().flags;
     assert!(!flags.are_boxes_visible);
 
     // delete all selected boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     assert!(!get_annos(&world).unwrap().selected_bbs().is_empty());
     let params = make_params(ReleasedKey::A, true);
-    let (_, world, history) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, history) = on_key_released(world, history, None, shape_win, params);
     let params = make_params(ReleasedKey::Delete, true);
-    let (_, world, _) = on_key_released(world, history, None, shape_win, params, flags);
+    let (world, _) = on_key_released(world, history, None, shape_win, params);
     assert!(get_annos(&world).unwrap().selected_bbs().is_empty());
 }
 

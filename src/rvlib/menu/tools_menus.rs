@@ -45,7 +45,7 @@ pub fn bbox_menu(
     }
     ui.separator();
     if ui.button("clear out of folder annotations").clicked() {
-        data.is_anno_rm_triggered = true;
+        data.flags.is_anno_rm_triggered = true;
     }
     ui.separator();
     ui.horizontal(|ui| {
@@ -55,9 +55,11 @@ pub fn bbox_menu(
         }
         if ui.button("import coco").clicked() {
             println!("import triggered");
-            data.is_coco_import_triggered = true;
+            data.flags.is_coco_import_triggered = true;
         }
     });
+    ui.separator();
+    ui.checkbox(&mut data.flags.auto_paste, "auto paste");
     ui.separator();
     if ui.button("close").clicked() {
         window_open = false;

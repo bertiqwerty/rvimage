@@ -20,7 +20,7 @@ use winit_input_helper::WinitInputHelper;
 
 use super::on_events::{
     export_if_triggered, import_coco_if_triggered, map_released_key, on_key_released,
-    on_mouse_held_right, on_mouse_released_left, Flags, KeyReleasedParams, MouseHeldParams,
+    on_mouse_held_right, on_mouse_released_left, KeyReleasedParams, MouseHeldParams,
     MouseReleaseParams,
 };
 pub const ACTOR_NAME: &str = "BBox";
@@ -100,9 +100,7 @@ pub struct BBox {
     initial_view: InitialView,
     mover: Mover,
     prev_label: usize,
-    are_boxes_visible: bool,
     previous_file: Option<String>,
-    auto_paste: bool,
 }
 
 impl BBox {
@@ -126,8 +124,13 @@ impl BBox {
         world: World,
         history: History,
     ) -> (World, History) {
+        let are_boxes_visible = get_tools_data(&world)
+            .specifics
+            .bbox()
+            .flags
+            .are_boxes_visible;
         let params = MouseHeldParams {
-            are_boxes_visible: self.are_boxes_visible,
+            are_boxes_visible,
             initial_view: &self.initial_view,
             mover: &mut self.mover,
         };
@@ -143,9 +146,14 @@ impl BBox {
         mut history: History,
     ) -> (World, History) {
         if event.mouse_released(LEFT_BTN) {
+            let are_boxes_visible = get_tools_data(&world)
+                .specifics
+                .bbox()
+                .flags
+                .are_boxes_visible;
             let params = MouseReleaseParams {
                 prev_pos: self.prev_pos,
-                are_boxes_visible: self.are_boxes_visible,
+                are_boxes_visible,
                 is_alt_held: event.held_alt(),
                 is_shift_held: event.held_shift(),
                 is_ctrl_held: event.held_control(),
@@ -167,6 +175,11 @@ impl BBox {
         mut world: World,
         history: History,
     ) -> (World, History) {
+        let are_boxes_visible = get_tools_data(&world)
+            .specifics
+            .bbox()
+            .flags
+            .are_boxes_visible;
         // up, down, left, right
         let shape_orig = world.data.shape();
         let annos = get_annos_mut(&mut world);
@@ -195,7 +208,7 @@ impl BBox {
         } else if event.key_held(VirtualKeyCode::Left) {
             annos.shift_max_bbs(-1, 0, shape_orig);
         }
-        world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
+        world = draw_on_view(&self.initial_view, are_boxes_visible, world, shape_win);
         world.update_view(shape_win);
         (world, history)
     }
@@ -213,14 +226,7 @@ impl BBox {
             is_ctrl_held: event.held_control(),
             released_key: map_released_key(event),
         };
-        let mut flags = Flags {
-            are_boxes_visible: self.are_boxes_visible,
-            auto_paste: self.auto_paste,
-        };
-        (flags, world, history) =
-            on_key_released(world, history, mouse_pos, shape_win, params, flags);
-        self.are_boxes_visible = flags.are_boxes_visible;
-        self.auto_paste = flags.auto_paste;
+        (world, history) = on_key_released(world, history, mouse_pos, shape_win, params);
         (world, history)
     }
 }
@@ -232,9 +238,7 @@ impl Manipulate for BBox {
             initial_view: InitialView::new(),
             mover: Mover::new(),
             prev_label: 0,
-            are_boxes_visible: true,
             previous_file: None,
-            auto_paste: false,
         }
     }
 
@@ -278,16 +282,19 @@ impl Manipulate for BBox {
         }
         let is_file_new = self.previous_file != world.data.meta_data.file_path;
         if is_file_new {
-            let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-            for (_, (anno, _)) in bbox_data.anno_iter_mut() {
-                anno.deselect_all();
+            {
+                let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+                for (_, (anno, _)) in bbox_data.anno_iter_mut() {
+                    anno.deselect_all();
+                }
             }
             self.previous_file = world.data.meta_data.file_path.clone();
-            if self.auto_paste {
-                (world, history) = paste(&self.initial_view, shape_win, world, history);
-            }
         }
-        let is_anno_rm_triggered = get_tools_data(&world).specifics.bbox().is_anno_rm_triggered;
+        let is_anno_rm_triggered = get_tools_data(&world)
+            .specifics
+            .bbox()
+            .flags
+            .is_anno_rm_triggered;
         if is_anno_rm_triggered {
             let opened_folder = world
                 .data
@@ -300,8 +307,13 @@ impl Manipulate for BBox {
                 bbox_data.retain_fileannos_in_folder(opened_folder);
             }
 
-            bbox_data.is_anno_rm_triggered = false;
-            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
+            bbox_data.flags.is_anno_rm_triggered = false;
+            world = draw_on_view(
+                &self.initial_view,
+                bbox_data.flags.are_boxes_visible,
+                world,
+                shape_win,
+            );
         }
         // this is necessary in addition to the call in on_activate due to undo/redo
         world = initialize_tools_menu_data(world);
@@ -317,27 +329,40 @@ impl Manipulate for BBox {
         }
         {
             // import coco if demanded
-            let is_coco_import_triggered = get_tools_data(&world)
-                .specifics
-                .bbox()
-                .is_coco_import_triggered;
+            let flags = get_tools_data(&world).specifics.bbox().flags;
             if let Some(imported_data) =
-                import_coco_if_triggered(&world.data.meta_data, is_coco_import_triggered)
+                import_coco_if_triggered(&world.data.meta_data, flags.is_coco_import_triggered)
             {
                 *get_tools_data_mut(&mut world).specifics.bbox_mut() = imported_data;
-                world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
+                world = draw_on_view(
+                    &self.initial_view,
+                    flags.are_boxes_visible,
+                    world,
+                    shape_win,
+                );
             } else {
                 get_tools_data_mut(&mut world)
                     .specifics
                     .bbox_mut()
+                    .flags
                     .is_coco_import_triggered = false;
             }
         }
         let in_menu_selected_label = current_cat_idx(&world);
+        let flags = get_tools_data(&world).specifics.bbox().flags;
         if self.prev_label != in_menu_selected_label {
-            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
+            world = draw_on_view(
+                &self.initial_view,
+                flags.are_boxes_visible,
+                world,
+                shape_win,
+            );
         }
         self.initial_view.update(&world, shape_win);
+        let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+        if bbox_data.flags.auto_paste {
+            (world, history) = paste(&self.initial_view, shape_win, world, history);
+        }
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
         let pp_orig = mouse_pos_to_orig_pos(
@@ -348,7 +373,12 @@ impl Manipulate for BBox {
         );
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // animation
-            world = draw_on_view(&self.initial_view, self.are_boxes_visible, world, shape_win);
+            world = draw_on_view(
+                &self.initial_view,
+                flags.are_boxes_visible,
+                world,
+                shape_win,
+            );
             let tmp_annos =
                 BboxAnnotations::from_bbs(vec![BB::from_points(mp, pp)], in_menu_selected_label);
             let mut im_view = world.take_view();
