@@ -2,6 +2,7 @@ use winit_input_helper::WinitInputHelper;
 
 use crate::{
     domain::{self, Shape, BB},
+    file_util::MetaData,
     history::History,
     types::ViewImage,
     world::World,
@@ -13,25 +14,31 @@ pub struct InitialView {
     image: Option<ViewImage>,
 }
 impl InitialView {
-    pub fn update(&mut self, world: &World, shape_win: Shape) {
-        if let Some(ilsa) = world.data.meta_data.is_loading_screen_active {
-            if !ilsa
-                && (self.file_path != world.data.meta_data.file_path
+    fn updated_needed(&self, world_meta: &MetaData) -> bool {
+        if let Some(is_active) = world_meta.is_loading_screen_active {
+            !is_active
+                && (self.file_path != world_meta.file_path
                     || (self.file_path.is_some() && self.image.is_none()))
-            {
-                self.file_path = world
-                    .data
-                    .meta_data
-                    .file_path
-                    .as_ref()
-                    .map(|s| s.to_string());
-                self.image = Some(
-                    world
-                        .data
-                        .bg_to_unannotated_view(world.zoom_box(), shape_win),
-                );
-            }
+        } else {
+            false
         }
+    }
+    pub fn update(&mut self, world: &World, shape_win: Shape) -> bool {
+        let is_update_needed = self.updated_needed(&world.data.meta_data);
+        if is_update_needed {
+            self.file_path = world
+                .data
+                .meta_data
+                .file_path
+                .as_ref()
+                .map(|s| s.to_string());
+            self.image = Some(
+                world
+                    .data
+                    .bg_to_unannotated_view(world.zoom_box(), shape_win),
+            );
+        }
+        is_update_needed
     }
     pub fn image(&self) -> &Option<ViewImage> {
         &self.image

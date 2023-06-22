@@ -358,9 +358,8 @@ impl Manipulate for BBox {
                 shape_win,
             );
         }
-        self.initial_view.update(&world, shape_win);
-        let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-        if bbox_data.flags.auto_paste {
+        let updated = self.initial_view.update(&world, shape_win);
+        if updated && flags.auto_paste {
             (world, history) = paste(&self.initial_view, shape_win, world, history);
         }
         let mp_orig =
