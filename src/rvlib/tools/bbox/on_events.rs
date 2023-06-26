@@ -215,47 +215,59 @@ pub(super) fn on_mouse_released_left(
                 }
                 _ => {
                     if let Some(mp) = mp_orig {
-                        let (w, h) = (shape_orig.w, shape_orig.h);
                         let existing_bbs: &[BB] = if let Some(annos) = get_annos(&world) {
                             annos.bbs()
                         } else {
                             &[]
                         };
+                        let (x, y) = mp;
                         let new_bbs = if let SplitMode::Horizontal = split_mode {
-                            let y = mp.1;
-                            let new_bbs = existing_bbs
+                            if let Some((i, bb)) = existing_bbs
                                 .iter()
                                 .enumerate()
-                                .filter(|(_, bb)| bb.covers_y(y))
-                                .map(|(i, bb)| {
-                                    let top = BB::from_arr(&[bb.x, bb.y, bb.w, y - bb.y]);
-                                    let btm = BB::from_arr(&[bb.x, y, bb.w, bb.y_max() - y]);
-                                    (Some(i), top, btm)
-                                })
-                                .collect::<Vec<_>>();
-                            if new_bbs.is_empty() {
-                                let top_bb = BB::from_arr(&[0, 0, w, y]);
-                                let btm_bb = BB::from_arr(&[0, y, w, h - y]);
-                                vec![(None, top_bb, btm_bb)]
+                                .find(|(_, bb)| bb.contains((x, y)))
+                            {
+                                let (top, btm) = bb.split_horizontally(y);
+                                vec![(Some(i), top, btm)]
                             } else {
-                                new_bbs
+                                let new_bbs = existing_bbs
+                                    .iter()
+                                    .enumerate()
+                                    .filter(|(_, bb)| bb.covers_y(y))
+                                    .map(|(i, bb)| {
+                                        let (top, btm) = bb.split_horizontally(y);
+                                        (Some(i), top, btm)
+                                    })
+                                    .collect::<Vec<_>>();
+                                if new_bbs.is_empty() {
+                                    let (top, btm) =
+                                        BB::from_shape(shape_orig).split_horizontally(y);
+                                    vec![(None, top, btm)]
+                                } else {
+                                    new_bbs
+                                }
                             }
+                        // SplitMode::Vertical
+                        } else if let Some((i, bb)) = existing_bbs
+                            .iter()
+                            .enumerate()
+                            .find(|(_, bb)| bb.contains((x, y)))
+                        {
+                            let (left, right) = bb.split_vertically(x);
+                            vec![(Some(i), left, right)]
                         } else {
-                            let x = mp.0;
                             let new_bbs = existing_bbs
                                 .iter()
                                 .enumerate()
                                 .filter(|(_, bb)| bb.covers_x(x))
                                 .map(|(i, bb)| {
-                                    let left = BB::from_arr(&[bb.x, bb.y, x - bb.x, bb.h]);
-                                    let right = BB::from_arr(&[x, bb.y, bb.x_max() - x, bb.h]);
+                                    let (left, right) = bb.split_vertically(x);
                                     (Some(i), left, right)
                                 })
                                 .collect::<Vec<_>>();
                             if new_bbs.is_empty() {
-                                let left_bb = BB::from_arr(&[0, 0, x, h]);
-                                let right_bb = BB::from_arr(&[x, 0, w - x, h]);
-                                vec![(None, left_bb, right_bb)]
+                                let (left, right) = BB::from_shape(shape_orig).split_vertically(y);
+                                vec![(None, left, right)]
                             } else {
                                 new_bbs
                             }
@@ -263,8 +275,7 @@ pub(super) fn on_mouse_released_left(
                         let annos = get_annos_mut(&mut world);
                         let removers = new_bbs.iter().flat_map(|(i, _, _)| *i).collect::<Vec<_>>();
                         annos.remove_multiple(&removers);
-                        for new_bb in new_bbs {
-                            let (_, bb1, bb2) = new_bb;
+                        for (_, bb1, bb2) in new_bbs {
                             annos.add_bb(bb1, in_menu_selected_label);
                             annos.add_bb(bb2, in_menu_selected_label);
                         }

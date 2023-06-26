@@ -250,6 +250,26 @@ impl BB {
         }
     }
 
+    pub fn split_horizontally(&self, y: u32) -> (Self, Self) {
+        let top = BB::from_arr(&[self.x, self.y, self.w, y - self.y]);
+        let btm = BB::from_arr(&[self.x, y, self.w, self.y_max() - y]);
+        (top, btm)
+    }
+    pub fn split_vertically(&self, x: u32) -> (Self, Self) {
+        let left = BB::from_arr(&[self.x, self.y, x - self.x, self.h]);
+        let right = BB::from_arr(&[x, self.y, self.x_max() - x, self.h]);
+        (left, right)
+    }
+
+    pub fn from_shape(shape: Shape) -> Self {
+        BB {
+            x: 0,
+            y: 0,
+            w: shape.w - 1,
+            h: shape.h - 1,
+        }
+    }
+
     pub fn y_max(&self) -> u32 {
         self.y + self.h
     }
