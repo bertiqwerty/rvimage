@@ -2,7 +2,10 @@ use egui::Ui;
 
 use crate::{
     result::RvResult,
-    tools_data::{bbox_data::BboxSpecificData, ToolSpecifics, ToolsData},
+    tools_data::{
+        bbox_data::{BboxSpecificData, SplitMode},
+        ToolSpecifics, ToolsData,
+    },
 };
 
 pub fn bbox_menu(
@@ -45,21 +48,37 @@ pub fn bbox_menu(
     }
     ui.separator();
     if ui.button("clear out of folder annotations").clicked() {
-        data.flags.is_anno_rm_triggered = true;
+        data.options.is_anno_rm_triggered = true;
     }
     ui.separator();
     ui.horizontal(|ui| {
         if ui.button("export coco").clicked() {
             println!("export coco triggered");
-            data.export_trigger.is_export_triggered = true;
+            data.options.is_export_triggered = true;
         }
         if ui.button("import coco").clicked() {
             println!("import triggered");
-            data.flags.is_coco_import_triggered = true;
+            data.options.is_coco_import_triggered = true;
         }
     });
     ui.separator();
-    ui.checkbox(&mut data.flags.auto_paste, "auto paste");
+    ui.label("split mode");
+    ui.horizontal(|ui| {
+        ui.radio_value(&mut data.options.split_mode, SplitMode::None, "none");
+        ui.radio_value(
+            &mut data.options.split_mode,
+            SplitMode::Horizontal,
+            "horizontal",
+        );
+        ui.radio_value(
+            &mut data.options.split_mode,
+            SplitMode::Vertical,
+            "vertical",
+        );
+    });
+
+    ui.separator();
+    ui.checkbox(&mut data.options.auto_paste, "auto paste");
     ui.separator();
     if ui.button("close").clicked() {
         window_open = false;

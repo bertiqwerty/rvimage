@@ -387,9 +387,15 @@ impl BB {
         self.translate(x_shift, y_shift, shape)
     }
 
+    pub fn covers_y(&self, y: u32) -> bool {
+        self.y_max() > y && self.y <= y
+    }
+    pub fn covers_x(&self, x: u32) -> bool {
+        self.x_max() > x && self.x <= x
+    }
+
     pub fn contains(&self, p: (u32, u32)) -> bool {
-        let BB { x, y, h, w } = self;
-        x <= &p.0 && p.0 < x + w && y <= &p.1 && p.1 < y + h
+        self.covers_x(p.0) && self.covers_y(p.1)
     }
 
     pub fn contains_bb(&self, other: BB) -> bool {

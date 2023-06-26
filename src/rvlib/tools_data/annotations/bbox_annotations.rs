@@ -149,11 +149,6 @@ fn selected_or_deselected_indices<'a>(
 }
 
 #[allow(clippy::needless_lifetimes)]
-fn deselected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
-    selected_or_deselected_indices(selected_bbs, true)
-}
-
-#[allow(clippy::needless_lifetimes)]
 pub fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
     selected_or_deselected_indices(selected_bbs, false)
 }
@@ -230,14 +225,19 @@ impl BboxAnnotations {
         self.bbs.remove(box_idx)
     }
 
-    pub fn remove_selected(&mut self) {
-        let keep_indices = deselected_indices(&self.selected_bbs);
+    pub fn remove_multiple(&mut self, indices: &[usize]) {
+        let keep_indices = (0..self.bbs.len()).filter(|i| !indices.contains(i));
         self.bbs = keep_indices
             .clone()
             .map(|i| self.bbs[i])
             .collect::<Vec<_>>();
         self.cat_idxs = keep_indices.map(|i| self.cat_idxs[i]).collect::<Vec<_>>();
         self.selected_bbs = vec![false; self.bbs.len()];
+    }
+
+    pub fn remove_selected(&mut self) {
+        let selected = selected_indices(self.selected_bbs());
+        self.remove_multiple(&selected.collect::<Vec<_>>());
     }
 
     pub fn shift(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {

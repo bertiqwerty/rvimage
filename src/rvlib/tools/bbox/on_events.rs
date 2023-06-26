@@ -5,14 +5,19 @@ use crate::{
     history::Record,
     image_util::to_i64,
     tools::core::{InitialView, Mover},
-    tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
+    tools_data::{
+        self,
+        bbox_data::{ClipboardData, SplitMode},
+        BboxSpecificData,
+    },
     {history::History, world::World},
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use super::core::{
-    current_cat_idx, draw_on_view, get_annos, get_annos_mut, get_tools_data_mut, paste, ACTOR_NAME,
+    current_cat_idx, draw_on_view, get_annos, get_annos_mut, get_tools_data, get_tools_data_mut,
+    paste, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
@@ -70,7 +75,7 @@ pub(super) fn import_coco_if_triggered(
 }
 
 pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecificData) {
-    if bbox_data.export_trigger.is_export_triggered {
+    if bbox_data.options.is_export_triggered {
         // TODO: don't crash just because export failed
         tools_data::write_coco(meta_data, bbox_data.clone()).unwrap();
     }
@@ -188,7 +193,7 @@ pub(super) fn on_mouse_released_left(
         }
         world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
     } else {
-        // first click defines starting point of bounding box
+        let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let shape_orig = world.data.shape();
         let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
         let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
@@ -203,8 +208,72 @@ pub(super) fn on_mouse_released_left(
             prev_pos = orig_pos_to_view_pos(oppo_corner, shape_orig, shape_win, world.zoom_box())
                 .map(|(x, y)| (x as usize, y as usize));
         } else {
-            // first click new bb
-            prev_pos = mouse_pos;
+            match split_mode {
+                SplitMode::None => {
+                    // first click new bb
+                    prev_pos = mouse_pos;
+                }
+                _ => {
+                    if let Some(mp) = mp_orig {
+                        let (w, h) = (shape_orig.w, shape_orig.h);
+                        let existing_bbs: &[BB] = if let Some(annos) = get_annos(&world) {
+                            annos.bbs()
+                        } else {
+                            &[]
+                        };
+                        let new_bbs = if let SplitMode::Horizontal = split_mode {
+                            let y = mp.1;
+                            let new_bbs = existing_bbs
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, bb)| bb.covers_y(y))
+                                .map(|(i, bb)| {
+                                    let top = BB::from_arr(&[bb.x, bb.y, bb.w, y - bb.y]);
+                                    let btm = BB::from_arr(&[bb.x, y, bb.w, bb.y_max() - y]);
+                                    (Some(i), top, btm)
+                                })
+                                .collect::<Vec<_>>();
+                            if new_bbs.is_empty() {
+                                let top_bb = BB::from_arr(&[0, 0, w, y]);
+                                let btm_bb = BB::from_arr(&[0, y, w, h - y]);
+                                vec![(None, top_bb, btm_bb)]
+                            } else {
+                                new_bbs
+                            }
+                        } else {
+                            let x = mp.0;
+                            let new_bbs = existing_bbs
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, bb)| bb.covers_x(x))
+                                .map(|(i, bb)| {
+                                    let left = BB::from_arr(&[bb.x, bb.y, x - bb.x, bb.h]);
+                                    let right = BB::from_arr(&[x, bb.y, bb.x_max() - x, bb.h]);
+                                    (Some(i), left, right)
+                                })
+                                .collect::<Vec<_>>();
+                            if new_bbs.is_empty() {
+                                let left_bb = BB::from_arr(&[0, 0, x, h]);
+                                let right_bb = BB::from_arr(&[x, 0, w - x, h]);
+                                vec![(None, left_bb, right_bb)]
+                            } else {
+                                new_bbs
+                            }
+                        };
+                        let annos = get_annos_mut(&mut world);
+                        let removers = new_bbs.iter().flat_map(|(i, _, _)| *i).collect::<Vec<_>>();
+                        annos.remove_multiple(&removers);
+                        for new_bb in new_bbs {
+                            let (_, bb1, bb2) = new_bb;
+                            annos.add_bb(bb1, in_menu_selected_label);
+                            annos.add_bb(bb2, in_menu_selected_label);
+                        }
+                        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                        prev_pos = None;
+                        world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
+                    }
+                }
+            }
         }
     }
     (world, history, prev_pos)
@@ -244,7 +313,7 @@ pub(super) fn on_key_released(
     shape_win: Shape,
     params: KeyReleasedParams,
 ) -> (World, History) {
-    let mut flags = get_tools_data_mut(&mut world).specifics.bbox_mut().flags;
+    let mut flags = get_tools_data_mut(&mut world).specifics.bbox_mut().options;
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {
             // Hide all boxes (selected or not)
@@ -373,13 +442,13 @@ pub(super) fn on_key_released(
         }
         _ => (),
     }
-    get_tools_data_mut(&mut world).specifics.bbox_mut().flags = flags;
+    get_tools_data_mut(&mut world).specifics.bbox_mut().options = flags;
     (world, history)
 }
 
 #[cfg(test)]
 use {
-    super::core::{get_tools_data, initialize_tools_menu_data},
+    super::core::initialize_tools_menu_data,
     crate::{annotations::BboxAnnotations, domain::make_test_bbs, types::ViewImage},
     image::DynamicImage,
     std::collections::HashMap,
@@ -497,14 +566,14 @@ fn test_key_released() {
     assert!(get_annos(&world).unwrap().selected_bbs()[0]);
     let params = make_params(ReleasedKey::D, true);
     let (world, history) = on_key_released(world, history, None, shape_win, params);
-    let flags = get_tools_data(&world).specifics.bbox().flags;
+    let flags = get_tools_data(&world).specifics.bbox().options;
     assert!(flags.are_boxes_visible);
     assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
     let (world, history) = on_key_released(world, history, None, shape_win, params);
-    let flags = get_tools_data(&world).specifics.bbox().flags;
+    let flags = get_tools_data(&world).specifics.bbox().options;
     assert!(!flags.are_boxes_visible);
 
     // delete all selected boxes with ctrl+Delete

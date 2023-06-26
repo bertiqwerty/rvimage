@@ -51,11 +51,6 @@ pub fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
     argmax_clr_dist(&new_clr_proposals, colors)
 }
 
-#[derive(Deserialize, Serialize, Clone, Default, Debug, PartialEq, Eq)]
-pub struct BboxExportTrigger {
-    pub is_export_triggered: bool,
-}
-
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct ClipboardData {
     bbs: Vec<BB>,
@@ -79,12 +74,22 @@ impl ClipboardData {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
-pub struct Flags {
+#[derive(Deserialize, Serialize, Default, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SplitMode {
+    Horizontal,
+    Vertical,
+    #[default]
+    None,
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize, Default, Debug, PartialEq, Eq)]
+pub struct Options {
     pub are_boxes_visible: bool,
     pub auto_paste: bool,
     pub is_anno_rm_triggered: bool,
     pub is_coco_import_triggered: bool,
+    pub is_export_triggered: bool,
+    pub split_mode: SplitMode,
 }
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct BboxSpecificData {
@@ -94,9 +99,8 @@ pub struct BboxSpecificData {
     cat_ids: Vec<u32>,
     pub cat_idx_current: usize,
     annotations_map: AnnotationsMap,
-    pub export_trigger: BboxExportTrigger,
     pub clipboard: Option<ClipboardData>,
-    pub flags: Flags,
+    pub options: Options,
 }
 
 impl BboxSpecificData {
@@ -123,13 +127,10 @@ impl BboxSpecificData {
             cat_ids: vec![],
             cat_idx_current: 0,
             annotations_map: HashMap::new(),
-            export_trigger: BboxExportTrigger::default(),
             clipboard: None,
-            flags: Flags {
-                is_coco_import_triggered: false,
-                is_anno_rm_triggered: false,
-                auto_paste: false,
+            options: Options {
                 are_boxes_visible: true,
+                ..Default::default()
             },
         };
         for ((lab, clr), cat_id) in input_data
@@ -241,13 +242,10 @@ impl BboxSpecificData {
             cat_ids,
             cat_idx_current: 0,
             annotations_map: HashMap::new(),
-            export_trigger: BboxExportTrigger::default(),
             clipboard: None,
-            flags: Flags {
-                is_coco_import_triggered: false,
-                is_anno_rm_triggered: false,
-                auto_paste: false,
+            options: Options {
                 are_boxes_visible: true,
+                ..Default::default()
             },
         }
     }

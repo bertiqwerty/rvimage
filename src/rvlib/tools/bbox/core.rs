@@ -127,7 +127,7 @@ impl BBox {
         let are_boxes_visible = get_tools_data(&world)
             .specifics
             .bbox()
-            .flags
+            .options
             .are_boxes_visible;
         let params = MouseHeldParams {
             are_boxes_visible,
@@ -149,7 +149,7 @@ impl BBox {
             let are_boxes_visible = get_tools_data(&world)
                 .specifics
                 .bbox()
-                .flags
+                .options
                 .are_boxes_visible;
             let params = MouseReleaseParams {
                 prev_pos: self.prev_pos,
@@ -178,7 +178,7 @@ impl BBox {
         let are_boxes_visible = get_tools_data(&world)
             .specifics
             .bbox()
-            .flags
+            .options
             .are_boxes_visible;
         // up, down, left, right
         let shape_orig = world.data.shape();
@@ -293,7 +293,7 @@ impl Manipulate for BBox {
         let is_anno_rm_triggered = get_tools_data(&world)
             .specifics
             .bbox()
-            .flags
+            .options
             .is_anno_rm_triggered;
         if is_anno_rm_triggered {
             let opened_folder = world
@@ -307,10 +307,10 @@ impl Manipulate for BBox {
                 bbox_data.retain_fileannos_in_folder(opened_folder);
             }
 
-            bbox_data.flags.is_anno_rm_triggered = false;
+            bbox_data.options.is_anno_rm_triggered = false;
             world = draw_on_view(
                 &self.initial_view,
-                bbox_data.flags.are_boxes_visible,
+                bbox_data.options.are_boxes_visible,
                 world,
                 shape_win,
             );
@@ -324,12 +324,12 @@ impl Manipulate for BBox {
             get_tools_data_mut(&mut world)
                 .specifics
                 .bbox_mut()
-                .export_trigger
+                .options
                 .is_export_triggered = false;
         }
         {
             // import coco if demanded
-            let flags = get_tools_data(&world).specifics.bbox().flags;
+            let flags = get_tools_data(&world).specifics.bbox().options;
             if let Some(imported_data) =
                 import_coco_if_triggered(&world.data.meta_data, flags.is_coco_import_triggered)
             {
@@ -344,12 +344,12 @@ impl Manipulate for BBox {
                 get_tools_data_mut(&mut world)
                     .specifics
                     .bbox_mut()
-                    .flags
+                    .options
                     .is_coco_import_triggered = false;
             }
         }
         let in_menu_selected_label = current_cat_idx(&world);
-        let flags = get_tools_data(&world).specifics.bbox().flags;
+        let flags = get_tools_data(&world).specifics.bbox().options;
         if self.prev_label != in_menu_selected_label {
             world = draw_on_view(
                 &self.initial_view,
