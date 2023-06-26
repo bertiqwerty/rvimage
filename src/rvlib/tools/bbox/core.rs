@@ -349,17 +349,17 @@ impl Manipulate for BBox {
             }
         }
         let in_menu_selected_label = current_cat_idx(&world);
-        let flags = get_tools_data(&world).specifics.bbox().options;
+        let options = get_tools_data(&world).specifics.bbox().options;
         if self.prev_label != in_menu_selected_label {
             world = draw_on_view(
                 &self.initial_view,
-                flags.are_boxes_visible,
+                options.are_boxes_visible,
                 world,
                 shape_win,
             );
         }
         let updated = self.initial_view.update(&world, shape_win);
-        if updated && flags.auto_paste {
+        if updated && options.auto_paste {
             (world, history) = paste(&self.initial_view, shape_win, world, history);
         }
         let mp_orig =
@@ -374,7 +374,7 @@ impl Manipulate for BBox {
             // animation
             world = draw_on_view(
                 &self.initial_view,
-                flags.are_boxes_visible,
+                options.are_boxes_visible,
                 world,
                 shape_win,
             );
