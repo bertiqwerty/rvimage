@@ -23,8 +23,8 @@ azure_blob = [
 ]
 
 [dependencies]
-azure_storage = { version = "0.12.0", optional = true }
-azure_storage_blobs = { version = "0.12.0", optional = true }
+azure_storage = { version = "0.13.0", optional = true }
+azure_storage_blobs = { version = "0.13.0", optional = true }
 conv = "0.3.3"
 dirs = "5.0.1"
 edit = "0.1.4"

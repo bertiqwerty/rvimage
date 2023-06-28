@@ -152,7 +152,7 @@ pub(super) fn on_mouse_held_right(
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct PrevPos {
     pub prev_pos: Option<(usize, usize)>,
-    pub last_click: Option<(usize, usize)>,
+    pub last_valid_click: Option<(usize, usize)>,
 }
 
 pub(super) struct MouseReleaseParams<'a> {
@@ -184,10 +184,12 @@ pub(super) fn on_mouse_released_left(
     let to_orig_pos =
         |pos| mouse_pos_to_orig_pos(pos, world.shape_orig(), shape_win, world.zoom_box());
     let mp_orig = to_orig_pos(mouse_pos);
-    let lc_orig = to_orig_pos(prev_pos.last_click);
+    let lc_orig = to_orig_pos(prev_pos.last_valid_click);
     let pp_orig = to_orig_pos(prev_pos.prev_pos);
     let in_menu_selected_label = current_cat_idx(&world);
-    prev_pos.last_click = mouse_pos;
+    if let Some(mp) = mouse_pos {
+        prev_pos.last_valid_click = Some(mp);
+    }
     if let (Some(mp), Some(pp), Some(last_click)) = (mp_orig, pp_orig, lc_orig) {
         // second click new bb
         if (mp.0 as i32 - pp.0 as i32).abs() > 1 && (mp.1 as i32 - pp.1 as i32).abs() > 1 {
@@ -692,7 +694,7 @@ fn test_mouse_release() {
     let make_params = |prev_pos, is_ctrl_held| MouseReleaseParams {
         prev_pos: PrevPos {
             prev_pos,
-            last_click: None,
+            last_valid_click: prev_pos,
         },
         are_boxes_visible: true,
         is_alt_held: false,
