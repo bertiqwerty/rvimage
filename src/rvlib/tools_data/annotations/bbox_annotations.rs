@@ -247,7 +247,13 @@ impl BboxAnnotations {
             bb.translate(x_shift, y_shift, shape_orig, OutOfBoundsMode::Deny)
         });
     }
-    pub fn shift_min_bbs(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape, split_mode: SplitMode) {
+    pub fn shift_min_bbs(
+        &mut self,
+        x_shift: i32,
+        y_shift: i32,
+        shape_orig: Shape,
+        split_mode: SplitMode,
+    ) {
         let x_shift = match split_mode {
             SplitMode::Horizontal => 0,
             _ => x_shift,
@@ -372,13 +378,11 @@ impl BboxAnnotations {
                                 move_somebody = true;
                                 *bb = bb_shifted;
                             }
-                        } else {
-                            if let Some(bb_moved) =
-                                bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
-                            {
-                                move_somebody = true;
-                                *bb = bb_moved;
-                            }
+                        } else if let Some(bb_moved) =
+                            bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
+                        {
+                            move_somebody = true;
+                            *bb = bb_moved;
                         }
                     }
                     SplitMode::Vertical => {
@@ -393,13 +397,11 @@ impl BboxAnnotations {
                                 move_somebody = true;
                                 *bb = bb_shifted;
                             }
-                        } else {
-                            if let Some(bb_moved) =
-                                bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
-                            {
-                                move_somebody = true;
-                                *bb = bb_moved;
-                            }
+                        } else if let Some(bb_moved) =
+                            bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
+                        {
+                            move_somebody = true;
+                            *bb = bb_moved;
                         }
                     }
                 }

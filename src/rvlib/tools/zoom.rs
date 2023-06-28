@@ -4,7 +4,7 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
-    domain::{self, BbPointIterator, Shape, BB, OutOfBoundsMode},
+    domain::{self, BbPointIterator, OutOfBoundsMode, Shape, BB},
     history::History,
     image_util::{self, to_u32},
     make_tool_transform,
