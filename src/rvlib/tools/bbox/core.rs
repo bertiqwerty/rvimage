@@ -21,7 +21,7 @@ use winit_input_helper::WinitInputHelper;
 use super::on_events::{
     export_if_triggered, import_coco_if_triggered, map_released_key, on_key_released,
     on_mouse_held_right, on_mouse_released_left, KeyReleasedParams, MouseHeldParams,
-    MouseReleaseParams,
+    MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "BBox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -96,7 +96,7 @@ pub(super) fn draw_on_view(
 
 #[derive(Clone, Debug)]
 pub struct BBox {
-    prev_pos: Option<(usize, usize)>,
+    prev_pos: PrevPos,
     initial_view: InitialView,
     mover: Mover,
     prev_label: usize,
@@ -235,7 +235,7 @@ impl BBox {
 impl Manipulate for BBox {
     fn new() -> Self {
         Self {
-            prev_pos: None,
+            prev_pos: PrevPos::default(),
             initial_view: InitialView::new(),
             mover: Mover::new(),
             prev_label: 0,
@@ -249,7 +249,7 @@ impl Manipulate for BBox {
         mut history: History,
         shape_win: Shape,
     ) -> (World, History) {
-        self.prev_pos = None;
+        self.prev_pos = PrevPos::default();
         self.initial_view = InitialView::new();
         self.initial_view.update(&world, shape_win);
         world = initialize_tools_menu_data(world);
@@ -264,7 +264,7 @@ impl Manipulate for BBox {
         history: History,
         _shape_win: Shape,
     ) -> (World, History) {
-        self.prev_pos = None;
+        self.prev_pos = PrevPos::default();
         self.initial_view = InitialView::new();
         get_tools_data_mut(&mut world).menu_active = false;
         (world, history)
@@ -366,7 +366,7 @@ impl Manipulate for BBox {
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
         let pp_orig = mouse_pos_to_orig_pos(
-            self.prev_pos,
+            self.prev_pos.prev_pos,
             world.data.shape(),
             shape_win,
             world.zoom_box(),

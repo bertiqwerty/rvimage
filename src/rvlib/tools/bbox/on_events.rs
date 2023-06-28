@@ -149,8 +149,15 @@ pub(super) fn on_mouse_held_right(
     (world, history)
 }
 
-pub(super) struct MouseReleaseParams<'a> {
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct PrevPos {
     pub prev_pos: Option<(usize, usize)>,
+    pub last_click: Option<(usize, usize)>,
+}
+
+pub(super) struct MouseReleaseParams<'a> {
+    pub prev_pos: PrevPos,
+
     pub are_boxes_visible: bool,
     pub is_alt_held: bool,
     pub is_shift_held: bool,
@@ -164,7 +171,8 @@ pub(super) fn on_mouse_released_left(
     params: MouseReleaseParams,
     mut world: World,
     mut history: History,
-) -> (World, History, Option<(usize, usize)>) {
+) -> (World, History, PrevPos) {
+    let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
     let MouseReleaseParams {
         mut prev_pos,
         are_boxes_visible,
@@ -173,22 +181,25 @@ pub(super) fn on_mouse_released_left(
         is_ctrl_held,
         initial_view,
     } = params;
-    let mp_orig = mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
-    let pp_orig = mouse_pos_to_orig_pos(prev_pos, world.shape_orig(), shape_win, world.zoom_box());
+    let to_orig_pos =
+        |pos| mouse_pos_to_orig_pos(pos, world.shape_orig(), shape_win, world.zoom_box());
+    let mp_orig = to_orig_pos(mouse_pos);
+    let lc_orig = to_orig_pos(prev_pos.last_click);
+    let pp_orig = to_orig_pos(prev_pos.prev_pos);
     let in_menu_selected_label = current_cat_idx(&world);
-    if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
+    prev_pos.last_click = mouse_pos;
+    if let (Some(mp), Some(pp), Some(last_click)) = (mp_orig, pp_orig, lc_orig) {
         // second click new bb
         if (mp.0 as i32 - pp.0 as i32).abs() > 1 && (mp.1 as i32 - pp.1 as i32).abs() > 1 {
-            let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
             let mp = match split_mode {
-                SplitMode::Horizontal => (mp.0, pp.1),
-                SplitMode::Vertical => (pp.0, mp.1),
+                SplitMode::Horizontal => (last_click.0, mp.1),
+                SplitMode::Vertical => (mp.0, last_click.1),
                 SplitMode::None => mp,
             };
             let annos = get_annos_mut(&mut world);
             annos.add_bb(BB::from_points(mp, pp), in_menu_selected_label);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
-            prev_pos = None;
+            prev_pos.prev_pos = None;
             world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
         }
     } else if is_ctrl_held || is_alt_held || is_shift_held {
@@ -232,7 +243,6 @@ pub(super) fn on_mouse_released_left(
         }
         world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
     } else {
-        let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let shape_orig = world.data.shape();
         let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
         let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
@@ -244,13 +254,14 @@ pub(super) fn on_mouse_released_left(
             let annos = get_annos_mut(&mut world);
             let bb = annos.remove(bb_idx);
             let oppo_corner = bb.opposite_corner(idx);
-            prev_pos = orig_pos_to_view_pos(oppo_corner, shape_orig, shape_win, world.zoom_box())
-                .map(|(x, y)| (x as usize, y as usize));
+            prev_pos.prev_pos =
+                orig_pos_to_view_pos(oppo_corner, shape_orig, shape_win, world.zoom_box())
+                    .map(|(x, y)| (x as usize, y as usize));
         } else {
             match split_mode {
                 SplitMode::None => {
                     // first click new bb
-                    prev_pos = mouse_pos;
+                    prev_pos.prev_pos = mouse_pos;
                 }
                 _ => {
                     // create boxes by splitting either horizontally or vertically
@@ -320,7 +331,7 @@ pub(super) fn on_mouse_released_left(
                             annos.add_bb(bb2, in_menu_selected_label);
                         }
                         history.push(Record::new(world.data.clone(), ACTOR_NAME));
-                        prev_pos = None;
+                        prev_pos.prev_pos = None;
                         world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
                     }
                 }
@@ -679,7 +690,10 @@ fn test_mouse_held() {
 fn test_mouse_release() {
     let (initial_view, mouse_pos, shape_win, world, history) = test_data();
     let make_params = |prev_pos, is_ctrl_held| MouseReleaseParams {
-        prev_pos,
+        prev_pos: PrevPos {
+            prev_pos,
+            last_click: None,
+        },
         are_boxes_visible: true,
         is_alt_held: false,
         is_shift_held: false,
@@ -692,7 +706,7 @@ fn test_mouse_release() {
         let params = make_params(Some((30, 30)), false);
         let (world, new_hist, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
         assert_eq!(annos.unwrap().bbs().len(), 1);
         assert_eq!(annos.unwrap().cat_idxs()[0], 0);
@@ -704,7 +718,7 @@ fn test_mouse_release() {
         let params = make_params(None, false);
         let (world, new_hist, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(prev_pos, mouse_pos);
+        assert_eq!(prev_pos.prev_pos, mouse_pos);
         let annos = get_annos(&world);
         assert!(annos.is_none() || annos.unwrap().bbs().is_empty());
         assert!(history_equal(&history, &new_hist));
@@ -715,7 +729,7 @@ fn test_mouse_release() {
         let params = make_params(None, true);
         let (world, new_hist, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
         assert!(annos.is_none() || annos.unwrap().bbs().is_empty());
         assert!(history_equal(&history, &new_hist));
@@ -726,7 +740,7 @@ fn test_mouse_release() {
         let params = make_params(Some((30, 30)), true);
         let (world, new_hist, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
         assert_eq!(annos.unwrap().bbs().len(), 1);
         assert!(!annos.unwrap().selected_bbs()[0]);
@@ -754,7 +768,7 @@ fn test_mouse_release() {
         let (mut world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
-        assert_eq!(prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, None);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
         assert_eq!(annos.cat_idxs()[0], 0);
@@ -774,7 +788,7 @@ fn test_mouse_release() {
         let (mut world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
-        assert_eq!(prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, None);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
         assert_eq!(annos.cat_idxs()[0], 1);
@@ -789,7 +803,7 @@ fn test_mouse_release() {
         let (world, _, prev_pos) =
             on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
-        assert_eq!(prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, None);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
         assert!(annos.selected_bbs()[2]);
