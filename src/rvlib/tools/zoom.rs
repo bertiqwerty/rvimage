@@ -4,7 +4,7 @@ use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
-    domain::{self, BbPointIterator, Shape, BB},
+    domain::{self, BbPointIterator, Shape, BB, OutOfBoundsMode},
     history::History,
     image_util::{self, to_u32},
     make_tool_transform,
@@ -90,7 +90,7 @@ fn follow_zoom_box(
     zoom_box: Option<BB>,
 ) -> Option<BB> {
     match zoom_box {
-        Some(zb) => match zb.follow_movement(mpo, mpso, shape_orig) {
+        Some(zb) => match zb.follow_movement(mpo, mpso, shape_orig, OutOfBoundsMode::Deny) {
             Some(zb) => Some(zb),
             None => Some(zb),
         },

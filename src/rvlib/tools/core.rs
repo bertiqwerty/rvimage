@@ -102,11 +102,11 @@ impl Mover {
         shape_orig: Shape,
         zoom_box: &Option<BB>,
     ) -> Option<T> {
-        let res = if let (Some(mps), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
-            let mps_orig =
-                domain::mouse_pos_to_orig_pos(Some(mps), shape_orig, shape_win, zoom_box);
-            let mp_orig = domain::mouse_pos_to_orig_pos(Some(mp), shape_orig, shape_win, zoom_box);
-            match (mps_orig, mp_orig) {
+        let res = if let (Some(mp_start), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
+            let mpo_from =
+                domain::mouse_pos_to_orig_pos(Some(mp_start), shape_orig, shape_win, zoom_box);
+            let mpo_to = domain::mouse_pos_to_orig_pos(Some(mp), shape_orig, shape_win, zoom_box);
+            match (mpo_from, mpo_to) {
                 (Some(mpso), Some(mpo)) => Some(f_move(mpso, mpo)),
                 _ => None,
             }

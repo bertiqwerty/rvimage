@@ -1,6 +1,8 @@
 use crate::{
     annotations::selected_indices,
-    domain::{mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, Shape, BB},
+    domain::{
+        mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, OutOfBoundsMode, Shape, BB,
+    },
     file_util::MetaData,
     history::Record,
     image_util::to_i64,
@@ -96,9 +98,40 @@ pub(super) fn on_mouse_held_right(
     let orig_shape = world.data.shape();
     let zoom_box = *world.zoom_box();
     let mut add_to_history = false;
-    let move_boxes = |mpso, mpo| {
+    let move_boxes = |mpo_from, mpo_to| {
+        let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let annos = get_annos_mut(&mut world);
-        add_to_history = annos.selected_follow_movement(mpso, mpo, orig_shape);
+        add_to_history = match split_mode {
+            SplitMode::None => annos.selected_follow_movement(
+                mpo_from,
+                mpo_to,
+                orig_shape,
+                OutOfBoundsMode::Deny,
+                split_mode,
+            ),
+            SplitMode::Horizontal => {
+                let min_shape = Shape::new(1, 30);
+                let mpo_to = (mpo_from.0, mpo_to.1);
+                annos.selected_follow_movement(
+                    mpo_from,
+                    mpo_to,
+                    orig_shape,
+                    OutOfBoundsMode::Resize(min_shape),
+                    split_mode,
+                )
+            }
+            SplitMode::Vertical => {
+                let min_shape = Shape::new(30, 1);
+                let mpo_to = (mpo_to.0, mpo_from.1);
+                annos.selected_follow_movement(
+                    mpo_from,
+                    mpo_to,
+                    orig_shape,
+                    OutOfBoundsMode::Resize(min_shape),
+                    split_mode,
+                )
+            }
+        };
         Some(())
     };
     params
@@ -146,6 +179,12 @@ pub(super) fn on_mouse_released_left(
     if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
         // second click new bb
         if (mp.0 as i32 - pp.0 as i32).abs() > 1 && (mp.1 as i32 - pp.1 as i32).abs() > 1 {
+            let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
+            let mp = match split_mode {
+                SplitMode::Horizontal => (mp.0, pp.1),
+                SplitMode::Vertical => (pp.0, mp.1),
+                SplitMode::None => mp,
+            };
             let annos = get_annos_mut(&mut world);
             annos.add_bb(BB::from_points(mp, pp), in_menu_selected_label);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
@@ -214,6 +253,7 @@ pub(super) fn on_mouse_released_left(
                     prev_pos = mouse_pos;
                 }
                 _ => {
+                    // create boxes by splitting either horizontally or vertically
                     if let Some(mp) = mp_orig {
                         let existing_bbs: &[BB] = if let Some(annos) = get_annos(&world) {
                             annos.bbs()
@@ -266,7 +306,7 @@ pub(super) fn on_mouse_released_left(
                                 })
                                 .collect::<Vec<_>>();
                             if new_bbs.is_empty() {
-                                let (left, right) = BB::from_shape(shape_orig).split_vertically(y);
+                                let (left, right) = BB::from_shape(shape_orig).split_vertically(x);
                                 vec![(None, left, right)]
                             } else {
                                 new_bbs
@@ -422,6 +462,7 @@ pub(super) fn on_key_released(
                             x_shift as i32 - first.x as i32,
                             y_shift as i32 - first.y as i32,
                             shape_orig,
+                            OutOfBoundsMode::Deny,
                         )
                         .map(|bb| (bb, annos.cat_idxs()[idx]))
                     });
@@ -564,7 +605,7 @@ fn test_key_released() {
     assert_eq!(
         get_annos(&world).unwrap().bbs()[1],
         annos_orig.bbs()[0]
-            .translate(1, 1, world.shape_orig())
+            .translate(1, 1, world.shape_orig(), OutOfBoundsMode::Deny)
             .unwrap()
     );
     assert_eq!(get_annos(&world).unwrap().bbs().len(), 2);

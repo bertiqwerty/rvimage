@@ -1,6 +1,7 @@
 use crate::{
-    domain::{BbPointIterator, MakeDrawable, Shape, BB},
+    domain::{BbPointIterator, MakeDrawable, OutOfBoundsMode, Shape, BB},
     image_util,
+    tools_data::bbox_data::SplitMode,
     types::ViewImage,
 };
 use image::Rgb;
@@ -243,17 +244,39 @@ impl BboxAnnotations {
     pub fn shift(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {
         let taken_bbs = mem::take(&mut self.bbs);
         self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
-            bb.translate(x_shift, y_shift, shape_orig)
+            bb.translate(x_shift, y_shift, shape_orig, OutOfBoundsMode::Deny)
         });
     }
-    pub fn shift_min_bbs(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {
+    pub fn shift_min_bbs(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape, split_mode: SplitMode) {
+        let x_shift = match split_mode {
+            SplitMode::Horizontal => 0,
+            _ => x_shift,
+        };
+        let y_shift = match split_mode {
+            SplitMode::Vertical => 0,
+            _ => y_shift,
+        };
         let taken_bbs = mem::take(&mut self.bbs);
         self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
             bb.shift_min(x_shift, y_shift, shape_orig)
         });
     }
 
-    pub fn shift_max_bbs(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {
+    pub fn shift_max_bbs(
+        &mut self,
+        x_shift: i32,
+        y_shift: i32,
+        shape_orig: Shape,
+        split_mode: SplitMode,
+    ) {
+        let x_shift = match split_mode {
+            SplitMode::Horizontal => 0,
+            _ => x_shift,
+        };
+        let y_shift = match split_mode {
+            SplitMode::Vertical => 0,
+            _ => y_shift,
+        };
         let taken_bbs = mem::take(&mut self.bbs);
         self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
             bb.shift_max(x_shift, y_shift, shape_orig)
@@ -319,16 +342,66 @@ impl BboxAnnotations {
 
     pub fn selected_follow_movement(
         &mut self,
-        mpso: (u32, u32),
-        mpo: (u32, u32),
+        mpo_from: (u32, u32),
+        mpo_to: (u32, u32),
         orig_shape: Shape,
+        oob_mode: OutOfBoundsMode,
+        split_mode: SplitMode,
     ) -> bool {
         let mut move_somebody = false;
         for (bb, is_bb_selected) in self.bbs.iter_mut().zip(self.selected_bbs.iter()) {
             if *is_bb_selected {
-                if let Some(bb_moved) = bb.follow_movement(mpso, mpo, orig_shape) {
-                    move_somebody = true;
-                    *bb = bb_moved;
+                match split_mode {
+                    SplitMode::None => {
+                        if let Some(bb_moved) =
+                            bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
+                        {
+                            move_somebody = true;
+                            *bb = bb_moved;
+                        }
+                    }
+                    SplitMode::Horizontal => {
+                        let y_shift = mpo_to.1 as i32 - mpo_from.1 as i32;
+                        if y_shift > 0 && bb.y == 0 {
+                            if let Some(bb_shifted) = bb.shift_max(0, y_shift, orig_shape) {
+                                move_somebody = true;
+                                *bb = bb_shifted;
+                            }
+                        } else if y_shift < 0 && bb.y + bb.h == orig_shape.h {
+                            if let Some(bb_shifted) = bb.shift_min(0, y_shift, orig_shape) {
+                                move_somebody = true;
+                                *bb = bb_shifted;
+                            }
+                        } else {
+                            if let Some(bb_moved) =
+                                bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
+                            {
+                                move_somebody = true;
+                                *bb = bb_moved;
+                            }
+                        }
+                    }
+                    SplitMode::Vertical => {
+                        let x_shift = mpo_to.0 as i32 - mpo_from.0 as i32;
+                        if x_shift > 0 && bb.x == 0 {
+                            if let Some(bb_shifted) = bb.shift_max(x_shift, 0, orig_shape) {
+                                move_somebody = true;
+                                *bb = bb_shifted;
+                            }
+                        } else if x_shift < 0 && bb.x + bb.w == orig_shape.h {
+                            if let Some(bb_shifted) = bb.shift_min(x_shift, 0, orig_shape) {
+                                move_somebody = true;
+                                *bb = bb_shifted;
+                            }
+                        } else {
+                            if let Some(bb_moved) =
+                                bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
+                            {
+                                move_somebody = true;
+                                *bb = bb_moved;
+                            }
+                        }
+                    }
                 }
             }
         }

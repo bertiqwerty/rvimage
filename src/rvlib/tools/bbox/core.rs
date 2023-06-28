@@ -182,15 +182,16 @@ impl BBox {
             .are_boxes_visible;
         // up, down, left, right
         let shape_orig = world.data.shape();
+        let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let annos = get_annos_mut(&mut world);
         if event.key_held(VirtualKeyCode::Up) && event.held_control() {
-            annos.shift_min_bbs(0, -1, shape_orig);
+            annos.shift_min_bbs(0, -1, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Down) && event.held_control() {
-            annos.shift_min_bbs(0, 1, shape_orig);
+            annos.shift_min_bbs(0, 1, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Right) && event.held_control() {
-            annos.shift_min_bbs(1, 0, shape_orig);
+            annos.shift_min_bbs(1, 0, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Left) && event.held_control() {
-            annos.shift_min_bbs(-1, 0, shape_orig);
+            annos.shift_min_bbs(-1, 0, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Up) && event.held_alt() {
             annos.shift(0, -1, shape_orig);
         } else if event.key_held(VirtualKeyCode::Down) && event.held_alt() {
@@ -200,13 +201,13 @@ impl BBox {
         } else if event.key_held(VirtualKeyCode::Left) && event.held_alt() {
             annos.shift(-1, 0, shape_orig);
         } else if event.key_held(VirtualKeyCode::Up) {
-            annos.shift_max_bbs(0, -1, shape_orig);
+            annos.shift_max_bbs(0, -1, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Down) {
-            annos.shift_max_bbs(0, 1, shape_orig);
+            annos.shift_max_bbs(0, 1, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Right) {
-            annos.shift_max_bbs(1, 0, shape_orig);
+            annos.shift_max_bbs(1, 0, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Left) {
-            annos.shift_max_bbs(-1, 0, shape_orig);
+            annos.shift_max_bbs(-1, 0, shape_orig, split_mode);
         }
         world = draw_on_view(&self.initial_view, are_boxes_visible, world, shape_win);
         world.update_view(shape_win);

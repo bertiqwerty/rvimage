@@ -232,6 +232,12 @@ impl Polygon {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum OutOfBoundsMode {
+    Deny,
+    Resize(Shape), // minimal area the box needs to keep
+}
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct BB {
     pub x: u32,
@@ -265,8 +271,8 @@ impl BB {
         BB {
             x: 0,
             y: 0,
-            w: shape.w - 1,
-            h: shape.h - 1,
+            w: shape.w,
+            h: shape.h,
         }
     }
 
@@ -401,10 +407,16 @@ impl BB {
         (self.x + self.w, self.y + self.h)
     }
 
-    pub fn follow_movement(&self, from: (u32, u32), to: (u32, u32), shape: Shape) -> Option<Self> {
+    pub fn follow_movement(
+        &self,
+        from: (u32, u32),
+        to: (u32, u32),
+        shape: Shape,
+        oob_mode: OutOfBoundsMode,
+    ) -> Option<Self> {
         let x_shift: i32 = to.0 as i32 - from.0 as i32;
         let y_shift: i32 = to.1 as i32 - from.1 as i32;
-        self.translate(x_shift, y_shift, shape)
+        self.translate(x_shift, y_shift, shape, oob_mode)
     }
 
     pub fn covers_y(&self, y: u32) -> bool {
@@ -423,31 +435,60 @@ impl BB {
     }
 
     pub fn is_contained_in_image(&self, shape: Shape) -> bool {
-        self.x + self.w < shape.w && self.y + self.h < shape.h
+        self.x + self.w <= shape.w && self.y + self.h <= shape.h
     }
 
-    pub fn new_shape_checked(x: i32, y: i32, w: i32, h: i32, shape: Shape) -> Option<Self> {
-        if x < 0 || y < 0 || w < 1 || h < 1 {
-            None
-        } else {
-            let bb = Self {
-                x: x as u32,
-                y: y as u32,
-                w: w as u32,
-                h: h as u32,
-            };
-            if bb.is_contained_in_image(shape) {
-                Some(bb)
-            } else {
-                None
+    pub fn new_shape_checked(
+        x: i32,
+        y: i32,
+        w: i32,
+        h: i32,
+        orig_im_shape: Shape,
+        mode: OutOfBoundsMode,
+    ) -> Option<Self> {
+        match mode {
+            OutOfBoundsMode::Deny => {
+                if x < 0 || y < 0 || w < 1 || h < 1 {
+                    None
+                } else {
+                    let bb = Self {
+                        x: x as u32,
+                        y: y as u32,
+                        w: w as u32,
+                        h: h as u32,
+                    };
+                    if bb.is_contained_in_image(orig_im_shape) {
+                        Some(bb)
+                    } else {
+                        None
+                    }
+                }
+            }
+            OutOfBoundsMode::Resize(min_bb_shape) => {
+                let bb = Self {
+                    x: x.min(orig_im_shape.w as i32 - min_bb_shape.w as i32).max(0) as u32,
+                    y: y.min(orig_im_shape.h as i32 - min_bb_shape.h as i32).max(0) as u32,
+                    w: ((w + x.min(0)) as u32).max(min_bb_shape.w),
+                    h: ((h + y.min(0)) as u32).max(min_bb_shape.h),
+                };
+                let mut bb_resized = bb.intersect(BB::from_shape(orig_im_shape));
+                bb_resized.w = bb_resized.w.max(min_bb_shape.w);
+                bb_resized.h = bb_resized.h.max(min_bb_shape.h);
+                Some(bb_resized)
             }
         }
     }
 
-    pub fn translate(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
+    pub fn translate(
+        &self,
+        x_shift: i32,
+        y_shift: i32,
+        shape: Shape,
+        oob_mode: OutOfBoundsMode,
+    ) -> Option<Self> {
         let x = self.x as i32 + x_shift;
         let y = self.y as i32 + y_shift;
-        Self::new_shape_checked(x, y, self.w as i32, self.h as i32, shape)
+        Self::new_shape_checked(x, y, self.w as i32, self.h as i32, shape, oob_mode)
     }
 
     pub fn new_fit_to_image(x: i32, y: i32, w: i32, h: i32, shape: Shape) -> BB {
@@ -485,13 +526,20 @@ impl BB {
 
     pub fn shift_max(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
         let (w, h) = (self.w as i32 + x_shift, self.h as i32 + y_shift);
-        Self::new_shape_checked(self.x as i32, self.y as i32, w, h, shape)
+        Self::new_shape_checked(
+            self.x as i32,
+            self.y as i32,
+            w,
+            h,
+            shape,
+            OutOfBoundsMode::Deny,
+        )
     }
 
     pub fn shift_min(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
         let (x, y) = (self.x as i32 + x_shift, self.y as i32 + y_shift);
         let (w, h) = (self.w as i32 - x_shift, self.h as i32 - y_shift);
-        Self::new_shape_checked(x, y, w, h, shape)
+        Self::new_shape_checked(x, y, w, h, shape, OutOfBoundsMode::Deny)
     }
 
     pub fn has_overlap(&self, other: &BB) -> bool {
@@ -828,7 +876,7 @@ fn test_bb() {
         assert_eq!(c, bb.corner(i));
     }
     let shape = Shape::new(100, 100);
-    let bb1 = bb.translate(1, 1, shape);
+    let bb1 = bb.translate(1, 1, shape, OutOfBoundsMode::Deny);
     assert_eq!(
         bb1,
         Some(BB {
