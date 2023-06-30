@@ -184,13 +184,16 @@ impl BBox {
         let shape_orig = world.data.shape();
         let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let annos = get_annos_mut(&mut world);
-        if event.key_held(VirtualKeyCode::Up) && event.held_control() {
+        let held_control = event.held_control()
+            || event.key_held(VirtualKeyCode::LWin)
+            || event.key_held(VirtualKeyCode::RWin);
+        if event.key_held(VirtualKeyCode::Up) && held_control {
             annos.shift_min_bbs(0, -1, shape_orig, split_mode);
-        } else if event.key_held(VirtualKeyCode::Down) && event.held_control() {
+        } else if event.key_held(VirtualKeyCode::Down) && held_control {
             annos.shift_min_bbs(0, 1, shape_orig, split_mode);
-        } else if event.key_held(VirtualKeyCode::Right) && event.held_control() {
+        } else if event.key_held(VirtualKeyCode::Right) && held_control {
             annos.shift_min_bbs(1, 0, shape_orig, split_mode);
-        } else if event.key_held(VirtualKeyCode::Left) && event.held_control() {
+        } else if event.key_held(VirtualKeyCode::Left) && held_control {
             annos.shift_min_bbs(-1, 0, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Up) && event.held_alt() {
             annos.shift(0, -1, shape_orig);

@@ -11,21 +11,48 @@ use std::mem;
 const BBOX_ALPHA: u8 = 180;
 const BBOX_ALPHA_SELECTED: u8 = 120;
 
-fn resize_bbs<F>(mut bbs: Vec<InstanceGeo>, selected_bbs: &[bool], resize: F) -> Vec<InstanceGeo>
+fn resize_bbs_inds<F>(
+    mut bbs: Vec<InstanceGeo>,
+    bb_inds: impl Iterator<Item = usize>,
+    resize: F,
+) -> Vec<InstanceGeo>
 where
     F: Fn(InstanceGeo) -> Option<InstanceGeo>,
 {
-    let selected_idxs = selected_bbs
-        .iter()
-        .enumerate()
-        .filter(|(_, x)| **x)
-        .map(|(i, _)| i);
-    for idx in selected_idxs {
+    for idx in bb_inds {
         if let Some(bb) = resize(bbs[idx]) {
             bbs[idx] = bb;
         }
     }
     bbs
+}
+fn resize_bbs<F>(bbs: Vec<InstanceGeo>, selected_bbs: &[bool], resize: F) -> Vec<InstanceGeo>
+where
+    F: Fn(InstanceGeo) -> Option<InstanceGeo>,
+{
+    let selected_idxs = selected_indices(selected_bbs);
+    resize_bbs_inds(bbs, selected_idxs, resize)
+}
+
+fn resize_bbs_by_key(
+    bbs: Vec<BB>,
+    selected_bbs: &[bool],
+    shiftee_key: impl Fn(&BB) -> u32,
+    candidate_key: impl Fn(&BB) -> u32,
+    resize: impl Fn(InstanceGeo) -> Option<InstanceGeo>,
+) -> Vec<BB> {
+    let indices = selected_indices(selected_bbs);
+    let opposite_shiftees = indices
+        .flat_map(|shiftee_idx| {
+            bbs.iter()
+                .enumerate()
+                .filter(|(_, t)| candidate_key(t) == shiftee_key(&bbs[shiftee_idx]))
+                .map(|(i, _)| i)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    resize_bbs_inds(bbs, opposite_shiftees.into_iter(), resize)
 }
 
 struct Cats<'a> {
@@ -263,6 +290,23 @@ impl BboxAnnotations {
             _ => y_shift,
         };
         let taken_bbs = mem::take(&mut self.bbs);
+        let taken_bbs = match split_mode {
+            SplitMode::Horizontal => resize_bbs_by_key(
+                taken_bbs,
+                &self.selected_bbs,
+                |bb| bb.y,
+                |bb| bb.y_max(),
+                |bb| bb.shift_max(x_shift, y_shift, shape_orig),
+            ),
+            SplitMode::Vertical => resize_bbs_by_key(
+                taken_bbs,
+                &self.selected_bbs,
+                |bb| bb.x,
+                |bb| bb.x_max(),
+                |bb| bb.shift_max(x_shift, y_shift, shape_orig),
+            ),
+            SplitMode::None => taken_bbs,
+        };
         self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
             bb.shift_min(x_shift, y_shift, shape_orig)
         });
@@ -284,6 +328,23 @@ impl BboxAnnotations {
             _ => y_shift,
         };
         let taken_bbs = mem::take(&mut self.bbs);
+        let taken_bbs = match split_mode {
+            SplitMode::Horizontal => resize_bbs_by_key(
+                taken_bbs,
+                &self.selected_bbs,
+                |bb| bb.y_max(),
+                |bb| bb.y,
+                |bb| bb.shift_min(x_shift, y_shift, shape_orig),
+            ),
+            SplitMode::Vertical => resize_bbs_by_key(
+                taken_bbs,
+                &self.selected_bbs,
+                |bb| bb.x_max(),
+                |bb| bb.x,
+                |bb| bb.shift_min(x_shift, y_shift, shape_orig),
+            ),
+            SplitMode::None => taken_bbs,
+        };
         self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
             bb.shift_max(x_shift, y_shift, shape_orig)
         });
