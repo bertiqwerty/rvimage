@@ -1,59 +1,17 @@
 use crate::{
     domain::{BbPointIterator, MakeDrawable, OutOfBoundsMode, Shape, BB},
     image_util,
-    tools_data::bbox_data::SplitMode,
-    types::ViewImage, util::true_indices,
+    types::ViewImage,
+    util::true_indices,
 };
 use image::Rgb;
 use rusttype::{Font, Scale};
 use serde::{Deserialize, Serialize};
 use std::mem;
+
+use super::{bbox_splitmode::SplitMode, core::resize_bbs};
 const BBOX_ALPHA: u8 = 180;
 const BBOX_ALPHA_SELECTED: u8 = 120;
-
-fn resize_bbs_inds<F>(
-    mut bbs: Vec<InstanceGeo>,
-    bb_inds: impl Iterator<Item = usize>,
-    resize: F,
-) -> Vec<InstanceGeo>
-where
-    F: Fn(InstanceGeo) -> Option<InstanceGeo>,
-{
-    for idx in bb_inds {
-        if let Some(bb) = resize(bbs[idx]) {
-            bbs[idx] = bb;
-        }
-    }
-    bbs
-}
-fn resize_bbs<F>(bbs: Vec<InstanceGeo>, selected_bbs: &[bool], resize: F) -> Vec<InstanceGeo>
-where
-    F: Fn(InstanceGeo) -> Option<InstanceGeo>,
-{
-    let selected_idxs = true_indices(selected_bbs);
-    resize_bbs_inds(bbs, selected_idxs, resize)
-}
-
-fn resize_bbs_by_key(
-    bbs: Vec<BB>,
-    selected_bbs: &[bool],
-    shiftee_key: impl Fn(&BB) -> u32,
-    candidate_key: impl Fn(&BB) -> u32,
-    resize: impl Fn(InstanceGeo) -> Option<InstanceGeo>,
-) -> Vec<BB> {
-    let indices = true_indices(selected_bbs);
-    let opposite_shiftees = indices
-        .flat_map(|shiftee_idx| {
-            bbs.iter()
-                .enumerate()
-                .filter(|(_, t)| candidate_key(t) == shiftee_key(&bbs[shiftee_idx]))
-                .map(|(i, _)| i)
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-
-    resize_bbs_inds(bbs, opposite_shiftees.into_iter(), resize)
-}
 
 struct Cats<'a> {
     cat_ids: &'a [usize],
@@ -163,7 +121,6 @@ fn draw_bbs(
     im_view
 }
 
-
 pub type InstanceGeo = BB;
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
@@ -264,35 +221,13 @@ impl BboxAnnotations {
         shape_orig: Shape,
         split_mode: SplitMode,
     ) {
-        let x_shift = match split_mode {
-            SplitMode::Horizontal => 0,
-            _ => x_shift,
-        };
-        let y_shift = match split_mode {
-            SplitMode::Vertical => 0,
-            _ => y_shift,
-        };
-        let taken_bbs = mem::take(&mut self.bbs);
-        let taken_bbs = match split_mode {
-            SplitMode::Horizontal => resize_bbs_by_key(
-                taken_bbs,
-                &self.selected_bbs,
-                |bb| bb.y,
-                |bb| bb.y_max(),
-                |bb| bb.shift_max(x_shift, y_shift, shape_orig),
-            ),
-            SplitMode::Vertical => resize_bbs_by_key(
-                taken_bbs,
-                &self.selected_bbs,
-                |bb| bb.x,
-                |bb| bb.x_max(),
-                |bb| bb.shift_max(x_shift, y_shift, shape_orig),
-            ),
-            SplitMode::None => taken_bbs,
-        };
-        self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
-            bb.shift_min(x_shift, y_shift, shape_orig)
-        });
+        self.bbs = split_mode.shift_min_bbs(
+            x_shift,
+            y_shift,
+            &self.selected_bbs,
+            mem::take(&mut self.bbs),
+            shape_orig,
+        );
     }
 
     pub fn shift_max_bbs(
@@ -302,35 +237,13 @@ impl BboxAnnotations {
         shape_orig: Shape,
         split_mode: SplitMode,
     ) {
-        let x_shift = match split_mode {
-            SplitMode::Horizontal => 0,
-            _ => x_shift,
-        };
-        let y_shift = match split_mode {
-            SplitMode::Vertical => 0,
-            _ => y_shift,
-        };
-        let taken_bbs = mem::take(&mut self.bbs);
-        let taken_bbs = match split_mode {
-            SplitMode::Horizontal => resize_bbs_by_key(
-                taken_bbs,
-                &self.selected_bbs,
-                |bb| bb.y_max(),
-                |bb| bb.y,
-                |bb| bb.shift_min(x_shift, y_shift, shape_orig),
-            ),
-            SplitMode::Vertical => resize_bbs_by_key(
-                taken_bbs,
-                &self.selected_bbs,
-                |bb| bb.x_max(),
-                |bb| bb.x,
-                |bb| bb.shift_min(x_shift, y_shift, shape_orig),
-            ),
-            SplitMode::None => taken_bbs,
-        };
-        self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
-            bb.shift_max(x_shift, y_shift, shape_orig)
-        });
+        self.bbs = split_mode.shift_max_bbs(
+            x_shift,
+            y_shift,
+            &self.selected_bbs,
+            mem::take(&mut self.bbs),
+            shape_orig,
+        );
     }
 
     pub fn add_bb(&mut self, bb: InstanceGeo, cat_idx: usize) {
@@ -398,60 +311,14 @@ impl BboxAnnotations {
         oob_mode: OutOfBoundsMode,
         split_mode: SplitMode,
     ) -> bool {
-        let mut move_somebody = false;
+        let mut moved_somebody = false;
         for (bb, is_bb_selected) in self.bbs.iter_mut().zip(self.selected_bbs.iter()) {
             if *is_bb_selected {
-                match split_mode {
-                    SplitMode::None => {
-                        if let Some(bb_moved) =
-                            bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
-                        {
-                            move_somebody = true;
-                            *bb = bb_moved;
-                        }
-                    }
-                    SplitMode::Horizontal => {
-                        let y_shift = mpo_to.1 as i32 - mpo_from.1 as i32;
-                        if y_shift > 0 && bb.y == 0 {
-                            if let Some(bb_shifted) = bb.shift_max(0, y_shift, orig_shape) {
-                                move_somebody = true;
-                                *bb = bb_shifted;
-                            }
-                        } else if y_shift < 0 && bb.y + bb.h == orig_shape.h {
-                            if let Some(bb_shifted) = bb.shift_min(0, y_shift, orig_shape) {
-                                move_somebody = true;
-                                *bb = bb_shifted;
-                            }
-                        } else if let Some(bb_moved) =
-                            bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
-                        {
-                            move_somebody = true;
-                            *bb = bb_moved;
-                        }
-                    }
-                    SplitMode::Vertical => {
-                        let x_shift = mpo_to.0 as i32 - mpo_from.0 as i32;
-                        if x_shift > 0 && bb.x == 0 {
-                            if let Some(bb_shifted) = bb.shift_max(x_shift, 0, orig_shape) {
-                                move_somebody = true;
-                                *bb = bb_shifted;
-                            }
-                        } else if x_shift < 0 && bb.x + bb.w == orig_shape.h {
-                            if let Some(bb_shifted) = bb.shift_min(x_shift, 0, orig_shape) {
-                                move_somebody = true;
-                                *bb = bb_shifted;
-                            }
-                        } else if let Some(bb_moved) =
-                            bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode)
-                        {
-                            move_somebody = true;
-                            *bb = bb_moved;
-                        }
-                    }
-                }
+                (moved_somebody, *bb) =
+                    split_mode.bb_follow_movement(*bb, mpo_from, mpo_to, orig_shape, oob_mode)
             }
         }
-        move_somebody
+        moved_somebody
     }
 
     pub fn label_selected(&mut self, cat_id: usize) {

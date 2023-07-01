@@ -1,11 +1,9 @@
 use egui::Ui;
 
 use crate::{
+    annotations::SplitMode,
     result::RvResult,
-    tools_data::{
-        bbox_data::{BboxSpecificData, SplitMode},
-        ToolSpecifics, ToolsData,
-    },
+    tools_data::{bbox_data::BboxSpecificData, ToolSpecifics, ToolsData},
 };
 
 pub fn bbox_menu(

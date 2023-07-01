@@ -1,4 +1,5 @@
 use crate::{
+    annotations::SplitMode,
     domain::{
         mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, OutOfBoundsMode, Shape, BB,
     },
@@ -6,12 +7,9 @@ use crate::{
     history::Record,
     image_util::to_i64,
     tools::core::{InitialView, Mover},
-    tools_data::{
-        self,
-        bbox_data::{ClipboardData, SplitMode},
-        BboxSpecificData,
-    },
-    {history::History, world::World}, util::true_indices,
+    tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
+    util::true_indices,
+    {history::History, world::World},
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;

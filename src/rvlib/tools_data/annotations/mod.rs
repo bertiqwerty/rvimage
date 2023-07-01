@@ -1,7 +1,12 @@
+//! Functionality to create and modify annotations.
+
 pub use self::bbox_annotations::BboxAnnotations;
+pub use self::bbox_splitmode::SplitMode;
 pub use self::brush_annotations::BrushAnnotations;
 mod bbox_annotations;
+mod bbox_splitmode;
 mod brush_annotations;
+mod core;
 #[macro_export]
 macro_rules! implement_annotations_getters {
     ($tool_data_type:ident) => {

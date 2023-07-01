@@ -4,10 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use super::annotations::BboxAnnotations;
 use crate::{
+    annotations::SplitMode,
     domain::{Shape, BB},
     file_util, implement_annotations_getters,
     result::RvResult,
-    rverr, util::true_indices,
+    rverr,
+    util::true_indices,
 };
 const DEFAULT_LABEL: &str = "foreground";
 
@@ -72,14 +74,6 @@ impl ClipboardData {
     pub fn cat_idxs(&self) -> &Vec<usize> {
         &self.cat_idxs
     }
-}
-
-#[derive(Deserialize, Serialize, Default, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SplitMode {
-    Horizontal,
-    Vertical,
-    #[default]
-    None,
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize, Default, Debug, PartialEq, Eq)]

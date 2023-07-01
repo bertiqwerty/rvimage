@@ -1,4 +1,3 @@
-
 #[allow(clippy::needless_lifetimes)]
 fn true_or_false<'a>(
     selected_bbs: &'a [bool],
