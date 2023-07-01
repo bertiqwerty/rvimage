@@ -2,7 +2,7 @@ use crate::{
     domain::{BbPointIterator, MakeDrawable, OutOfBoundsMode, Shape, BB},
     image_util,
     tools_data::bbox_data::SplitMode,
-    types::ViewImage,
+    types::ViewImage, util::true_indices,
 };
 use image::Rgb;
 use rusttype::{Font, Scale};
@@ -30,7 +30,7 @@ fn resize_bbs<F>(bbs: Vec<InstanceGeo>, selected_bbs: &[bool], resize: F) -> Vec
 where
     F: Fn(InstanceGeo) -> Option<InstanceGeo>,
 {
-    let selected_idxs = selected_indices(selected_bbs);
+    let selected_idxs = true_indices(selected_bbs);
     resize_bbs_inds(bbs, selected_idxs, resize)
 }
 
@@ -41,7 +41,7 @@ fn resize_bbs_by_key(
     candidate_key: impl Fn(&BB) -> u32,
     resize: impl Fn(InstanceGeo) -> Option<InstanceGeo>,
 ) -> Vec<BB> {
-    let indices = selected_indices(selected_bbs);
+    let indices = true_indices(selected_bbs);
     let opposite_shiftees = indices
         .flat_map(|shiftee_idx| {
             bbs.iter()
@@ -163,23 +163,6 @@ fn draw_bbs(
     im_view
 }
 
-#[allow(clippy::needless_lifetimes)]
-fn selected_or_deselected_indices<'a>(
-    selected_bbs: &'a [bool],
-    unselected: bool,
-) -> impl Iterator<Item = usize> + Clone + 'a {
-    let res = selected_bbs
-        .iter()
-        .enumerate()
-        .filter(move |(_, is_selected)| unselected ^ **is_selected)
-        .map(|(i, _)| i);
-    res
-}
-
-#[allow(clippy::needless_lifetimes)]
-pub fn selected_indices<'a>(selected_bbs: &'a [bool]) -> impl Iterator<Item = usize> + Clone + 'a {
-    selected_or_deselected_indices(selected_bbs, false)
-}
 
 pub type InstanceGeo = BB;
 
@@ -264,7 +247,7 @@ impl BboxAnnotations {
     }
 
     pub fn remove_selected(&mut self) {
-        let selected = selected_indices(self.selected_bbs());
+        let selected = true_indices(self.selected_bbs());
         self.remove_multiple(&selected.collect::<Vec<_>>());
     }
 
@@ -472,7 +455,7 @@ impl BboxAnnotations {
     }
 
     pub fn label_selected(&mut self, cat_id: usize) {
-        let selected_inds = selected_indices(&self.selected_bbs);
+        let selected_inds = true_indices(&self.selected_bbs);
         for idx in selected_inds {
             self.cat_idxs[idx] = cat_id;
         }

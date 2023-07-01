@@ -1,5 +1,4 @@
 use crate::{
-    annotations::selected_indices,
     domain::{
         mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, OutOfBoundsMode, Shape, BB,
     },
@@ -12,7 +11,7 @@ use crate::{
         bbox_data::{ClipboardData, SplitMode},
         BboxSpecificData,
     },
-    {history::History, world::World},
+    {history::History, world::World}, util::true_indices,
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
@@ -216,7 +215,7 @@ pub(super) fn on_mouse_released_left(
                 // is selected only the currently clicked box will be selected.
                 annos.select(i);
                 let newly_selected_bb = &annos.bbs()[i];
-                let sel_indxs = selected_indices(annos.selected_bbs());
+                let sel_indxs = true_indices(annos.selected_bbs());
                 if let Some((bbidx, (csidx, coidx, _))) = sel_indxs
                     .map(|i| (i, newly_selected_bb.max_corner_squaredist(&annos.bbs()[i])))
                     .max_by_key(|(_, (_, _, d))| *d)
@@ -465,8 +464,8 @@ pub(super) fn on_key_released(
             if let Some((x_shift, y_shift)) = mp_orig {
                 let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
-                let selected_inds = selected_indices(annos.selected_bbs());
-                let first_idx = selected_indices(annos.selected_bbs()).next();
+                let selected_inds = true_indices(annos.selected_bbs());
+                let first_idx = true_indices(annos.selected_bbs()).next();
                 if let Some(first_idx) = first_idx {
                     let translated = selected_inds.flat_map(|idx| {
                         let bb = annos.bbs()[idx];

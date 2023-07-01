@@ -2,12 +2,12 @@ use std::{collections::HashMap, mem};
 
 use serde::{Deserialize, Serialize};
 
-use super::annotations::{selected_indices, BboxAnnotations};
+use super::annotations::BboxAnnotations;
 use crate::{
     domain::{Shape, BB},
     file_util, implement_annotations_getters,
     result::RvResult,
-    rverr,
+    rverr, util::true_indices,
 };
 const DEFAULT_LABEL: &str = "foreground";
 
@@ -59,7 +59,7 @@ pub struct ClipboardData {
 
 impl ClipboardData {
     pub fn from_annotations(annos: &BboxAnnotations) -> Self {
-        let selected_inds = selected_indices(annos.selected_bbs());
+        let selected_inds = true_indices(annos.selected_bbs());
         let bbs = selected_inds.clone().map(|idx| annos.bbs()[idx]).collect();
         let cat_idxs = selected_inds.map(|idx| annos.cat_idxs()[idx]).collect();
         ClipboardData { bbs, cat_idxs }

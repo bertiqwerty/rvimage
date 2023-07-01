@@ -10,6 +10,7 @@ pub mod menu;
 mod paths_selector;
 mod reader;
 pub mod result;
+mod util;
 mod ssh;
 mod threadpool;
 pub mod tools;
