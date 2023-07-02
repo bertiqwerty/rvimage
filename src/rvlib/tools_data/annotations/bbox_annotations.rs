@@ -1,5 +1,5 @@
 use crate::{
-    domain::{BbPointIterator, MakeDrawable, OutOfBoundsMode, Shape, BB},
+    domain::{BbPointIterator, MakeDrawable, Shape, BB},
     image_util,
     types::ViewImage,
     util::true_indices,
@@ -306,14 +306,13 @@ impl BboxAnnotations {
         mpo_from: (u32, u32),
         mpo_to: (u32, u32),
         orig_shape: Shape,
-        oob_mode: OutOfBoundsMode,
         split_mode: SplitMode,
     ) -> bool {
         let mut moved_somebody = false;
         for (bb, is_bb_selected) in self.bbs.iter_mut().zip(self.selected_bbs.iter()) {
             if *is_bb_selected {
                 (moved_somebody, *bb) =
-                    split_mode.bb_follow_movement(*bb, mpo_from, mpo_to, orig_shape, oob_mode)
+                    split_mode.bb_follow_movement(*bb, mpo_from, mpo_to, orig_shape)
             }
         }
         moved_somebody

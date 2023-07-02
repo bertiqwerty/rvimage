@@ -98,37 +98,7 @@ pub(super) fn on_mouse_held_right(
     let move_boxes = |mpo_from, mpo_to| {
         let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let annos = get_annos_mut(&mut world);
-        add_to_history = match split_mode {
-            SplitMode::None => annos.selected_follow_movement(
-                mpo_from,
-                mpo_to,
-                orig_shape,
-                OutOfBoundsMode::Deny,
-                split_mode,
-            ),
-            SplitMode::Horizontal => {
-                let min_shape = Shape::new(1, 30);
-                let mpo_to = (mpo_from.0, mpo_to.1);
-                annos.selected_follow_movement(
-                    mpo_from,
-                    mpo_to,
-                    orig_shape,
-                    OutOfBoundsMode::Resize(min_shape),
-                    split_mode,
-                )
-            }
-            SplitMode::Vertical => {
-                let min_shape = Shape::new(30, 1);
-                let mpo_to = (mpo_to.0, mpo_from.1);
-                annos.selected_follow_movement(
-                    mpo_from,
-                    mpo_to,
-                    orig_shape,
-                    OutOfBoundsMode::Resize(min_shape),
-                    split_mode,
-                )
-            }
-        };
+        add_to_history = annos.selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
         Some(())
     };
     params

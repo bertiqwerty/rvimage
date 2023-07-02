@@ -109,10 +109,10 @@ impl SplitMode {
         mpo_from: (u32, u32),
         mpo_to: (u32, u32),
         orig_shape: Shape,
-        oob_mode: OutOfBoundsMode,
     ) -> (bool, BB) {
         match self {
             SplitMode::None => {
+                let oob_mode = OutOfBoundsMode::Deny;
                 if let Some(bb_moved) = bb.follow_movement(mpo_from, mpo_to, orig_shape, oob_mode) {
                     (true, bb_moved)
                 } else {
@@ -120,6 +120,9 @@ impl SplitMode {
                 }
             }
             SplitMode::Horizontal => {
+                let mpo_to = (mpo_from.0, mpo_to.1);
+                let min_shape = Shape::new(1, 30);
+                let oob_mode = OutOfBoundsMode::Resize(min_shape);
                 let y_shift = mpo_to.1 as i32 - mpo_from.1 as i32;
                 if y_shift > 0 && bb.y == 0 {
                     if let Some(bb_shifted) = bb.shift_max(0, y_shift, orig_shape) {
@@ -142,6 +145,9 @@ impl SplitMode {
                 }
             }
             SplitMode::Vertical => {
+                let mpo_to = (mpo_to.0, mpo_from.1);
+                let min_shape = Shape::new(30, 1);
+                let oob_mode = OutOfBoundsMode::Resize(min_shape);
                 let x_shift = mpo_to.0 as i32 - mpo_from.0 as i32;
                 if x_shift > 0 && bb.x == 0 {
                     if let Some(bb_shifted) = bb.shift_max(x_shift, 0, orig_shape) {
