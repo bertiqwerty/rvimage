@@ -32,6 +32,10 @@ tools_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 
+fn held_control(event: &WinitInputHelper) -> bool {
+    event.held_control() || event.key_held(VirtualKeyCode::LWin) || event.key_held(VirtualKeyCode::RWin)
+}
+
 pub(super) fn paste(
     initial_view: &InitialView,
     shape_win: Shape,
@@ -156,7 +160,7 @@ impl BBox {
                 are_boxes_visible,
                 is_alt_held: event.held_alt(),
                 is_shift_held: event.held_shift(),
-                is_ctrl_held: event.held_control(),
+                is_ctrl_held: held_control(event),
                 initial_view: &self.initial_view,
             };
             (world, history, self.prev_pos) =
@@ -184,25 +188,22 @@ impl BBox {
         let shape_orig = world.data.shape();
         let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let annos = get_annos_mut(&mut world);
-        let held_control = event.held_control()
-            || event.key_held(VirtualKeyCode::LWin)
-            || event.key_held(VirtualKeyCode::RWin);
-        if event.key_held(VirtualKeyCode::Up) && held_control {
+        if event.key_held(VirtualKeyCode::Up) && held_control(event) {
             annos.shift_min_bbs(0, -1, shape_orig, split_mode);
-        } else if event.key_held(VirtualKeyCode::Down) && held_control {
+        } else if event.key_held(VirtualKeyCode::Down) && held_control(event) {
             annos.shift_min_bbs(0, 1, shape_orig, split_mode);
-        } else if event.key_held(VirtualKeyCode::Right) && held_control {
+        } else if event.key_held(VirtualKeyCode::Right) && held_control(event) {
             annos.shift_min_bbs(1, 0, shape_orig, split_mode);
-        } else if event.key_held(VirtualKeyCode::Left) && held_control {
+        } else if event.key_held(VirtualKeyCode::Left) && held_control(event) {
             annos.shift_min_bbs(-1, 0, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Up) && event.held_alt() {
-            annos.shift(0, -1, shape_orig);
+            annos.shift(0, -1, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Down) && event.held_alt() {
-            annos.shift(0, 1, shape_orig);
+            annos.shift(0, 1, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Right) && event.held_alt() {
-            annos.shift(1, 0, shape_orig);
+            annos.shift(1, 0, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Left) && event.held_alt() {
-            annos.shift(-1, 0, shape_orig);
+            annos.shift(-1, 0, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Up) {
             annos.shift_max_bbs(0, -1, shape_orig, split_mode);
         } else if event.key_held(VirtualKeyCode::Down) {
@@ -227,7 +228,7 @@ impl BBox {
     ) -> (World, History) {
         let params = KeyReleasedParams {
             initial_view: &self.initial_view,
-            is_ctrl_held: event.held_control(),
+            is_ctrl_held: held_control(event),
             released_key: map_released_key(event),
         };
         (world, history) = on_key_released(world, history, mouse_pos, shape_win, params);

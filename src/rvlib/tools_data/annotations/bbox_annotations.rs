@@ -9,7 +9,7 @@ use rusttype::{Font, Scale};
 use serde::{Deserialize, Serialize};
 use std::mem;
 
-use super::{bbox_splitmode::SplitMode, core::resize_bbs};
+use super::bbox_splitmode::SplitMode;
 const BBOX_ALPHA: u8 = 180;
 const BBOX_ALPHA_SELECTED: u8 = 120;
 
@@ -208,11 +208,9 @@ impl BboxAnnotations {
         self.remove_multiple(&selected.collect::<Vec<_>>());
     }
 
-    pub fn shift(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape) {
-        let taken_bbs = mem::take(&mut self.bbs);
-        self.bbs = resize_bbs(taken_bbs, &self.selected_bbs, |bb| {
-            bb.translate(x_shift, y_shift, shape_orig, OutOfBoundsMode::Deny)
-        });
+    pub fn shift(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape, split_mode: SplitMode) {
+        self.shift_min_bbs(x_shift, y_shift, shape_orig, split_mode);
+        self.shift_max_bbs(x_shift, y_shift, shape_orig, split_mode);
     }
     pub fn shift_min_bbs(
         &mut self,
@@ -361,7 +359,8 @@ impl BboxAnnotations {
         )
     }
 }
-
+#[cfg(test)]
+use super::core::resize_bbs;
 #[cfg(test)]
 fn make_test_bbs() -> Vec<BB> {
     vec![
