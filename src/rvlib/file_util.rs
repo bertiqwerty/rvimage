@@ -199,7 +199,22 @@ impl<'a> LastPartOfPath<'a> {
 }
 
 pub fn url_encode(url: &str) -> String {
-    url.replace(' ', "%20")
+    let mappings = [
+        (" ", "%20"),
+        ("+", "%2B"),
+        (",", "%2C"),
+        (";", "%3B"),
+        ("*", "%2A"),
+        ("(", "%28"),
+        (")", "%29"),
+    ];
+    let mut url = url.replace(mappings[0].0, mappings[1].1);
+    for m in mappings[1..].iter() {
+        url = url
+            .replace(m.0, m.1)
+            .replace(m.1.to_lowercase().as_str(), m.1);
+    }
+    url
 }
 
 fn get_last_part_of_path_by_sep(path: &str, sep: char) -> Option<LastPartOfPath> {

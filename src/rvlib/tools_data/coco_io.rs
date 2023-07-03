@@ -185,12 +185,16 @@ impl CocoExportData {
                         cat_ids
                     )
                 })?;
-            let k: &str = file_name;
-            if let Some(annos_of_image) = annotations.get_mut(k) {
+            let k = if file_name.starts_with("http") {
+                file_util::url_encode(file_name)
+            } else {
+                file_name.to_string()
+            };
+            if let Some(annos_of_image) = annotations.get_mut(&k) {
                 annos_of_image.0.push(bb);
                 annos_of_image.1.push(cat_idx);
             } else {
-                annotations.insert(k.to_string(), (vec![bb], vec![cat_idx], Shape::new(w, h)));
+                annotations.insert(k, (vec![bb], vec![cat_idx], Shape::new(w, h)));
             }
         }
         BboxSpecificData::from_bbox_export_data(BboxExportData {
@@ -243,6 +247,7 @@ pub fn read_coco(meta_data: &MetaData) -> RvResult<BboxSpecificData> {
     let filename = meta_data_to_coco_path(meta_data)?;
     let s = file_util::read_to_string(&filename)?;
     let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+    println!("imported coco file from {read:?}");
     println!("imported coco file from {filename:?}");
     read.convert_to_bboxdata()
 }
@@ -343,7 +348,7 @@ const TEST_DATA_FOLDER: &str = "resources/test_data/";
 
 #[test]
 fn test_coco_import() -> RvResult<()> {
-    fn test(filename: &str, cat_ids: Vec<u32>, bbs: &[(BB, &str)]) {
+    fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BB, &str)]) {
         let meta = MetaData {
             file_path: None,
             connection_data: ConnectionData::None,
@@ -354,12 +359,30 @@ fn test_coco_import() -> RvResult<()> {
         let read = read_coco(&meta).unwrap();
         assert_eq!(read.cat_ids(), &cat_ids);
         assert_eq!(read.labels(), &vec!["first label", "second label"]);
-        for (bb, file_path) in bbs {
+        for (bb, file_path) in reference_bbs {
             let annos = read.get_annos(file_path);
+            println!("");
+            println!("{file_path:?}");
+            println!("{annos:?}");
             assert!(annos.unwrap().bbs().contains(bb));
         }
     }
-    let bb_im_ref_abs = [
+
+    let bb_im_ref_abs1 = [
+        (
+            BB::from_arr(&[1, 1, 5, 5]),
+            "http://localhost:5000/%2Bnowhere.png",
+        ),
+        (
+            BB::from_arr(&[11, 11, 4, 7]),
+            "http://localhost:5000/%2Bnowhere.png",
+        ),
+        (
+            BB::from_arr(&[1, 1, 5, 5]),
+            "http://localhost:5000/%2Bnowhere2.png",
+        ),
+    ];
+    let bb_im_ref_abs2 = [
         (BB::from_arr(&[1, 1, 5, 5]), "nowhere.png"),
         (BB::from_arr(&[11, 11, 4, 7]), "nowhere.png"),
         (BB::from_arr(&[1, 1, 5, 5]), "nowhere2.png"),
@@ -369,8 +392,8 @@ fn test_coco_import() -> RvResult<()> {
         (BB::from_arr(&[91, 870, 15, 150]), "nowhere.png"),
         (BB::from_arr(&[10, 1, 50, 5]), "nowhere2.png"),
     ];
-    test("catids_12", vec![1, 2], &bb_im_ref_abs);
-    test("catids_01", vec![0, 1], &bb_im_ref_abs);
+    test("catids_12", vec![1, 2], &bb_im_ref_abs1);
+    test("catids_01", vec![0, 1], &bb_im_ref_abs2);
     test("catids_12_relative", vec![1, 2], &bb_im_ref_relative);
     Ok(())
 }

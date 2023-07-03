@@ -2,7 +2,7 @@
     "info": {
         "year": 2022,
         "version": "v0.1",
-        "description": "just a test file",
+        "description": "http://localhost:5000/+just a test file",
         "contributor": "someone",
         "url": ""
     },
@@ -11,7 +11,7 @@
             "id": 0,
             "width": 64,
             "height": 32,
-            "file_name": "nowhere.png",
+            "file_name": "http://localhost:5000/+nowhere.png",
             "license": "somelic",
             "flickr_url": "",
             "coco_url": ""
@@ -20,7 +20,7 @@
             "id": 1,
             "width": 64,
             "height": 32,
-            "file_name": "nowhere2.png",
+            "file_name": "http://localhost:5000/+nowhere2.png",
             "license": "somelic",
             "flickr_url": "",
             "coco_url": ""

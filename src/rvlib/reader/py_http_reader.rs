@@ -44,7 +44,7 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
                     format!(
                         "{}/{}",
                         address,
-                        &li_text[(fh.start() + len_href)..(fh.end() - 1)]
+                        file_util::url_encode(&li_text[(fh.start() + len_href)..(fh.end() - 1)])
                     )
                 })
             })
