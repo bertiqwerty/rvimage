@@ -33,7 +33,9 @@ annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotation
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 
 fn held_control(event: &WinitInputHelper) -> bool {
-    event.held_control() || event.key_held(VirtualKeyCode::LWin) || event.key_held(VirtualKeyCode::RWin)
+    event.held_control()
+        || event.key_held(VirtualKeyCode::LWin)
+        || event.key_held(VirtualKeyCode::RWin)
 }
 
 pub(super) fn paste(
