@@ -247,7 +247,6 @@ pub fn read_coco(meta_data: &MetaData) -> RvResult<BboxSpecificData> {
     let filename = meta_data_to_coco_path(meta_data)?;
     let s = file_util::read_to_string(&filename)?;
     let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-    println!("imported coco file from {read:?}");
     println!("imported coco file from {filename:?}");
     read.convert_to_bboxdata()
 }
