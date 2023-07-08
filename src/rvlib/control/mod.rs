@@ -9,11 +9,11 @@ use crate::history::{History, Record};
 use crate::result::RvError;
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
-    cfg::Cfg, reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
+    cfg::Cfg, image_reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
     types::AsyncResultImage,
 };
 pub mod paths_navigator;
-use crate::reader::LoadImageForGui;
+use crate::image_reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;
 
 mod detail {

@@ -8,7 +8,7 @@ pub mod httpserver;
 pub mod image_util;
 pub mod menu;
 mod paths_selector;
-mod reader;
+mod image_reader;
 pub mod result;
 mod ssh;
 mod threadpool;

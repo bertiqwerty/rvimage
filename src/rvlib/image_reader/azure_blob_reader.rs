@@ -2,7 +2,7 @@ use std::vec;
 
 use crate::{
     cache::ReadImageToCache,
-    reader::core::SUPPORTED_EXTENSIONS,
+    image_reader::core::SUPPORTED_EXTENSIONS,
     result::{to_rv, RvResult},
     rverr,
     types::ResultImage,
