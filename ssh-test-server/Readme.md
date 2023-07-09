@@ -16,5 +16,5 @@ ssh -i test_id_rsa -p22:22 rvimage-ssh
 and use it as test configuration in your RV Image settings.
 Further, the container contains images `image1.png` to `image5.png` in
 ```
-/home/user/test
+/home/user/test/images
 ```
