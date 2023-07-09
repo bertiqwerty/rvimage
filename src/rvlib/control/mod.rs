@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
-use crate::cfg::{get_default_cfg, Connection};
+use crate::cfg::Connection;
 use crate::file_util::{ConnectionData, MetaData};
 use crate::history::{History, Record};
 use crate::result::RvError;

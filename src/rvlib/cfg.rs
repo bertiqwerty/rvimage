@@ -4,7 +4,7 @@ use crate::{
     result::{to_rv, RvError, RvResult},
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, path::PathBuf, fs};
+use std::{fmt::Debug, fs, path::PathBuf};
 
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
