@@ -18,13 +18,6 @@ RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' && \
 # Install dependencies (imagemagick and font packages)
 RUN apk add --no-cache imagemagick fontconfig ttf-dejavu
 
-# Copy the script that generates PNG images
-COPY generate_images.sh /usr/local/bin/generate_images.sh
-
-# Run the script to generate PNG images and place them in test's home folder
-RUN chmod +x /usr/local/bin/generate_images.sh && \
-    su -c "/usr/local/bin/generate_images.sh" test
-
 # Expose SSH port
 EXPOSE 22
 
@@ -37,3 +30,13 @@ RUN chown test:test /home/test/.ssh/authorized_keys && \
 
 # Start the SSH server
 CMD ["/usr/sbin/sshd", "-D"]
+
+# Copy the script that generates PNG images
+COPY generate_images.sh /usr/local/bin/generate_images.sh
+
+# Run the script to generate PNG images and place them in test's home folder
+RUN chmod +x /usr/local/bin/generate_images.sh && \
+    "/usr/local/bin/generate_images.sh" test
+
+RUN chown -R test /home/test/images
+RUN chgrp -R test /home/test/images
