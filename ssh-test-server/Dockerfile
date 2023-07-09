@@ -28,5 +28,12 @@ RUN chmod +x /usr/local/bin/generate_images.sh && \
 # Expose SSH port
 EXPOSE 22
 
+# Copy the public key to the authorized keys
+COPY test_id_rsa.pub /home/test/.ssh/authorized_keys
+
+# Set the correct permissions for the authorized keys file
+RUN chown test:test /home/test/.ssh/authorized_keys && \
+    chmod 600 /home/test/.ssh/authorized_keys
+
 # Start the SSH server
 CMD ["/usr/sbin/sshd", "-D"]
