@@ -146,7 +146,7 @@ pub struct Control {
     pub info: Info,
     pub paths_navigator: PathsNavigator,
     pub opened_folder: Option<String>,
-    tp: ThreadPool<(ReaderFromCfg, Info)>,
+    tp: ThreadPool<RvResult<ReaderFromCfg>>,
     last_open_folder_job_id: Option<u128>,
     pub cfg: Cfg,
     pub file_loaded: Option<usize>,
@@ -247,8 +247,10 @@ impl Control {
 
     fn make_reader(&mut self, cfg: Cfg) -> RvResult<()> {
         self.paths_navigator = PathsNavigator::new(None);
-        self.last_open_folder_job_id =
-            Some(self.tp.apply(Box::new(move || make_reader_from_cfg(cfg)))?);
+        self.last_open_folder_job_id = Some(
+            self.tp
+                .apply(Box::new(move || ReaderFromCfg::from_cfg(cfg)))?,
+        );
         Ok(())
     }
 
@@ -270,12 +272,13 @@ impl Control {
     pub fn check_if_connected(&mut self) -> RvResult<bool> {
         if let Some(job_id) = self.last_open_folder_job_id {
             let tp_res = self.tp.result(job_id);
-            if let Some((reader, info)) = tp_res {
+            if let Some(res) = tp_res {
                 self.last_open_folder_job_id = None;
-                self.reader = Some(reader);
-                self.load_opened_folder_content()?;
-                self.info = info;
-                Ok(true)
+                res.and_then(|reader| {
+                    self.reader = Some(reader);
+                    self.load_opened_folder_content()?;
+                    Ok(true)
+                })
             } else {
                 Ok(false)
             }
@@ -443,16 +446,6 @@ impl Control {
             self.loading_screen_animation_counter = 0;
         }
         Ok(ims_raw_idx_pair)
-    }
-}
-
-fn make_reader_from_cfg(cfg: Cfg) -> (ReaderFromCfg, Info) {
-    match ReaderFromCfg::from_cfg(cfg) {
-        Ok(rfc) => (rfc, Info::None),
-        Err(e) => (
-            ReaderFromCfg::from_cfg(get_default_cfg()).expect("default cfg broken"),
-            Info::Warning(e.msg().to_string()),
-        ),
     }
 }
 
