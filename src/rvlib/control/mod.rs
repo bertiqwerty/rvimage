@@ -210,7 +210,7 @@ impl Control {
 
     pub fn save(&self, tools_data_map: &ToolsDataMap) -> RvResult<Option<PathBuf>> {
         let opened_folder = self.opened_folder();
-        let connection_data = self.connection_data();
+        let connection_data = self.connection_data()?;
         let export_folder = self.cfg.export_folder()?;
 
         detail::save(
@@ -309,39 +309,30 @@ impl Control {
         self.opened_folder.as_ref()
     }
 
-    pub fn connection_data(&self) -> ConnectionData {
-        match self.cfg.connection {
+    pub fn connection_data(&self) -> RvResult<ConnectionData> {
+        let cfg = self
+            .cfg_of_opened_folder()
+            .ok_or_else(|| RvError::new("save failed, open folder first"));
+        Ok(match self.cfg.connection {
             Connection::Ssh => {
-                let ssh_cfg = self
-                    .cfg_of_opened_folder()
-                    .map(|cfg| cfg.ssh_cfg.clone())
-                    .ok_or_else(|| RvError::new("save failed, opened folder needs a config"))
-                    .unwrap();
+                let ssh_cfg = cfg.map(|cfg| cfg.ssh_cfg.clone())?;
                 ConnectionData::Ssh(ssh_cfg)
             }
             Connection::Local => ConnectionData::None,
             Connection::PyHttp => {
-                let pyhttp_cfg = self
-                    .cfg_of_opened_folder()
-                    .map(|cfg| cfg.py_http_reader_cfg.clone())
-                    .ok_or_else(|| RvError::new("save failed, opened folder needs a config"))
-                    .unwrap()
-                    .ok_or_else(|| RvError::new("cannot open pyhttp without pyhttp cfg"))
-                    .unwrap();
+                let pyhttp_cfg = cfg
+                    .map(|cfg| cfg.py_http_reader_cfg.clone())?
+                    .ok_or_else(|| RvError::new("cannot open pyhttp without pyhttp cfg"))?;
                 ConnectionData::PyHttp(pyhttp_cfg)
             }
             #[cfg(feature = "azure_blob")]
             Connection::AzureBlob => {
-                let azure_blob_cfg = self
-                    .cfg_of_opened_folder()
-                    .map(|cfg| cfg.azure_blob_cfg.clone())
-                    .ok_or_else(|| RvError::new("save failed, opened folder needs a config"))
-                    .unwrap()
-                    .ok_or_else(|| RvError::new("cannot open azure blob without cfg"))
-                    .unwrap();
+                let azure_blob_cfg = cfg
+                    .map(|cfg| cfg.azure_blob_cfg.clone())?
+                    .ok_or_else(|| RvError::new("cannot open azure blob without cfg"))?;
                 ConnectionData::AzureBlobCfg(azure_blob_cfg)
             }
-        }
+        })
     }
 
     pub fn meta_data(
