@@ -14,10 +14,7 @@ use crate::{
     rverr, ssh,
 };
 
-use super::{
-    bbox_data::{new_color, random_clr},
-    BboxExportData, BboxSpecificData,
-};
+use super::{bbox_data::new_random_colors, BboxExportData, BboxSpecificData};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CocoInfo {
@@ -48,6 +45,30 @@ struct CocoAnnotation {
     area: Option<f32>,
 }
 
+fn colors_to_string(colors: &[[u8; 3]]) -> Option<String> {
+    colors
+        .iter()
+        .map(|[r, g, b]| format!("{r};{g};{b}"))
+        .reduce(|s1, s2| format!("{s1}_{s2}"))
+}
+
+fn string_to_colors(s: &str) -> RvResult<Vec<[u8; 3]>> {
+    let make_err = || rverr!("cannot convert str {} to rgb", s);
+    s.trim()
+        .split('_')
+        .map(|rgb_str| {
+            let mut rgb = [0; 3];
+            let mut it = rgb_str.split(";");
+            for i in 0..3 {
+                rgb[i] = it
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or_else(make_err)?;
+            }
+            Ok(rgb)
+        })
+        .collect::<RvResult<Vec<[u8; 3]>>>()
+}
 #[derive(Serialize, Deserialize, Debug)]
 struct CocoExportData {
     info: CocoInfo,
@@ -57,7 +78,13 @@ struct CocoExportData {
 }
 impl CocoExportData {
     fn from_coco(bbox_specifics: BboxSpecificData) -> RvResult<Self> {
-        let info_str = "created with Rvimage, https://github.com/bertiqwerty/rvimage".to_string();
+        let color_str = if let Some(s) = colors_to_string(bbox_specifics.colors()) {
+            format!(", {s}")
+        } else {
+            "".to_string()
+        };
+        let info_str =
+            format!("created with Rvimage, https://github.com/bertiqwerty/rvimage{color_str}");
         let info = CocoInfo {
             description: info_str,
         };
@@ -139,11 +166,12 @@ impl CocoExportData {
             .into_iter()
             .map(|coco_cat| coco_cat.name)
             .collect();
-        let mut colors: Vec<[u8; 3]> = vec![random_clr()];
-        for _ in 0..(labels.len() - 1) {
-            let color = new_color(&colors);
-            colors.push(color);
-        }
+        let color_str = self.info.description.split(',').last();
+        let colors: Vec<[u8; 3]> = if let Some(s) = color_str {
+            string_to_colors(s).unwrap_or_else(|_|new_random_colors(labels.len()))
+        } else {
+            new_random_colors(labels.len())
+        };
         let id_image_map = self
             .images
             .iter()
@@ -439,4 +467,12 @@ fn test_coco_import() -> RvResult<()> {
     test("catids_01", vec![0, 1], &bb_im_ref_abs2);
     test("catids_12_relative", vec![1, 2], &bb_im_ref_relative);
     Ok(())
+}
+
+#[test]
+fn color_vs_str() {
+    let colors = vec![[0, 0, 7], [4, 0, 101], [210, 9, 0]];
+    let s = colors_to_string(&colors);
+    let colors_back = string_to_colors(&s.unwrap()).unwrap();
+    assert_eq!(colors, colors_back);
 }

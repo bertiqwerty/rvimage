@@ -54,6 +54,14 @@ pub fn new_color(colors: &[[u8; 3]]) -> [u8; 3] {
     argmax_clr_dist(&new_clr_proposals, colors)
 }
 
+pub fn new_random_colors(n: usize) -> Vec<[u8; 3]> {
+    let mut colors = vec![random_clr()];
+    for _ in 0..(n - 1) {
+        let color = new_color(&colors);
+        colors.push(color);
+    }
+    colors
+}
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct ClipboardData {
     bbs: Vec<BB>,
@@ -84,6 +92,7 @@ pub struct Options {
     pub is_anno_rm_triggered: bool,
     pub is_coco_import_triggered: bool,
     pub is_export_triggered: bool,
+    pub is_colorchange_triggered: bool,
     pub split_mode: SplitMode,
 }
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
@@ -216,6 +225,10 @@ impl BboxSpecificData {
 
     pub fn colors(&self) -> &Vec<[u8; 3]> {
         &self.colors
+    }
+
+    pub fn new_random_colors(&mut self) {
+        self.colors = new_random_colors(self.colors.len());
     }
 
     pub fn labels(&self) -> &Vec<String> {

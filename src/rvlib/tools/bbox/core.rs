@@ -287,6 +287,21 @@ impl Manipulate for BBox {
         if event.window_resized().is_some() {
             (world, history) = self.on_activate(world, history, shape_win);
         }
+
+        // check if re-color was triggered
+        let options = get_tools_data(&world).specifics.bbox().options;
+        if options.is_colorchange_triggered {
+            let data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+            data.new_random_colors();
+            data.options.is_colorchange_triggered = false;
+            world = draw_on_view(
+                &self.initial_view,
+                options.are_boxes_visible,
+                world,
+                shape_win,
+            );
+        }
+
         let is_file_new = self.previous_file != world.data.meta_data.file_path;
         if is_file_new {
             {

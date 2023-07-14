@@ -99,6 +99,9 @@ pub fn bbox_menu(
             data.options.is_coco_import_triggered = true;
             pathincfg_triggered = true;
         }
+        if ui.button("new random colors").clicked() {
+            data.options.is_colorchange_triggered = true;
+        }
         if ui.button("clear out of folder annotations").clicked() {
             data.options.is_anno_rm_triggered = true;
         }
