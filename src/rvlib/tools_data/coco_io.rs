@@ -58,9 +58,9 @@ fn string_to_colors(s: &str) -> RvResult<Vec<[u8; 3]>> {
         .split('_')
         .map(|rgb_str| {
             let mut rgb = [0; 3];
-            let mut it = rgb_str.split(";");
-            for i in 0..3 {
-                rgb[i] = it
+            let mut it = rgb_str.split(';');
+            for c in &mut rgb {
+                *c = it
                     .next()
                     .and_then(|s| s.parse().ok())
                     .ok_or_else(make_err)?;
@@ -168,7 +168,7 @@ impl CocoExportData {
             .collect();
         let color_str = self.info.description.split(',').last();
         let colors: Vec<[u8; 3]> = if let Some(s) = color_str {
-            string_to_colors(s).unwrap_or_else(|_|new_random_colors(labels.len()))
+            string_to_colors(s).unwrap_or_else(|_| new_random_colors(labels.len()))
         } else {
             new_random_colors(labels.len())
         };
