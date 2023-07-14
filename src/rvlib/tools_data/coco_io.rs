@@ -8,9 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     domain::{Shape, BB},
-    file_util::{self, MetaData},
+    file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
-    rverr,
+    rverr, ssh,
+    tools_data::bbox_data::CocoFileConnection,
 };
 
 use super::{
@@ -235,10 +236,25 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
 }
 
 pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
+    let coco_out_path = if path_to_str(&bbox_specifics.cocofile.path)?.len() > 0 {
+        bbox_specifics.cocofile.path.clone()
+    } else {
+        meta_data_to_coco_path(meta_data)?
+    };
+    let conn = bbox_specifics.cocofile.conn.clone();
     let coco_data = CocoExportData::from_coco(bbox_specifics)?;
     let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
-    let coco_out_path = meta_data_to_coco_path(meta_data)?;
-    file_util::write(&coco_out_path, data_str)?;
+    match conn {
+        CocoFileConnection::Ssh => {
+            if let Some(ssh_cfg) = &meta_data.ssh_cfg {
+                let sess = ssh::auth(ssh_cfg)?;
+                ssh::write(&data_str, &coco_out_path, &sess).map_err(to_rv)?;
+            }
+        }
+        CocoFileConnection::Local => {
+            file_util::write(&coco_out_path, data_str)?;
+        }
+    }
     println!("exported coco labels to {coco_out_path:?}");
     Ok(coco_out_path)
 }
@@ -351,6 +367,7 @@ fn test_coco_import() -> RvResult<()> {
         let meta = MetaData {
             file_path: None,
             connection_data: ConnectionData::None,
+            ssh_cfg: None,
             opened_folder: Some(filename.to_string()),
             export_folder: Some(TEST_DATA_FOLDER.to_string()),
             is_loading_screen_active: None,

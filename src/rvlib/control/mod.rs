@@ -353,8 +353,8 @@ impl Control {
             .and_then(|fsidx| self.paths_navigator.file_path(fsidx).map(|s| s.to_string()));
         let open_folder = self.opened_folder().cloned();
         let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
-        let connection_data = match ssh_cfg {
-            Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg),
+        let connection_data = match &ssh_cfg {
+            Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg.clone()),
             None => ConnectionData::None,
         };
         let export_folder = self
@@ -363,6 +363,7 @@ impl Control {
         MetaData {
             file_path,
             connection_data,
+            ssh_cfg,
             opened_folder: open_folder,
             export_folder,
             is_loading_screen_active,

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem};
+use std::{collections::HashMap, mem, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +9,7 @@ use crate::{
     file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
-    util::true_indices,
+    util::true_indices
 };
 const DEFAULT_LABEL: &str = "foreground";
 
@@ -76,6 +76,19 @@ impl ClipboardData {
     }
 }
 
+#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
+pub enum CocoFileConnection {
+    Ssh,
+    #[default]
+    Local,
+}
+
+#[derive(Deserialize, Serialize, Default,  Clone, Debug, PartialEq, Eq)]
+pub struct CocoFile {
+    pub path: PathBuf,
+    pub conn: CocoFileConnection
+} 
+
 #[derive(Clone, Copy, Deserialize, Serialize, Default, Debug, PartialEq, Eq)]
 pub struct Options {
     pub are_boxes_visible: bool,
@@ -95,6 +108,7 @@ pub struct BboxSpecificData {
     annotations_map: AnnotationsMap,
     pub clipboard: Option<ClipboardData>,
     pub options: Options,
+    pub cocofile: CocoFile
 }
 
 impl BboxSpecificData {
@@ -126,6 +140,7 @@ impl BboxSpecificData {
                 are_boxes_visible: true,
                 ..Default::default()
             },
+            cocofile: CocoFile::default()
         };
         for ((lab, clr), cat_id) in input_data
             .labels
@@ -241,6 +256,7 @@ impl BboxSpecificData {
                 are_boxes_visible: true,
                 ..Default::default()
             },
+            cocofile: CocoFile::default()
         }
     }
 

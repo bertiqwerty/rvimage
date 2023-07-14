@@ -1,9 +1,14 @@
+use std::{path::PathBuf, str::FromStr};
+
 use egui::Ui;
 
 use crate::{
     annotations::SplitMode,
-    result::RvResult,
-    tools_data::{bbox_data::BboxSpecificData, ToolSpecifics, ToolsData},
+    result::{to_rv, RvResult},
+    tools_data::{
+        bbox_data::{BboxSpecificData, CocoFileConnection},
+        ToolSpecifics, ToolsData,
+    }, file_util::path_to_str,
 };
 
 pub fn bbox_menu(
@@ -77,6 +82,18 @@ pub fn bbox_menu(
 
     ui.separator();
     ui.checkbox(&mut data.options.auto_paste, "auto paste");
+    ui.separator();
+    ui.separator();
+    let mut txt = path_to_str(&data.cocofile.path)?.to_string();
+    ui.horizontal(|ui| {
+        ui.label("coco file");
+        ui.radio_value(&mut data.cocofile.conn, CocoFileConnection::Local, "local");
+        ui.radio_value(&mut data.cocofile.conn, CocoFileConnection::Ssh, "ssh");
+        ui.text_edit_singleline(&mut txt);
+    });
+    if path_to_str(&data.cocofile.path)? != &txt {
+        data.cocofile.path = PathBuf::from_str(&txt).map_err(to_rv)?;
+    }
     ui.separator();
     if ui.button("close").clicked() {
         window_open = false;

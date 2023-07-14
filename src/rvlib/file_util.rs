@@ -85,6 +85,7 @@ pub enum ConnectionData {
 pub struct MetaData {
     pub file_path: Option<String>,
     pub connection_data: ConnectionData,
+    pub ssh_cfg: Option<SshCfg>,
     pub opened_folder: Option<String>,
     pub export_folder: Option<String>,
     pub is_loading_screen_active: Option<bool>,
@@ -94,6 +95,7 @@ impl MetaData {
         MetaData {
             file_path: Some(file_path),
             connection_data: ConnectionData::None,
+            ssh_cfg: None,
             opened_folder: None,
             export_folder: None,
             is_loading_screen_active: None,
