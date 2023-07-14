@@ -100,6 +100,18 @@ pub struct PyHttpReaderCfg {
     pub server_address: String,
 }
 
+#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
+pub enum CocoFileConnection {
+    Ssh,
+    #[default]
+    Local,
+}
+#[derive(Deserialize, Serialize, Default,  Clone, Debug, PartialEq, Eq)]
+pub struct CocoFile {
+    pub path: PathBuf,
+    pub conn: CocoFileConnection
+} 
+
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Cfg {
     pub connection: Connection,
@@ -110,6 +122,7 @@ pub struct Cfg {
     pub ssh_cfg: SshCfg,
     pub export_folder: Option<String>,
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
+    pub coco_file: Option<CocoFile>,
     #[cfg(feature = "azure_blob")]
     pub azure_blob_cfg: Option<AzureBlobCfg>,
 }

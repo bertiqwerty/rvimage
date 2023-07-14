@@ -7,11 +7,11 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    cfg::{CocoFile, CocoFileConnection},
     domain::{Shape, BB},
     file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
     rverr, ssh,
-    tools_data::bbox_data::CocoFileConnection,
 };
 
 use super::{
@@ -132,7 +132,7 @@ impl CocoExportData {
         })
     }
 
-    fn convert_to_bboxdata(self) -> RvResult<BboxSpecificData> {
+    fn convert_to_bboxdata(self, coco_file: CocoFile) -> RvResult<BboxSpecificData> {
         let cat_ids: Vec<u32> = self.categories.iter().map(|coco_cat| coco_cat.id).collect();
         let labels: Vec<String> = self
             .categories
@@ -203,7 +203,8 @@ impl CocoExportData {
             colors,
             cat_ids,
             annotations,
-        })
+            coco_file
+        } )
     }
 }
 
@@ -234,14 +235,16 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
     };
     Ok(export_folder.join(file_name))
 }
-
-pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
-    let coco_out_path = if path_to_str(&bbox_specifics.cocofile.path)?.len() > 0 {
-        bbox_specifics.cocofile.path.clone()
+fn get_cocofilepath(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<PathBuf> {
+    if path_to_str(&coco_file.path)?.len() > 0 {
+        Ok(coco_file.path.clone())
     } else {
-        meta_data_to_coco_path(meta_data)?
-    };
-    let conn = bbox_specifics.cocofile.conn.clone();
+        meta_data_to_coco_path(meta_data)
+    }
+}
+pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
+    let coco_out_path = get_cocofilepath(meta_data, &bbox_specifics.coco_file)?;
+    let conn = bbox_specifics.coco_file.conn.clone();
     let coco_data = CocoExportData::from_coco(bbox_specifics)?;
     let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
     match conn {
@@ -259,12 +262,29 @@ pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvR
     Ok(coco_out_path)
 }
 
-pub fn read_coco(meta_data: &MetaData) -> RvResult<BboxSpecificData> {
-    let filename = meta_data_to_coco_path(meta_data)?;
-    let s = file_util::read_to_string(&filename)?;
-    let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-    println!("imported coco file from {filename:?}");
-    read.convert_to_bboxdata()
+pub fn read_coco(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<BboxSpecificData> {
+    let coco_inpath = get_cocofilepath(meta_data, coco_file)?;
+    match &coco_file.conn {
+        CocoFileConnection::Local => {
+            let s = file_util::read_to_string(&coco_inpath)?;
+            let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+            println!("imported coco file from {coco_inpath:?}");
+            read.convert_to_bboxdata(coco_file.clone())
+        }
+        CocoFileConnection::Ssh => {
+            if let Some(ssh_cfg) = &meta_data.ssh_cfg {
+                let sess = ssh::auth(ssh_cfg)?;
+                let read_bytes = ssh::download(path_to_str(&coco_file.path)?, &sess)?;
+                let s = String::from_utf8(read_bytes).map_err(to_rv)?;
+
+                let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+                println!("imported coco file from {coco_inpath:?}");
+                read.convert_to_bboxdata(coco_file.clone())
+            } else {
+                Err(rverr!("cannot read coco from ssh, ssh-cfg missing.",))
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -312,6 +332,7 @@ pub fn make_data(
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
     meta.connection_data = ConnectionData::Ssh(SshCfg::default());
     let mut bbox_data = BboxSpecificData::new();
+    bbox_data.coco_file = CocoFile::default();
     bbox_data.push("x".to_string(), None, None).unwrap();
     bbox_data.remove_catidx(0);
     let mut bbs = make_test_bbs();
@@ -337,7 +358,13 @@ fn test_coco_export() -> RvResult<()> {
         let (bbox_data, meta, _) = make_data("json", &file_path, opened_folder);
         let coco_file = write_coco(&meta, bbox_data.clone())?;
         defer_file_removal!(&coco_file);
-        let read = read_coco(&meta)?;
+        let read = read_coco(
+            &meta,
+            &CocoFile {
+                path: coco_file.clone(),
+                conn: CocoFileConnection::Local,
+            },
+        )?;
         assert_eq!(bbox_data.cat_ids(), read.cat_ids());
         assert_eq!(bbox_data.labels(), read.labels());
         for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
@@ -372,7 +399,7 @@ fn test_coco_import() -> RvResult<()> {
             export_folder: Some(TEST_DATA_FOLDER.to_string()),
             is_loading_screen_active: None,
         };
-        let read = read_coco(&meta).unwrap();
+        let read = read_coco(&meta, &CocoFile::default()).unwrap();
         assert_eq!(read.cat_ids(), &cat_ids);
         assert_eq!(read.labels(), &vec!["first label", "second label"]);
         for (bb, file_path) in reference_bbs {

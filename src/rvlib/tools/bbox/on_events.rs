@@ -9,7 +9,7 @@ use crate::{
     tools::core::{InitialView, Mover},
     tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
     util::true_indices,
-    {history::History, world::World},
+    {history::History, world::World}, cfg::CocoFile,
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
@@ -59,9 +59,10 @@ fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option
 pub(super) fn import_coco_if_triggered(
     meta_data: &MetaData,
     is_coco_import_triggered: bool,
+    coco_file: &CocoFile,
 ) -> Option<BboxSpecificData> {
     if is_coco_import_triggered {
-        match tools_data::coco_io::read_coco(meta_data) {
+        match tools_data::coco_io::read_coco(meta_data, coco_file) {
             Ok(bbox_data) => Some(bbox_data),
             Err(e) => {
                 println!("could not import coco due to {e:?}");

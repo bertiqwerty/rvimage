@@ -4,11 +4,10 @@ use egui::Ui;
 
 use crate::{
     annotations::SplitMode,
+    cfg::{self, get_cfg, CocoFileConnection},
+    file_util::path_to_str,
     result::{to_rv, RvResult},
-    tools_data::{
-        bbox_data::{BboxSpecificData, CocoFileConnection},
-        ToolSpecifics, ToolsData,
-    }, file_util::path_to_str,
+    tools_data::{bbox_data::BboxSpecificData, ToolSpecifics, ToolsData},
 };
 
 pub fn bbox_menu(
@@ -53,15 +52,18 @@ pub fn bbox_menu(
     if ui.button("clear out of folder annotations").clicked() {
         data.options.is_anno_rm_triggered = true;
     }
+    let mut pathincfg_triggered = false;
     ui.separator();
     ui.horizontal(|ui| {
         if ui.button("export coco").clicked() {
             println!("export coco triggered");
             data.options.is_export_triggered = true;
+            pathincfg_triggered = true;
         }
         if ui.button("import coco").clicked() {
             println!("import triggered");
             data.options.is_coco_import_triggered = true;
+            pathincfg_triggered = true;
         }
     });
     ui.separator();
@@ -84,15 +86,24 @@ pub fn bbox_menu(
     ui.checkbox(&mut data.options.auto_paste, "auto paste");
     ui.separator();
     ui.separator();
-    let mut txt = path_to_str(&data.cocofile.path)?.to_string();
+    let mut txt = path_to_str(&data.coco_file.path)?.to_string();
     ui.horizontal(|ui| {
         ui.label("coco file");
-        ui.radio_value(&mut data.cocofile.conn, CocoFileConnection::Local, "local");
-        ui.radio_value(&mut data.cocofile.conn, CocoFileConnection::Ssh, "ssh");
+        ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Local, "local");
+        ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Ssh, "ssh");
         ui.text_edit_singleline(&mut txt);
+        if ui.button("store path in cfg").clicked() {
+            pathincfg_triggered = true;
+        }
     });
-    if path_to_str(&data.cocofile.path)? != &txt {
-        data.cocofile.path = PathBuf::from_str(&txt).map_err(to_rv)?;
+    if path_to_str(&data.coco_file.path)? != &txt {
+        data.coco_file.path = PathBuf::from_str(&txt).map_err(to_rv)?;
+    }
+    if pathincfg_triggered {
+        println!("saving coco path to cfg file");
+        let mut curcfg = get_cfg()?;
+        curcfg.coco_file = Some(data.coco_file.clone());
+        cfg::write_cfg(&curcfg)?;
     }
     ui.separator();
     if ui.button("close").clicked() {

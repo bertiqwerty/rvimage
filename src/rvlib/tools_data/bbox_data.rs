@@ -1,15 +1,16 @@
-use std::{collections::HashMap, mem, path::PathBuf};
+use std::{collections::HashMap, mem};
 
 use serde::{Deserialize, Serialize};
 
 use super::annotations::BboxAnnotations;
 use crate::{
     annotations::SplitMode,
+    cfg::{get_cfg, CocoFile},
     domain::{Shape, BB},
     file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
-    util::true_indices
+    util::true_indices,
 };
 const DEFAULT_LABEL: &str = "foreground";
 
@@ -76,19 +77,6 @@ impl ClipboardData {
     }
 }
 
-#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
-pub enum CocoFileConnection {
-    Ssh,
-    #[default]
-    Local,
-}
-
-#[derive(Deserialize, Serialize, Default,  Clone, Debug, PartialEq, Eq)]
-pub struct CocoFile {
-    pub path: PathBuf,
-    pub conn: CocoFileConnection
-} 
-
 #[derive(Clone, Copy, Deserialize, Serialize, Default, Debug, PartialEq, Eq)]
 pub struct Options {
     pub are_boxes_visible: bool,
@@ -108,7 +96,7 @@ pub struct BboxSpecificData {
     annotations_map: AnnotationsMap,
     pub clipboard: Option<ClipboardData>,
     pub options: Options,
-    pub cocofile: CocoFile
+    pub coco_file: CocoFile,
 }
 
 impl BboxSpecificData {
@@ -140,7 +128,7 @@ impl BboxSpecificData {
                 are_boxes_visible: true,
                 ..Default::default()
             },
-            cocofile: CocoFile::default()
+            coco_file: input_data.coco_file,
         };
         for ((lab, clr), cat_id) in input_data
             .labels
@@ -244,6 +232,8 @@ impl BboxSpecificData {
         let labels = vec![new_label.clone()];
         let colors = vec![new_color];
         let cat_ids = vec![1];
+        let cfg = get_cfg().expect("could not read config nor create default config");
+
         BboxSpecificData {
             new_label,
             labels,
@@ -256,7 +246,11 @@ impl BboxSpecificData {
                 are_boxes_visible: true,
                 ..Default::default()
             },
-            cocofile: CocoFile::default()
+            coco_file: if let Some(cf) = cfg.coco_file {
+                cf
+            } else {
+                CocoFile::default()
+            },
         }
     }
 
@@ -291,10 +285,12 @@ pub struct BboxExportData {
     pub cat_ids: Vec<u32>,
     // filename, bounding boxes, classes of the boxes, dimensions of the image
     pub annotations: HashMap<String, (Vec<BB>, Vec<usize>, Shape)>,
+    pub coco_file: CocoFile,
 }
 
 impl BboxExportData {
     pub fn from_bbox_data(mut bbox_specifics: BboxSpecificData) -> Self {
+        let coco_file = bbox_specifics.coco_file.clone();
         BboxExportData {
             labels: mem::take(&mut bbox_specifics.labels),
             colors: mem::take(&mut bbox_specifics.colors),
@@ -306,6 +302,7 @@ impl BboxExportData {
                     (filename, (bbs, labels, shape))
                 })
                 .collect::<HashMap<_, _>>(),
+            coco_file,
         }
     }
 }

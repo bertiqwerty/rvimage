@@ -337,9 +337,11 @@ impl Manipulate for BBox {
         {
             // import coco if demanded
             let flags = get_tools_data(&world).specifics.bbox().options;
-            if let Some(imported_data) =
-                import_coco_if_triggered(&world.data.meta_data, flags.is_coco_import_triggered)
-            {
+            if let Some(imported_data) = import_coco_if_triggered(
+                &world.data.meta_data,
+                flags.is_coco_import_triggered,
+                &get_tools_data(&world).specifics.bbox().coco_file,
+            ) {
                 *get_tools_data_mut(&mut world).specifics.bbox_mut() = imported_data;
                 world = draw_on_view(
                     &self.initial_view,
