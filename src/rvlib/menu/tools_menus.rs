@@ -96,7 +96,7 @@ pub fn bbox_menu(
             pathincfg_triggered = true;
         }
     });
-    if path_to_str(&data.coco_file.path)? != &txt {
+    if path_to_str(&data.coco_file.path)? != txt {
         data.coco_file.path = PathBuf::from_str(&txt).map_err(to_rv)?;
     }
     if pathincfg_triggered {

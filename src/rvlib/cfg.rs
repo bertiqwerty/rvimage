@@ -106,11 +106,11 @@ pub enum CocoFileConnection {
     #[default]
     Local,
 }
-#[derive(Deserialize, Serialize, Default,  Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
 pub struct CocoFile {
     pub path: PathBuf,
-    pub conn: CocoFileConnection
-} 
+    pub conn: CocoFileConnection,
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Cfg {

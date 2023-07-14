@@ -31,7 +31,7 @@ mod detail {
         rverr,
         tools::BBOX_NAME,
         tools_data::{BboxExportData, BboxSpecificData, ToolSpecifics, ToolsData},
-        world::ToolsDataMap
+        world::ToolsDataMap,
     };
 
     pub(super) fn load(
@@ -42,7 +42,6 @@ mod detail {
         let file_path = Path::new(export_folder).join(file_name);
         let s = file_util::read_to_string(file_path)?;
         let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-        
 
         if let Some(bbox_data) = read.bbox_data {
             let bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;

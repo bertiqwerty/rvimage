@@ -203,8 +203,8 @@ impl CocoExportData {
             colors,
             cat_ids,
             annotations,
-            coco_file
-        } )
+            coco_file,
+        })
     }
 }
 
@@ -236,10 +236,10 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
     Ok(export_folder.join(file_name))
 }
 fn get_cocofilepath(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<PathBuf> {
-    if path_to_str(&coco_file.path)?.len() > 0 {
-        Ok(coco_file.path.clone())
-    } else {
+    if path_to_str(&coco_file.path)?.is_empty() {
         meta_data_to_coco_path(meta_data)
+    } else {
+        Ok(coco_file.path.clone())
     }
 }
 pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {

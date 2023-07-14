@@ -1,5 +1,6 @@
 use crate::{
     annotations::SplitMode,
+    cfg::CocoFile,
     domain::{
         mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, OutOfBoundsMode, Shape, BB,
     },
@@ -9,7 +10,7 @@ use crate::{
     tools::core::{InitialView, Mover},
     tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
     util::true_indices,
-    {history::History, world::World}, cfg::CocoFile,
+    {history::History, world::World},
 };
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
