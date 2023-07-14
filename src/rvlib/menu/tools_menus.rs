@@ -48,27 +48,12 @@ pub fn bbox_menu(
     if let Some(idx) = to_be_removed {
         data.remove_catidx(idx);
     }
-    ui.separator();
-    if ui.button("clear out of folder annotations").clicked() {
-        data.options.is_anno_rm_triggered = true;
-    }
     let mut pathincfg_triggered = false;
     ui.separator();
     ui.horizontal(|ui| {
-        if ui.button("export coco").clicked() {
-            println!("export coco triggered");
-            data.options.is_export_triggered = true;
-            pathincfg_triggered = true;
-        }
-        if ui.button("import coco").clicked() {
-            println!("import triggered");
-            data.options.is_coco_import_triggered = true;
-            pathincfg_triggered = true;
-        }
-    });
-    ui.separator();
-    ui.label("split mode");
-    ui.horizontal(|ui| {
+        ui.checkbox(&mut data.options.auto_paste, "auto paste");
+        ui.separator();
+        ui.label("split mode");
         ui.radio_value(&mut data.options.split_mode, SplitMode::None, "none");
         ui.radio_value(
             &mut data.options.split_mode,
@@ -82,9 +67,6 @@ pub fn bbox_menu(
         );
     });
 
-    ui.separator();
-    ui.checkbox(&mut data.options.auto_paste, "auto paste");
-    ui.separator();
     ui.separator();
     let mut txt = path_to_str(&data.coco_file.path)?.to_string();
     ui.horizontal(|ui| {
@@ -106,9 +88,24 @@ pub fn bbox_menu(
         cfg::write_cfg(&curcfg)?;
     }
     ui.separator();
-    if ui.button("close").clicked() {
-        window_open = false;
-    }
+    ui.horizontal(|ui| {
+        if ui.button("export coco").clicked() {
+            println!("export coco triggered");
+            data.options.is_export_triggered = true;
+            pathincfg_triggered = true;
+        }
+        if ui.button("import coco").clicked() {
+            println!("import triggered");
+            data.options.is_coco_import_triggered = true;
+            pathincfg_triggered = true;
+        }
+        if ui.button("clear out of folder annotations").clicked() {
+            data.options.is_anno_rm_triggered = true;
+        }
+        if ui.button("close").clicked() {
+            window_open = false;
+        }
+    });
     Ok(ToolsData {
         specifics: ToolSpecifics::Bbox(data),
         menu_active: window_open,
