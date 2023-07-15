@@ -82,7 +82,7 @@ fn on_recolorboxes(mut world: World, initial_view: &InitialView, shape_win: Shap
         let data = get_tools_data_mut(&mut world).specifics.bbox_mut();
         data.new_random_colors();
         data.options.is_colorchange_triggered = false;
-        world = draw_on_view(&initial_view, options.are_boxes_visible, world, shape_win);
+        world = draw_on_view(initial_view, options.are_boxes_visible, world, shape_win);
     }
     world
 }
@@ -187,7 +187,7 @@ fn on_autopaste(
 ) -> (World, History) {
     let updated = initial_view.update(&world, shape_win);
     if updated && auto_paste {
-        (world, history) = paste(&initial_view, shape_win, world, history);
+        (world, history) = paste(initial_view, shape_win, world, history);
     }
     (world, history)
 }
