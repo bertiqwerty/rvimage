@@ -75,7 +75,7 @@ pub(super) fn current_cat_idx(world: &World) -> usize {
     get_tools_data(world).specifics.bbox().cat_idx_current
 }
 
-fn on_recolorboxes(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
+fn check_recolorboxes(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
     // check if re-color was triggered
     let options = get_tools_data(&world).specifics.bbox().options;
     if options.is_colorchange_triggered {
@@ -87,7 +87,7 @@ fn on_recolorboxes(mut world: World, initial_view: &InitialView, shape_win: Shap
     world
 }
 
-fn on_filechange(mut world: World, previous_file: Option<String>) -> (World, Option<String>) {
+fn check_filechange(mut world: World, previous_file: Option<String>) -> (World, Option<String>) {
     let is_file_new = previous_file != world.data.meta_data.file_path;
     if is_file_new {
         {
@@ -103,7 +103,7 @@ fn on_filechange(mut world: World, previous_file: Option<String>) -> (World, Opt
     }
 }
 
-fn on_annoremve(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
+fn check_annoremve(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
     let is_anno_rm_triggered = get_tools_data(&world)
         .specifics
         .bbox()
@@ -132,7 +132,7 @@ fn on_annoremve(mut world: World, initial_view: &InitialView, shape_win: Shape) 
     world
 }
 
-fn on_cocoexport(mut world: World) -> World {
+fn check_cocoexport(mut world: World) -> World {
     // export label file if demanded
     let bbox_data = get_tools_data(&world).specifics.bbox();
     export_if_triggered(&world.data.meta_data, bbox_data);
@@ -144,7 +144,7 @@ fn on_cocoexport(mut world: World) -> World {
     world
 }
 
-fn on_cocoimport(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
+fn check_cocoimport(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
     // import coco if demanded
     let flags = get_tools_data(&world).specifics.bbox().options;
     if let Some(imported_data) = import_coco_if_triggered(
@@ -164,7 +164,7 @@ fn on_cocoimport(mut world: World, initial_view: &InitialView, shape_win: Shape)
     world
 }
 
-fn on_labelchange(
+fn check_labelchange(
     mut world: World,
     prev_label: usize,
     options: Options,
@@ -178,7 +178,7 @@ fn on_labelchange(
     world
 }
 
-fn on_autopaste(
+fn check_autopaste(
     mut world: World,
     mut history: History,
     auto_paste: bool,
@@ -405,22 +405,22 @@ impl Manipulate for BBox {
             (world, history) = self.on_activate(world, history, shape_win);
         }
 
-        world = on_recolorboxes(world, &self.initial_view, shape_win);
+        world = check_recolorboxes(world, &self.initial_view, shape_win);
 
-        (world, self.previous_file) = on_filechange(world, mem::take(&mut self.previous_file));
+        (world, self.previous_file) = check_filechange(world, mem::take(&mut self.previous_file));
 
-        world = on_annoremve(world, &self.initial_view, shape_win);
+        world = check_annoremve(world, &self.initial_view, shape_win);
 
         // this is necessary in addition to the call in on_activate due to undo/redo
         world = initialize_tools_menu_data(world);
 
-        world = on_cocoexport(world);
+        world = check_cocoexport(world);
 
-        world = on_cocoimport(world, &self.initial_view, shape_win);
+        world = check_cocoimport(world, &self.initial_view, shape_win);
 
         let options = get_tools_data(&world).specifics.bbox().options;
 
-        world = on_labelchange(
+        world = check_labelchange(
             world,
             self.prev_label,
             options,
@@ -428,7 +428,7 @@ impl Manipulate for BBox {
             shape_win,
         );
 
-        (world, history) = on_autopaste(
+        (world, history) = check_autopaste(
             world,
             history,
             options.auto_paste,
