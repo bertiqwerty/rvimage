@@ -9,7 +9,7 @@ use crate::{
         core::{InitialView, Mover},
         Manipulate,
     },
-    tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
+    tools_data::{bbox_data::Options, BboxSpecificData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     world::World,
     LEFT_BTN, RIGHT_BTN,
@@ -73,6 +73,123 @@ pub(super) fn paste(
 
 pub(super) fn current_cat_idx(world: &World) -> usize {
     get_tools_data(world).specifics.bbox().cat_idx_current
+}
+
+fn on_recolorboxes(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
+    // check if re-color was triggered
+    let options = get_tools_data(&world).specifics.bbox().options;
+    if options.is_colorchange_triggered {
+        let data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+        data.new_random_colors();
+        data.options.is_colorchange_triggered = false;
+        world = draw_on_view(&initial_view, options.are_boxes_visible, world, shape_win);
+    }
+    world
+}
+
+fn on_filechange(mut world: World, previous_file: Option<String>) -> (World, Option<String>) {
+    let is_file_new = previous_file != world.data.meta_data.file_path;
+    if is_file_new {
+        {
+            let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+            for (_, (anno, _)) in bbox_data.anno_iter_mut() {
+                anno.deselect_all();
+            }
+        }
+        let new_file_path = world.data.meta_data.file_path.clone();
+        (world, new_file_path)
+    } else {
+        (world, previous_file)
+    }
+}
+
+fn on_annoremve(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
+    let is_anno_rm_triggered = get_tools_data(&world)
+        .specifics
+        .bbox()
+        .options
+        .is_anno_rm_triggered;
+    if is_anno_rm_triggered {
+        let opened_folder = world
+            .data
+            .meta_data
+            .opened_folder
+            .as_ref()
+            .map(|of| file_util::url_encode(of));
+        let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+        if let Some(opened_folder) = &opened_folder {
+            bbox_data.retain_fileannos_in_folder(opened_folder);
+        }
+
+        bbox_data.options.is_anno_rm_triggered = false;
+        world = draw_on_view(
+            initial_view,
+            bbox_data.options.are_boxes_visible,
+            world,
+            shape_win,
+        );
+    }
+    world
+}
+
+fn on_cocoexport(mut world: World) -> World {
+    // export label file if demanded
+    let bbox_data = get_tools_data(&world).specifics.bbox();
+    export_if_triggered(&world.data.meta_data, bbox_data);
+    get_tools_data_mut(&mut world)
+        .specifics
+        .bbox_mut()
+        .options
+        .is_export_triggered = false;
+    world
+}
+
+fn on_cocoimport(mut world: World, initial_view: &InitialView, shape_win: Shape) -> World {
+    // import coco if demanded
+    let flags = get_tools_data(&world).specifics.bbox().options;
+    if let Some(imported_data) = import_coco_if_triggered(
+        &world.data.meta_data,
+        flags.is_coco_import_triggered,
+        &get_tools_data(&world).specifics.bbox().coco_file,
+    ) {
+        *get_tools_data_mut(&mut world).specifics.bbox_mut() = imported_data;
+        world = draw_on_view(initial_view, flags.are_boxes_visible, world, shape_win);
+    } else {
+        get_tools_data_mut(&mut world)
+            .specifics
+            .bbox_mut()
+            .options
+            .is_coco_import_triggered = false;
+    }
+    world
+}
+
+fn on_labelchange(
+    mut world: World,
+    prev_label: usize,
+    options: Options,
+    initial_view: &InitialView,
+    shape_win: Shape,
+) -> World {
+    let in_menu_selected_label = current_cat_idx(&world);
+    if prev_label != in_menu_selected_label {
+        world = draw_on_view(initial_view, options.are_boxes_visible, world, shape_win);
+    }
+    world
+}
+
+fn on_autopaste(
+    mut world: World,
+    mut history: History,
+    auto_paste: bool,
+    initial_view: &mut InitialView,
+    shape_win: Shape,
+) -> (World, History) {
+    let updated = initial_view.update(&world, shape_win);
+    if updated && auto_paste {
+        (world, history) = paste(&initial_view, shape_win, world, history);
+    }
+    (world, history)
 }
 
 pub(super) fn draw_on_view(
@@ -288,104 +405,37 @@ impl Manipulate for BBox {
             (world, history) = self.on_activate(world, history, shape_win);
         }
 
-        // check if re-color was triggered
-        let options = get_tools_data(&world).specifics.bbox().options;
-        if options.is_colorchange_triggered {
-            let data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-            data.new_random_colors();
-            data.options.is_colorchange_triggered = false;
-            world = draw_on_view(
-                &self.initial_view,
-                options.are_boxes_visible,
-                world,
-                shape_win,
-            );
-        }
+        world = on_recolorboxes(world, &self.initial_view, shape_win);
 
-        let is_file_new = self.previous_file != world.data.meta_data.file_path;
-        if is_file_new {
-            {
-                let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-                for (_, (anno, _)) in bbox_data.anno_iter_mut() {
-                    anno.deselect_all();
-                }
-            }
-            self.previous_file = world.data.meta_data.file_path.clone();
-        }
-        let is_anno_rm_triggered = get_tools_data(&world)
-            .specifics
-            .bbox()
-            .options
-            .is_anno_rm_triggered;
-        if is_anno_rm_triggered {
-            let opened_folder = world
-                .data
-                .meta_data
-                .opened_folder
-                .as_ref()
-                .map(|of| file_util::url_encode(of));
-            let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-            if let Some(opened_folder) = &opened_folder {
-                bbox_data.retain_fileannos_in_folder(opened_folder);
-            }
+        (world, self.previous_file) = on_filechange(world, mem::take(&mut self.previous_file));
 
-            bbox_data.options.is_anno_rm_triggered = false;
-            world = draw_on_view(
-                &self.initial_view,
-                bbox_data.options.are_boxes_visible,
-                world,
-                shape_win,
-            );
-        }
+        world = on_annoremve(world, &self.initial_view, shape_win);
+
         // this is necessary in addition to the call in on_activate due to undo/redo
         world = initialize_tools_menu_data(world);
-        {
-            // export label file if demanded
-            let bbox_data = get_tools_data(&world).specifics.bbox();
-            export_if_triggered(&world.data.meta_data, bbox_data);
-            get_tools_data_mut(&mut world)
-                .specifics
-                .bbox_mut()
-                .options
-                .is_export_triggered = false;
-        }
-        {
-            // import coco if demanded
-            let flags = get_tools_data(&world).specifics.bbox().options;
-            if let Some(imported_data) = import_coco_if_triggered(
-                &world.data.meta_data,
-                flags.is_coco_import_triggered,
-                &get_tools_data(&world).specifics.bbox().coco_file,
-            ) {
-                *get_tools_data_mut(&mut world).specifics.bbox_mut() = imported_data;
-                world = draw_on_view(
-                    &self.initial_view,
-                    flags.are_boxes_visible,
-                    world,
-                    shape_win,
-                );
-            } else {
-                get_tools_data_mut(&mut world)
-                    .specifics
-                    .bbox_mut()
-                    .options
-                    .is_coco_import_triggered = false;
-            }
-        }
-        let in_menu_selected_label = current_cat_idx(&world);
+
+        world = on_cocoexport(world);
+
+        world = on_cocoimport(world, &self.initial_view, shape_win);
+
         let options = get_tools_data(&world).specifics.bbox().options;
-        if self.prev_label != in_menu_selected_label {
-            world = draw_on_view(
-                &self.initial_view,
-                options.are_boxes_visible,
-                world,
-                shape_win,
-            );
-        }
-        let updated = self.initial_view.update(&world, shape_win);
-        if updated && options.auto_paste {
-            (world, history) = paste(&self.initial_view, shape_win, world, history);
-        }
+
+        world = on_labelchange(
+            world,
+            self.prev_label,
+            options,
+            &self.initial_view,
+            shape_win,
+        );
+
+        (world, history) = on_autopaste(
+            world,
+            history,
+            options.auto_paste,
+            &mut self.initial_view,
+            shape_win,
+        );
+
         let mp_orig =
             mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box());
         let pp_orig = mouse_pos_to_orig_pos(
@@ -394,6 +444,7 @@ impl Manipulate for BBox {
             shape_win,
             world.zoom_box(),
         );
+        let in_menu_selected_label = current_cat_idx(&world);
         if let (Some(mp), Some(pp)) = (mp_orig, pp_orig) {
             // animation
             world = draw_on_view(
