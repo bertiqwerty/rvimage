@@ -28,7 +28,7 @@ impl<'a> Cats<'a> {
 }
 
 struct BbParams<'a> {
-    pub bbs: &'a [InstanceGeo],
+    pub bbs: &'a [BB],
     pub selected_bbs: &'a [bool],
     pub cats: Cats<'a>,
     show_label: bool,
@@ -121,11 +121,9 @@ fn draw_bbs(
     im_view
 }
 
-pub type InstanceGeo = BB;
-
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
-    bbs: Vec<InstanceGeo>,
+    bbs: Vec<BB>,
     cat_idxs: Vec<usize>,
     selected_bbs: Vec<bool>,
     pub show_labels: bool,
@@ -141,13 +139,13 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn to_data(self) -> (Vec<InstanceGeo>, Vec<usize>) {
+    pub fn to_data(self) -> (Vec<BB>, Vec<usize>) {
         (self.bbs, self.cat_idxs)
     }
 
     pub fn extend<IB, IC>(&mut self, bbs: IB, cat_ids: IC, shape_image: Shape)
     where
-        IB: Iterator<Item = InstanceGeo>,
+        IB: Iterator<Item = BB>,
         IC: Iterator<Item = usize>,
     {
         for (bb, cat_id) in bbs.zip(cat_ids) {
@@ -157,7 +155,7 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn from_bbs_cats(bbs: Vec<InstanceGeo>, cat_ids: Vec<usize>) -> BboxAnnotations {
+    pub fn from_bbs_cats(bbs: Vec<BB>, cat_ids: Vec<usize>) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
             bbs,
@@ -167,7 +165,7 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn from_bbs(bbs: Vec<InstanceGeo>, cat_id: usize) -> BboxAnnotations {
+    pub fn from_bbs(bbs: Vec<BB>, cat_id: usize) -> BboxAnnotations {
         let bbs_len = bbs.len();
         BboxAnnotations {
             bbs,
@@ -187,7 +185,7 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn remove(&mut self, box_idx: usize) -> InstanceGeo {
+    pub fn remove(&mut self, box_idx: usize) -> BB {
         self.cat_idxs.remove(box_idx);
         self.selected_bbs.remove(box_idx);
         self.bbs.remove(box_idx)
@@ -244,7 +242,7 @@ impl BboxAnnotations {
         );
     }
 
-    pub fn add_bb(&mut self, bb: InstanceGeo, cat_idx: usize) {
+    pub fn add_bb(&mut self, bb: BB, cat_idx: usize) {
         self.cat_idxs.push(cat_idx);
         self.bbs.push(bb);
         self.selected_bbs.push(false);
@@ -254,7 +252,7 @@ impl BboxAnnotations {
         &self.cat_idxs
     }
 
-    pub fn bbs(&self) -> &Vec<InstanceGeo> {
+    pub fn bbs(&self) -> &Vec<BB> {
         &self.bbs
     }
 
@@ -393,16 +391,16 @@ fn test_bbs() {
         bb.shift_max(-1, 1, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(InstanceGeo::from_points((5, 5), (14, 16)), resized[1]);
-    assert_eq!(InstanceGeo::from_points((9, 9), (18, 20)), resized[2]);
+    assert_eq!(BB::from_points((5, 5), (14, 16)), resized[1]);
+    assert_eq!(BB::from_points((9, 9), (18, 20)), resized[2]);
 
     // shift min
     let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
         bb.shift_min(-1, 1, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(InstanceGeo::from_points((4, 6), (15, 15)), resized[1]);
-    assert_eq!(InstanceGeo::from_points((8, 10), (19, 19)), resized[2]);
+    assert_eq!(BB::from_points((4, 6), (15, 15)), resized[1]);
+    assert_eq!(BB::from_points((8, 10), (19, 19)), resized[2]);
 }
 #[test]
 fn test_annos() {
