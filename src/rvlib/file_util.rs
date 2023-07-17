@@ -8,7 +8,7 @@ use std::{
 #[cfg(feature = "azure_blob")]
 use crate::cfg::AzureBlobCfg;
 use crate::{
-    cfg::{PyHttpReaderCfg, SshCfg},
+    cfg::{PyHttpReaderCfg, SshCfg, Cfg},
     rverr,
 };
 use crate::{
@@ -28,6 +28,8 @@ lazy_static! {
         _ => std::env::temp_dir().join("rvimage"),
     };
 }
+
+pub const RVPRJ_PREFIX: &str = "rvprj_";
 
 pub fn read_to_string<P>(p: P) -> RvResult<String>
 where
@@ -106,8 +108,8 @@ impl MetaData {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct ExportData {
     pub opened_folder: String,
-    pub connection_data: ConnectionData,
     pub bbox_data: Option<BboxExportData>,
+    pub cfg: Cfg,
 }
 
 pub struct Defer<F: FnMut()> {

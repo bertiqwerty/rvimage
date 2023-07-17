@@ -25,8 +25,9 @@ mod detail {
     use image::{DynamicImage, ImageBuffer};
 
     use crate::{
+        cfg::Cfg,
         domain::Shape,
-        file_util::{self, get_last_part_of_path, ConnectionData, ExportData},
+        file_util::{self, get_last_part_of_path, ExportData, RVPRJ_PREFIX},
         result::{to_rv, RvResult},
         rverr,
         tools::BBOX_NAME,
@@ -38,7 +39,7 @@ mod detail {
         export_folder: &str,
         file_name: &str,
         mut tools_data_map: ToolsDataMap,
-    ) -> RvResult<(ToolsDataMap, String, ConnectionData)> {
+    ) -> RvResult<(ToolsDataMap, String, Cfg)> {
         let file_path = Path::new(export_folder).join(file_name);
         let s = file_util::read_to_string(file_path)?;
         let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
@@ -52,14 +53,14 @@ mod detail {
                 tools_data_map.insert(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)));
             }
         }
-        Ok((tools_data_map, read.opened_folder, read.connection_data))
+        Ok((tools_data_map, read.opened_folder, read.cfg))
     }
 
     pub fn save(
         opened_folder: Option<&String>,
         tools_data_map: &ToolsDataMap,
-        connection_data: ConnectionData,
         export_folder: &str,
+        cfg: &Cfg,
     ) -> RvResult<Option<PathBuf>> {
         let mut res = None;
         let bbox_data = tools_data_map.get(BBOX_NAME);
@@ -70,18 +71,18 @@ mod detail {
                 bbox_data: Some(BboxExportData::from_bbox_data(
                     bbox_data.specifics.bbox().clone(),
                 )),
-                connection_data,
+                cfg: cfg.clone(),
             };
 
-            let of_last_part = get_last_part_of_path(of)
+            let file_stem = get_last_part_of_path(of)
                 .map(|lp| lp.name())
-                .unwrap_or_else(|| of.to_string());
+                .unwrap_or_else(|| format!("{RVPRJ_PREFIX}{of}"));
             let ef_path = Path::new(export_folder);
             match fs::create_dir_all(ef_path) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(rverr!("could not create {:?} due to {:?}", ef_path, e)),
             }?;
-            let path = Path::new(ef_path).join(of_last_part).with_extension("json");
+            let path = Path::new(ef_path).join(file_stem).with_extension("json");
             let data_str = serde_json::to_string(&data).map_err(to_rv)?;
             file_util::write(&path, data_str)?;
             println!("saved to {path:?}");
@@ -177,48 +178,22 @@ impl Control {
     pub fn load(
         &mut self,
         file_name: &str,
-        mut tools_data_map: ToolsDataMap,
+        tools_data_map: ToolsDataMap,
     ) -> RvResult<ToolsDataMap> {
         let export_folder = &self.cfg.export_folder()?;
-        let loaded = detail::load(export_folder, file_name, tools_data_map)?;
-        tools_data_map = loaded.0;
-        let to_be_opened_folder = loaded.1;
-        let connection_data = loaded.2;
-
-        match connection_data {
-            ConnectionData::Ssh(ssh_cfg) => {
-                self.cfg.ssh_cfg = ssh_cfg;
-                self.cfg.connection = Connection::Ssh;
-            }
-            ConnectionData::PyHttp(pyhttp_cfg) => {
-                self.cfg.py_http_reader_cfg = Some(pyhttp_cfg);
-                self.cfg.connection = Connection::PyHttp;
-            }
-            #[cfg(feature = "azure_blob")]
-            ConnectionData::AzureBlobCfg(azure_blob_cfg) => {
-                self.cfg.azure_blob_cfg = Some(azure_blob_cfg);
-                self.cfg.connection = Connection::AzureBlob;
-            }
-            ConnectionData::None => {
-                self.cfg.connection = Connection::Local;
-            }
-        }
+        let (tools_data_map, to_be_opened_folder, cfg) =
+            detail::load(export_folder, file_name, tools_data_map)?;
         self.open_folder(to_be_opened_folder)?;
+        self.cfg = cfg;
 
         Ok(tools_data_map)
     }
 
     pub fn save(&self, tools_data_map: &ToolsDataMap) -> RvResult<Option<PathBuf>> {
         let opened_folder = self.opened_folder();
-        let connection_data = self.connection_data()?;
         let export_folder = self.cfg.export_folder()?;
 
-        detail::save(
-            opened_folder,
-            tools_data_map,
-            connection_data,
-            export_folder,
-        )
+        detail::save(opened_folder, tools_data_map, export_folder, &self.cfg)
     }
 
     pub fn new(cfg: Cfg) -> Self {
@@ -493,22 +468,18 @@ fn test_save_load() {
     let opened_folder_name = "dummy_opened_folder";
     let export_folder = cfg.tmpdir().unwrap();
     let opened_folder = Some(opened_folder_name.to_string());
-    let path = detail::save(
-        opened_folder.as_ref(),
-        &tdm,
-        ConnectionData::None,
-        export_folder,
-    )
-    .unwrap()
-    .unwrap();
+    let path = detail::save(opened_folder.as_ref(), &tdm, export_folder, &cfg)
+        .unwrap()
+        .unwrap();
 
     defer_file_removal!(&path);
 
-    let (tdm_imported, _, _) = detail::load(
+    let (tdm_imported, _, cfg_imported) = detail::load(
         export_folder,
         format!("{}.json", opened_folder_name).as_str(),
         tdm.clone(),
     )
     .unwrap();
     assert_eq!(tdm, tdm_imported);
+    assert_eq!(cfg, cfg_imported);
 }

@@ -66,7 +66,7 @@ enum ThreadResult {
     Ok(LocalImagePathInfoPair),
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct FileCacheCfgArgs {
     pub n_prev_images: usize,
     pub n_next_images: usize,

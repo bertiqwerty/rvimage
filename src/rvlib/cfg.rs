@@ -112,7 +112,7 @@ pub struct CocoFile {
     pub conn: CocoFileConnection,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct Cfg {
     pub connection: Connection,
     pub cache: Cache,
