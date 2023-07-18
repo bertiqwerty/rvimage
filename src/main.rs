@@ -9,6 +9,7 @@ use pixels::{Pixels, SurfaceTexture};
 use rvlib::cfg::{self, Cfg};
 use rvlib::control::{Control, Info};
 use rvlib::domain::{self, zoom_box_mouse_wheel, Shape};
+use rvlib::file_util::make_prjcfg_filename;
 use rvlib::history::History;
 use rvlib::menu::Framework;
 use rvlib::result::RvResult;
@@ -181,6 +182,19 @@ fn main() -> Result<(), pixels::Error> {
         println!("could not read cfg due to {e:?}, returning default");
         cfg::get_default_cfg()
     }));
+    {
+        // load last project
+        let prj_name = ctrl.cfg.current_prj_name.clone();
+        match ctrl.load(&make_prjcfg_filename(&prj_name)) {
+            Ok(td) => {
+                println!("loaded {}", ctrl.cfg.current_prj_name);
+                world.data.tools_data_map = td;
+            }
+            Err(e) => {
+                println!("could not read specified project {prj_name} which is fine if a project has never been saved due to {e:?} ");
+            }
+        };
+    }
     let mut history = History::new();
     let mut recently_activated_tool_idx = None;
     // http server state

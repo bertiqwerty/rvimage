@@ -8,7 +8,7 @@ use std::{
 #[cfg(feature = "azure_blob")]
 use crate::cfg::AzureBlobCfg;
 use crate::{
-    cfg::{PyHttpReaderCfg, SshCfg, Cfg},
+    cfg::{Cfg, PyHttpReaderCfg, SshCfg},
     rverr,
 };
 use crate::{
@@ -105,9 +105,39 @@ impl MetaData {
     }
 }
 
+pub const DEFAULT_PRJ_NAME: &str = "default";
+pub fn is_prjname_set(prj_name: &str) -> bool {
+    prj_name != DEFAULT_PRJ_NAME
+}
+
+pub fn make_prjcfg_filename(prj_name: &str) -> String {
+    if prj_name.starts_with(RVPRJ_PREFIX) {
+        format!("{prj_name}.json")
+    } else {
+        format!("{RVPRJ_PREFIX}{prj_name}.json")
+    }
+}
+pub fn make_prjcfg_path(export_folder: &Path, prj_name: &str) -> PathBuf {
+    Path::new(export_folder).join(make_prjcfg_filename(prj_name))
+}
+pub fn filename_to_prjname(filename: &str) -> RvResult<&str> {
+    let file_name = osstr_to_str(Path::new(filename).file_stem()).map_err(to_rv)?;
+    if file_name.starts_with(RVPRJ_PREFIX) {
+        file_name.strip_prefix(RVPRJ_PREFIX).ok_or_else(|| {
+            rverr!(
+                "could not strip prefix '{}' from '{}'",
+                RVPRJ_PREFIX,
+                file_name
+            )
+        })
+    } else {
+        Ok(file_name)
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct ExportData {
-    pub opened_folder: String,
+    pub opened_folder: Option<String>,
     pub bbox_data: Option<BboxExportData>,
     pub cfg: Cfg,
 }
@@ -151,17 +181,24 @@ macro_rules! defer_file_removal {
 }
 
 #[allow(clippy::needless_lifetimes)]
-pub fn files_in_folder<'a, P>(
-    folder: P,
+pub fn files_in_folder<'a>(
+    folder: &'a str,
+    prefix: &'a str,
     extension: &'a str,
-) -> io::Result<impl Iterator<Item = PathBuf> + 'a>
-where
-    P: AsRef<Path>,
-{
+) -> io::Result<impl Iterator<Item = PathBuf> + 'a> {
     Ok(fs::read_dir(folder)?
         .flatten()
         .map(|de| de.path())
-        .filter(|p| p.is_file() && (p.extension() == Some(OsStr::new(extension)))))
+        .filter(|p| {
+            let prefix: &str = prefix; // Not sure why the borrow checker needs this.
+            p.is_file()
+                && if let Some(fname) = p.file_name() {
+                    fname.to_str().unwrap().starts_with(prefix)
+                } else {
+                    false
+                }
+                && (p.extension() == Some(OsStr::new(extension)))
+        }))
 }
 
 pub fn write<P, C>(path: P, contents: C) -> RvResult<()>

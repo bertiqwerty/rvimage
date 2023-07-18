@@ -1,7 +1,7 @@
 use crate::{
     cfg::{self, Cfg},
     control::{Control, Info},
-    file_util,
+    file_util::{self, RVPRJ_PREFIX},
     menu::{self, cfg_menu::CfgMenu, open_folder, picklist},
     paths_selector::PathsSelector,
     result::{to_rv, RvResult},
@@ -387,9 +387,9 @@ impl Menu {
                         self
                     );
                     let popup_id = ui.make_persistent_id("cfg-popup");
-                    self.load_button_resp.resp = Some(ui.button("load"));
+                    self.load_button_resp.resp = Some(ui.button("load project"));
 
-                    if ui.button("save").clicked() {
+                    if ui.button("save project").clicked() {
                         handle_error!(ctrl.save(tools_data_map), self);
                     }
 
@@ -406,20 +406,25 @@ impl Menu {
                         if self.load_button_resp.popup_open {
                             let mut filename_for_import = None;
                             let mut exports = || -> RvResult<()> {
-                                let files = file_util::files_in_folder(folder, "json")
-                                    .map_err(to_rv)?
-                                    .filter_map(|p| {
-                                        p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
-                                    })
-                                    .flatten()
-                                    .collect::<Vec<_>>();
-                                filename_for_import = picklist::pick(
-                                    ui,
-                                    files.iter().map(|s| s.as_str()),
-                                    200.0,
-                                    load_btn_resp,
-                                )
-                                .map(|s| s.to_string());
+                                let files =
+                                    file_util::files_in_folder(folder, RVPRJ_PREFIX, "json")
+                                        .map_err(to_rv)?
+                                        .filter_map(|p| {
+                                            p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
+                                        })
+                                        .flatten()
+                                        .collect::<Vec<_>>();
+                                if !files.is_empty() {
+                                    filename_for_import = picklist::pick(
+                                        ui,
+                                        files.iter().map(|s| s.as_str()),
+                                        200.0,
+                                        load_btn_resp,
+                                    )
+                                    .map(|s| s.to_string());
+                                } else {
+                                    println!("no projects found that can be loaded")
+                                }
                                 Ok(())
                             };
                             handle_error!(exports(), self);
@@ -428,7 +433,7 @@ impl Menu {
                                     |tdm| {
                                         *tools_data_map = tdm;
                                     },
-                                    ctrl.load(&filename, mem::take(tools_data_map)),
+                                    ctrl.load(&filename),
                                     self
                                 );
                                 self.load_button_resp.resp = None;

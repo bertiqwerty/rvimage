@@ -9,6 +9,7 @@ use std::{fmt::Debug, fs, path::PathBuf};
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
     cache = "FileCache"  # "NoCache" or "FileCache" 
+    current_prj_name = "default"
     [file_cache_args]
     n_prev_images = 2
     n_next_images = 8
@@ -118,6 +119,7 @@ pub struct Cfg {
     pub cache: Cache,
     http_address: Option<String>,
     tmpdir: Option<String>,
+    pub current_prj_name: String,
     pub file_cache_args: Option<FileCacheCfgArgs>,
     pub ssh_cfg: SshCfg,
     pub export_folder: Option<String>,

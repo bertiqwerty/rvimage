@@ -72,6 +72,10 @@ impl<'a> Widget for CfgMenu<'a> {
                                 close = Close::Yes(false);
                             }
                         });
+                        ui.horizontal(|ui| {
+                            ui.label("Project name");
+                            ui.text_edit_singleline(&mut self.cfg.current_prj_name);
+                        });
                         ui.separator();
                         ui.label("CONNECTION");
                         ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");

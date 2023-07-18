@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
-use crate::cfg::Connection;
-use crate::file_util::{ConnectionData, MetaData};
+use crate::cfg::{self, Connection};
+use crate::file_util::{filename_to_prjname, ConnectionData, MetaData};
 use crate::history::{History, Record};
 use crate::result::RvError;
 use crate::world::{DataRaw, ToolsDataMap, World};
@@ -27,7 +27,7 @@ mod detail {
     use crate::{
         cfg::Cfg,
         domain::Shape,
-        file_util::{self, get_last_part_of_path, ExportData, RVPRJ_PREFIX},
+        file_util::{self, make_prjcfg_path, ExportData},
         result::{to_rv, RvResult},
         rverr,
         tools::BBOX_NAME,
@@ -38,21 +38,17 @@ mod detail {
     pub(super) fn load(
         export_folder: &str,
         file_name: &str,
-        mut tools_data_map: ToolsDataMap,
-    ) -> RvResult<(ToolsDataMap, String, Cfg)> {
+    ) -> RvResult<(ToolsDataMap, Option<String>, Cfg)> {
         let file_path = Path::new(export_folder).join(file_name);
         let s = file_util::read_to_string(file_path)?;
         let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
 
-        if let Some(bbox_data) = read.bbox_data {
+        let tools_data_map = if let Some(bbox_data) = read.bbox_data {
             let bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
-            let tools_data = tools_data_map.get_mut(BBOX_NAME);
-            if let Some(td) = tools_data {
-                td.specifics = ToolSpecifics::Bbox(bbox_data);
-            } else {
-                tools_data_map.insert(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)));
-            }
-        }
+            ToolsDataMap::from([(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)))])
+        } else {
+            ToolsDataMap::new()
+        };
         Ok((tools_data_map, read.opened_folder, read.cfg))
     }
 
@@ -61,38 +57,33 @@ mod detail {
         tools_data_map: &ToolsDataMap,
         export_folder: &str,
         cfg: &Cfg,
-    ) -> RvResult<Option<PathBuf>> {
-        let mut res = None;
+    ) -> RvResult<PathBuf> {
         let bbox_data = tools_data_map.get(BBOX_NAME);
-        if let (Some(of), Some(bbox_data)) = (opened_folder, bbox_data) {
-            let bbox_data = bbox_data.clone();
-            let data = ExportData {
-                opened_folder: of.to_string(),
-                bbox_data: Some(BboxExportData::from_bbox_data(
-                    bbox_data.specifics.bbox().clone(),
-                )),
-                cfg: cfg.clone(),
-            };
 
-            let file_stem = get_last_part_of_path(of)
-                .map(|lp| lp.name())
-                .unwrap_or_else(|| format!("{RVPRJ_PREFIX}{of}"));
-            let ef_path = Path::new(export_folder);
-            match fs::create_dir_all(ef_path) {
-                Ok(_) => Ok(()),
-                Err(e) => Err(rverr!("could not create {:?} due to {:?}", ef_path, e)),
-            }?;
-            let path = Path::new(ef_path).join(file_stem).with_extension("json");
-            let data_str = serde_json::to_string(&data).map_err(to_rv)?;
-            file_util::write(&path, data_str)?;
-            println!("saved to {path:?}");
-            res = Some(path);
+        let data = ExportData {
+            opened_folder: opened_folder.cloned(),
+            bbox_data: bbox_data.map(|bbox_data| {
+                BboxExportData::from_bbox_data(bbox_data.specifics.bbox().clone())
+            }),
+            cfg: cfg.clone(),
+        };
+        let prj_name = if "default" != &cfg.current_prj_name {
+            &cfg.current_prj_name
+        } else if let Some(of) = opened_folder {
+            of.as_str()
         } else {
-            println!("did not save");
-            println!("  opened folder {opened_folder:?}");
-            println!("  bbox data {bbox_data:?}");
-        }
-        Ok(res)
+            "default"
+        };
+        let ef_path = Path::new(export_folder);
+        let path = make_prjcfg_path(ef_path, prj_name);
+        match fs::create_dir_all(ef_path) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(rverr!("could not create {:?} due to {:?}", ef_path, e)),
+        }?;
+        let data_str = serde_json::to_string(&data).map_err(to_rv)?;
+        file_util::write(&path, data_str)?;
+        println!("saved to {path:?}");
+        Ok(path)
     }
     pub(super) fn loading_image(shape: Shape, counter: u128) -> DynamicImage {
         let radius = 7i32;
@@ -175,21 +166,24 @@ impl Control {
         }
         Ok(())
     }
-    pub fn load(
-        &mut self,
-        file_name: &str,
-        tools_data_map: ToolsDataMap,
-    ) -> RvResult<ToolsDataMap> {
+    pub fn load(&mut self, file_name: &str) -> RvResult<ToolsDataMap> {
         let export_folder = &self.cfg.export_folder()?;
-        let (tools_data_map, to_be_opened_folder, cfg) =
-            detail::load(export_folder, file_name, tools_data_map)?;
-        self.open_folder(to_be_opened_folder)?;
-        self.cfg = cfg;
+        let (tools_data_map, to_be_opened_folder, read_cfg) =
+            detail::load(export_folder, file_name)?;
+        if let Some(of) = to_be_opened_folder {
+            self.open_folder(of)?;
+        }
+        self.cfg = read_cfg;
+
+        // update prj name in cfg
+        let mut cfg_global = cfg::get_cfg()?;
+        cfg_global.current_prj_name = filename_to_prjname(file_name)?.to_string();
+        cfg::write_cfg(&cfg_global)?;
 
         Ok(tools_data_map)
     }
 
-    pub fn save(&self, tools_data_map: &ToolsDataMap) -> RvResult<Option<PathBuf>> {
+    pub fn save(&self, tools_data_map: &ToolsDataMap) -> RvResult<PathBuf> {
         let opened_folder = self.opened_folder();
         let export_folder = self.cfg.export_folder()?;
 
@@ -419,9 +413,9 @@ impl Control {
 #[cfg(test)]
 use {
     crate::{
-        cfg, defer_file_removal,
+        defer_file_removal,
         domain::{make_test_bbs, Shape},
-        file_util::DEFAULT_TMPDIR,
+        file_util::{make_prjcfg_filename, DEFAULT_TMPDIR},
         tools::BBOX_NAME,
         tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
     },
@@ -464,20 +458,16 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
 fn test_save_load() {
     let tdm = make_data(&PathBuf::from_str("dummyfile").unwrap());
     let cfg = cfg::get_default_cfg();
-
     let opened_folder_name = "dummy_opened_folder";
     let export_folder = cfg.tmpdir().unwrap();
     let opened_folder = Some(opened_folder_name.to_string());
-    let path = detail::save(opened_folder.as_ref(), &tdm, export_folder, &cfg)
-        .unwrap()
-        .unwrap();
+    let path = detail::save(opened_folder.as_ref(), &tdm, export_folder, &cfg).unwrap();
 
     defer_file_removal!(&path);
 
     let (tdm_imported, _, cfg_imported) = detail::load(
         export_folder,
-        format!("{}.json", opened_folder_name).as_str(),
-        tdm.clone(),
+        &make_prjcfg_filename(opened_folder_name).as_str(),
     )
     .unwrap();
     assert_eq!(tdm, tdm_imported);
