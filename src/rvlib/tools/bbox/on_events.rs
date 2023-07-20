@@ -331,7 +331,19 @@ macro_rules! released_key {
     };
 }
 
-released_key!(A, D, H, C, V, L, Delete, Left, Right, Up, Down);
+released_key!(
+    A, D, H, C, V, L, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Delete, Left,
+    Right, Up, Down
+);
+
+macro_rules! set_cat_current {
+    ($num:expr, $world:expr) => {
+        let mut specifics = get_tools_data_mut(&mut $world).specifics.bbox_mut();
+        if $num < specifics.cat_ids().len() + 1 {
+            specifics.cat_idx_current = $num - 1;
+        }
+    };
+}
 
 pub(super) struct KeyReleasedParams<'a> {
     pub initial_view: &'a InitialView,
@@ -473,6 +485,33 @@ pub(super) fn on_key_released(
         }
         ReleasedKey::Up | ReleasedKey::Down | ReleasedKey::Left | ReleasedKey::Right => {
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        }
+        ReleasedKey::Key1 => {
+            set_cat_current!(1, world);
+        }
+        ReleasedKey::Key2 => {
+            set_cat_current!(2, world);
+        }
+        ReleasedKey::Key3 => {
+            set_cat_current!(3, world);
+        }
+        ReleasedKey::Key4 => {
+            set_cat_current!(4, world);
+        }
+        ReleasedKey::Key5 => {
+            set_cat_current!(5, world);
+        }
+        ReleasedKey::Key6 => {
+            set_cat_current!(6, world);
+        }
+        ReleasedKey::Key7 => {
+            set_cat_current!(7, world);
+        }
+        ReleasedKey::Key8 => {
+            set_cat_current!(8, world);
+        }
+        ReleasedKey::Key9 => {
+            set_cat_current!(9, world);
         }
         _ => (),
     }
