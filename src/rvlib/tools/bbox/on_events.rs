@@ -332,8 +332,8 @@ macro_rules! released_key {
 }
 
 released_key!(
-    A, D, H, C, V, L, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Delete, Back, Left,
-    Right, Up, Down
+    A, D, H, C, V, L, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Delete, Back,
+    Left, Right, Up, Down
 );
 
 macro_rules! set_cat_current {
