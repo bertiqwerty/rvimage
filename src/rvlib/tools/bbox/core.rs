@@ -482,6 +482,7 @@ impl Manipulate for BBox {
             ],
             [
                 (key_released, VirtualKeyCode::Delete),
+                (key_released, VirtualKeyCode::Back),
                 (key_released, VirtualKeyCode::H),
                 (key_released, VirtualKeyCode::A),
                 (key_released, VirtualKeyCode::D),

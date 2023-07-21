@@ -332,7 +332,7 @@ macro_rules! released_key {
 }
 
 released_key!(
-    A, D, H, C, V, L, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Delete, Left,
+    A, D, H, C, V, L, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Delete, Back, Left,
     Right, Up, Down
 );
 
@@ -370,7 +370,7 @@ pub(super) fn on_key_released(
                 shape_win,
             );
         }
-        ReleasedKey::Delete => {
+        ReleasedKey::Delete | ReleasedKey::Back => {
             // Remove selected
             let annos = get_annos_mut(&mut world);
             if !annos.selected_bbs().is_empty() {
