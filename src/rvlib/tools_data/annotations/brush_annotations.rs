@@ -21,17 +21,15 @@ impl BrushAnnotations {
     ) -> ViewImage {
         let clr = Rgb::<u8>(self.color);
         for points in &self.points {
-            if !self.points.is_empty() {
-                let view_points = points
-                    .iter()
-                    .flat_map(|op| orig_pos_to_view_pos(*op, shape_orig, shape_win, zoom_box));
-                let mut advanced = view_points.clone();
-                advanced.next();
-                for (p, p_next) in view_points.zip(advanced) {
-                    let start = (p.0 as f32, p.1 as f32);
-                    let end = (p_next.0 as f32, p_next.1 as f32);
-                    drawing::draw_line_segment_mut(&mut im_view, start, end, clr);
-                }
+            let view_points = points
+                .iter()
+                .flat_map(|op| orig_pos_to_view_pos(*op, shape_orig, shape_win, zoom_box));
+            let mut advanced = view_points.clone();
+            advanced.next();
+            for (p, p_next) in view_points.zip(advanced) {
+                let start = (p.0 as f32, p.1 as f32);
+                let end = (p_next.0 as f32, p_next.1 as f32);
+                drawing::draw_line_segment_mut(&mut im_view, start, end, clr);
             }
         }
         im_view
