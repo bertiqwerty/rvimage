@@ -23,7 +23,7 @@ impl<'a> CfgMenu<'a> {
     }
 }
 impl<'a> Widget for CfgMenu<'a> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui) -> Response {
         let edit_cfg_btn_resp = ui.button("settings");
         if edit_cfg_btn_resp.clicked() {
             ui.memory_mut(|m| m.toggle_popup(self.id));

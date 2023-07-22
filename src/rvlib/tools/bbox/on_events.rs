@@ -338,7 +338,7 @@ released_key!(
 
 macro_rules! set_cat_current {
     ($num:expr, $world:expr) => {
-        let mut specifics = get_tools_data_mut(&mut $world).specifics.bbox_mut();
+        let specifics = get_tools_data_mut(&mut $world).specifics.bbox_mut();
         if $num < specifics.cat_ids().len() + 1 {
             specifics.cat_idx_current = $num - 1;
         }
