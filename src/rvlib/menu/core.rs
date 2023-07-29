@@ -271,7 +271,7 @@ impl ToolSelectMenu {
                 Ok(())
             });
         if let (Some(wr), Some(pos)) = (window_response, ctx.pointer_latest_pos()) {
-            self.are_tools_active = wr.response.rect.expand(5.0).contains(pos);
+            self.are_tools_active = !wr.response.rect.expand(5.0).contains(pos);
         }
         Ok(())
     }
@@ -531,7 +531,7 @@ impl Menu {
                 ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
             });
         if let (Some(wr), Some(pos)) = (window_response, ctx.pointer_latest_pos()) {
-            self.are_tools_active = wr.response.rect.expand(5.0).contains(pos);
+            self.are_tools_active = !wr.response.rect.expand(5.0).contains(pos);
         }
     }
 }

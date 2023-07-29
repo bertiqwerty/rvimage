@@ -56,24 +56,13 @@ pub fn view_pos_to_orig_pos(
     zoom_box: &Option<BB>,
 ) -> (u32, u32) {
     let coord_view_2_orig = |x: u32, n_transformed: u32, n_orig: u32, off: u32| -> u32 {
-        let tmp = x as f64 * n_orig as f64 / n_transformed as f64;
-        let tmp = if n_transformed > n_orig {
-            tmp.ceil()
-        } else {
-            tmp.floor()
-        };
-        off + tmp as u32
+        let tmp = (x * n_orig) / n_transformed;
+        off + tmp
     };
     pos_transform(view_pos, shape_orig, shape_win, zoom_box, coord_view_2_orig)
 }
 fn coord_orig_2_view(x: u32, n_transformed: u32, n_orig: u32, off: u32) -> u32 {
-    let tmp = (x - off) as f64 * n_transformed as f64 / n_orig as f64;
-    let tmp = if n_transformed > n_orig {
-        tmp.floor()
-    } else {
-        tmp.ceil()
-    };
-    tmp as u32
+    (x - off) * n_transformed / n_orig
 }
 
 pub fn orig_coord_to_view_coord(
@@ -966,26 +955,31 @@ fn test_view_pos_tf() {
         orig_pos_to_view_pos((4, 4), shape_orig, shape_win, &None),
         Some((8, 8))
     );
-    fn test_inverse(shape_orig: Shape, shape_win: Shape, zoom_box: &Option<BB>, tol: i32) {
-        let view_pos = (10, 10);
-        let orig_pos = view_pos_to_orig_pos((10, 10), shape_orig, shape_win, zoom_box);
-        let view_pos_ = orig_pos_to_view_pos(orig_pos, shape_orig, shape_win, zoom_box);
-        println!("view pos_ {:?}", view_pos_);
-        assert!((view_pos.0 as i32 - view_pos_.unwrap().0 as i32).abs() <= tol);
-        assert!((view_pos.1 as i32 - view_pos_.unwrap().1 as i32).abs() <= tol);
+    fn test_to_view(
+        shape_orig: Shape,
+        shape_win: Shape,
+        zoom_box: &Option<BB>,
+        ref_1010: Option<(u32, u32)>,
+    ) {
+        let view_pos = orig_pos_to_view_pos((10, 10), shape_orig, shape_win, zoom_box);
+        println!("view pos {:?}", view_pos);
+        assert_eq!(view_pos, ref_1010);
     }
-    let shape_orig = Shape { w: 90, h: 120 };
-    let shape_win = Shape { w: 320, h: 440 };
-    test_inverse(shape_orig, shape_win, &None, 0);
     let shape_orig = Shape { w: 190, h: 620 };
     let shape_win = Shape { w: 120, h: 240 };
-    test_inverse(shape_orig, shape_win, &None, 0);
+    test_to_view(shape_orig, shape_win, &None, Some((3, 3)));
+    let shape_orig = Shape { w: 90, h: 120 };
+    let shape_win = Shape { w: 320, h: 440 };
+    test_to_view(shape_orig, shape_win, &None, Some((35, 35)));
+    let shape_orig = Shape { w: 100, h: 100 };
+    let shape_win = Shape { w: 200, h: 200 };
+    test_to_view(shape_orig, shape_win, &None, Some((20, 20)));
     let shape_orig = Shape { w: 293, h: 321 };
     let shape_win = Shape { w: 520, h: 241 };
-    test_inverse(shape_orig, shape_win, &None, 0);
+    test_to_view(shape_orig, shape_win, &None, Some((7, 7)));
     let shape_orig = Shape { w: 40, h: 40 };
     let shape_win = Shape { w: 40, h: 40 };
-    test_inverse(
+    test_to_view(
         shape_orig,
         shape_win,
         &Some(BB {
@@ -994,11 +988,11 @@ fn test_view_pos_tf() {
             w: 20,
             h: 10,
         }),
-        0,
+        Some((0, 0)),
     );
     let shape_orig = Shape { w: 1040, h: 2113 };
     let shape_win = Shape { w: 401, h: 139 };
-    test_inverse(
+    test_to_view(
         shape_orig,
         shape_win,
         &Some(BB {
@@ -1007,7 +1001,7 @@ fn test_view_pos_tf() {
             w: 22,
             h: 11,
         }),
-        2,
+        None,
     );
 }
 

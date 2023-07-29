@@ -394,20 +394,20 @@ fn main() -> Result<(), pixels::Error> {
                 let file_label = ctrl.file_label(idx);
                 let active_tool = tools.iter().find(|t| t.is_active());
                 let tool_string = if let Some(t) = active_tool {
-                    format!(" - {} tool is active - ", t.name)
+                    format!(" - {} tool is active", t.name)
                 } else {
                     "".to_string()
                 };
                 let s = match data_point {
                     Some(s) => {
                         format!(
-                            "RV Image{} - {} - {}x{} - {}",
-                            tool_string, file_label, shape.w, shape.h, s
+                            "RV Image - {} - {}x{} - {}{}",
+                            file_label, shape.w, shape.h, s, tool_string
                         )
                     }
                     None => format!(
-                        "RV Image{} - {} - {}x{} - (x, y) -> (r, g, b)",
-                        tool_string, file_label, shape.w, shape.h
+                        "RV Image - {} - {}x{} - (x, y) -> (r, g, b){}",
+                        file_label, shape.w, shape.h, tool_string
                     ),
                 };
                 window.set_title(s.as_str())
