@@ -8,6 +8,13 @@ RV Image is a **R**emote **v**iewer for **image**s written in Rust. You can view
 
 ![grafik](https://user-images.githubusercontent.com/50267830/168975976-45ab6567-ef5e-41a8-8027-2ff210dfda3c.png)
 
+## Installation
+
+Currently, we do not provide pre-built binaries. With [Rust installed](https://www.rust-lang.org/tools/install)
+you can
+```
+cargo install rvimage
+```
 
 ## Connect to remote
 
