@@ -2,8 +2,13 @@
 authors = ["Behrang Shafei"]
 edition = "2021"
 name = "rvimage"
-publish = false
+license = "MIT OR Apache-2.0"
+readme = "README.md"
 version = "0.1.2"
+homepage = "https://github.com/bertiqwerty/rvimage"
+repository = "https://github.com/bertiqwerty/rvimage"
+keywords = ["image", "viewer", "label"]
+categories = ["Computer vision"]
 [lib]
 name = "rvlib"
 path = "src/rvlib/lib.rs"
