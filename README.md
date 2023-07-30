@@ -1,5 +1,7 @@
+[![Crate](https://img.shields.io/crates/v/rvimage.svg)](https://crates.io/crates/rvimage)
 [![CI workflow](https://github.com/bertiqwerty/rvimage/actions/workflows/rust.yml/badge.svg)](https://github.com/bertiqwerty/rvimage)
 [![dependency status](https://deps.rs/repo/github/bertiqwerty/rvimage/status.svg)](https://deps.rs/repo/github/bertiqwerty/rvimage)
+
 # RV Image
 RV Image is a **R**emote **v**iewer for **image**s written in Rust. You can view images, e.g., on remote SSH servers or Azure blob storages. Further, RV Image comes with a simple bounding box labeling tool. So far only tested on Windows 10 and Mac OS. RV Image is mainly based on [`egui`](https://crates.io/crates/egui), [`image`](https://crates.io/crates/image), and [`pixels`](https://crates.io/crates/pixels).
 
