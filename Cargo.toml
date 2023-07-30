@@ -9,7 +9,7 @@ version = "0.1.2"
 homepage = "https://github.com/bertiqwerty/rvimage"
 repository = "https://github.com/bertiqwerty/rvimage"
 keywords = ["image", "viewer", "label", "remote", "ssh"]
-categories = ["Computer vision"]
+categories = ["computer-vision"]
 
 [lib]
 name = "rvlib"
