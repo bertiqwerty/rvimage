@@ -319,7 +319,7 @@ impl BboxExportData {
                 })
                 .collect::<HashMap<_, _>>(),
             coco_file,
-            is_export_absolute
+            is_export_absolute,
         }
     }
 }

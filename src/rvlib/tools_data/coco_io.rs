@@ -201,7 +201,7 @@ impl CocoExportData {
         for coco_anno in self.annotations {
             let (file_name, w, h) = id_image_map[&coco_anno.image_id];
 
-            let coords_absolute = coco_anno.bbox.iter().any(|x| *x > 1.0); 
+            let coords_absolute = coco_anno.bbox.iter().any(|x| *x > 1.0);
             let (w_factor, h_factor) = if coords_absolute {
                 (1.0, 1.0)
             } else {
