@@ -94,6 +94,7 @@ pub struct Options {
     pub is_export_triggered: bool,
     pub is_colorchange_triggered: bool,
     pub split_mode: SplitMode,
+    pub export_absolute: bool,
 }
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct BboxSpecificData {
@@ -299,11 +300,13 @@ pub struct BboxExportData {
     // filename, bounding boxes, classes of the boxes, dimensions of the image
     pub annotations: HashMap<String, (Vec<BB>, Vec<usize>, Shape)>,
     pub coco_file: CocoFile,
+    pub is_export_absolute: bool,
 }
 
 impl BboxExportData {
     pub fn from_bbox_data(mut bbox_specifics: BboxSpecificData) -> Self {
         let coco_file = bbox_specifics.coco_file.clone();
+        let is_export_absolute = bbox_specifics.options.export_absolute;
         BboxExportData {
             labels: mem::take(&mut bbox_specifics.labels),
             colors: mem::take(&mut bbox_specifics.colors),
@@ -316,6 +319,7 @@ impl BboxExportData {
                 })
                 .collect::<HashMap<_, _>>(),
             coco_file,
+            is_export_absolute
         }
     }
 }

@@ -215,6 +215,7 @@ macro_rules! handle_error {
     ($effect:expr, $result:expr, $self:expr) => {
         match $result {
             Ok(r) => {
+                #[allow(clippy::redundant_closure_call)]
                 $effect(r);
             }
             Err(e) => {

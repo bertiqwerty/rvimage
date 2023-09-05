@@ -118,11 +118,21 @@ impl CocoExportData {
 
         let mut box_id = 0;
         let make_anno_map =
-            |(image_idx, (bbs, cat_idxs, _)): (usize, &(Vec<BB>, Vec<usize>, Shape))| {
+            |(image_idx, (bbs, cat_idxs, shape)): (usize, &(Vec<BB>, Vec<usize>, Shape))| {
                 bbs.iter()
                     .zip(cat_idxs.iter())
                     .map(|(bb, cat_idx): (&BB, &usize)| {
-                        let bb_f = [bb.x as f32, bb.y as f32, bb.w as f32, bb.h as f32];
+                        let (imw, imh) = if export_data.is_export_absolute {
+                            (1.0, 1.0)
+                        } else {
+                            (shape.w as f32, shape.h as f32)
+                        };
+                        let bb_f = [
+                            bb.x as f32 / imw,
+                            bb.y as f32 / imh,
+                            bb.w as f32 / imw,
+                            bb.h as f32 / imh,
+                        ];
                         box_id += 1;
                         CocoAnnotation {
                             id: box_id - 1,
@@ -130,14 +140,14 @@ impl CocoExportData {
                             category_id: export_data.cat_ids[*cat_idx],
                             bbox: bb_f,
                             segmentation: Some(vec![vec![
-                                bb_f[0],
-                                bb_f[1],
-                                bb_f[0] + bb_f[2],
-                                bb_f[1],
-                                bb_f[0] + bb_f[2],
-                                bb_f[1] + bb_f[3],
-                                bb_f[0],
-                                bb_f[1] + bb_f[3],
+                                bb_f[0] / imw,
+                                bb_f[1] / imh,
+                                (bb_f[0] + bb_f[2]) / imw,
+                                bb_f[1] / imh,
+                                (bb_f[0] + bb_f[2]) / imw,
+                                (bb_f[1] + bb_f[3]) / imh,
+                                bb_f[0] / imw,
+                                (bb_f[1] + bb_f[3]) / imh,
                             ]]),
                             area: Some((bb.h * bb.w) as f32),
                         }
@@ -191,10 +201,11 @@ impl CocoExportData {
         for coco_anno in self.annotations {
             let (file_name, w, h) = id_image_map[&coco_anno.image_id];
 
-            let (w_factor, h_factor) = if coco_anno.bbox.iter().all(|x| *x <= 1.0) {
-                (w as f32, h as f32)
-            } else {
+            let coords_absolute = coco_anno.bbox.iter().any(|x| *x > 1.0); 
+            let (w_factor, h_factor) = if coords_absolute {
                 (1.0, 1.0)
+            } else {
+                (w as f32, h as f32)
             };
             let bbox = [
                 (w_factor * coco_anno.bbox[0]).round() as u32,
@@ -232,6 +243,7 @@ impl CocoExportData {
             cat_ids,
             annotations,
             coco_file,
+            is_export_absolute: false,
         })
     }
 }
