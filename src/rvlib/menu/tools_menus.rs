@@ -50,32 +50,41 @@ pub fn bbox_menu(
     }
     let mut pathincfg_triggered = false;
     ui.separator();
-    ui.horizontal(|ui| {
-        ui.checkbox(&mut data.options.auto_paste, "auto paste");
-        ui.separator();
-        ui.label("split mode");
-        ui.radio_value(&mut data.options.split_mode, SplitMode::None, "none");
-        ui.radio_value(
-            &mut data.options.split_mode,
-            SplitMode::Horizontal,
-            "horizontal",
-        );
-        ui.radio_value(
-            &mut data.options.split_mode,
-            SplitMode::Vertical,
-            "vertical",
-        );
-    });
-
-    ui.separator();
+    ui.checkbox(&mut data.options.auto_paste, "auto paste");
     let mut txt = path_to_str(&data.coco_file.path)?.to_string();
-    ui.horizontal(|ui| {
-        ui.label("coco file");
-        ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Local, "local");
-        ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Ssh, "ssh");
-        ui.text_edit_singleline(&mut txt);
+    egui::CollapsingHeader::new("Advanced").show(ui, |ui| {
+        ui.horizontal(|ui| {
+            ui.separator();
+            ui.label("split mode");
+            ui.radio_value(&mut data.options.split_mode, SplitMode::None, "none");
+            ui.radio_value(
+                &mut data.options.split_mode,
+                SplitMode::Horizontal,
+                "horizontal",
+            );
+            ui.radio_value(
+                &mut data.options.split_mode,
+                SplitMode::Vertical,
+                "vertical",
+            );
+        });
+
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label("coco file");
+            ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Local, "local");
+            ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Ssh, "ssh");
+            ui.text_edit_singleline(&mut txt);
+        });
         if ui.button("store path in cfg").clicked() {
             pathincfg_triggered = true;
+        }
+        ui.separator();
+        if ui.button("new random colors").clicked() {
+            data.options.is_colorchange_triggered = true;
+        }
+        if ui.button("clear out of folder annotations").clicked() {
+            data.options.is_anno_rm_triggered = true;
         }
     });
     if path_to_str(&data.coco_file.path)? != txt {
@@ -98,12 +107,6 @@ pub fn bbox_menu(
             println!("import triggered");
             data.options.is_coco_import_triggered = true;
             pathincfg_triggered = true;
-        }
-        if ui.button("new random colors").clicked() {
-            data.options.is_colorchange_triggered = true;
-        }
-        if ui.button("clear out of folder annotations").clicked() {
-            data.options.is_anno_rm_triggered = true;
         }
         if ui.button("close").clicked() {
             window_open = false;
