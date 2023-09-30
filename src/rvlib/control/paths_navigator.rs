@@ -1,4 +1,6 @@
+use super::filter::FilterExpr;
 use crate::{paths_selector::PathsSelector, result::RvResult, tools, world::ToolsDataMap};
+use exmex::prelude::*;
 
 fn next(file_selected_idx: usize, files_len: usize) -> usize {
     if file_selected_idx < files_len - 1 {
@@ -107,46 +109,55 @@ impl PathsNavigator {
     }
 
     pub fn filter(&mut self, s: &str, tools_data_map: &ToolsDataMap) -> RvResult<()> {
-        let labels_keyword = "label:";
-        let no_labels_keyword = "nolabel:";
-        if let (Some(needle), Some(bbox_data)) = (
-            s.strip_prefix(labels_keyword),
-            tools_data_map.get(tools::BBOX_NAME),
-        ) {
-            let labels = bbox_data.specifics.bbox().labels();
-            let filter_pred = |path: &str| {
-                let annos = bbox_data.specifics.bbox().get_annos(path);
-                if let Some(annos) = annos {
-                    annos
-                        .cat_idxs()
-                        .iter()
-                        .any(|cat_idx| labels[*cat_idx].contains(needle))
-                } else {
-                    false
-                }
+        if let Ok(filter_pred) = FilterExpr::parse(s).and_then(|expr| expr.eval(&[])) {
+            let filter_pred_wrapper = |path: &str| {
+                filter_pred
+                    .apply(path, Some(tools_data_map))
+                    .unwrap_or(true)
             };
-            self.filter_by_pred(filter_pred)?;
-        } else if s.strip_prefix(no_labels_keyword).is_some() {
-            let filter_pred = |path: &str| {
-                let bb_tool = tools_data_map.get(tools::BBOX_NAME);
-                let annos = bb_tool.and_then(|bbt| bbt.specifics.bbox().get_annos(path));
-                if let Some(annos) = annos {
-                    annos.cat_idxs().is_empty()
-                } else {
-                    true
-                }
-            };
-            self.filter_by_pred(filter_pred)?;
+            self.filter_by_pred(filter_pred_wrapper)?;
         } else {
-            let trimmed = s.trim();
-            let filter_pred = |path: &str| {
-                if path.is_empty() {
-                    true
-                } else {
-                    path.contains(trimmed)
-                }
-            };
-            self.filter_by_pred(filter_pred)?;
+            let labels_keyword = "label:";
+            let no_labels_keyword = "nolabel:";
+            if let (Some(needle), Some(bbox_data)) = (
+                s.strip_prefix(labels_keyword),
+                tools_data_map.get(tools::BBOX_NAME),
+            ) {
+                let labels = bbox_data.specifics.bbox().labels();
+                let filter_pred = |path: &str| {
+                    let annos = bbox_data.specifics.bbox().get_annos(path);
+                    if let Some(annos) = annos {
+                        annos
+                            .cat_idxs()
+                            .iter()
+                            .any(|cat_idx| labels[*cat_idx].contains(needle))
+                    } else {
+                        false
+                    }
+                };
+                self.filter_by_pred(filter_pred)?;
+            } else if s.strip_prefix(no_labels_keyword).is_some() {
+                let filter_pred = |path: &str| {
+                    let bb_tool = tools_data_map.get(tools::BBOX_NAME);
+                    let annos = bb_tool.and_then(|bbt| bbt.specifics.bbox().get_annos(path));
+                    if let Some(annos) = annos {
+                        annos.cat_idxs().is_empty()
+                    } else {
+                        true
+                    }
+                };
+                self.filter_by_pred(filter_pred)?;
+            } else {
+                let trimmed = s.trim();
+                let filter_pred = |path: &str| {
+                    if path.is_empty() {
+                        true
+                    } else {
+                        path.contains(trimmed)
+                    }
+                };
+                self.filter_by_pred(filter_pred)?;
+            }
         }
         Ok(())
     }

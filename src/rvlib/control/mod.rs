@@ -12,6 +12,7 @@ use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
     types::AsyncResultImage,
 };
+mod filter;
 pub mod paths_navigator;
 use crate::image_reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;

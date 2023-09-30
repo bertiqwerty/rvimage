@@ -888,6 +888,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
+name = "exmex"
+version = "0.17.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf72d771d16d46af27985c8daa1ea6557ea4bcbd51f90a85285acdcd56072331"
+dependencies = [
+ "lazy_static",
+ "num",
+ "regex",
+ "smallvec",
+]
+
+[[package]]
 name = "exr"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2797,6 +2809,7 @@ dependencies = [
  "egui-wgpu",
  "egui-winit",
  "env_logger",
+ "exmex",
  "futures",
  "httparse",
  "image",
@@ -3035,9 +3048,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62bb4feee49fdd9f707ef802e22365a35de4b7b299de4763d44bfea899442ff9"
+checksum = "942b4a808e05215192e39f4ab80813e599068285906cc91aa64f923db842bd5a"
 
 [[package]]
 name = "smithay-client-toolkit"

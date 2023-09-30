@@ -453,15 +453,14 @@ impl Menu {
                     ui.label("connecting...");
                 }
 
-                // filter text field
-                let txt_field = ui.text_edit_singleline(&mut self.filter_string);
-                if txt_field.gained_focus() {
+                let filter_txt_field = ui.text_edit_singleline(&mut self.filter_string);
+                if filter_txt_field.gained_focus() {
                     self.are_tools_active = false;
                 }
-                if txt_field.lost_focus() {
+                if filter_txt_field.lost_focus() {
                     self.are_tools_active = true;
                 }
-                if txt_field.changed() {
+                if filter_txt_field.changed() {
                     handle_error!(
                         ctrl.paths_navigator
                             .filter(&self.filter_string, tools_data_map),
