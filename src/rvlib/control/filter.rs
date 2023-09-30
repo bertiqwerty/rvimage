@@ -111,9 +111,7 @@ pub struct PathMatcher;
 impl MatchLiteral for PathMatcher {
     fn is_literal(text: &str) -> Option<&str> {
         let trimmed = text.trim();
-        if trimmed.starts_with("label") {
-            None
-        } else if trimmed.starts_with("nolabel") {
+        if trimmed.starts_with("label") || trimmed.starts_with("nolabel") {
             None
         } else {
             exmex::lazy_static::lazy_static! {
