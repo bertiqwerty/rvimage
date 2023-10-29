@@ -1,5 +1,4 @@
 use crate::{
-    domain::Shape,
     events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,

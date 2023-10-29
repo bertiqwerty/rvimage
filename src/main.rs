@@ -3,13 +3,15 @@
 
 use egui::{
     epaint::RectShape, Color32, ColorImage, Context, Event, Image, Pos2, Rect, Rounding, Shape,
-    Stroke, TextureOptions, Ui, Vec2,
+    Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
 use rvlib::{MainEventLoop, UpdateImage};
 
 #[derive(Default)]
 struct RvImageApp {
     event_loop: MainEventLoop,
+    texture: Option<TextureHandle>,
+    size: [usize; 2],
 }
 
 impl RvImageApp {
@@ -22,9 +24,12 @@ impl RvImageApp {
     }
 }
 
-fn clrim_2_uiim<'a>(color_image: ColorImage, ctx: &'a Context) -> Image<'a> {
-    let size = egui::vec2(color_image.size[0] as f32, color_image.size[1] as f32);
-    let handle = ctx.load_texture("canvas", color_image, TextureOptions::NEAREST);
+fn clrim_2_handle<'a>(color_image: ColorImage, ctx: &'a Context) -> TextureHandle {
+    ctx.load_texture("canvas", color_image, TextureOptions::NEAREST)
+}
+
+fn handle_2_image<'a>(handle: &TextureHandle, ctx: &'a Context, size: [usize; 2]) -> Image<'a> {
+    let size = egui::vec2(size[0] as f32, size[1] as f32);
     let sized_image = egui::load::SizedTexture::new(handle.id(), size);
     egui::Image::from_texture(sized_image)
 }
@@ -56,11 +61,21 @@ impl eframe::App for RvImageApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Hello World!");
-            let update_view = self.event_loop.one_iteration(&rvlib::Events::default(), ui);
-            if let UpdateImage::Yes(im) = update_view.image {
-                let color_image =
-                    ColorImage::from_rgb([im.width() as usize, im.height() as usize], im.as_raw());
-                let ui_image = clrim_2_uiim(color_image, ctx);
+            if let Ok(update_view) = self
+                .event_loop
+                .one_iteration(&rvlib::Events::default(), ctx)
+            {
+                if let UpdateImage::Yes(im) = update_view.image {
+                    let color_image = ColorImage::from_rgb(
+                        [im.width() as usize, im.height() as usize],
+                        im.as_raw(),
+                    );
+                    self.size = color_image.size;
+                    self.texture = Some(clrim_2_handle(color_image, ctx));
+                }
+            }
+            if let Some(texture) = self.texture.as_ref() {
+                let ui_image = handle_2_image(texture, &ctx, self.size).shrink_to_fit();
                 ui.add(ui_image);
             }
         });
@@ -69,7 +84,7 @@ impl eframe::App for RvImageApp {
 
 fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
-    tracing_subscriber::fmt::init();
+    // tracing_subscriber::fmt::init();
 
     let native_options = eframe::NativeOptions::default();
     if let Err(e) = eframe::run_native(

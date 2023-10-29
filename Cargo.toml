@@ -36,8 +36,12 @@ conv = "0.3.3"
 dirs = "5.0.1"
 edit = "0.1.4"
 egui = "0.23"
-eframe = "0.23"
-env_logger = "0.10"
+eframe = { version = "0.23.0", default-features = false, features = [
+    # "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
+    "persistence",   # Enable restoring app state when restarting the app.
+] }
 futures = { version = "0.3", optional = true }
 httparse = "~1.8"
 image = "0.24.7"

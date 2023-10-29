@@ -1,10 +1,10 @@
-use crate::domain::{self, Shape, BB};
+use crate::domain::{Shape, BB};
 use crate::drawme::{Annotation, UpdateImage};
 use crate::file_util::MetaData;
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
-use crate::{image_util, UpdateAnnos, UpdateView};
-use image::{imageops, imageops::FilterType, DynamicImage};
+use crate::{image_util, UpdateAnnos, UpdateView, UpdateZoomBox};
+use image::DynamicImage;
 use std::collections::HashMap;
 use std::{fmt::Debug, mem};
 
@@ -72,27 +72,6 @@ macro_rules! tools_data_accessor {
         }
     };
 }
-pub fn raw_scaled_to_win_view(
-    ims_raw: &DataRaw,
-    zoom_box: &Option<BB>,
-    shape_win: Shape,
-) -> ViewImage {
-    let shape_orig = ims_raw.shape();
-    let unscaled = domain::shape_unscaled(zoom_box, shape_orig);
-    let new = domain::shape_scaled(unscaled, shape_win);
-    let im_view = if let Some(c) = zoom_box {
-        let mut ims_raw = ims_raw.clone();
-        ims_raw.apply(|mut im| im.crop(c.x, c.y, c.w, c.h));
-        ims_raw.bg_to_uncropped_view()
-    } else {
-        ims_raw.bg_to_uncropped_view()
-    };
-    if im_view.width() != new.w || im_view.height() != new.h {
-        imageops::resize(&im_view, new.w, new.h, FilterType::Nearest)
-    } else {
-        im_view
-    }
-}
 
 fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
     let x = (i % im.width() as usize) as u32;
@@ -146,10 +125,6 @@ impl DataRaw {
     pub fn bg_to_uncropped_view(&self) -> ViewImage {
         image_util::orig_to_0_255(&self.im_background, &None)
     }
-
-    pub fn bg_to_unannotated_view(&self, zoom_box: &Option<BB>, shape_win: Shape) -> ViewImage {
-        raw_scaled_to_win_view(self, zoom_box, shape_win)
-    }
 }
 
 impl Debug for DataRaw {
@@ -174,10 +149,15 @@ pub struct World {
 
 impl World {
     pub fn new(ims_raw: DataRaw, zoom_box: Option<BB>) -> Self {
+        let im = ims_raw.bg_to_uncropped_view();
         Self {
             data: ims_raw,
             zoom_box,
-            ..Default::default()
+            update_view: UpdateView {
+                image: UpdateImage::Yes(im),
+                annos: UpdateAnnos::No,
+                zoom_box: UpdateZoomBox::Yes(zoom_box),
+            },
         }
     }
 

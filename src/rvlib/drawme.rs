@@ -4,7 +4,7 @@ use crate::{
 };
 use std::default::Default;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Stroke {
     pub thickness: f32,
     pub color: [u8; 3],
@@ -19,13 +19,13 @@ impl Stroke {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Geo {
     BB(BB),
     Poly(Vec<Point>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Annotation {
     pub bb: BB,
     pub fill_color: [u8; 3],
@@ -34,7 +34,7 @@ pub struct Annotation {
     pub is_selected: Option<bool>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub enum Update<T> {
     Yes(T),
     #[default]
@@ -45,7 +45,7 @@ pub type UpdateImage = Update<ViewImage>;
 pub type UpdateAnnos = Update<Vec<Annotation>>;
 pub type UpdateZoomBox = Update<Option<BB>>;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct UpdateView {
     pub image: UpdateImage,
     pub annos: UpdateAnnos,

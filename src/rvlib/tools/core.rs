@@ -1,54 +1,9 @@
 use crate::{
-    domain::{Point, Shape, BB},
+    domain::{Point, BB},
     events::Events,
-    file_util::MetaData,
     history::History,
-    types::ViewImage,
     world::World,
 };
-
-#[derive(Debug, Clone)]
-pub struct InitialView {
-    file_path: Option<String>,
-    image: Option<ViewImage>,
-}
-impl InitialView {
-    fn updated_needed(&self, world_meta: &MetaData) -> bool {
-        if let Some(is_active) = world_meta.is_loading_screen_active {
-            !is_active
-                && (self.file_path != world_meta.file_path
-                    || (self.file_path.is_some() && self.image.is_none()))
-        } else {
-            false
-        }
-    }
-    pub fn update(&mut self, world: &World, shape_win: Shape) -> bool {
-        let is_update_needed = self.updated_needed(&world.data.meta_data);
-        if is_update_needed {
-            self.file_path = world
-                .data
-                .meta_data
-                .file_path
-                .as_ref()
-                .map(|s| s.to_string());
-            self.image = Some(
-                world
-                    .data
-                    .bg_to_unannotated_view(world.zoom_box(), shape_win),
-            );
-        }
-        is_update_needed
-    }
-    pub fn image(&self) -> &Option<ViewImage> {
-        &self.image
-    }
-    pub fn new() -> Self {
-        Self {
-            file_path: None,
-            image: None,
-        }
-    }
-}
 
 pub trait Manipulate {
     fn new() -> Self

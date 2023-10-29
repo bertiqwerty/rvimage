@@ -83,7 +83,7 @@ impl ToolSelectMenu {
     pub fn recently_activated_tool(&self) -> Option<usize> {
         self.recently_activated_tool
     }
-    fn ui(
+    pub fn ui(
         &mut self,
         ctx: &Context,
         tools: &mut [ToolState],
@@ -200,7 +200,7 @@ impl Menu {
     }
 
     /// Create the UI using egui.
-    fn ui(&mut self, ctx: &Context, ctrl: &mut Control, tools_data_map: &mut ToolsDataMap) {
+    pub fn ui(&mut self, ctx: &Context, ctrl: &mut Control, tools_data_map: &mut ToolsDataMap) {
         let window_response = egui::Window::new("menu")
             .vscroll(true)
             .title_bar(false)

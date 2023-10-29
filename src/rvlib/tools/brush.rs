@@ -10,7 +10,7 @@ use crate::{
     world::World,
 };
 
-use super::{core::InitialView, Manipulate, BRUSH_NAME};
+use super::{Manipulate, BRUSH_NAME};
 
 const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
@@ -20,9 +20,7 @@ annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotati
 annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
 
 #[derive(Clone, Debug)]
-pub struct Brush {
-    initial_view: InitialView,
-}
+pub struct Brush {}
 
 impl Brush {
     fn mouse_pressed(
@@ -78,9 +76,7 @@ impl Brush {
 
 impl Manipulate for Brush {
     fn new() -> Self {
-        Self {
-            initial_view: InitialView::new(),
-        }
+        Self {}
     }
 
     fn events_tf(

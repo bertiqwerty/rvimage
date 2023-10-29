@@ -4,7 +4,6 @@
 use crate::cfg::{self, Cfg};
 use crate::control::{Control, Info};
 use crate::domain::Point;
-use crate::drawme::UpdateImage;
 use crate::events::{Events, KeyCode};
 use crate::file_util::make_prjcfg_filename;
 use crate::history::History;
@@ -12,18 +11,14 @@ use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
 use crate::result::RvResult;
 use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
 use crate::world::World;
-use crate::{
-    apply_tool_method_mut, httpserver, image_util, UpdateAnnos, UpdateView, UpdateZoomBox,
-};
-use egui::Ui;
+use crate::{apply_tool_method_mut, httpserver, image_util, UpdateView};
+use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs;
 use std::mem;
-use std::path::Path;
 use std::sync::mpsc::Receiver;
 
 const START_WIDTH: u32 = 640;
@@ -111,10 +106,10 @@ pub struct MainEventLoop {
     recently_activated_tool_idx: Option<usize>,
     rx_from_http: Option<Receiver<RvResult<String>>>,
     http_addr: String,
+    loop_counter: u128,
 }
 impl Default for MainEventLoop {
     fn default() -> Self {
-        env_logger::init();
         let mut world = empty_world();
         let mut ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
             println!("could not read cfg due to {e:?}, returning default");
@@ -135,21 +130,32 @@ impl Default for MainEventLoop {
         }
         let tools = make_tool_vec();
         let http_addr = http_address().to_string();
+        // http server state
+        let rx_from_http = if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
+            Some(rx)
+        } else {
+            None
+        };
         Self {
             world,
             ctrl,
             tools,
             http_addr,
-            ..Default::default()
+            tools_select_menu: ToolSelectMenu::default(),
+            menu: Menu::default(),
+            history: History::default(),
+            recently_activated_tool_idx: None,
+            rx_from_http,
+            loop_counter: 0,
         }
     }
 }
 impl MainEventLoop {
-    pub fn one_iteration(&mut self, e: &Events, ui: &mut Ui) -> UpdateView {
-        // http server state
-        if let Ok((_, rx)) = httpserver::launch(self.http_addr.clone()) {
-            self.rx_from_http = Some(rx);
-        }
+    pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
+        self.menu
+            .ui(&ctx, &mut self.ctrl, &mut self.world.data.tools_data_map);
+        self.tools_select_menu
+            .ui(&ctx, &mut self.tools, &mut self.world.data.tools_data_map)?;
 
         // update world based on tools
         if self.recently_activated_tool_idx.is_none() {
@@ -316,12 +322,8 @@ impl MainEventLoop {
             };
         }
 
-        let mut image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(400, 400);
-        image.fill(255);
-        UpdateView {
-            image: UpdateImage::Yes(image),
-            annos: UpdateAnnos::No,
-            zoom_box: UpdateZoomBox::No,
-        }
+        self.loop_counter += 1;
+
+        Ok(mem::take(&mut self.world.update_view))
     }
 }

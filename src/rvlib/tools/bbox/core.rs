@@ -7,10 +7,7 @@ use crate::{
     file_util,
     history::{History, Record},
     make_tool_transform,
-    tools::{
-        core::{InitialView, Mover},
-        Manipulate, BBOX_NAME,
-    },
+    tools::{core::Mover, Manipulate, BBOX_NAME},
     tools_data::{bbox_data::Options, BboxSpecificData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     world::World,
@@ -191,7 +188,6 @@ fn check_autopaste(
 #[derive(Clone, Debug)]
 pub struct BBox {
     prev_pos: PrevPos,
-    initial_view: InitialView,
     mover: Mover,
     prev_label: usize,
     previous_file: Option<String>,
@@ -311,7 +307,6 @@ impl Manipulate for BBox {
     fn new() -> Self {
         Self {
             prev_pos: PrevPos::default(),
-            initial_view: InitialView::new(),
             mover: Mover::new(),
             prev_label: 0,
             previous_file: None,
@@ -328,7 +323,6 @@ impl Manipulate for BBox {
 
     fn on_deactivate(&mut self, mut world: World, history: History) -> (World, History) {
         self.prev_pos = PrevPos::default();
-        self.initial_view = InitialView::new();
         get_tools_data_mut(&mut world).menu_active = false;
         (world, history)
     }
