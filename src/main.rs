@@ -139,7 +139,6 @@ macro_rules! activate_tool_event {
 
 fn main() -> Result<(), pixels::Error> {
     defer!(remove_tmpdir);
-    env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
     let window = {

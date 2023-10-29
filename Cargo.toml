@@ -38,7 +38,6 @@ edit = "0.1.4"
 egui = "0.22"
 egui-wgpu = "0.22"
 egui-winit = { version = "0.22", default-features = false, features = ["links", "clipboard"] }
-env_logger = "0.10"
 futures = { version = "0.3", optional = true }
 httparse = "~1.8"
 image = "0.24.7"
