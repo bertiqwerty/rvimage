@@ -1,14 +1,12 @@
 use std::fmt::Debug;
-use winit::event::VirtualKeyCode;
-use winit_input_helper::WinitInputHelper;
 
 use crate::{
-    domain::{zoom_box_mouse_wheel, Shape},
+    domain::zoom_box_mouse_wheel,
+    events::{Events, KeyCode},
     history::History,
     make_tool_transform,
     tools::core::Manipulate,
     world::World,
-    RIGHT_BTN,
 };
 
 use super::{core::Mover, zoom::move_zoom_box};
@@ -20,28 +18,24 @@ pub struct AlwaysActiveZoom {
 impl AlwaysActiveZoom {
     fn mouse_pressed(
         &mut self,
-        event: &WinitInputHelper,
-        _shape_win: Shape,
-        mouse_pos: Option<(usize, usize)>,
+        events: &Events,
         world: World,
         history: History,
     ) -> (World, History) {
-        if event.held_control() && event.mouse_pressed(RIGHT_BTN) {
-            self.mover.move_mouse_pressed(mouse_pos);
+        if events.held_ctrl() && events.pressed(KeyCode::MouseRight) {
+            self.mover.move_mouse_pressed(events.mouse_pos);
         }
         (world, history)
     }
 
     fn mouse_held(
         &mut self,
-        event: &WinitInputHelper,
-        shape_win: Shape,
-        mouse_pos: Option<(usize, usize)>,
+        events: &Events,
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if event.held_control() && event.mouse_held(RIGHT_BTN) {
-            (self.mover, world) = move_zoom_box(self.mover, world, mouse_pos, shape_win);
+        if events.held_ctrl() && events.held(KeyCode::MouseRight) {
+            (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos);
             (world, history)
         } else {
             (world, history)
@@ -50,23 +44,21 @@ impl AlwaysActiveZoom {
 
     fn key_released(
         &mut self,
-        event: &WinitInputHelper,
-        shape_win: Shape,
-        _mouse_pos: Option<(usize, usize)>,
+        events: &Events,
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if event.held_control() {
-            let zb = if event.key_released(VirtualKeyCode::Key0) {
+        if events.held_ctrl() {
+            let zb = if events.released(KeyCode::Key0) {
                 None
-            } else if event.key_released(VirtualKeyCode::Equals) {
+            } else if events.released(KeyCode::Equals) {
                 zoom_box_mouse_wheel(*world.zoom_box(), world.shape_orig(), 1.0)
-            } else if event.key_released(VirtualKeyCode::Minus) {
+            } else if events.released(KeyCode::Minus) {
                 zoom_box_mouse_wheel(*world.zoom_box(), world.shape_orig(), -1.0)
             } else {
                 *world.zoom_box()
             };
-            world.set_zoom_box(zb, shape_win);
+            world.set_zoom_box(zb);
         }
         (world, history)
     }
@@ -77,26 +69,18 @@ impl Manipulate for AlwaysActiveZoom {
             mover: Mover::new(),
         }
     }
-    fn events_tf(
-        &mut self,
-        world: World,
-        history: History,
-        shape_win: Shape,
-        mouse_pos: Option<(usize, usize)>,
-        event: &WinitInputHelper,
-    ) -> (World, History) {
+    fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History) {
         make_tool_transform!(
             self,
             world,
             history,
-            shape_win,
-            mouse_pos,
-            event,
-            [(mouse_pressed, RIGHT_BTN), (mouse_held, RIGHT_BTN)],
+            events,
             [
-                (key_released, VirtualKeyCode::Key0),
-                (key_released, VirtualKeyCode::Equals), // Plus is equals
-                (key_released, VirtualKeyCode::Minus)
+                (pressed, KeyCode::MouseRight, mouse_pressed),
+                (held, KeyCode::MouseRight, mouse_held),
+                (released, KeyCode::Key0, key_released),
+                (released, KeyCode::Equals, key_released), // Plus is equals
+                (released, KeyCode::Minus, key_released)
             ]
         )
     }

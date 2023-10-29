@@ -1,19 +1,16 @@
 use crate::{
     annotations::BrushAnnotations,
     annotations_accessor, annotations_accessor_mut,
-    domain::{mouse_pos_to_orig_pos, Shape},
+    events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
     tools_data::BrushToolData,
     tools_data::{ToolSpecifics, ToolsData},
     tools_data_initializer,
     world::World,
-    LEFT_BTN,
 };
-use winit::event::VirtualKeyCode;
-use winit_input_helper::WinitInputHelper;
 
-use super::{core::InitialView, Manipulate};
+use super::{core::InitialView, Manipulate, BRUSH_NAME};
 
 const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
@@ -28,60 +25,38 @@ pub struct Brush {
 }
 
 impl Brush {
-    fn draw_on_view(&self, mut world: World, shape_win: Shape) -> World {
-        if let Some(annos) = get_annos(&world) {
-            let im_view = annos.draw_on_view(
-                self.initial_view.image().clone().unwrap(),
-                world.zoom_box(),
-                world.data.shape(),
-                shape_win,
-            );
-            world.set_im_view(im_view);
-        }
-        world
-    }
-
     fn mouse_pressed(
         &mut self,
-        _event: &WinitInputHelper,
-        shape_win: Shape,
-        mouse_pos: Option<(usize, usize)>,
+        events: &Events,
         mut world: World,
         history: History,
     ) -> (World, History) {
-        let mp_orig =
-            mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
-        if mp_orig.is_some() {
+        if events.mouse_pos.is_some() {
             get_annos_mut(&mut world).points.push(vec![]);
         }
         (world, history)
     }
     fn mouse_held(
         &mut self,
-        _event: &WinitInputHelper,
-        shape_win: Shape,
-        mouse_pos: Option<(usize, usize)>,
+        events: &Events,
         mut world: World,
         history: History,
     ) -> (World, History) {
-        let mp_orig =
-            mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
-        if let Some(mp) = mp_orig {
+        if let Some(mp) = events.mouse_pos {
             get_annos_mut(&mut world)
                 .points
                 .last_mut()
                 .unwrap()
                 .push(mp);
-            world = self.draw_on_view(world, shape_win);
+            world.request_redraw_annotations(BRUSH_NAME, true);
         }
+
         (world, history)
     }
 
     fn mouse_released(
         &mut self,
-        _event: &WinitInputHelper,
-        _shape_win: Shape,
-        _mouse_pos: Option<(usize, usize)>,
+        _events: &Events,
         world: World,
         mut history: History,
     ) -> (World, History) {
@@ -90,14 +65,12 @@ impl Brush {
     }
     fn key_pressed(
         &mut self,
-        _event: &WinitInputHelper,
-        shape_win: Shape,
-        _mouse_pos: Option<(usize, usize)>,
+        _events: &Events,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
         get_annos_mut(&mut world).points.clear();
-        world = self.draw_on_view(world, shape_win);
+        world.request_redraw_annotations(BRUSH_NAME, true);
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
         (world, history)
     }
@@ -114,25 +87,20 @@ impl Manipulate for Brush {
         &mut self,
         mut world: World,
         history: History,
-        shape_win: Shape,
-        mouse_pos: Option<(usize, usize)>,
-        event: &WinitInputHelper,
+        events: &Events,
     ) -> (World, History) {
-        self.initial_view.update(&world, shape_win);
         world = initialize_tools_menu_data(world);
         make_tool_transform!(
             self,
             world,
             history,
-            shape_win,
-            mouse_pos,
-            event,
+            events,
             [
-                (mouse_pressed, LEFT_BTN),
-                (mouse_held, LEFT_BTN),
-                (mouse_released, LEFT_BTN)
-            ],
-            [(key_pressed, VirtualKeyCode::Back)]
+                (pressed, KeyCode::MouseLeft, mouse_pressed),
+                (held, KeyCode::MouseLeft, mouse_held),
+                (released, KeyCode::MouseLeft, mouse_released),
+                (pressed, KeyCode::Back, key_pressed)
+            ]
         )
     }
 }

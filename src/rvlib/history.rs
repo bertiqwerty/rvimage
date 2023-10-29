@@ -31,13 +31,6 @@ pub struct History {
 }
 
 impl History {
-    pub fn new() -> Self {
-        Self {
-            records: vec![],
-            current_idx: None,
-        }
-    }
-
     fn clear_on_folder_change(&mut self, current_folder_label: &Option<String>) {
         if let Some(cfl) = current_folder_label {
             let folder_in_history = self
@@ -148,13 +141,8 @@ use {
 fn test_history() -> RvResult<()> {
     let dummy_shape_win = Shape::new(128, 128);
     let im = ViewImage::new(64, 64);
-    let world = World::from_real_im(
-        DynamicImage::ImageRgb8(im),
-        HashMap::new(),
-        "".to_string(),
-        dummy_shape_win,
-    );
-    let mut hist = History::new();
+    let world = World::from_real_im(DynamicImage::ImageRgb8(im), HashMap::new(), "".to_string());
+    let mut hist = History::default();
 
     hist.push(Record {
         data: world.data.clone(),
@@ -166,7 +154,6 @@ fn test_history() -> RvResult<()> {
         DynamicImage::ImageRgb8(ViewImage::new(32, 32)),
         HashMap::new(),
         "".to_string(),
-        dummy_shape_win,
     );
     hist.push(Record {
         data: world.data.clone(),
@@ -182,7 +169,6 @@ fn test_history() -> RvResult<()> {
         DynamicImage::ImageRgb8(ViewImage::new(16, 16)),
         HashMap::new(),
         "".to_string(),
-        dummy_shape_win,
     );
     hist.push(Record {
         data: world.data.clone(),

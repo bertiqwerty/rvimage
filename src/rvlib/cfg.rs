@@ -4,7 +4,11 @@ use crate::{
     result::{to_rv, RvError, RvResult},
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, fs, path::PathBuf};
+use std::{
+    fmt::Debug,
+    fs,
+    path::{Path, PathBuf},
+};
 
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
@@ -58,6 +62,26 @@ pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
     Ok(())
 }
 
+pub fn remove_tmpdir() {
+    match get_cfg() {
+        Ok(cfg) => {
+            match cfg.tmpdir() {
+                Ok(td) => match fs::remove_dir_all(Path::new(td)) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        println!("couldn't remove tmpdir {e:?}")
+                    }
+                },
+                Err(e) => {
+                    println!("couldn't remove tmpdir {e:?}")
+                }
+            };
+        }
+        Err(e) => {
+            println!("could not load cfg {e:?}");
+        }
+    };
+}
 #[derive(Deserialize, Serialize, Debug, Eq, PartialEq, Clone, Copy, Default)]
 pub enum Connection {
     Ssh,

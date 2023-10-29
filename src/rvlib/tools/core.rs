@@ -1,7 +1,6 @@
-use winit_input_helper::WinitInputHelper;
-
 use crate::{
-    domain::{self, Shape, BB},
+    domain::{Point, Shape, BB},
+    events::Events,
     file_util::MetaData,
     history::History,
     types::ViewImage,
@@ -56,37 +55,20 @@ pub trait Manipulate {
     where
         Self: Sized;
 
-    fn on_activate(
-        &mut self,
-        world: World,
-        history: History,
-        _shape_win: Shape,
-    ) -> (World, History) {
+    fn on_activate(&mut self, world: World, history: History) -> (World, History) {
         (world, history)
     }
-    fn on_deactivate(
-        &mut self,
-        world: World,
-        history: History,
-        _shape_win: Shape,
-    ) -> (World, History) {
+    fn on_deactivate(&mut self, world: World, history: History) -> (World, History) {
         (world, history)
     }
     /// All events that are used by a tool are implemented in here. Use the macro [`make_tool_transform`](make_tool_transform). See, e.g.,
     /// [`Zoom::events_tf`](crate::tools::Zoom::events_tf).
-    fn events_tf(
-        &mut self,
-        world: World,
-        history: History,
-        shape_win: Shape,
-        mouse_pos: Option<(usize, usize)>,
-        input_event: &WinitInputHelper,
-    ) -> (World, History);
+    fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History);
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Mover {
-    mouse_pos_start: Option<(usize, usize)>,
+    mouse_pos_start: Option<Point>,
 }
 impl Mover {
     pub fn new() -> Self {
@@ -94,18 +76,15 @@ impl Mover {
             mouse_pos_start: None,
         }
     }
-    pub fn move_mouse_held<T, F: FnOnce((u32, u32), (u32, u32)) -> T>(
+    pub fn move_mouse_held<T, F: FnOnce(Point, Point) -> T>(
         &mut self,
         f_move: F,
-        mouse_pos: Option<(usize, usize)>,
-        shape_win: Shape,
-        shape_orig: Shape,
+        mouse_pos: Option<Point>,
         zoom_box: &Option<BB>,
     ) -> Option<T> {
         let res = if let (Some(mp_start), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
-            let mpo_from =
-                domain::mouse_pos_to_orig_pos(Some(mp_start), shape_orig, shape_win, zoom_box);
-            let mpo_to = domain::mouse_pos_to_orig_pos(Some(mp), shape_orig, shape_win, zoom_box);
+            let mpo_from = mouse_pos;
+            let mpo_to = Some(mp);
             match (mpo_from, mpo_to) {
                 (Some(mpso), Some(mpo)) => Some(f_move(mpso, mpo)),
                 _ => None,
@@ -116,7 +95,7 @@ impl Mover {
         self.mouse_pos_start = mouse_pos;
         res
     }
-    pub fn move_mouse_pressed(&mut self, mouse_pos: Option<(usize, usize)>) {
+    pub fn move_mouse_pressed(&mut self, mouse_pos: Option<Point>) {
         if mouse_pos.is_some() {
             self.mouse_pos_start = mouse_pos;
         }
@@ -130,20 +109,14 @@ macro_rules! make_tool_transform {
         $self:expr,
         $world:expr,
         $history:expr,
-        $shape_win:expr,
-        $mouse_pos:expr,
         $event:expr,
-        [$(($mouse_event:ident, $mouse_btn:expr)),*],
-        [$(($key_event:ident, $key_btn:expr)),*]
+        [$(($key_event:ident, $key_btn:expr, $method_name:ident)),*]
     ) => {
         if false {
             ($world, $history)
         }
-        $(else if $event.$mouse_event($mouse_btn) {
-            $self.$mouse_event($event, $shape_win, $mouse_pos, $world, $history)
-        })*
         $(else if $event.$key_event($key_btn) {
-            $self.$key_event($event, $shape_win, $mouse_pos, $world, $history)
+            $self.$method_name($event, $world, $history)
         })*
         else {
             ($world, $history)

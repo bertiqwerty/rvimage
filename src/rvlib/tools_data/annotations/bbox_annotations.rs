@@ -1,11 +1,7 @@
 use crate::{
-    domain::{BbPointIterator, MakeDrawable, Shape, BB},
-    image_util,
-    types::ViewImage,
+    domain::{Point, Shape, BB},
     util::true_indices,
 };
-use image::Rgb;
-use rusttype::{Font, Scale};
 use serde::{Deserialize, Serialize};
 use std::mem;
 
@@ -32,93 +28,6 @@ struct BbParams<'a> {
     pub selected_bbs: &'a [bool],
     pub cats: Cats<'a>,
     show_label: bool,
-}
-
-fn draw_bbs(
-    mut im_view: ViewImage,
-    shape_orig: Shape,
-    shape_win: Shape,
-    zoom_box: &Option<BB>,
-    bb_params: BbParams,
-) -> ViewImage {
-    let font_data: &[u8] = include_bytes!("../../../../resources/Roboto/Roboto-Bold.ttf");
-    let BbParams {
-        bbs,
-        selected_bbs,
-        cats,
-        show_label,
-    } = bb_params;
-    // remove those box ids that are outside of the zoom box
-    let relevant_box_inds = (0..bbs.len()).filter(|box_idx| {
-        if let Some(zb) = zoom_box {
-            let encl_b = bbs[*box_idx].enclosing_bb();
-            !(encl_b.y + encl_b.h < zb.y
-                || encl_b.x + encl_b.w < zb.x
-                || encl_b.x > zb.x + zb.w
-                || encl_b.y > zb.y + zb.h)
-        } else {
-            true
-        }
-    });
-    for box_idx in relevant_box_inds {
-        let alpha = if selected_bbs[box_idx] {
-            BBOX_ALPHA_SELECTED
-        } else {
-            BBOX_ALPHA
-        };
-        let f_inner_color =
-            |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, cats.color_of_box(box_idx), alpha);
-
-        let (boundary_points, inner_points) =
-            bbs[box_idx].points_on_view(Shape::from_im(&im_view), shape_orig, shape_win, zoom_box);
-        let color_rgb = Rgb(*cats.color_of_box(box_idx));
-        im_view = image_util::draw_on_image(
-            im_view,
-            boundary_points,
-            inner_points,
-            &color_rgb,
-            f_inner_color,
-        );
-
-        // draw label field, we do show not the label field for empty-string-labels
-        if !cats.label_of_box(box_idx).is_empty() && show_label {
-            let encl_viewcorners = bbs[box_idx]
-                .enclosing_bb()
-                .to_viewcorners(shape_orig, shape_win, zoom_box);
-            if let Some((x_min, y_min, x_max, _)) = encl_viewcorners.to_optional_tuple() {
-                let label_box_height = 14;
-                let scale = Scale {
-                    x: label_box_height as f32,
-                    y: label_box_height as f32,
-                };
-                let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
-                let white = [255, 255, 255];
-                let alpha = 150;
-                let f_inner_color = |rgb: &Rgb<u8>| image_util::apply_alpha(&rgb.0, &white, alpha);
-                let label_view_box =
-                    BB::from_points((x_min, y_min), (x_max, y_min + label_box_height));
-                let inner_points = BbPointIterator::from_bb(label_view_box);
-                let boundary_points = label_view_box.corners();
-                im_view = image_util::draw_on_image(
-                    im_view,
-                    boundary_points,
-                    inner_points,
-                    &Rgb(white),
-                    f_inner_color,
-                );
-                imageproc::drawing::draw_text_mut(
-                    &mut im_view,
-                    Rgb::<u8>([0, 0, 0]),
-                    x_min as i32,
-                    y_min as i32,
-                    scale,
-                    &font,
-                    cats.label_of_box(box_idx),
-                );
-            }
-        }
-    }
-    im_view
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
@@ -301,8 +210,8 @@ impl BboxAnnotations {
 
     pub fn selected_follow_movement(
         &mut self,
-        mpo_from: (u32, u32),
-        mpo_to: (u32, u32),
+        mpo_from: Point,
+        mpo_to: Point,
         orig_shape: Shape,
         split_mode: SplitMode,
     ) -> bool {
@@ -328,36 +237,9 @@ impl BboxAnnotations {
         self.selected_bbs.clear();
         self.cat_idxs.clear();
     }
-
-    pub fn draw_on_view(
-        &self,
-        im_view: ViewImage,
-        zoom_box: &Option<BB>,
-        shape_orig: Shape,
-        shape_win: Shape,
-        labels: &[String],
-        colors: &[[u8; 3]],
-    ) -> ViewImage {
-        draw_bbs(
-            im_view,
-            shape_orig,
-            shape_win,
-            zoom_box,
-            BbParams {
-                bbs: &self.bbs,
-                selected_bbs: &self.selected_bbs,
-                cats: Cats {
-                    cat_ids: &self.cat_idxs,
-                    colors,
-                    labels,
-                },
-                show_label: self.show_labels,
-            },
-        )
-    }
 }
 #[cfg(test)]
-use super::core::resize_bbs;
+use {super::core::resize_bbs, crate::point};
 #[cfg(test)]
 fn make_test_bbs() -> Vec<BB> {
     vec![
@@ -391,16 +273,16 @@ fn test_bbs() {
         bb.shift_max(-1, 1, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BB::from_points((5, 5), (14, 16)), resized[1]);
-    assert_eq!(BB::from_points((9, 9), (18, 20)), resized[2]);
+    assert_eq!(BB::from_points(point!(5, 5), point!(14, 16)), resized[1]);
+    assert_eq!(BB::from_points(point!(9, 9), point!(18, 20)), resized[2]);
 
     // shift min
     let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
         bb.shift_min(-1, 1, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BB::from_points((4, 6), (15, 15)), resized[1]);
-    assert_eq!(BB::from_points((8, 10), (19, 19)), resized[2]);
+    assert_eq!(BB::from_points(point!(4, 6), point!(15, 15)), resized[1]);
+    assert_eq!(BB::from_points(point!(8, 10), point!(19, 19)), resized[2]);
 }
 #[test]
 fn test_annos() {

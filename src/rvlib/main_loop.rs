@@ -1,0 +1,327 @@
+#![deny(clippy::all)]
+#![forbid(unsafe_code)]
+
+use crate::cfg::{self, Cfg};
+use crate::control::{Control, Info};
+use crate::domain::Point;
+use crate::drawme::UpdateImage;
+use crate::events::{Events, KeyCode};
+use crate::file_util::make_prjcfg_filename;
+use crate::history::History;
+use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
+use crate::result::RvResult;
+use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
+use crate::world::World;
+use crate::{
+    apply_tool_method_mut, httpserver, image_util, UpdateAnnos, UpdateView, UpdateZoomBox,
+};
+use egui::Ui;
+use image::{DynamicImage, GenericImageView};
+use image::{ImageBuffer, Rgb};
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::fs;
+use std::mem;
+use std::path::Path;
+use std::sync::mpsc::Receiver;
+
+const START_WIDTH: u32 = 640;
+const START_HEIGHT: u32 = 480;
+
+fn cfg_static_ref() -> &'static Cfg {
+    lazy_static! {
+        static ref CFG: Cfg = cfg::get_cfg().expect("config broken");
+    }
+    &CFG
+}
+
+fn http_address() -> &'static str {
+    lazy_static! {
+        static ref HTTP_ADDRESS: &'static str = cfg_static_ref().http_address();
+    }
+    &HTTP_ADDRESS
+}
+fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
+where
+    T: GenericImageView,
+    <T as GenericImageView>::Pixel: Debug,
+{
+    let p = im.get_pixel(x, y);
+    format!("({x}, {y}) -> ({p:?})")
+}
+
+fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
+    image_util::apply_to_matched_image(
+        im,
+        |im| pos_2_string_gen(im, x, y),
+        |im| pos_2_string_gen(im, x, y),
+        |im| pos_2_string_gen(im, x, y),
+        |im| pos_2_string_gen(im, x, y),
+    )
+}
+
+fn get_pixel_on_orig_str(world: &World, mouse_pos: &Option<Point>) -> Option<String> {
+    mouse_pos.map(|p| pos_2_string(world.data.im_background(), p.x, p.y))
+}
+
+fn apply_tools(
+    tools: &mut Vec<ToolState>,
+    mut world: World,
+    mut history: History,
+    input_event: &Events,
+) -> (World, History) {
+    for t in tools {
+        if t.is_active() {
+            (world, history) = apply_tool_method_mut!(t, events_tf, world, history, input_event);
+        }
+    }
+    (world, history)
+}
+
+macro_rules! activate_tool_event {
+    ($key:ident, $name:expr, $input:expr, $rat:expr, $tools:expr) => {
+        if $input.held_alt() && $input.pressed(KeyCode::$key) {
+            $rat = Some(
+                $tools
+                    .iter()
+                    .enumerate()
+                    .find(|(_, t)| t.name == $name)
+                    .unwrap()
+                    .0,
+            );
+        }
+    };
+}
+
+fn empty_world() -> World {
+    World::from_real_im(
+        DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
+        HashMap::new(),
+        "".to_string(),
+    )
+}
+pub struct MainEventLoop {
+    menu: Menu,
+    tools_select_menu: ToolSelectMenu,
+    world: World,
+    ctrl: Control,
+    history: History,
+    tools: Vec<ToolState>,
+    recently_activated_tool_idx: Option<usize>,
+    rx_from_http: Option<Receiver<RvResult<String>>>,
+    http_addr: String,
+}
+impl Default for MainEventLoop {
+    fn default() -> Self {
+        env_logger::init();
+        let mut world = empty_world();
+        let mut ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
+            println!("could not read cfg due to {e:?}, returning default");
+            cfg::get_default_cfg()
+        }));
+        {
+            // load last project
+            let prj_name = ctrl.cfg.current_prj_name.clone();
+            match ctrl.load(&make_prjcfg_filename(&prj_name)) {
+                Ok(td) => {
+                    println!("loaded {}", ctrl.cfg.current_prj_name);
+                    world.data.tools_data_map = td;
+                }
+                Err(e) => {
+                    println!("could not read specified project {prj_name} which is fine if a project has never been saved due to {e:?} ");
+                }
+            };
+        }
+        let tools = make_tool_vec();
+        let http_addr = http_address().to_string();
+        Self {
+            world,
+            ctrl,
+            tools,
+            http_addr,
+            ..Default::default()
+        }
+    }
+}
+impl MainEventLoop {
+    pub fn one_iteration(&mut self, e: &Events, ui: &mut Ui) -> UpdateView {
+        // http server state
+        if let Ok((_, rx)) = httpserver::launch(self.http_addr.clone()) {
+            self.rx_from_http = Some(rx);
+        }
+
+        // update world based on tools
+        if self.recently_activated_tool_idx.is_none() {
+            self.recently_activated_tool_idx = self.tools_select_menu.recently_activated_tool();
+        }
+        if let (Some(idx_active), Some(_)) = (
+            self.recently_activated_tool_idx,
+            &self.world.data.meta_data.file_path,
+        ) {
+            if !self.ctrl.flags().is_loading_screen_active {
+                for (i, t) in self.tools.iter_mut().enumerate() {
+                    if i == idx_active {
+                        (self.world, self.history) =
+                            t.activate(mem::take(&mut self.world), mem::take(&mut self.history));
+                    } else {
+                        let meta_data = self.ctrl.meta_data(
+                            self.ctrl.file_selected_idx,
+                            Some(self.ctrl.flags().is_loading_screen_active),
+                        );
+                        self.world.data.meta_data = meta_data;
+                        (self.world, self.history) =
+                            t.deactivate(mem::take(&mut self.world), mem::take(&mut self.history));
+                    }
+                }
+                self.recently_activated_tool_idx = None;
+            }
+        }
+
+        if e.held_alt() && e.pressed(KeyCode::Q) {
+            println!("deactivate all tools");
+            for t in self.tools.iter_mut() {
+                let meta_data = self.ctrl.meta_data(
+                    self.ctrl.file_selected_idx,
+                    Some(self.ctrl.flags().is_loading_screen_active),
+                );
+                self.world.data.meta_data = meta_data;
+                (self.world, self.history) =
+                    t.deactivate(mem::take(&mut self.world), mem::take(&mut self.history));
+            }
+        }
+        activate_tool_event!(
+            B,
+            BBOX_NAME,
+            e,
+            self.recently_activated_tool_idx,
+            self.tools
+        );
+        activate_tool_event!(
+            Z,
+            ZOOM_NAME,
+            e,
+            self.recently_activated_tool_idx,
+            self.tools
+        );
+
+        if e.held_ctrl() && e.pressed(KeyCode::T) {
+            self.tools_select_menu.toggle();
+        }
+        if e.held_ctrl() && e.pressed(KeyCode::M) {
+            self.menu.toggle();
+        }
+        if e.released(KeyCode::F5) {
+            if let Err(e) = self.ctrl.reload() {
+                self.menu.show_info(Info::Error(format!("{e:?}")));
+            }
+        }
+        if e.pressed(KeyCode::PageDown) {
+            self.ctrl.paths_navigator.next();
+        }
+        if e.pressed(KeyCode::PageUp) {
+            self.ctrl.paths_navigator.prev();
+        }
+        if e.pressed(KeyCode::Escape) {
+            self.world.set_zoom_box(None);
+        }
+
+        // check for new image requests from http server
+        let rx_match = &self.rx_from_http.as_ref().map(|rx| rx.try_iter().last());
+        if let Some(Some(Ok(file_label))) = rx_match {
+            self.ctrl.paths_navigator.select_file_label(file_label);
+            self.ctrl
+                .paths_navigator
+                .activate_scroll_to_selected_label();
+        } else if let Some(Some(Err(e))) = rx_match {
+            // if the server thread sends an error we restart the server
+            println!("{e:?}");
+            (self.http_addr, self.rx_from_http) =
+                match httpserver::restart_with_increased_port(&self.http_addr) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        println!("{e:?}");
+                        (self.http_addr.to_string(), None)
+                    }
+                };
+        }
+
+        // load new image if requested by a menu click or by the http server
+        let ims_raw_idx_pair = if e.held_ctrl() && e.pressed(KeyCode::Z) {
+            self.ctrl.undo(&mut self.history)
+        } else if e.held_ctrl() && e.pressed(KeyCode::Y) {
+            self.ctrl.redo(&mut self.history)
+        } else {
+            match self
+                .ctrl
+                .load_new_image_if_triggered(&self.world, &mut self.history)
+            {
+                Ok(iip) => iip,
+                Err(e) => {
+                    self.menu.show_info(Info::Error(format!("{e:?}")));
+                    None
+                }
+            }
+        };
+
+        if let Some((ims_raw, file_label_idx)) = ims_raw_idx_pair {
+            if file_label_idx.is_some() {
+                self.ctrl.paths_navigator.select_label_idx(file_label_idx);
+            }
+            let zoom_box = if ims_raw.shape() == self.world.data.shape() {
+                *self.world.zoom_box()
+            } else {
+                None
+            };
+            self.world = World::new(ims_raw, zoom_box);
+        }
+        // Update the scale factor
+
+        if are_tools_active(&self.menu, &self.tools_select_menu) {
+            let meta_data = self.ctrl.meta_data(
+                self.ctrl.file_selected_idx,
+                Some(self.ctrl.flags().is_loading_screen_active),
+            );
+            self.world.data.meta_data = meta_data;
+            (self.world, self.history) = apply_tools(
+                &mut self.tools,
+                mem::take(&mut self.world),
+                mem::take(&mut self.history),
+                e,
+            );
+        }
+
+        // show position and rgb value
+        if let Some(idx) = self.ctrl.paths_navigator.file_label_selected_idx() {
+            let data_point = get_pixel_on_orig_str(&self.world, &e.mouse_pos);
+            let shape = self.world.shape_orig();
+            let file_label = self.ctrl.file_label(idx);
+            let active_tool = self.tools.iter().find(|t| t.is_active());
+            let tool_string = if let Some(t) = active_tool {
+                format!(" - {} tool is active", t.name)
+            } else {
+                "".to_string()
+            };
+            let s = match data_point {
+                Some(s) => {
+                    format!(
+                        "RV Image - {} - {}x{} - {}{}",
+                        file_label, shape.w, shape.h, s, tool_string
+                    )
+                }
+                None => format!(
+                    "RV Image - {} - {}x{} - (x, y) -> (r, g, b){}",
+                    file_label, shape.w, shape.h, tool_string
+                ),
+            };
+        }
+
+        let mut image = ImageBuffer::<Rgb<u8>, Vec<u8>>::new(400, 400);
+        image.fill(255);
+        UpdateView {
+            image: UpdateImage::Yes(image),
+            annos: UpdateAnnos::No,
+            zoom_box: UpdateZoomBox::No,
+        }
+    }
+}

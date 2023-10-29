@@ -9,171 +9,10 @@ use crate::{
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
 };
-use egui::{ClippedPrimitive, Context, Id, Pos2, Response, TexturesDelta, Ui};
-use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
-use pixels::{wgpu, PixelsContext};
+use egui::{Context, Id, Pos2, Response, Ui};
 use std::mem;
-use winit::{event_loop::EventLoopWindowTarget, window::Window};
 
 use super::tools_menus::bbox_menu;
-
-/// Manages all state required for rendering egui over `Pixels`.
-pub struct Framework {
-    // State for egui.
-    egui_ctx: Context,
-    egui_state: egui_winit::State,
-    screen_descriptor: ScreenDescriptor,
-    renderer: Renderer,
-    paint_jobs: Vec<ClippedPrimitive>,
-    textures: TexturesDelta,
-    // State for the GUI
-    menu: Menu,
-    tool_selection_menu: ToolSelectMenu,
-}
-
-impl Framework {
-    /// Create egui.
-    pub fn new<T>(
-        event_loop: &EventLoopWindowTarget<T>,
-        width: u32,
-        height: u32,
-        scale_factor: f32,
-        pixels: &pixels::Pixels,
-    ) -> Self {
-        let egui_ctx = Context::default();
-        let max_texture_size = pixels.device().limits().max_texture_dimension_2d as usize;
-        let mut egui_state = egui_winit::State::new(event_loop);
-        egui_state.set_max_texture_side(max_texture_size);
-        egui_state.set_pixels_per_point(scale_factor);
-        let screen_descriptor = ScreenDescriptor {
-            size_in_pixels: [width, height],
-            pixels_per_point: scale_factor,
-        };
-        let renderer = Renderer::new(pixels.device(), pixels.render_texture_format(), None, 1);
-        let menu = Menu::new();
-        let tools_menu = ToolSelectMenu::new();
-        let textures = TexturesDelta::default();
-        Self {
-            egui_ctx,
-            egui_state,
-            screen_descriptor,
-            renderer,
-            paint_jobs: Vec::new(),
-            textures,
-            menu,
-            tool_selection_menu: tools_menu,
-        }
-    }
-
-    /// Handle input events from the window manager.
-    pub fn handle_event(&mut self, event: &egui_winit::winit::event::WindowEvent) {
-        let _ = self.egui_state.on_event(&self.egui_ctx, event);
-    }
-
-    /// Resize egui.
-    pub fn resize(&mut self, width: u32, height: u32) {
-        if width > 0 && height > 0 {
-            self.screen_descriptor.size_in_pixels = [width, height];
-        }
-    }
-
-    /// Update scaling factor.
-    pub fn scale_factor(&mut self, scale_factor: f64) {
-        self.screen_descriptor.pixels_per_point = scale_factor as f32;
-    }
-
-    /// Prepare egui.
-    pub fn prepare(
-        &mut self,
-        window: &Window,
-        tools: &mut [ToolState],
-        tools_data_map: &mut ToolsDataMap,
-        ctrl: &mut Control,
-    ) {
-        // Run the egui frame and create all paint jobs to prepare for rendering.
-        let raw_input = self.egui_state.take_egui_input(window);
-        let output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            // Draw menus.
-            self.menu.ui(egui_ctx, ctrl, tools_data_map);
-            match self.tool_selection_menu.ui(egui_ctx, tools, tools_data_map) {
-                Ok(_) => (),
-                Err(e) => {
-                    self.menu.show_info(Info::Error(format!("{e:?}")));
-                }
-            }
-        });
-        self.textures.append(output.textures_delta);
-        self.egui_state
-            .handle_platform_output(window, &self.egui_ctx, output.platform_output);
-        self.paint_jobs = self.egui_ctx.tessellate(output.shapes);
-    }
-
-    /// Render egui.
-    pub fn render(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        render_target: &wgpu::TextureView,
-        context: &PixelsContext,
-    ) {
-        // Upload all resources to the GPU.
-        for (id, image_delta) in &self.textures.set {
-            self.renderer
-                .update_texture(&context.device, &context.queue, *id, image_delta);
-        }
-
-        self.renderer.update_buffers(
-            &context.device,
-            &context.queue,
-            encoder,
-            &self.paint_jobs,
-            &self.screen_descriptor,
-        );
-        // Render egui with WGPU
-        {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("egui"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: render_target,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-
-            self.renderer
-                .render(&mut rpass, &self.paint_jobs, &self.screen_descriptor);
-        }
-
-        // Cleanup
-        let textures = std::mem::take(&mut self.textures);
-        for id in &textures.free {
-            self.renderer.free_texture(id);
-        }
-    }
-
-    pub fn menu(&self) -> &Menu {
-        &self.menu
-    }
-
-    pub fn menu_mut(&mut self) -> &mut Menu {
-        &mut self.menu
-    }
-
-    pub fn are_tools_active(&self) -> bool {
-        self.menu.are_tools_active && self.tool_selection_menu.are_tools_active
-    }
-
-    pub fn recently_activated_tool(&self) -> Option<usize> {
-        self.tool_selection_menu.recently_activated_tool
-    }
-
-    pub fn toggle_tools_menu(&mut self) {
-        self.tool_selection_menu.toggle();
-    }
-}
 
 fn show_popup(
     ui: &mut Ui,
@@ -241,7 +80,9 @@ impl ToolSelectMenu {
             recently_activated_tool: None,
         }
     }
-
+    pub fn recently_activated_tool(&self) -> Option<usize> {
+        self.recently_activated_tool
+    }
     fn ui(
         &mut self,
         ctx: &Context,
@@ -284,6 +125,11 @@ impl ToolSelectMenu {
         } else {
             self.window_open = true;
         }
+    }
+}
+impl Default for ToolSelectMenu {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -534,4 +380,14 @@ impl Menu {
             self.are_tools_active = !wr.response.rect.expand(5.0).contains(pos);
         }
     }
+}
+
+impl Default for Menu {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub fn are_tools_active(menu: &Menu, tsm: &ToolSelectMenu) -> bool {
+    menu.are_tools_active && tsm.are_tools_active
 }
