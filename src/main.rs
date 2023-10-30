@@ -57,6 +57,19 @@ fn draw_bbs(ui: &mut Ui, bbs: &[rvlib::BB], stroke: rvlib::Stroke, fill_rgb: [u8
     ui.painter().add(Shape::Vec(shapes));
 }
 
+fn map_events(egui_events: &[egui::Event]) -> rvlib::Events {
+    
+    println!("egui events {egui_events:?}");
+    // let key_code = match egui_events {
+    //     Event::Key { key, pressed, repeat, modifiers } => {
+    //         Key::A
+    //     },
+    //     _ => (),
+
+    // };
+    rvlib::Events::default()
+}
+
 impl eframe::App for RvImageApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {

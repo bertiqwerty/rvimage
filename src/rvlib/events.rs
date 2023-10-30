@@ -3,10 +3,10 @@ use crate::domain::Point;
 macro_rules! action_keycode {
     ($name:ident, $action:ident, $key_code:ident) => {
         pub fn $name(&self) -> bool {
-            self.actions
+            self.events
                 .iter()
                 .find(|a| match a {
-                    Action::$action(k) => match k {
+                    Event::$action(k) => match k {
                         KeyCode::$key_code => true,
                         _ => false,
                     },
@@ -20,10 +20,10 @@ macro_rules! action_keycode {
 macro_rules! action {
     ($name:ident, $action:ident) => {
         pub fn $name(&self, key_code: KeyCode) -> bool {
-            self.actions
+            self.events
                 .iter()
                 .find(|a| match a {
-                    Action::$action(k) => k == &key_code,
+                    Event::$action(k) => k == &key_code,
                     _ => false,
                 })
                 .is_some()
@@ -33,7 +33,7 @@ macro_rules! action {
 
 #[derive(Debug, Clone, Default)]
 pub struct Events {
-    pub actions: Vec<Action>,
+    events: Vec<Event>,
     pub mouse_pos: Option<Point>,
 }
 
@@ -91,8 +91,9 @@ pub enum KeyCode {
 }
 
 #[derive(Debug, Clone)]
-pub enum Action {
+pub enum Event {
     Pressed(KeyCode),
     Released(KeyCode),
     Held(KeyCode),
+    MouseWheel(i64)
 }
