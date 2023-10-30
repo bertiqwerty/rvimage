@@ -47,13 +47,17 @@ where
 }
 
 fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
-    image_util::apply_to_matched_image(
-        im,
-        |im| pos_2_string_gen(im, x, y),
-        |im| pos_2_string_gen(im, x, y),
-        |im| pos_2_string_gen(im, x, y),
-        |im| pos_2_string_gen(im, x, y),
-    )
+    if x < im.width() && y < im.height() {
+        image_util::apply_to_matched_image(
+            im,
+            |im| pos_2_string_gen(im, x, y),
+            |im| pos_2_string_gen(im, x, y),
+            |im| pos_2_string_gen(im, x, y),
+            |im| pos_2_string_gen(im, x, y),
+        )
+    } else {
+        "".to_string()
+    } 
 }
 
 fn get_pixel_on_orig_str(world: &World, mouse_pos: &Option<Point>) -> Option<String> {
@@ -311,15 +315,16 @@ impl MainEventLoop {
             let s = match data_point {
                 Some(s) => {
                     format!(
-                        "RV Image - {} - {}x{} - {}{}",
+                        "{} - {}x{} - {}{}",
                         file_label, shape.w, shape.h, s, tool_string
                     )
                 }
                 None => format!(
-                    "RV Image - {} - {}x{} - (x, y) -> (r, g, b){}",
+                    "{} - {}x{} - (x, y) -> (r, g, b){}",
                     file_label, shape.w, shape.h, tool_string
                 ),
             };
+            self.world.update_view.image_info = s;
         }
 
         self.loop_counter += 1;

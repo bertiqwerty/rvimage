@@ -157,6 +157,7 @@ impl World {
                 image: UpdateImage::Yes(im),
                 annos: UpdateAnnos::No,
                 zoom_box: UpdateZoomBox::Yes(zoom_box),
+                image_info: "".to_string()
             },
         }
     }

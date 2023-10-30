@@ -38,6 +38,14 @@ pub struct Events {
 }
 
 impl Events {
+    pub fn mousepos(mut self, mouse_pos: Option<Point>) -> Self {
+        self.mouse_pos = mouse_pos;
+        self
+    }
+    pub fn events(mut self, events: Vec<Event>) -> Self {
+        self.events = events;
+        self
+    }
     action_keycode!(held_alt, Held, Alt);
     action_keycode!(held_shift, Held, Shift);
     action_keycode!(held_ctrl, Held, Ctrl);

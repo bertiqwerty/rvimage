@@ -2,20 +2,22 @@
 #![forbid(unsafe_code)]
 
 use egui::{
-    epaint::RectShape, Color32, ColorImage, Context, Event, Image, Pos2, Rect, Rounding, Shape,
+    epaint::RectShape, Color32, ColorImage, Context, Image, Pos2, Rect, Rounding, Sense, Shape,
     Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use rvlib::{MainEventLoop, UpdateImage};
+use rvlib::{domain::Point, Events, MainEventLoop, UpdateImage};
+use std::mem;
 
 #[derive(Default)]
 struct RvImageApp {
     event_loop: MainEventLoop,
     texture: Option<TextureHandle>,
     size: [usize; 2],
+    events: Events,
 }
 
 impl RvImageApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
@@ -57,27 +59,11 @@ fn draw_bbs(ui: &mut Ui, bbs: &[rvlib::BB], stroke: rvlib::Stroke, fill_rgb: [u8
     ui.painter().add(Shape::Vec(shapes));
 }
 
-fn map_events(egui_events: &[egui::Event]) -> rvlib::Events {
-    
-    println!("egui events {egui_events:?}");
-    // let key_code = match egui_events {
-    //     Event::Key { key, pressed, repeat, modifiers } => {
-    //         Key::A
-    //     },
-    //     _ => (),
-
-    // };
-    rvlib::Events::default()
-}
-
 impl eframe::App for RvImageApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Hello World!");
-            if let Ok(update_view) = self
-                .event_loop
-                .one_iteration(&rvlib::Events::default(), ctx)
-            {
+            if let Ok(update_view) = self.event_loop.one_iteration(&self.events, ctx) {
+                ui.label(update_view.image_info);
                 if let UpdateImage::Yes(im) = update_view.image {
                     let color_image = ColorImage::from_rgb(
                         [im.width() as usize, im.height() as usize],
@@ -86,10 +72,24 @@ impl eframe::App for RvImageApp {
                     self.size = color_image.size;
                     self.texture = Some(clrim_2_handle(color_image, ctx));
                 }
-            }
-            if let Some(texture) = self.texture.as_ref() {
-                let ui_image = handle_2_image(texture, &ctx, self.size).shrink_to_fit();
-                ui.add(ui_image);
+
+                if let Some(texture) = self.texture.as_ref() {
+                    let ui_image = handle_2_image(texture, &ctx, self.size)
+                        .shrink_to_fit()
+                        .sense(Sense::hover())
+                        .sense(Sense::click_and_drag());
+
+                    let image_response = ui.add(ui_image);
+                    let size = image_response.rect.size();
+                    let offset_x = image_response.rect.min.x;
+                    let offset_y = image_response.rect.min.y;
+                    let mouse_pos = image_response.hover_pos();
+                    let mouse_pos = mouse_pos.map(|mp| Point {
+                        x: ((mp.x - offset_x) / size.x * self.size[0] as f32) as u32,
+                        y: ((mp.y -offset_y) / size.y * self.size[1] as f32) as u32,
+                    });
+                    self.events = mem::take(&mut self.events).mousepos(mouse_pos);
+                }
             }
         });
     }
