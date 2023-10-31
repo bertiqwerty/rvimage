@@ -9,7 +9,7 @@ use crate::{
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
 };
-use egui::{Context, Id, Pos2, Response, Ui};
+use egui::{Context, Id, Response, Ui};
 use std::mem;
 
 use super::tools_menus::bbox_menu;
@@ -20,11 +20,11 @@ fn show_popup(
     icon: &str,
     popup_id: Id,
     info_message: Info,
-    below_respone: &Response,
+    response: &Response,
 ) -> Info {
     ui.memory_mut(|m| m.open_popup(popup_id));
     let mut new_msg = Info::None;
-    egui::popup_below_widget(ui, popup_id, below_respone, |ui| {
+    egui::popup_above_or_below_widget(ui, popup_id, response, egui::AboveOrBelow::Above, |ui| {
         let max_msg_len = 500;
         let shortened_msg = if msg.len() > max_msg_len {
             &msg[..max_msg_len]
@@ -85,35 +85,24 @@ impl ToolSelectMenu {
     }
     pub fn ui(
         &mut self,
-        ctx: &Context,
+        ui: &mut Ui,
         tools: &mut [ToolState],
         tools_menu_map: &mut ToolsDataMap,
     ) -> RvResult<()> {
-        let window_response = egui::Window::new("tools")
-            .vscroll(true)
-            .title_bar(false)
-            .open(&mut self.window_open)
-            .default_pos(Pos2 { x: 500.0, y: 15.0 })
-            .show(ctx, |ui| -> RvResult<()> {
-                ui.horizontal_top(|ui| {
-                    self.recently_activated_tool = tools
-                        .iter_mut()
-                        .enumerate()
-                        .filter(|(_, t)| !t.is_always_active())
-                        .find(|(_, t)| ui.selectable_label(t.is_active(), t.button_label).clicked())
-                        .map(|(i, _)| i);
-                });
-                for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
-                    let tmp = match &mut v.specifics {
-                        ToolSpecifics::Bbox(x) => bbox_menu(ui, v.menu_active, mem::take(x)),
-                        ToolSpecifics::Brush(_) => Ok(mem::take(v)),
-                    };
-                    *v = tmp?;
-                }
-                Ok(())
-            });
-        if let (Some(wr), Some(pos)) = (window_response, ctx.pointer_latest_pos()) {
-            self.are_tools_active = !wr.response.rect.expand(5.0).contains(pos);
+        ui.horizontal_top(|ui| {
+            self.recently_activated_tool = tools
+                .iter_mut()
+                .enumerate()
+                .filter(|(_, t)| !t.is_always_active())
+                .find(|(_, t)| ui.selectable_label(t.is_active(), t.button_label).clicked())
+                .map(|(i, _)| i);
+        });
+        for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
+            let tmp = match &mut v.specifics {
+                ToolSpecifics::Bbox(x) => bbox_menu(ui, v.menu_active, mem::take(x)),
+                ToolSpecifics::Brush(_) => Ok(mem::take(v)),
+            };
+            *v = tmp?;
         }
         Ok(())
     }
@@ -201,184 +190,183 @@ impl Menu {
 
     /// Create the UI using egui.
     pub fn ui(&mut self, ctx: &Context, ctrl: &mut Control, tools_data_map: &mut ToolsDataMap) {
-        let window_response = egui::Window::new("menu")
-            .vscroll(true)
-            .title_bar(false)
-            .open(&mut self.window_open)
-            .show(ctx, |ui| {
-                // Popup for error messages
-                let popup_id = ui.make_persistent_id("info-popup");
-                let r = ui.separator();
-                self.info_message = match &self.info_message {
-                    Info::Warning(msg) => {
-                        show_popup(ui, msg, "❕", popup_id, self.info_message.clone(), &r)
-                    }
-                    Info::Error(msg) => {
-                        show_popup(ui, msg, "❌", popup_id, self.info_message.clone(), &r)
-                    }
-                    Info::None => Info::None,
-                };
-
-                // Top row with open folder and settings button
-                ui.horizontal(|ui| {
-                    let button_resp = open_folder::button(ui, ctrl, self.open_folder_popup_open);
-                    handle_error!(
-                        |open| {
-                            self.open_folder_popup_open = open;
-                        },
-                        button_resp,
-                        self
-                    );
-                    let popup_id = ui.make_persistent_id("cfg-popup");
-                    self.load_button_resp.resp = Some(ui.button("load project"));
-
-                    if ui.button("save project").clicked() {
-                        handle_error!(ctrl.save(tools_data_map), self);
-                    }
-
-                    let cfg_gui =
-                        CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.editable_ssh_cfg_str);
-                    ui.add(cfg_gui);
-                });
-
-                if let Ok(folder) = ctrl.cfg.export_folder() {
-                    if let Some(load_btn_resp) = &self.load_button_resp.resp {
-                        if load_btn_resp.clicked() {
-                            self.load_button_resp.popup_open = true;
-                        }
-                        if self.load_button_resp.popup_open {
-                            let mut filename_for_import = None;
-                            let mut exports = || -> RvResult<()> {
-                                let files =
-                                    file_util::files_in_folder(folder, RVPRJ_PREFIX, "json")
-                                        .map_err(to_rv)?
-                                        .filter_map(|p| {
-                                            p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
-                                        })
-                                        .flatten()
-                                        .collect::<Vec<_>>();
-                                if !files.is_empty() {
-                                    filename_for_import = picklist::pick(
-                                        ui,
-                                        files.iter().map(|s| s.as_str()),
-                                        200.0,
-                                        load_btn_resp,
-                                    )
-                                    .map(|s| s.to_string());
-                                } else {
-                                    println!("no projects found that can be loaded")
-                                }
-                                Ok(())
-                            };
-                            handle_error!(exports(), self);
-                            if let Some(filename) = filename_for_import {
-                                handle_error!(
-                                    |tdm| {
-                                        *tools_data_map = tdm;
-                                    },
-                                    ctrl.load(&filename),
-                                    self
-                                );
-                                self.load_button_resp.resp = None;
-                                self.load_button_resp.popup_open = false;
-                            }
-                        }
-                    }
-                }
-                let mut connected = false;
+        egui::TopBottomPanel::top("top-menu-bar").show(ctx, |ui| {
+            // Top row with open folder and settings button
+            egui::menu::bar(ui, |ui| {
+                let button_resp = open_folder::button(ui, ctrl, self.open_folder_popup_open);
                 handle_error!(
-                    |con| {
-                        connected = con;
+                    |open| {
+                        self.open_folder_popup_open = open;
                     },
-                    ctrl.check_if_connected(),
+                    button_resp,
                     self
                 );
-                if connected {
-                    ui.label(ctrl.opened_folder_label().unwrap_or(""));
-                } else {
-                    ui.label("connecting...");
+                let popup_id = ui.make_persistent_id("cfg-popup");
+                self.load_button_resp.resp = Some(ui.button("load project"));
+
+                if ui.button("save project").clicked() {
+                    handle_error!(ctrl.save(tools_data_map), self);
                 }
 
-                let filter_txt_field = ui.text_edit_singleline(&mut self.filter_string);
-                if filter_txt_field.gained_focus() {
-                    self.are_tools_active = false;
-                }
-                if filter_txt_field.lost_focus() {
-                    self.are_tools_active = true;
-                }
-                if filter_txt_field.changed() {
-                    handle_error!(
-                        ctrl.paths_navigator
-                            .filter(&self.filter_string, tools_data_map),
-                        self
-                    );
-                }
-
-                // scroll area showing image file names
-                let scroll_to_selected = ctrl.paths_navigator.scroll_to_selected_label();
-                let mut filtered_label_selected_idx =
-                    ctrl.paths_navigator.file_label_selected_idx();
-                if let Some(ps) = &ctrl.paths_navigator.paths_selector() {
-                    self.scroll_offset = menu::scroll_area::scroll_area(
-                        ui,
-                        &mut filtered_label_selected_idx,
-                        ps,
-                        ctrl.file_info_selected.as_deref(),
-                        scroll_to_selected,
-                        self.scroll_offset,
-                    );
-                    ctrl.paths_navigator.deactivate_scroll_to_selected_label();
-                    if ctrl.paths_navigator.file_label_selected_idx() != filtered_label_selected_idx
-                    {
-                        ctrl.paths_navigator
-                            .select_label_idx(filtered_label_selected_idx);
-                    }
-                }
-
-                ui.separator();
-                if let Some(info) = &self.stats.n_files_filtered_info {
-                    ui.label(info);
-                }
-                if let Some(info) = &self.stats.n_files_annotated_info {
-                    ui.label(info);
-                }
-                let get_file_info = |ps: &PathsSelector| {
-                    let n_files_filtered = ps.filtered_idx_file_label_pairs().len();
-                    Some(format!("{n_files_filtered} files"))
-                };
-                let get_annotation_info = |ps: &PathsSelector| {
-                    if let Some(bbox_data) = tools_data_map.get(BBOX_NAME) {
-                        let n_files_annotated = bbox_data
-                            .specifics
-                            .bbox()
-                            .n_annotated_images(&ps.filtered_file_paths());
-                        Some(format!("{n_files_annotated} files with bbox annotations"))
-                    } else {
-                        None
-                    }
-                };
-                if let Some(ps) = ctrl.paths_navigator.paths_selector() {
-                    if self.stats.n_files_filtered_info.is_none() {
-                        self.stats.n_files_filtered_info = get_file_info(ps);
-                    }
-                    if self.stats.n_files_annotated_info.is_none() {
-                        self.stats.n_files_annotated_info = get_annotation_info(ps);
-                    }
-                    if ui.button("re-compute stats").clicked() {
-                        self.stats.n_files_filtered_info = get_file_info(ps);
-                        self.stats.n_files_annotated_info = get_annotation_info(ps);
-                    }
-                } else {
-                    self.stats.n_files_filtered_info = None;
-                    self.stats.n_files_annotated_info = None;
-                }
-
-                ui.separator();
-                ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
+                let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.editable_ssh_cfg_str);
+                ui.add(cfg_gui);
             });
-        if let (Some(wr), Some(pos)) = (window_response, ctx.pointer_latest_pos()) {
-            self.are_tools_active = !wr.response.rect.expand(5.0).contains(pos);
-        }
+        });
+
+        egui::SidePanel::left("left-main-menu").show(ctx, |ui| {
+            if let Ok(folder) = ctrl.cfg.export_folder() {
+                if let Some(load_btn_resp) = &self.load_button_resp.resp {
+                    if load_btn_resp.clicked() {
+                        self.load_button_resp.popup_open = true;
+                    }
+                    if self.load_button_resp.popup_open {
+                        let mut filename_for_import = None;
+                        let mut exports = || -> RvResult<()> {
+                            let files = file_util::files_in_folder(folder, RVPRJ_PREFIX, "json")
+                                .map_err(to_rv)?
+                                .filter_map(|p| {
+                                    p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
+                                })
+                                .flatten()
+                                .collect::<Vec<_>>();
+                            if !files.is_empty() {
+                                filename_for_import = picklist::pick(
+                                    ui,
+                                    files.iter().map(|s| s.as_str()),
+                                    200.0,
+                                    load_btn_resp,
+                                )
+                                .map(|s| s.to_string());
+                            } else {
+                                println!("no projects found that can be loaded")
+                            }
+                            Ok(())
+                        };
+                        handle_error!(exports(), self);
+                        if let Some(filename) = filename_for_import {
+                            handle_error!(
+                                |tdm| {
+                                    *tools_data_map = tdm;
+                                },
+                                ctrl.load(&filename),
+                                self
+                            );
+                            self.load_button_resp.resp = None;
+                            self.load_button_resp.popup_open = false;
+                        }
+                    }
+                }
+            }
+            let mut connected = false;
+            handle_error!(
+                |con| {
+                    connected = con;
+                },
+                ctrl.check_if_connected(),
+                self
+            );
+            if connected {
+                ui.label(ctrl.opened_folder_label().unwrap_or(""));
+            } else {
+                ui.label("connecting...");
+            }
+
+            let filter_txt_field = ui.text_edit_singleline(&mut self.filter_string);
+            if filter_txt_field.gained_focus() {
+                self.are_tools_active = false;
+            }
+            if filter_txt_field.lost_focus() {
+                self.are_tools_active = true;
+            }
+            if filter_txt_field.changed() {
+                handle_error!(
+                    ctrl.paths_navigator
+                        .filter(&self.filter_string, tools_data_map),
+                    self
+                );
+            }
+            // Popup for error messages
+            let popup_id = ui.make_persistent_id("info-popup");
+            self.info_message = match &self.info_message {
+                Info::Warning(msg) => show_popup(
+                    ui,
+                    msg,
+                    "❕",
+                    popup_id,
+                    self.info_message.clone(),
+                    &filter_txt_field,
+                ),
+                Info::Error(msg) => show_popup(
+                    ui,
+                    msg,
+                    "❌",
+                    popup_id,
+                    self.info_message.clone(),
+                    &filter_txt_field,
+                ),
+                Info::None => Info::None,
+            };
+
+            // scroll area showing image file names
+            let scroll_to_selected = ctrl.paths_navigator.scroll_to_selected_label();
+            let mut filtered_label_selected_idx = ctrl.paths_navigator.file_label_selected_idx();
+            if let Some(ps) = &ctrl.paths_navigator.paths_selector() {
+                self.scroll_offset = menu::scroll_area::scroll_area(
+                    ui,
+                    &mut filtered_label_selected_idx,
+                    ps,
+                    ctrl.file_info_selected.as_deref(),
+                    scroll_to_selected,
+                    self.scroll_offset,
+                );
+                ctrl.paths_navigator.deactivate_scroll_to_selected_label();
+                if ctrl.paths_navigator.file_label_selected_idx() != filtered_label_selected_idx {
+                    ctrl.paths_navigator
+                        .select_label_idx(filtered_label_selected_idx);
+                }
+            }
+
+            ui.separator();
+            if let Some(info) = &self.stats.n_files_filtered_info {
+                ui.label(info);
+            }
+            if let Some(info) = &self.stats.n_files_annotated_info {
+                ui.label(info);
+            }
+            let get_file_info = |ps: &PathsSelector| {
+                let n_files_filtered = ps.filtered_idx_file_label_pairs().len();
+                Some(format!("{n_files_filtered} files"))
+            };
+            let get_annotation_info = |ps: &PathsSelector| {
+                if let Some(bbox_data) = tools_data_map.get(BBOX_NAME) {
+                    let n_files_annotated = bbox_data
+                        .specifics
+                        .bbox()
+                        .n_annotated_images(&ps.filtered_file_paths());
+                    Some(format!("{n_files_annotated} files with bbox annotations"))
+                } else {
+                    None
+                }
+            };
+            if let Some(ps) = ctrl.paths_navigator.paths_selector() {
+                if self.stats.n_files_filtered_info.is_none() {
+                    self.stats.n_files_filtered_info = get_file_info(ps);
+                }
+                if self.stats.n_files_annotated_info.is_none() {
+                    self.stats.n_files_annotated_info = get_annotation_info(ps);
+                }
+                if ui.button("re-compute stats").clicked() {
+                    self.stats.n_files_filtered_info = get_file_info(ps);
+                    self.stats.n_files_annotated_info = get_annotation_info(ps);
+                }
+            } else {
+                self.stats.n_files_filtered_info = None;
+                self.stats.n_files_annotated_info = None;
+            }
+
+            ui.separator();
+            ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
+        });
     }
 }
 

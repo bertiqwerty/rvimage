@@ -5,8 +5,49 @@ use egui::{
     epaint::RectShape, Color32, ColorImage, Context, Image, Pos2, Rect, Rounding, Sense, Shape,
     Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use rvlib::{domain::Point, Events, MainEventLoop, UpdateImage};
+use rvlib::{domain::Point, Events, KeyCode, MainEventLoop, UpdateImage};
 use std::mem;
+
+fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
+    match egui_key {
+        egui::Key::A => Some(rvlib::KeyCode::A),
+        egui::Key::B => Some(rvlib::KeyCode::B),
+        egui::Key::C => Some(rvlib::KeyCode::C),
+        egui::Key::D => Some(rvlib::KeyCode::D),
+        egui::Key::L => Some(rvlib::KeyCode::L),
+        egui::Key::H => Some(rvlib::KeyCode::H),
+        egui::Key::M => Some(rvlib::KeyCode::M),
+        egui::Key::Q => Some(rvlib::KeyCode::Q),
+        egui::Key::R => Some(rvlib::KeyCode::R),
+        egui::Key::T => Some(rvlib::KeyCode::T),
+        egui::Key::V => Some(rvlib::KeyCode::V),
+        egui::Key::Y => Some(rvlib::KeyCode::Y),
+        egui::Key::Z => Some(rvlib::KeyCode::Z),
+        egui::Key::Num0 => Some(rvlib::KeyCode::Key0),
+        egui::Key::Num1 => Some(rvlib::KeyCode::Key1),
+        egui::Key::Num2 => Some(rvlib::KeyCode::Key2),
+        egui::Key::Num3 => Some(rvlib::KeyCode::Key3),
+        egui::Key::Num4 => Some(rvlib::KeyCode::Key4),
+        egui::Key::Num5 => Some(rvlib::KeyCode::Key5),
+        egui::Key::Num6 => Some(rvlib::KeyCode::Key6),
+        egui::Key::Num7 => Some(rvlib::KeyCode::Key7),
+        egui::Key::Num8 => Some(rvlib::KeyCode::Key8),
+        egui::Key::Num9 => Some(rvlib::KeyCode::Key9),
+        egui::Key::PlusEquals => Some(rvlib::KeyCode::Equals),
+        egui::Key::Minus => Some(rvlib::KeyCode::Minus),
+        egui::Key::Delete => Some(rvlib::KeyCode::Delete),
+        egui::Key::Backspace => Some(rvlib::KeyCode::Back),
+        egui::Key::ArrowLeft => Some(rvlib::KeyCode::Left),
+        egui::Key::ArrowRight => Some(rvlib::KeyCode::Right),
+        egui::Key::ArrowUp => Some(rvlib::KeyCode::Up),
+        egui::Key::ArrowDown => Some(rvlib::KeyCode::Down),
+        egui::Key::F5 => Some(rvlib::KeyCode::F5),
+        egui::Key::PageDown => Some(rvlib::KeyCode::PageDown),
+        egui::Key::PageUp => Some(rvlib::KeyCode::PageUp),
+        egui::Key::Escape => Some(rvlib::KeyCode::Escape),
+        _ => None,
+    }
+}
 
 #[derive(Default)]
 struct RvImageApp {
@@ -61,8 +102,36 @@ fn draw_bbs(ui: &mut Ui, bbs: &[rvlib::BB], stroke: rvlib::Stroke, fill_rgb: [u8
 
 impl eframe::App for RvImageApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let update_view = self.event_loop.one_iteration(&self.events, ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
-            if let Ok(update_view) = self.event_loop.one_iteration(&self.events, ctx) {
+            ui.input(|i| {
+                self.events.set_events(
+                    i.events
+                        .iter()
+                        .flat_map(move |e| match e {
+                            egui::Event::Key {
+                                key,
+                                pressed,
+                                repeat,
+                                modifiers,
+                            } => {
+                                if let Some(k) = map_key(*key) {
+                                    if !pressed {
+                                        Some(rvlib::Event::Released(k))
+                                    } else {
+                                        Some(rvlib::Event::Pressed(k))
+                                    }
+                                    
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>(),
+                );
+            });
+            if let Ok(update_view) = update_view {
                 ui.label(update_view.image_info);
                 if let UpdateImage::Yes(im) = update_view.image {
                     let color_image = ColorImage::from_rgb(
@@ -86,8 +155,17 @@ impl eframe::App for RvImageApp {
                     let mouse_pos = image_response.hover_pos();
                     let mouse_pos = mouse_pos.map(|mp| Point {
                         x: ((mp.x - offset_x) / size.x * self.size[0] as f32) as u32,
-                        y: ((mp.y -offset_y) / size.y * self.size[1] as f32) as u32,
+                        y: ((mp.y - offset_y) / size.y * self.size[1] as f32) as u32,
                     });
+                    if image_response.clicked() {
+                        self.events.released(KeyCode::MouseLeft);
+                    }
+                    if image_response.drag_released() {
+                        self.events.released(KeyCode::MouseLeft);
+                    }
+                    if image_response.drag_started() {
+                        self.events.pressed(KeyCode::MouseLeft);
+                    }
                     self.events = mem::take(&mut self.events).mousepos(mouse_pos);
                 }
             }

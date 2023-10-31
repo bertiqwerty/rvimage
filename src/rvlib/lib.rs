@@ -22,6 +22,6 @@ mod util;
 pub mod world;
 pub use domain::BB;
 pub use drawme::{Stroke, UpdateAnnos, UpdateImage, UpdateView, UpdateZoomBox};
-pub use events::Events;
+pub use events::{Events, KeyCode, Event};
 pub use main_loop::MainEventLoop;
 pub use tools_data::annotations;

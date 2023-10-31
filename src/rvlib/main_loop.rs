@@ -12,7 +12,7 @@ use crate::result::RvResult;
 use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
 use crate::world::World;
 use crate::{apply_tool_method_mut, httpserver, image_util, UpdateView};
-use egui::Context;
+use egui::{Context, Ui};
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
@@ -57,7 +57,7 @@ fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
         )
     } else {
         "".to_string()
-    } 
+    }
 }
 
 fn get_pixel_on_orig_str(world: &World, mouse_pos: &Option<Point>) -> Option<String> {
@@ -157,9 +157,19 @@ impl Default for MainEventLoop {
 impl MainEventLoop {
     pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
         self.menu
-            .ui(&ctx, &mut self.ctrl, &mut self.world.data.tools_data_map);
-        self.tools_select_menu
-            .ui(&ctx, &mut self.tools, &mut self.world.data.tools_data_map)?;
+            .ui(ctx, &mut self.ctrl, &mut self.world.data.tools_data_map);
+        egui::SidePanel::right("my_panel")
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    self.tools_select_menu.ui(
+                        ui,
+                        &mut self.tools,
+                        &mut self.world.data.tools_data_map,
+                    )
+                })
+                .inner
+            })
+            .inner?;
 
         // update world based on tools
         if self.recently_activated_tool_idx.is_none() {
