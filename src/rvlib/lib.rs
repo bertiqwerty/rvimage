@@ -20,7 +20,7 @@ pub mod tools_data;
 mod types;
 mod util;
 pub mod world;
-pub use domain::{Polygon, BB};
+pub use domain::{Polygon, Shape, BB};
 pub use drawme::{Annotation, GeoFig, Stroke, UpdateAnnos, UpdateImage, UpdateView, UpdateZoomBox};
 pub use events::{Event, Events, KeyCode};
 pub use main_loop::MainEventLoop;

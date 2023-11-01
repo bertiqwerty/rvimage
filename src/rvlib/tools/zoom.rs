@@ -87,6 +87,7 @@ impl Zoom {
         world: World,
         history: History,
     ) -> (World, History) {
+        println!("mouse pressed");
         if events.pressed(KeyCode::MouseRight) {
             self.mover.move_mouse_pressed(events.mouse_pos);
         } else if let Some(mp) = events.mouse_pos {
@@ -139,7 +140,7 @@ impl Zoom {
                 let white = [255, 255, 255];
                 let anno = Annotation {
                     geofig: GeoFig::BB(bb),
-                    fill_color: white,
+                    fill_color: None,
                     outline: Stroke::from_color(white),
                     label: None,
                     is_selected: None,
@@ -158,6 +159,7 @@ impl Zoom {
         mut world: World,
         history: History,
     ) -> (World, History) {
+        println!("set zb to None");
         world.set_zoom_box(None);
         (world, history)
     }
@@ -170,12 +172,12 @@ impl Manipulate for Zoom {
             mover: Mover::new(),
         }
     }
-    fn events_tf(&mut self, world: World, history: History, event: &Events) -> (World, History) {
+    fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History) {
         make_tool_transform!(
             self,
             world,
             history,
-            event,
+            events,
             [
                 (pressed, KeyCode::MouseLeft, mouse_pressed),
                 (pressed, KeyCode::MouseRight, mouse_pressed),
@@ -194,13 +196,6 @@ use {
     image::DynamicImage,
     std::collections::HashMap,
 };
-#[cfg(test)]
-fn make_shape_win(shape_orig: Shape, zoom_box: Option<BB>) -> Shape {
-    match zoom_box {
-        None => shape_orig,
-        Some(zb) => zb.shape(),
-    }
-}
 #[cfg(test)]
 fn mk_z(x: u32, y: u32, w: u32, h: u32) -> Option<BB> {
     Some(BB { x, y, w, h })

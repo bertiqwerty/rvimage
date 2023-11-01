@@ -366,7 +366,7 @@ impl Manipulate for BBox {
             let anno = Annotation {
                 geofig: GeoFig::BB(BB::from_points(mp.into(), pp.into())),
                 label,
-                fill_color: color,
+                fill_color: Some(color),
                 outline: Stroke::from_color(color),
                 is_selected: None,
             };

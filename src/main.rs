@@ -5,10 +5,13 @@ use egui::{
     epaint::RectShape, Color32, ColorImage, Context, Image, Pos2, Rect, Response, Rounding, Sense,
     Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
+use image::{GenericImageView, ImageBuffer, Rgb};
 use rvlib::{
-    domain::Point, Annotation, Events, GeoFig, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage,
+    domain::view_pos_to_orig_pos, Annotation, GeoFig, KeyCode, MainEventLoop, UpdateAnnos,
+    UpdateImage, UpdateZoomBox, BB,
 };
-use std::mem;
+
+type ImageU8 = ImageBuffer<Rgb<u8>, Vec<u8>>;
 
 fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
     match egui_key {
@@ -35,7 +38,7 @@ fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
         egui::Key::Num7 => Some(rvlib::KeyCode::Key7),
         egui::Key::Num8 => Some(rvlib::KeyCode::Key8),
         egui::Key::Num9 => Some(rvlib::KeyCode::Key9),
-        egui::Key::PlusEquals => Some(rvlib::KeyCode::Equals),
+        egui::Key::PlusEquals => Some(rvlib::KeyCode::PlusEquals),
         egui::Key::Minus => Some(rvlib::KeyCode::Minus),
         egui::Key::Delete => Some(rvlib::KeyCode::Delete),
         egui::Key::Backspace => Some(rvlib::KeyCode::Back),
@@ -61,8 +64,12 @@ fn handle_2_image<'a>(handle: &TextureHandle, size: [usize; 2]) -> Image<'a> {
     egui::Image::from_texture(sized_image)
 }
 
-fn rgb_2_clr(rgb: [u8; 3]) -> Color32 {
-    Color32::from_rgba_unmultiplied(rgb[0], rgb[1], rgb[2], 100)
+fn rgb_2_clr(rgb: Option<[u8; 3]>) -> Color32 {
+    if let Some(rgb) = rgb {
+        Color32::from_rgba_unmultiplied(rgb[0], rgb[1], rgb[2], 100)
+    } else {
+        Color32::from_rgba_unmultiplied(0, 0, 0, 0)
+    }
 }
 
 fn draw_annos(ui: &mut Ui, annos: &[Annotation]) {
@@ -77,7 +84,7 @@ fn draw_annos(ui: &mut Ui, annos: &[Annotation]) {
             let fill_rgb = rgb_2_clr(anno.fill_color);
             let p = Pos2::new(bb.x as f32, bb.y as f32);
             let size = Vec2::new(bb.w as f32, bb.h as f32);
-            let stroke = Stroke::new(anno.outline.thickness, rgb_2_clr(anno.outline.color));
+            let stroke = Stroke::new(anno.outline.thickness, rgb_2_clr(Some(anno.outline.color)));
             Shape::Rect(RectShape::new(
                 Rect::from_min_size(p, size),
                 Rounding::ZERO,
@@ -134,13 +141,34 @@ fn map_mouse_events(image_response: &Response) -> Vec<rvlib::Event> {
     }
     events
 }
+
+fn vec2_2_shape(v: Vec2) -> rvlib::Shape {
+    rvlib::Shape::new(v.x as u32, v.y as u32)
+}
+
+fn image_2_colorimage(im: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> ColorImage {
+    ColorImage::from_rgb([im.width() as usize, im.height() as usize], im.as_raw())
+}
+
+fn orig_2_view(im_orig: &ImageU8, zoom_box: Option<BB>) -> ImageU8 {
+    if let Some(zoom_box) = zoom_box {
+        im_orig
+            .view(zoom_box.x, zoom_box.y, zoom_box.w, zoom_box.h)
+            .to_image()
+    } else {
+        im_orig.clone()
+    }
+}
+
 #[derive(Default)]
 struct RvImageApp {
     event_loop: MainEventLoop,
     texture: Option<TextureHandle>,
     annos: Vec<Annotation>,
-    size: [usize; 2],
-    events: Events,
+    zoom_box: Option<BB>,
+    im_orig: ImageU8,
+    im_view: ImageU8,
+    events: rvlib::Events,
 }
 
 impl RvImageApp {
@@ -151,56 +179,80 @@ impl RvImageApp {
         // for e.g. egui::PaintCallback.
         Self::default()
     }
-    fn draw_image(&mut self, ui: &mut Ui, ctx: &Context, update_image: &UpdateImage) {
-        if let UpdateImage::Yes(im) = &update_image {
-            let color_image =
-                ColorImage::from_rgb([im.width() as usize, im.height() as usize], im.as_raw());
-            self.size = color_image.size;
-            self.texture = Some(clrim_2_handle(color_image, ctx));
-        }
-
-        if let Some(texture) = self.texture.as_ref() {
-            let ui_image = handle_2_image(texture, self.size)
-                .shrink_to_fit()
-                .sense(Sense::hover())
-                .sense(Sense::click_and_drag());
-
-            let image_response = ui.add(ui_image);
-            let size = image_response.rect.size();
-            let offset_x = image_response.rect.min.x;
-            let offset_y = image_response.rect.min.y;
-            let mouse_pos = image_response.hover_pos();
-            let mouse_pos = mouse_pos.map(|mp| Point {
-                x: ((mp.x - offset_x) / size.x * self.size[0] as f32) as u32,
-                y: ((mp.y - offset_y) / size.y * self.size[1] as f32) as u32,
-            });
-            let key_events = map_key_events(ui);
-            let mouse_events = map_mouse_events(&image_response);
-
-            self.events = mem::take(&mut self.events)
-                .events(key_events)
-                .events(mouse_events)
-                .mousepos(mouse_pos);
-        }
+    fn shape_orig(&self) -> rvlib::Shape {
+        rvlib::Shape::from_im(&self.im_orig)
     }
-    fn draw_annos(&mut self, ui: &mut Ui, update_annos: UpdateAnnos) {
-        if let UpdateAnnos::Yes(annos) = update_annos {
-            self.annos = annos;
-        }
-        if !self.annos.is_empty() {
-            draw_annos(ui, &self.annos);
-        }
+    fn shape_view(&self) -> rvlib::Shape {
+        rvlib::Shape::from_im(&self.im_view)
+    }
+
+    fn collect_events(&mut self, ui: &mut Ui, image_response: &Response) -> rvlib::Events {
+        let view_size = image_response.rect.size();
+        let offset_x = image_response.rect.min.x;
+        let offset_y = image_response.rect.min.y;
+        let mouse_pos = image_response.hover_pos();
+        let mouse_pos = mouse_pos.map(|mp| {
+            view_pos_to_orig_pos(
+                ((mp.x - offset_x), (mp.y - offset_y)).into(),
+                self.shape_orig(),
+                vec2_2_shape(view_size),
+                &self.zoom_box,
+            )
+        });
+        let key_events = map_key_events(ui);
+        let mouse_events = map_mouse_events(&image_response);
+
+        rvlib::Events::default()
+            .events(key_events)
+            .events(mouse_events)
+            .mousepos(mouse_pos)
+    }
+
+    fn add_image(&mut self, ui: &mut Ui) -> Option<Response> {
+        self.texture.as_ref().map(|texture| {
+            let ui_image = handle_2_image(
+                texture,
+                [self.shape_view().w as usize, self.shape_view().h as usize],
+            )
+            .shrink_to_fit()
+            .sense(Sense::click_and_drag());
+
+            ui.add(ui_image)
+        })
+    }
+    fn update_texture(&mut self, ctx: &Context) {
+        self.im_view = orig_2_view(&self.im_orig, self.zoom_box);
+        self.texture = Some(clrim_2_handle(image_2_colorimage(&self.im_view), ctx));
     }
 }
 
 impl eframe::App for RvImageApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         let update_view = self.event_loop.one_iteration(&self.events, ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Ok(update_view) = update_view {
                 ui.label(&update_view.image_info);
-                self.draw_image(ui, ctx, &update_view.image);
-                self.draw_annos(ui, update_view.annos);
+                if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
+                    println!("new zoombox {:?}", zb);
+
+                    self.zoom_box = zb;
+                    self.update_texture(ctx);
+                }
+                if let UpdateImage::Yes(im) = update_view.image {
+                    self.im_orig = im;
+                    self.update_texture(ctx);
+                }
+                let image_response = self.add_image(ui);
+                if let Some(ir) = image_response {
+                    self.events = self.collect_events(ui, &ir);
+                }
+                if let UpdateAnnos::Yes(annos) = update_view.annos {
+                    self.annos = annos;
+                }
+                if !self.annos.is_empty() {
+                    println!("ANNOS");
+                    draw_annos(ui, &self.annos);
+                }
             }
         });
     }

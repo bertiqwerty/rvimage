@@ -32,6 +32,13 @@ impl Shape {
         }
     }
 }
+
+impl From<[usize; 2]> for Shape {
+    fn from(value: [usize; 2]) -> Self {
+        Self::new(value[0] as u32, value[1] as u32)
+    }
+}
+
 /// shape of the image that fits into the window
 pub fn shape_scaled(shape_unscaled: Shape, shape_win: Shape) -> Shape {
     let w_ratio = shape_unscaled.w as f64 / shape_win.w as f64;
@@ -46,7 +53,82 @@ pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
     zoom_box.map_or(shape_orig, |z| z.shape())
 }
 
-pub type CornerOptions = ((Option<u32>, Option<u32>), (Option<u32>, Option<u32>));
+pub fn pos_transform<F>(
+    pos: Point,
+    shape_orig: Shape,
+    shape_win: Shape,
+    zoom_box: &Option<BB>,
+    transform: F,
+) -> Point
+where
+    F: Fn(u32, u32, u32, u32) -> u32,
+{
+    let unscaled = shape_unscaled(zoom_box, shape_orig);
+    let scaled = shape_scaled(unscaled, shape_win);
+
+    let (x_off, y_off) = match zoom_box {
+        Some(c) => (c.x, c.y),
+        _ => (0, 0),
+    };
+
+    let (x, y) = pos.into();
+    let x_tf = transform(x, scaled.w, unscaled.w, x_off);
+    let y_tf = transform(y, scaled.h, unscaled.h, y_off);
+    ((x_tf, y_tf)).into()
+}
+
+fn coord_view_2_orig(x: u32, n_transformed: u32, n_orig: u32, off: u32) -> u32 {
+    let tmp = (x * n_orig) / n_transformed;
+    off + tmp
+}
+/// Converts the position of a pixel in the view to the coordinates of the original image
+pub fn view_pos_to_orig_pos(
+    view_pos: Point,
+    shape_orig: Shape,
+    shape_win: Shape,
+    zoom_box: &Option<BB>,
+) -> Point {
+    pos_transform(view_pos, shape_orig, shape_win, zoom_box, coord_view_2_orig)
+}
+fn coord_orig_2_view(x: u32, n_transformed: u32, n_orig: u32, off: u32) -> u32 {
+    (x - off) * n_transformed / n_orig
+}
+
+pub fn orig_coord_to_view_coord(
+    coord: u32,
+    n_coords: u32,
+    n_pixels_scaled: u32,
+    min_max: &Option<(u32, u32)>,
+) -> Option<u32> {
+    if let Some((min, max)) = min_max {
+        if &coord < min || max <= &coord {
+            return None;
+        }
+    }
+    let unscaled = min_max.map_or(n_coords, |mm| mm.1 - mm.0);
+    let off = min_max.map_or(0, |mm| mm.0);
+    Some(coord_orig_2_view(coord, n_pixels_scaled, unscaled, off))
+}
+/// Converts the position of a pixel in the view to the coordinates of the original image
+pub fn orig_pos_to_view_pos(
+    orig_pos: Point,
+    shape_orig: Shape,
+    shape_win: Shape,
+    zoom_box: &Option<BB>,
+) -> Option<Point> {
+    if let Some(zb) = zoom_box {
+        if !zb.contains(orig_pos) {
+            return None;
+        }
+    }
+    Some(pos_transform(
+        orig_pos,
+        shape_orig,
+        shape_win,
+        zoom_box,
+        coord_orig_2_view,
+    ))
+}
 
 pub trait IsSignedInt {}
 
@@ -99,6 +181,11 @@ impl From<(u32, u32)> for Point {
             x: value.0,
             y: value.1,
         }
+    }
+}
+impl From<(f32, f32)> for Point {
+    fn from(x: (f32, f32)) -> Self {
+        ((x.0 as u32), (x.1 as u32)).into()
     }
 }
 impl From<(usize, usize)> for Point {

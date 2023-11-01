@@ -42,8 +42,8 @@ impl Events {
         self.mouse_pos = mouse_pos;
         self
     }
-    pub fn events(mut self, events: Vec<Event>) -> Self {
-        self.events = events;
+    pub fn events(mut self, mut events: Vec<Event>) -> Self {
+        self.events.append(&mut events);
         self
     }
     action_keycode!(held_alt, Held, Alt);
@@ -79,7 +79,7 @@ pub enum KeyCode {
     Key7,
     Key8,
     Key9,
-    Equals,
+    PlusEquals,
     Minus,
     Delete,
     Back,

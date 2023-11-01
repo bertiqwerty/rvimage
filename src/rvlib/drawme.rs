@@ -1,5 +1,5 @@
 use crate::{
-    domain::{Point, Polygon, BB},
+    domain::{Polygon, BB},
     types::ViewImage,
 };
 use std::default::Default;
@@ -28,7 +28,7 @@ pub enum GeoFig {
 #[derive(Clone, Debug)]
 pub struct Annotation {
     pub geofig: GeoFig,
-    pub fill_color: [u8; 3],
+    pub fill_color: Option<[u8; 3]>,
     pub outline: Stroke,
     pub label: Option<String>,
     pub is_selected: Option<bool>,

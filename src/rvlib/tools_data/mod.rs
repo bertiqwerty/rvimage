@@ -48,7 +48,7 @@ impl ToolSpecifics {
                         .zip(colors.iter().zip(labels.iter().zip(selected_bbs.iter())))
                         .map(|(&bb, (&fill_color, (label, &is_selected)))| Annotation {
                             geofig: GeoFig::BB(bb),
-                            fill_color,
+                            fill_color: Some(fill_color),
                             label: Some(label.clone()),
                             outline: Stroke {
                                 thickness: 1.0,
