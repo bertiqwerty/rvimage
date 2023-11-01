@@ -2,8 +2,8 @@
 #![forbid(unsafe_code)]
 
 use egui::{
-    epaint::RectShape, Color32, ColorImage, Context, Image, Pos2, Rect, Rounding, Sense, Shape,
-    Stroke, TextureHandle, TextureOptions, Ui, Vec2,
+    epaint::RectShape, Color32, ColorImage, Context, Image, Pos2, Rect, Response, Rounding, Sense,
+    Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
 use rvlib::{domain::Point, Events, KeyCode, MainEventLoop, UpdateImage};
 use std::mem;
@@ -100,37 +100,56 @@ fn draw_bbs(ui: &mut Ui, bbs: &[rvlib::BB], stroke: rvlib::Stroke, fill_rgb: [u8
     ui.painter().add(Shape::Vec(shapes));
 }
 
+fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
+    let mut events = vec![];
+    ui.input(|i| {
+        for e in i.events.iter() {
+            match e {
+                egui::Event::Key {
+                    key,
+                    pressed,
+                    repeat: _,
+                    modifiers,
+                } => {
+                    if let Some(k) = map_key(*key) {
+                        if !pressed {
+                            events.push(rvlib::Event::Released(k));
+                        } else {
+                            events.push(rvlib::Event::Pressed(k));
+                        }
+                    }
+                    if modifiers.alt {
+                        events.push(rvlib::Event::Pressed(KeyCode::Alt));
+                    }
+                    if modifiers.command {
+                        events.push(rvlib::Event::Pressed(KeyCode::Ctrl));
+                    }
+                    if modifiers.shift {
+                        events.push(rvlib::Event::Pressed(KeyCode::Shift));
+                    }
+                }
+                _ => (),
+            }
+        }
+    });
+    events
+}
+
+fn map_mouse_events(image_response: &Response) -> Vec<rvlib::Event> {
+    let mut events = vec![];
+    if image_response.clicked() || image_response.drag_released() {
+        events.push(rvlib::Event::Released(KeyCode::MouseLeft));
+    }
+    if image_response.drag_started() {
+        events.push(rvlib::Event::Pressed(KeyCode::MouseLeft));
+    }
+    events
+}
+
 impl eframe::App for RvImageApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let update_view = self.event_loop.one_iteration(&self.events, ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.input(|i| {
-                self.events.set_events(
-                    i.events
-                        .iter()
-                        .flat_map(move |e| match e {
-                            egui::Event::Key {
-                                key,
-                                pressed,
-                                repeat,
-                                modifiers,
-                            } => {
-                                if let Some(k) = map_key(*key) {
-                                    if !pressed {
-                                        Some(rvlib::Event::Released(k))
-                                    } else {
-                                        Some(rvlib::Event::Pressed(k))
-                                    }
-                                    
-                                } else {
-                                    None
-                                }
-                            }
-                            _ => None,
-                        })
-                        .collect::<Vec<_>>(),
-                );
-            });
             if let Ok(update_view) = update_view {
                 ui.label(update_view.image_info);
                 if let UpdateImage::Yes(im) = update_view.image {
@@ -157,16 +176,13 @@ impl eframe::App for RvImageApp {
                         x: ((mp.x - offset_x) / size.x * self.size[0] as f32) as u32,
                         y: ((mp.y - offset_y) / size.y * self.size[1] as f32) as u32,
                     });
-                    if image_response.clicked() {
-                        self.events.released(KeyCode::MouseLeft);
-                    }
-                    if image_response.drag_released() {
-                        self.events.released(KeyCode::MouseLeft);
-                    }
-                    if image_response.drag_started() {
-                        self.events.pressed(KeyCode::MouseLeft);
-                    }
-                    self.events = mem::take(&mut self.events).mousepos(mouse_pos);
+                    let key_events = map_key_events(ui);
+                    let mouse_events = map_mouse_events(&image_response);
+
+                    self.events = mem::take(&mut self.events)
+                        .events(key_events)
+                        .events(mouse_events)
+                        .mousepos(mouse_pos);
                 }
             }
         });

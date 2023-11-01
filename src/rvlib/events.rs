@@ -42,8 +42,9 @@ impl Events {
         self.mouse_pos = mouse_pos;
         self
     }
-    pub fn set_events(&mut self, events: Vec<Event>) {
+    pub fn events(mut self, events: Vec<Event>) -> Self {
         self.events = events;
+        self
     }
     action_keycode!(held_alt, Held, Alt);
     action_keycode!(held_shift, Held, Shift);
