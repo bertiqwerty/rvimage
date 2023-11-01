@@ -164,7 +164,6 @@ impl RvImageApp {
                 .shrink_to_fit()
                 .sense(Sense::hover())
                 .sense(Sense::click_and_drag());
-            
 
             let image_response = ui.add(ui_image);
             let size = image_response.rect.size();

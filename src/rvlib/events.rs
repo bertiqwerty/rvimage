@@ -103,5 +103,5 @@ pub enum Event {
     Pressed(KeyCode),
     Released(KeyCode),
     Held(KeyCode),
-    MouseWheel(i64)
+    MouseWheel(i64),
 }

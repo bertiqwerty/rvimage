@@ -1,5 +1,5 @@
 use crate::{
-    drawme::{Annotation, Stroke, GeoFig},
+    drawme::{Annotation, GeoFig, Stroke},
     UpdateAnnos,
 };
 

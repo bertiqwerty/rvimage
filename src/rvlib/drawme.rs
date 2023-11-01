@@ -1,5 +1,5 @@
 use crate::{
-    domain::{Point, BB, Polygon},
+    domain::{Point, Polygon, BB},
     types::ViewImage,
 };
 use std::default::Default;
@@ -59,7 +59,7 @@ impl UpdateView {
             image: UpdateImage::No,
             annos: UpdateAnnos::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
-            image_info: "".to_string()
+            image_info: "".to_string(),
         }
     }
 }

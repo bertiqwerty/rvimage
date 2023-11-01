@@ -10,7 +10,8 @@ use crate::{
     tools::{core::Mover, Manipulate, BBOX_NAME},
     tools_data::{bbox_data::Options, BboxSpecificData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
-    world::World, GeoFig,
+    world::World,
+    GeoFig,
 };
 use std::mem;
 

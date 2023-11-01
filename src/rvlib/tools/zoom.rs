@@ -207,13 +207,13 @@ fn mk_z(x: u32, y: u32, w: u32, h: u32) -> Option<BB> {
 }
 #[test]
 fn test_make_zoom() -> RvResult<()> {
-    fn test(mps: (u32, u32), mpr: (u32, u32),  expected: Option<BB>) {
+    fn test(mps: (u32, u32), mpr: (u32, u32), expected: Option<BB>) {
         assert_eq!(make_zoom_on_release(mps, mpr), expected);
     }
 
-    test((0, 0), (10, 10),  mk_z(0, 0, 10, 10));
-    test((0, 0), (100, 10),  mk_z(0, 0, 100, 10));
-    test((13, 7), (33, 17),  mk_z(13, 7, 20, 10));
+    test((0, 0), (10, 10), mk_z(0, 0, 10, 10));
+    test((0, 0), (100, 10), mk_z(0, 0, 100, 10));
+    test((13, 7), (33, 17), mk_z(13, 7, 20, 10));
     test((5, 9), (6, 9), None);
     test((5, 9), (17, 19), mk_z(5, 9, 12, 10));
 
