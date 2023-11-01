@@ -7,8 +7,8 @@ use egui::{
 };
 use image::{GenericImageView, ImageBuffer, Rgb};
 use rvlib::{
-    domain::view_pos_to_orig_pos, Annotation, GeoFig, KeyCode, MainEventLoop, UpdateAnnos,
-    UpdateImage, UpdateZoomBox, BB,
+    domain::{orig_pos_to_view_pos, view_pos_to_orig_pos},
+    Annotation, GeoFig, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage, UpdateZoomBox, BB,
 };
 
 type ImageU8 = ImageBuffer<Rgb<u8>, Vec<u8>>;
@@ -72,30 +72,6 @@ fn rgb_2_clr(rgb: Option<[u8; 3]>) -> Color32 {
     }
 }
 
-fn draw_annos(ui: &mut Ui, annos: &[Annotation]) {
-    let shapes = annos
-        .iter()
-        .map(|anno| {
-            let bb = match &anno.geofig {
-                GeoFig::BB(bb) => *bb,
-                // TODO: draw actual polygon
-                GeoFig::Poly(poly) => poly.enclosing_bb(),
-            };
-            let fill_rgb = rgb_2_clr(anno.fill_color);
-            let p = Pos2::new(bb.x as f32, bb.y as f32);
-            let size = Vec2::new(bb.w as f32, bb.h as f32);
-            let stroke = Stroke::new(anno.outline.thickness, rgb_2_clr(Some(anno.outline.color)));
-            Shape::Rect(RectShape::new(
-                Rect::from_min_size(p, size),
-                Rounding::ZERO,
-                fill_rgb,
-                stroke,
-            ))
-        })
-        .collect::<Vec<Shape>>();
-    ui.painter().add(Shape::Vec(shapes));
-}
-
 fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
     let mut events = vec![];
     ui.input(|i| {
@@ -115,13 +91,13 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
                         }
                     }
                     if modifiers.alt {
-                        events.push(rvlib::Event::Pressed(KeyCode::Alt));
+                        events.push(rvlib::Event::Held(KeyCode::Alt));
                     }
-                    if modifiers.command {
-                        events.push(rvlib::Event::Pressed(KeyCode::Ctrl));
+                    if modifiers.ctrl {
+                        events.push(rvlib::Event::Held(KeyCode::Ctrl));
                     }
                     if modifiers.shift {
-                        events.push(rvlib::Event::Pressed(KeyCode::Shift));
+                        events.push(rvlib::Event::Held(KeyCode::Shift));
                     }
                 }
                 _ => (),
@@ -186,6 +162,42 @@ impl RvImageApp {
         rvlib::Shape::from_im(&self.im_view)
     }
 
+    fn draw_annos(&self, ui: &mut Ui, image_rect: &Rect) {
+        let shapes = self
+            .annos
+            .iter()
+            .flat_map(|anno| {
+                let bb = match &anno.geofig {
+                    GeoFig::BB(bb) => *bb,
+                    // TODO: draw actual polygon
+                    GeoFig::Poly(poly) => poly.enclosing_bb(),
+                };
+                let fill_rgb = rgb_2_clr(anno.fill_color);
+                let p = orig_pos_to_view_pos(
+                    bb.min(),
+                    self.shape_orig(),
+                    self.shape_view(),
+                    &self.zoom_box,
+                );
+                p.map(|p| {
+                    let p = Pos2 {
+                        x: image_rect.min.x + p.x as f32,
+                        y: image_rect.min.y + p.y as f32,
+                    };
+                    let size = Vec2::new(bb.w as f32, bb.h as f32);
+                    let stroke =
+                        Stroke::new(anno.outline.thickness, rgb_2_clr(Some(anno.outline.color)));
+                    Shape::Rect(RectShape::new(
+                        Rect::from_min_size(p, size),
+                        Rounding::ZERO,
+                        fill_rgb,
+                        stroke,
+                    ))
+                })
+            })
+            .collect::<Vec<Shape>>();
+        ui.painter().add(Shape::Vec(shapes));
+    }
     fn collect_events(&mut self, ui: &mut Ui, image_response: &Response) -> rvlib::Events {
         let view_size = image_response.rect.size();
         let offset_x = image_response.rect.min.x;
@@ -233,8 +245,6 @@ impl eframe::App for RvImageApp {
             if let Ok(update_view) = update_view {
                 ui.label(&update_view.image_info);
                 if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
-                    println!("new zoombox {:?}", zb);
-
                     self.zoom_box = zb;
                     self.update_texture(ctx);
                 }
@@ -245,13 +255,12 @@ impl eframe::App for RvImageApp {
                 let image_response = self.add_image(ui);
                 if let Some(ir) = image_response {
                     self.events = self.collect_events(ui, &ir);
-                }
-                if let UpdateAnnos::Yes(annos) = update_view.annos {
-                    self.annos = annos;
-                }
-                if !self.annos.is_empty() {
-                    println!("ANNOS");
-                    draw_annos(ui, &self.annos);
+                    if let UpdateAnnos::Yes(annos) = update_view.annos {
+                        self.annos = annos;
+                    }
+                    if !self.annos.is_empty() {
+                        self.draw_annos(ui, &ir.rect);
+                    }
                 }
             }
         });
