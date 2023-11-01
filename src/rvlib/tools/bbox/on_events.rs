@@ -486,7 +486,7 @@ fn test_data() -> (Option<Point>, World, History) {
         .push("label".to_string(), None, None)
         .unwrap();
     let history = History::default();
-    let mouse_pos = Some(Point::from_signed((32, 32)).unwrap());
+    let mouse_pos = Some(point!(32, 32));
     (mouse_pos, world, history)
 }
 
@@ -626,6 +626,9 @@ fn test_mouse_held() {
         annos.select(0);
         let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());
         assert_ne!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
+
+        println!("{:?}", bbs[0]);
+        println!("{:?}", get_annos(&world).unwrap().bbs()[0]);
         assert!(!history_equal(&history, &new_hist));
     }
 }

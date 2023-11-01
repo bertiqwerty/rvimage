@@ -9,6 +9,7 @@ use crate::{
     tools::core::Manipulate,
     types::ViewImage,
     world::World,
+    GeoFig,
 };
 
 use super::core::Mover;
@@ -29,7 +30,7 @@ pub fn move_zoom_box(
     (mover, world)
 }
 
-fn make_zoom_on_release<P>(mp_start: P, mp_release: P, zoom_box: &Option<BB>) -> Option<BB>
+fn make_zoom_on_release<P>(mp_start: P, mp_release: P) -> Option<BB>
 where
     P: Into<Point>,
 {
@@ -95,9 +96,8 @@ impl Zoom {
     }
 
     fn mouse_released_left_btn(&mut self, mut world: World, mouse_pos: Option<Point>) -> World {
-        let shape_orig = world.shape_orig();
         let bx = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
-            make_zoom_on_release(mps, mr, world.zoom_box()).or(*world.zoom_box())
+            make_zoom_on_release(mps, mr).or(*world.zoom_box())
         } else {
             *world.zoom_box()
         };
@@ -138,7 +138,7 @@ impl Zoom {
                 let bb = BB::from_points(mps, m);
                 let white = [255, 255, 255];
                 let anno = Annotation {
-                    bb,
+                    geofig: GeoFig::BB(bb),
                     fill_color: white,
                     outline: Stroke::from_color(white),
                     label: None,
@@ -154,7 +154,7 @@ impl Zoom {
 
     fn key_pressed(
         &mut self,
-        event: &Events,
+        _event: &Events,
         mut world: World,
         history: History,
     ) -> (World, History) {
@@ -207,16 +207,15 @@ fn mk_z(x: u32, y: u32, w: u32, h: u32) -> Option<BB> {
 }
 #[test]
 fn test_make_zoom() -> RvResult<()> {
-    fn test(mpp: (u32, u32), mpr: (u32, u32), zoom_box: Option<BB>, expected: Option<BB>) {
-        let shape_orig = Shape { w: 80, h: 80 };
-        assert_eq!(make_zoom_on_release(mpp, mpr, &zoom_box), expected);
+    fn test(mps: (u32, u32), mpr: (u32, u32),  expected: Option<BB>) {
+        assert_eq!(make_zoom_on_release(mps, mpr), expected);
     }
 
-    test((0, 0), (10, 10), None, mk_z(0, 0, 10, 10));
-    test((0, 0), (100, 10), None, None);
-    test((13, 7), (33, 17), None, mk_z(13, 7, 20, 10));
-    test((5, 9), (6, 10), mk_z(24, 36, 33, 55), None);
-    test((5, 9), (17, 19), mk_z(24, 36, 33, 55), mk_z(29, 45, 12, 10));
+    test((0, 0), (10, 10),  mk_z(0, 0, 10, 10));
+    test((0, 0), (100, 10),  mk_z(0, 0, 100, 10));
+    test((13, 7), (33, 17),  mk_z(13, 7, 20, 10));
+    test((5, 9), (6, 9), None);
+    test((5, 9), (17, 19), mk_z(5, 9, 12, 10));
 
     Ok(())
 }
@@ -239,7 +238,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let world = World::from_real_im(im_orig, HashMap::new(), "".to_string());
     let history = History::default();
     let im_orig_old = world.data.clone();
-    let event = Events::default();
+    let event = Events::default().mousepos(mouse_pos);
     let (res, _) = z.mouse_pressed(&event, world, history);
     assert_eq!(res.data, im_orig_old);
     assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
@@ -248,14 +247,13 @@ fn test_on_mouse_pressed() -> RvResult<()> {
 
 #[test]
 fn test_on_mouse_released() -> RvResult<()> {
-    let mouse_pos = point!(30, 70);
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
     let world = World::from_real_im(im_orig, HashMap::new(), "".to_string());
 
-    z.set_mouse_start_zoom(mouse_pos);
+    z.set_mouse_start_zoom(point!(30, 70));
 
-    let world = z.mouse_released_left_btn(world, Some(mouse_pos));
+    let world = z.mouse_released_left_btn(world, Some(point!(40, 80)));
     assert_eq!(
         *world.zoom_box(),
         Some(BB {

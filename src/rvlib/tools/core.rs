@@ -38,7 +38,7 @@ impl Mover {
         zoom_box: &Option<BB>,
     ) -> Option<T> {
         let res = if let (Some(mp_start), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
-            let mpo_from = mouse_pos;
+            let mpo_from = Some(mp_start);
             let mpo_to = Some(mp);
             match (mpo_from, mpo_to) {
                 (Some(mpso), Some(mpo)) => Some(f_move(mpso, mpo)),

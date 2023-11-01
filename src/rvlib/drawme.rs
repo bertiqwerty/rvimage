@@ -1,5 +1,5 @@
 use crate::{
-    domain::{Point, BB},
+    domain::{Point, BB, Polygon},
     types::ViewImage,
 };
 use std::default::Default;
@@ -20,14 +20,14 @@ impl Stroke {
 }
 
 #[derive(Clone, Debug)]
-pub enum Geo {
+pub enum GeoFig {
     BB(BB),
-    Poly(Vec<Point>),
+    Poly(Polygon),
 }
 
 #[derive(Clone, Debug)]
 pub struct Annotation {
-    pub bb: BB,
+    pub geofig: GeoFig,
     pub fill_color: [u8; 3],
     pub outline: Stroke,
     pub label: Option<String>,

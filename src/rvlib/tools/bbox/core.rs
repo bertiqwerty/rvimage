@@ -10,7 +10,7 @@ use crate::{
     tools::{core::Mover, Manipulate, BBOX_NAME},
     tools_data::{bbox_data::Options, BboxSpecificData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
-    world::World,
+    world::World, GeoFig,
 };
 use std::mem;
 
@@ -363,7 +363,7 @@ impl Manipulate for BBox {
             let label = Some(bb_data.labels()[in_menu_selected_label].clone());
             let color = bb_data.colors()[in_menu_selected_label];
             let anno = Annotation {
-                bb: BB::from_points(mp.into(), pp.into()),
+                geofig: GeoFig::BB(BB::from_points(mp.into(), pp.into())),
                 label,
                 fill_color: color,
                 outline: Stroke::from_color(color),

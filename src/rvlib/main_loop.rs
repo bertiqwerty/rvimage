@@ -12,7 +12,7 @@ use crate::result::RvResult;
 use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
 use crate::world::World;
 use crate::{apply_tool_method_mut, httpserver, image_util, UpdateView};
-use egui::{Context, Ui};
+use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;

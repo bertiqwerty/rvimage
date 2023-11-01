@@ -1,5 +1,5 @@
 use crate::{
-    drawme::{Annotation, Stroke},
+    drawme::{Annotation, Stroke, GeoFig},
     UpdateAnnos,
 };
 
@@ -47,7 +47,7 @@ impl ToolSpecifics {
                         .iter()
                         .zip(colors.iter().zip(labels.iter().zip(selected_bbs.iter())))
                         .map(|(&bb, (&fill_color, (label, &is_selected)))| Annotation {
-                            bb,
+                            geofig: GeoFig::BB(bb),
                             fill_color,
                             label: Some(label.clone()),
                             outline: Stroke {
