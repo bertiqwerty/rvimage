@@ -370,7 +370,7 @@ impl Manipulate for BBox {
                 outline: Stroke::from_color(color),
                 is_selected: None,
             };
-            world.request_redraw_annotation(anno);
+            world.request_redraw_tmp_anno(anno);
         }
         (world, history) = make_tool_transform!(
             self,

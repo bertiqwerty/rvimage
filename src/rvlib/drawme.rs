@@ -42,7 +42,8 @@ pub enum Update<T> {
 }
 
 pub type UpdateImage = Update<ViewImage>;
-pub type UpdateAnnos = Update<Vec<Annotation>>;
+// permament annotations in the Vec, one temporary annotation in the Option
+pub type UpdateAnnos = Update<(Vec<Annotation>, Option<Annotation>)>;
 pub type UpdateZoomBox = Update<Option<BB>>;
 
 #[derive(Clone, Debug, Default)]

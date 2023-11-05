@@ -110,10 +110,14 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
 fn map_mouse_events(image_response: &Response) -> Vec<rvlib::Event> {
     let mut events = vec![];
     if image_response.clicked() || image_response.drag_released() {
+        println!("mouse left released");
         events.push(rvlib::Event::Released(KeyCode::MouseLeft));
     }
     if image_response.drag_started() {
         events.push(rvlib::Event::Pressed(KeyCode::MouseLeft));
+    }
+    if image_response.dragged() {
+        events.push(rvlib::Event::Held(KeyCode::MouseLeft));
     }
     events
 }
@@ -180,6 +184,7 @@ impl RvImageApp {
                     &self.zoom_box,
                 );
                 p.map(|p| {
+                    // change between im_view and image_rect not yet taken into account
                     let p = Pos2 {
                         x: image_rect.min.x + p.x as f32,
                         y: image_rect.min.y + p.y as f32,
@@ -255,8 +260,16 @@ impl eframe::App for RvImageApp {
                 let image_response = self.add_image(ui);
                 if let Some(ir) = image_response {
                     self.events = self.collect_events(ui, &ir);
+<<<<<<< HEAD
                     if let UpdateAnnos::Yes(annos) = update_view.annos {
                         self.annos = annos;
+=======
+                    if let UpdateAnnos::Yes((perm_annos, tmp_anno)) = update_view.annos {
+                        self.annos = perm_annos;
+                        if let Some(tmp_anno) = tmp_anno {
+                            self.annos.push(tmp_anno);
+                        }
+>>>>>>> 9d4d229 (tmp annotation [skip ci])
                     }
                     if !self.annos.is_empty() {
                         self.draw_annos(ui, &ir.rect);

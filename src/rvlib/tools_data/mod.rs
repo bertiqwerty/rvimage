@@ -57,7 +57,7 @@ impl ToolSpecifics {
                             is_selected: Some(is_selected),
                         })
                         .collect::<Vec<Annotation>>();
-                    UpdateAnnos::Yes(bbs_colored)
+                    UpdateAnnos::Yes((bbs_colored, None))
                 } else {
                     UpdateAnnos::default()
                 }

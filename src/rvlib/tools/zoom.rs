@@ -103,6 +103,7 @@ impl Zoom {
             *world.zoom_box()
         };
         world.set_zoom_box(bx);
+        world.stop_tmp_anno();
         self.unset_mouse_start_zoom();
         world
     }
@@ -126,15 +127,14 @@ impl Zoom {
 
     fn mouse_held(
         &mut self,
-        event: &Events,
+        events: &Events,
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if event.held(KeyCode::MouseRight) {
-            (self.mover, world) = move_zoom_box(self.mover, world, event.mouse_pos);
-            (world, history)
-        } else if event.held(KeyCode::MouseLeft) {
-            if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, event.mouse_pos) {
+        if events.held(KeyCode::MouseRight) {
+            (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos);
+        } else if events.held(KeyCode::MouseLeft) {
+            if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, events.mouse_pos) {
                 // animation
                 let bb = BB::from_points(mps, m);
                 let white = [255, 255, 255];
@@ -145,12 +145,10 @@ impl Zoom {
                     label: None,
                     is_selected: None,
                 };
-                world.request_redraw_annotation(anno);
+                world.request_redraw_tmp_anno(anno);
             }
-            (world, history)
-        } else {
-            (world, history)
         }
+        (world, history)
     }
 
     fn key_pressed(

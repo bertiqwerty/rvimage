@@ -170,16 +170,24 @@ impl World {
                     .to_annotations_view(file_path);
             }
         } else {
-            self.update_view.annos = UpdateAnnos::Yes(vec![]);
+            self.update_view.annos = UpdateAnnos::Yes((vec![], None));
         }
     }
 
-    pub fn request_redraw_annotation(&mut self, anno: Annotation) {
+    pub fn request_redraw_tmp_anno(&mut self, anno: Annotation) {
         self.update_view.annos = match &mut self.update_view.annos {
-            UpdateAnnos::No => UpdateAnnos::Yes(vec![anno]),
-            UpdateAnnos::Yes(annos) => {
-                annos.push(anno);
-                UpdateAnnos::Yes(mem::take(annos))
+            UpdateAnnos::No => UpdateAnnos::Yes((vec![], Some(anno))),
+            UpdateAnnos::Yes((perma_annos, _)) => {
+                UpdateAnnos::Yes((std::mem::take(perma_annos), Some(anno)))
+            }
+        }
+    }
+    
+    pub fn stop_tmp_anno(&mut self) {
+        self.update_view.annos = match &mut self.update_view.annos {
+            UpdateAnnos::No => UpdateAnnos::Yes((vec![], None)),
+            UpdateAnnos::Yes((perma_annos, _)) => {
+                UpdateAnnos::Yes((std::mem::take(perma_annos), None))
             }
         }
     }
