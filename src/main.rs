@@ -2,8 +2,8 @@
 #![forbid(unsafe_code)]
 
 use egui::{
-    epaint::RectShape, Color32, ColorImage, Context, Image, Pos2, Rect, Response, Rounding, Sense,
-    Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
+    epaint::RectShape, Color32, ColorImage, Context, Image, Modifiers, Pos2, Rect,
+    Response, Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
 use image::{ImageBuffer, Rgb};
 use rvlib::{
@@ -70,43 +70,57 @@ fn rgb_2_clr(rgb: Option<[u8; 3]>) -> Color32 {
     }
 }
 
+fn add_modifiers(modifiers: &Modifiers, events: &mut Vec<rvlib::Event>) {
+    if modifiers.alt {
+        events.push(rvlib::Event::Held(KeyCode::Alt));
+    }
+    if modifiers.ctrl {
+        println!("add ctrl");
+        events.push(rvlib::Event::Held(KeyCode::Ctrl));
+    }
+    if modifiers.shift {
+        events.push(rvlib::Event::Held(KeyCode::Shift));
+    }
+}
+
 fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
     let mut events = vec![];
     ui.input(|i| {
         for e in i.events.iter() {
-            if let egui::Event::Key {
-                key,
-                pressed,
-                repeat: _,
-                modifiers,
-            } = e
-            {
-                if let Some(k) = map_key(*key) {
-                    if !pressed {
-                        events.push(rvlib::Event::Released(k));
-                    } else {
-                        events.push(rvlib::Event::Pressed(k));
+            match e {
+                egui::Event::Key {
+                    key,
+                    pressed,
+                    repeat: _,
+                    modifiers,
+                } => {
+                    if let Some(k) = map_key(*key) {
+                        if !pressed {
+                            events.push(rvlib::Event::Released(k));
+                        } else {
+                            events.push(rvlib::Event::Pressed(k));
+                        }
                     }
+                    add_modifiers(modifiers, &mut events);
                 }
-                if modifiers.alt {
-                    events.push(rvlib::Event::Held(KeyCode::Alt));
+                egui::Event::PointerButton {
+                    pos: _,
+                    button: _,
+                    pressed: _,
+                    modifiers,
+                } => {
+                    add_modifiers(modifiers, &mut events);
                 }
-                if modifiers.ctrl {
-                    events.push(rvlib::Event::Held(KeyCode::Ctrl));
-                }
-                if modifiers.shift {
-                    events.push(rvlib::Event::Held(KeyCode::Shift));
-                }
+                _ => (),
             }
         }
     });
     events
 }
 
-fn map_mouse_events(image_response: &Response) -> Vec<rvlib::Event> {
+fn map_mouse_events(ui: &mut Ui, image_response: &Response) -> Vec<rvlib::Event> {
     let mut events = vec![];
     if image_response.clicked() || image_response.drag_released() {
-        println!("mouse left released");
         events.push(rvlib::Event::Released(KeyCode::MouseLeft));
     }
     if image_response.drag_started() {
@@ -231,7 +245,7 @@ impl RvImageApp {
             )
         });
         let key_events = map_key_events(ui);
-        let mouse_events = map_mouse_events(image_response);
+        let mouse_events = map_mouse_events(ui, image_response);
 
         rvlib::Events::default()
             .events(key_events)

@@ -131,7 +131,8 @@ impl Zoom {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if events.held(KeyCode::MouseRight) {
+        println!("ctrl held {}", events.held_ctrl());
+        if events.held(KeyCode::MouseRight) || events.held_ctrl() {
             (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos);
         } else if events.held(KeyCode::MouseLeft) {
             if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, events.mouse_pos) {
@@ -157,7 +158,6 @@ impl Zoom {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        println!("set zb to None");
         world.set_zoom_box(None);
         (world, history)
     }

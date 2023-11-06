@@ -73,14 +73,6 @@ macro_rules! tools_data_accessor {
     };
 }
 
-fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
-    let x = (i % im.width() as usize) as u32;
-    let y = (i / im.width() as usize) as u32;
-    let rgb = im.get_pixel(x, y).0;
-    let rgb_changed = rgb;
-    [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
-}
-
 // tool name -> tool's menu data type
 pub type ToolsDataMap = HashMap<&'static str, ToolsData>;
 
@@ -232,6 +224,14 @@ impl Debug for World {
     }
 }
 
+#[cfg(test)]
+fn rgba_at(i: usize, im: &ViewImage) -> [u8; 4] {
+    let x = (i % im.width() as usize) as u32;
+    let y = (i / im.width() as usize) as u32;
+    let rgb = im.get_pixel(x, y).0;
+    let rgb_changed = rgb;
+    [rgb_changed[0], rgb_changed[1], rgb_changed[2], 0xff]
+}
 #[cfg(test)]
 use image::Rgb;
 
