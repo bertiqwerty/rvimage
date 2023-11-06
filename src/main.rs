@@ -260,16 +260,11 @@ impl eframe::App for RvImageApp {
                 let image_response = self.add_image(ui);
                 if let Some(ir) = image_response {
                     self.events = self.collect_events(ui, &ir);
-<<<<<<< HEAD
-                    if let UpdateAnnos::Yes(annos) = update_view.annos {
-                        self.annos = annos;
-=======
                     if let UpdateAnnos::Yes((perm_annos, tmp_anno)) = update_view.annos {
                         self.annos = perm_annos;
                         if let Some(tmp_anno) = tmp_anno {
                             self.annos.push(tmp_anno);
                         }
->>>>>>> 9d4d229 (tmp annotation [skip ci])
                     }
                     if !self.annos.is_empty() {
                         self.draw_annos(ui, &ir.rect);
