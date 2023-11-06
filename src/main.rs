@@ -5,13 +5,11 @@ use egui::{
     epaint::RectShape, Color32, ColorImage, Context, Image, Pos2, Rect, Response, Rounding, Sense,
     Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use image::{GenericImageView, ImageBuffer, Rgb};
+use image::{ImageBuffer, Rgb};
 use rvlib::{
-    domain::{orig_pos_to_view_pos, view_pos_to_orig_pos},
-    Annotation, GeoFig, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage, UpdateZoomBox, BB,
+    domain::Point, orig_2_view, orig_pos_2_view_pos, scale_coord, view_pos_2_orig_pos, Annotation,
+    GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage, UpdateZoomBox, BB,
 };
-
-type ImageU8 = ImageBuffer<Rgb<u8>, Vec<u8>>;
 
 fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
     match egui_key {
@@ -128,14 +126,22 @@ fn image_2_colorimage(im: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> ColorImage {
     ColorImage::from_rgb([im.width() as usize, im.height() as usize], im.as_raw())
 }
 
-fn orig_2_view(im_orig: &ImageU8, zoom_box: Option<BB>) -> ImageU8 {
-    if let Some(zoom_box) = zoom_box {
-        im_orig
-            .view(zoom_box.x, zoom_box.y, zoom_box.w, zoom_box.h)
-            .to_image()
-    } else {
-        im_orig.clone()
-    }
+fn orig_pos_2_egui_rect(
+    p: Point,
+    offset: Pos2,
+    shape_orig: rvlib::Shape,
+    shape_view: rvlib::Shape,
+    rect_size: Vec2,
+    zoom_box: &Option<BB>,
+) -> Option<Pos2> {
+    let p_view = orig_pos_2_view_pos(p, shape_orig, shape_view, zoom_box);
+    p_view.map(|p_view| {
+        let p_egui_rect_x =
+            offset.x + scale_coord(p_view.x as f32, shape_view.w as f32, rect_size.x);
+        let p_egui_rect_y =
+            offset.y + scale_coord(p_view.y as f32, shape_view.h as f32, rect_size.y);
+        Pos2::new(p_egui_rect_x, p_egui_rect_y)
+    })
 }
 
 #[derive(Default)]
@@ -175,28 +181,38 @@ impl RvImageApp {
                     GeoFig::Poly(poly) => poly.enclosing_bb(),
                 };
                 let fill_rgb = rgb_2_clr(anno.fill_color);
-                let p = orig_pos_to_view_pos(
+
+                let bb_min_rect = orig_pos_2_egui_rect(
                     bb.min(),
+                    image_rect.min,
                     self.shape_orig(),
                     self.shape_view(),
+                    image_rect.size(),
                     &self.zoom_box,
                 );
-                p.map(|p| {
-                    // change between im_view and image_rect not yet taken into account
-                    let p = Pos2 {
-                        x: image_rect.min.x + p.x as f32,
-                        y: image_rect.min.y + p.y as f32,
-                    };
-                    let size = Vec2::new(bb.w as f32, bb.h as f32);
-                    let stroke =
-                        Stroke::new(anno.outline.thickness, rgb_2_clr(Some(anno.outline.color)));
-                    Shape::Rect(RectShape::new(
-                        Rect::from_min_size(p, size),
-                        Rounding::ZERO,
-                        fill_rgb,
-                        stroke,
-                    ))
-                })
+                let bb_max_rect = orig_pos_2_egui_rect(
+                    bb.max(),
+                    image_rect.min,
+                    self.shape_orig(),
+                    self.shape_view(),
+                    image_rect.size(),
+                    &self.zoom_box,
+                );
+                match (bb_min_rect, bb_max_rect) {
+                    (Some(bb_min_rect), Some(bb_max_rect)) => {
+                        let stroke = Stroke::new(
+                            anno.outline.thickness,
+                            rgb_2_clr(Some(anno.outline.color)),
+                        );
+                        Some(Shape::Rect(RectShape::new(
+                            Rect::from_min_max(bb_min_rect, bb_max_rect),
+                            Rounding::ZERO,
+                            fill_rgb,
+                            stroke,
+                        )))
+                    }
+                    _ => None,
+                }
             })
             .collect::<Vec<Shape>>();
         ui.painter().add(Shape::Vec(shapes));
@@ -207,7 +223,7 @@ impl RvImageApp {
         let offset_y = image_response.rect.min.y;
         let mouse_pos = image_response.hover_pos();
         let mouse_pos = mouse_pos.map(|mp| {
-            view_pos_to_orig_pos(
+            view_pos_2_orig_pos(
                 ((mp.x - offset_x), (mp.y - offset_y)).into(),
                 self.shape_orig(),
                 vec2_2_shape(view_size),
