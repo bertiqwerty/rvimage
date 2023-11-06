@@ -182,7 +182,7 @@ impl World {
             }
         }
     }
-    
+
     pub fn stop_tmp_anno(&mut self) {
         self.update_view.annos = match &mut self.update_view.annos {
             UpdateAnnos::No => UpdateAnnos::Yes((vec![], None)),
