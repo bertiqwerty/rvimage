@@ -282,7 +282,7 @@ impl BB {
         }
     }
 
-    pub fn from_vec(points: &Vec<Point>) -> RvResult<Self> {
+    pub fn from_vec(points: &[Point]) -> RvResult<Self> {
         let x_iter = points.iter().map(|p| p.x);
         let y_iter = points.iter().map(|p| p.y);
         let min_x = x_iter
@@ -764,7 +764,7 @@ fn test_polygon() {
     let bbs = make_test_bbs();
     let poly = Polygon::from(bbs[2]);
     assert_eq!(poly.enclosing_bb(), bbs[2]);
-    let corners = bbs[0].corners().collect();
+    let corners = bbs[0].corners().collect::<Vec<_>>();
     let ebb = BB::from_vec(&corners).unwrap();
     let poly = Polygon::from(ebb);
     assert_eq!(poly.enclosing_bb(), ebb);

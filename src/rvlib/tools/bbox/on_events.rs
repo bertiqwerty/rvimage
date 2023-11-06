@@ -207,7 +207,7 @@ pub(super) fn on_mouse_released_left(
             let annos = get_annos_mut(&mut world);
             let bb = annos.remove(bb_idx);
             let oppo_corner = bb.opposite_corner(idx);
-            prev_pos.prev_pos = Some(oppo_corner.into());
+            prev_pos.prev_pos = Some(oppo_corner);
         } else {
             match split_mode {
                 SplitMode::None => {

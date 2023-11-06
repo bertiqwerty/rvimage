@@ -54,7 +54,7 @@ fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
     }
 }
 
-fn clrim_2_handle<'a>(color_image: ColorImage, ctx: &'a Context) -> TextureHandle {
+fn clrim_2_handle(color_image: ColorImage, ctx: &Context) -> TextureHandle {
     ctx.load_texture("canvas", color_image, TextureOptions::NEAREST)
 }
 
@@ -76,31 +76,29 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
     let mut events = vec![];
     ui.input(|i| {
         for e in i.events.iter() {
-            match e {
-                egui::Event::Key {
-                    key,
-                    pressed,
-                    repeat: _,
-                    modifiers,
-                } => {
-                    if let Some(k) = map_key(*key) {
-                        if !pressed {
-                            events.push(rvlib::Event::Released(k));
-                        } else {
-                            events.push(rvlib::Event::Pressed(k));
-                        }
-                    }
-                    if modifiers.alt {
-                        events.push(rvlib::Event::Held(KeyCode::Alt));
-                    }
-                    if modifiers.ctrl {
-                        events.push(rvlib::Event::Held(KeyCode::Ctrl));
-                    }
-                    if modifiers.shift {
-                        events.push(rvlib::Event::Held(KeyCode::Shift));
+            if let egui::Event::Key {
+                key,
+                pressed,
+                repeat: _,
+                modifiers,
+            } = e
+            {
+                if let Some(k) = map_key(*key) {
+                    if !pressed {
+                        events.push(rvlib::Event::Released(k));
+                    } else {
+                        events.push(rvlib::Event::Pressed(k));
                     }
                 }
-                _ => (),
+                if modifiers.alt {
+                    events.push(rvlib::Event::Held(KeyCode::Alt));
+                }
+                if modifiers.ctrl {
+                    events.push(rvlib::Event::Held(KeyCode::Ctrl));
+                }
+                if modifiers.shift {
+                    events.push(rvlib::Event::Held(KeyCode::Shift));
+                }
             }
         }
     });
@@ -217,7 +215,7 @@ impl RvImageApp {
             )
         });
         let key_events = map_key_events(ui);
-        let mouse_events = map_mouse_events(&image_response);
+        let mouse_events = map_mouse_events(image_response);
 
         rvlib::Events::default()
             .events(key_events)
