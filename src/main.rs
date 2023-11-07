@@ -102,15 +102,18 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
             if let egui::Event::Key {
                 key,
                 pressed,
-                repeat: _,
+                repeat,
                 modifiers,
             } = e
             {
                 if let Some(k) = map_key(*key) {
                     if !pressed {
                         events.push(rvlib::Event::Released(k));
-                    } else {
+                    } else if !repeat {
                         events.push(rvlib::Event::Pressed(k));
+                        events.push(rvlib::Event::Held(k));
+                    } else {
+                        events.push(rvlib::Event::Held(k));
                     }
                 }
                 let modifier_events = map_modifiers(modifiers);
@@ -266,12 +269,12 @@ impl RvImageApp {
                 };
                 let alpha = if let Some(is_selected) = anno.is_selected {
                     if is_selected {
-                        90
+                        100
                     } else {
-                        10
+                        30
                     }
                 } else {
-                    10
+                    30
                 };
                 let fill_rgb = rgb_2_clr(anno.fill_color, alpha);
 

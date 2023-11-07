@@ -13,7 +13,7 @@ pub struct Stroke {
 impl Stroke {
     pub fn from_color(color: [u8; 3]) -> Self {
         Stroke {
-            thickness: 1.0,
+            thickness: 2.0,
             color,
         }
     }

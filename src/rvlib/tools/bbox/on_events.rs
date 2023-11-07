@@ -299,6 +299,7 @@ pub(super) fn on_mouse_released_left(
 
 macro_rules! released_key {
     ($($key:ident),*) => {
+        #[derive(Debug, Clone, Copy)]
         pub(super) enum ReleasedKey {
             None,
             $($key,)*
@@ -626,8 +627,6 @@ fn test_mouse_held() {
         let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());
         assert_ne!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
 
-        println!("{:?}", bbs[0]);
-        println!("{:?}", get_annos(&world).unwrap().bbs()[0]);
         assert!(!history_equal(&history, &new_hist));
     }
 }
