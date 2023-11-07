@@ -102,6 +102,9 @@ fn check_filechange(
             for (_, (anno, _)) in bbox_data.anno_iter_mut() {
                 anno.deselect_all();
             }
+            let are_boxes_visible = bbox_data.options.are_boxes_visible;
+            println!("file changed");
+            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         }
         let new_file_path = world.data.meta_data.file_path.clone();
         (is_file_new, world, new_file_path)

@@ -39,6 +39,7 @@ impl ToolSpecifics {
         match &self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
+                    println!("{file_path:?} has annos");
                     let bbs = annos.bbs();
                     let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_bbs();
@@ -61,7 +62,9 @@ impl ToolSpecifics {
                         .collect::<Vec<Annotation>>();
                     UpdateAnnos::Yes((bbs_colored, None))
                 } else {
-                    UpdateAnnos::default()
+                    // Override annotations with nothing,
+                    // UpdateAnnos::No would not update the annotations but show the old ones
+                    UpdateAnnos::Yes((vec![], None))
                 }
             }
             ToolSpecifics::Brush(_) => {

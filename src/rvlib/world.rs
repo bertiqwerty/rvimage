@@ -162,7 +162,7 @@ impl World {
                     .to_annotations_view(file_path);
             }
         } else {
-            self.update_view.annos = UpdateAnnos::Yes((vec![], None));
+            self.update_view.annos = UpdateAnnos::No;
         }
     }
 
