@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 
 use egui::{
-    epaint::RectShape, Color32, ColorImage, Context, Image, Modifiers, Pos2, Rect,
+    epaint::RectShape, Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect,
     Response, Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
 use image::{ImageBuffer, Rgb};
@@ -52,6 +52,16 @@ fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
     }
 }
 
+#[derive(Default)]
+struct LastSensedBtns {
+    pub btn_codes: Vec<KeyCode>,
+    pub modifiers: Vec<rvlib::Event>,
+}
+impl LastSensedBtns {
+    fn is_empty(&self) -> bool {
+        self.btn_codes.is_empty() && self.modifiers.is_empty()
+    }
+}
 fn clrim_2_handle(color_image: ColorImage, ctx: &Context) -> TextureHandle {
     ctx.load_texture("canvas", color_image, TextureOptions::NEAREST)
 }
@@ -70,17 +80,18 @@ fn rgb_2_clr(rgb: Option<[u8; 3]>) -> Color32 {
     }
 }
 
-fn add_modifiers(modifiers: &Modifiers, events: &mut Vec<rvlib::Event>) {
+fn map_modifiers(modifiers: &Modifiers) -> Option<Vec<rvlib::Event>> {
+    let mut events = Vec::new();
     if modifiers.alt {
-        events.push(rvlib::Event::Held(KeyCode::Alt));
+        events.push(rvlib::Event::Held(KeyCode::Alt))
     }
     if modifiers.ctrl {
-        println!("add ctrl");
-        events.push(rvlib::Event::Held(KeyCode::Ctrl));
+        events.push(rvlib::Event::Held(KeyCode::Ctrl))
     }
     if modifiers.shift {
-        events.push(rvlib::Event::Held(KeyCode::Shift));
+        events.push(rvlib::Event::Held(KeyCode::Shift))
     }
+    Some(events)
 }
 
 fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
@@ -101,15 +112,10 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
                             events.push(rvlib::Event::Pressed(k));
                         }
                     }
-                    add_modifiers(modifiers, &mut events);
-                }
-                egui::Event::PointerButton {
-                    pos: _,
-                    button: _,
-                    pressed: _,
-                    modifiers,
-                } => {
-                    add_modifiers(modifiers, &mut events);
+                    let modifier_events = map_modifiers(modifiers);
+                    if let Some(mut me) = modifier_events {
+                        events.append(&mut me);
+                    }
                 }
                 _ => (),
             }
@@ -118,16 +124,80 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
     events
 }
 
-fn map_mouse_events(ui: &mut Ui, image_response: &Response) -> Vec<rvlib::Event> {
+fn map_mouse_events(
+    ui: &mut Ui,
+    last_sensed: &mut LastSensedBtns,
+    image_response: &Response,
+) -> Vec<rvlib::Event> {
     let mut events = vec![];
+    let mut btn_codes = LastSensedBtns::default();
+    ui.input(|i| {
+        for e in i.events.iter() {
+            match e {
+                egui::Event::PointerButton {
+                    pos: _,
+                    button,
+                    pressed: _,
+                    modifiers,
+                } => {
+                    let modifier_events = map_modifiers(modifiers);
+                    if let Some(me) = modifier_events {
+                        let btn_code = match button {
+                            PointerButton::Primary => KeyCode::MouseLeft,
+                            PointerButton::Secondary => KeyCode::MouseRight,
+                            _ => KeyCode::DontCare,
+                        };
+                        btn_codes.btn_codes.push(btn_code);
+                        btn_codes.modifiers = me;
+                    }
+                }
+                _ => (),
+            }
+        }
+    });
+    if !btn_codes.is_empty() {
+        *last_sensed = btn_codes;
+    }
+
     if image_response.clicked() || image_response.drag_released() {
-        events.push(rvlib::Event::Released(KeyCode::MouseLeft));
+        if last_sensed.btn_codes.contains(&KeyCode::MouseLeft) {
+            events.push(rvlib::Event::Released(KeyCode::MouseLeft));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        } else if last_sensed.btn_codes.contains(&KeyCode::MouseRight) {
+            events.push(rvlib::Event::Released(KeyCode::MouseRight));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        }
+        *last_sensed = LastSensedBtns::default();
     }
     if image_response.drag_started() {
-        events.push(rvlib::Event::Pressed(KeyCode::MouseLeft));
+        if last_sensed.btn_codes.contains(&KeyCode::MouseLeft) {
+            events.push(rvlib::Event::Pressed(KeyCode::MouseLeft));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        } else if last_sensed.btn_codes.contains(&KeyCode::MouseRight) {
+            events.push(rvlib::Event::Pressed(KeyCode::MouseRight));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        }
     }
     if image_response.dragged() {
-        events.push(rvlib::Event::Held(KeyCode::MouseLeft));
+        if last_sensed.btn_codes.contains(&KeyCode::MouseLeft) {
+            events.push(rvlib::Event::Held(KeyCode::MouseLeft));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        } else if last_sensed.btn_codes.contains(&KeyCode::MouseRight) {
+            events.push(rvlib::Event::Held(KeyCode::MouseRight));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        }
     }
     events
 }
@@ -167,6 +237,7 @@ struct RvImageApp {
     im_orig: ImageU8,
     im_view: ImageU8,
     events: rvlib::Events,
+    last_sensed_btncodes: LastSensedBtns,
 }
 
 impl RvImageApp {
@@ -245,7 +316,7 @@ impl RvImageApp {
             )
         });
         let key_events = map_key_events(ui);
-        let mouse_events = map_mouse_events(ui, image_response);
+        let mouse_events = map_mouse_events(ui, &mut self.last_sensed_btncodes, image_response);
 
         rvlib::Events::default()
             .events(key_events)

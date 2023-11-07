@@ -110,15 +110,15 @@ impl Zoom {
 
     fn mouse_released(
         &mut self,
-        event: &Events,
+        events: &Events,
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if event.released(KeyCode::MouseLeft) {
-            world = self.mouse_released_left_btn(world, event.mouse_pos);
-            (world, history)
-        } else if event.released(KeyCode::MouseRight) {
+        if events.released(KeyCode::MouseRight) || events.held_ctrl() {
             self.unset_mouse_start_zoom();
+            (world, history)
+        } else if events.released(KeyCode::MouseLeft) {
+            world = self.mouse_released_left_btn(world, events.mouse_pos);
             (world, history)
         } else {
             (world, history)

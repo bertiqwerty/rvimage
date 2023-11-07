@@ -54,7 +54,7 @@ impl Events {
     action!(released, Released);
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum KeyCode {
     A,
     B,
@@ -96,9 +96,10 @@ pub enum KeyCode {
     Escape,
     MouseLeft,
     MouseRight,
+    DontCare,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Event {
     Pressed(KeyCode),
     Released(KeyCode),
