@@ -174,6 +174,16 @@ impl_point_into!(i32);
 pub type PtF = Point<f32>;
 pub type PtI = Point<u32>;
 
+impl Mul<f32> for PtF {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
 impl PtI {
     pub fn from_signed(p: (i32, i32)) -> RvResult<Self> {
         if p.0 < 0 || p.1 < 0 {
@@ -850,6 +860,15 @@ fn test_bb() {
     );
     let bb1 = bb.shift_max(-100, -200, shape);
     assert_eq!(bb1, None);
+    let bb_moved = bb
+        .follow_movement(
+            (5, 5).into(),
+            (6, 6).into(),
+            Shape::new(100, 100),
+            OutOfBoundsMode::Deny,
+        )
+        .unwrap();
+    assert_eq!(bb_moved, BB::from_arr(&[11, 11, 10, 10]));
 }
 
 #[test]

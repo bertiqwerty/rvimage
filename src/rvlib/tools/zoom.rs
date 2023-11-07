@@ -18,7 +18,7 @@ const MIN_ZOOM: u32 = 2;
 pub fn move_zoom_box(mut mover: Mover, mut world: World, mouse_pos: Option<PtF>) -> (Mover, World) {
     let shape_orig = world.data.shape();
     let zoom_box = *world.zoom_box();
-    let f_move = |mpso, mpo| follow_zoom_box(mpso, mpo, shape_orig, zoom_box);
+    let f_move = |mp_from, mp_to| follow_zoom_box(mp_from, mp_to, shape_orig, zoom_box);
     let opt_opt_zoom_box = mover.move_mouse_held(f_move, mouse_pos);
     if let Some(zoom_box) = opt_opt_zoom_box {
         world.set_zoom_box(zoom_box);
@@ -51,9 +51,16 @@ where
     }
 }
 
-fn follow_zoom_box(mpso: PtF, mpo: PtF, shape_orig: Shape, zoom_box: Option<BB>) -> Option<BB> {
+fn follow_zoom_box(
+    mp_from: PtF,
+    mp_to: PtF,
+    shape_orig: Shape,
+    zoom_box: Option<BB>,
+) -> Option<BB> {
     match zoom_box {
-        Some(zb) => match zb.follow_movement(mpo, mpso, shape_orig, OutOfBoundsMode::Deny) {
+        // we move from mp_to to mp_from since we want the image to follow the mouse
+        // instead for the zoom-box to follow the mouse
+        Some(zb) => match zb.follow_movement(mp_to, mp_from, shape_orig, OutOfBoundsMode::Deny) {
             Some(zb) => Some(zb),
             None => Some(zb),
         },

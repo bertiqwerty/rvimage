@@ -309,15 +309,21 @@ impl RvImageApp {
         ui.painter().add(Shape::Vec(shapes));
     }
     fn collect_events(&mut self, ui: &mut Ui, image_response: &Response) -> rvlib::Events {
-        let view_size = image_response.rect.size();
+        let rect_size = image_response.rect.size();
         let offset_x = image_response.rect.min.x;
         let offset_y = image_response.rect.min.y;
         let mouse_pos = image_response.hover_pos();
         let mouse_pos = mouse_pos.map(|mp| {
-            view_pos_2_orig_pos(
+            let view_pos = view_pos_2_orig_pos(
                 ((mp.x - offset_x), (mp.y - offset_y)).into(),
+                self.shape_view(),
+                vec2_2_shape(rect_size),
+                &None,
+            );
+            view_pos_2_orig_pos(
+                view_pos,
                 self.shape_orig(),
-                vec2_2_shape(view_size),
+                self.shape_view(),
                 &self.zoom_box,
             )
         });
