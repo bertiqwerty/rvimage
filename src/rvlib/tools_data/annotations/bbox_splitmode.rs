@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::{OutOfBoundsMode, Shape, BB},
+    domain::{OutOfBoundsMode, PtF, Shape, BB},
     util::true_indices,
 };
 
@@ -106,8 +106,8 @@ impl SplitMode {
     pub fn bb_follow_movement(
         &self,
         bb: BB,
-        mpo_from: (u32, u32),
-        mpo_to: (u32, u32),
+        mpo_from: PtF,
+        mpo_to: PtF,
         orig_shape: Shape,
     ) -> (bool, BB) {
         match self {
@@ -120,18 +120,18 @@ impl SplitMode {
                 }
             }
             SplitMode::Horizontal => {
-                let mpo_to = (mpo_from.0, mpo_to.1);
+                let mpo_to: PtF = (mpo_from.x, mpo_to.y).into();
                 let min_shape = Shape::new(1, 30);
                 let oob_mode = OutOfBoundsMode::Resize(min_shape);
-                let y_shift = mpo_to.1 as i32 - mpo_from.1 as i32;
-                if y_shift > 0 && bb.y == 0 {
-                    if let Some(bb_shifted) = bb.shift_max(0, y_shift, orig_shape) {
+                let y_shift = mpo_to.y - mpo_from.y;
+                if y_shift as i32 > 0 && bb.y == 0 {
+                    if let Some(bb_shifted) = bb.shift_max(0, y_shift as i32, orig_shape) {
                         (true, bb_shifted)
                     } else {
                         (false, bb)
                     }
-                } else if y_shift < 0 && bb.y + bb.h == orig_shape.h {
-                    if let Some(bb_shifted) = bb.shift_min(0, y_shift, orig_shape) {
+                } else if (y_shift as i32) < 0 && bb.y + bb.h == orig_shape.h {
+                    if let Some(bb_shifted) = bb.shift_min(0, y_shift as i32, orig_shape) {
                         (true, bb_shifted)
                     } else {
                         (false, bb)
@@ -145,18 +145,18 @@ impl SplitMode {
                 }
             }
             SplitMode::Vertical => {
-                let mpo_to = (mpo_to.0, mpo_from.1);
+                let mpo_to: PtF = (mpo_to.x, mpo_from.y).into();
                 let min_shape = Shape::new(30, 1);
                 let oob_mode = OutOfBoundsMode::Resize(min_shape);
-                let x_shift = mpo_to.0 as i32 - mpo_from.0 as i32;
-                if x_shift > 0 && bb.x == 0 {
-                    if let Some(bb_shifted) = bb.shift_max(x_shift, 0, orig_shape) {
+                let x_shift = mpo_to.x - mpo_from.x;
+                if x_shift as i32 > 0 && bb.x == 0 {
+                    if let Some(bb_shifted) = bb.shift_max(x_shift as i32, 0, orig_shape) {
                         (true, bb_shifted)
                     } else {
                         (false, bb)
                     }
-                } else if x_shift < 0 && bb.x + bb.w == orig_shape.h {
-                    if let Some(bb_shifted) = bb.shift_min(x_shift, 0, orig_shape) {
+                } else if (x_shift as i32) < 0 && bb.x + bb.w == orig_shape.h {
+                    if let Some(bb_shifted) = bb.shift_min(x_shift as i32, 0, orig_shape) {
                         (true, bb_shifted)
                     } else {
                         (false, bb)

@@ -30,14 +30,18 @@ azure_blob = [
 ]
 
 [dependencies]
-azure_storage = { version = "0.15.0", optional = true }
-azure_storage_blobs = { version = "0.15.0", optional = true }
+azure_storage = { version = "0.16.0", optional = true }
+azure_storage_blobs = { version = "0.16.0", optional = true }
 conv = "0.3.3"
 dirs = "5.0.1"
 edit = "0.1.4"
-egui = "0.22"
-egui-wgpu = "0.22"
-egui-winit = { version = "0.22", default-features = false, features = ["links", "clipboard"] }
+egui = "0.23"
+eframe = { version = "0.23.0", default-features = false, features = [
+    # "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
+    "persistence",   # Enable restoring app state when restarting the app.
+] }
 futures = { version = "0.3", optional = true }
 httparse = "~1.8"
 image = "0.24.7"
@@ -45,7 +49,6 @@ imageproc = "~0.23"
 lazy_static = "1.4.0"
 log = "0.4"
 percent-encoding = "2.3.0"
-pixels = "0.13.0"
 rand = "0.8.5"
 regex = "1.9.5"
 reqwest = { version = "0.11.20", features = ["blocking", "json"] }
@@ -57,8 +60,7 @@ serde-pickle = "1.1.1"
 ssh2 = { version = "0.9", features = ["vendored-openssl"] }
 toml = "0.8.1"
 walkdir = "2.3.3"
-winit = "0.28"
-winit_input_helper = "0.14"
 tokio = { version = "1.32.0", optional = true }
 uuid = { version = "1.4.1", features = ["v4", "fast-rng"] }
-exmex = "0.17.5"
+exmex = "0.18.0"
+tracing-subscriber = "0.3.17"

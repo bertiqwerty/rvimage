@@ -1,11 +1,9 @@
 use crate::{
-    domain::Shape,
+    events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
     world::{DataRaw, World},
 };
-use winit::event::VirtualKeyCode;
-use winit_input_helper::WinitInputHelper;
 
 use super::Manipulate;
 
@@ -23,14 +21,12 @@ pub struct Rot90;
 impl Rot90 {
     fn key_pressed(
         &mut self,
-        _event: &WinitInputHelper,
-        shape_win: Shape,
-        _mouse_pos: Option<(usize, usize)>,
+        _events: &Events,
         mut world: World,
         mut history: History,
     ) -> (World, History) {
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
-        world = World::new(rot90(&world.data), *world.zoom_box(), shape_win);
+        world = World::new(rot90(&world.data), *world.zoom_box());
         (world, history)
     }
 }
@@ -40,23 +36,13 @@ impl Manipulate for Rot90 {
         Self {}
     }
 
-    fn events_tf(
-        &mut self,
-        world: World,
-        history: History,
-        shape_win: Shape,
-        mouse_pos: Option<(usize, usize)>,
-        event: &WinitInputHelper,
-    ) -> (World, History) {
+    fn events_tf(&mut self, world: World, history: History, event: &Events) -> (World, History) {
         make_tool_transform!(
             self,
             world,
             history,
-            shape_win,
-            mouse_pos,
             event,
-            [],
-            [(key_pressed, VirtualKeyCode::R)]
+            [(pressed, KeyCode::R, key_pressed)]
         )
     }
 }

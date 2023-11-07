@@ -2,11 +2,14 @@ mod cache;
 pub mod cfg;
 pub mod control;
 pub mod domain;
+mod drawme;
+mod events;
 pub mod file_util;
 pub mod history;
 pub mod httpserver;
 mod image_reader;
 pub mod image_util;
+pub mod main_loop;
 pub mod menu;
 mod paths_selector;
 pub mod result;
@@ -16,8 +19,13 @@ pub mod tools;
 pub mod tools_data;
 mod types;
 mod util;
+mod view;
 pub mod world;
-const LEFT_BTN: usize = 0;
-const RIGHT_BTN: usize = 1;
-
+pub use domain::{Polygon, Shape, BB};
+pub use drawme::{Annotation, GeoFig, Stroke, UpdateAnnos, UpdateImage, UpdateView, UpdateZoomBox};
+pub use events::{Event, Events, KeyCode};
+pub use main_loop::MainEventLoop;
 pub use tools_data::annotations;
+pub use view::{
+    orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, ImageU8,
+};

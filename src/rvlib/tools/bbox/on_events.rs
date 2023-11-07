@@ -1,36 +1,32 @@
 use crate::{
     annotations::SplitMode,
     cfg::CocoFile,
-    domain::{
-        mouse_pos_to_orig_pos, orig_pos_to_view_pos, shape_unscaled, OutOfBoundsMode, Shape, BB,
-    },
+    domain::{shape_unscaled, OutOfBoundsMode, PtF, BB},
+    events::{Events, KeyCode},
     file_util::MetaData,
     history::Record,
-    image_util::to_i64,
-    tools::core::{InitialView, Mover},
+    tools::{core::Mover, BBOX_NAME},
     tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
     util::true_indices,
     {history::History, world::World},
 };
-use winit::event::VirtualKeyCode;
-use winit_input_helper::WinitInputHelper;
 
 use super::core::{
-    current_cat_idx, draw_on_view, get_annos, get_annos_mut, get_tools_data, get_tools_data_mut,
-    paste, ACTOR_NAME,
+    current_cat_idx, get_annos, get_annos_mut, get_tools_data, get_tools_data_mut, paste,
+    ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
 
-fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
+fn find_closest_boundary_idx(pos: (f32, f32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
         .enumerate()
         .filter(|(_, bb)| bb.contains(pos))
         .map(|(i, bb)| {
-            let dx = (bb.x as i64 - pos.0 as i64).abs();
-            let dw = ((bb.x + bb.w) as i64 - pos.0 as i64).abs();
-            let dy = (bb.y as i64 - pos.1 as i64).abs();
-            let dh = ((bb.y + bb.h) as i64 - pos.1 as i64).abs();
+            let dx = (bb.x as f32 - pos.0).abs();
+            let dw = ((bb.x + bb.w) as f32 - pos.0).abs();
+            let dy = (bb.y as f32 - pos.1).abs();
+            let dh = ((bb.y + bb.h) as f32 - pos.1).abs();
             (i, dx.min(dw).min(dy).min(dh))
         })
         .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
@@ -38,15 +34,15 @@ fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
 }
 
 /// returns index of the bounding box and the index of the closest close corner
-fn find_close_corner(orig_pos: (u32, u32), bbs: &[BB], tolerance: i64) -> Option<(usize, usize)> {
-    let opf = to_i64(orig_pos);
+fn find_close_corner(orig_pos: PtF, bbs: &[BB], tolerance: i64) -> Option<(usize, usize)> {
+    let opi64: (i64, i64) = orig_pos.into();
     bbs.iter()
         .enumerate()
         .map(|(bb_idx, bb)| {
             let (min_corner_idx, min_corner_dist) = bb
                 .corners()
-                .map(to_i64)
-                .map(|c| (opf.0 - c.0).pow(2) + (opf.1 - c.1).pow(2))
+                .map(|c| c.into())
+                .map(|c: (i64, i64)| (opi64.0 - c.0).pow(2) + (opi64.1 - c.1).pow(2))
                 .enumerate()
                 .min_by_key(|x| x.1)
                 .unwrap();
@@ -83,19 +79,15 @@ pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecific
 }
 
 pub(super) struct MouseHeldParams<'a> {
-    pub are_boxes_visible: bool,
-    pub initial_view: &'a InitialView,
     pub mover: &'a mut Mover,
 }
 pub(super) fn on_mouse_held_right(
-    shape_win: Shape,
-    mouse_pos: Option<(usize, usize)>,
+    mouse_pos: Option<PtF>,
     params: MouseHeldParams,
     mut world: World,
     mut history: History,
 ) -> (World, History) {
     let orig_shape = world.data.shape();
-    let zoom_box = *world.zoom_box();
     let mut add_to_history = false;
     let move_boxes = |mpo_from, mpo_to| {
         let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
@@ -103,40 +95,36 @@ pub(super) fn on_mouse_held_right(
         add_to_history = annos.selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
         Some(())
     };
-    params
-        .mover
-        .move_mouse_held(move_boxes, mouse_pos, shape_win, orig_shape, &zoom_box);
-    world = draw_on_view(
-        params.initial_view,
-        params.are_boxes_visible,
-        world,
-        shape_win,
-    );
+    params.mover.move_mouse_held(move_boxes, mouse_pos);
     if add_to_history {
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
     }
+    let are_boxes_visible = get_tools_data(&world)
+        .specifics
+        .bbox()
+        .options
+        .are_boxes_visible;
+    world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
     (world, history)
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct PrevPos {
-    pub prev_pos: Option<(usize, usize)>,
-    pub last_valid_click: Option<(usize, usize)>,
+    pub prev_pos: Option<PtF>,
+    pub last_valid_click: Option<PtF>,
 }
 
-pub(super) struct MouseReleaseParams<'a> {
+pub(super) struct MouseReleaseParams {
     pub prev_pos: PrevPos,
 
     pub are_boxes_visible: bool,
     pub is_alt_held: bool,
     pub is_shift_held: bool,
     pub is_ctrl_held: bool,
-    pub initial_view: &'a InitialView,
 }
 
 pub(super) fn on_mouse_released_left(
-    shape_win: Shape,
-    mouse_pos: Option<(usize, usize)>,
+    mouse_pos: Option<PtF>,
     params: MouseReleaseParams,
     mut world: World,
     mut history: History,
@@ -148,35 +136,34 @@ pub(super) fn on_mouse_released_left(
         is_alt_held,
         is_shift_held,
         is_ctrl_held,
-        initial_view,
     } = params;
-    let to_orig_pos =
-        |pos| mouse_pos_to_orig_pos(pos, world.shape_orig(), shape_win, world.zoom_box());
-    let mp_orig = to_orig_pos(mouse_pos);
-    let lc_orig = to_orig_pos(prev_pos.last_valid_click);
-    let pp_orig = to_orig_pos(prev_pos.prev_pos);
+    let lc_orig = prev_pos.last_valid_click;
+    let pp_orig = prev_pos.prev_pos;
     let in_menu_selected_label = current_cat_idx(&world);
     if let Some(mp) = mouse_pos {
         prev_pos.last_valid_click = Some(mp);
     }
-    if let (Some(mp), Some(pp), Some(last_click)) = (mp_orig, pp_orig, lc_orig) {
+    if let (Some(mp), Some(pp), Some(last_click)) = (mouse_pos, pp_orig, lc_orig) {
         // second click new bb
-        if (mp.0 as i32 - pp.0 as i32).abs() > 1 && (mp.1 as i32 - pp.1 as i32).abs() > 1 {
+        if (mp.x as i32 - pp.x as i32).abs() > 1 && (mp.y as i32 - pp.y as i32).abs() > 1 {
             let mp = match split_mode {
-                SplitMode::Horizontal => (last_click.0, mp.1),
-                SplitMode::Vertical => (mp.0, last_click.1),
+                SplitMode::Horizontal => (last_click.x, mp.y).into(),
+                SplitMode::Vertical => (mp.x, last_click.y).into(),
                 SplitMode::None => mp,
             };
             let annos = get_annos_mut(&mut world);
-            annos.add_bb(BB::from_points(mp, pp), in_menu_selected_label);
+            annos.add_bb(
+                BB::from_points(mp.into(), pp.into()),
+                in_menu_selected_label,
+            );
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
             prev_pos.prev_pos = None;
-            world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
+            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         }
     } else if is_ctrl_held || is_alt_held || is_shift_held {
         // selection
         let annos = get_annos_mut(&mut world);
-        let idx = mp_orig.and_then(|(x, y)| find_closest_boundary_idx((x, y), annos.bbs()));
+        let idx = mouse_pos.and_then(|p| find_closest_boundary_idx((p.x, p.y), annos.bbs()));
         if let Some(i) = idx {
             if is_shift_held {
                 // If shift is held a new selection box will be spanned between the currently clicked
@@ -212,12 +199,12 @@ pub(super) fn on_mouse_released_left(
                 annos.toggle_selection(i);
             }
         }
-        world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
+        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
     } else {
         let shape_orig = world.data.shape();
         let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
         let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
-        let close_corner = mp_orig.and_then(|mp| {
+        let close_corner = mouse_pos.and_then(|mp| {
             get_annos(&world).and_then(|a| find_close_corner(mp, a.bbs(), tolerance as i64))
         });
         if let Some((bb_idx, idx)) = close_corner {
@@ -225,9 +212,7 @@ pub(super) fn on_mouse_released_left(
             let annos = get_annos_mut(&mut world);
             let bb = annos.remove(bb_idx);
             let oppo_corner = bb.opposite_corner(idx);
-            prev_pos.prev_pos =
-                orig_pos_to_view_pos(oppo_corner, shape_orig, shape_win, world.zoom_box())
-                    .map(|(x, y)| (x as usize, y as usize));
+            prev_pos.prev_pos = Some(oppo_corner.into());
         } else {
             match split_mode {
                 SplitMode::None => {
@@ -236,34 +221,33 @@ pub(super) fn on_mouse_released_left(
                 }
                 _ => {
                     // create boxes by splitting either horizontally or vertically
-                    if let Some(mp) = mp_orig {
+                    if let Some(mp) = mouse_pos {
                         let existing_bbs: &[BB] = if let Some(annos) = get_annos(&world) {
                             annos.bbs()
                         } else {
                             &[]
                         };
-                        let (x, y) = mp;
                         let new_bbs = if let SplitMode::Horizontal = split_mode {
                             if let Some((i, bb)) = existing_bbs
                                 .iter()
                                 .enumerate()
-                                .find(|(_, bb)| bb.contains((x, y)))
+                                .find(|(_, bb)| bb.contains((mp.x, mp.y)))
                             {
-                                let (top, btm) = bb.split_horizontally(y);
+                                let (top, btm) = bb.split_horizontally(mp.y as u32);
                                 vec![(Some(i), top, btm)]
                             } else {
                                 let new_bbs = existing_bbs
                                     .iter()
                                     .enumerate()
-                                    .filter(|(_, bb)| bb.covers_y(y))
+                                    .filter(|(_, bb)| bb.covers_y(mp.y as u32))
                                     .map(|(i, bb)| {
-                                        let (top, btm) = bb.split_horizontally(y);
+                                        let (top, btm) = bb.split_horizontally(mp.y as u32);
                                         (Some(i), top, btm)
                                     })
                                     .collect::<Vec<_>>();
                                 if new_bbs.is_empty() {
                                     let (top, btm) =
-                                        BB::from_shape(shape_orig).split_horizontally(y);
+                                        BB::from_shape(shape_orig).split_horizontally(mp.y as u32);
                                     vec![(None, top, btm)]
                                 } else {
                                     new_bbs
@@ -273,22 +257,23 @@ pub(super) fn on_mouse_released_left(
                         } else if let Some((i, bb)) = existing_bbs
                             .iter()
                             .enumerate()
-                            .find(|(_, bb)| bb.contains((x, y)))
+                            .find(|(_, bb)| bb.contains((mp.x, mp.y)))
                         {
-                            let (left, right) = bb.split_vertically(x);
+                            let (left, right) = bb.split_vertically(mp.x as u32);
                             vec![(Some(i), left, right)]
                         } else {
                             let new_bbs = existing_bbs
                                 .iter()
                                 .enumerate()
-                                .filter(|(_, bb)| bb.covers_x(x))
+                                .filter(|(_, bb)| bb.covers_x(mp.x as u32))
                                 .map(|(i, bb)| {
-                                    let (left, right) = bb.split_vertically(x);
+                                    let (left, right) = bb.split_vertically(mp.x as u32);
                                     (Some(i), left, right)
                                 })
                                 .collect::<Vec<_>>();
                             if new_bbs.is_empty() {
-                                let (left, right) = BB::from_shape(shape_orig).split_vertically(x);
+                                let (left, right) =
+                                    BB::from_shape(shape_orig).split_vertically(mp.x as u32);
                                 vec![(None, left, right)]
                             } else {
                                 new_bbs
@@ -303,7 +288,7 @@ pub(super) fn on_mouse_released_left(
                         }
                         history.push(Record::new(world.data.clone(), ACTOR_NAME));
                         prev_pos.prev_pos = None;
-                        world = draw_on_view(initial_view, are_boxes_visible, world, shape_win);
+                        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
                     }
                 }
             }
@@ -318,10 +303,10 @@ macro_rules! released_key {
             None,
             $($key,)*
         }
-        pub(super) fn map_released_key(event: &WinitInputHelper) -> ReleasedKey {
+        pub(super) fn map_released_key(event: &Events) -> ReleasedKey {
             if false {
                 ReleasedKey::None
-            } $(else if event.key_released(VirtualKeyCode::$key) {
+            } $(else if event.released(KeyCode::$key) {
                 ReleasedKey::$key
             })*
             else {
@@ -345,8 +330,7 @@ macro_rules! set_cat_current {
     };
 }
 
-pub(super) struct KeyReleasedParams<'a> {
-    pub initial_view: &'a InitialView,
+pub(super) struct KeyReleasedParams {
     pub is_ctrl_held: bool,
     pub released_key: ReleasedKey,
 }
@@ -354,8 +338,7 @@ pub(super) struct KeyReleasedParams<'a> {
 pub(super) fn on_key_released(
     mut world: World,
     mut history: History,
-    mouse_pos: Option<(usize, usize)>,
-    shape_win: Shape,
+    mouse_pos: Option<PtF>,
     params: KeyReleasedParams,
 ) -> (World, History) {
     let mut flags = get_tools_data_mut(&mut world).specifics.bbox_mut().options;
@@ -363,46 +346,26 @@ pub(super) fn on_key_released(
         ReleasedKey::H if params.is_ctrl_held => {
             // Hide all boxes (selected or not)
             flags.are_boxes_visible = !flags.are_boxes_visible;
-            world = draw_on_view(
-                params.initial_view,
-                flags.are_boxes_visible,
-                world,
-                shape_win,
-            );
+            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
         }
         ReleasedKey::Delete | ReleasedKey::Back => {
             // Remove selected
             let annos = get_annos_mut(&mut world);
             if !annos.selected_bbs().is_empty() {
                 annos.remove_selected();
-                world = draw_on_view(
-                    params.initial_view,
-                    flags.are_boxes_visible,
-                    world,
-                    shape_win,
-                );
+                world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
                 history.push(Record::new(world.data.clone(), ACTOR_NAME));
             }
         }
         ReleasedKey::A if params.is_ctrl_held => {
             // Select all
             get_annos_mut(&mut world).select_all();
-            world = draw_on_view(
-                params.initial_view,
-                flags.are_boxes_visible,
-                world,
-                shape_win,
-            );
+            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
         }
         ReleasedKey::D if params.is_ctrl_held => {
             // Deselect all
             get_annos_mut(&mut world).deselect_all();
-            world = draw_on_view(
-                params.initial_view,
-                flags.are_boxes_visible,
-                world,
-                shape_win,
-            );
+            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
         }
         ReleasedKey::C if params.is_ctrl_held => {
             // Copy to clipboard
@@ -411,16 +374,11 @@ pub(super) fn on_key_released(
                     .specifics
                     .bbox_mut()
                     .clipboard = Some(ClipboardData::from_annotations(annos));
-                world = draw_on_view(
-                    params.initial_view,
-                    flags.are_boxes_visible,
-                    world,
-                    shape_win,
-                );
+                world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
             }
         }
         ReleasedKey::V if params.is_ctrl_held => {
-            (world, history) = paste(params.initial_view, shape_win, world, history);
+            (world, history) = paste(world, history);
         }
         ReleasedKey::V => {
             flags.auto_paste = !flags.auto_paste;
@@ -432,18 +390,11 @@ pub(super) fn on_key_released(
                 false
             };
             get_annos_mut(&mut world).show_labels = !show_label;
-            world = draw_on_view(
-                params.initial_view,
-                flags.are_boxes_visible,
-                world,
-                shape_win,
-            );
+            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
         }
         ReleasedKey::C => {
             // Paste selection directly at current mouse position
-            let mp_orig =
-                mouse_pos_to_orig_pos(mouse_pos, world.shape_orig(), shape_win, world.zoom_box());
-            if let Some((x_shift, y_shift)) = mp_orig {
+            if let Some((x_shift, y_shift)) = mouse_pos.map(<PtF as Into<(i32, i32)>>::into) {
                 let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
                 let selected_inds = true_indices(annos.selected_bbs());
@@ -453,8 +404,8 @@ pub(super) fn on_key_released(
                         let bb = annos.bbs()[idx];
                         let first = annos.bbs()[first_idx];
                         bb.translate(
-                            x_shift as i32 - first.x as i32,
-                            y_shift as i32 - first.y as i32,
+                            x_shift - first.x as i32,
+                            y_shift - first.y as i32,
                             shape_orig,
                             OutOfBoundsMode::Deny,
                         )
@@ -472,12 +423,7 @@ pub(super) fn on_key_released(
                         );
                         annos.deselect_all();
                         annos.select_last_n(translated_bbs.len());
-                        world = draw_on_view(
-                            params.initial_view,
-                            flags.are_boxes_visible,
-                            world,
-                            shape_win,
-                        );
+                        world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
                         history.push(Record::new(world.data.clone(), ACTOR_NAME));
                     }
                 }
@@ -522,21 +468,20 @@ pub(super) fn on_key_released(
 #[cfg(test)]
 use {
     super::core::initialize_tools_menu_data,
-    crate::{annotations::BboxAnnotations, domain::make_test_bbs, types::ViewImage},
+    crate::{
+        annotations::BboxAnnotations,
+        domain::{make_test_bbs, Shape},
+        point,
+        types::ViewImage,
+    },
     image::DynamicImage,
     std::collections::HashMap,
 };
 
 #[cfg(test)]
-fn test_data() -> (InitialView, Option<(usize, usize)>, Shape, World, History) {
+fn test_data() -> (Option<PtF>, World, History) {
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
-    let shape_win = Shape { w: 64, h: 64 };
-    let world = World::from_real_im(
-        im_test,
-        HashMap::new(),
-        "superimage.png".to_string(),
-        shape_win,
-    );
+    let world = World::from_real_im(im_test, HashMap::new(), "superimage.png".to_string());
     let mut world = initialize_tools_menu_data(world);
     world.data.meta_data.is_loading_screen_active = Some(false);
     let tools_data = get_tools_data_mut(&mut world);
@@ -545,11 +490,9 @@ fn test_data() -> (InitialView, Option<(usize, usize)>, Shape, World, History) {
         .bbox_mut()
         .push("label".to_string(), None, None)
         .unwrap();
-    let history = History::new();
-    let mut inital_view = InitialView::new();
-    inital_view.update(&world, shape_win);
-    let mouse_pos = Some((32, 32));
-    (inital_view, mouse_pos, shape_win, world, history)
+    let history = History::default();
+    let mouse_pos = Some(point!(32.0, 32.0));
+    (mouse_pos, world, history)
 }
 
 #[cfg(test)]
@@ -559,9 +502,8 @@ fn history_equal(hist1: &History, hist2: &History) -> bool {
 
 #[test]
 fn test_key_released() {
-    let (initial_view, _, shape_win, mut world, history) = test_data();
+    let (_, mut world, history) = test_data();
     let make_params = |released_key, is_ctrl_held| KeyReleasedParams {
-        initial_view: &initial_view,
         is_ctrl_held,
         released_key,
     };
@@ -580,15 +522,15 @@ fn test_key_released() {
 
     // select all boxes with ctrl+A
     let params = make_params(ReleasedKey::A, false);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
     let params = make_params(ReleasedKey::A, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     assert!(get_annos(&world).unwrap().selected_bbs()[0]);
 
     // copy and paste boxes to and from clipboard
     let params = make_params(ReleasedKey::C, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     assert!(get_annos(&world).unwrap().selected_bbs()[0]);
     if let Some(clipboard) = get_tools_data(&world).specifics.bbox().clipboard.clone() {
         let mut annos = BboxAnnotations::new();
@@ -607,21 +549,21 @@ fn test_key_released() {
         assert!(false);
     }
     let params = make_params(ReleasedKey::V, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     assert!(get_tools_data(&world).specifics.bbox().clipboard.is_some());
     assert_eq!(get_annos(&world).unwrap().bbs(), annos_orig.bbs());
     let params = make_params(ReleasedKey::C, true);
-    let (mut world, history) = on_key_released(world, history, None, shape_win, params);
+    let (mut world, history) = on_key_released(world, history, None, params);
     get_annos_mut(&mut world).remove(0);
     let params = make_params(ReleasedKey::V, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     assert_eq!(get_annos(&world).unwrap().bbs(), annos_orig.bbs());
 
     // clone box
     let params = make_params(ReleasedKey::A, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::C, false);
-    let (world, history) = on_key_released(world, history, Some((2, 2)), shape_win, params);
+    let (world, history) = on_key_released(world, history, Some(point!(2.0, 2.0)), params);
     assert_eq!(get_annos(&world).unwrap().bbs()[0], annos_orig.bbs()[0]);
     assert_eq!(
         get_annos(&world).unwrap().bbs()[1],
@@ -633,72 +575,66 @@ fn test_key_released() {
 
     // deselect all boxes with ctrl+D
     let params = make_params(ReleasedKey::A, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::D, false);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     assert!(get_annos(&world).unwrap().selected_bbs()[0]);
     let params = make_params(ReleasedKey::D, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     let flags = get_tools_data(&world).specifics.bbox().options;
     assert!(flags.are_boxes_visible);
     assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     let flags = get_tools_data(&world).specifics.bbox().options;
     assert!(!flags.are_boxes_visible);
 
     // delete all selected boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     assert!(!get_annos(&world).unwrap().selected_bbs().is_empty());
     let params = make_params(ReleasedKey::A, true);
-    let (world, history) = on_key_released(world, history, None, shape_win, params);
+    let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::Delete, true);
-    let (world, _) = on_key_released(world, history, None, shape_win, params);
+    let (world, _) = on_key_released(world, history, None, params);
     assert!(get_annos(&world).unwrap().selected_bbs().is_empty());
 }
 
 #[test]
 fn test_mouse_held() {
-    let (initial_view, mouse_pos, shape_win, mut world, history) = test_data();
+    let (mouse_pos, mut world, history) = test_data();
     let annos = get_annos_mut(&mut world);
     let bbs = make_test_bbs();
     annos.add_bb(bbs[0].clone(), 0);
     {
         let mut mover = Mover::new();
-        mover.move_mouse_pressed(Some((12, 12)));
-        let params = MouseHeldParams {
-            are_boxes_visible: true,
-            initial_view: &initial_view,
-            mover: &mut mover,
-        };
+        mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
+        let params = MouseHeldParams { mover: &mut mover };
         let (world, new_hist) =
-            on_mouse_held_right(shape_win, mouse_pos, params, world.clone(), history.clone());
+            on_mouse_held_right(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
         assert!(history_equal(&history, &new_hist));
     }
     {
         let mut mover = Mover::new();
-        mover.move_mouse_pressed(Some((12, 12)));
-        let params = MouseHeldParams {
-            are_boxes_visible: true,
-            initial_view: &initial_view,
-            mover: &mut mover,
-        };
+        mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
+        let params = MouseHeldParams { mover: &mut mover };
         let annos = get_annos_mut(&mut world);
         annos.select(0);
-        let (world, new_hist) =
-            on_mouse_held_right(shape_win, mouse_pos, params, world, history.clone());
+        let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());
         assert_ne!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
+
+        println!("{:?}", bbs[0]);
+        println!("{:?}", get_annos(&world).unwrap().bbs()[0]);
         assert!(!history_equal(&history, &new_hist));
     }
 }
 
 #[test]
 fn test_mouse_release() {
-    let (initial_view, mouse_pos, shape_win, world, history) = test_data();
+    let (mouse_pos, world, history) = test_data();
     let make_params = |prev_pos, is_ctrl_held| MouseReleaseParams {
         prev_pos: PrevPos {
             prev_pos,
@@ -708,14 +644,13 @@ fn test_mouse_release() {
         is_alt_held: false,
         is_shift_held: false,
         is_ctrl_held,
-        initial_view: &initial_view,
     };
     {
         // If a previous position was registered, we expect that the second click creates the
         // bounding box.
-        let params = make_params(Some((30, 30)), false);
+        let params = make_params(Some(point!(30.0, 30.0)), false);
         let (world, new_hist, prev_pos) =
-            on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
+            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
         assert_eq!(annos.unwrap().bbs().len(), 1);
@@ -727,7 +662,7 @@ fn test_mouse_release() {
         // of defining a new bounding box. The other corner will be defined by a second click.
         let params = make_params(None, false);
         let (world, new_hist, prev_pos) =
-            on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
+            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, mouse_pos);
         let annos = get_annos(&world);
         assert!(annos.is_none() || annos.unwrap().bbs().is_empty());
@@ -738,7 +673,7 @@ fn test_mouse_release() {
         // nothing should happen.
         let params = make_params(None, true);
         let (world, new_hist, prev_pos) =
-            on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
+            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
         assert!(annos.is_none() || annos.unwrap().bbs().is_empty());
@@ -747,9 +682,9 @@ fn test_mouse_release() {
     {
         // If ctrl is hold at the second click, this does not really make sense. We ignore it and assume this
         // is the finishing box click.
-        let params = make_params(Some((30, 30)), true);
+        let params = make_params(Some(point!(30.0, 30.0)), true);
         let (world, new_hist, prev_pos) =
-            on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
+            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
         assert_eq!(annos.unwrap().bbs().len(), 1);
@@ -776,7 +711,7 @@ fn test_mouse_release() {
         annos.add_bb(BB::from_arr(&[20, 55, 3, 3]), 0);
 
         let (mut world, _, prev_pos) =
-            on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
+            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
         assert_eq!(prev_pos.prev_pos, None);
         assert!(annos.selected_bbs()[0]);
@@ -796,7 +731,7 @@ fn test_mouse_release() {
         annos.deselect_all();
         annos.select(1);
         let (mut world, _, prev_pos) =
-            on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
+            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
         assert_eq!(prev_pos.prev_pos, None);
         assert!(annos.selected_bbs()[0]);
@@ -811,7 +746,7 @@ fn test_mouse_release() {
         let annos = get_annos_mut(&mut world);
         annos.select(3);
         let (world, _, prev_pos) =
-            on_mouse_released_left(shape_win, mouse_pos, params, world.clone(), history.clone());
+            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
         assert_eq!(prev_pos.prev_pos, None);
         assert!(annos.selected_bbs()[0]);
@@ -828,11 +763,11 @@ fn test_mouse_release() {
 #[test]
 fn test_find_idx() {
     let bbs = make_test_bbs();
-    assert_eq!(find_closest_boundary_idx((0, 20), &bbs), None);
-    assert_eq!(find_closest_boundary_idx((0, 0), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((3, 8), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((7, 14), &bbs), Some(1));
-    assert_eq!(find_closest_boundary_idx((7, 15), &bbs), None);
-    assert_eq!(find_closest_boundary_idx((8, 8), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((10, 12), &bbs), Some(2));
+    assert_eq!(find_closest_boundary_idx((0.0, 20.0), &bbs), None);
+    assert_eq!(find_closest_boundary_idx((0.0, 0.0), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((3.0, 8.0), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((7.0, 14.0), &bbs), Some(1));
+    assert_eq!(find_closest_boundary_idx((7.0, 15.0), &bbs), None);
+    assert_eq!(find_closest_boundary_idx((8.0, 8.0), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((10.0, 12.0), &bbs), Some(2));
 }

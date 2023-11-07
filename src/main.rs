@@ -1,470 +1,392 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use image::{DynamicImage, GenericImageView};
-use image::{ImageBuffer, Rgb};
-use lazy_static::lazy_static;
-use log::error;
-use pixels::{Pixels, SurfaceTexture};
-use rvlib::cfg::{self, Cfg};
-use rvlib::control::{Control, Info};
-use rvlib::domain::{self, zoom_box_mouse_wheel, Shape};
-use rvlib::file_util::make_prjcfg_filename;
-use rvlib::history::History;
-use rvlib::menu::Framework;
-use rvlib::result::RvResult;
-use rvlib::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
-use rvlib::world::World;
-use rvlib::{apply_tool_method_mut, defer, httpserver, image_util};
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::fs;
-use std::mem;
-use std::path::Path;
-use std::sync::mpsc::Receiver;
-use std::time::{Duration, Instant};
-use winit::dpi::LogicalSize;
-use winit::event_loop::EventLoop;
-use winit::window::WindowBuilder;
-use winit::{
-    event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent},
-    event_loop::ControlFlow,
+use egui::{
+    epaint::RectShape, Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect,
+    Response, Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
-use winit_input_helper::WinitInputHelper;
+use image::{ImageBuffer, Rgb};
+use rvlib::{
+    domain::{PtF, PtI},
+    orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, Annotation,
+    GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage, UpdateZoomBox, BB,
+};
 
-const START_WIDTH: u32 = 640;
-const START_HEIGHT: u32 = 480;
-const MIN_WIN_INNER_SIZE: LogicalSize<i32> = LogicalSize::new(32, 32);
-
-fn cfg_static_ref() -> &'static Cfg {
-    lazy_static! {
-        static ref CFG: Cfg = cfg::get_cfg().expect("config broken");
+fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
+    match egui_key {
+        egui::Key::A => Some(rvlib::KeyCode::A),
+        egui::Key::B => Some(rvlib::KeyCode::B),
+        egui::Key::C => Some(rvlib::KeyCode::C),
+        egui::Key::D => Some(rvlib::KeyCode::D),
+        egui::Key::L => Some(rvlib::KeyCode::L),
+        egui::Key::H => Some(rvlib::KeyCode::H),
+        egui::Key::M => Some(rvlib::KeyCode::M),
+        egui::Key::Q => Some(rvlib::KeyCode::Q),
+        egui::Key::R => Some(rvlib::KeyCode::R),
+        egui::Key::T => Some(rvlib::KeyCode::T),
+        egui::Key::V => Some(rvlib::KeyCode::V),
+        egui::Key::Y => Some(rvlib::KeyCode::Y),
+        egui::Key::Z => Some(rvlib::KeyCode::Z),
+        egui::Key::Num0 => Some(rvlib::KeyCode::Key0),
+        egui::Key::Num1 => Some(rvlib::KeyCode::Key1),
+        egui::Key::Num2 => Some(rvlib::KeyCode::Key2),
+        egui::Key::Num3 => Some(rvlib::KeyCode::Key3),
+        egui::Key::Num4 => Some(rvlib::KeyCode::Key4),
+        egui::Key::Num5 => Some(rvlib::KeyCode::Key5),
+        egui::Key::Num6 => Some(rvlib::KeyCode::Key6),
+        egui::Key::Num7 => Some(rvlib::KeyCode::Key7),
+        egui::Key::Num8 => Some(rvlib::KeyCode::Key8),
+        egui::Key::Num9 => Some(rvlib::KeyCode::Key9),
+        egui::Key::PlusEquals => Some(rvlib::KeyCode::PlusEquals),
+        egui::Key::Minus => Some(rvlib::KeyCode::Minus),
+        egui::Key::Delete => Some(rvlib::KeyCode::Delete),
+        egui::Key::Backspace => Some(rvlib::KeyCode::Back),
+        egui::Key::ArrowLeft => Some(rvlib::KeyCode::Left),
+        egui::Key::ArrowRight => Some(rvlib::KeyCode::Right),
+        egui::Key::ArrowUp => Some(rvlib::KeyCode::Up),
+        egui::Key::ArrowDown => Some(rvlib::KeyCode::Down),
+        egui::Key::F5 => Some(rvlib::KeyCode::F5),
+        egui::Key::PageDown => Some(rvlib::KeyCode::PageDown),
+        egui::Key::PageUp => Some(rvlib::KeyCode::PageUp),
+        egui::Key::Escape => Some(rvlib::KeyCode::Escape),
+        _ => None,
     }
-    &CFG
 }
 
-fn http_address() -> &'static str {
-    lazy_static! {
-        static ref HTTP_ADDRESS: &'static str = cfg_static_ref().http_address();
+#[derive(Default)]
+struct LastSensedBtns {
+    pub btn_codes: Vec<KeyCode>,
+    pub modifiers: Vec<rvlib::Event>,
+}
+impl LastSensedBtns {
+    fn is_empty(&self) -> bool {
+        self.btn_codes.is_empty() && self.modifiers.is_empty()
     }
-    &HTTP_ADDRESS
 }
-fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
-where
-    T: GenericImageView,
-    <T as GenericImageView>::Pixel: Debug,
-{
-    let p = im.get_pixel(x, y);
-    format!("({x}, {y}) -> ({p:?})")
+fn clrim_2_handle(color_image: ColorImage, ctx: &Context) -> TextureHandle {
+    ctx.load_texture("canvas", color_image, TextureOptions::NEAREST)
 }
 
-fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
-    image_util::apply_to_matched_image(
-        im,
-        |im| pos_2_string_gen(im, x, y),
-        |im| pos_2_string_gen(im, x, y),
-        |im| pos_2_string_gen(im, x, y),
-        |im| pos_2_string_gen(im, x, y),
-    )
+fn handle_2_image<'a>(handle: &TextureHandle, size: [usize; 2]) -> Image<'a> {
+    let size = egui::vec2(size[0] as f32, size[1] as f32);
+    let sized_image = egui::load::SizedTexture::new(handle.id(), size);
+    egui::Image::from_texture(sized_image)
 }
 
-fn get_pixel_on_orig_str(
-    world: &World,
-    mouse_pos: Option<(usize, usize)>,
-    shape_win: Shape,
-) -> Option<String> {
-    domain::mouse_pos_to_orig_pos(mouse_pos, world.data.shape(), shape_win, world.zoom_box())
-        .map(|(x, y)| pos_2_string(world.data.im_background(), x, y))
-}
-
-fn apply_tools(
-    tools: &mut Vec<ToolState>,
-    mut world: World,
-    mut history: History,
-    shape_win: Shape,
-    mouse_pos: Option<(usize, usize)>,
-    input_event: &WinitInputHelper,
-) -> (World, History) {
-    for t in tools {
-        if t.is_active() {
-            (world, history) = apply_tool_method_mut!(
-                t,
-                events_tf,
-                world,
-                history,
-                shape_win,
-                mouse_pos,
-                input_event
-            );
-        }
+fn rgb_2_clr(rgb: Option<[u8; 3]>, alpha: u8) -> Color32 {
+    if let Some(rgb) = rgb {
+        Color32::from_rgba_unmultiplied(rgb[0], rgb[1], rgb[2], alpha)
+    } else {
+        Color32::from_rgba_unmultiplied(0, 0, 0, 0)
     }
-    (world, history)
 }
 
-fn remove_tmpdir() {
-    match cfg::get_cfg() {
-        Ok(cfg) => {
-            match cfg.tmpdir() {
-                Ok(td) => match fs::remove_dir_all(Path::new(td)) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        println!("couldn't remove tmpdir {e:?}")
-                    }
-                },
-                Err(e) => {
-                    println!("couldn't remove tmpdir {e:?}")
-                }
-            };
-        }
-        Err(e) => {
-            println!("could not load cfg {e:?}");
-        }
-    };
+fn map_modifiers(modifiers: &Modifiers) -> Option<Vec<rvlib::Event>> {
+    let mut events = Vec::new();
+    if modifiers.alt {
+        events.push(rvlib::Event::Held(KeyCode::Alt))
+    }
+    if modifiers.ctrl {
+        events.push(rvlib::Event::Held(KeyCode::Ctrl))
+    }
+    if modifiers.shift {
+        events.push(rvlib::Event::Held(KeyCode::Shift))
+    }
+    Some(events)
 }
 
-macro_rules! activate_tool_event {
-    ($key:ident, $name:expr, $input:expr, $rat:expr, $tools:expr) => {
-        if $input.held_alt() && $input.key_pressed(VirtualKeyCode::$key) {
-            $rat = Some(
-                $tools
-                    .iter()
-                    .enumerate()
-                    .find(|(_, t)| t.name == $name)
-                    .unwrap()
-                    .0,
-            );
-        }
-    };
-}
-
-fn main() -> Result<(), pixels::Error> {
-    defer!(remove_tmpdir);
-    let event_loop = EventLoop::new();
-    let mut input = WinitInputHelper::new();
-    let window = {
-        let size = LogicalSize::new(START_WIDTH as f64, START_HEIGHT as f64);
-        WindowBuilder::new()
-            .with_title("RV Image")
-            .with_inner_size(size)
-            .with_min_inner_size(MIN_WIN_INNER_SIZE)
-            .build(&event_loop)
-            .unwrap()
-    };
-    let mut tools = make_tool_vec();
-    let (mut pixels, mut framework) = {
-        let window_size = window.inner_size();
-        let scale_factor = window.scale_factor() as f32;
-        let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
-        let pixels = Pixels::new(START_WIDTH, START_HEIGHT, surface_texture)?;
-        let framework = Framework::new(
-            &event_loop,
-            window_size.width,
-            window_size.height,
-            scale_factor,
-            &pixels,
-        );
-        (pixels, framework)
-    };
-
-    fn empty_world() -> World {
-        World::from_real_im(
-            DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
-            HashMap::new(),
-            "".to_string(),
-            Shape::new(START_WIDTH, START_HEIGHT),
-        )
-    }
-
-    // application state to create pixels buffer, i.e., everything not part of framework.gui()
-    let mut world = empty_world();
-    let mut ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
-        println!("could not read cfg due to {e:?}, returning default");
-        cfg::get_default_cfg()
-    }));
-    {
-        // load last project
-        let prj_name = ctrl.cfg.current_prj_name.clone();
-        match ctrl.load(&make_prjcfg_filename(&prj_name)) {
-            Ok(td) => {
-                println!("loaded {}", ctrl.cfg.current_prj_name);
-                world.data.tools_data_map = td;
-            }
-            Err(e) => {
-                println!("could not read specified project {prj_name} which is fine if a project has never been saved due to {e:?} ");
-            }
-        };
-    }
-    let mut history = History::new();
-    let mut recently_activated_tool_idx = None;
-    // http server state
-    let mut rx_from_http: Option<Receiver<RvResult<String>>> = None;
-    let mut http_addr = http_address().to_string();
-    if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
-        rx_from_http = Some(rx);
-    }
-    event_loop.run(move |event, _, control_flow| {
-        match cfg_static_ref().connection {
-            cfg::Connection::Ssh => {
-                *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(300));
-            }
-            _ => {
-                *control_flow = ControlFlow::Poll;
-            }
-        }
-        let shape_win = Shape::from_size(&window.inner_size());
-        let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
-        // Handle input events
-        if input.update(&event) {
-            // Close application
-            if input.close_requested() || input.destroyed() {
-                *control_flow = ControlFlow::Exit;
-                return;
-            }
-
-            // update world based on tools
-            if recently_activated_tool_idx.is_none() {
-                recently_activated_tool_idx = framework.recently_activated_tool();
-            }
-            if let (Some(idx_active), Some(_)) =
-                (recently_activated_tool_idx, &world.data.meta_data.file_path)
+fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
+    let mut events = vec![];
+    ui.input(|i| {
+        for e in i.events.iter() {
+            if let egui::Event::Key {
+                key,
+                pressed,
+                repeat: _,
+                modifiers,
+            } = e
             {
-                if !ctrl.flags().is_loading_screen_active {
-                    for (i, t) in tools.iter_mut().enumerate() {
-                        if i == idx_active {
-                            (world, history) = t.activate(
-                                mem::take(&mut world),
-                                mem::take(&mut history),
-                                shape_win,
-                            );
-                        } else {
-                            let meta_data = ctrl.meta_data(
-                                ctrl.file_selected_idx,
-                                Some(ctrl.flags().is_loading_screen_active),
-                            );
-                            world.data.meta_data = meta_data;
-                            (world, history) = t.deactivate(
-                                mem::take(&mut world),
-                                mem::take(&mut history),
-                                shape_win,
-                            );
-                        }
-                    }
-                    recently_activated_tool_idx = None;
-                }
-            }
-
-            if input.held_alt() && input.key_pressed(VirtualKeyCode::Q) {
-                println!("deactivate all tools");
-                for t in tools.iter_mut() {
-                    let meta_data = ctrl.meta_data(
-                        ctrl.file_selected_idx,
-                        Some(ctrl.flags().is_loading_screen_active),
-                    );
-                    world.data.meta_data = meta_data;
-                    (world, history) =
-                        t.deactivate(mem::take(&mut world), mem::take(&mut history), shape_win);
-                }
-            }
-            activate_tool_event!(B, BBOX_NAME, input, recently_activated_tool_idx, tools);
-            activate_tool_event!(Z, ZOOM_NAME, input, recently_activated_tool_idx, tools);
-
-            if input.held_control() && input.key_pressed(VirtualKeyCode::T) {
-                framework.toggle_tools_menu();
-            }
-            if input.held_control() && input.key_pressed(VirtualKeyCode::M) {
-                framework.menu_mut().toggle();
-            }
-            if input.key_released(VirtualKeyCode::F5) {
-                if let Err(e) = ctrl.reload() {
-                    framework
-                        .menu_mut()
-                        .show_info(Info::Error(format!("{e:?}")));
-                }
-            }
-            if input.key_pressed(VirtualKeyCode::PageDown) {
-                ctrl.paths_navigator.next();
-            }
-            if input.key_pressed(VirtualKeyCode::PageUp) {
-                ctrl.paths_navigator.prev();
-            }
-            if input.key_pressed(VirtualKeyCode::Escape) {
-                world.set_zoom_box(None, shape_win);
-            }
-
-            // check for new image requests from http server
-            let rx_match = &rx_from_http.as_ref().map(|rx| rx.try_iter().last());
-            if let Some(Some(Ok(file_label))) = rx_match {
-                ctrl.paths_navigator.select_file_label(file_label);
-                ctrl.paths_navigator.activate_scroll_to_selected_label();
-            } else if let Some(Some(Err(e))) = rx_match {
-                // if the server thread sends an error we restart the server
-                println!("{e:?}");
-                (http_addr, rx_from_http) =
-                    match httpserver::restart_with_increased_port(&http_addr) {
-                        Ok(x) => x,
-                        Err(e) => {
-                            println!("{e:?}");
-                            (http_addr.to_string(), None)
-                        }
-                    };
-            }
-
-            // load new image if requested by a menu click or by the http server
-            let ims_raw_idx_pair = if input.held_control() && input.key_pressed(VirtualKeyCode::Z) {
-                ctrl.undo(&mut history)
-            } else if input.held_control() && input.key_pressed(VirtualKeyCode::Y) {
-                ctrl.redo(&mut history)
-            } else {
-                match ctrl.load_new_image_if_triggered(&world, &mut history) {
-                    Ok(iip) => iip,
-                    Err(e) => {
-                        framework
-                            .menu_mut()
-                            .show_info(Info::Error(format!("{e:?}")));
-                        None
+                if let Some(k) = map_key(*key) {
+                    if !pressed {
+                        events.push(rvlib::Event::Released(k));
+                    } else {
+                        events.push(rvlib::Event::Pressed(k));
                     }
                 }
-            };
-
-            if let Some((ims_raw, file_label_idx)) = ims_raw_idx_pair {
-                let size = window.inner_size();
-                let shape_win = Shape::from_size(&size);
-                if file_label_idx.is_some() {
-                    ctrl.paths_navigator.select_label_idx(file_label_idx);
-                }
-                let zoom_box = if ims_raw.shape() == world.data.shape() {
-                    *world.zoom_box()
-                } else {
-                    None
-                };
-                world = World::new(ims_raw, zoom_box, shape_win);
-
-                let Shape { w, h } = Shape::from_im(world.im_view());
-                if let Err(e) = pixels.resize_buffer(w, h) {
-                    println!("{e:?}");
+                let modifier_events = map_modifiers(modifiers);
+                if let Some(mut me) = modifier_events {
+                    events.append(&mut me);
                 }
             }
-            // Update the scale factor
-            if let Some(scale_factor) = input.scale_factor() {
-                framework.scale_factor(scale_factor);
-            }
-
-            // Resize the window
-            if let Some(size) = input.window_resized() {
-                let shape_win = Shape::from_size(&size);
-                if shape_win.h > 0 && shape_win.w > 0 {
-                    world.update_view(shape_win);
-                    let Shape { w, h } = Shape::from_im(world.im_view());
-                    if let Err(e) = pixels.resize_buffer(w, h) {
-                        println!("{e:?}");
-                    }
-                    framework.resize(size.width, size.height);
-                    if let Err(e) = pixels.resize_surface(size.width, size.height) {
-                        println!("{e:?}");
-                    }
-                }
-            }
-
-            if framework.are_tools_active() {
-                let meta_data = ctrl.meta_data(
-                    ctrl.file_selected_idx,
-                    Some(ctrl.flags().is_loading_screen_active),
-                );
-                world.data.meta_data = meta_data;
-                (world, history) = apply_tools(
-                    &mut tools,
-                    mem::take(&mut world),
-                    mem::take(&mut history),
-                    shape_win,
-                    mouse_pos,
-                    &input,
-                );
-            }
-
-            // show position and rgb value
-            if let Some(idx) = ctrl.paths_navigator.file_label_selected_idx() {
-                let shape_win = Shape {
-                    w: window.inner_size().width,
-                    h: window.inner_size().height,
-                };
-                let mouse_pos = domain::mouse_pos_transform(&pixels, input.mouse());
-                let data_point = get_pixel_on_orig_str(&world, mouse_pos, shape_win);
-                let shape = world.shape_orig();
-                let file_label = ctrl.file_label(idx);
-                let active_tool = tools.iter().find(|t| t.is_active());
-                let tool_string = if let Some(t) = active_tool {
-                    format!(" - {} tool is active", t.name)
-                } else {
-                    "".to_string()
-                };
-                let s = match data_point {
-                    Some(s) => {
-                        format!(
-                            "RV Image - {} - {}x{} - {}{}",
-                            file_label, shape.w, shape.h, s, tool_string
-                        )
-                    }
-                    None => format!(
-                        "RV Image - {} - {}x{} - (x, y) -> (r, g, b){}",
-                        file_label, shape.w, shape.h, tool_string
-                    ),
-                };
-                window.set_title(s.as_str())
-            }
-            window.request_redraw();
-        }
-
-        match event {
-            Event::WindowEvent { event, .. } => {
-                if input.held_control() {
-                    if let WindowEvent::MouseWheel {
-                        delta: MouseScrollDelta::LineDelta(_, y_delta),
-                        ..
-                    } = event
-                    {
-                        let zb =
-                            zoom_box_mouse_wheel(*world.zoom_box(), world.data.shape(), y_delta);
-                        world.set_zoom_box(zb, shape_win);
-                    }
-                }
-                // Update egui inputs
-                framework.handle_event(&event);
-            }
-            // Draw the current frame
-            Event::RedrawRequested(_) => {
-                // Draw the world
-                if let Err(e) = world.draw(&mut pixels) {
-                    println!("{e:?}");
-                }
-
-                // Prepare egui
-                framework.prepare(
-                    &window,
-                    &mut tools,
-                    &mut world.data.tools_data_map,
-                    &mut ctrl,
-                );
-
-                // Render everything together
-                let render_result = pixels.render_with(|encoder, render_target, context| {
-                    // Render the world texture
-                    context.scaling_renderer.render(encoder, render_target);
-
-                    // Render egui
-                    framework.render(encoder, render_target, context);
-
-                    Ok(())
-                });
-
-                // Basic error handling
-                if render_result
-                    .map_err(|e| error!("pixels.render() failed: {}", e))
-                    .is_err()
-                {
-                    *control_flow = ControlFlow::Exit;
-                }
-            }
-            _ => (),
         }
     });
+    events
+}
+
+fn map_mouse_events(
+    ui: &mut Ui,
+    last_sensed: &mut LastSensedBtns,
+    image_response: &Response,
+) -> Vec<rvlib::Event> {
+    let mut events = vec![];
+    let mut btn_codes = LastSensedBtns::default();
+    ui.input(|i| {
+        for e in i.events.iter() {
+            if let egui::Event::PointerButton {
+                pos: _,
+                button,
+                pressed: _,
+                modifiers,
+            } = e
+            {
+                let modifier_events = map_modifiers(modifiers);
+                if let Some(me) = modifier_events {
+                    let btn_code = match button {
+                        PointerButton::Primary => KeyCode::MouseLeft,
+                        PointerButton::Secondary => KeyCode::MouseRight,
+                        _ => KeyCode::DontCare,
+                    };
+                    btn_codes.btn_codes.push(btn_code);
+                    btn_codes.modifiers = me;
+                }
+            }
+        }
+    });
+    if !btn_codes.is_empty() {
+        *last_sensed = btn_codes;
+    }
+
+    if image_response.clicked() || image_response.drag_released() {
+        if last_sensed.btn_codes.contains(&KeyCode::MouseLeft) {
+            events.push(rvlib::Event::Released(KeyCode::MouseLeft));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        } else if last_sensed.btn_codes.contains(&KeyCode::MouseRight) {
+            events.push(rvlib::Event::Released(KeyCode::MouseRight));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        }
+        *last_sensed = LastSensedBtns::default();
+    }
+    if image_response.drag_started() {
+        if last_sensed.btn_codes.contains(&KeyCode::MouseLeft) {
+            events.push(rvlib::Event::Pressed(KeyCode::MouseLeft));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        } else if last_sensed.btn_codes.contains(&KeyCode::MouseRight) {
+            events.push(rvlib::Event::Pressed(KeyCode::MouseRight));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        }
+    }
+    if image_response.dragged() {
+        if last_sensed.btn_codes.contains(&KeyCode::MouseLeft) {
+            events.push(rvlib::Event::Held(KeyCode::MouseLeft));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        } else if last_sensed.btn_codes.contains(&KeyCode::MouseRight) {
+            events.push(rvlib::Event::Held(KeyCode::MouseRight));
+            for modifier in &last_sensed.modifiers {
+                events.push(*modifier);
+            }
+        }
+    }
+    events
+}
+
+fn vec2_2_shape(v: Vec2) -> rvlib::Shape {
+    rvlib::Shape::new(v.x as u32, v.y as u32)
+}
+
+fn image_2_colorimage(im: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> ColorImage {
+    ColorImage::from_rgb([im.width() as usize, im.height() as usize], im.as_raw())
+}
+
+fn orig_pos_2_egui_rect(
+    p: PtI,
+    offset: Pos2,
+    shape_orig: rvlib::Shape,
+    shape_view: rvlib::Shape,
+    rect_size: Vec2,
+    zoom_box: &Option<BB>,
+) -> Pos2 {
+    let p = if let Some(zb) = zoom_box {
+        project_on_bb(p, zb)
+    } else {
+        p
+    };
+    let p_view: PtF = orig_pos_2_view_pos(p, shape_orig, shape_view, zoom_box)
+        .expect("After projection to zoombox it should be inside");
+    let p_egui_rect_x = offset.x + scale_coord(p_view.x, shape_view.w as f32, rect_size.x);
+    let p_egui_rect_y = offset.y + scale_coord(p_view.y, shape_view.h as f32, rect_size.y);
+    Pos2::new(p_egui_rect_x, p_egui_rect_y)
+}
+
+#[derive(Default)]
+struct RvImageApp {
+    event_loop: MainEventLoop,
+    texture: Option<TextureHandle>,
+    annos: Vec<Annotation>,
+    zoom_box: Option<BB>,
+    im_orig: ImageU8,
+    im_view: ImageU8,
+    events: rvlib::Events,
+    last_sensed_btncodes: LastSensedBtns,
+}
+
+impl RvImageApp {
+    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+        // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+        // Restore app state using cc.storage (requires the "persistence" feature).
+        // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+        // for e.g. egui::PaintCallback.
+        Self::default()
+    }
+    fn shape_orig(&self) -> rvlib::Shape {
+        rvlib::Shape::from_im(&self.im_orig)
+    }
+    fn shape_view(&self) -> rvlib::Shape {
+        rvlib::Shape::from_im(&self.im_view)
+    }
+
+    fn draw_annos(&self, ui: &mut Ui, image_rect: &Rect) {
+        let shapes = self
+            .annos
+            .iter()
+            .flat_map(|anno| {
+                let bb = match &anno.geofig {
+                    GeoFig::BB(bb) => *bb,
+                    // TODO: draw actual polygon
+                    GeoFig::Poly(poly) => poly.enclosing_bb(),
+                };
+                let alpha = if let Some(is_selected) = anno.is_selected {
+                    if is_selected {
+                        90
+                    } else {
+                        10
+                    }
+                } else {
+                    10
+                };
+                let fill_rgb = rgb_2_clr(anno.fill_color, alpha);
+
+                let bb_min_rect = orig_pos_2_egui_rect(
+                    bb.min(),
+                    image_rect.min,
+                    self.shape_orig(),
+                    self.shape_view(),
+                    image_rect.size(),
+                    &self.zoom_box,
+                );
+                let bb_max_rect = orig_pos_2_egui_rect(
+                    bb.max(),
+                    image_rect.min,
+                    self.shape_orig(),
+                    self.shape_view(),
+                    image_rect.size(),
+                    &self.zoom_box,
+                );
+                let stroke = Stroke::new(
+                    anno.outline.thickness,
+                    rgb_2_clr(Some(anno.outline.color), 255),
+                );
+                Some(Shape::Rect(RectShape::new(
+                    Rect::from_min_max(bb_min_rect, bb_max_rect),
+                    Rounding::ZERO,
+                    fill_rgb,
+                    stroke,
+                )))
+            })
+            .collect::<Vec<Shape>>();
+        ui.painter().add(Shape::Vec(shapes));
+    }
+    fn collect_events(&mut self, ui: &mut Ui, image_response: &Response) -> rvlib::Events {
+        let view_size = image_response.rect.size();
+        let offset_x = image_response.rect.min.x;
+        let offset_y = image_response.rect.min.y;
+        let mouse_pos = image_response.hover_pos();
+        let mouse_pos = mouse_pos.map(|mp| {
+            view_pos_2_orig_pos(
+                ((mp.x - offset_x), (mp.y - offset_y)).into(),
+                self.shape_orig(),
+                vec2_2_shape(view_size),
+                &self.zoom_box,
+            )
+        });
+        let key_events = map_key_events(ui);
+        let mouse_events = map_mouse_events(ui, &mut self.last_sensed_btncodes, image_response);
+
+        rvlib::Events::default()
+            .events(key_events)
+            .events(mouse_events)
+            .mousepos(mouse_pos)
+    }
+
+    fn add_image(&mut self, ui: &mut Ui) -> Option<Response> {
+        self.texture.as_ref().map(|texture| {
+            let ui_image = handle_2_image(
+                texture,
+                [self.shape_view().w as usize, self.shape_view().h as usize],
+            )
+            .shrink_to_fit()
+            .sense(Sense::click_and_drag());
+
+            ui.add(ui_image)
+        })
+    }
+    fn update_texture(&mut self, ctx: &Context) {
+        self.im_view = orig_2_view(&self.im_orig, self.zoom_box);
+        self.texture = Some(clrim_2_handle(image_2_colorimage(&self.im_view), ctx));
+    }
+}
+
+impl eframe::App for RvImageApp {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        let update_view = self.event_loop.one_iteration(&self.events, ctx);
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if let Ok(update_view) = update_view {
+                ui.label(&update_view.image_info);
+                if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
+                    self.zoom_box = zb;
+                    self.update_texture(ctx);
+                }
+                if let UpdateImage::Yes(im) = update_view.image {
+                    self.im_orig = im;
+                    self.update_texture(ctx);
+                }
+                let image_response = self.add_image(ui);
+                if let Some(ir) = image_response {
+                    self.events = self.collect_events(ui, &ir);
+                    if let UpdateAnnos::Yes((perm_annos, tmp_anno)) = update_view.annos {
+                        self.annos = perm_annos;
+                        if let Some(tmp_anno) = tmp_anno {
+                            self.annos.push(tmp_anno);
+                        }
+                    }
+                    if !self.annos.is_empty() {
+                        self.draw_annos(ui, &ir.rect);
+                    }
+                }
+            }
+        });
+    }
+}
+
+fn main() {
+    // Log to stdout (if you run with `RUST_LOG=debug`).
+    // tracing_subscriber::fmt::init();
+
+    let native_options = eframe::NativeOptions::default();
+    if let Err(e) = eframe::run_native(
+        "RV Image",
+        native_options,
+        Box::new(|cc| Box::new(RvImageApp::new(cc))),
+    ) {
+        println!("{e:?}");
+    }
 }

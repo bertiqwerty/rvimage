@@ -5,7 +5,7 @@ mod core;
 mod rot90;
 mod zoom;
 
-use crate::{domain::Shape, history::History, world::World};
+use crate::{history::History, world::World};
 
 pub use self::core::Manipulate;
 pub use always_active_zoom::AlwaysActiveZoom;
@@ -68,25 +68,14 @@ pub struct ToolState {
     pub button_label: &'static str,
 }
 impl ToolState {
-    pub fn activate(
-        &mut self,
-        mut world: World,
-        mut history: History,
-        shape_win: Shape,
-    ) -> (World, History) {
+    pub fn activate(&mut self, mut world: World, mut history: History) -> (World, History) {
         self.is_active = true;
-        (world, history) = apply_tool_method_mut!(self, on_activate, world, history, shape_win);
+        (world, history) = apply_tool_method_mut!(self, on_activate, world, history);
         (world, history)
     }
-    pub fn deactivate(
-        &mut self,
-        mut world: World,
-        mut history: History,
-        shape_win: Shape,
-    ) -> (World, History) {
+    pub fn deactivate(&mut self, mut world: World, mut history: History) -> (World, History) {
         if self.is_active {
-            (world, history) =
-                apply_tool_method_mut!(self, on_deactivate, world, history, shape_win);
+            (world, history) = apply_tool_method_mut!(self, on_deactivate, world, history);
         }
         if !self.is_always_active {
             self.is_active = false;
