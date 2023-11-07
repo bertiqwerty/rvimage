@@ -178,7 +178,7 @@ impl World {
 
     pub fn stop_tmp_anno(&mut self) {
         self.update_view.annos = match &mut self.update_view.annos {
-             // hmm... this might override other permanent annos that were not updated recently
+            // hmm... this might override other permanent annos that were not updated recently
             UpdateAnnos::No => UpdateAnnos::clear(),
             UpdateAnnos::Yes((perma_annos, _)) => {
                 UpdateAnnos::Yes((std::mem::take(perma_annos), None))

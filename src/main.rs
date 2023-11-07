@@ -86,7 +86,7 @@ fn map_modifiers(modifiers: &Modifiers) -> Option<Vec<rvlib::Event>> {
     if modifiers.alt {
         events.push(rvlib::Event::Held(KeyCode::Alt))
     }
-    if modifiers.ctrl {
+    if modifiers.command {
         events.push(rvlib::Event::Held(KeyCode::Ctrl))
     }
     if modifiers.shift {
