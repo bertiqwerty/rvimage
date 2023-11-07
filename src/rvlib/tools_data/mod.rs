@@ -39,7 +39,6 @@ impl ToolSpecifics {
         match &self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
-                    println!("{file_path:?} has annos");
                     let bbs = annos.bbs();
                     let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_bbs();
