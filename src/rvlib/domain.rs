@@ -127,12 +127,18 @@ macro_rules! impl_point_into {
         }
         impl From<($T, $T)> for PtF {
             fn from((x, y): ($T, $T)) -> Self {
-                Self{x: x as f32, y: y as f32}
+                Self {
+                    x: x as f32,
+                    y: y as f32,
+                }
             }
         }
         impl From<($T, $T)> for PtI {
             fn from((x, y): ($T, $T)) -> Self {
-                Self{x: x as u32, y: y as u32}
+                Self {
+                    x: x as u32,
+                    y: y as u32,
+                }
             }
         }
     };

@@ -216,7 +216,7 @@ fn orig_pos_2_egui_rect(
     zoom_box: &Option<BB>,
 ) -> Pos2 {
     let p = if let Some(zb) = zoom_box {
-        project_on_bb(p.into(), zb).into()
+        project_on_bb(p, zb)
     } else {
         p
     };

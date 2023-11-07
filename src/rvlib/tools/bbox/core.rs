@@ -30,7 +30,7 @@ annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotation
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 
 fn are_boxes_visible(world: &World) -> bool {
-    get_tools_data(&world)
+    get_tools_data(world)
         .specifics
         .bbox()
         .options
