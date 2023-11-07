@@ -37,6 +37,13 @@ pub fn bbox_menu(
             if ui.selectable_label(checked, label).clicked() {
                 new_idx = label_idx;
             }
+            let rgb = data.colors()[label_idx];
+            ui.label(
+                egui::RichText::new("■")
+                    .heading()
+                    .strong()
+                    .color(egui::Color32::from_rgb(rgb[0], rgb[1], rgb[2])),
+            );
         });
     }
     if new_idx != data.cat_idx_current {

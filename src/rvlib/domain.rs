@@ -471,7 +471,7 @@ impl BB {
         shape: Shape,
         oob_mode: OutOfBoundsMode,
     ) -> Option<Self> {
-        let x_shift: i32 = (to.x  - from.x) as i32;
+        let x_shift: i32 = (to.x - from.x) as i32;
         let y_shift: i32 = (to.y - from.y) as i32;
         self.translate(x_shift, y_shift, shape, oob_mode)
     }
