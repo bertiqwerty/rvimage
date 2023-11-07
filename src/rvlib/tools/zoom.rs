@@ -23,7 +23,7 @@ pub fn move_zoom_box(
     let shape_orig = world.data.shape();
     let zoom_box = *world.zoom_box();
     let f_move = |mpso, mpo| follow_zoom_box(mpso, mpo, shape_orig, zoom_box);
-    let opt_opt_zoom_box = mover.move_mouse_held(f_move, mouse_pos, &zoom_box);
+    let opt_opt_zoom_box = mover.move_mouse_held(f_move, mouse_pos);
     if let Some(zoom_box) = opt_opt_zoom_box {
         world.set_zoom_box(zoom_box);
     }
@@ -131,7 +131,6 @@ impl Zoom {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        println!("ctrl held {}", events.held_ctrl());
         if events.held(KeyCode::MouseRight) || events.held_ctrl() {
             (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos);
         } else if events.held(KeyCode::MouseLeft) {

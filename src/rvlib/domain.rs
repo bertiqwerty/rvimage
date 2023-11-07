@@ -229,7 +229,8 @@ impl Polygon {
     pub fn points(&self) -> &Vec<PtI> {
         &self.points
     }
-    fn from_vec(points: Vec<PtI>, is_open: bool) -> RvResult<Self> {
+    /// We will need this as soon as we support polygons
+    fn _from_vec(points: Vec<PtI>, is_open: bool) -> RvResult<Self> {
         let enclosing_bb = BB::from_vec(&points)?;
         Ok(Self {
             points,

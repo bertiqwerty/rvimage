@@ -79,7 +79,6 @@ pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecific
 }
 
 pub(super) struct MouseHeldParams<'a> {
-    pub are_boxes_visible: bool,
     pub mover: &'a mut Mover,
 }
 pub(super) fn on_mouse_held_right(
@@ -89,7 +88,6 @@ pub(super) fn on_mouse_held_right(
     mut history: History,
 ) -> (World, History) {
     let orig_shape = world.data.shape();
-    let zoom_box = *world.zoom_box();
     let mut add_to_history = false;
     let move_boxes = |mpo_from, mpo_to| {
         let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
@@ -99,10 +97,16 @@ pub(super) fn on_mouse_held_right(
     };
     params
         .mover
-        .move_mouse_held(move_boxes, mouse_pos, &zoom_box);
+        .move_mouse_held(move_boxes, mouse_pos);
     if add_to_history {
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
     }
+    let are_boxes_visible = get_tools_data(&world)
+        .specifics
+        .bbox()
+        .options
+        .are_boxes_visible;
+    world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
     (world, history)
 }
 
@@ -392,7 +396,9 @@ pub(super) fn on_key_released(
         }
         ReleasedKey::C => {
             // Paste selection directly at current mouse position
-            if let Some((x_shift, y_shift)) = mouse_pos.map(|mp| <PtF as Into<(i32, i32)>>::into(mp)) {
+            if let Some((x_shift, y_shift)) =
+                mouse_pos.map(|mp| <PtF as Into<(i32, i32)>>::into(mp))
+            {
                 let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
                 let selected_inds = true_indices(annos.selected_bbs());
@@ -610,7 +616,6 @@ fn test_mouse_held() {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
         let params = MouseHeldParams {
-            are_boxes_visible: true,
             mover: &mut mover,
         };
         let (world, new_hist) =
@@ -622,7 +627,6 @@ fn test_mouse_held() {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
         let params = MouseHeldParams {
-            are_boxes_visible: true,
             mover: &mut mover,
         };
         let annos = get_annos_mut(&mut world);

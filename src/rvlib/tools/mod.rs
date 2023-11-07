@@ -5,7 +5,7 @@ mod core;
 mod rot90;
 mod zoom;
 
-use crate::{domain::Shape, history::History, world::World};
+use crate::{history::History, world::World};
 
 pub use self::core::Manipulate;
 pub use always_active_zoom::AlwaysActiveZoom;

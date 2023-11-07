@@ -1,9 +1,4 @@
-use crate::{
-    domain::{PtI, BB, PtF},
-    events::Events,
-    history::History,
-    world::World,
-};
+use crate::{domain::PtF, events::Events, history::History, world::World};
 
 pub trait Manipulate {
     fn new() -> Self
@@ -35,7 +30,6 @@ impl Mover {
         &mut self,
         f_move: F,
         mouse_pos: Option<PtF>,
-        zoom_box: &Option<BB>,
     ) -> Option<T> {
         let res = if let (Some(mp_start), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
             let mpo_from = Some(mp_start);

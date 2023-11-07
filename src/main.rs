@@ -72,9 +72,9 @@ fn handle_2_image<'a>(handle: &TextureHandle, size: [usize; 2]) -> Image<'a> {
     egui::Image::from_texture(sized_image)
 }
 
-fn rgb_2_clr(rgb: Option<[u8; 3]>) -> Color32 {
+fn rgb_2_clr(rgb: Option<[u8; 3]>, alpha: u8) -> Color32 {
     if let Some(rgb) = rgb {
-        Color32::from_rgba_unmultiplied(rgb[0], rgb[1], rgb[2], 100)
+        Color32::from_rgba_unmultiplied(rgb[0], rgb[1], rgb[2], alpha)
     } else {
         Color32::from_rgba_unmultiplied(0, 0, 0, 0)
     }
@@ -265,7 +265,16 @@ impl RvImageApp {
                     // TODO: draw actual polygon
                     GeoFig::Poly(poly) => poly.enclosing_bb(),
                 };
-                let fill_rgb = rgb_2_clr(anno.fill_color);
+                let alpha = if let Some(is_selected) = anno.is_selected {
+                    if is_selected {
+                        90
+                    } else {
+                        10
+                    }
+                } else {
+                    10
+                };
+                let fill_rgb = rgb_2_clr(anno.fill_color, alpha);
 
                 let bb_min_rect = orig_pos_2_egui_rect(
                     bb.min(),
@@ -287,7 +296,7 @@ impl RvImageApp {
                     (Some(bb_min_rect), Some(bb_max_rect)) => {
                         let stroke = Stroke::new(
                             anno.outline.thickness,
-                            rgb_2_clr(Some(anno.outline.color)),
+                            rgb_2_clr(Some(anno.outline.color), 255),
                         );
                         Some(Shape::Rect(RectShape::new(
                             Rect::from_min_max(bb_min_rect, bb_max_rect),
@@ -365,7 +374,6 @@ impl eframe::App for RvImageApp {
                             self.annos.push(tmp_anno);
                         }
                     }
-                    println!("{:?}", self.zoom_box);
                     if !self.annos.is_empty() {
                         self.draw_annos(ui, &ir.rect);
                     }

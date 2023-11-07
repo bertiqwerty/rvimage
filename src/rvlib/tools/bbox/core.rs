@@ -206,13 +206,7 @@ impl BBox {
     }
 
     fn mouse_held(&mut self, event: &Events, world: World, history: History) -> (World, History) {
-        let are_boxes_visible = get_tools_data(&world)
-            .specifics
-            .bbox()
-            .options
-            .are_boxes_visible;
         let params = MouseHeldParams {
-            are_boxes_visible,
             mover: &mut self.mover,
         };
         on_mouse_held_right(event.mouse_pos, params, world, history)
@@ -370,6 +364,12 @@ impl Manipulate for BBox {
                 outline: Stroke::from_color(color),
                 is_selected: None,
             };
+            let are_boxes_visible = get_tools_data(&world)
+                .specifics
+                .bbox()
+                .options
+                .are_boxes_visible;
+            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
             world.request_redraw_tmp_anno(anno);
         }
         (world, history) = make_tool_transform!(

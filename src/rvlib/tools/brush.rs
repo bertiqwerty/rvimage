@@ -1,6 +1,6 @@
 use crate::{
     annotations::BrushAnnotations,
-    annotations_accessor, annotations_accessor_mut,
+    annotations_accessor_mut,
     events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
@@ -17,7 +17,6 @@ const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized"
 
 tools_data_initializer!(ACTOR_NAME, Brush, BrushToolData);
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
-annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
 
 #[derive(Clone, Debug)]
 pub struct Brush {}

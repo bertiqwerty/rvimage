@@ -1,34 +1,11 @@
 use crate::{
-    domain::{PtI, Shape, BB, PtF},
+    domain::{Shape, BB, PtF},
     util::true_indices, 
 };
 use serde::{Deserialize, Serialize};
 use std::mem;
 
 use super::bbox_splitmode::SplitMode;
-const BBOX_ALPHA: u8 = 180;
-const BBOX_ALPHA_SELECTED: u8 = 120;
-
-struct Cats<'a> {
-    cat_ids: &'a [usize],
-    labels: &'a [String],
-    colors: &'a [[u8; 3]],
-}
-impl<'a> Cats<'a> {
-    pub fn color_of_box(&self, box_idx: usize) -> &'a [u8; 3] {
-        &self.colors[self.cat_ids[box_idx]]
-    }
-    pub fn label_of_box(&self, box_idx: usize) -> &'a str {
-        self.labels[self.cat_ids[box_idx]].as_str()
-    }
-}
-
-struct BbParams<'a> {
-    pub bbs: &'a [BB],
-    pub selected_bbs: &'a [bool],
-    pub cats: Cats<'a>,
-    show_label: bool,
-}
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {

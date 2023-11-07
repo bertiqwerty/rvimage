@@ -40,21 +40,22 @@ impl ToolSpecifics {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
                     let bbs = annos.bbs();
+                    let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_bbs();
                     let labels = bb_data.labels();
                     let colors = bb_data.colors();
                     let bbs_colored = bbs
                         .iter()
-                        .zip(colors.iter().zip(labels.iter().zip(selected_bbs.iter())))
-                        .map(|(&bb, (&fill_color, (label, &is_selected)))| Annotation {
+                        .zip(cats.iter()).zip(selected_bbs.iter())
+                        .map(|((&bb, cat_idx), is_selected)| Annotation {
                             geofig: GeoFig::BB(bb),
-                            fill_color: Some(fill_color),
-                            label: Some(label.clone()),
+                            fill_color: Some(colors[*cat_idx]),
+                            label: Some(labels[*cat_idx].clone()),
                             outline: Stroke {
                                 thickness: 1.0,
-                                color: fill_color,
+                                color: colors[*cat_idx],
                             },
-                            is_selected: Some(is_selected),
+                            is_selected: Some(*is_selected),
                         })
                         .collect::<Vec<Annotation>>();
                     UpdateAnnos::Yes((bbs_colored, None))
@@ -62,7 +63,7 @@ impl ToolSpecifics {
                     UpdateAnnos::default()
                 }
             }
-            ToolSpecifics::Brush(brush_data) => {
+            ToolSpecifics::Brush(_) => {
                 // TODO: draw polygon
                 UpdateAnnos::default()
             }
