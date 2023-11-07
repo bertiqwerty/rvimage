@@ -3,10 +3,10 @@
 [![dependency status](https://deps.rs/repo/github/bertiqwerty/rvimage/status.svg)](https://deps.rs/repo/github/bertiqwerty/rvimage)
 
 # RV Image
-RV Image is a **R**emote **v**iewer for **image**s written in Rust. You can view images, e.g., on remote SSH servers or Azure blob storages. Further, RV Image comes with a simple bounding box labeling tool supporting import and export of the [Coco-format](https://cocodataset.org/#home). So far only tested on Windows 10 and Mac OS. RV Image is mainly based on [`egui`](https://crates.io/crates/egui), [`image`](https://crates.io/crates/image), and [`pixels`](https://crates.io/crates/pixels).
+RV Image is a **R**emote **v**iewer for **image**s written in Rust. You can view images, e.g., on remote SSH servers or Azure blob storages. Further, RV Image comes with a simple bounding box labeling tool supporting import and export of the [Coco-format](https://cocodataset.org/#home). So far only tested on Windows 10 and Mac OS. RV Image is mainly based on [`egui`](https://crates.io/crates/egui) and [`image`](https://crates.io/crates/image).
 
+![rvimage_screen](https://github.com/bertiqwerty/rvimage/assets/50267830/0a03cf5b-3515-4550-b701-9f62a53447ee)
 
-![grafik](https://user-images.githubusercontent.com/50267830/168975976-45ab6567-ef5e-41a8-8027-2ff210dfda3c.png)
 
 ## Installation
 
