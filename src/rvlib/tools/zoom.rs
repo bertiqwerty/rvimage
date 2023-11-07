@@ -83,7 +83,6 @@ impl Zoom {
         world: World,
         history: History,
     ) -> (World, History) {
-        println!("mouse pressed");
         if events.pressed(KeyCode::MouseRight) {
             self.mover.move_mouse_pressed(events.mouse_pos);
         } else if let Some(mp) = events.mouse_pos {
