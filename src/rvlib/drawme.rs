@@ -46,12 +46,26 @@ pub type UpdateImage = Update<ViewImage>;
 pub type UpdateAnnos = Update<(Vec<Annotation>, Option<Annotation>)>;
 pub type UpdateZoomBox = Update<Option<BB>>;
 
+impl UpdateAnnos {
+    pub fn clear() -> Self {
+        Self::Yes((vec![], None))
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ImageInfo {
+    pub filename: String,
+    pub shape_info: String,
+    pub pixel_value: String,
+    pub tool_info: String,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct UpdateView {
     pub image: UpdateImage,
     pub annos: UpdateAnnos,
     pub zoom_box: UpdateZoomBox,
-    pub image_info: String,
+    pub image_info: ImageInfo,
 }
 
 impl UpdateView {
@@ -60,7 +74,7 @@ impl UpdateView {
             image: UpdateImage::No,
             annos: UpdateAnnos::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
-            image_info: "".to_string(),
+            image_info: ImageInfo::default(),
         }
     }
 }

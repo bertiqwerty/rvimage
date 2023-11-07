@@ -61,9 +61,7 @@ impl ToolSpecifics {
                         .collect::<Vec<Annotation>>();
                     UpdateAnnos::Yes((bbs_colored, None))
                 } else {
-                    // Override annotations with nothing,
-                    // UpdateAnnos::No would not update the annotations but show the old ones
-                    UpdateAnnos::Yes((vec![], None))
+                    UpdateAnnos::clear()
                 }
             }
             ToolSpecifics::Brush(_) => {

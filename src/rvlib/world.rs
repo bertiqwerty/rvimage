@@ -1,5 +1,5 @@
 use crate::domain::{Shape, BB};
-use crate::drawme::{Annotation, UpdateImage};
+use crate::drawme::{Annotation, ImageInfo, UpdateImage};
 use crate::file_util::MetaData;
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
@@ -149,7 +149,7 @@ impl World {
                 image: UpdateImage::Yes(im),
                 annos: UpdateAnnos::No,
                 zoom_box: UpdateZoomBox::Yes(zoom_box),
-                image_info: "".to_string(),
+                image_info: ImageInfo::default(),
             },
         }
     }
@@ -162,7 +162,8 @@ impl World {
                     .to_annotations_view(file_path);
             }
         } else {
-            self.update_view.annos = UpdateAnnos::No;
+            // we override existing annotations
+            self.update_view.annos = UpdateAnnos::clear();
         }
     }
 
@@ -177,7 +178,7 @@ impl World {
 
     pub fn stop_tmp_anno(&mut self) {
         self.update_view.annos = match &mut self.update_view.annos {
-            UpdateAnnos::No => UpdateAnnos::Yes((vec![], None)),
+            UpdateAnnos::No => panic!("no tmp anno to stop"),
             UpdateAnnos::Yes((perma_annos, _)) => {
                 UpdateAnnos::Yes((std::mem::take(perma_annos), None))
             }

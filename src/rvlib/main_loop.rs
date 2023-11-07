@@ -4,6 +4,7 @@
 use crate::cfg::{self, Cfg};
 use crate::control::{Control, Info};
 use crate::domain::PtI;
+use crate::drawme::ImageInfo;
 use crate::events::{Events, KeyCode};
 use crate::file_util::make_prjcfg_filename;
 use crate::history::History;
@@ -319,21 +320,23 @@ impl MainEventLoop {
             let file_label = self.ctrl.file_label(idx);
             let active_tool = self.tools.iter().find(|t| t.is_active());
             let tool_string = if let Some(t) = active_tool {
-                format!(" - {} tool is active", t.name)
+                format!("{} tool is active", t.name)
             } else {
                 "".to_string()
             };
             let s = match data_point {
-                Some(s) => {
-                    format!(
-                        "{} - {}x{} - {}{}",
-                        file_label, shape.w, shape.h, s, tool_string
-                    )
-                }
-                None => format!(
-                    "{} - {}x{} - (x, y) -> (r, g, b){}",
-                    file_label, shape.w, shape.h, tool_string
-                ),
+                Some(s) => ImageInfo {
+                    filename: file_label.to_string(),
+                    shape_info: format!("{}x{}", shape.w, shape.h),
+                    pixel_value: s,
+                    tool_info: tool_string,
+                },
+                None => ImageInfo {
+                    filename: file_label.to_string(),
+                    shape_info: format!("{}x{}", shape.w, shape.h),
+                    pixel_value: "(x, y) -> (r, g, b)".to_string(),
+                    tool_info: tool_string,
+                },
             };
             self.world.update_view.image_info = s;
         }

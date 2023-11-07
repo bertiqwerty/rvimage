@@ -353,7 +353,11 @@ impl eframe::App for RvImageApp {
         let update_view = self.event_loop.one_iteration(&self.events, ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Ok(update_view) = update_view {
-                ui.label(&update_view.image_info);
+                let info = update_view.image_info;
+                ui.label(info.filename);
+                ui.label(format!("{}, {}", info.shape_info, info.pixel_value));
+                ui.label(info.tool_info);
+
                 if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
                     self.zoom_box = zb;
                     self.update_texture(ctx);
