@@ -7,7 +7,8 @@ use egui::{
 };
 use image::{ImageBuffer, Rgb};
 use rvlib::{
-    domain::PtI, orig_2_view, orig_pos_2_view_pos, scale_coord, view_pos_2_orig_pos, Annotation,
+    domain::{PtF, PtI},
+    orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, Annotation,
     GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage, UpdateZoomBox, BB,
 };
 
@@ -213,13 +214,17 @@ fn orig_pos_2_egui_rect(
     shape_view: rvlib::Shape,
     rect_size: Vec2,
     zoom_box: &Option<BB>,
-) -> Option<Pos2> {
-    let p_view = orig_pos_2_view_pos(p, shape_orig, shape_view, zoom_box);
-    p_view.map(|p_view| {
-        let p_egui_rect_x = offset.x + scale_coord(p_view.x, shape_view.w as f32, rect_size.x);
-        let p_egui_rect_y = offset.y + scale_coord(p_view.y, shape_view.h as f32, rect_size.y);
-        Pos2::new(p_egui_rect_x, p_egui_rect_y)
-    })
+) -> Pos2 {
+    let p = if let Some(zb) = zoom_box {
+        project_on_bb(p.into(), zb).into()
+    } else {
+        p
+    };
+    let p_view: PtF = orig_pos_2_view_pos(p, shape_orig, shape_view, zoom_box)
+        .expect("After projection to zoombox it should be inside");
+    let p_egui_rect_x = offset.x + scale_coord(p_view.x, shape_view.w as f32, rect_size.x);
+    let p_egui_rect_y = offset.y + scale_coord(p_view.y, shape_view.h as f32, rect_size.y);
+    Pos2::new(p_egui_rect_x, p_egui_rect_y)
 }
 
 #[derive(Default)]
@@ -286,21 +291,16 @@ impl RvImageApp {
                     image_rect.size(),
                     &self.zoom_box,
                 );
-                match (bb_min_rect, bb_max_rect) {
-                    (Some(bb_min_rect), Some(bb_max_rect)) => {
-                        let stroke = Stroke::new(
-                            anno.outline.thickness,
-                            rgb_2_clr(Some(anno.outline.color), 255),
-                        );
-                        Some(Shape::Rect(RectShape::new(
-                            Rect::from_min_max(bb_min_rect, bb_max_rect),
-                            Rounding::ZERO,
-                            fill_rgb,
-                            stroke,
-                        )))
-                    }
-                    _ => None,
-                }
+                let stroke = Stroke::new(
+                    anno.outline.thickness,
+                    rgb_2_clr(Some(anno.outline.color), 255),
+                );
+                Some(Shape::Rect(RectShape::new(
+                    Rect::from_min_max(bb_min_rect, bb_max_rect),
+                    Rounding::ZERO,
+                    fill_rgb,
+                    stroke,
+                )))
             })
             .collect::<Vec<Shape>>();
         ui.painter().add(Shape::Vec(shapes));

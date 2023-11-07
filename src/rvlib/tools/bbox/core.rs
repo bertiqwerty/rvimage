@@ -29,6 +29,14 @@ tools_data_accessor_mut!(ACTOR_NAME, MISSING_TOOLSMENU_MSG);
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 
+fn are_boxes_visible(world: &World) -> bool {
+    get_tools_data(&world)
+        .specifics
+        .bbox()
+        .options
+        .are_boxes_visible
+}
+
 pub(super) fn paste(mut world: World, mut history: History) -> (World, History) {
     // Paste from clipboard
     if let Some(clipboard) = mem::take(
@@ -219,11 +227,7 @@ impl BBox {
         mut history: History,
     ) -> (World, History) {
         if event.released(KeyCode::MouseLeft) {
-            let are_boxes_visible = get_tools_data(&world)
-                .specifics
-                .bbox()
-                .options
-                .are_boxes_visible;
+            let are_boxes_visible = are_boxes_visible(&world);
             let params = MouseReleaseParams {
                 prev_pos: self.prev_pos,
                 are_boxes_visible,
@@ -313,6 +317,8 @@ impl Manipulate for BBox {
         world = initialize_tools_menu_data(world);
         get_tools_data_mut(&mut world).menu_active = true;
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
+
+        world.request_redraw_annotations(BBOX_NAME, true);
         (world, history)
     }
 
@@ -364,11 +370,7 @@ impl Manipulate for BBox {
                 outline: Stroke::from_color(color),
                 is_selected: None,
             };
-            let are_boxes_visible = get_tools_data(&world)
-                .specifics
-                .bbox()
-                .options
-                .are_boxes_visible;
+            let are_boxes_visible = are_boxes_visible(&world);
             world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
             world.request_redraw_tmp_anno(anno);
         }

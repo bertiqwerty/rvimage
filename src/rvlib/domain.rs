@@ -115,14 +115,24 @@ macro_rules! point_i {
 #[macro_export]
 macro_rules! impl_point_into {
     ($T:ty) => {
-        impl From<PtF> for ($T, $T) {
-            fn from(p: PtF) -> ($T, $T) {
+        impl From<PtI> for ($T, $T) {
+            fn from(p: PtI) -> Self {
                 (p.x as $T, p.y as $T)
             }
         }
-        impl From<PtI> for ($T, $T) {
-            fn from(p: PtI) -> ($T, $T) {
+        impl From<PtF> for ($T, $T) {
+            fn from(p: PtF) -> Self {
                 (p.x as $T, p.y as $T)
+            }
+        }
+        impl From<($T, $T)> for PtF {
+            fn from((x, y): ($T, $T)) -> Self {
+                Self{x: x as f32, y: y as f32}
+            }
+        }
+        impl From<($T, $T)> for PtI {
+            fn from((x, y): ($T, $T)) -> Self {
+                Self{x: x as u32, y: y as u32}
             }
         }
     };
@@ -889,4 +899,12 @@ fn test_intersect() {
         bb.intersect_or_self(Some(BB::from_arr(&[5, 7, 10, 10]))),
         BB::from_arr(&[10, 15, 5, 2])
     );
+}
+
+#[test]
+fn test_into() {
+    let pt: PtI = (10, 20).into();
+    assert_eq!(pt, PtI { x: 10, y: 20 });
+    let pt: PtF = (10i32, 20i32).into();
+    assert_eq!(pt, PtF { x: 10.0, y: 20.0 });
 }

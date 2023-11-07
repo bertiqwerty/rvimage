@@ -26,4 +26,6 @@ pub use drawme::{Annotation, GeoFig, Stroke, UpdateAnnos, UpdateImage, UpdateVie
 pub use events::{Event, Events, KeyCode};
 pub use main_loop::MainEventLoop;
 pub use tools_data::annotations;
-pub use view::{orig_2_view, orig_pos_2_view_pos, scale_coord, view_pos_2_orig_pos, ImageU8};
+pub use view::{
+    orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, ImageU8,
+};

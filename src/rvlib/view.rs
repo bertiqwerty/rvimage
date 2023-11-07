@@ -58,3 +58,18 @@ pub fn orig_2_view(im_orig: &ImageU8, zoom_box: Option<BB>) -> ImageU8 {
         im_orig.clone()
     }
 }
+
+pub fn project_on_bb(p: PtI, bb: &BB) -> PtI {
+    let x = p.x.max(bb.x).min(bb.x + bb.w - 1);
+    let y = p.y.max(bb.y).min(bb.y + bb.h - 1);
+    PtI { x, y }
+}
+
+#[test]
+fn test_project() {
+    let bb = BB::from_arr(&[5, 5, 10, 10]);
+    assert_eq!(PtI { x: 5, y: 5 }, project_on_bb((0, 0).into(), &bb));
+    assert_eq!(PtI { x: 14, y: 14 }, project_on_bb((15, 20).into(), &bb));
+    assert_eq!(PtI { x: 10, y: 14 }, project_on_bb((10, 15).into(), &bb));
+    assert_eq!(PtI { x: 14, y: 14 }, project_on_bb((20, 15).into(), &bb));
+}
