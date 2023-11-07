@@ -3,7 +3,7 @@
 
 use crate::cfg::{self, Cfg};
 use crate::control::{Control, Info};
-use crate::domain::Point;
+use crate::domain::PtI;
 use crate::events::{Events, KeyCode};
 use crate::file_util::make_prjcfg_filename;
 use crate::history::History;
@@ -60,7 +60,7 @@ fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
     }
 }
 
-fn get_pixel_on_orig_str(world: &World, mouse_pos: &Option<Point>) -> Option<String> {
+fn get_pixel_on_orig_str(world: &World, mouse_pos: &Option<PtI>) -> Option<String> {
     mouse_pos.map(|p| pos_2_string(world.data.im_background(), p.x, p.y))
 }
 
@@ -313,7 +313,8 @@ impl MainEventLoop {
 
         // show position and rgb value
         if let Some(idx) = self.ctrl.paths_navigator.file_label_selected_idx() {
-            let data_point = get_pixel_on_orig_str(&self.world, &e.mouse_pos);
+            let pixel_pos = e.mouse_pos.map(|mp|mp.into());
+            let data_point = get_pixel_on_orig_str(&self.world, &pixel_pos);
             let shape = self.world.shape_orig();
             let file_label = self.ctrl.file_label(idx);
             let active_tool = self.tools.iter().find(|t| t.is_active());

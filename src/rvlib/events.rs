@@ -1,4 +1,4 @@
-use crate::domain::Point;
+use crate::domain::PtF;
 
 macro_rules! action_keycode {
     ($name:ident, $action:ident, $key_code:ident) => {
@@ -34,11 +34,11 @@ macro_rules! action {
 #[derive(Debug, Clone, Default)]
 pub struct Events {
     events: Vec<Event>,
-    pub mouse_pos: Option<Point>,
+    pub mouse_pos: Option<PtF>,
 }
 
 impl Events {
-    pub fn mousepos(mut self, mouse_pos: Option<Point>) -> Self {
+    pub fn mousepos(mut self, mouse_pos: Option<PtF>) -> Self {
         self.mouse_pos = mouse_pos;
         self
     }

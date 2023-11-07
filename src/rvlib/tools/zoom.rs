@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    domain::{OutOfBoundsMode, Point, Shape, BB},
+    domain::{OutOfBoundsMode, PtI, Shape, BB, PtF},
     drawme::{Annotation, Stroke},
     events::{Events, KeyCode},
     history::History,
@@ -18,7 +18,7 @@ const MIN_ZOOM: u32 = 2;
 pub fn move_zoom_box(
     mut mover: Mover,
     mut world: World,
-    mouse_pos: Option<Point>,
+    mouse_pos: Option<PtF>,
 ) -> (Mover, World) {
     let shape_orig = world.data.shape();
     let zoom_box = *world.zoom_box();
@@ -32,7 +32,7 @@ pub fn move_zoom_box(
 
 fn make_zoom_on_release<P>(mp_start: P, mp_release: P) -> Option<BB>
 where
-    P: Into<Point>,
+    P: Into<PtI>,
 {
     let mp_start = mp_start.into();
     let mp_release = mp_release.into();
@@ -55,7 +55,7 @@ where
     }
 }
 
-fn follow_zoom_box(mpso: Point, mpo: Point, shape_orig: Shape, zoom_box: Option<BB>) -> Option<BB> {
+fn follow_zoom_box(mpso: PtF, mpo: PtF, shape_orig: Shape, zoom_box: Option<BB>) -> Option<BB> {
     match zoom_box {
         Some(zb) => match zb.follow_movement(mpo, mpso, shape_orig, OutOfBoundsMode::Deny) {
             Some(zb) => Some(zb),
@@ -67,12 +67,12 @@ fn follow_zoom_box(mpso: Point, mpo: Point, shape_orig: Shape, zoom_box: Option<
 
 #[derive(Clone, Debug)]
 pub struct Zoom {
-    mouse_pressed_start_pos: Option<Point>,
+    mouse_pressed_start_pos: Option<PtF>,
     mover: Mover,
     initial_view: Option<ViewImage>,
 }
 impl Zoom {
-    fn set_mouse_start_zoom(&mut self, mp: Point) {
+    fn set_mouse_start_zoom(&mut self, mp: PtF) {
         self.mouse_pressed_start_pos = Some(mp);
     }
 
@@ -96,7 +96,7 @@ impl Zoom {
         (world, history)
     }
 
-    fn mouse_released_left_btn(&mut self, mut world: World, mouse_pos: Option<Point>) -> World {
+    fn mouse_released_left_btn(&mut self, mut world: World, mouse_pos: Option<PtF>) -> World {
         let bx = if let (Some(mps), Some(mr)) = (self.mouse_pressed_start_pos, mouse_pos) {
             make_zoom_on_release(mps, mr).or(*world.zoom_box())
         } else {
@@ -137,7 +137,7 @@ impl Zoom {
         } else if events.held(KeyCode::MouseLeft) {
             if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, events.mouse_pos) {
                 // animation
-                let bb = BB::from_points(mps, m);
+                let bb = BB::from_points(mps.into(), m.into());
                 let white = [255, 255, 255];
                 let anno = Annotation {
                     geofig: GeoFig::BB(bb),
@@ -215,8 +215,8 @@ fn test_make_zoom() -> RvResult<()> {
 #[test]
 fn test_move_zoom() -> RvResult<()> {
     fn test(mpp: (usize, usize), mph: (usize, usize), zoom_box: Option<BB>, expected: Option<BB>) {
-        let mpp = (mpp.0 as u32, mpp.1 as u32).into();
-        let mph = (mph.0 as u32, mph.1 as u32).into();
+        let mpp = (mpp.0 as f32, mpp.1 as f32).into();
+        let mph = (mph.0 as f32, mph.1 as f32).into();
         let shape_orig = Shape { w: 80, h: 80 };
         assert_eq!(follow_zoom_box(mpp, mph, shape_orig, zoom_box), expected);
     }
@@ -225,7 +225,7 @@ fn test_move_zoom() -> RvResult<()> {
 }
 #[test]
 fn test_on_mouse_pressed() -> RvResult<()> {
-    let mouse_pos = Some(point!(30, 45));
+    let mouse_pos = Some(point!(30.0, 45.0));
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
     let world = World::from_real_im(im_orig, HashMap::new(), "".to_string());
@@ -234,7 +234,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let event = Events::default().mousepos(mouse_pos);
     let (res, _) = z.mouse_pressed(&event, world, history);
     assert_eq!(res.data, im_orig_old);
-    assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
+    assert_eq!(z.mouse_pressed_start_pos, mouse_pos.map(|mp|mp.into()));
     Ok(())
 }
 
@@ -244,9 +244,9 @@ fn test_on_mouse_released() -> RvResult<()> {
     let mut z = Zoom::new();
     let world = World::from_real_im(im_orig, HashMap::new(), "".to_string());
 
-    z.set_mouse_start_zoom(point!(30, 70));
+    z.set_mouse_start_zoom(point!(30.0, 70.0));
 
-    let world = z.mouse_released_left_btn(world, Some(point!(40, 80)));
+    let world = z.mouse_released_left_btn(world, Some(point!(40.0, 80.0)));
     assert_eq!(
         *world.zoom_box(),
         Some(BB {

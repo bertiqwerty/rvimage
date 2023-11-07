@@ -1,7 +1,7 @@
 use crate::{
     annotations::SplitMode,
     cfg::CocoFile,
-    domain::{shape_unscaled, OutOfBoundsMode, Point, BB},
+    domain::{shape_unscaled, OutOfBoundsMode, PtF, BB},
     events::{Events, KeyCode},
     file_util::MetaData,
     history::Record,
@@ -18,15 +18,15 @@ use super::core::{
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
 
-fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
+fn find_closest_boundary_idx(pos: (f32, f32), bbs: &[BB]) -> Option<usize> {
     bbs.iter()
         .enumerate()
         .filter(|(_, bb)| bb.contains(pos))
         .map(|(i, bb)| {
-            let dx = (bb.x as i64 - pos.0 as i64).abs();
-            let dw = ((bb.x + bb.w) as i64 - pos.0 as i64).abs();
-            let dy = (bb.y as i64 - pos.1 as i64).abs();
-            let dh = ((bb.y + bb.h) as i64 - pos.1 as i64).abs();
+            let dx = (bb.x as f32 - pos.0).abs();
+            let dw = ((bb.x + bb.w) as f32 - pos.0).abs();
+            let dy = (bb.y as f32 - pos.1).abs();
+            let dh = ((bb.y + bb.h) as f32 - pos.1).abs();
             (i, dx.min(dw).min(dy).min(dh))
         })
         .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
@@ -34,15 +34,15 @@ fn find_closest_boundary_idx(pos: (u32, u32), bbs: &[BB]) -> Option<usize> {
 }
 
 /// returns index of the bounding box and the index of the closest close corner
-fn find_close_corner(orig_pos: Point, bbs: &[BB], tolerance: i64) -> Option<(usize, usize)> {
-    let opf: (i64, i64) = orig_pos.into();
+fn find_close_corner(orig_pos: PtF, bbs: &[BB], tolerance: i64) -> Option<(usize, usize)> {
+    let opi64: (i64, i64) = orig_pos.into();
     bbs.iter()
         .enumerate()
         .map(|(bb_idx, bb)| {
             let (min_corner_idx, min_corner_dist) = bb
                 .corners()
                 .map(|c| c.into())
-                .map(|c: (i64, i64)| (opf.0 - c.0).pow(2) + (opf.1 - c.1).pow(2))
+                .map(|c: (i64, i64)| (opi64.0 - c.0).pow(2) + (opi64.1 - c.1).pow(2))
                 .enumerate()
                 .min_by_key(|x| x.1)
                 .unwrap();
@@ -83,7 +83,7 @@ pub(super) struct MouseHeldParams<'a> {
     pub mover: &'a mut Mover,
 }
 pub(super) fn on_mouse_held_right(
-    mouse_pos: Option<Point>,
+    mouse_pos: Option<PtF>,
     params: MouseHeldParams,
     mut world: World,
     mut history: History,
@@ -108,8 +108,8 @@ pub(super) fn on_mouse_held_right(
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct PrevPos {
-    pub prev_pos: Option<Point>,
-    pub last_valid_click: Option<Point>,
+    pub prev_pos: Option<PtF>,
+    pub last_valid_click: Option<PtF>,
 }
 
 pub(super) struct MouseReleaseParams {
@@ -122,7 +122,7 @@ pub(super) struct MouseReleaseParams {
 }
 
 pub(super) fn on_mouse_released_left(
-    mouse_pos: Option<Point>,
+    mouse_pos: Option<PtF>,
     params: MouseReleaseParams,
     mut world: World,
     mut history: History,
@@ -150,7 +150,10 @@ pub(super) fn on_mouse_released_left(
                 SplitMode::None => mp,
             };
             let annos = get_annos_mut(&mut world);
-            annos.add_bb(BB::from_points(mp, pp), in_menu_selected_label);
+            annos.add_bb(
+                BB::from_points(mp.into(), pp.into()),
+                in_menu_selected_label,
+            );
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
             prev_pos.prev_pos = None;
             world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
@@ -207,7 +210,7 @@ pub(super) fn on_mouse_released_left(
             let annos = get_annos_mut(&mut world);
             let bb = annos.remove(bb_idx);
             let oppo_corner = bb.opposite_corner(idx);
-            prev_pos.prev_pos = Some(oppo_corner);
+            prev_pos.prev_pos = Some(oppo_corner.into());
         } else {
             match split_mode {
                 SplitMode::None => {
@@ -228,21 +231,21 @@ pub(super) fn on_mouse_released_left(
                                 .enumerate()
                                 .find(|(_, bb)| bb.contains((mp.x, mp.y)))
                             {
-                                let (top, btm) = bb.split_horizontally(mp.y);
+                                let (top, btm) = bb.split_horizontally(mp.y as u32);
                                 vec![(Some(i), top, btm)]
                             } else {
                                 let new_bbs = existing_bbs
                                     .iter()
                                     .enumerate()
-                                    .filter(|(_, bb)| bb.covers_y(mp.y))
+                                    .filter(|(_, bb)| bb.covers_y(mp.y as u32))
                                     .map(|(i, bb)| {
-                                        let (top, btm) = bb.split_horizontally(mp.y);
+                                        let (top, btm) = bb.split_horizontally(mp.y as u32);
                                         (Some(i), top, btm)
                                     })
                                     .collect::<Vec<_>>();
                                 if new_bbs.is_empty() {
                                     let (top, btm) =
-                                        BB::from_shape(shape_orig).split_horizontally(mp.y);
+                                        BB::from_shape(shape_orig).split_horizontally(mp.y as u32);
                                     vec![(None, top, btm)]
                                 } else {
                                     new_bbs
@@ -254,21 +257,21 @@ pub(super) fn on_mouse_released_left(
                             .enumerate()
                             .find(|(_, bb)| bb.contains((mp.x, mp.y)))
                         {
-                            let (left, right) = bb.split_vertically(mp.x);
+                            let (left, right) = bb.split_vertically(mp.x as u32);
                             vec![(Some(i), left, right)]
                         } else {
                             let new_bbs = existing_bbs
                                 .iter()
                                 .enumerate()
-                                .filter(|(_, bb)| bb.covers_x(mp.x))
+                                .filter(|(_, bb)| bb.covers_x(mp.x as u32))
                                 .map(|(i, bb)| {
-                                    let (left, right) = bb.split_vertically(mp.x);
+                                    let (left, right) = bb.split_vertically(mp.x as u32);
                                     (Some(i), left, right)
                                 })
                                 .collect::<Vec<_>>();
                             if new_bbs.is_empty() {
                                 let (left, right) =
-                                    BB::from_shape(shape_orig).split_vertically(mp.x);
+                                    BB::from_shape(shape_orig).split_vertically(mp.x as u32);
                                 vec![(None, left, right)]
                             } else {
                                 new_bbs
@@ -333,7 +336,7 @@ pub(super) struct KeyReleasedParams {
 pub(super) fn on_key_released(
     mut world: World,
     mut history: History,
-    mouse_pos: Option<Point>,
+    mouse_pos: Option<PtF>,
     params: KeyReleasedParams,
 ) -> (World, History) {
     let mut flags = get_tools_data_mut(&mut world).specifics.bbox_mut().options;
@@ -389,7 +392,7 @@ pub(super) fn on_key_released(
         }
         ReleasedKey::C => {
             // Paste selection directly at current mouse position
-            if let Some((x_shift, y_shift)) = mouse_pos.map(|mp| mp.to_i32()) {
+            if let Some((x_shift, y_shift)) = mouse_pos.map(|mp| <PtF as Into<(i32, i32)>>::into(mp)) {
                 let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
                 let selected_inds = true_indices(annos.selected_bbs());
@@ -474,7 +477,7 @@ use {
 };
 
 #[cfg(test)]
-fn test_data() -> (Option<Point>, World, History) {
+fn test_data() -> (Option<PtF>, World, History) {
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
     let world = World::from_real_im(im_test, HashMap::new(), "superimage.png".to_string());
     let mut world = initialize_tools_menu_data(world);
@@ -486,7 +489,7 @@ fn test_data() -> (Option<Point>, World, History) {
         .push("label".to_string(), None, None)
         .unwrap();
     let history = History::default();
-    let mouse_pos = Some(point!(32, 32));
+    let mouse_pos = Some(point!(32.0, 32.0));
     (mouse_pos, world, history)
 }
 
@@ -558,7 +561,7 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::A, true);
     let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::C, false);
-    let (world, history) = on_key_released(world, history, Some(point!(2, 2)), params);
+    let (world, history) = on_key_released(world, history, Some(point!(2.0, 2.0)), params);
     assert_eq!(get_annos(&world).unwrap().bbs()[0], annos_orig.bbs()[0]);
     assert_eq!(
         get_annos(&world).unwrap().bbs()[1],
@@ -605,7 +608,7 @@ fn test_mouse_held() {
     annos.add_bb(bbs[0].clone(), 0);
     {
         let mut mover = Mover::new();
-        mover.move_mouse_pressed(Some(point!(12, 12)));
+        mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
         let params = MouseHeldParams {
             are_boxes_visible: true,
             mover: &mut mover,
@@ -617,7 +620,7 @@ fn test_mouse_held() {
     }
     {
         let mut mover = Mover::new();
-        mover.move_mouse_pressed(Some(point!(12, 12)));
+        mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
         let params = MouseHeldParams {
             are_boxes_visible: true,
             mover: &mut mover,
@@ -649,7 +652,7 @@ fn test_mouse_release() {
     {
         // If a previous position was registered, we expect that the second click creates the
         // bounding box.
-        let params = make_params(Some(point!(30, 30)), false);
+        let params = make_params(Some(point!(30.0, 30.0)), false);
         let (world, new_hist, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, None);
@@ -683,7 +686,7 @@ fn test_mouse_release() {
     {
         // If ctrl is hold at the second click, this does not really make sense. We ignore it and assume this
         // is the finishing box click.
-        let params = make_params(Some(point!(30, 30)), true);
+        let params = make_params(Some(point!(30.0, 30.0)), true);
         let (world, new_hist, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, None);
@@ -764,11 +767,11 @@ fn test_mouse_release() {
 #[test]
 fn test_find_idx() {
     let bbs = make_test_bbs();
-    assert_eq!(find_closest_boundary_idx((0, 20), &bbs), None);
-    assert_eq!(find_closest_boundary_idx((0, 0), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((3, 8), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((7, 14), &bbs), Some(1));
-    assert_eq!(find_closest_boundary_idx((7, 15), &bbs), None);
-    assert_eq!(find_closest_boundary_idx((8, 8), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((10, 12), &bbs), Some(2));
+    assert_eq!(find_closest_boundary_idx((0.0, 20.0), &bbs), None);
+    assert_eq!(find_closest_boundary_idx((0.0, 0.0), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((3.0, 8.0), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((7.0, 14.0), &bbs), Some(1));
+    assert_eq!(find_closest_boundary_idx((7.0, 15.0), &bbs), None);
+    assert_eq!(find_closest_boundary_idx((8.0, 8.0), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((10.0, 12.0), &bbs), Some(2));
 }

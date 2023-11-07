@@ -1,5 +1,5 @@
 use crate::{
-    domain::{Point, BB},
+    domain::{PtI, BB, PtF},
     events::Events,
     history::History,
     world::World,
@@ -23,7 +23,7 @@ pub trait Manipulate {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Mover {
-    mouse_pos_start: Option<Point>,
+    mouse_pos_start: Option<PtF>,
 }
 impl Mover {
     pub fn new() -> Self {
@@ -31,10 +31,10 @@ impl Mover {
             mouse_pos_start: None,
         }
     }
-    pub fn move_mouse_held<T, F: FnOnce(Point, Point) -> T>(
+    pub fn move_mouse_held<T, F: FnOnce(PtF, PtF) -> T>(
         &mut self,
         f_move: F,
-        mouse_pos: Option<Point>,
+        mouse_pos: Option<PtF>,
         zoom_box: &Option<BB>,
     ) -> Option<T> {
         let res = if let (Some(mp_start), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
@@ -50,7 +50,7 @@ impl Mover {
         self.mouse_pos_start = mouse_pos;
         res
     }
-    pub fn move_mouse_pressed(&mut self, mouse_pos: Option<Point>) {
+    pub fn move_mouse_pressed(&mut self, mouse_pos: Option<PtF>) {
         if mouse_pos.is_some() {
             self.mouse_pos_start = mouse_pos;
         }

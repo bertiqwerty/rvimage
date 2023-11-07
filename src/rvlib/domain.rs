@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     iter::{self, Flatten},
-    ops::Range,
+    ops::{Add, Div, Mul, Range, Sub},
     str::FromStr,
 };
 
@@ -12,6 +12,15 @@ use crate::{
     result::{to_rv, RvError, RvResult},
     rverr,
 };
+
+pub trait Calc:
+    Mul<Output = Self> + Div<Output = Self> + Add<Output = Self> + Sub<Output = Self>
+where
+    Self: Sized,
+{
+}
+impl Calc for u32 {}
+impl Calc for f32 {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Shape {
@@ -40,13 +49,13 @@ impl From<[usize; 2]> for Shape {
 }
 
 /// shape of the image that fits into the window
-pub fn shape_scaled(shape_unscaled: Shape, shape_win: Shape) -> Shape {
-    let w_ratio = shape_unscaled.w as f64 / shape_win.w as f64;
-    let h_ratio = shape_unscaled.h as f64 / shape_win.h as f64;
+pub fn shape_scaled(shape_unscaled: Shape, shape_win: Shape) -> (f32, f32) {
+    let w_ratio = shape_unscaled.w as f32 / shape_win.w as f32;
+    let h_ratio = shape_unscaled.h as f32 / shape_win.h as f32;
     let ratio = w_ratio.max(h_ratio);
-    let w_new = (shape_unscaled.w as f64 / ratio) as u32;
-    let h_new = (shape_unscaled.h as f64 / ratio) as u32;
-    Shape { w: w_new, h: h_new }
+    let w_new = shape_unscaled.w as f32 / ratio;
+    let h_new = shape_unscaled.h as f32 / ratio;
+    (w_new, h_new)
 }
 /// shape without scaling to window
 pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
@@ -54,17 +63,17 @@ pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
 }
 
 pub fn pos_transform<F>(
-    pos: Point,
+    pos: PtF,
     shape_orig: Shape,
     shape_win: Shape,
     zoom_box: &Option<BB>,
     transform: F,
-) -> Point
+) -> PtF
 where
-    F: Fn(u32, u32, u32, u32) -> u32,
+    F: Fn(f32, f32, f32, f32) -> f32,
 {
     let unscaled = shape_unscaled(zoom_box, shape_orig);
-    let scaled = shape_scaled(unscaled, shape_win);
+    let (w_scaled, h_scaled) = shape_scaled(unscaled, shape_win);
 
     let (x_off, y_off) = match zoom_box {
         Some(c) => (c.x, c.y),
@@ -72,8 +81,8 @@ where
     };
 
     let (x, y) = pos.into();
-    let x_tf = transform(x, scaled.w, unscaled.w, x_off);
-    let y_tf = transform(y, scaled.h, unscaled.h, y_off);
+    let x_tf = transform(x, w_scaled, unscaled.w as f32, x_off as f32);
+    let y_tf = transform(y, h_scaled, unscaled.h as f32, y_off as f32);
     ((x_tf, y_tf)).into()
 }
 
@@ -86,20 +95,70 @@ impl IsSignedInt for i64 {}
 #[macro_export]
 macro_rules! point {
     ($x:literal, $y:literal) => {{
+        if $x < 0.0 || $y < 0.0 {
+            panic!("cannot create point from negative coords, {}, {}", $x, $y);
+        }
+        crate::domain::PtF { x: $x, y: $y }
+    }};
+}
+#[cfg(test)]
+#[macro_export]
+macro_rules! point_i {
+    ($x:literal, $y:literal) => {{
         if $x < 0 || $y < 0 {
             panic!("cannot create point from negative coords, {}, {}", $x, $y);
         }
-        crate::domain::Point { x: $x, y: $y }
+        crate::domain::PtI { x: $x, y: $y }
     }};
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct Point {
-    pub x: u32,
-    pub y: u32,
+#[macro_export]
+macro_rules! impl_point_into {
+    ($T:ty) => {
+        impl Into<($T, $T)> for PtF {
+            fn into(self) -> ($T, $T) {
+                (self.x as $T, self.y as $T)
+            }
+        }
+        impl Into<($T, $T)> for PtI {
+            fn into(self) -> ($T, $T) {
+                (self.x as $T, self.y as $T)
+            }
+        }
+    };
 }
 
-impl Point {
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct Point<T> {
+    pub x: T,
+    pub y: T,
+}
+
+impl<T> From<(T, T)> for Point<T>
+where
+    T: Calc,
+{
+    fn from(value: (T, T)) -> Self {
+        Self {
+            x: value.0,
+            y: value.1,
+        }
+    }
+}
+impl<T> Into<(T, T)> for Point<T>
+where
+    T: Calc,
+{
+    fn into(self) -> (T, T) {
+        (self.x, self.y)
+    }
+}
+impl_point_into!(i64);
+impl_point_into!(i32);
+pub type PtF = Point<f32>;
+pub type PtI = Point<u32>;
+
+impl PtI {
     pub fn from_signed(p: (i32, i32)) -> RvResult<Self> {
         if p.0 < 0 || p.1 < 0 {
             Err(rverr!(
@@ -107,57 +166,45 @@ impl Point {
                 p
             ))
         } else {
-            Ok((p.0 as u32, p.1 as u32).into())
+            Ok(Self {
+                x: p.0 as u32,
+                y: p.1 as u32,
+            })
         }
     }
-    pub fn to_i32(&self) -> (i32, i32) {
-        <Self as Into<(i32, i32)>>::into(*self)
-    }
-    pub fn equals<T>(&self, other: (T, T)) -> bool
+    pub fn equals<U>(&self, other: (U, U)) -> bool
     where
-        T: PartialEq,
-        Point: Into<(T, T)>,
+        U: PartialEq,
+        PtI: Into<(U, U)>,
     {
-        <Self as Into<(T, T)>>::into(*self) == other
+        <Self as Into<(U, U)>>::into(*self) == other
     }
 }
 
-impl From<(u32, u32)> for Point {
-    fn from(value: (u32, u32)) -> Self {
-        Self {
-            x: value.0,
-            y: value.1,
-        }
+impl Into<PtF> for PtI {
+    fn into(self) -> PtF {
+        ((self.x as f32), (self.y as f32)).into()
     }
 }
-impl From<(f32, f32)> for Point {
+impl From<PtF> for PtI {
+    fn from(p: PtF) -> Self {
+        ((p.x as u32), (p.y as u32)).into()
+    }
+}
+impl From<(f32, f32)> for PtI {
     fn from(x: (f32, f32)) -> Self {
         ((x.0 as u32), (x.1 as u32)).into()
     }
 }
-impl From<(usize, usize)> for Point {
+impl From<(usize, usize)> for PtI {
     fn from(x: (usize, usize)) -> Self {
         ((x.0 as u32), (x.1 as u32)).into()
     }
 }
-impl Into<(i32, i32)> for Point {
-    fn into(self) -> (i32, i32) {
-        (self.x as i32, self.y as i32)
-    }
-}
-impl Into<(i64, i64)> for Point {
-    fn into(self) -> (i64, i64) {
-        (self.x as i64, self.y as i64)
-    }
-}
-impl Into<(usize, usize)> for Point {
+
+impl Into<(usize, usize)> for PtI {
     fn into(self) -> (usize, usize) {
         (self.x as usize, self.y as usize)
-    }
-}
-impl Into<(u32, u32)> for Point {
-    fn into(self) -> (u32, u32) {
-        (self.x, self.y)
     }
 }
 
@@ -171,7 +218,7 @@ fn chain_corners<T>(select: impl Fn(usize) -> T) -> impl Iterator<Item = T> {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct Polygon {
-    points: Vec<Point>, // should NEVER be empty, hence private!
+    points: Vec<PtI>, // should NEVER be empty, hence private!
     enclosing_bb: BB,
     is_open: bool,
 }
@@ -179,10 +226,10 @@ impl Polygon {
     pub fn enclosing_bb(&self) -> BB {
         self.enclosing_bb
     }
-    pub fn points(&self) -> &Vec<Point> {
+    pub fn points(&self) -> &Vec<PtI> {
         &self.points
     }
-    fn from_vec(points: Vec<Point>, is_open: bool) -> RvResult<Self> {
+    fn from_vec(points: Vec<PtI>, is_open: bool) -> RvResult<Self> {
         let enclosing_bb = BB::from_vec(&points)?;
         Ok(Self {
             points,
@@ -229,7 +276,7 @@ impl BB {
         }
     }
 
-    pub fn from_vec(points: &[Point]) -> RvResult<Self> {
+    pub fn from_vec(points: &[PtI]) -> RvResult<Self> {
         let x_iter = points.iter().map(|p| p.x);
         let y_iter = points.iter().map(|p| p.y);
         let min_x = x_iter
@@ -327,11 +374,11 @@ impl BB {
     /// v   ʌ
     /// 1 > 2
     #[allow(clippy::needless_lifetimes)]
-    pub fn corners<'a>(&'a self) -> impl Iterator<Item = Point> + 'a {
+    pub fn corners<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a {
         chain_corners(|i| self.corner(i))
     }
 
-    pub fn corner(&self, idx: usize) -> Point {
+    pub fn corner(&self, idx: usize) -> PtI {
         let (x, y, w, h) = (self.x, self.y, self.w, self.h);
         match idx {
             0 => (x, y).into(),
@@ -341,7 +388,7 @@ impl BB {
             _ => panic!("bounding boxes only have 4, {idx} is out of bounds"),
         }
     }
-    pub fn opposite_corner(&self, idx: usize) -> Point {
+    pub fn opposite_corner(&self, idx: usize) -> PtI {
         self.corner((idx + 2) % 4)
     }
 
@@ -352,7 +399,7 @@ impl BB {
         }
     }
 
-    pub fn from_points(p1: Point, p2: Point) -> Self {
+    pub fn from_points(p1: PtI, p2: PtI) -> Self {
         let x_min = p1.x.min(p2.x);
         let y_min = p1.y.min(p2.y);
         let x_max = p1.x.max(p2.x);
@@ -380,7 +427,7 @@ impl BB {
         )
     }
 
-    pub fn center(&self) -> Point {
+    pub fn center(&self) -> PtI {
         (self.x + self.w / 2, self.y + self.h / 2).into()
     }
 
@@ -392,18 +439,18 @@ impl BB {
         ((self.x + self.w) as usize, (self.y + self.h) as usize)
     }
 
-    pub fn min(&self) -> Point {
+    pub fn min(&self) -> PtI {
         (self.x, self.y).into()
     }
 
-    pub fn max(&self) -> Point {
+    pub fn max(&self) -> PtI {
         (self.x + self.w, self.y + self.h).into()
     }
 
     pub fn follow_movement(
         &self,
-        from: Point,
-        to: Point,
+        from: PtF,
+        to: PtF,
         shape: Shape,
         oob_mode: OutOfBoundsMode,
     ) -> Option<Self> {
@@ -421,7 +468,7 @@ impl BB {
 
     pub fn contains<P>(&self, p: P) -> bool
     where
-        P: Into<Point>,
+        P: Into<PtI>,
     {
         let p = p.into();
         self.covers_x(p.x) && self.covers_y(p.y)

@@ -7,7 +7,7 @@ use egui::{
 };
 use image::{ImageBuffer, Rgb};
 use rvlib::{
-    domain::Point, orig_2_view, orig_pos_2_view_pos, scale_coord, view_pos_2_orig_pos, Annotation,
+    domain::PtI, orig_2_view, orig_pos_2_view_pos, scale_coord, view_pos_2_orig_pos, Annotation,
     GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage, UpdateZoomBox, BB,
 };
 
@@ -211,7 +211,7 @@ fn image_2_colorimage(im: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> ColorImage {
 }
 
 fn orig_pos_2_egui_rect(
-    p: Point,
+    p: PtI,
     offset: Pos2,
     shape_orig: rvlib::Shape,
     shape_view: rvlib::Shape,
@@ -365,6 +365,7 @@ impl eframe::App for RvImageApp {
                             self.annos.push(tmp_anno);
                         }
                     }
+                    println!("{:?}", self.zoom_box);
                     if !self.annos.is_empty() {
                         self.draw_annos(ui, &ir.rect);
                     }

@@ -1,6 +1,6 @@
 use crate::{
-    domain::{Point, Shape, BB},
-    util::true_indices,
+    domain::{PtI, Shape, BB, PtF},
+    util::true_indices, 
 };
 use serde::{Deserialize, Serialize};
 use std::mem;
@@ -210,8 +210,8 @@ impl BboxAnnotations {
 
     pub fn selected_follow_movement(
         &mut self,
-        mpo_from: Point,
-        mpo_to: Point,
+        mpo_from: PtF,
+        mpo_to: PtF,
         orig_shape: Shape,
         split_mode: SplitMode,
     ) -> bool {
@@ -239,7 +239,7 @@ impl BboxAnnotations {
     }
 }
 #[cfg(test)]
-use {super::core::resize_bbs, crate::point};
+use {super::core::resize_bbs, crate::point_i};
 #[cfg(test)]
 fn make_test_bbs() -> Vec<BB> {
     vec![
@@ -273,16 +273,16 @@ fn test_bbs() {
         bb.shift_max(-1, 1, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BB::from_points(point!(5, 5), point!(14, 16)), resized[1]);
-    assert_eq!(BB::from_points(point!(9, 9), point!(18, 20)), resized[2]);
+    assert_eq!(BB::from_points(point_i!(5, 5), point_i!(14, 16)), resized[1]);
+    assert_eq!(BB::from_points(point_i!(9, 9), point_i!(18, 20)), resized[2]);
 
     // shift min
     let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
         bb.shift_min(-1, 1, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BB::from_points(point!(4, 6), point!(15, 15)), resized[1]);
-    assert_eq!(BB::from_points(point!(8, 10), point!(19, 19)), resized[2]);
+    assert_eq!(BB::from_points(point_i!(4, 6), point_i!(15, 15)), resized[1]);
+    assert_eq!(BB::from_points(point_i!(8, 10), point_i!(19, 19)), resized[2]);
 }
 #[test]
 fn test_annos() {

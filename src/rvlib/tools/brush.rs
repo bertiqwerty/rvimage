@@ -45,7 +45,7 @@ impl Brush {
                 .points
                 .last_mut()
                 .unwrap()
-                .push(mp);
+                .push(mp.into());
             world.request_redraw_annotations(BRUSH_NAME, true);
         }
 
