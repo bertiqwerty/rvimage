@@ -6,10 +6,7 @@ macro_rules! action_keycode {
             self.events
                 .iter()
                 .find(|a| match a {
-                    Event::$action(k) => match k {
-                        KeyCode::$key_code => true,
-                        _ => false,
-                    },
+                    Event::$action(KeyCode::$key_code) => true,
                     _ => false,
                 })
                 .is_some()

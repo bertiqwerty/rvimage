@@ -98,26 +98,24 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
     let mut events = vec![];
     ui.input(|i| {
         for e in i.events.iter() {
-            match e {
-                egui::Event::Key {
-                    key,
-                    pressed,
-                    repeat: _,
-                    modifiers,
-                } => {
-                    if let Some(k) = map_key(*key) {
-                        if !pressed {
-                            events.push(rvlib::Event::Released(k));
-                        } else {
-                            events.push(rvlib::Event::Pressed(k));
-                        }
-                    }
-                    let modifier_events = map_modifiers(modifiers);
-                    if let Some(mut me) = modifier_events {
-                        events.append(&mut me);
+            if let egui::Event::Key {
+                key,
+                pressed,
+                repeat: _,
+                modifiers,
+            } = e
+            {
+                if let Some(k) = map_key(*key) {
+                    if !pressed {
+                        events.push(rvlib::Event::Released(k));
+                    } else {
+                        events.push(rvlib::Event::Pressed(k));
                     }
                 }
-                _ => (),
+                let modifier_events = map_modifiers(modifiers);
+                if let Some(mut me) = modifier_events {
+                    events.append(&mut me);
+                }
             }
         }
     });
@@ -133,25 +131,23 @@ fn map_mouse_events(
     let mut btn_codes = LastSensedBtns::default();
     ui.input(|i| {
         for e in i.events.iter() {
-            match e {
-                egui::Event::PointerButton {
-                    pos: _,
-                    button,
-                    pressed: _,
-                    modifiers,
-                } => {
-                    let modifier_events = map_modifiers(modifiers);
-                    if let Some(me) = modifier_events {
-                        let btn_code = match button {
-                            PointerButton::Primary => KeyCode::MouseLeft,
-                            PointerButton::Secondary => KeyCode::MouseRight,
-                            _ => KeyCode::DontCare,
-                        };
-                        btn_codes.btn_codes.push(btn_code);
-                        btn_codes.modifiers = me;
-                    }
+            if let egui::Event::PointerButton {
+                pos: _,
+                button,
+                pressed: _,
+                modifiers,
+            } = e
+            {
+                let modifier_events = map_modifiers(modifiers);
+                if let Some(me) = modifier_events {
+                    let btn_code = match button {
+                        PointerButton::Primary => KeyCode::MouseLeft,
+                        PointerButton::Secondary => KeyCode::MouseRight,
+                        _ => KeyCode::DontCare,
+                    };
+                    btn_codes.btn_codes.push(btn_code);
+                    btn_codes.modifiers = me;
                 }
-                _ => (),
             }
         }
     });
@@ -220,10 +216,8 @@ fn orig_pos_2_egui_rect(
 ) -> Option<Pos2> {
     let p_view = orig_pos_2_view_pos(p, shape_orig, shape_view, zoom_box);
     p_view.map(|p_view| {
-        let p_egui_rect_x =
-            offset.x + scale_coord(p_view.x as f32, shape_view.w as f32, rect_size.x);
-        let p_egui_rect_y =
-            offset.y + scale_coord(p_view.y as f32, shape_view.h as f32, rect_size.y);
+        let p_egui_rect_x = offset.x + scale_coord(p_view.x, shape_view.w as f32, rect_size.x);
+        let p_egui_rect_y = offset.y + scale_coord(p_view.y, shape_view.h as f32, rect_size.y);
         Pos2::new(p_egui_rect_x, p_egui_rect_y)
     })
 }

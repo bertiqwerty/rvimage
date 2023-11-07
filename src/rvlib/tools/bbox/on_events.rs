@@ -95,9 +95,7 @@ pub(super) fn on_mouse_held_right(
         add_to_history = annos.selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
         Some(())
     };
-    params
-        .mover
-        .move_mouse_held(move_boxes, mouse_pos);
+    params.mover.move_mouse_held(move_boxes, mouse_pos);
     if add_to_history {
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
     }
@@ -396,9 +394,7 @@ pub(super) fn on_key_released(
         }
         ReleasedKey::C => {
             // Paste selection directly at current mouse position
-            if let Some((x_shift, y_shift)) =
-                mouse_pos.map(|mp| <PtF as Into<(i32, i32)>>::into(mp))
-            {
+            if let Some((x_shift, y_shift)) = mouse_pos.map(<PtF as Into<(i32, i32)>>::into) {
                 let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
                 let selected_inds = true_indices(annos.selected_bbs());
@@ -615,9 +611,7 @@ fn test_mouse_held() {
     {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
-        let params = MouseHeldParams {
-            mover: &mut mover,
-        };
+        let params = MouseHeldParams { mover: &mut mover };
         let (world, new_hist) =
             on_mouse_held_right(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
@@ -626,9 +620,7 @@ fn test_mouse_held() {
     {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
-        let params = MouseHeldParams {
-            mover: &mut mover,
-        };
+        let params = MouseHeldParams { mover: &mut mover };
         let annos = get_annos_mut(&mut world);
         annos.select(0);
         let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());

@@ -83,7 +83,7 @@ where
     let (x, y) = pos.into();
     let x_tf = transform(x, w_scaled, unscaled.w as f32, x_off as f32);
     let y_tf = transform(y, h_scaled, unscaled.h as f32, y_off as f32);
-    ((x_tf, y_tf)).into()
+    (x_tf, y_tf).into()
 }
 
 pub trait IsSignedInt {}
@@ -115,14 +115,14 @@ macro_rules! point_i {
 #[macro_export]
 macro_rules! impl_point_into {
     ($T:ty) => {
-        impl Into<($T, $T)> for PtF {
-            fn into(self) -> ($T, $T) {
-                (self.x as $T, self.y as $T)
+        impl From<PtF> for ($T, $T) {
+            fn from(p: PtF) -> ($T, $T) {
+                (p.x as $T, p.y as $T)
             }
         }
-        impl Into<($T, $T)> for PtI {
-            fn into(self) -> ($T, $T) {
-                (self.x as $T, self.y as $T)
+        impl From<PtI> for ($T, $T) {
+            fn from(p: PtI) -> ($T, $T) {
+                (p.x as $T, p.y as $T)
             }
         }
     };
@@ -145,12 +145,12 @@ where
         }
     }
 }
-impl<T> Into<(T, T)> for Point<T>
+impl<T> From<Point<T>> for (T, T)
 where
     T: Calc,
 {
-    fn into(self) -> (T, T) {
-        (self.x, self.y)
+    fn from(p: Point<T>) -> (T, T) {
+        (p.x, p.y)
     }
 }
 impl_point_into!(i64);
@@ -181,9 +181,9 @@ impl PtI {
     }
 }
 
-impl Into<PtF> for PtI {
-    fn into(self) -> PtF {
-        ((self.x as f32), (self.y as f32)).into()
+impl From<PtI> for PtF {
+    fn from(p: PtI) -> Self {
+        ((p.x as f32), (p.y as f32)).into()
     }
 }
 impl From<PtF> for PtI {
@@ -202,9 +202,9 @@ impl From<(usize, usize)> for PtI {
     }
 }
 
-impl Into<(usize, usize)> for PtI {
-    fn into(self) -> (usize, usize) {
-        (self.x as usize, self.y as usize)
+impl From<PtI> for (usize, usize) {
+    fn from(p: PtI) -> Self {
+        (p.x as usize, p.y as usize)
     }
 }
 

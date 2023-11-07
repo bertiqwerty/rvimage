@@ -46,7 +46,8 @@ impl ToolSpecifics {
                     let colors = bb_data.colors();
                     let bbs_colored = bbs
                         .iter()
-                        .zip(cats.iter()).zip(selected_bbs.iter())
+                        .zip(cats.iter())
+                        .zip(selected_bbs.iter())
                         .map(|((&bb, cat_idx), is_selected)| Annotation {
                             geofig: GeoFig::BB(bb),
                             fill_color: Some(colors[*cat_idx]),

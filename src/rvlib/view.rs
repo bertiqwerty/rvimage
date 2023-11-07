@@ -1,9 +1,8 @@
 use image::{GenericImageView, ImageBuffer, Rgb};
 
-use crate::domain::{pos_transform, PtI, Shape, BB, PtF, Calc};
+use crate::domain::{pos_transform, Calc, PtF, PtI, Shape, BB};
 
 pub type ImageU8 = ImageBuffer<Rgb<u8>, Vec<u8>>;
-
 
 /// Scales a coordinate from an axis of size_from to an axis of size_to
 pub fn scale_coord<T>(x: T, size_from: T, size_to: T) -> T

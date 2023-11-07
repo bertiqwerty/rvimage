@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    domain::{OutOfBoundsMode, PtI, Shape, BB, PtF},
+    domain::{OutOfBoundsMode, PtF, PtI, Shape, BB},
     drawme::{Annotation, Stroke},
     events::{Events, KeyCode},
     history::History,
@@ -15,11 +15,7 @@ use crate::{
 use super::core::Mover;
 const MIN_ZOOM: u32 = 2;
 
-pub fn move_zoom_box(
-    mut mover: Mover,
-    mut world: World,
-    mouse_pos: Option<PtF>,
-) -> (Mover, World) {
+pub fn move_zoom_box(mut mover: Mover, mut world: World, mouse_pos: Option<PtF>) -> (Mover, World) {
     let shape_orig = world.data.shape();
     let zoom_box = *world.zoom_box();
     let f_move = |mpso, mpo| follow_zoom_box(mpso, mpo, shape_orig, zoom_box);
@@ -233,7 +229,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let event = Events::default().mousepos(mouse_pos);
     let (res, _) = z.mouse_pressed(&event, world, history);
     assert_eq!(res.data, im_orig_old);
-    assert_eq!(z.mouse_pressed_start_pos, mouse_pos.map(|mp|mp.into()));
+    assert_eq!(z.mouse_pressed_start_pos, mouse_pos.map(|mp| mp.into()));
     Ok(())
 }
 
