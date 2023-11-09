@@ -1,4 +1,4 @@
-use super::filter::FilterExpr;
+use super::{filter::FilterExpr, SortType};
 use crate::{paths_selector::PathsSelector, result::RvResult, tools, world::ToolsDataMap};
 use exmex::prelude::*;
 
@@ -26,7 +26,13 @@ pub struct PathsNavigator {
     scroll_to_selected_label: bool,
 }
 impl PathsNavigator {
-    pub fn new(paths_selector: Option<PathsSelector>) -> Self {
+    pub fn new(mut paths_selector: Option<PathsSelector>, sort_type: SortType) -> Self {
+        if let Some(ps) = &mut paths_selector {
+            match sort_type {
+                SortType::Natural => ps.natural_sort(),
+                SortType::Alphabetical => ps.alphabetical_sort(),
+            }
+        };
         Self {
             file_label_selected_idx: None,
             paths_selector,
@@ -82,6 +88,17 @@ impl PathsNavigator {
 
     pub fn paths_selector(&self) -> &Option<PathsSelector> {
         &self.paths_selector
+    }
+
+    pub fn natural_sort(&mut self) {
+        if let Some(ps) = &mut self.paths_selector {
+            ps.natural_sort();
+        }
+    }
+    pub fn alphabetical_sort(&mut self) {
+        if let Some(ps) = &mut self.paths_selector {
+            ps.alphabetical_sort();
+        }
     }
 
     pub fn filter_by_pred(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {

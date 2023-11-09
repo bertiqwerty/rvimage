@@ -133,6 +133,14 @@ pub struct ControlFlags {
     pub is_loading_screen_active: bool,
     pub reload_cached_images: bool,
 }
+
+#[derive(Default, PartialEq, Debug, Clone, Copy)]
+pub enum SortType {
+    #[default]
+    Natural,
+    Alphabetical,
+}
+
 #[derive(Default)]
 pub struct Control {
     pub reader: Option<ReaderFromCfg>,
@@ -153,11 +161,11 @@ impl Control {
     pub fn flags(&self) -> &ControlFlags {
         &self.flags
     }
-    pub fn reload(&mut self) -> RvResult<()> {
+    pub fn reload(&mut self, sort_type: SortType) -> RvResult<()> {
         let label_selected = self
             .file_selected_idx
             .map(|idx| self.file_label(idx).to_string());
-        self.load_opened_folder_content()?;
+        self.load_opened_folder_content(sort_type)?;
         self.flags.reload_cached_images = true;
         if let Some(label_selected) = label_selected {
             self.paths_navigator
@@ -182,6 +190,13 @@ impl Control {
         cfg::write_cfg(&cfg_global)?;
 
         Ok(tools_data_map)
+    }
+
+    pub fn sort(&mut self, sort_type: SortType) {
+        match sort_type {
+            SortType::Alphabetical => self.paths_navigator.alphabetical_sort(),
+            SortType::Natural => self.paths_navigator.natural_sort(),
+        }
     }
 
     pub fn save(&self, tools_data_map: &ToolsDataMap) -> RvResult<PathBuf> {
@@ -216,7 +231,7 @@ impl Control {
     }
 
     fn make_reader(&mut self, cfg: Cfg) -> RvResult<()> {
-        self.paths_navigator = PathsNavigator::new(None);
+        self.paths_navigator = PathsNavigator::new(None, SortType::default());
         self.last_open_folder_job_id = Some(
             self.tp
                 .apply(Box::new(move || ReaderFromCfg::from_cfg(cfg)))?,
@@ -231,22 +246,22 @@ impl Control {
         Ok(())
     }
 
-    pub fn load_opened_folder_content(&mut self) -> RvResult<()> {
+    pub fn load_opened_folder_content(&mut self, sort_type: SortType) -> RvResult<()> {
         if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
             let selector = reader.open_folder(opened_folder.as_str())?;
-            self.paths_navigator = PathsNavigator::new(Some(selector));
+            self.paths_navigator = PathsNavigator::new(Some(selector), sort_type);
         }
         Ok(())
     }
 
-    pub fn check_if_connected(&mut self) -> RvResult<bool> {
+    pub fn check_if_connected(&mut self, sort_type: SortType) -> RvResult<bool> {
         if let Some(job_id) = self.last_open_folder_job_id {
             let tp_res = self.tp.result(job_id);
             if let Some(res) = tp_res {
                 self.last_open_folder_job_id = None;
                 res.and_then(|reader| {
                     self.reader = Some(reader);
-                    self.load_opened_folder_content()?;
+                    self.load_opened_folder_content(sort_type)?;
                     Ok(true)
                 })
             } else {

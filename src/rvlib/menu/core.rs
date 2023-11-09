@@ -1,6 +1,6 @@
 use crate::{
     cfg::{self, Cfg},
-    control::{Control, Info},
+    control::{Control, Info, SortType},
     file_util::{self, RVPRJ_PREFIX},
     menu::{self, cfg_menu::CfgMenu, open_folder, picklist},
     paths_selector::PathsSelector,
@@ -143,6 +143,7 @@ pub struct Menu {
     open_folder_popup_open: bool,
     load_button_resp: ImportBtnResp,
     stats: Stats,
+    filename_sort_type: SortType,
 }
 
 impl Menu {
@@ -162,9 +163,12 @@ impl Menu {
                 popup_open: false,
             },
             stats: Stats::default(),
+            filename_sort_type: SortType::default(),
         }
     }
-
+    pub fn sort_type(&self) -> SortType {
+        self.filename_sort_type
+    }
     pub fn popup(&mut self, info: Info) {
         self.info_message = info;
     }
@@ -179,7 +183,7 @@ impl Menu {
     }
 
     pub fn reload_opened_folder(&mut self, ctrl: &mut Control) {
-        if let Err(e) = ctrl.load_opened_folder_content() {
+        if let Err(e) = ctrl.load_opened_folder_content(self.filename_sort_type) {
             self.info_message = Info::Error(format!("{e:?}"));
         }
     }
@@ -262,7 +266,7 @@ impl Menu {
                 |con| {
                     connected = con;
                 },
-                ctrl.check_if_connected(),
+                ctrl.check_if_connected(self.filename_sort_type),
                 self
             );
             if connected {
@@ -327,6 +331,24 @@ impl Menu {
             }
 
             ui.separator();
+            let clicked_nat = ui
+                .radio_value(
+                    &mut self.filename_sort_type,
+                    SortType::Natural,
+                    "natural sorting",
+                )
+                .clicked();
+            let clicked_alp = ui
+                .radio_value(
+                    &mut self.filename_sort_type,
+                    SortType::Alphabetical,
+                    "alphabetical sorting",
+                )
+                .clicked();
+            if clicked_nat || clicked_alp {
+                ctrl.sort(self.filename_sort_type);
+                handle_error!(|_| {}, ctrl.reload(self.filename_sort_type), self);
+            }
             if let Some(info) = &self.stats.n_files_filtered_info {
                 ui.label(info);
             }

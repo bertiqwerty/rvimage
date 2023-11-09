@@ -233,7 +233,7 @@ impl MainEventLoop {
             self.menu.toggle();
         }
         if e.released(KeyCode::F5) {
-            if let Err(e) = self.ctrl.reload() {
+            if let Err(e) = self.ctrl.reload(self.menu.sort_type()) {
                 self.menu.show_info(Info::Error(format!("{e:?}")));
             }
         }

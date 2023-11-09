@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{file_util, result::RvResult, rverr};
+use crate::{control::SortType, file_util, result::RvResult, rverr, util::natural_cmp};
 
 fn list_file_labels(
     file_paths: &[String],
@@ -57,8 +57,19 @@ impl PathsSelector {
         }
     }
 
+    pub fn natural_sort(&mut self) {
+        self.file_paths.sort_by(|s1, s2| natural_cmp(s1, s2));
+    }
+
+    pub fn alphabetical_sort(&mut self) {
+        self.file_paths.sort();
+    }
+
     pub fn new(mut file_paths: Vec<String>, folder_path: Option<String>) -> RvResult<Self> {
-        file_paths.sort();
+        match SortType::default() {
+            SortType::Natural => file_paths.sort_by(|s1, s2| natural_cmp(s1, s2)),
+            SortType::Alphabetical => file_paths.sort(),
+        }
         let filtered_file_labels = list_file_labels(&file_paths, |_| true)?;
         let folder_label = make_folder_label(folder_path.as_deref())?;
         Ok(PathsSelector {
