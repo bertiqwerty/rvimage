@@ -143,7 +143,9 @@ impl Zoom {
                 let anno = Annotation {
                     geofig: GeoFig::BB(bb),
                     fill_color: None,
+                    fill_alpha: 0,
                     outline: Stroke::from_color(white),
+                    outline_alpha: 255,
                     label: None,
                     is_selected: None,
                 };

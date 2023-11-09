@@ -44,6 +44,7 @@ impl ToolSpecifics {
                     let selected_bbs = annos.selected_bbs();
                     let labels = bb_data.labels();
                     let colors = bb_data.colors();
+
                     let bbs_colored = bbs
                         .iter()
                         .zip(cats.iter())
@@ -51,11 +52,13 @@ impl ToolSpecifics {
                         .map(|((&bb, cat_idx), is_selected)| Annotation {
                             geofig: GeoFig::BB(bb),
                             fill_color: Some(colors[*cat_idx]),
+                            fill_alpha: bb_data.options.fill_alpha,
                             label: Some(labels[*cat_idx].clone()),
                             outline: Stroke {
                                 thickness: 1.0,
                                 color: colors[*cat_idx],
                             },
+                            outline_alpha: bb_data.options.outline_alpha,
                             is_selected: Some(*is_selected),
                         })
                         .collect::<Vec<Annotation>>();

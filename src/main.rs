@@ -267,16 +267,16 @@ impl RvImageApp {
                     // TODO: draw actual polygon
                     GeoFig::Poly(poly) => poly.enclosing_bb(),
                 };
-                let alpha = if let Some(is_selected) = anno.is_selected {
+                let fill_alpha = if let Some(is_selected) = anno.is_selected {
                     if is_selected {
-                        100
+                        anno.fill_alpha + 60
                     } else {
-                        30
+                        anno.fill_alpha
                     }
                 } else {
-                    30
+                    anno.fill_alpha
                 };
-                let fill_rgb = rgb_2_clr(anno.fill_color, alpha);
+                let fill_rgb = rgb_2_clr(anno.fill_color, fill_alpha);
 
                 let bb_min_rect = orig_pos_2_egui_rect(
                     bb.min(),
@@ -296,7 +296,7 @@ impl RvImageApp {
                 );
                 let stroke = Stroke::new(
                     anno.outline.thickness,
-                    rgb_2_clr(Some(anno.outline.color), 255),
+                    rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
                 );
                 Some(Shape::Rect(RectShape::new(
                     Rect::from_min_max(bb_min_rect, bb_max_rect),

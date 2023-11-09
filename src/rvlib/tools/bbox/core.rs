@@ -372,7 +372,9 @@ impl Manipulate for BBox {
                 geofig: GeoFig::BB(BB::from_points(mp.into(), pp.into())),
                 label,
                 fill_color: Some(color),
+                fill_alpha: options.fill_alpha,
                 outline: Stroke::from_color(color),
+                outline_alpha: options.outline_alpha,
                 is_selected: None,
             };
             let are_boxes_visible = are_boxes_visible(&world);

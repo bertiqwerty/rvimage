@@ -67,7 +67,25 @@ pub fn bbox_menu(
     ui.checkbox(&mut data.options.auto_paste, "auto paste");
 
     let mut txt = path_to_str(&data.coco_file.path)?.to_string();
-    egui::CollapsingHeader::new("Advanced").show(ui, |ui| {
+    egui::CollapsingHeader::new("advanced").show(ui, |ui| {
+        let mut transparency: f32 = data.options.fill_alpha as f32 / 255.0 * 100.0;
+        ui.label("transparency");
+        if ui
+            .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("fill"))
+            .changed()
+        {
+            data.options.is_redraw_annos_triggered = true;
+        }
+        data.options.fill_alpha = (transparency / 100.0 * 255.0).round() as u8;
+        let mut transparency: f32 = data.options.outline_alpha as f32 / 255.0 * 100.0;
+        if ui
+            .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("outline"))
+            .changed()
+        {
+            data.options.is_redraw_annos_triggered = true;
+        }
+        data.options.outline_alpha = (transparency / 100.0 * 255.0).round() as u8;
+
         ui.horizontal(|ui| {
             ui.separator();
             ui.label("split mode");

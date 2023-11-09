@@ -85,7 +85,7 @@ impl ClipboardData {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
     pub are_boxes_visible: bool,
     pub auto_paste: bool,
@@ -96,6 +96,25 @@ pub struct Options {
     pub is_redraw_annos_triggered: bool,
     pub split_mode: SplitMode,
     pub export_absolute: bool,
+    pub fill_alpha: u8,
+    pub outline_alpha: u8,
+}
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            are_boxes_visible: true,
+            auto_paste: false,
+            is_anno_rm_triggered: false,
+            is_coco_import_triggered: false,
+            is_export_triggered: false,
+            is_colorchange_triggered: false,
+            is_redraw_annos_triggered: false,
+            split_mode: SplitMode::default(),
+            export_absolute: false,
+            fill_alpha: 30,
+            outline_alpha: 255,
+        }
+    }
 }
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct BboxSpecificData {

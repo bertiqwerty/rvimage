@@ -29,7 +29,9 @@ pub enum GeoFig {
 pub struct Annotation {
     pub geofig: GeoFig,
     pub fill_color: Option<[u8; 3]>,
+    pub fill_alpha: u8,
     pub outline: Stroke,
+    pub outline_alpha: u8,
     pub label: Option<String>,
     pub is_selected: Option<bool>,
 }
