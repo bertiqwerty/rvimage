@@ -103,7 +103,6 @@ fn check_filechange(
                 anno.deselect_all();
             }
             let are_boxes_visible = bbox_data.options.are_boxes_visible;
-            println!("file changed");
             world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         }
         let new_file_path = world.data.meta_data.file_path.clone();
@@ -136,7 +135,7 @@ fn check_annoremove(mut world: World) -> World {
             }
 
             data.options.is_anno_rm_triggered = false;
-            data.options.are_boxes_visible = true;
+            data.options.are_boxes_visible = are_boxes_visible;
         }
         world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
     }
@@ -320,14 +319,16 @@ impl Manipulate for BBox {
         world = initialize_tools_menu_data(world);
         get_tools_data_mut(&mut world).menu_active = true;
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
-
-        world.request_redraw_annotations(BBOX_NAME, true);
+        let are_boxes_visible = true;
+        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         (world, history)
     }
 
     fn on_deactivate(&mut self, mut world: World, history: History) -> (World, History) {
         self.prev_pos = PrevPos::default();
         get_tools_data_mut(&mut world).menu_active = false;
+        let are_boxes_visible = false;
+        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         (world, history)
     }
 
@@ -341,9 +342,6 @@ impl Manipulate for BBox {
         let is_file_changed;
         (is_file_changed, world, self.previous_file) =
             check_filechange(world, mem::take(&mut self.previous_file));
-        if is_file_changed {
-            (world, history) = self.on_activate(world, history);
-        }
 
         world = check_annoremove(world);
 
