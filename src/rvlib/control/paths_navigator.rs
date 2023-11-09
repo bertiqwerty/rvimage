@@ -26,24 +26,23 @@ pub struct PathsNavigator {
     scroll_to_selected_label: bool,
 }
 impl PathsNavigator {
-    pub fn new(mut paths_selector: Option<PathsSelector>, sort_type: SortType) -> Self {
+    pub fn new(mut paths_selector: Option<PathsSelector>, sort_type: SortType) -> RvResult<Self> {
         if let Some(ps) = &mut paths_selector {
             match sort_type {
-                SortType::Natural => ps.natural_sort(),
-                SortType::Alphabetical => ps.alphabetical_sort(),
+                SortType::Natural => ps.natural_sort()?,
+                SortType::Alphabetical => ps.alphabetical_sort()?,
             }
         };
-        Self {
+        Ok(Self {
             file_label_selected_idx: None,
             paths_selector,
             scroll_to_selected_label: false,
-        }
+        })
     }
     fn pn(&mut self, f: fn(usize, usize) -> usize) {
         if let Some(idx) = self.file_label_selected_idx {
             if let Some(ps) = &self.paths_selector {
-                self.file_label_selected_idx =
-                    Some(f(idx, ps.filtered_idx_file_label_pairs().len()));
+                self.file_label_selected_idx = Some(f(idx, ps.len_filtered()));
                 self.scroll_to_selected_label = true;
             }
         }
@@ -57,6 +56,9 @@ impl PathsNavigator {
     pub fn file_label_selected_idx(&self) -> Option<usize> {
         self.file_label_selected_idx
     }
+    pub fn len_filtered(&self) -> Option<usize> {
+        self.paths_selector.as_ref().map(|ps| ps.len_filtered())
+    }
     pub fn scroll_to_selected_label(&self) -> bool {
         self.scroll_to_selected_label
     }
@@ -69,7 +71,7 @@ impl PathsNavigator {
     /// makes sure the idx actually exists
     pub fn select_label_idx(&mut self, filtered_label_idx: Option<usize>) {
         if let (Some(idx), Some(ps)) = (filtered_label_idx, self.paths_selector()) {
-            if idx < ps.filtered_idx_file_label_pairs().len() {
+            if idx < ps.len_filtered() {
                 self.file_label_selected_idx = Some(idx);
             }
         }
@@ -90,23 +92,35 @@ impl PathsNavigator {
         &self.paths_selector
     }
 
-    pub fn natural_sort(&mut self) {
+    pub fn natural_sort(
+        &mut self,
+        filter_str: &str,
+        tools_data_map: &ToolsDataMap,
+    ) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
-            ps.natural_sort();
+            ps.natural_sort()?;
+            self.filter(filter_str, tools_data_map)?;
         }
+        Ok(())
     }
-    pub fn alphabetical_sort(&mut self) {
+    pub fn alphabetical_sort(
+        &mut self,
+        filter_str: &str,
+        tools_data_map: &ToolsDataMap,
+    ) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
-            ps.alphabetical_sort();
+            ps.alphabetical_sort()?;
+            self.filter(filter_str, tools_data_map)?;
         }
+        Ok(())
     }
 
-    pub fn filter_by_pred(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
+    fn filter_by_pred(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
             let unfiltered_idx_before_filter =
                 if let Some(filtered_idx) = self.file_label_selected_idx {
                     self.scroll_to_selected_label = true;
-                    let (unfiltered_idx, _) = ps.filtered_idx_file_label_pairs()[filtered_idx];
+                    let (unfiltered_idx, _) = ps.filtered_idx_file_label_pairs(filtered_idx);
                     Some(unfiltered_idx)
                 } else {
                     None
@@ -114,8 +128,7 @@ impl PathsNavigator {
             ps.filter(filter_predicate)?;
             self.file_label_selected_idx = match unfiltered_idx_before_filter {
                 Some(unfiltered_idx) => ps
-                    .filtered_idx_file_label_pairs()
-                    .iter()
+                    .filtered_iter()
                     .enumerate()
                     .find(|(_, (uidx, _))| *uidx == unfiltered_idx)
                     .map(|(fidx, _)| fidx),

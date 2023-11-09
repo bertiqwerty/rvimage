@@ -346,7 +346,11 @@ impl Menu {
                 )
                 .clicked();
             if clicked_nat || clicked_alp {
-                ctrl.sort(self.filename_sort_type);
+                handle_error!(
+                    |_| {},
+                    ctrl.sort(self.filename_sort_type, &self.filter_string, tools_data_map),
+                    self
+                );
                 handle_error!(|_| {}, ctrl.reload(self.filename_sort_type), self);
             }
             if let Some(info) = &self.stats.n_files_filtered_info {
@@ -356,7 +360,7 @@ impl Menu {
                 ui.label(info);
             }
             let get_file_info = |ps: &PathsSelector| {
-                let n_files_filtered = ps.filtered_idx_file_label_pairs().len();
+                let n_files_filtered = ps.len_filtered();
                 Some(format!("{n_files_filtered} files"))
             };
             let get_annotation_info = |ps: &PathsSelector| {

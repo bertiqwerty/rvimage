@@ -11,7 +11,7 @@ pub fn scroll_area(
     scroll_offset: f32,
 ) -> f32 {
     let scroll_height = ui.available_height() - 120.0;
-    let n_rows = paths_selector.filtered_idx_file_label_pairs().len();
+    let n_rows = paths_selector.len_filtered();
     let text_style = egui::TextStyle::Body;
     let row_height = ui.text_style_height(&text_style);
     let spacing_y = ui.spacing().item_spacing.y;
@@ -30,9 +30,9 @@ pub fn scroll_area(
         },
     });
     let mut add_content = |ui: &mut Ui, filtered_label_idx: usize| {
-        let file_label = paths_selector.filtered_idx_file_label_pairs()[filtered_label_idx]
-            .1
-            .as_str();
+        let file_label = paths_selector
+            .filtered_idx_file_label_pairs(filtered_label_idx)
+            .1;
         let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
             let path = paths_selector.file_selected_path(filtered_label_idx);
             if let Some(path) = path {
@@ -59,7 +59,6 @@ pub fn scroll_area(
             }
         }
         if sl.clicked() {
-            println!("index is {filtered_label_idx}");
             *selected_filtered_label_idx = Some(filtered_label_idx);
         }
     };

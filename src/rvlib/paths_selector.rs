@@ -57,12 +57,16 @@ impl PathsSelector {
         }
     }
 
-    pub fn natural_sort(&mut self) {
+    pub fn natural_sort(&mut self) -> RvResult<()> {
         self.file_paths.sort_by(|s1, s2| natural_cmp(s1, s2));
+        self.filtered_file_labels = list_file_labels(&self.file_paths, |_| true)?;
+        Ok(())
     }
 
-    pub fn alphabetical_sort(&mut self) {
+    pub fn alphabetical_sort(&mut self) -> RvResult<()> {
         self.file_paths.sort();
+        self.filtered_file_labels = list_file_labels(&self.file_paths, |_| true)?;
+        Ok(())
     }
 
     pub fn new(mut file_paths: Vec<String>, folder_path: Option<String>) -> RvResult<Self> {
@@ -89,8 +93,19 @@ impl PathsSelector {
         Ok(())
     }
 
-    pub fn filtered_idx_file_label_pairs(&self) -> &Vec<(usize, String)> {
-        &self.filtered_file_labels
+    pub fn filtered_idx_file_label_pairs(&self, idx: usize) -> (usize, &str) {
+        (
+            self.filtered_file_labels[idx].0,
+            &self.filtered_file_labels[idx].1,
+        )
+    }
+    pub fn len_filtered(&self) -> usize {
+        self.filtered_file_labels.len()
+    }
+    pub fn filtered_iter(&self) -> impl Iterator<Item = (usize, &str)> {
+        self.filtered_file_labels
+            .iter()
+            .map(|(idx, fl)| (*idx, fl.as_str()))
     }
 
     pub fn filtered_file_paths(&self) -> Vec<&str> {

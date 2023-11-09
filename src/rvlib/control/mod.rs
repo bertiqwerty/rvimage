@@ -162,9 +162,15 @@ impl Control {
         &self.flags
     }
     pub fn reload(&mut self, sort_type: SortType) -> RvResult<()> {
-        let label_selected = self
-            .file_selected_idx
-            .map(|idx| self.file_label(idx).to_string());
+        let label_selected = self.file_selected_idx.and_then(|idx| {
+            self.paths_navigator.len_filtered().and_then(|len_f| {
+                if idx < len_f {
+                    Some(self.file_label(idx).to_string())
+                } else {
+                    None
+                }
+            })
+        });
         self.load_opened_folder_content(sort_type)?;
         self.flags.reload_cached_images = true;
         if let Some(label_selected) = label_selected {
@@ -192,10 +198,19 @@ impl Control {
         Ok(tools_data_map)
     }
 
-    pub fn sort(&mut self, sort_type: SortType) {
+    pub fn sort(
+        &mut self,
+        sort_type: SortType,
+        filter_str: &str,
+        tools_data_map: &ToolsDataMap,
+    ) -> RvResult<()> {
         match sort_type {
-            SortType::Alphabetical => self.paths_navigator.alphabetical_sort(),
-            SortType::Natural => self.paths_navigator.natural_sort(),
+            SortType::Alphabetical => self
+                .paths_navigator
+                .alphabetical_sort(filter_str, tools_data_map),
+            SortType::Natural => self
+                .paths_navigator
+                .natural_sort(filter_str, tools_data_map),
         }
     }
 
@@ -231,7 +246,7 @@ impl Control {
     }
 
     fn make_reader(&mut self, cfg: Cfg) -> RvResult<()> {
-        self.paths_navigator = PathsNavigator::new(None, SortType::default());
+        self.paths_navigator = PathsNavigator::new(None, SortType::default())?;
         self.last_open_folder_job_id = Some(
             self.tp
                 .apply(Box::new(move || ReaderFromCfg::from_cfg(cfg)))?,
@@ -249,7 +264,7 @@ impl Control {
     pub fn load_opened_folder_content(&mut self, sort_type: SortType) -> RvResult<()> {
         if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
             let selector = reader.open_folder(opened_folder.as_str())?;
-            self.paths_navigator = PathsNavigator::new(Some(selector), sort_type);
+            self.paths_navigator = PathsNavigator::new(Some(selector), sort_type)?;
         }
         Ok(())
     }
@@ -281,7 +296,7 @@ impl Control {
 
     pub fn file_label(&self, idx: usize) -> &str {
         match self.paths_navigator.paths_selector() {
-            Some(ps) => ps.filtered_idx_file_label_pairs()[idx].1.as_str(),
+            Some(ps) => ps.filtered_idx_file_label_pairs(idx).1,
             None => "",
         }
     }
