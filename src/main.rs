@@ -267,14 +267,17 @@ impl RvImageApp {
                     // TODO: draw actual polygon
                     GeoFig::Poly(poly) => poly.enclosing_bb(),
                 };
-                let fill_alpha = if let Some(is_selected) = anno.is_selected {
+                let (fill_alpha, outline_thickness) = if let Some(is_selected) = anno.is_selected {
                     if is_selected {
-                        anno.fill_alpha + 60
+                        (
+                            anno.fill_alpha.saturating_add(60),
+                            anno.outline.thickness + 2.0,
+                        )
                     } else {
-                        anno.fill_alpha
+                        (anno.fill_alpha, anno.outline.thickness)
                     }
                 } else {
-                    anno.fill_alpha
+                    (anno.fill_alpha, anno.outline.thickness)
                 };
                 let fill_rgb = rgb_2_clr(anno.fill_color, fill_alpha);
 
@@ -295,7 +298,7 @@ impl RvImageApp {
                     &self.zoom_box,
                 );
                 let stroke = Stroke::new(
-                    anno.outline.thickness,
+                    outline_thickness,
                     rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
                 );
                 Some(Shape::Rect(RectShape::new(
