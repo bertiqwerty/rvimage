@@ -358,6 +358,10 @@ impl Manipulate for BBox {
 
         (world, history) = check_autopaste(world, history, options.auto_paste, is_file_changed);
 
+        if options.is_redraw_annos_triggered {
+            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+        }
+
         let in_menu_selected_label = current_cat_idx(&world);
         if let (Some(mp), Some(pp)) = (events.mouse_pos, self.prev_pos.prev_pos) {
             // animation

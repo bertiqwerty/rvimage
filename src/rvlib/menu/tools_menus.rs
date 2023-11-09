@@ -57,7 +57,15 @@ pub fn bbox_menu(
     }
     let mut pathincfg_triggered = false;
     ui.separator();
+
+    let mut hide_boxes = !data.options.are_boxes_visible;
+    if ui.checkbox(&mut hide_boxes, "hide boxes").clicked() {
+        data.options.is_redraw_annos_triggered = true;
+    }
+    data.options.are_boxes_visible = !hide_boxes;
+
     ui.checkbox(&mut data.options.auto_paste, "auto paste");
+
     let mut txt = path_to_str(&data.coco_file.path)?.to_string();
     egui::CollapsingHeader::new("Advanced").show(ui, |ui| {
         ui.horizontal(|ui| {

@@ -93,6 +93,7 @@ pub struct Options {
     pub is_coco_import_triggered: bool,
     pub is_export_triggered: bool,
     pub is_colorchange_triggered: bool,
+    pub is_redraw_annos_triggered: bool,
     pub split_mode: SplitMode,
     pub export_absolute: bool,
 }
