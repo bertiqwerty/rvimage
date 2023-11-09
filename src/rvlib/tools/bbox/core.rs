@@ -360,6 +360,11 @@ impl Manipulate for BBox {
 
         if options.is_redraw_annos_triggered {
             world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+            get_tools_data_mut(&mut world)
+                .specifics
+                .bbox_mut()
+                .options
+                .is_redraw_annos_triggered = false;
         }
 
         let in_menu_selected_label = current_cat_idx(&world);
