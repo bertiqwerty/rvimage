@@ -9,7 +9,7 @@ use crate::{
     tools_data::ToolSpecifics,
     world::ToolsDataMap,
 };
-use egui::{Context, Id, Response, Ui};
+use egui::{Area, Context, Frame, Id, Order, Response, Ui, Widget};
 use std::mem;
 
 use super::tools_menus::bbox_menu;
@@ -133,6 +133,47 @@ struct Stats {
     n_files_annotated_info: Option<String>,
 }
 
+struct About<'a> {
+    id: Id,
+    show_about: &'a mut bool,
+}
+impl<'a> About<'a> {
+    pub fn new(id: Id, show_about: &'a mut bool) -> Self {
+        Self { id, show_about }
+    }
+}
+impl<'a> Widget for About<'a> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let about_btn = ui.button("about");
+        if about_btn.clicked() {
+            *self.show_about = true;
+        }
+        if *self.show_about {
+            ui.memory_mut(|m| m.open_popup(self.id));
+            if ui.memory(|m| m.is_popup_open(self.id)) {
+                let area = Area::new(self.id)
+                    .order(Order::Foreground)
+                    .default_pos(about_btn.rect.left_bottom());
+                area.show(ui.ctx(), |ui| {
+                    Frame::popup(ui.style()).show(ui, |ui| {
+                        const VERSION: &str = env!("CARGO_PKG_VERSION");
+                        const CODE: &str = env!("CARGO_PKG_REPOSITORY");
+                        ui.label("RV Image\n");
+                        ui.label(format!("version: {VERSION}"));
+                        ui.hyperlink_to("license and code", CODE);
+                        let resp_close = ui.button("close");
+                        if resp_close.clicked() {
+                            ui.memory_mut(|m| m.close_popup());
+                            *self.show_about = false;
+                        }
+                    });
+                });
+            }
+        }
+        about_btn
+    }
+}
+
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
@@ -144,6 +185,7 @@ pub struct Menu {
     load_button_resp: ImportBtnResp,
     stats: Stats,
     filename_sort_type: SortType,
+    show_about: bool,
 }
 
 impl Menu {
@@ -164,6 +206,7 @@ impl Menu {
             },
             stats: Stats::default(),
             filename_sort_type: SortType::default(),
+            show_about: false,
         }
     }
     pub fn sort_type(&self) -> SortType {
@@ -214,6 +257,8 @@ impl Menu {
 
                 let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.editable_ssh_cfg_str);
                 ui.add(cfg_gui);
+                let about_popup_id = ui.make_persistent_id("about-popup");
+                ui.add(About::new(about_popup_id, &mut self.show_about));
             });
         });
 
@@ -389,9 +434,6 @@ impl Menu {
                 self.stats.n_files_filtered_info = None;
                 self.stats.n_files_annotated_info = None;
             }
-
-            ui.separator();
-            ui.hyperlink_to("license and code", "https://github.com/bertiqwerty/rvimage");
         });
     }
 }
