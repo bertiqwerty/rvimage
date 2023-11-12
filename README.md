@@ -88,7 +88,7 @@ For an import to work, the folder that contains the images needs to be opened be
 | event                                                                                | action                                                                                   |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | first left click                                                                     | start drawing box                                                                        |
-| second left click                                                                    | finish drawing box                                                                       |
+| right click (main) or second left click (release<=0.2.1)                             | finish drawing box                                                                       |
 | left click on corner of box                                                          | move corner of box                                                                       |
 | hold right button                                                                    | move selected boxes                                                                      |
 | <kbd>Ctrl</kbd> + left click on box                                                  | select box                                                                               |
@@ -97,10 +97,11 @@ For an import to work, the folder that contains the images needs to be opened be
 | <kbd>Ctrl</kbd> + <kbd>A</kbd>                                                       | select all boxes                                                                         |
 | <kbd>Delete</kbd>                                                                    | remove selected boxes                                                                    |
 | <kbd>Ctrl</kbd> + <kbd>D</kbd>                                                       | deselect all boxes                                                                       |
+| <kbd>Ctrl</kbd> + <kbd>H</kbd>                                                       | hide all boxes                                                                       |
 | <kbd>C</kbd>                                                                         | clone selected boxes at mouse position and move selection to new box                     |
 | <kbd>Ctrl</kbd> + <kbd>C</kbd>                                                       | copy all selected boxes to clipboard                                                     |
 | <kbd>Ctrl</kbd> + <kbd>V</kbd>                                                       | paste boxes without existing duplicate from clipboard                                    |
-| <kbd>V</kbd>                                                       | activate auto-paste on image change                                    |
+| <kbd>V</kbd>                                                                         | activate auto-paste on image change                                                      |
 | <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>                   | move bottom right corner of all selected boxes                                           |
 | <kbd>Ctrl</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd> | move top left corner of all selected boxes                                               |
 | <kbd>Alt</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>  | move all selected boxes                                                                  |

@@ -660,8 +660,13 @@ fn test_mouse_release() {
         // If a previous position was registered, we expect that the second click creates the
         // bounding box.
         let params = make_params(Some(point!(30.0, 30.0)), false);
-        let (world, new_hist, prev_pos) =
-            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
+        let (world, new_hist, prev_pos) = on_mouse_released_right(
+            mouse_pos,
+            params.prev_pos,
+            params.are_boxes_visible,
+            world.clone(),
+            history.clone(),
+        );
         assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
         assert_eq!(annos.unwrap().bbs().len(), 1);
@@ -694,8 +699,13 @@ fn test_mouse_release() {
         // If ctrl is hold at the second click, this does not really make sense. We ignore it and assume this
         // is the finishing box click.
         let params = make_params(Some(point!(30.0, 30.0)), true);
-        let (world, new_hist, prev_pos) =
-            on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
+        let (world, new_hist, prev_pos) = on_mouse_released_right(
+            mouse_pos,
+            params.prev_pos,
+            params.are_boxes_visible,
+            world.clone(),
+            history.clone(),
+        );
         assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
         assert_eq!(annos.unwrap().bbs().len(), 1);
