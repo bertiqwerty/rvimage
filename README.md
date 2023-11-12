@@ -88,7 +88,7 @@ For an import to work, the folder that contains the images needs to be opened be
 | event                                                                                | action                                                                                   |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | first left click                                                                     | start drawing box                                                                        |
-| right click (main) or second left click (release<=0.2.1)                             | finish drawing box                                                                       |
+| right click (`main`) or second left click (before Commit f7d2f112439b625cbfa4aa189e87effc8ac28961 or Release  `0.2.1`)                             | finish drawing box                                                                       |
 | left click on corner of box                                                          | move corner of box                                                                       |
 | hold right button                                                                    | move selected boxes                                                                      |
 | <kbd>Ctrl</kbd> + left click on box                                                  | select box                                                                               |
