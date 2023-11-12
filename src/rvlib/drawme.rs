@@ -2,8 +2,8 @@ use crate::{
     domain::{Polygon, BB},
     types::ViewImage,
 };
-use std::default::Default;
 use serde::{Deserialize, Serialize};
+use std::default::Default;
 
 #[derive(Clone, Debug)]
 pub struct Stroke {

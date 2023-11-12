@@ -88,7 +88,7 @@ For an import to work, the folder that contains the images needs to be opened be
 | event                                                                                | action                                                                                   |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | first left click                                                                     | start drawing box                                                                        |
-| right click (`main`) or second left click (before Commit f7d2f112439b625cbfa4aa189e87effc8ac28961 or Release  `0.2.1`)                             | finish drawing box                                                                       |
+| right click (`main`) or second left click (Commit [`a756a770`](https://github.com/bertiqwerty/rvimage/commit/a756a77081e41b2be1611036c947031ef648e97c) or Release `0.2.1` and earlier)                             | finish drawing box                                                                       |
 | left click on corner of box                                                          | move corner of box                                                                       |
 | hold right button                                                                    | move selected boxes                                                                      |
 | <kbd>Ctrl</kbd> + left click on box                                                  | select box                                                                               |
