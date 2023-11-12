@@ -3,6 +3,7 @@ use crate::{
     types::ViewImage,
 };
 use std::default::Default;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug)]
 pub struct Stroke {
@@ -19,7 +20,7 @@ impl Stroke {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub enum GeoFig {
     BB(BB),
     Poly(Polygon),
