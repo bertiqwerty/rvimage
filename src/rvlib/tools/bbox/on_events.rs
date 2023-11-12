@@ -123,26 +123,17 @@ pub(super) struct MouseReleaseParams {
     pub is_ctrl_held: bool,
 }
 
-pub(super) fn on_mouse_released_left(
+pub(super) fn on_mouse_released_right(
     mouse_pos: Option<PtF>,
-    params: MouseReleaseParams,
+    mut prev_pos: PrevPos,
+    are_boxes_visible: bool,
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
     let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
-    let MouseReleaseParams {
-        mut prev_pos,
-        are_boxes_visible,
-        is_alt_held,
-        is_shift_held,
-        is_ctrl_held,
-    } = params;
     let lc_orig = prev_pos.last_valid_click;
     let pp_orig = prev_pos.prev_pos;
     let in_menu_selected_label = current_cat_idx(&world);
-    if let Some(mp) = mouse_pos {
-        prev_pos.last_valid_click = Some(mp);
-    }
     if let (Some(mp), Some(pp), Some(last_click)) = (mouse_pos, pp_orig, lc_orig) {
         // second click new bb
         if (mp.x as i32 - pp.x as i32).abs() > 1 && (mp.y as i32 - pp.y as i32).abs() > 1 {
@@ -160,7 +151,28 @@ pub(super) fn on_mouse_released_left(
             prev_pos.prev_pos = None;
             world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         }
-    } else if is_ctrl_held || is_alt_held || is_shift_held {
+    }
+    (world, history, prev_pos)
+}
+pub(super) fn on_mouse_released_left(
+    mouse_pos: Option<PtF>,
+    params: MouseReleaseParams,
+    mut world: World,
+    mut history: History,
+) -> (World, History, PrevPos) {
+    let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
+    let MouseReleaseParams {
+        mut prev_pos,
+        are_boxes_visible,
+        is_alt_held,
+        is_shift_held,
+        is_ctrl_held,
+    } = params;
+    let in_menu_selected_label = current_cat_idx(&world);
+    if let Some(mp) = mouse_pos {
+        prev_pos.last_valid_click = Some(mp);
+    }
+    if is_ctrl_held || is_alt_held || is_shift_held {
         // selection
         let annos = get_annos_mut(&mut world);
         let idx = mouse_pos.and_then(|p| find_closest_boundary_idx((p.x, p.y), annos.bbs()));

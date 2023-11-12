@@ -17,8 +17,8 @@ use std::mem;
 
 use super::on_events::{
     export_if_triggered, import_coco_if_triggered, map_released_key, on_key_released,
-    on_mouse_held_right, on_mouse_released_left, KeyReleasedParams, MouseHeldParams,
-    MouseReleaseParams, PrevPos,
+    on_mouse_held_right, on_mouse_released_left, on_mouse_released_right, KeyReleasedParams,
+    MouseHeldParams, MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "BBox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -228,8 +228,8 @@ impl BBox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
+        let are_boxes_visible = are_boxes_visible(&world);
         if event.released(KeyCode::MouseLeft) {
-            let are_boxes_visible = are_boxes_visible(&world);
             let params = MouseReleaseParams {
                 prev_pos: self.prev_pos,
                 are_boxes_visible,
@@ -239,6 +239,14 @@ impl BBox {
             };
             (world, history, self.prev_pos) =
                 on_mouse_released_left(event.mouse_pos, params, world, history);
+        } else if event.released(KeyCode::MouseRight) {
+            (world, history, self.prev_pos) = on_mouse_released_right(
+                event.mouse_pos,
+                self.prev_pos,
+                are_boxes_visible,
+                world,
+                history,
+            );
         } else {
             history.push(Record::new(world.data.clone(), ACTOR_NAME))
         }
