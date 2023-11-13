@@ -56,11 +56,9 @@ rfd = "0.12.0"
 rusttype = "0.9.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde-pickle = "1.1.1"
 ssh2 = { version = "0.9", features = ["vendored-openssl"] }
 toml = "0.8.1"
 walkdir = "2.3.3"
 tokio = { version = "1.32.0", optional = true }
 uuid = { version = "1.4.1", features = ["v4", "fast-rng"] }
 exmex = "0.18.0"
-tracing-subscriber = "0.3.17"
