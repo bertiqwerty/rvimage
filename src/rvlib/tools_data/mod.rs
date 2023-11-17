@@ -1,6 +1,6 @@
 use crate::{
-    drawme::{Annotation, GeoFig, Stroke},
-    UpdateAnnos,
+    drawme::{Annotation, Stroke},
+    GeoFig, UpdateAnnos,
 };
 
 pub use self::{

@@ -1,8 +1,4 @@
-use crate::{
-    domain::{Polygon, BB},
-    types::ViewImage,
-};
-use serde::{Deserialize, Serialize};
+use crate::{domain::BB, types::ViewImage, GeoFig};
 use std::default::Default;
 
 #[derive(Clone, Debug)]
@@ -18,12 +14,6 @@ impl Stroke {
             color,
         }
     }
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
-pub enum GeoFig {
-    BB(BB),
-    Poly(Polygon),
 }
 
 #[derive(Clone, Debug)]

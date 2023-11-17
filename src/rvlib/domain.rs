@@ -22,6 +22,11 @@ where
 impl Calc for u32 {}
 impl Calc for f32 {}
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub enum GeoFig {
+    BB(BB),
+    Poly(Polygon),
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Shape {
     pub w: u32,
