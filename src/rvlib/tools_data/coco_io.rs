@@ -11,7 +11,7 @@ use crate::{
     domain::{Shape, BB},
     file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
-    rverr, ssh,
+    rverr, ssh, GeoFig,
 };
 
 use super::{bbox_data::new_random_colors, BboxExportData, BboxSpecificData};
@@ -90,7 +90,7 @@ impl CocoExportData {
         };
         let export_data = BboxExportData::from_bbox_data(bbox_specifics);
 
-        type AnnotationMapValue<'a> = (&'a String, &'a (Vec<BB>, Vec<usize>, Shape));
+        type AnnotationMapValue<'a> = (&'a String, &'a (Vec<GeoFig>, Vec<usize>, Shape));
         let make_image_map = |(idx, (file_path, (_, _, shape))): (usize, AnnotationMapValue)| {
             Ok(CocoImage {
                 id: idx as u32,
@@ -118,10 +118,11 @@ impl CocoExportData {
 
         let mut box_id = 0;
         let make_anno_map =
-            |(image_idx, (bbs, cat_idxs, shape)): (usize, &(Vec<BB>, Vec<usize>, Shape))| {
+            |(image_idx, (bbs, cat_idxs, shape)): (usize, &(Vec<GeoFig>, Vec<usize>, Shape))| {
                 bbs.iter()
                     .zip(cat_idxs.iter())
-                    .map(|(bb, cat_idx): (&BB, &usize)| {
+                    .map(|(geo, cat_idx): (&GeoFig, &usize)| {
+                        let bb = geo.enclosing_bb();
                         let (imw, imh) = if export_data.is_export_absolute {
                             (1.0, 1.0)
                         } else {
@@ -197,7 +198,7 @@ impl CocoExportData {
             })
             .collect::<RvResult<HashMap<u32, (&str, u32, u32)>>>()?;
 
-        let mut annotations: HashMap<String, (Vec<BB>, Vec<usize>, Shape)> = HashMap::new();
+        let mut annotations: HashMap<String, (Vec<GeoFig>, Vec<usize>, Shape)> = HashMap::new();
         for coco_anno in self.annotations {
             let (file_name, w, h) = id_image_map[&coco_anno.image_id];
 
@@ -214,7 +215,7 @@ impl CocoExportData {
                 (h_factor * coco_anno.bbox[3]).round() as u32,
             ];
 
-            let bb = BB::from_arr(&bbox);
+            let bb = GeoFig::BB(BB::from_arr(&bbox));
             let cat_idx = cat_ids
                 .iter()
                 .position(|cat_id| *cat_id == coco_anno.category_id)
@@ -447,7 +448,7 @@ fn test_coco_import() -> RvResult<()> {
             println!("");
             println!("{file_path:?}");
             println!("{annos:?}");
-            assert!(annos.unwrap().bbs().contains(bb));
+            assert!(annos.unwrap().geos().contains(&GeoFig::BB(*bb)));
         }
     }
 

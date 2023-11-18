@@ -1,6 +1,6 @@
 use crate::{
     drawme::{Annotation, Stroke},
-    GeoFig, UpdateAnnos,
+    UpdateAnnos,
 };
 
 pub use self::{
@@ -39,7 +39,7 @@ impl ToolSpecifics {
         match &self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
-                    let bbs = annos.bbs();
+                    let bbs = annos.geos();
                     let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_bbs();
                     let labels = bb_data.labels();
@@ -49,8 +49,8 @@ impl ToolSpecifics {
                         .iter()
                         .zip(cats.iter())
                         .zip(selected_bbs.iter())
-                        .map(|((&bb, cat_idx), is_selected)| Annotation {
-                            geofig: GeoFig::BB(bb),
+                        .map(|((bb, cat_idx), is_selected)| Annotation {
+                            geofig: bb.clone(),
                             fill_color: Some(colors[*cat_idx]),
                             fill_alpha: bb_data.options.fill_alpha,
                             label: Some(labels[*cat_idx].clone()),

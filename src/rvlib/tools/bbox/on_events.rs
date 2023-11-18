@@ -1,13 +1,16 @@
+use std::iter::empty;
+
 use crate::{
     annotations::SplitMode,
     cfg::CocoFile,
-    domain::{shape_unscaled, OutOfBoundsMode, PtF, BB},
+    domain::{shape_unscaled, OutOfBoundsMode, Point, PtF, BB, PtI},
     events::{Events, KeyCode},
     file_util::MetaData,
     history::Record,
     tools::{core::Mover, BBOX_NAME},
     tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
     util::true_indices,
+    GeoFig,
     {history::History, world::World},
 };
 
@@ -18,29 +21,26 @@ use super::core::{
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
 
-fn find_closest_boundary_idx(pos: (f32, f32), bbs: &[BB]) -> Option<usize> {
-    bbs.iter()
+fn find_closest_boundary_idx(pos: PtF, geos: &[GeoFig]) -> Option<usize> {
+    geos.iter()
         .enumerate()
         .filter(|(_, bb)| bb.contains(pos))
-        .map(|(i, bb)| {
-            let dx = (bb.x as f32 - pos.0).abs();
-            let dw = ((bb.x + bb.w) as f32 - pos.0).abs();
-            let dy = (bb.y as f32 - pos.1).abs();
-            let dh = ((bb.y + bb.h) as f32 - pos.1).abs();
-            (i, dx.min(dw).min(dy).min(dh))
-        })
+        .map(|(i, bb)| (i, bb.distance_to_boundary(pos)))
         .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
         .map(|(i, _)| i)
 }
 
 /// returns index of the bounding box and the index of the closest close corner
-fn find_close_corner(orig_pos: PtF, bbs: &[BB], tolerance: i64) -> Option<(usize, usize)> {
+fn find_close_corner(orig_pos: PtF, geos: &[GeoFig], tolerance: i64) -> Option<(usize, usize)> {
     let opi64: (i64, i64) = orig_pos.into();
-    bbs.iter()
+    geos.iter()
         .enumerate()
         .map(|(bb_idx, bb)| {
-            let (min_corner_idx, min_corner_dist) = bb
-                .corners()
+            let iter: Box<dyn Iterator<Item=PtI>> = match bb {
+                GeoFig::BB(bb) => Box::new( bb.points_iter()),
+                GeoFig::Poly(bb) => Box::new(bb.points_iter()),
+            };
+            let (min_corner_idx, min_corner_dist) = iter
                 .map(|c| c.into())
                 .map(|c: (i64, i64)| (opi64.0 - c.0).pow(2) + (opi64.1 - c.1).pow(2))
                 .enumerate()
@@ -175,7 +175,7 @@ pub(super) fn on_mouse_released_left(
     if is_ctrl_held || is_alt_held || is_shift_held {
         // selection
         let annos = get_annos_mut(&mut world);
-        let idx = mouse_pos.and_then(|p| find_closest_boundary_idx((p.x, p.y), annos.bbs()));
+        let idx = mouse_pos.and_then(|p| find_closest_boundary_idx(p, annos.geos()));
         if let Some(i) = idx {
             if is_shift_held {
                 // If shift is held a new selection box will be spanned between the currently clicked
@@ -183,18 +183,15 @@ pub(super) fn on_mouse_released_left(
                 // All boxes that have overlap with this new selection box will be selected. If no box
                 // is selected only the currently clicked box will be selected.
                 annos.select(i);
-                let newly_selected_bb = &annos.bbs()[i];
+                let newly_selected_bb = &annos.geos()[i];
                 let sel_indxs = true_indices(annos.selected_bbs());
-                if let Some((bbidx, (csidx, coidx, _))) = sel_indxs
-                    .map(|i| (i, newly_selected_bb.max_corner_squaredist(&annos.bbs()[i])))
-                    .max_by_key(|(_, (_, _, d))| *d)
+                if let Some((p1, p2, _)) = sel_indxs
+                    .map(|i| (newly_selected_bb.max_squaredist(&annos.geos()[i])))
+                    .max_by_key(|(_, _, d)| *d)
                 {
-                    let spanned_bb = BB::from_points(
-                        newly_selected_bb.corner(csidx),
-                        annos.bbs()[bbidx].corner(coidx),
-                    );
+                    let spanned_bb = BB::from_points(p1, p2);
                     let to_be_selected_inds = annos
-                        .bbs()
+                        .geos()
                         .iter()
                         .enumerate()
                         .filter(|(_, bb)| bb.has_overlap(&spanned_bb))
@@ -217,14 +214,19 @@ pub(super) fn on_mouse_released_left(
         let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
         let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
         let close_corner = mouse_pos.and_then(|mp| {
-            get_annos(&world).and_then(|a| find_close_corner(mp, a.bbs(), tolerance as i64))
+            get_annos(&world).and_then(|a| find_close_corner(mp, a.geos(), tolerance as i64))
         });
         if let Some((bb_idx, idx)) = close_corner {
             // move an existing corner
+
             let annos = get_annos_mut(&mut world);
-            let bb = annos.remove(bb_idx);
-            let oppo_corner = bb.opposite_corner(idx);
-            prev_pos.prev_pos = Some(oppo_corner.into());
+            let geo = annos.remove(bb_idx);
+            if let GeoFig::BB(bb) = geo {
+                let oppo_corner = bb.opposite_corner(idx);
+                prev_pos.prev_pos = Some(oppo_corner.into());
+            } else {
+                panic!("not implemented")
+            }
         } else {
             match split_mode {
                 SplitMode::None => {
@@ -234,22 +236,25 @@ pub(super) fn on_mouse_released_left(
                 _ => {
                     // create boxes by splitting either horizontally or vertically
                     if let Some(mp) = mouse_pos {
-                        let existing_bbs: &[BB] = if let Some(annos) = get_annos(&world) {
-                            annos.bbs()
-                        } else {
-                            &[]
+                        let existing_bbs = || -> Box<dyn Iterator<Item = &BB>> {
+                            if let Some(annos) = get_annos(&world) {
+                                Box::new(annos.geos().iter().flat_map(|geo| match geo {
+                                    GeoFig::BB(bb) => Some(bb),
+                                    GeoFig::Poly(_) => None,
+                                }))
+                            } else {
+                                Box::new(empty())
+                            }
                         };
                         let new_bbs = if let SplitMode::Horizontal = split_mode {
-                            if let Some((i, bb)) = existing_bbs
-                                .iter()
+                            if let Some((i, bb)) = existing_bbs()
                                 .enumerate()
                                 .find(|(_, bb)| bb.contains((mp.x, mp.y)))
                             {
                                 let (top, btm) = bb.split_horizontally(mp.y as u32);
                                 vec![(Some(i), top, btm)]
                             } else {
-                                let new_bbs = existing_bbs
-                                    .iter()
+                                let new_bbs = existing_bbs()
                                     .enumerate()
                                     .filter(|(_, bb)| bb.covers_y(mp.y as u32))
                                     .map(|(i, bb)| {
@@ -266,16 +271,14 @@ pub(super) fn on_mouse_released_left(
                                 }
                             }
                         // SplitMode::Vertical
-                        } else if let Some((i, bb)) = existing_bbs
-                            .iter()
+                        } else if let Some((i, bb)) = existing_bbs()
                             .enumerate()
                             .find(|(_, bb)| bb.contains((mp.x, mp.y)))
                         {
                             let (left, right) = bb.split_vertically(mp.x as u32);
                             vec![(Some(i), left, right)]
                         } else {
-                            let new_bbs = existing_bbs
-                                .iter()
+                            let new_bbs = existing_bbs()
                                 .enumerate()
                                 .filter(|(_, bb)| bb.covers_x(mp.x as u32))
                                 .map(|(i, bb)| {
@@ -411,14 +414,16 @@ pub(super) fn on_key_released(
                 let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
                 let selected_inds = true_indices(annos.selected_bbs());
-                let first_idx = true_indices(annos.selected_bbs()).next();
-                if let Some(first_idx) = first_idx {
+                let first_selected_idx = true_indices(annos.selected_bbs()).next();
+                if let Some(first_idx) = first_selected_idx {
                     let translated = selected_inds.flat_map(|idx| {
-                        let bb = annos.bbs()[idx];
-                        let first = annos.bbs()[first_idx];
-                        bb.translate(
-                            x_shift - first.x as i32,
-                            y_shift - first.y as i32,
+                        let geo = annos.geos()[idx].clone();
+                        let first = &annos.geos()[first_idx];
+                        geo.translate(
+                            Point {
+                                x: x_shift - first.enclosing_bb().min().x as i32,
+                                y: y_shift - first.enclosing_bb().min().y as i32,
+                            },
                             shape_orig,
                             OutOfBoundsMode::Deny,
                         )
@@ -430,7 +435,7 @@ pub(super) fn on_key_released(
 
                     if !translated_bbs.is_empty() {
                         annos.extend(
-                            translated_bbs.iter().copied(),
+                            translated_bbs.iter().cloned(),
                             translated_cat_ids.iter().copied(),
                             shape_orig,
                         );
@@ -483,7 +488,7 @@ use {
     super::core::initialize_tools_menu_data,
     crate::{
         annotations::BboxAnnotations,
-        domain::{make_test_bbs, Shape},
+        domain::{make_test_bbs, make_test_geos, Shape},
         point,
         types::ViewImage,
     },
@@ -548,11 +553,11 @@ fn test_key_released() {
     if let Some(clipboard) = get_tools_data(&world).specifics.bbox().clipboard.clone() {
         let mut annos = BboxAnnotations::new();
         annos.extend(
-            clipboard.bbs().iter().copied(),
+            clipboard.geos().iter().cloned(),
             clipboard.cat_idxs().iter().copied(),
             Shape { w: 100, h: 100 },
         );
-        assert_eq!(annos.bbs(), get_annos(&world).unwrap().bbs());
+        assert_eq!(annos.geos(), get_annos(&world).unwrap().geos());
         assert_eq!(annos.cat_idxs(), get_annos(&world).unwrap().cat_idxs());
         assert_ne!(
             annos.selected_bbs(),
@@ -564,27 +569,31 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::V, true);
     let (world, history) = on_key_released(world, history, None, params);
     assert!(get_tools_data(&world).specifics.bbox().clipboard.is_some());
-    assert_eq!(get_annos(&world).unwrap().bbs(), annos_orig.bbs());
+    assert_eq!(get_annos(&world).unwrap().geos(), annos_orig.geos());
     let params = make_params(ReleasedKey::C, true);
     let (mut world, history) = on_key_released(world, history, None, params);
     get_annos_mut(&mut world).remove(0);
     let params = make_params(ReleasedKey::V, true);
     let (world, history) = on_key_released(world, history, None, params);
-    assert_eq!(get_annos(&world).unwrap().bbs(), annos_orig.bbs());
+    assert_eq!(get_annos(&world).unwrap().geos(), annos_orig.geos());
 
     // clone box
     let params = make_params(ReleasedKey::A, true);
     let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::C, false);
     let (world, history) = on_key_released(world, history, Some(point!(2.0, 2.0)), params);
-    assert_eq!(get_annos(&world).unwrap().bbs()[0], annos_orig.bbs()[0]);
+    assert_eq!(get_annos(&world).unwrap().geos()[0], annos_orig.geos()[0]);
     assert_eq!(
-        get_annos(&world).unwrap().bbs()[1],
-        annos_orig.bbs()[0]
-            .translate(1, 1, world.shape_orig(), OutOfBoundsMode::Deny)
+        get_annos(&world).unwrap().geos()[1],
+        annos_orig.geos()[0]
+            .translate(
+                Point { x: 1, y: 1 },
+                world.shape_orig(),
+                OutOfBoundsMode::Deny
+            )
             .unwrap()
     );
-    assert_eq!(get_annos(&world).unwrap().bbs().len(), 2);
+    assert_eq!(get_annos(&world).unwrap().geos().len(), 2);
 
     // deselect all boxes with ctrl+D
     let params = make_params(ReleasedKey::A, true);
@@ -627,7 +636,7 @@ fn test_mouse_held() {
         let params = MouseHeldParams { mover: &mut mover };
         let (world, new_hist) =
             on_mouse_held_right(mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
+        assert_eq!(get_annos(&world).unwrap().geos()[0], GeoFig::BB(bbs[0]));
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -637,7 +646,7 @@ fn test_mouse_held() {
         let annos = get_annos_mut(&mut world);
         annos.select(0);
         let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());
-        assert_ne!(get_annos(&world).unwrap().bbs()[0], bbs[0]);
+        assert_ne!(get_annos(&world).unwrap().geos()[0], GeoFig::BB(bbs[0]));
 
         assert!(!history_equal(&history, &new_hist));
     }
@@ -669,7 +678,7 @@ fn test_mouse_release() {
         );
         assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
-        assert_eq!(annos.unwrap().bbs().len(), 1);
+        assert_eq!(annos.unwrap().geos().len(), 1);
         assert_eq!(annos.unwrap().cat_idxs()[0], 0);
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
@@ -681,7 +690,7 @@ fn test_mouse_release() {
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, mouse_pos);
         let annos = get_annos(&world);
-        assert!(annos.is_none() || annos.unwrap().bbs().is_empty());
+        assert!(annos.is_none() || annos.unwrap().geos().is_empty());
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -692,7 +701,7 @@ fn test_mouse_release() {
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
-        assert!(annos.is_none() || annos.unwrap().bbs().is_empty());
+        assert!(annos.is_none() || annos.unwrap().geos().is_empty());
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -708,7 +717,7 @@ fn test_mouse_release() {
         );
         assert_eq!(prev_pos.prev_pos, None);
         let annos = get_annos(&world);
-        assert_eq!(annos.unwrap().bbs().len(), 1);
+        assert_eq!(annos.unwrap().geos().len(), 1);
         assert!(!annos.unwrap().selected_bbs()[0]);
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
@@ -783,12 +792,15 @@ fn test_mouse_release() {
 
 #[test]
 fn test_find_idx() {
-    let bbs = make_test_bbs();
-    assert_eq!(find_closest_boundary_idx((0.0, 20.0), &bbs), None);
-    assert_eq!(find_closest_boundary_idx((0.0, 0.0), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((3.0, 8.0), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((7.0, 14.0), &bbs), Some(1));
-    assert_eq!(find_closest_boundary_idx((7.0, 15.0), &bbs), None);
-    assert_eq!(find_closest_boundary_idx((8.0, 8.0), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((10.0, 12.0), &bbs), Some(2));
+    let bbs = make_test_geos();
+    assert_eq!(find_closest_boundary_idx((0.0, 20.0).into(), &bbs), None);
+    assert_eq!(find_closest_boundary_idx((0.0, 0.0).into(), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((3.0, 8.0).into(), &bbs), Some(0));
+    assert_eq!(find_closest_boundary_idx((7.0, 14.0).into(), &bbs), Some(1));
+    assert_eq!(find_closest_boundary_idx((7.0, 15.0).into(), &bbs), None);
+    assert_eq!(find_closest_boundary_idx((8.0, 8.0).into(), &bbs), Some(0));
+    assert_eq!(
+        find_closest_boundary_idx((10.0, 12.0).into(), &bbs),
+        Some(2)
+    );
 }

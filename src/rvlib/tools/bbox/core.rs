@@ -45,11 +45,11 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
             .bbox_mut()
             .clipboard,
     ) {
-        let cb_bbs = clipboard.bbs();
+        let cb_bbs = clipboard.geos();
         if !cb_bbs.is_empty() {
             let shape_orig = Shape::from_im(world.data.im_background());
             get_annos_mut(&mut world).extend(
-                cb_bbs.iter().copied(),
+                cb_bbs.iter().cloned(),
                 clipboard.cat_idxs().iter().copied(),
                 shape_orig,
             );

@@ -6,11 +6,12 @@ use super::annotations::BboxAnnotations;
 use crate::{
     annotations::SplitMode,
     cfg::{get_cfg, CocoFile},
-    domain::{Shape, BB},
+    domain::Shape,
     file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
     util::true_indices,
+    GeoFig,
 };
 const DEFAULT_LABEL: &str = "foreground";
 
@@ -64,20 +65,26 @@ pub fn new_random_colors(n: usize) -> Vec<[u8; 3]> {
 }
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct ClipboardData {
-    bbs: Vec<BB>,
+    geos: Vec<GeoFig>,
     cat_idxs: Vec<usize>,
 }
 
 impl ClipboardData {
     pub fn from_annotations(annos: &BboxAnnotations) -> Self {
         let selected_inds = true_indices(annos.selected_bbs());
-        let bbs = selected_inds.clone().map(|idx| annos.bbs()[idx]).collect();
+        let bbs = selected_inds
+            .clone()
+            .map(|idx| annos.geos()[idx].clone())
+            .collect();
         let cat_idxs = selected_inds.map(|idx| annos.cat_idxs()[idx]).collect();
-        ClipboardData { bbs, cat_idxs }
+        ClipboardData {
+            geos: bbs,
+            cat_idxs,
+        }
     }
 
-    pub fn bbs(&self) -> &Vec<BB> {
-        &self.bbs
+    pub fn geos(&self) -> &Vec<GeoFig> {
+        &self.geos
     }
 
     pub fn cat_idxs(&self) -> &Vec<usize> {
@@ -137,7 +144,7 @@ impl BboxSpecificData {
             .iter()
             .filter(|p| {
                 if let Some((anno, _)) = self.annotations_map.get(**p) {
-                    !anno.bbs().is_empty()
+                    !anno.geos().is_empty()
                 } else {
                     false
                 }
@@ -318,7 +325,7 @@ pub struct BboxExportData {
     pub colors: Vec<[u8; 3]>,
     pub cat_ids: Vec<u32>,
     // filename, bounding boxes, classes of the boxes, dimensions of the image
-    pub annotations: HashMap<String, (Vec<BB>, Vec<usize>, Shape)>,
+    pub annotations: HashMap<String, (Vec<GeoFig>, Vec<usize>, Shape)>,
     pub coco_file: CocoFile,
     pub is_export_absolute: bool,
 }

@@ -1,6 +1,7 @@
 use crate::{
     domain::{PtF, Shape, BB},
     util::true_indices,
+    GeoFig,
 };
 use serde::{Deserialize, Serialize};
 use std::mem;
@@ -9,7 +10,7 @@ use super::bbox_splitmode::SplitMode;
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
-    bbs: Vec<BB>,
+    geos: Vec<GeoFig>,
     cat_idxs: Vec<usize>,
     selected_bbs: Vec<bool>,
     pub show_labels: bool,
@@ -18,43 +19,44 @@ pub struct BboxAnnotations {
 impl BboxAnnotations {
     pub const fn new() -> Self {
         BboxAnnotations {
-            bbs: vec![],
+            geos: vec![],
             cat_idxs: vec![],
             selected_bbs: vec![],
             show_labels: false,
         }
     }
 
-    pub fn to_data(self) -> (Vec<BB>, Vec<usize>) {
-        (self.bbs, self.cat_idxs)
+    pub fn to_data(self) -> (Vec<GeoFig>, Vec<usize>) {
+        (self.geos, self.cat_idxs)
     }
 
-    pub fn extend<IB, IC>(&mut self, bbs: IB, cat_ids: IC, shape_image: Shape)
+    pub fn extend<IG, IC>(&mut self, geos: IG, cat_ids: IC, shape_image: Shape)
     where
-        IB: Iterator<Item = BB>,
+        IG: Iterator<Item = GeoFig>,
         IC: Iterator<Item = usize>,
     {
-        for (bb, cat_id) in bbs.zip(cat_ids) {
-            if bb.is_contained_in_image(shape_image) && !self.bbs().contains(&bb) {
-                self.add_bb(bb, cat_id)
+        for (geo, cat_id) in geos.zip(cat_ids) {
+            if geo.is_contained_in_image(shape_image) && !self.geos().contains(&geo) {
+                self.add_geo(geo, cat_id)
             }
         }
     }
 
-    pub fn from_bbs_cats(bbs: Vec<BB>, cat_ids: Vec<usize>) -> BboxAnnotations {
-        let bbs_len = bbs.len();
+    pub fn from_bbs_cats(geos: Vec<GeoFig>, cat_ids: Vec<usize>) -> BboxAnnotations {
+        let geos_len = geos.len();
         BboxAnnotations {
-            bbs,
+            geos,
             cat_idxs: cat_ids,
-            selected_bbs: vec![false; bbs_len],
+            selected_bbs: vec![false; geos_len],
             show_labels: false,
         }
     }
 
     pub fn from_bbs(bbs: Vec<BB>, cat_id: usize) -> BboxAnnotations {
         let bbs_len = bbs.len();
+        let geos = bbs.iter().map(|bb| GeoFig::BB(*bb)).collect();
         BboxAnnotations {
-            bbs,
+            geos,
             cat_idxs: vec![cat_id; bbs_len],
             selected_bbs: vec![false; bbs_len],
             show_labels: false,
@@ -71,20 +73,20 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn remove(&mut self, box_idx: usize) -> BB {
+    pub fn remove(&mut self, box_idx: usize) -> GeoFig {
         self.cat_idxs.remove(box_idx);
         self.selected_bbs.remove(box_idx);
-        self.bbs.remove(box_idx)
+        self.geos.remove(box_idx)
     }
 
     pub fn remove_multiple(&mut self, indices: &[usize]) {
-        let keep_indices = (0..self.bbs.len()).filter(|i| !indices.contains(i));
-        self.bbs = keep_indices
+        let keep_indices = (0..self.geos.len()).filter(|i| !indices.contains(i));
+        self.geos = keep_indices
             .clone()
-            .map(|i| self.bbs[i])
+            .map(|i| mem::take(&mut self.geos[i]))
             .collect::<Vec<_>>();
         self.cat_idxs = keep_indices.map(|i| self.cat_idxs[i]).collect::<Vec<_>>();
-        self.selected_bbs = vec![false; self.bbs.len()];
+        self.selected_bbs = vec![false; self.geos.len()];
     }
 
     pub fn remove_selected(&mut self) {
@@ -103,13 +105,24 @@ impl BboxAnnotations {
         shape_orig: Shape,
         split_mode: SplitMode,
     ) {
-        self.bbs = split_mode.shift_min_bbs(
+        let mut bbs = self.geos.iter().flat_map(|g| match g {
+            GeoFig::BB(bb) => Some(*bb),
+            _ => None,
+        }).collect();
+        let bbs = split_mode.shift_min_bbs(
             x_shift,
             y_shift,
             &self.selected_bbs,
-            mem::take(&mut self.bbs),
+            mem::take(&mut bbs),
             shape_orig,
         );
+        let mut counter = 0;
+        for geo in self.geos.iter_mut() {
+            if let GeoFig::BB(_) = geo {
+                *geo = GeoFig::BB(bbs[counter]);
+                counter += 1;
+            }
+        }
     }
 
     pub fn shift_max_bbs(
@@ -119,18 +132,34 @@ impl BboxAnnotations {
         shape_orig: Shape,
         split_mode: SplitMode,
     ) {
-        self.bbs = split_mode.shift_max_bbs(
+        let mut bbs = self.geos.iter().flat_map(|g| match g {
+            GeoFig::BB(bb) => Some(*bb),
+            _ => None,
+        }).collect();
+        let bbs = split_mode.shift_max_bbs(
             x_shift,
             y_shift,
             &self.selected_bbs,
-            mem::take(&mut self.bbs),
+            mem::take(&mut bbs),
             shape_orig,
         );
+        let mut counter = 0;
+        for geo in self.geos.iter_mut() {
+            if let GeoFig::BB(_) = geo {
+                *geo = GeoFig::BB(bbs[counter]);
+                counter += 1;
+            }
+        }
     }
 
+    pub fn add_geo(&mut self, geo: GeoFig, cat_idx: usize) {
+        self.cat_idxs.push(cat_idx);
+        self.geos.push(geo);
+        self.selected_bbs.push(false);
+    }
     pub fn add_bb(&mut self, bb: BB, cat_idx: usize) {
         self.cat_idxs.push(cat_idx);
-        self.bbs.push(bb);
+        self.geos.push(GeoFig::BB(bb));
         self.selected_bbs.push(false);
     }
 
@@ -138,8 +167,8 @@ impl BboxAnnotations {
         &self.cat_idxs
     }
 
-    pub fn bbs(&self) -> &Vec<BB> {
-        &self.bbs
+    pub fn geos(&self) -> &Vec<GeoFig> {
+        &self.geos
     }
 
     pub fn deselect(&mut self, box_idx: usize) {
@@ -172,12 +201,12 @@ impl BboxAnnotations {
     }
 
     pub fn select_all(&mut self) {
-        let n_bbs = self.bbs.len();
+        let n_bbs = self.geos.len();
         self.select_multi(0..n_bbs);
     }
 
     pub fn select_last_n(&mut self, n: usize) {
-        let len = self.bbs.len();
+        let len = self.geos.len();
         self.select_multi((len - n)..len);
     }
 
@@ -193,10 +222,10 @@ impl BboxAnnotations {
         split_mode: SplitMode,
     ) -> bool {
         let mut moved_somebody = false;
-        for (bb, is_bb_selected) in self.bbs.iter_mut().zip(self.selected_bbs.iter()) {
+        for (geo, is_bb_selected) in self.geos.iter_mut().zip(self.selected_bbs.iter()) {
             if *is_bb_selected {
-                (moved_somebody, *bb) =
-                    split_mode.bb_follow_movement(*bb, mpo_from, mpo_to, orig_shape)
+                (moved_somebody, *geo) =
+                    split_mode.geo_follow_movement(mem::take(geo), mpo_from, mpo_to, orig_shape)
             }
         }
         moved_somebody
@@ -210,7 +239,7 @@ impl BboxAnnotations {
     }
 
     pub fn clear(&mut self) {
-        self.bbs.clear();
+        self.geos.clear();
         self.selected_bbs.clear();
         self.cat_idxs.clear();
     }
@@ -276,8 +305,8 @@ fn test_bbs() {
 #[test]
 fn test_annos() {
     fn len_check(annos: &BboxAnnotations) {
-        assert_eq!(annos.selected_bbs.len(), annos.bbs.len());
-        assert_eq!(annos.cat_idxs.len(), annos.bbs.len());
+        assert_eq!(annos.selected_bbs.len(), annos.geos.len());
+        assert_eq!(annos.cat_idxs.len(), annos.geos.len());
     }
     let mut annos = BboxAnnotations::from_bbs(make_test_bbs(), 0);
     len_check(&annos);
@@ -287,7 +316,7 @@ fn test_annos() {
     len_check(&annos);
     annos.label_selected(3);
     len_check(&annos);
-    for i in 0..(annos.bbs.len()) {
+    for i in 0..(annos.geos.len()) {
         if i == idx {
             assert_eq!(annos.cat_idxs[i], 3);
         } else {
@@ -303,18 +332,18 @@ fn test_annos() {
     assert!(annos.selected_bbs[idx]);
     annos.remove_selected();
     len_check(&annos);
-    assert!(annos.bbs.len() == make_test_bbs().len() - 1);
+    assert!(annos.geos.len() == make_test_bbs().len() - 1);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.cat_idxs.len() == make_test_bbs().len() - 1);
     // this time nothing should be removed
     annos.remove_selected();
     len_check(&annos);
-    assert!(annos.bbs.len() == make_test_bbs().len() - 1);
+    assert!(annos.geos.len() == make_test_bbs().len() - 1);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 1);
     assert!(annos.cat_idxs.len() == make_test_bbs().len() - 1);
     annos.remove(0);
     len_check(&annos);
-    assert!(annos.bbs.len() == make_test_bbs().len() - 2);
+    assert!(annos.geos.len() == make_test_bbs().len() - 2);
     assert!(annos.selected_bbs.len() == make_test_bbs().len() - 2);
     assert!(annos.cat_idxs.len() == make_test_bbs().len() - 2);
     annos.add_bb(make_test_bbs()[0].clone(), 0);
@@ -323,7 +352,7 @@ fn test_annos() {
     len_check(&annos);
     annos.clear();
     len_check(&annos);
-    assert!(annos.bbs.len() == 0);
+    assert!(annos.geos.len() == 0);
     assert!(annos.selected_bbs.len() == 0);
     assert!(annos.cat_idxs.len() == 0);
     assert!(annos.cat_idxs.len() == 0);

@@ -1,9 +1,10 @@
 use image::GenericImage;
 use serde::{Deserialize, Serialize};
 
+use core::panic;
 use std::{
     fmt::Display,
-    iter::{self, Flatten},
+    iter::Flatten,
     ops::{Add, Div, Mul, Range, Sub},
     str::FromStr,
 };
@@ -22,11 +23,6 @@ where
 impl Calc for u32 {}
 impl Calc for f32 {}
 
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
-pub enum GeoFig {
-    BB(BB),
-    Poly(Polygon),
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Shape {
     pub w: u32,
@@ -239,14 +235,79 @@ impl From<PtI> for (usize, usize) {
     }
 }
 
-fn chain_corners<T>(select: impl Fn(usize) -> T) -> impl Iterator<Item = T> {
-    let iter_c1 = iter::once(select(0));
-    let iter_c2 = iter::once(select(1));
-    let iter_c3 = iter::once(select(2));
-    let iter_c4 = iter::once(select(3));
-    iter_c1.chain(iter_c2).chain(iter_c3).chain(iter_c4)
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub enum GeoFig {
+    BB(BB),
+    Poly(Polygon),
 }
 
+impl GeoFig {
+    pub fn contains<P>(&self, point: P) -> bool
+    where
+        P: Into<PtI>,
+    {
+        match self {
+            Self::BB(bb) => bb.contains(point),
+            Self::Poly(poly) => poly.contains(point),
+        }
+    }
+    pub fn distance_to_boundary(&self, point: PtF) -> f32 {
+        match self {
+            Self::BB(bb) => bb.distance_to_boundary(point),
+            Self::Poly(poly) => poly.distance_to_boundary(point),
+        }
+    }
+    pub fn is_contained_in_image(&self, shape: Shape) -> bool {
+        match self {
+            Self::BB(bb) => bb.is_contained_in_image(shape),
+            Self::Poly(poly) => poly.is_contained_in_image(shape),
+        }
+    }
+    pub fn max_squaredist(&self, other: &Self) -> (PtI, PtI, i64) {
+        match self {
+            Self::BB(bb) => match other {
+                GeoFig::BB(bb_other) => bb.max_squaredist(bb_other.points_iter()),
+                GeoFig::Poly(poly_other) => bb.max_squaredist(poly_other.points_iter()),
+            },
+            Self::Poly(poly) => match other {
+                GeoFig::BB(bb_other) => poly.max_squaredist(bb_other.points_iter()),
+                GeoFig::Poly(poly_other) => poly.max_squaredist(poly_other.points_iter()),
+            },
+        }
+    }
+    pub fn has_overlap(&self, other: &BB) -> bool {
+        match self {
+            Self::BB(bb) => bb.has_overlap(other),
+            Self::Poly(poly) => poly.has_overlap(other),
+        }
+    }
+    pub fn translate(
+        &self,
+        p: Point<i32>,
+        shape: Shape,
+        oob_mode: OutOfBoundsMode,
+    ) -> Option<Self> {
+        match self {
+            Self::BB(bb) => bb
+                .translate(p.x, p.y, shape, oob_mode)
+                .map(|bb| GeoFig::BB(bb)),
+            Self::Poly(poly) => poly
+                .translate(p.x, p.y, shape, oob_mode)
+                .map(|poly| GeoFig::Poly(poly)),
+        }
+    }
+    pub fn enclosing_bb(&self) -> BB {
+        match self {
+            Self::BB(bb) => *bb,
+            Self::Poly(poly) => poly.enclosing_bb,
+        }
+    }
+}
+impl Default for GeoFig {
+    fn default() -> Self {
+        Self::BB(BB::default())
+    }
+}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct Polygon {
     points: Vec<PtI>, // should NEVER be empty, hence private!
@@ -254,6 +315,39 @@ pub struct Polygon {
     is_open: bool,
 }
 impl Polygon {
+    pub fn min_enclosing_bb(&self) -> PtI {
+        self.enclosing_bb.min()
+    }
+    pub fn translate(
+        &self,
+        _x: i32,
+        _y: i32,
+        _shape: Shape,
+        _oob_mode: OutOfBoundsMode,
+    ) -> Option<Self> {
+        panic!("not implemented");
+    }
+    pub fn max_squaredist(&self, _other: impl Iterator<Item = PtI>) -> (PtI, PtI, i64) {
+        panic!("not implented");
+    }
+    pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
+        self.points.iter().copied()
+    }
+    pub fn has_overlap(&self, _other: &BB) -> bool {
+        panic!("not implemented");
+    }
+    pub fn distance_to_boundary(&self, _point: PtF) -> f32 {
+        panic!("not implemented");
+    }
+    pub fn contains<P>(&self, _point: P) -> bool
+    where
+        P: Into<PtI>,
+    {
+        panic!("not implemented");
+    }
+    pub fn is_contained_in_image(&self, shape: Shape) -> bool {
+        self.enclosing_bb.is_contained_in_image(shape)
+    }
     pub fn enclosing_bb(&self) -> BB {
         self.enclosing_bb
     }
@@ -327,6 +421,14 @@ impl BB {
         ))
     }
 
+    pub fn distance_to_boundary(&self, pos: PtF) -> f32 {
+        let dx = (self.x as f32 - pos.x).abs();
+        let dw = ((self.x + self.w) as f32 - pos.x).abs();
+        let dy = (self.y as f32 - pos.y).abs();
+        let dh = ((self.y + self.h) as f32 - pos.y).abs();
+        dx.min(dw).min(dy).min(dh)
+    }
+
     pub fn split_horizontally(&self, y: u32) -> (Self, Self) {
         let top = BB::from_arr(&[self.x, self.y, self.w, y - self.y]);
         let btm = BB::from_arr(&[self.x, y, self.w, self.y_max() - y]);
@@ -374,20 +476,23 @@ impl BB {
         }
     }
 
-    pub fn max_corner_squaredist(&self, other: &BB) -> (usize, usize, i64) {
+    /// Return points of greatest distance between self and other
+    pub fn max_squaredist<'a>(
+        &'a self,
+        other: impl Iterator<Item = PtI> + 'a + Clone,
+    ) -> (PtI, PtI, i64) {
         (0..4)
-            .map(|csidx| {
-                let (coidx, d) = (0..4)
-                    .map(|coidx| {
-                        let cs = self.corner(csidx);
-                        let co = other.corner(coidx);
-                        let d =
-                            (co.x as i64 - cs.x as i64).pow(2) + (co.y as i64 - cs.y as i64).pow(2);
-                        (coidx, d)
+            .map(|c_self_idx| {
+                other
+                    .clone()
+                    .map(|c_other| {
+                        let c_self = self.corner(c_self_idx);
+                        let d = (c_other.x as i64 - c_self.x as i64).pow(2)
+                            + (c_other.y as i64 - c_self.y as i64).pow(2);
+                        (c_self, c_other, d)
                     })
-                    .max_by_key(|(_, d)| *d)
-                    .unwrap();
-                (csidx, coidx, d)
+                    .max_by_key(|(_, _, d)| *d)
+                    .unwrap()
             })
             .max_by_key(|(_, _, d)| *d)
             .unwrap()
@@ -406,8 +511,8 @@ impl BB {
     /// v   ʌ
     /// 1 > 2
     #[allow(clippy::needless_lifetimes)]
-    pub fn corners<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a {
-        chain_corners(|i| self.corner(i))
+    pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
+        (0..4).map(|idx| self.corner(idx))
     }
 
     pub fn corner(&self, idx: usize) -> PtI {
@@ -619,10 +724,10 @@ impl BB {
     }
 
     pub fn has_overlap(&self, other: &BB) -> bool {
-        if self.corners().any(|c| other.contains(c)) {
+        if self.points_iter().any(|c| other.contains(c)) {
             true
         } else {
-            other.corners().any(|c| self.contains(c))
+            other.points_iter().any(|c| self.contains(c))
         }
     }
 }
@@ -784,13 +889,20 @@ pub fn make_test_bbs() -> Vec<BB> {
         },
     ]
 }
+#[cfg(test)]
+pub fn make_test_geos() -> Vec<GeoFig> {
+    make_test_bbs()
+        .into_iter()
+        .map(|bb| GeoFig::BB(bb))
+        .collect()
+}
 
 #[test]
 fn test_polygon() {
     let bbs = make_test_bbs();
     let poly = Polygon::from(bbs[2]);
     assert_eq!(poly.enclosing_bb(), bbs[2]);
-    let corners = bbs[0].corners().collect::<Vec<_>>();
+    let corners = bbs[0].points_iter().collect::<Vec<_>>();
     let ebb = BB::from_vec(&corners).unwrap();
     let poly = Polygon::from(ebb);
     assert_eq!(poly.enclosing_bb(), ebb);
@@ -826,7 +938,7 @@ fn test_bb() {
     assert!(bb.opposite_corner(1).equals((20, 10)));
     assert!(bb.opposite_corner(2).equals((10, 10)));
     assert!(bb.opposite_corner(3).equals((10, 20)));
-    for (c, i) in bb.corners().zip(0..4) {
+    for (c, i) in bb.points_iter().zip(0..4) {
         assert_eq!(c, bb.corner(i));
     }
     let shape = Shape::new(100, 100);
@@ -905,15 +1017,20 @@ fn test_has_overlap() {
 fn test_max_corner_dist() {
     let bb1 = BB::from_arr(&[5, 5, 10, 10]);
     let bb2 = BB::from_arr(&[5, 5, 10, 10]);
-    assert_eq!(bb1.max_corner_squaredist(&bb2), (3, 1, 200));
+    assert_eq!(
+        bb1.max_squaredist(bb2.points_iter()),
+        ((15, 5).into(), (5, 15).into(), 200)
+    );
     let bb2 = BB::from_arr(&[6, 5, 10, 10]);
-    assert_eq!(bb1.max_corner_squaredist(&bb2), (1, 3, 221));
-    let bb2 = BB::from_arr(&[6, 6, 10, 10]);
-    assert_eq!(bb1.max_corner_squaredist(&bb2), (0, 2, 242));
+    assert_eq!(
+        bb1.max_squaredist(bb2.points_iter()),
+        ((5, 15).into(), (16, 5).into(), 221)
+    );
     let bb2 = BB::from_arr(&[15, 15, 10, 10]);
-    assert_eq!(bb1.max_corner_squaredist(&bb2), (0, 2, 800));
-    let bb2 = BB::from_arr(&[15, 5, 10, 10]);
-    assert_eq!(bb1.max_corner_squaredist(&bb2), (1, 3, 500));
+    assert_eq!(
+        bb1.max_squaredist(bb2.points_iter()),
+        ((5, 5).into(), (25, 25).into(), 800)
+    );
 }
 
 #[test]
