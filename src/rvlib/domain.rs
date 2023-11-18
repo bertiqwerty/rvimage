@@ -1092,6 +1092,10 @@ fn test_poly() {
     assert!(poly.contains(PtI::from((7, 7))));
     let bb = BB::from_arr(&[2, 2, 33, 30]);
     assert!(poly.has_overlap(&bb));
+    let bb = BB::from_arr(&[6, 6, 7, 7]);
+    assert!(poly.has_overlap(&bb));
+    let bb = BB::from_arr(&[6, 6, 15, 15]);
+    assert!(poly.has_overlap(&bb));
 }
 #[test]
 fn test_poly_triangle() {
