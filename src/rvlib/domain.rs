@@ -288,12 +288,8 @@ impl GeoFig {
         oob_mode: OutOfBoundsMode,
     ) -> Option<Self> {
         match self {
-            Self::BB(bb) => bb
-                .translate(p.x, p.y, shape, oob_mode)
-                .map(|bb| GeoFig::BB(bb)),
-            Self::Poly(poly) => poly
-                .translate(p.x, p.y, shape, oob_mode)
-                .map(|poly| GeoFig::Poly(poly)),
+            Self::BB(bb) => bb.translate(p.x, p.y, shape, oob_mode).map(GeoFig::BB),
+            Self::Poly(poly) => poly.translate(p.x, p.y, shape, oob_mode).map(GeoFig::Poly),
         }
     }
     pub fn enclosing_bb(&self) -> BB {
@@ -330,6 +326,7 @@ impl Polygon {
     pub fn max_squaredist(&self, _other: impl Iterator<Item = PtI>) -> (PtI, PtI, i64) {
         panic!("not implented");
     }
+    #[allow(clippy::needless_lifetimes)]
     pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
         self.points.iter().copied()
     }

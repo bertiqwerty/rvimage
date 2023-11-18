@@ -3,7 +3,7 @@ use std::iter::empty;
 use crate::{
     annotations::SplitMode,
     cfg::CocoFile,
-    domain::{shape_unscaled, OutOfBoundsMode, Point, PtF, BB, PtI},
+    domain::{shape_unscaled, OutOfBoundsMode, Point, PtF, PtI, BB},
     events::{Events, KeyCode},
     file_util::MetaData,
     history::Record,
@@ -36,8 +36,8 @@ fn find_close_corner(orig_pos: PtF, geos: &[GeoFig], tolerance: i64) -> Option<(
     geos.iter()
         .enumerate()
         .map(|(bb_idx, bb)| {
-            let iter: Box<dyn Iterator<Item=PtI>> = match bb {
-                GeoFig::BB(bb) => Box::new( bb.points_iter()),
+            let iter: Box<dyn Iterator<Item = PtI>> = match bb {
+                GeoFig::BB(bb) => Box::new(bb.points_iter()),
                 GeoFig::Poly(bb) => Box::new(bb.points_iter()),
             };
             let (min_corner_idx, min_corner_dist) = iter

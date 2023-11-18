@@ -105,10 +105,14 @@ impl BboxAnnotations {
         shape_orig: Shape,
         split_mode: SplitMode,
     ) {
-        let mut bbs = self.geos.iter().flat_map(|g| match g {
-            GeoFig::BB(bb) => Some(*bb),
-            _ => None,
-        }).collect();
+        let mut bbs = self
+            .geos
+            .iter()
+            .flat_map(|g| match g {
+                GeoFig::BB(bb) => Some(*bb),
+                _ => None,
+            })
+            .collect();
         let bbs = split_mode.shift_min_bbs(
             x_shift,
             y_shift,
@@ -132,10 +136,14 @@ impl BboxAnnotations {
         shape_orig: Shape,
         split_mode: SplitMode,
     ) {
-        let mut bbs = self.geos.iter().flat_map(|g| match g {
-            GeoFig::BB(bb) => Some(*bb),
-            _ => None,
-        }).collect();
+        let mut bbs = self
+            .geos
+            .iter()
+            .flat_map(|g| match g {
+                GeoFig::BB(bb) => Some(*bb),
+                _ => None,
+            })
+            .collect();
         let bbs = split_mode.shift_max_bbs(
             x_shift,
             y_shift,
