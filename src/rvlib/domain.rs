@@ -1044,18 +1044,18 @@ fn test_has_overlap() {
 
 #[test]
 fn test_max_corner_dist() {
-    let bb1 = BB::from_arr(&[5, 5, 10, 10]);
-    let bb2 = BB::from_arr(&[5, 5, 10, 10]);
+    let bb1 = BB::from_arr(&[5, 5, 11, 11]);
+    let bb2 = BB::from_arr(&[5, 5, 11, 11]);
     assert_eq!(
         bb1.max_squaredist(bb2.points_iter()),
         ((15, 5).into(), (5, 15).into(), 200)
     );
-    let bb2 = BB::from_arr(&[6, 5, 10, 10]);
+    let bb2 = BB::from_arr(&[6, 5, 11, 11]);
     assert_eq!(
         bb1.max_squaredist(bb2.points_iter()),
         ((5, 15).into(), (16, 5).into(), 221)
     );
-    let bb2 = BB::from_arr(&[15, 15, 10, 10]);
+    let bb2 = BB::from_arr(&[15, 15, 11, 11]);
     assert_eq!(
         bb1.max_squaredist(bb2.points_iter()),
         ((5, 5).into(), (25, 25).into(), 800)
