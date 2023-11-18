@@ -218,6 +218,11 @@ impl From<PtF> for PtI {
         ((p.x as u32), (p.y as u32)).into()
     }
 }
+impl From<(u32, u32)> for PtF {
+    fn from(x: (u32, u32)) -> Self {
+        ((x.0 as f32), (x.1 as f32)).into()
+    }
+}
 impl From<(f32, f32)> for PtI {
     fn from(x: (f32, f32)) -> Self {
         ((x.0 as u32), (x.1 as u32)).into()
@@ -244,7 +249,7 @@ pub enum GeoFig {
 impl GeoFig {
     pub fn contains<P>(&self, point: P) -> bool
     where
-        P: Into<PtI>,
+        P: Into<PtF>,
     {
         match self {
             Self::BB(bb) => bb.contains(point),
@@ -330,17 +335,48 @@ impl Polygon {
     pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
         self.points.iter().copied()
     }
-    pub fn has_overlap(&self, _other: &BB) -> bool {
-        panic!("not implemented");
+    pub fn has_overlap(&self, other: &BB) -> bool {
+        self.enclosing_bb.has_overlap(other)
+            && (other.contains_bb(self.enclosing_bb)
+                || other.points_iter().any(|p| self.contains(p)))
     }
     pub fn distance_to_boundary(&self, _point: PtF) -> f32 {
         panic!("not implemented");
     }
-    pub fn contains<P>(&self, _point: P) -> bool
+    pub fn contains<P>(&self, point: P) -> bool
     where
-        P: Into<PtI>,
+        P: Into<PtF>,
     {
-        panic!("not implemented");
+        // we will check the number of cuts from of rays from the point to the top
+        // parallel to the y-axis.
+        //   odd number => inside
+        //   even number => outside
+        let point = point.into();
+        let n_cuts = self
+            .points
+            .iter()
+            .enumerate()
+            .filter(|(i, p1)| {
+                let p2 = if *i < self.points.len() - 1 {
+                    self.points[i + 1]
+                } else {
+                    self.points[0]
+                };
+                let p1: PtF = (**p1).into();
+                let p2: PtF = p2.into();
+                // on y-axis-parallel line?
+                if p1.x == p2.x {
+                    point.x == p1.x && p1.y.min(p2.y) <= point.y && p1.y.max(p2.y) >= point.y
+                } else {
+                    let m = (p2.y - p1.y) / (p2.x - p1.x);
+                    let b = p1.y - m * p1.x;
+                    m * point.x + b > point.y
+                        && point.x >= p1.x.min(p2.x)
+                        && point.x <= p1.x.max(p2.x)
+                }
+            })
+            .count();
+        n_cuts % 2 == 1
     }
     pub fn is_contained_in_image(&self, shape: Shape) -> bool {
         self.enclosing_bb.is_contained_in_image(shape)
@@ -363,12 +399,8 @@ impl Polygon {
 }
 impl From<BB> for Polygon {
     fn from(bb: BB) -> Self {
-        let points = vec![
-            (bb.x, bb.y).into(),
-            (bb.x + bb.w - 1, bb.y + bb.h - 1).into(),
-        ];
         Polygon {
-            points,
+            points: bb.points_iter().collect(),
             enclosing_bb: bb,
             is_open: false,
         }
@@ -516,9 +548,9 @@ impl BB {
         let (x, y, w, h) = (self.x, self.y, self.w, self.h);
         match idx {
             0 => (x, y).into(),
-            1 => (x, y + h).into(),
-            2 => (x + w, y + h).into(),
-            3 => (x + w, y).into(),
+            1 => (x, y + h - 1).into(),
+            2 => (x + w - 1, y + h - 1).into(),
+            3 => (x + w - 1, y).into(),
             _ => panic!("bounding boxes only have 4, {idx} is out of bounds"),
         }
     }
@@ -593,16 +625,16 @@ impl BB {
         self.translate(x_shift, y_shift, shape, oob_mode)
     }
 
-    pub fn covers_y(&self, y: u32) -> bool {
-        self.y_max() > y && self.y <= y
+    pub fn covers_y(&self, y: f32) -> bool {
+        self.y_max() as f32 > y && self.y as f32 <= y
     }
-    pub fn covers_x(&self, x: u32) -> bool {
-        self.x_max() > x && self.x <= x
+    pub fn covers_x(&self, x: f32) -> bool {
+        self.x_max() as f32 > x && self.x as f32 <= x
     }
 
     pub fn contains<P>(&self, p: P) -> bool
     where
-        P: Into<PtI>,
+        P: Into<PtF>,
     {
         let p = p.into();
         self.covers_x(p.x) && self.covers_y(p.y)
@@ -1051,4 +1083,21 @@ fn test_into() {
     assert_eq!(pt, PtI { x: 10, y: 20 });
     let pt: PtF = (10i32, 20i32).into();
     assert_eq!(pt, PtF { x: 10.0, y: 20.0 });
+}
+
+#[test]
+fn test_poly() {
+    let poly = Polygon::from(BB::from_arr(&[5, 5, 10, 10]));
+    assert!(!poly.contains(PtI::from((17, 7))));
+    assert!(poly.contains(PtI::from((7, 7))));
+    let bb = BB::from_arr(&[2, 2, 33, 30]);
+    assert!(poly.has_overlap(&bb));
+}
+#[test]
+fn test_poly_triangle() {
+    let poly =
+        Polygon::_from_vec(vec![(5, 5).into(), (10, 10).into(), (5, 10).into()], false).unwrap();
+    assert!(!poly.contains(PtF::from((6.0, 5.99))));
+    assert!(poly.contains(PtF::from((6.0, 6.01))));
+    assert!(poly.contains(PtI::from((6, 9))));
 }

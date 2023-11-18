@@ -256,7 +256,7 @@ pub(super) fn on_mouse_released_left(
                             } else {
                                 let new_bbs = existing_bbs()
                                     .enumerate()
-                                    .filter(|(_, bb)| bb.covers_y(mp.y as u32))
+                                    .filter(|(_, bb)| bb.covers_y(mp.y))
                                     .map(|(i, bb)| {
                                         let (top, btm) = bb.split_horizontally(mp.y as u32);
                                         (Some(i), top, btm)
@@ -280,7 +280,7 @@ pub(super) fn on_mouse_released_left(
                         } else {
                             let new_bbs = existing_bbs()
                                 .enumerate()
-                                .filter(|(_, bb)| bb.covers_x(mp.x as u32))
+                                .filter(|(_, bb)| bb.covers_x(mp.x))
                                 .map(|(i, bb)| {
                                     let (left, right) = bb.split_vertically(mp.x as u32);
                                     (Some(i), left, right)
