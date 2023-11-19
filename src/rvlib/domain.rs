@@ -960,13 +960,13 @@ fn test_bb() {
     assert!(!bb.contains((20u32, 20u32)));
     assert!(bb.contains((10u32, 10u32)));
     assert!(bb.corner(0).equals((10, 10)));
-    assert!(bb.corner(1).equals((10, 20)));
-    assert!(bb.corner(2).equals((20, 20)));
-    assert!(bb.corner(3).equals((20, 10)));
-    assert!(bb.opposite_corner(0).equals((20, 20)));
-    assert!(bb.opposite_corner(1).equals((20, 10)));
+    assert!(bb.corner(1).equals((10, 19)));
+    assert!(bb.corner(2).equals((19, 19)));
+    assert!(bb.corner(3).equals((19, 10)));
+    assert!(bb.opposite_corner(0).equals((19, 19)));
+    assert!(bb.opposite_corner(1).equals((19, 10)));
     assert!(bb.opposite_corner(2).equals((10, 10)));
-    assert!(bb.opposite_corner(3).equals((10, 20)));
+    assert!(bb.opposite_corner(3).equals((10, 19)));
     for (c, i) in bb.points_iter().zip(0..4) {
         assert_eq!(c, bb.corner(i));
     }
