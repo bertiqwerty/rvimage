@@ -329,6 +329,29 @@ impl Default for GeoFig {
         Self::BB(BB::default())
     }
 }
+
+fn intersect_y_axis_parallel(lineseg: (PtF, PtF), x_value: f32) -> Option<PtF> {
+    let (p1, p2) = lineseg;
+    // Check if the line segment intersects with the left boundary
+    if p1.x.min(p2.x) < x_value && p1.x.max(p2.x) >= x_value {
+        let t = (x_value - p1.x) / (p2.x - p1.x);
+        let y = p1.y + t * (p2.y - p1.y);
+        Some(Point { x: x_value, y })
+    } else {
+        None
+    }
+}
+fn intersect_x_axis_parallel(lineseg: (PtF, PtF), y_value: f32) -> Option<PtF> {
+    let (p1, p2) = lineseg;
+    // Check if the line segment intersects with the top boundary
+    if p1.y.min(p2.y) < y_value && p2.y.max(p2.y) >= y_value {
+        let t = (y_value - p1.y) / (p2.y - p1.y);
+        let x = p1.x + t * (p2.x - p1.x);
+        Some(Point { x, y: y_value }.into())
+    } else {
+        None
+    }
+}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct Polygon {
     points: Vec<PtI>, // should NEVER be empty, hence private!
@@ -336,6 +359,23 @@ pub struct Polygon {
     is_open: bool,
 }
 impl Polygon {
+    pub fn shape_check(self, orig_im_shape: Shape, mode: OutOfBoundsMode) -> Option<Self> {
+        if self.enclosing_bb.contains_bb(BB::from_shape(orig_im_shape)) {
+            Some(self)
+        } else {
+            match mode {
+                OutOfBoundsMode::Deny => None,
+                OutOfBoundsMode::Resize(min_bb_shape) => {
+                    let shape = Shape {
+                        w: orig_im_shape.w.max(min_bb_shape.w),
+                        h: orig_im_shape.h.max(min_bb_shape.h),
+                    };
+                    let bb = BB::from_shape(shape);
+                    Some(self.intersect(bb))
+                }
+            }
+        }
+    }
     pub fn min_enclosing_bb(&self) -> PtI {
         self.enclosing_bb.min()
     }
@@ -363,6 +403,55 @@ impl Polygon {
     pub fn distance_to_boundary(&self, _point: PtF) -> f32 {
         panic!("not implemented");
     }
+    pub fn intersect(self, other: BB) -> Self {
+        if self.enclosing_bb.contains_bb(other) {
+            self
+        } else {
+            let mut new_points: Vec<PtI> = vec![];
+            for (p1, p2) in self.lineseg_iter() {
+                let mut intersection_points: [Option<PtF>; 2] = [None, None];
+                let mut intersection_point_cnt = 0;
+                let mut p1_outside = false;
+                let (p1, p2) = (p1.into(), p2.into());
+                let (oth_min, oth_max): (PtF, PtF) = (other.min().into(), other.max().into());
+
+                // Check if the line segment intersects with the left boundary
+                if let Some(p) = intersect_y_axis_parallel((p1, p2), oth_min.x) {
+                    intersection_points[intersection_point_cnt] = Some(p);
+                    intersection_point_cnt += 1;
+                    p1_outside = true;
+                }
+                if let Some(p) = intersect_y_axis_parallel((p1, p2), oth_max.x) {
+                    intersection_points[intersection_point_cnt] = Some(p);
+                    intersection_point_cnt += 1;
+                }
+                // Check if the line segment intersects with the right boundary
+                if let Some(p) = intersect_x_axis_parallel((p1, p2), oth_min.y) {
+                    intersection_points[intersection_point_cnt] = Some(p);
+                    intersection_point_cnt += 1;
+                    p1_outside = true;
+                }
+                if let Some(p) = intersect_x_axis_parallel((p1, p2), oth_max.y) {
+                    intersection_points[intersection_point_cnt] = Some(p);
+                }
+                if !p1_outside {
+                    new_points.push(p1.into());
+                }
+                new_points.extend(intersection_points.iter().flatten().map(|p| PtI::from(*p)));
+            }
+            Self::from_vec(new_points, self.is_open).unwrap()
+        }
+    }
+    fn lineseg_iter<'a>(&'a self) -> impl Iterator<Item = (PtI, PtI)> + 'a {
+        self.points.iter().enumerate().map(|(i, p1)| {
+            let p2 = if i < self.points.len() - 1 {
+                self.points[i + 1]
+            } else {
+                self.points[0]
+            };
+            ((*p1), p2)
+        })
+    }
     pub fn contains<P>(&self, point: P) -> bool
     where
         P: Into<PtF>,
@@ -373,26 +462,14 @@ impl Polygon {
         //   even number => outside
         let point = point.into();
         let n_cuts = self
-            .points
-            .iter()
-            .enumerate()
-            .filter(|(i, p1)| {
-                let p2 = if *i < self.points.len() - 1 {
-                    self.points[i + 1]
+            .lineseg_iter()
+            .filter(|(p1, p2)| {
+                let p1: PtF = (*p1).into();
+                let p2: PtF = (*p2).into();
+                if let Some(p) = intersect_y_axis_parallel((p1, p2), point.x) {
+                    p.y >= point.y
                 } else {
-                    self.points[0]
-                };
-                let p1: PtF = (**p1).into();
-                let p2: PtF = p2.into();
-                // on y-axis-parallel line?
-                if p1.x == p2.x {
-                    point.x == p1.x && p1.y.min(p2.y) <= point.y && p1.y.max(p2.y) >= point.y
-                } else {
-                    let m = (p2.y - p1.y) / (p2.x - p1.x);
-                    let b = p1.y - m * p1.x;
-                    m * point.x + b > point.y
-                        && point.x >= p1.x.min(p2.x)
-                        && point.x <= p1.x.max(p2.x)
+                    false
                 }
             })
             .count();
@@ -408,7 +485,7 @@ impl Polygon {
         &self.points
     }
     /// We will need this as soon as we support polygons
-    fn _from_vec(points: Vec<PtI>, is_open: bool) -> RvResult<Self> {
+    fn from_vec(points: Vec<PtI>, is_open: bool) -> RvResult<Self> {
         let enclosing_bb = BB::from_vec(&points)?;
         Ok(Self {
             points,
@@ -506,7 +583,7 @@ impl BB {
         self.x + self.w
     }
 
-    pub fn intersect(&self, other: BB) -> BB {
+    pub fn intersect(self, other: BB) -> BB {
         BB::from_points(
             (self.x.max(other.x), self.y.max(other.y)).into(),
             (
@@ -1106,8 +1183,20 @@ fn test_poly() {
 #[test]
 fn test_poly_triangle() {
     let poly =
-        Polygon::_from_vec(vec![(5, 5).into(), (10, 10).into(), (5, 10).into()], false).unwrap();
+        Polygon::from_vec(vec![(5, 5).into(), (10, 10).into(), (5, 10).into()], false).unwrap();
+    assert!(poly.contains(PtI::from((6, 9))));
     assert!(!poly.contains(PtF::from((6.0, 5.99))));
     assert!(poly.contains(PtF::from((6.0, 6.01))));
-    assert!(poly.contains(PtI::from((6, 9))));
+}
+#[test]
+fn test_poly_intersect() {
+    let poly =
+        Polygon::from_vec(vec![(5, 5).into(), (10, 10).into(), (5, 10).into()], false).unwrap();
+    assert_eq!(poly.clone().intersect(BB::from_arr(&[2, 2, 20, 20])), poly);
+    let poly =
+        Polygon::from_vec(vec![(5, 5).into(), (15, 15).into(), (5, 15).into()], false).unwrap();
+
+    let bb = BB::from_arr(&[5, 7, 2, 2]);
+
+    assert_eq!(poly.clone().intersect(bb).enclosing_bb, bb);
 }
