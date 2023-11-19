@@ -49,6 +49,26 @@ impl From<[usize; 2]> for Shape {
     }
 }
 
+fn max_squaredist<'a, I1, I2>(points1: I1, points2: I2) -> (PtI, PtI, i64)
+where
+    I1: Iterator<Item = PtI> + 'a + Clone,
+    I2: Iterator<Item = PtI> + 'a + Clone,
+{
+    points1
+        .map(|p1| {
+            points2
+                .clone()
+                .map(|p2| {
+                    let d = (p2.x as i64 - p1.x as i64).pow(2) + (p2.y as i64 - p1.y as i64).pow(2);
+                    (p1, p2, d)
+                })
+                .max_by_key(|(_, _, d)| *d)
+                .unwrap()
+        })
+        .max_by_key(|(_, _, d)| *d)
+        .unwrap()
+}
+
 /// shape of the image that fits into the window
 pub fn shape_scaled(shape_unscaled: Shape, shape_win: Shape) -> (f32, f32) {
     let w_ratio = shape_unscaled.w as f32 / shape_win.w as f32;
@@ -328,8 +348,8 @@ impl Polygon {
     ) -> Option<Self> {
         panic!("not implemented");
     }
-    pub fn max_squaredist(&self, _other: impl Iterator<Item = PtI>) -> (PtI, PtI, i64) {
-        panic!("not implented");
+    pub fn max_squaredist(&self, other: impl Iterator<Item = PtI> + Clone) -> (PtI, PtI, i64) {
+        max_squaredist(self.points_iter(), other)
     }
     #[allow(clippy::needless_lifetimes)]
     pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
@@ -510,21 +530,7 @@ impl BB {
         &'a self,
         other: impl Iterator<Item = PtI> + 'a + Clone,
     ) -> (PtI, PtI, i64) {
-        (0..4)
-            .map(|c_self_idx| {
-                other
-                    .clone()
-                    .map(|c_other| {
-                        let c_self = self.corner(c_self_idx);
-                        let d = (c_other.x as i64 - c_self.x as i64).pow(2)
-                            + (c_other.y as i64 - c_self.y as i64).pow(2);
-                        (c_self, c_other, d)
-                    })
-                    .max_by_key(|(_, _, d)| *d)
-                    .unwrap()
-            })
-            .max_by_key(|(_, _, d)| *d)
-            .unwrap()
+        max_squaredist(self.points_iter(), other)
     }
 
     pub fn min_max(&self, axis: usize) -> (u32, u32) {
