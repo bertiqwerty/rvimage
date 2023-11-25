@@ -3,7 +3,7 @@ use std::iter::empty;
 use crate::{
     annotations::SplitMode,
     cfg::CocoFile,
-    domain::{shape_unscaled, OutOfBoundsMode, Point, PtF, PtI, BB},
+    domain::{shape_unscaled, OutOfBoundsMode, PtF, PtI, BB, Point},
     events::{Events, KeyCode},
     file_util::MetaData,
     history::Record,
