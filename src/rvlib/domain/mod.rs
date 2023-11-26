@@ -53,12 +53,7 @@ impl GeoFig {
             Self::Poly(poly) => poly.has_overlap(other),
         }
     }
-    pub fn translate(
-        self,
-        p: Point<i32>,
-        shape: Shape,
-        oob_mode: OutOfBoundsMode,
-    ) -> Option<Self> {
+    pub fn translate(self, p: Point<i32>, shape: Shape, oob_mode: OutOfBoundsMode) -> Option<Self> {
         match self {
             Self::BB(bb) => bb.translate(p.x, p.y, shape, oob_mode).map(GeoFig::BB),
             Self::Poly(poly) => poly.translate(p.x, p.y, shape, oob_mode).map(GeoFig::Poly),

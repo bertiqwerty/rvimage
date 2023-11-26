@@ -67,12 +67,12 @@ impl Polygon {
         } else {
             match mode {
                 OutOfBoundsMode::Deny => {
-                    if self.points_iter().all(|p|shape_bb.contains(p)) {
+                    if self.points_iter().all(|p| shape_bb.contains(p)) {
                         Some(self)
                     } else {
                         None
                     }
-                },
+                }
                 OutOfBoundsMode::Resize(min_bb_shape) => {
                     let shape = Shape {
                         w: orig_im_shape.w.max(min_bb_shape.w),
@@ -94,7 +94,6 @@ impl Polygon {
         shape: Shape,
         oob_mode: OutOfBoundsMode,
     ) -> Option<Self> {
-
         for p in &mut self.points {
             p.x = (p.x as i32 + x).max(0) as u32;
             p.y = (p.y as i32 + y).max(0) as u32;
