@@ -2,8 +2,9 @@
 #![forbid(unsafe_code)]
 
 use egui::{
-    epaint::RectShape, Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect,
-    Response, Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
+    epaint::{PathShape, RectShape},
+    Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
+    Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
 };
 use image::{ImageBuffer, Rgb};
 use rvlib::{
@@ -262,11 +263,6 @@ impl RvImageApp {
             .annos
             .iter()
             .flat_map(|anno| {
-                let bb = match &anno.geofig {
-                    GeoFig::BB(bb) => *bb,
-                    // TODO: draw actual polygon
-                    GeoFig::Poly(poly) => poly.enclosing_bb(),
-                };
                 let (fill_alpha, outline_thickness) = if let Some(is_selected) = anno.is_selected {
                     if is_selected {
                         (
@@ -280,33 +276,56 @@ impl RvImageApp {
                     (anno.fill_alpha, anno.outline.thickness)
                 };
                 let fill_rgb = rgb_2_clr(anno.fill_color, fill_alpha);
-
-                let bb_min_rect = orig_pos_2_egui_rect(
-                    bb.min(),
-                    image_rect.min,
-                    self.shape_orig(),
-                    self.shape_view(),
-                    image_rect.size(),
-                    &self.zoom_box,
-                );
-                let bb_max_rect = orig_pos_2_egui_rect(
-                    bb.max(),
-                    image_rect.min,
-                    self.shape_orig(),
-                    self.shape_view(),
-                    image_rect.size(),
-                    &self.zoom_box,
-                );
                 let stroke = Stroke::new(
                     outline_thickness,
                     rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
                 );
-                Some(Shape::Rect(RectShape::new(
-                    Rect::from_min_max(bb_min_rect, bb_max_rect),
-                    Rounding::ZERO,
-                    fill_rgb,
-                    stroke,
-                )))
+                match &anno.geofig {
+                    GeoFig::BB(bb) => {
+                        let bb_min_rect = orig_pos_2_egui_rect(
+                            bb.min(),
+                            image_rect.min,
+                            self.shape_orig(),
+                            self.shape_view(),
+                            image_rect.size(),
+                            &self.zoom_box,
+                        );
+                        let bb_max_rect = orig_pos_2_egui_rect(
+                            bb.max(),
+                            image_rect.min,
+                            self.shape_orig(),
+                            self.shape_view(),
+                            image_rect.size(),
+                            &self.zoom_box,
+                        );
+                        Some(Shape::Rect(RectShape::new(
+                            Rect::from_min_max(bb_min_rect, bb_max_rect),
+                            Rounding::ZERO,
+                            fill_rgb,
+                            stroke,
+                        )))
+                    }
+                    GeoFig::Poly(poly) => {
+                        let egui_rect_points = poly
+                            .points_iter()
+                            .map(|p| {
+                                orig_pos_2_egui_rect(
+                                    p,
+                                    image_rect.min,
+                                    self.shape_orig(),
+                                    self.shape_view(),
+                                    image_rect.size(),
+                                    &self.zoom_box,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+
+                        Some(Shape::Path(PathShape::closed_line(
+                            egui_rect_points,
+                            stroke,
+                        )))
+                    }
+                }
             })
             .collect::<Vec<Shape>>();
         ui.painter().add(Shape::Vec(shapes));
