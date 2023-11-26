@@ -288,11 +288,11 @@ fn test_bbs() {
     });
     assert_eq!(resized[0], bbs[0]);
     assert_eq!(
-        BB::from_points(point_i!(5, 5), point_i!(14, 16)),
+        BB::from_points(point_i!(5, 5), point_i!(13, 15)),
         resized[1]
     );
     assert_eq!(
-        BB::from_points(point_i!(9, 9), point_i!(18, 20)),
+        BB::from_points(point_i!(9, 9), point_i!(17, 19)),
         resized[2]
     );
 
@@ -302,11 +302,11 @@ fn test_bbs() {
     });
     assert_eq!(resized[0], bbs[0]);
     assert_eq!(
-        BB::from_points(point_i!(4, 6), point_i!(15, 15)),
+        BB::from_points(point_i!(4, 6), point_i!(14, 14)),
         resized[1]
     );
     assert_eq!(
-        BB::from_points(point_i!(8, 10), point_i!(19, 19)),
+        BB::from_points(point_i!(8, 10), point_i!(18, 18)),
         resized[2]
     );
 }

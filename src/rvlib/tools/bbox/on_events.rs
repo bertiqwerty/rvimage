@@ -24,8 +24,8 @@ const CORNER_TOL_DENOMINATOR: u32 = 5000;
 fn find_closest_boundary_idx(pos: PtF, geos: &[GeoFig]) -> Option<usize> {
     geos.iter()
         .enumerate()
-        .filter(|(_, bb)| bb.contains(pos))
-        .map(|(i, bb)| (i, bb.distance_to_boundary(pos)))
+        .filter(|(_, geo)| geo.contains(pos))
+        .map(|(i, geo)| (i, geo.distance_to_boundary(pos)))
         .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
         .map(|(i, _)| i)
 }
@@ -586,6 +586,7 @@ fn test_key_released() {
     assert_eq!(
         get_annos(&world).unwrap().geos()[1],
         annos_orig.geos()[0]
+            .clone()
             .translate(
                 Point { x: 1, y: 1 },
                 world.shape_orig(),

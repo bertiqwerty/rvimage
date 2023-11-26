@@ -54,7 +54,7 @@ impl GeoFig {
         }
     }
     pub fn translate(
-        &self,
+        self,
         p: Point<i32>,
         shape: Shape,
         oob_mode: OutOfBoundsMode,

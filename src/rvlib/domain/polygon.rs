@@ -61,11 +61,18 @@ pub struct Polygon {
 }
 impl Polygon {
     pub fn shape_check(self, orig_im_shape: Shape, mode: OutOfBoundsMode) -> Option<Self> {
-        if self.enclosing_bb.contains_bb(BB::from_shape(orig_im_shape)) {
+        let shape_bb = BB::from_shape(orig_im_shape);
+        if shape_bb.contains_bb(self.enclosing_bb) {
             Some(self)
         } else {
             match mode {
-                OutOfBoundsMode::Deny => None,
+                OutOfBoundsMode::Deny => {
+                    if self.points_iter().all(|p|shape_bb.contains(p)) {
+                        Some(self)
+                    } else {
+                        None
+                    }
+                },
                 OutOfBoundsMode::Resize(min_bb_shape) => {
                     let shape = Shape {
                         w: orig_im_shape.w.max(min_bb_shape.w),
@@ -81,13 +88,18 @@ impl Polygon {
         self.enclosing_bb.min()
     }
     pub fn translate(
-        &self,
-        _x: i32,
-        _y: i32,
-        _shape: Shape,
-        _oob_mode: OutOfBoundsMode,
+        mut self,
+        x: i32,
+        y: i32,
+        shape: Shape,
+        oob_mode: OutOfBoundsMode,
     ) -> Option<Self> {
-        panic!("not implemented");
+
+        for p in &mut self.points {
+            p.x = (p.x as i32 + x).max(0) as u32;
+            p.y = (p.y as i32 + y).max(0) as u32;
+        }
+        self.shape_check(shape, oob_mode)
     }
     pub fn max_squaredist(&self, other: impl Iterator<Item = PtI> + Clone) -> (PtI, PtI, i64) {
         max_squaredist(self.points_iter(), other)

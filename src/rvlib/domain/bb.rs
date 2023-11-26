@@ -74,11 +74,13 @@ impl BB {
     }
 
     pub fn y_max(&self) -> u32 {
-        self.y + self.h
+        // y_max is still part of the box, hence -1
+        self.y + self.h - 1
     }
 
     pub fn x_max(&self) -> u32 {
-        self.x + self.w
+        // x_max is still part of the box, hence -1
+        self.x + self.w - 1
     }
 
     pub fn intersect(self, other: BB) -> BB {
@@ -207,10 +209,10 @@ impl BB {
     }
 
     pub fn covers_y(&self, y: f32) -> bool {
-        self.y_max() as f32 > y && self.y as f32 <= y
+        self.y_max() as f32 >= y && self.y as f32 <= y
     }
     pub fn covers_x(&self, x: f32) -> bool {
-        self.x_max() as f32 > x && self.x as f32 <= x
+        self.x_max() as f32 >= x && self.x as f32 <= x
     }
 
     pub fn contains<P>(&self, p: P) -> bool
@@ -271,7 +273,7 @@ impl BB {
     }
 
     pub fn translate(
-        &self,
+        self,
         x_shift: i32,
         y_shift: i32,
         shape: Shape,
