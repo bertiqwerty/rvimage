@@ -276,12 +276,12 @@ impl RvImageApp {
                     (anno.fill_alpha, anno.outline.thickness)
                 };
                 let fill_rgb = rgb_2_clr(anno.fill_color, fill_alpha);
-                let stroke = Stroke::new(
-                    outline_thickness,
-                    rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
-                );
                 match &anno.geofig {
                     GeoFig::BB(bb) => {
+                        let stroke = Stroke::new(
+                            outline_thickness,
+                            rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
+                        );
                         let bb_min_rect = orig_pos_2_egui_rect(
                             bb.min(),
                             image_rect.min,
@@ -306,6 +306,19 @@ impl RvImageApp {
                         )))
                     }
                     GeoFig::Poly(poly) => {
+                        let stroke = Stroke::new(
+                            outline_thickness * 3.0,
+                            rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
+                        );
+                        let poly = if let Some(zb) = self.zoom_box {
+                            if let Ok(poly_) = poly.clone().intersect(zb) {
+                                poly_
+                            } else {
+                                poly.clone()
+                            }
+                        } else {
+                            poly.clone()
+                        };
                         let egui_rect_points = poly
                             .points_iter()
                             .map(|p| {
@@ -378,6 +391,9 @@ impl RvImageApp {
 
 impl eframe::App for RvImageApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        ctx.options_mut(|o| {
+            o.zoom_with_keyboard = false;
+        });
         let update_view = self.event_loop.one_iteration(&self.events, ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Ok(update_view) = update_view {

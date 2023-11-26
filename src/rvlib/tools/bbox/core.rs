@@ -11,9 +11,9 @@ use crate::{
     tools_data::{bbox_data::Options, BboxSpecificData, ToolSpecifics, ToolsData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     world::World,
-    GeoFig,
+    GeoFig, Polygon,
 };
-use std::mem;
+use std::{iter, mem};
 
 use super::on_events::{
     export_if_triggered, import_coco_if_triggered, map_released_key, on_key_released,
@@ -231,7 +231,7 @@ impl BBox {
         let are_boxes_visible = are_boxes_visible(&world);
         if event.released(KeyCode::MouseLeft) {
             let params = MouseReleaseParams {
-                prev_pos: self.prev_pos,
+                prev_pos: self.prev_pos.clone(),
                 are_boxes_visible,
                 is_alt_held: event.held_alt(),
                 is_shift_held: event.held_shift(),
@@ -242,7 +242,7 @@ impl BBox {
         } else if event.released(KeyCode::MouseRight) {
             (world, history, self.prev_pos) = on_mouse_released_right(
                 event.mouse_pos,
-                self.prev_pos,
+                self.prev_pos.clone(),
                 are_boxes_visible,
                 world,
                 history,
@@ -376,23 +376,41 @@ impl Manipulate for BBox {
         }
 
         let in_menu_selected_label = current_cat_idx(&world);
-        if let (Some(mp), Some(pp)) = (events.mouse_pos, self.prev_pos.prev_pos) {
-            // animation
-            let bb_data = get_tools_data(&world).specifics.bbox();
-            let label = Some(bb_data.labels()[in_menu_selected_label].clone());
-            let color = bb_data.colors()[in_menu_selected_label];
-            let anno = Annotation {
-                geofig: GeoFig::BB(BB::from_points(mp.into(), pp.into())),
-                label,
-                fill_color: Some(color),
-                fill_alpha: options.fill_alpha,
-                outline: Stroke::from_color(color),
-                outline_alpha: options.outline_alpha,
-                is_selected: None,
-            };
-            let are_boxes_visible = are_boxes_visible(&world);
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
-            world.request_redraw_tmp_anno(anno);
+        if let Some(mp) = events.mouse_pos {
+            if !self.prev_pos.prev_pos.is_empty() {
+                let geo = if self.prev_pos.prev_pos.len() == 1 {
+                    GeoFig::BB(BB::from_points(mp.into(), self.prev_pos.prev_pos[0].into()))
+                } else {
+                    GeoFig::Poly(
+                        Polygon::from_vec(
+                            self.prev_pos
+                                .prev_pos
+                                .iter()
+                                .chain(iter::once(&mp))
+                                .map(|p| (*p).into())
+                                .collect::<Vec<_>>(),
+                        )
+                        .unwrap(),
+                    )
+                };
+                // animation
+                let bb_data = get_tools_data(&world).specifics.bbox();
+                let label = Some(bb_data.labels()[in_menu_selected_label].clone());
+                let color = bb_data.colors()[in_menu_selected_label];
+                let anno = Annotation {
+                    geofig: geo,
+                    label,
+                    fill_color: Some(color),
+                    fill_alpha: options.fill_alpha,
+                    outline: Stroke::from_color(color),
+                    outline_alpha: options.outline_alpha,
+                    is_selected: None,
+                };
+                let are_boxes_visible = are_boxes_visible(&world);
+                world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+                world.request_redraw_tmp_anno(anno);
+            } else if self.prev_pos.prev_pos.len() > 1 {
+            }
         }
         (world, history) = make_tool_transform!(
             self,

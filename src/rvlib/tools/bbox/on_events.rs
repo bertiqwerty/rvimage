@@ -1,4 +1,4 @@
-use std::iter::empty;
+use std::{cmp::Ordering, iter::empty};
 
 use crate::{
     annotations::SplitMode,
@@ -10,7 +10,7 @@ use crate::{
     tools::{core::Mover, BBOX_NAME},
     tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
     util::true_indices,
-    GeoFig,
+    GeoFig, Polygon,
     {history::History, world::World},
 };
 
@@ -31,7 +31,7 @@ fn find_closest_boundary_idx(pos: PtF, geos: &[GeoFig]) -> Option<usize> {
 }
 
 /// returns index of the bounding box and the index of the closest close corner
-fn find_close_corner(orig_pos: PtF, geos: &[GeoFig], tolerance: i64) -> Option<(usize, usize)> {
+fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: i64) -> Option<(usize, usize)> {
     let opi64: (i64, i64) = orig_pos.into();
     geos.iter()
         .enumerate()
@@ -108,9 +108,9 @@ pub(super) fn on_mouse_held_right(
     (world, history)
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(super) struct PrevPos {
-    pub prev_pos: Option<PtF>,
+    pub prev_pos: Vec<PtF>,
     pub last_valid_click: Option<PtF>,
 }
 
@@ -132,24 +132,46 @@ pub(super) fn on_mouse_released_right(
 ) -> (World, History, PrevPos) {
     let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
     let lc_orig = prev_pos.last_valid_click;
-    let pp_orig = prev_pos.prev_pos;
     let in_menu_selected_label = current_cat_idx(&world);
-    if let (Some(mp), Some(pp), Some(last_click)) = (mouse_pos, pp_orig, lc_orig) {
-        // second click new bb
-        if (mp.x as i32 - pp.x as i32).abs() > 1 && (mp.y as i32 - pp.y as i32).abs() > 1 {
-            let mp = match split_mode {
-                SplitMode::Horizontal => (last_click.x, mp.y).into(),
-                SplitMode::Vertical => (mp.x, last_click.y).into(),
-                SplitMode::None => mp,
-            };
-            let annos = get_annos_mut(&mut world);
-            annos.add_bb(
-                BB::from_points(mp.into(), pp.into()),
-                in_menu_selected_label,
-            );
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
-            prev_pos.prev_pos = None;
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+    if let (Some(mp), Some(last_click)) = (mouse_pos, lc_orig) {
+        match prev_pos.prev_pos.len().cmp(&1) {
+            Ordering::Equal => {
+                // second click new bb
+                let pp = prev_pos.prev_pos[0];
+                if (mp.x as i32 - pp.x as i32).abs() > 1 && (mp.y as i32 - pp.y as i32).abs() > 1 {
+                    let mp = match split_mode {
+                        SplitMode::Horizontal => (last_click.x, mp.y).into(),
+                        SplitMode::Vertical => (mp.x, last_click.y).into(),
+                        SplitMode::None => mp,
+                    };
+                    let annos = get_annos_mut(&mut world);
+                    annos.add_bb(
+                        BB::from_points(mp.into(), pp.into()),
+                        in_menu_selected_label,
+                    );
+                    history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                    prev_pos.prev_pos = vec![];
+                    world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+                }
+            }
+            Ordering::Greater => {
+                prev_pos.prev_pos.push(mp);
+                let poly = Polygon::from_vec(
+                    prev_pos
+                        .prev_pos
+                        .into_iter()
+                        .map(|p| p.into())
+                        .collect::<Vec<_>>(),
+                )
+                .unwrap();
+                prev_pos.prev_pos = vec![];
+                let annos = get_annos_mut(&mut world);
+                annos.add_geo(GeoFig::Poly(poly), in_menu_selected_label);
+                history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                prev_pos.prev_pos = vec![];
+                world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+            }
+            _ => (),
         }
     }
     (world, history, prev_pos)
@@ -214,24 +236,37 @@ pub(super) fn on_mouse_released_left(
         let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
         let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
         let close_corner = mouse_pos.and_then(|mp| {
-            get_annos(&world).and_then(|a| find_close_corner(mp, a.geos(), tolerance as i64))
+            get_annos(&world).and_then(|a| find_close_vertex(mp, a.geos(), tolerance as i64))
         });
-        if let Some((bb_idx, idx)) = close_corner {
+        if let Some((bb_idx, vertex_idx)) = close_corner {
             // move an existing corner
 
             let annos = get_annos_mut(&mut world);
             let geo = annos.remove(bb_idx);
-            if let GeoFig::BB(bb) = geo {
-                let oppo_corner = bb.opposite_corner(idx);
-                prev_pos.prev_pos = Some(oppo_corner.into());
-            } else {
-                panic!("not implemented")
+            match geo {
+                GeoFig::BB(bb) => {
+                    let oppo_corner = bb.opposite_corner(vertex_idx);
+                    prev_pos.prev_pos.push(oppo_corner.into());
+                }
+                GeoFig::Poly(poly) => {
+                    let n_vertices = poly.points().len();
+                    prev_pos.prev_pos = vec![];
+                    prev_pos.prev_pos.reserve(n_vertices);
+                    for idx in (vertex_idx + 1)..(n_vertices) {
+                        prev_pos.prev_pos.push(poly.points()[idx].into());
+                    }
+                    for idx in 0..vertex_idx {
+                        prev_pos.prev_pos.push(poly.points()[idx].into());
+                    }
+                }
             }
         } else {
             match split_mode {
                 SplitMode::None => {
                     // first click new bb
-                    prev_pos.prev_pos = mouse_pos;
+                    if let Some(mp) = mouse_pos {
+                        prev_pos.prev_pos.push(mp);
+                    }
                 }
                 _ => {
                     // create boxes by splitting either horizontally or vertically
@@ -302,7 +337,7 @@ pub(super) fn on_mouse_released_left(
                             annos.add_bb(bb2, in_menu_selected_label);
                         }
                         history.push(Record::new(world.data.clone(), ACTOR_NAME));
-                        prev_pos.prev_pos = None;
+                        prev_pos.prev_pos = vec![];
                         world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
                     }
                 }
@@ -656,20 +691,24 @@ fn test_mouse_held() {
 #[test]
 fn test_mouse_release() {
     let (mouse_pos, world, history) = test_data();
-    let make_params = |prev_pos, is_ctrl_held| MouseReleaseParams {
-        prev_pos: PrevPos {
-            prev_pos,
-            last_valid_click: prev_pos,
-        },
-        are_boxes_visible: true,
-        is_alt_held: false,
-        is_shift_held: false,
-        is_ctrl_held,
+    let make_params = |prev_pos: Vec<PtF>, is_ctrl_held| {
+        let is_pp_empty = prev_pos.is_empty();
+        let last = prev_pos.iter().last().map(|last| last.clone());
+        MouseReleaseParams {
+            prev_pos: PrevPos {
+                prev_pos,
+                last_valid_click: if is_pp_empty { None } else { last },
+            },
+            are_boxes_visible: true,
+            is_alt_held: false,
+            is_shift_held: false,
+            is_ctrl_held,
+        }
     };
     {
         // If a previous position was registered, we expect that the second click creates the
         // bounding box.
-        let params = make_params(Some(point!(30.0, 30.0)), false);
+        let params = make_params(vec![point!(30.0, 30.0)], false);
         let (world, new_hist, prev_pos) = on_mouse_released_right(
             mouse_pos,
             params.prev_pos,
@@ -677,7 +716,7 @@ fn test_mouse_release() {
             world.clone(),
             history.clone(),
         );
-        assert_eq!(prev_pos.prev_pos, None);
+        assert!(prev_pos.prev_pos.is_empty());
         let annos = get_annos(&world);
         assert_eq!(annos.unwrap().geos().len(), 1);
         assert_eq!(annos.unwrap().cat_idxs()[0], 0);
@@ -686,10 +725,17 @@ fn test_mouse_release() {
     {
         // If no position was registered, a left click will trigger the start
         // of defining a new bounding box. The other corner will be defined by a second click.
-        let params = make_params(None, false);
+        let params = make_params(vec![], false);
         let (world, new_hist, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(prev_pos.prev_pos, mouse_pos);
+        assert_eq!(
+            prev_pos.prev_pos,
+            if let Some(mp) = mouse_pos {
+                vec![mp]
+            } else {
+                vec![]
+            }
+        );
         let annos = get_annos(&world);
         assert!(annos.is_none() || annos.unwrap().geos().is_empty());
         assert!(history_equal(&history, &new_hist));
@@ -697,10 +743,10 @@ fn test_mouse_release() {
     {
         // If ctrl is hold, a bounding box would be selected. Since no bounding boxes exist,
         // nothing should happen.
-        let params = make_params(None, true);
+        let params = make_params(vec![], true);
         let (world, new_hist, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(prev_pos.prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, vec![]);
         let annos = get_annos(&world);
         assert!(annos.is_none() || annos.unwrap().geos().is_empty());
         assert!(history_equal(&history, &new_hist));
@@ -708,7 +754,7 @@ fn test_mouse_release() {
     {
         // If ctrl is hold at the second click, this does not really make sense. We ignore it and assume this
         // is the finishing box click.
-        let params = make_params(Some(point!(30.0, 30.0)), true);
+        let params = make_params(vec![point!(30.0, 30.0)], true);
         let (world, new_hist, prev_pos) = on_mouse_released_right(
             mouse_pos,
             params.prev_pos,
@@ -716,7 +762,7 @@ fn test_mouse_release() {
             world.clone(),
             history.clone(),
         );
-        assert_eq!(prev_pos.prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, vec![]);
         let annos = get_annos(&world);
         assert_eq!(annos.unwrap().geos().len(), 1);
         assert!(!annos.unwrap().selected_bbs()[0]);
@@ -724,7 +770,7 @@ fn test_mouse_release() {
     }
     {
         // If ctrl is hold the box is selected.
-        let params = make_params(None, true);
+        let params = make_params(vec![], true);
         let mut world = world.clone();
         get_tools_data_mut(&mut world)
             .specifics
@@ -744,7 +790,7 @@ fn test_mouse_release() {
         let (mut world, _, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
-        assert_eq!(prev_pos.prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, vec![]);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
         assert_eq!(annos.cat_idxs()[0], 0);
@@ -756,7 +802,7 @@ fn test_mouse_release() {
             .specifics
             .bbox_mut()
             .cat_idx_current = 1;
-        let mut params = make_params(None, true);
+        let mut params = make_params(vec![], true);
         params.is_alt_held = true;
         let annos = get_annos_mut(&mut world);
         annos.deselect_all();
@@ -764,7 +810,7 @@ fn test_mouse_release() {
         let (mut world, _, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
-        assert_eq!(prev_pos.prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, vec![]);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
         assert_eq!(annos.cat_idxs()[0], 1);
@@ -772,14 +818,14 @@ fn test_mouse_release() {
         assert_eq!(annos.cat_idxs()[2], 1);
         assert_eq!(annos.cat_idxs()[3], 0);
         // shift
-        let mut params = make_params(None, true);
+        let mut params = make_params(vec![], true);
         params.is_shift_held = true;
         let annos = get_annos_mut(&mut world);
         annos.select(3);
         let (world, _, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
-        assert_eq!(prev_pos.prev_pos, None);
+        assert_eq!(prev_pos.prev_pos, vec![]);
         assert!(annos.selected_bbs()[0]);
         assert!(!annos.selected_bbs()[1]);
         assert!(annos.selected_bbs()[2]);

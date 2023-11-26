@@ -22,7 +22,7 @@ impl AlwaysActiveZoom {
         world: World,
         history: History,
     ) -> (World, History) {
-        if events.held_ctrl() && events.pressed(KeyCode::MouseRight) {
+        if events.held_ctrl() && events.pressed(KeyCode::MouseLeft) {
             self.mover.move_mouse_pressed(events.mouse_pos);
         }
         (world, history)
@@ -34,7 +34,7 @@ impl AlwaysActiveZoom {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if events.held_ctrl() && events.held(KeyCode::MouseRight) {
+        if events.held_ctrl() && events.held(KeyCode::MouseLeft) {
             (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos);
             (world, history)
         } else {
@@ -76,8 +76,8 @@ impl Manipulate for AlwaysActiveZoom {
             history,
             events,
             [
-                (pressed, KeyCode::MouseRight, mouse_pressed),
-                (held, KeyCode::MouseRight, mouse_held),
+                (pressed, KeyCode::MouseLeft, mouse_pressed),
+                (held, KeyCode::MouseLeft, mouse_held),
                 (released, KeyCode::Key0, key_released),
                 (released, KeyCode::PlusEquals, key_released), // Plus is equals
                 (released, KeyCode::Minus, key_released)
