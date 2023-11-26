@@ -139,6 +139,59 @@ where
     pub fn dist_square(&self, other: &Self) -> T {
         <(T, T) as Into<Point<T>>>::into((self.x - other.x, self.y - other.y)).len_square()
     }
+    pub fn dot(&self, rhs: &Self) -> T {
+        self.x * rhs.x + self.y * rhs.y
+    }
+}
+
+impl<T> Mul<T> for Point<T>
+where
+    T: Calc + Copy,
+{
+    type Output = Self;
+    fn mul(self, rhs: T) -> Self::Output {
+        Point {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+impl<T> Div<T> for Point<T>
+where
+    T: Calc + Copy,
+{
+    type Output = Self;
+    fn div(self, rhs: T) -> Self::Output {
+        Point {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
+impl<T> Sub for Point<T>
+where
+    T: Calc + Copy,
+{
+    type Output = Point<T>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Point {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+impl<T> Add for Point<T>
+where
+    T: Calc + Copy,
+{
+    type Output = Point<T>;
+    fn add(self, rhs: Self) -> Self::Output {
+        Point {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
 }
 
 impl<T> From<(T, T)> for Point<T>
@@ -164,16 +217,6 @@ impl_point_into!(i64);
 impl_point_into!(i32);
 pub type PtF = Point<f32>;
 pub type PtI = Point<u32>;
-
-impl Mul<f32> for PtF {
-    type Output = Self;
-    fn mul(self, rhs: f32) -> Self::Output {
-        Self {
-            x: self.x * rhs,
-            y: self.y * rhs,
-        }
-    }
-}
 
 impl PtI {
     pub fn from_signed(p: (i32, i32)) -> RvResult<Self> {

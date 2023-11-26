@@ -15,7 +15,20 @@ fn lineseg_starting(idx: usize, vertices: &[PtF]) -> (PtF, PtF) {
 
 fn dist_lineseg_point(ls: &(PtF, PtF), p: PtF) -> f32 {
     let (p1, p2) = ls;
-    ((p2.x - p1.x) * (p1.y - p.y) - (p1.x - p.x) * (p2.y - p1.y)).abs() / p1.dist_square(p2).sqrt()
+    let p1 = *p1;
+    let p2 = *p2;
+    let d = (p1 - p2).len_square().sqrt();
+    let n = (p1 - p2) / d;
+    let proj = p1 + n * (p - p1).dot(&n);
+    if proj.x >= p1.x.min(p2.x)
+        && proj.x <= p1.x.max(p2.x)
+        && proj.y >= p1.y.min(p2.y)
+        && proj.y <= p1.y.max(p2.y)
+    {
+        (p - proj).len_square().sqrt()
+    } else {
+        (p - p1).len_square().min((p - p2).len_square()).sqrt()
+    }
 }
 
 fn intersect_y_axis_parallel(lineseg: &(PtF, PtF), x_value: f32) -> Option<PtF> {
@@ -284,7 +297,15 @@ fn test_poly_intersect() {
 fn test_min_dist() {
     let poly = Polygon::from_vec(vec![(5, 5).into(), (15, 15).into(), (5, 15).into()]).unwrap();
     let p = (5, 5).into();
-    assert!(poly.distance_to_boundary(p).abs() < 1e-8);
+    let d = poly.distance_to_boundary(p).abs();
+    assert!(d < 1e-8);
     let p = (0, 5).into();
-    assert!((5.0 - poly.distance_to_boundary(p).abs()) < 1e-8);
+    let d = poly.distance_to_boundary(p).abs();
+    assert!((5.0 - d).abs() < 1e-8);
+    let p = (10, 10).into();
+    let d = poly.distance_to_boundary(p).abs();
+    assert!(d.abs() < 1e-8);
+    let p = (10, 11).into();
+    let d = poly.distance_to_boundary(p).abs();
+    assert!((0.5f32.sqrt() - d).abs() < 1e-8);
 }
