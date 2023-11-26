@@ -154,8 +154,8 @@ impl BB {
         Self {
             x: x_min,
             y: y_min,
-            w: x_max - x_min,
-            h: y_max - y_min,
+            w: x_max - x_min + 1, // x_min and x_max are both contained in the bb
+            h: y_max - y_min + 1,
         }
     }
 

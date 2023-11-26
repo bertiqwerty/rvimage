@@ -1,6 +1,6 @@
 use image::GenericImage;
 use serde::{Deserialize, Serialize};
-use std::ops::{Mul, Div, Add, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 use crate::{result::RvResult, rverr};
 
@@ -65,8 +65,6 @@ where
         .unwrap()
 }
 
-
-
 pub trait IsSignedInt {}
 
 impl IsSignedInt for i32 {}
@@ -129,6 +127,18 @@ macro_rules! impl_point_into {
 pub struct Point<T> {
     pub x: T,
     pub y: T,
+}
+
+impl<T> Point<T>
+where
+    T: Calc + Copy,
+{
+    pub fn len_square(&self) -> T {
+        self.x * self.x + self.y * self.y
+    }
+    pub fn dist_square(&self, other: &Self) -> T {
+        <(T, T) as Into<Point<T>>>::into((self.x - other.x, self.y - other.y)).len_square()
+    }
 }
 
 impl<T> From<(T, T)> for Point<T>

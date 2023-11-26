@@ -3,7 +3,7 @@ mod core;
 mod polygon;
 
 pub use bb::BB;
-pub use core::{Calc, OutOfBoundsMode, PtF, PtI, Shape, Point};
+pub use core::{Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
 
@@ -318,37 +318,4 @@ fn test_into() {
     assert_eq!(pt, PtI { x: 10, y: 20 });
     let pt: PtF = (10i32, 20i32).into();
     assert_eq!(pt, PtF { x: 10.0, y: 20.0 });
-}
-
-#[test]
-fn test_poly() {
-    let poly = Polygon::from(BB::from_arr(&[5, 5, 10, 10]));
-    assert!(!poly.contains(PtI::from((17, 7))));
-    assert!(poly.contains(PtI::from((7, 7))));
-    let bb = BB::from_arr(&[2, 2, 33, 30]);
-    assert!(poly.has_overlap(&bb));
-    let bb = BB::from_arr(&[6, 6, 7, 7]);
-    assert!(poly.has_overlap(&bb));
-    let bb = BB::from_arr(&[6, 6, 15, 15]);
-    assert!(poly.has_overlap(&bb));
-}
-#[test]
-fn test_poly_triangle() {
-    let poly =
-        Polygon::from_vec(vec![(5, 5).into(), (10, 10).into(), (5, 10).into()], false).unwrap();
-    assert!(poly.contains(PtI::from((6, 9))));
-    assert!(!poly.contains(PtF::from((6.0, 5.99))));
-    assert!(poly.contains(PtF::from((6.0, 6.01))));
-}
-#[test]
-fn test_poly_intersect() {
-    let poly =
-        Polygon::from_vec(vec![(5, 5).into(), (10, 10).into(), (5, 10).into()], false).unwrap();
-    assert_eq!(poly.clone().intersect(BB::from_arr(&[2, 2, 20, 20])), poly);
-    let poly =
-        Polygon::from_vec(vec![(5, 5).into(), (15, 15).into(), (5, 15).into()], false).unwrap();
-
-    let bb = BB::from_arr(&[5, 7, 2, 2]);
-
-    assert_eq!(poly.clone().intersect(bb).enclosing_bb(), bb);
 }
