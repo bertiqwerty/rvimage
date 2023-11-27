@@ -73,8 +73,10 @@ pub(super) fn import_coco_if_triggered(
 
 pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecificData) {
     if bbox_data.options.is_export_triggered {
-        // TODO: don't crash just because export failed
-        tools_data::write_coco(meta_data, bbox_data.clone()).unwrap();
+        match tools_data::write_coco(meta_data, bbox_data.clone()) {
+            Ok(p) => println!("export to {p:?} successful"),
+            Err(e) => println!("export failed due to {e:?}"),
+        }
     }
 }
 
