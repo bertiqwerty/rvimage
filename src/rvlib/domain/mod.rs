@@ -65,6 +65,24 @@ impl GeoFig {
             Self::Poly(poly) => poly.enclosing_bb(),
         }
     }
+    pub fn follow_movement(
+        self,
+        from: PtF,
+        to: PtF,
+        shape: Shape,
+        oob_mode: OutOfBoundsMode,
+    ) -> Option<Self> {
+        let x_shift: i32 = (to.x - from.x) as i32;
+        let y_shift: i32 = (to.y - from.y) as i32;
+        self.translate(
+            Point {
+                x: x_shift,
+                y: y_shift,
+            },
+            shape,
+            oob_mode,
+        )
+    }
 }
 impl Default for GeoFig {
     fn default() -> Self {
