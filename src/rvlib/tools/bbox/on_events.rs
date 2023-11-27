@@ -182,7 +182,9 @@ pub(super) fn on_mouse_released_left(
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
-    let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
+    let options = get_tools_data(&world).specifics.bbox().options;
+    let split_mode = options.split_mode;
+    let are_annotations_visible = options.are_boxes_visible;
     let MouseReleaseParams {
         mut prev_pos,
         are_boxes_visible,
@@ -194,7 +196,13 @@ pub(super) fn on_mouse_released_left(
     if let Some(mp) = mouse_pos {
         prev_pos.last_valid_click = Some(mp);
     }
-    if is_ctrl_held || is_alt_held || is_shift_held {
+    if is_alt_held && !prev_pos.prev_pos.is_empty() {
+        // delete prev pos
+        prev_pos.prev_pos.pop();
+        if prev_pos.prev_pos.is_empty() {
+            world.request_redraw_annotations(BBOX_NAME, are_annotations_visible);
+        }
+    } else if is_ctrl_held || is_alt_held || is_shift_held {
         // selection
         let annos = get_annos_mut(&mut world);
         let idx = mouse_pos.and_then(|p| find_closest_boundary_idx(p, annos.geos()));
