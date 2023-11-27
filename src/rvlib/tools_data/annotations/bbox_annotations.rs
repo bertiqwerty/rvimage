@@ -1,5 +1,5 @@
 use crate::{
-    domain::{PtF, Shape, BB},
+    domain::{OutOfBoundsMode, PtF, Shape, BB},
     util::true_indices,
     GeoFig,
 };
@@ -8,6 +8,56 @@ use std::mem;
 
 use super::bbox_splitmode::SplitMode;
 
+fn shift(
+    mut geos: Vec<GeoFig>,
+    selected_geo: &[bool],
+    x_shift: i32,
+    y_shift: i32,
+    shape_orig: Shape,
+    mut shift_bbs: impl FnMut(i32, i32, &[bool], Vec<BB>, Shape) -> Vec<BB>,
+) -> Vec<GeoFig> {
+    // Bounding boxes have a split-functionality. Hence, they are treated separately.
+    let mut selected_bb_indices = vec![];
+    let mut selected_others_indices = vec![];
+    let mut bbs = vec![];
+    for (idx, (g, is_selected)) in geos.iter().zip(selected_geo.iter()).enumerate() {
+        match g {
+            GeoFig::BB(bb) => {
+                if *is_selected {
+                    selected_bb_indices.push(idx);
+                    bbs.push(*bb);
+                }
+            }
+            _ => {
+                if *is_selected {
+                    selected_others_indices.push(idx)
+                }
+            }
+        }
+    }
+    let selected_bbs = vec![true; bbs.len()];
+    let bbs = shift_bbs(
+        x_shift,
+        y_shift,
+        &selected_bbs,
+        mem::take(&mut bbs),
+        shape_orig,
+    );
+
+    for oth_idx in selected_others_indices {
+        if let Some(translated) = geos[oth_idx].clone().translate(
+            (x_shift, y_shift).into(),
+            shape_orig,
+            OutOfBoundsMode::Deny,
+        ) {
+            geos[oth_idx] = translated;
+        }
+    }
+    for (bb_idx, bb) in selected_bb_indices.iter().zip(bbs.iter()) {
+        geos[*bb_idx] = GeoFig::BB(*bb);
+    }
+    geos
+}
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BboxAnnotations {
     geos: Vec<GeoFig>,
@@ -95,8 +145,17 @@ impl BboxAnnotations {
     }
 
     pub fn shift(&mut self, x_shift: i32, y_shift: i32, shape_orig: Shape, split_mode: SplitMode) {
-        self.shift_min_bbs(x_shift, y_shift, shape_orig, split_mode);
-        self.shift_max_bbs(x_shift, y_shift, shape_orig, split_mode);
+        self.geos = shift(
+            mem::take(&mut self.geos),
+            self.selected_bbs(),
+            x_shift,
+            y_shift,
+            shape_orig,
+            |x_shift, y_shift, selected_bbs, bbs, shape_orig| {
+                let bbs = split_mode.shift_min_bbs(x_shift, y_shift, selected_bbs, bbs, shape_orig);
+                split_mode.shift_max_bbs(x_shift, y_shift, selected_bbs, bbs, shape_orig)
+            },
+        );
     }
     pub fn shift_min_bbs(
         &mut self,
@@ -105,28 +164,16 @@ impl BboxAnnotations {
         shape_orig: Shape,
         split_mode: SplitMode,
     ) {
-        let mut bbs = self
-            .geos
-            .iter()
-            .flat_map(|g| match g {
-                GeoFig::BB(bb) => Some(*bb),
-                _ => None,
-            })
-            .collect();
-        let bbs = split_mode.shift_min_bbs(
+        self.geos = shift(
+            mem::take(&mut self.geos),
+            self.selected_bbs(),
             x_shift,
             y_shift,
-            &self.selected_bbs,
-            mem::take(&mut bbs),
             shape_orig,
+            |x_shift, y_shift, selected_bbs, bbs, shape_orig| {
+                split_mode.shift_min_bbs(x_shift, y_shift, selected_bbs, bbs, shape_orig)
+            },
         );
-        let mut counter = 0;
-        for geo in self.geos.iter_mut() {
-            if let GeoFig::BB(_) = geo {
-                *geo = GeoFig::BB(bbs[counter]);
-                counter += 1;
-            }
-        }
     }
 
     pub fn shift_max_bbs(
@@ -136,28 +183,16 @@ impl BboxAnnotations {
         shape_orig: Shape,
         split_mode: SplitMode,
     ) {
-        let mut bbs = self
-            .geos
-            .iter()
-            .flat_map(|g| match g {
-                GeoFig::BB(bb) => Some(*bb),
-                _ => None,
-            })
-            .collect();
-        let bbs = split_mode.shift_max_bbs(
+        self.geos = shift(
+            mem::take(&mut self.geos),
+            self.selected_bbs(),
             x_shift,
             y_shift,
-            &self.selected_bbs,
-            mem::take(&mut bbs),
             shape_orig,
+            |x_shift, y_shift, selected_bbs, bbs, shape_orig| {
+                split_mode.shift_max_bbs(x_shift, y_shift, selected_bbs, bbs, shape_orig)
+            },
         );
-        let mut counter = 0;
-        for geo in self.geos.iter_mut() {
-            if let GeoFig::BB(_) = geo {
-                *geo = GeoFig::BB(bbs[counter]);
-                counter += 1;
-            }
-        }
     }
 
     pub fn add_geo(&mut self, geo: GeoFig, cat_idx: usize) {

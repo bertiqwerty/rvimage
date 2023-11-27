@@ -10,6 +10,7 @@ where
     Self: Sized,
 {
 }
+impl Calc for i32 {}
 impl Calc for u32 {}
 impl Calc for f32 {}
 
