@@ -196,7 +196,11 @@ pub(super) fn on_mouse_released_left(
     if let Some(mp) = mouse_pos {
         prev_pos.last_valid_click = Some(mp);
     }
-    if is_alt_held && !prev_pos.prev_pos.is_empty() {
+    if is_alt_held && is_shift_held && !prev_pos.prev_pos.is_empty() {
+        // delete the whole thing
+        prev_pos.prev_pos = vec![];
+        world.request_redraw_annotations(BBOX_NAME, are_annotations_visible);
+    } else if is_alt_held && !prev_pos.prev_pos.is_empty() {
         // delete prev pos
         prev_pos.prev_pos.pop();
         if prev_pos.prev_pos.is_empty() {
