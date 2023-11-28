@@ -8,6 +8,7 @@ fn main() {
     let git_hash = git_cmd(&["rev-parse", "HEAD"]).unwrap_or("".to_string());
     let git_tag = git_cmd(&["tag", "HEAD"]).unwrap_or("".to_string());
     let is_dirty = git_cmd(&["diff"]).map(|o| o.trim().len() > 0) == Some(true);
+
     println!("cargo:rustc-env=GIT_HASH={git_hash}");
     println!("cargo:rustc-env=GIT_TAG={git_tag}");
     println!("cargo:rustc-env=GIT_DIRTY={is_dirty}");
