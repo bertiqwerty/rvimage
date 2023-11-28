@@ -79,13 +79,13 @@ pub fn bbox_menu(
         data.options.fill_alpha = (transparency / 100.0 * 255.0).round() as u8;
         let mut transparency: f32 = data.options.outline_alpha as f32 / 255.0 * 100.0;
         if ui
-            .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("outline transparency"))
+            .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("outline"))
             .changed()
         {
             data.options.is_redraw_annos_triggered = true;
         }
         data.options.outline_alpha = (transparency / 100.0 * 255.0).round() as u8;
-
+        ui.separator();
         if ui
             .add(
                 egui::Slider::new(&mut data.options.outline_thickness, 0.0..=10.0)
