@@ -83,6 +83,21 @@ impl GeoFig {
             oob_mode,
         )
     }
+
+    pub fn points_normalized(&self, w: f32, h: f32) -> Vec<PtF> {
+        fn convert(iter: impl Iterator<Item = PtI>, w: f32, h: f32) -> Vec<PtF> {
+            iter.map(<PtI as Into<PtF>>::into)
+                .map(|p| Point {
+                    x: p.x / w,
+                    y: p.y / h,
+                })
+                .collect()
+        }
+        match self {
+            GeoFig::BB(bb) => convert(bb.points_iter(), w, h),
+            GeoFig::Poly(poly) => convert(poly.points_iter(), w, h),
+        }
+    }
 }
 impl Default for GeoFig {
     fn default() -> Self {

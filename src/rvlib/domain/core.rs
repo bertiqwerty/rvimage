@@ -1,8 +1,7 @@
+use crate::{result::RvResult, rverr};
 use image::GenericImage;
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Div, Mul, Sub};
-
-use crate::{result::RvResult, rverr};
 
 pub trait Calc:
     Mul<Output = Self> + Div<Output = Self> + Add<Output = Self> + Sub<Output = Self>
@@ -157,6 +156,18 @@ where
         }
     }
 }
+impl<T> Mul for Point<T>
+where
+    T: Calc + Copy,
+{
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        Point {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+        }
+    }
+}
 impl<T> Div<T> for Point<T>
 where
     T: Calc + Copy,
@@ -166,6 +177,18 @@ where
         Point {
             x: self.x / rhs,
             y: self.y / rhs,
+        }
+    }
+}
+impl<T> Div for Point<T>
+where
+    T: Calc + Copy,
+{
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self::Output {
+        Point {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
         }
     }
 }

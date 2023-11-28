@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fmt::Debug,
+    iter,
     path::{Path, PathBuf},
 };
 
@@ -8,10 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::{CocoFile, CocoFileConnection},
-    domain::{Shape, BB},
+    domain::{Point, Shape, BB},
     file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
-    rverr, ssh, GeoFig,
+    rverr, ssh, GeoFig, Polygon,
 };
 
 use super::{bbox_data::new_random_colors, BboxExportData, BboxSpecificData};
@@ -123,11 +124,17 @@ impl CocoExportData {
                     .zip(cat_idxs.iter())
                     .map(|(geo, cat_idx): (&GeoFig, &usize)| {
                         let bb = geo.enclosing_bb();
+
                         let (imw, imh) = if export_data.is_export_absolute {
                             (1.0, 1.0)
                         } else {
                             (shape.w as f32, shape.h as f32)
                         };
+                        let segmentation = geo.points_normalized(imw, imh);
+                        let segmentation = segmentation
+                            .iter()
+                            .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))
+                            .collect::<Vec<_>>();
                         let bb_f = [
                             bb.x as f32 / imw,
                             bb.y as f32 / imh,
@@ -140,16 +147,7 @@ impl CocoExportData {
                             image_id: image_idx as u32,
                             category_id: export_data.cat_ids[*cat_idx],
                             bbox: bb_f,
-                            segmentation: Some(vec![vec![
-                                bb_f[0] / imw,
-                                bb_f[1] / imh,
-                                (bb_f[0] + bb_f[2]) / imw,
-                                bb_f[1] / imh,
-                                (bb_f[0] + bb_f[2]) / imw,
-                                (bb_f[1] + bb_f[3]) / imh,
-                                bb_f[0] / imw,
-                                (bb_f[1] + bb_f[3]) / imh,
-                            ]]),
+                            segmentation: Some(vec![segmentation]),
                             area: Some((bb.h * bb.w) as f32),
                         }
                     })
@@ -170,7 +168,7 @@ impl CocoExportData {
         })
     }
 
-    fn to_bboxdata(self, coco_file: CocoFile) -> RvResult<BboxSpecificData> {
+    fn convert_to_bboxdata(self, coco_file: CocoFile) -> RvResult<BboxSpecificData> {
         let cat_ids: Vec<u32> = self.categories.iter().map(|coco_cat| coco_cat.id).collect();
         let labels: Vec<String> = self
             .categories
@@ -214,8 +212,54 @@ impl CocoExportData {
                 (w_factor * coco_anno.bbox[2]).round() as u32,
                 (h_factor * coco_anno.bbox[3]).round() as u32,
             ];
+            let bb = BB::from_arr(&bbox);
+            let geo = if let Some(segmentation) = coco_anno.segmentation {
+                if !segmentation.is_empty() {
+                    if segmentation.len() > 1 {
+                        println!("multiply polygons per box not supported. ignoring all but first.")
+                    }
+                    let n_points = segmentation[0].len();
+                    let coco_data = &segmentation[0];
+                    let poly = Polygon::from_vec(
+                        (0..n_points)
+                            .step_by(2)
+                            .map(|idx| Point {
+                                x: (coco_data[idx] * w_factor) as u32,
+                                y: (coco_data[idx + 1] * w_factor) as u32,
+                            })
+                            .collect(),
+                    );
+                    match poly {
+                        Ok(poly) => {
+                            let encl_bb = poly.enclosing_bb();
 
-            let bb = GeoFig::BB(BB::from_arr(&bbox));
+                            // check if the poly is just a bounding box
+                            if poly.points().len() == 4
+                                // all points are bb corners
+                                && poly.points_iter().all(|p| {
+                                    encl_bb.points_iter().any(|p_encl| p == p_encl)})
+                                // all points are different
+                                && poly
+                                    .points_iter()
+                                    .all(|p| poly.points_iter().filter(|p_| p == *p_).count() == 1)
+                            {
+                                GeoFig::BB(poly.enclosing_bb())
+                            } else {
+                                GeoFig::Poly(poly)
+                            }
+                        }
+                        Err(_) => {
+                            // polygon might be empty, we continue with the BB
+                            GeoFig::BB(bb)
+                        }
+                    }
+                } else {
+                    GeoFig::BB(bb)
+                }
+            } else {
+                GeoFig::BB(bb)
+            };
+
             let cat_idx = cat_ids
                 .iter()
                 .position(|cat_id| *cat_id == coco_anno.category_id)
@@ -232,10 +276,10 @@ impl CocoExportData {
                 file_name.to_string()
             };
             if let Some(annos_of_image) = annotations.get_mut(&k) {
-                annos_of_image.0.push(bb);
+                annos_of_image.0.push(geo);
                 annos_of_image.1.push(cat_idx);
             } else {
-                annotations.insert(k, (vec![bb], vec![cat_idx], Shape::new(w, h)));
+                annotations.insert(k, (vec![geo], vec![cat_idx], Shape::new(w, h)));
             }
         }
         BboxSpecificData::from_bbox_export_data(BboxExportData {
@@ -310,7 +354,7 @@ pub fn read_coco(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<BboxSpe
             let s = file_util::read_to_string(&coco_inpath)?;
             let read_data: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
             println!("imported coco file from {coco_inpath:?}");
-            read_data.to_bboxdata(coco_file.clone())
+            read_data.convert_to_bboxdata(coco_file.clone())
         }
         CocoFileConnection::Ssh => {
             if let Some(ssh_cfg) = &meta_data.ssh_cfg {
@@ -320,7 +364,7 @@ pub fn read_coco(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<BboxSpe
 
                 let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
                 println!("imported coco file from {coco_inpath:?}");
-                read.to_bboxdata(coco_file.clone())
+                read.convert_to_bboxdata(coco_file.clone())
             } else {
                 Err(rverr!("cannot read coco from ssh, ssh-cfg missing.",))
             }

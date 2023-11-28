@@ -307,7 +307,7 @@ impl RvImageApp {
                     }
                     GeoFig::Poly(poly) => {
                         let stroke = Stroke::new(
-                            outline_thickness * 3.0,
+                            outline_thickness,
                             rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
                         );
                         let poly = if let Some(zb) = self.zoom_box {
