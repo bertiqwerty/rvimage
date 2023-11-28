@@ -23,7 +23,7 @@ macro_rules! variant_access {
     };
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum ToolSpecifics {
     Bbox(BboxSpecificData),
@@ -55,7 +55,7 @@ impl ToolSpecifics {
                             fill_alpha: bb_data.options.fill_alpha,
                             label: Some(labels[*cat_idx].clone()),
                             outline: Stroke {
-                                thickness: 1.0,
+                                thickness: bb_data.options.outline_thickness,
                                 color: colors[*cat_idx],
                             },
                             outline_alpha: bb_data.options.outline_alpha,
@@ -80,7 +80,7 @@ impl Default for ToolSpecifics {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ToolsData {
     pub specifics: ToolSpecifics,
     pub menu_active: bool,

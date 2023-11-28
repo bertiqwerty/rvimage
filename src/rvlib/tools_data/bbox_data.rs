@@ -92,7 +92,7 @@ impl ClipboardData {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq)]
 pub struct Options {
     pub are_boxes_visible: bool,
     pub auto_paste: bool,
@@ -105,6 +105,7 @@ pub struct Options {
     pub export_absolute: bool,
     pub fill_alpha: u8,
     pub outline_alpha: u8,
+    pub outline_thickness: f32,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -120,10 +121,11 @@ impl Default for Options {
             export_absolute: false,
             fill_alpha: 30,
             outline_alpha: 255,
+            outline_thickness: 1.0,
         }
     }
 }
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct BboxSpecificData {
     pub new_label: String,
     labels: Vec<String>,

@@ -402,7 +402,10 @@ impl Manipulate for BBox {
                     label,
                     fill_color: Some(color),
                     fill_alpha: options.fill_alpha,
-                    outline: Stroke::from_color(color),
+                    outline: Stroke {
+                        color,
+                        thickness: options.outline_thickness,
+                    },
                     outline_alpha: options.outline_alpha,
                     is_selected: None,
                 };
