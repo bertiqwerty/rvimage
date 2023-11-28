@@ -167,7 +167,7 @@ impl<'a> Widget for About<'a> {
                             const GIT_DIRTY: &str = env!("GIT_DIRTY");
                             let is_dirty = GIT_DIRTY == "true";
                             ui.label(format!(
-                                "{}{}\n",
+                                "Git hash {}{}\n",
                                 &GIT_HASH[..8],
                                 if is_dirty { " DIRTY" } else { "" }
                             ));
