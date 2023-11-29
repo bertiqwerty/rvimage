@@ -1,7 +1,11 @@
 use std::process::Command;
 
 fn git_cmd(args: &[&str]) -> Option<String> {
-    Command::new("git").args(args).output().ok().map(|o|String::from_utf8(o.stdout).unwrap())
+    Command::new("git")
+        .args(args)
+        .output()
+        .ok()
+        .map(|o| String::from_utf8(o.stdout).unwrap())
 }
 
 fn main() {
