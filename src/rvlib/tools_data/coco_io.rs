@@ -224,8 +224,8 @@ impl CocoExportData {
                         (0..n_points)
                             .step_by(2)
                             .map(|idx| Point {
-                                x: (coco_data[idx] * w_factor) as u32,
-                                y: (coco_data[idx + 1] * w_factor) as u32,
+                                x: (coco_data[idx] * w_factor).round() as u32,
+                                y: (coco_data[idx + 1] * h_factor).round() as u32,
                             })
                             .collect(),
                     );
@@ -388,6 +388,7 @@ pub fn make_data(
     extension: &str,
     image_file: &Path,
     opened_folder: Option<&Path>,
+    export_absolute: bool,
 ) -> (BboxSpecificData, MetaData, PathBuf) {
     let opened_folder = if let Some(of) = opened_folder {
         of.to_str().unwrap().to_string()
@@ -417,6 +418,7 @@ pub fn make_data(
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
     meta.connection_data = ConnectionData::Ssh(SshCfg::default());
     let mut bbox_data = BboxSpecificData::new();
+    bbox_data.options.export_absolute = export_absolute;
     bbox_data.coco_file = CocoFile::default();
     bbox_data.push("x".to_string(), None, None).unwrap();
     bbox_data.remove_catidx(0);
@@ -439,8 +441,8 @@ pub fn make_data(
 
 #[test]
 fn test_coco_export() -> RvResult<()> {
-    fn test(file_path: &Path, opened_folder: Option<&Path>) -> RvResult<()> {
-        let (bbox_data, meta, _) = make_data("json", &file_path, opened_folder);
+    fn test(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) -> RvResult<()> {
+        let (bbox_data, meta, _) = make_data("json", &file_path, opened_folder, export_absolute);
         let coco_file = write_coco(&meta, bbox_data.clone())?;
         defer_file_removal!(&coco_file);
         let read = read_coco(
@@ -463,10 +465,10 @@ fn test_coco_export() -> RvResult<()> {
         // fs::create_dir_all(&tmpdir).unwrap();
     }
     let file_path = tmpdir.join("test_image.png");
-    test(&file_path, None)?;
+    test(&file_path, None, true)?;
     let folder = Path::new("http://localhost:8000/some_path");
     let file = Path::new("http://localhost:8000/some_path/xyz.png");
-    test(file, Some(folder))?;
+    test(file, Some(folder), false)?;
     Ok(())
 }
 
