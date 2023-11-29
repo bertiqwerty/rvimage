@@ -161,15 +161,15 @@ impl<'a> Widget for About<'a> {
                         const GIT_HASH: &str = env!("GIT_HASH");
                         const GIT_TAG: &str = env!("GIT_TAG");
                         ui.label("RV Image\n");
-                        if GIT_HASH.len() == 0 || GIT_TAG.len() > 0 {
-                            ui.label(format!("Version {VERSION}"));
-                        } else {
+                        ui.label(format!("Version {VERSION}"));
+                        if !GIT_HASH.is_empty() {
                             const GIT_DIRTY: &str = env!("GIT_DIRTY");
                             let is_dirty = GIT_DIRTY == "true";
                             ui.label(format!(
-                                "Git hash {}{}\n",
+                                "{}{} {}\n",
                                 &GIT_HASH[..8],
-                                if is_dirty { " DIRTY" } else { "" }
+                                if is_dirty { " DIRTY" } else { "" },
+                                GIT_TAG
                             ));
                         }
                         ui.hyperlink_to("license and code", CODE);
