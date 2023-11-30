@@ -3,7 +3,7 @@
 [![dependency status](https://deps.rs/repo/github/bertiqwerty/rvimage/status.svg)](https://deps.rs/repo/github/bertiqwerty/rvimage)
 
 # RV Image
-RV Image is a **r**emote **v**iewer for **image**s written in Rust. You can view images, e.g., on remote SSH servers or Azure blob storages. Further, RV Image comes with a simple bounding box labeling tool supporting import and export of the [Coco-format](https://cocodataset.org/#home). So far only tested on Windows 10 and Mac OS. RV Image is mainly based on [`egui`](https://crates.io/crates/egui) and [`image`](https://crates.io/crates/image).
+RV Image is a **r**emote **v**iewer for **image**s written in Rust. You can view images, e.g., on remote SSH servers or Azure blob storages. Further, RV Image comes with a simple bounding box labeling tool supporting import and export of the [Coco-format](https://cocodataset.org/#home). So far tested on Windows 10, WSL, and Mac OS. RV Image is mainly based on [`egui`](https://crates.io/crates/egui) and [`image`](https://crates.io/crates/image).
 
 ![rvimage_screen](https://github.com/bertiqwerty/rvimage/assets/50267830/0a03cf5b-3515-4550-b701-9f62a53447ee)
 
@@ -15,6 +15,7 @@ you can
 ```
 cargo install rvimage
 ```
+to install the latest stable release.
 
 ## Connect to remote
 
@@ -92,9 +93,9 @@ For an import to work, the folder that contains the images needs to be opened be
 | right click (`main`) or second left click (Release `0.2.1` and earlier, no polygons available) | finish drawing box or polygon                                                            |
 | <kbd>Alt</kbd> + left click during box/polygon drawing                                         | delete last vertex added                                                                 |
 | left click on corner of box                                                                    | start drawing mode and move vertex                                                       |
-| hold right button                                                                              | move selected boxes                                                                      |
 | <kbd>Ctrl</kbd> + left click on box                                                            | select box                                                                               |
 | <kbd>Alt</kbd> + left click on box                                                             | select box and deselect others and switch to currently selected label                    |
+| hold right button                                                                              | move selected boxes                                                                      |
 | <kbd>Shift</kbd> + left click on box                                                           | select all boxes with overlap with the maximal span of this box and other selected boxes |
 | <kbd>Ctrl</kbd> + <kbd>A</kbd>                                                                 | select all boxes                                                                         |
 | <kbd>Delete</kbd>                                                                              | remove selected boxes                                                                    |
