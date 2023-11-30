@@ -25,7 +25,6 @@ fn resize_bbs_by_key(
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-
     resize_bbs_inds(bbs, opposite_shiftees.into_iter(), resize)
 }
 #[derive(Deserialize, Serialize, Default, Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,14 +56,14 @@ impl SplitMode {
                 bbs,
                 selected_bbs,
                 |bb| bb.y,
-                |bb| bb.y_max(),
+                |bb| bb.y_max() + 1,
                 |bb| bb.shift_max(x_shift, y_shift, shape_orig),
             ),
             SplitMode::Vertical => resize_bbs_by_key(
                 bbs,
                 selected_bbs,
                 |bb| bb.x,
-                |bb| bb.x_max(),
+                |bb| bb.x_max() + 1,
                 |bb| bb.shift_max(x_shift, y_shift, shape_orig),
             ),
             SplitMode::None => bbs,
@@ -87,14 +86,14 @@ impl SplitMode {
             SplitMode::Horizontal => resize_bbs_by_key(
                 bbs,
                 selected_bbs,
-                |bb| bb.y_max(),
+                |bb| bb.y_max() + 1,
                 |bb| bb.y,
                 |bb| bb.shift_min(x_shift, y_shift, shape_orig),
             ),
             SplitMode::Vertical => resize_bbs_by_key(
                 bbs,
                 selected_bbs,
-                |bb| bb.x_max(),
+                |bb| bb.x_max() + 1,
                 |bb| bb.x,
                 |bb| bb.shift_min(x_shift, y_shift, shape_orig),
             ),
@@ -177,6 +176,58 @@ impl SplitMode {
                 (has_moved, GeoFig::BB(bb))
             }
             _ => (false, geo),
+        }
+    }
+}
+
+#[test]
+fn test() {
+    let bbs = vec![
+        BB::from_arr(&[0, 0, 10, 10]),
+        BB::from_arr(&[0, 10, 10, 10]),
+        BB::from_arr(&[0, 20, 10, 10]),
+        BB::from_arr(&[0, 30, 10, 10]),
+        BB::from_arr(&[0, 40, 10, 10]),
+        BB::from_arr(&[0, 50, 10, 10]),
+        BB::from_arr(&[0, 60, 10, 10]),
+        BB::from_arr(&[0, 70, 10, 10]),
+        BB::from_arr(&[0, 80, 10, 10]),
+        BB::from_arr(&[0, 90, 10, 10]),
+    ];
+    let trues = vec![3];
+    let mut selected_bbs = vec![false; bbs.len()];
+    for t in trues {
+        selected_bbs[t] = true;
+    }
+    let split_mode = SplitMode::Horizontal;
+    let shape_orig = Shape::new(100, 100);
+    let bbs_min_shifted = split_mode.shift_min_bbs(0, 1, &selected_bbs, bbs.clone(), shape_orig);
+    let bbs_max_shifted = split_mode.shift_max_bbs(0, 1, &selected_bbs, bbs.clone(), shape_orig);
+    for (i, (bb_mins, (bb, bb_maxs))) in (bbs_min_shifted
+        .iter()
+        .zip(bbs.iter().zip(bbs_max_shifted.iter())))
+    .enumerate()
+    {
+        if selected_bbs[i] {
+            assert_eq!(bb_maxs.y, bb.y);
+            assert_eq!(bb_maxs.y_max(), bb.y_max() + 1);
+            assert_eq!(bb_mins.y, bb.y + 1);
+            assert_eq!(bb_mins.y_max(), bb.y_max());
+        } else if i < selected_bbs.len() - 1 && selected_bbs[i + 1] {
+            assert_eq!(bb_maxs.y, bb.y);
+            assert_eq!(bb_maxs.y_max(), bb.y_max());
+            assert_eq!(bb_mins.y, bb.y);
+            assert_eq!(bb_mins.y_max(), bb.y_max() + 1);
+        } else if i > 0 && selected_bbs[i - 1] {
+            assert_eq!(bb_mins.y, bb.y);
+            assert_eq!(bb_mins.y_max(), bb.y_max());
+            assert_eq!(bb_maxs.y, bb.y + 1);
+            assert_eq!(bb_maxs.y_max(), bb.y_max());
+        } else {
+            assert_eq!(bb_maxs.y, bb.y);
+            assert_eq!(bb_maxs.y_max(), bb.y_max());
+            assert_eq!(bb_mins.y, bb.y);
+            assert_eq!(bb_mins.y_max(), bb.y_max());
         }
     }
 }

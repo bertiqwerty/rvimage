@@ -17,16 +17,16 @@ fn shift(
     mut shift_bbs: impl FnMut(i32, i32, &[bool], Vec<BB>, Shape) -> Vec<BB>,
 ) -> Vec<GeoFig> {
     // Bounding boxes have a split-functionality. Hence, they are treated separately.
-    let mut selected_bb_indices = vec![];
+    let mut bb_indices = vec![];
     let mut selected_others_indices = vec![];
+    let mut selected_bbs = vec![];
     let mut bbs = vec![];
     for (idx, (g, is_selected)) in geos.iter().zip(selected_geo.iter()).enumerate() {
         match g {
             GeoFig::BB(bb) => {
-                if *is_selected {
-                    selected_bb_indices.push(idx);
-                    bbs.push(*bb);
-                }
+                bb_indices.push(idx);
+                bbs.push(*bb);
+                selected_bbs.push(*is_selected);
             }
             _ => {
                 if *is_selected {
@@ -35,7 +35,6 @@ fn shift(
             }
         }
     }
-    let selected_bbs = vec![true; bbs.len()];
     let bbs = shift_bbs(
         x_shift,
         y_shift,
@@ -53,7 +52,7 @@ fn shift(
             geos[oth_idx] = translated;
         }
     }
-    for (bb_idx, bb) in selected_bb_indices.iter().zip(bbs.iter()) {
+    for (bb_idx, bb) in bb_indices.iter().zip(bbs.iter()) {
         geos[*bb_idx] = GeoFig::BB(*bb);
     }
     geos
