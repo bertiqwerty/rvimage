@@ -159,17 +159,15 @@ impl<'a> Widget for About<'a> {
                         const VERSION: &str = env!("CARGO_PKG_VERSION");
                         const CODE: &str = env!("CARGO_PKG_REPOSITORY");
                         const GIT_HASH: &str = env!("GIT_HASH");
-                        const GIT_TAG: &str = env!("GIT_TAG");
                         ui.label("RV Image\n");
                         ui.label(format!("Version {VERSION}"));
                         if !GIT_HASH.is_empty() {
                             const GIT_DIRTY: &str = env!("GIT_DIRTY");
                             let is_dirty = GIT_DIRTY == "true";
                             ui.label(format!(
-                                "{}{} {}\n",
+                                "{}{}\n",
                                 &GIT_HASH[..8],
-                                if is_dirty { " DIRTY" } else { "" },
-                                GIT_TAG
+                                if is_dirty { " DIRTY" } else { "" }
                             ));
                         }
                         ui.hyperlink_to("license and code", CODE);
