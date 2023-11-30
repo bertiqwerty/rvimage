@@ -7,7 +7,10 @@ use crate::{
     cfg::{self, get_cfg, CocoFileConnection},
     file_util::path_to_str,
     result::{to_rv, RvResult},
-    tools_data::{bbox_data::BboxSpecificData, ToolSpecifics, ToolsData},
+    tools_data::{
+        bbox_data::{BboxSpecificData, OUTLINE_THICKNESS_CONVERSION},
+        ToolSpecifics, ToolsData,
+    },
 };
 
 pub fn bbox_menu(
@@ -85,16 +88,17 @@ pub fn bbox_menu(
             data.options.is_redraw_annos_triggered = true;
         }
         data.options.outline_alpha = (transparency / 100.0 * 255.0).round() as u8;
+        let mut outline_thickness_f =
+            data.options.outline_thickness as f32 / OUTLINE_THICKNESS_CONVERSION;
         ui.separator();
         if ui
-            .add(
-                egui::Slider::new(&mut data.options.outline_thickness, 0.0..=10.0)
-                    .text("outline thickness"),
-            )
+            .add(egui::Slider::new(&mut outline_thickness_f, 0.0..=10.0).text("outline thickness"))
             .changed()
         {
             data.options.is_redraw_annos_triggered = true;
         }
+        data.options.outline_thickness =
+            (outline_thickness_f * OUTLINE_THICKNESS_CONVERSION).round() as u16;
 
         ui.horizontal(|ui| {
             ui.separator();

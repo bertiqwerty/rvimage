@@ -3,6 +3,7 @@ use crate::{
     UpdateAnnos,
 };
 
+use self::bbox_data::OUTLINE_THICKNESS_CONVERSION;
 pub use self::{
     bbox_data::BboxExportData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
     coco_io::write_coco,
@@ -55,7 +56,8 @@ impl ToolSpecifics {
                             fill_alpha: bb_data.options.fill_alpha,
                             label: Some(labels[*cat_idx].clone()),
                             outline: Stroke {
-                                thickness: bb_data.options.outline_thickness,
+                                thickness: bb_data.options.outline_thickness as f32
+                                    / OUTLINE_THICKNESS_CONVERSION,
                                 color: colors[*cat_idx],
                             },
                             outline_alpha: bb_data.options.outline_alpha,

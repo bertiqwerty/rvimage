@@ -45,7 +45,10 @@ mod detail {
         let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
 
         let tools_data_map = if let Some(bbox_data) = read.bbox_data {
-            let bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
+            let mut bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
+            if let Some(options) = read.bbox_options {
+                bbox_data.options = options;
+            }
             ToolsDataMap::from([(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)))])
         } else {
             ToolsDataMap::new()
@@ -66,6 +69,9 @@ mod detail {
             bbox_data: bbox_data.map(|bbox_data| {
                 BboxExportData::from_bbox_data(bbox_data.specifics.bbox().clone())
             }),
+            bbox_options: tools_data_map
+                .get(BBOX_NAME)
+                .map(|bbox_data| bbox_data.specifics.bbox().options),
             cfg: cfg.clone(),
         };
         let prj_name = if "default" != &cfg.current_prj_name {

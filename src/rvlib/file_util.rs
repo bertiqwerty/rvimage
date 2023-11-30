@@ -10,6 +10,7 @@ use crate::cfg::AzureBlobCfg;
 use crate::{
     cfg::{Cfg, PyHttpReaderCfg, SshCfg},
     rverr,
+    tools_data::bbox_data,
 };
 use crate::{
     result::{to_rv, RvResult},
@@ -118,6 +119,10 @@ pub fn make_prjcfg_filename(prj_name: &str) -> String {
     }
 }
 pub fn make_prjcfg_path(export_folder: &Path, prj_name: &str) -> PathBuf {
+    let prj_name = match get_last_part_of_path(prj_name) {
+        Some(prj_name_) => prj_name_.last_folder,
+        None => prj_name,
+    };
     Path::new(export_folder).join(make_prjcfg_filename(prj_name))
 }
 pub fn filename_to_prjname(filename: &str) -> RvResult<&str> {
@@ -139,6 +144,7 @@ pub fn filename_to_prjname(filename: &str) -> RvResult<&str> {
 pub struct ExportData {
     pub opened_folder: Option<String>,
     pub bbox_data: Option<BboxExportData>,
+    pub bbox_options: Option<bbox_data::Options>,
     pub cfg: Cfg,
 }
 

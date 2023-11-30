@@ -92,7 +92,9 @@ impl ClipboardData {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq)]
+pub const OUTLINE_THICKNESS_CONVERSION: f32 = 10.0;
+
+#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
     pub are_boxes_visible: bool,
     pub auto_paste: bool,
@@ -105,7 +107,7 @@ pub struct Options {
     pub export_absolute: bool,
     pub fill_alpha: u8,
     pub outline_alpha: u8,
-    pub outline_thickness: f32,
+    pub outline_thickness: u16,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -121,7 +123,7 @@ impl Default for Options {
             export_absolute: false,
             fill_alpha: 30,
             outline_alpha: 255,
-            outline_thickness: 1.0,
+            outline_thickness: OUTLINE_THICKNESS_CONVERSION as u16,
         }
     }
 }

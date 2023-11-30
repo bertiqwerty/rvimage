@@ -247,8 +247,13 @@ impl Menu {
         self.info_message = msg;
     }
 
-    /// Create the UI using egui.
-    pub fn ui(&mut self, ctx: &Context, ctrl: &mut Control, tools_data_map: &mut ToolsDataMap) {
+    /// Returns true if a project was loaded
+    pub fn ui(
+        &mut self,
+        ctx: &Context,
+        ctrl: &mut Control,
+        tools_data_map: &mut ToolsDataMap,
+    ) -> bool {
         egui::TopBottomPanel::top("top-menu-bar").show(ctx, |ui| {
             // Top row with open folder and settings button
             egui::menu::bar(ui, |ui| {
@@ -273,7 +278,7 @@ impl Menu {
                 ui.add(About::new(about_popup_id, &mut self.show_about));
             });
         });
-
+        let mut projected_loaded = false;
         egui::SidePanel::left("left-main-menu").show(ctx, |ui| {
             if let Ok(folder) = ctrl.cfg.export_folder() {
                 if let Some(load_btn_resp) = &self.load_button_resp.resp {
@@ -308,6 +313,7 @@ impl Menu {
                             handle_error!(
                                 |tdm| {
                                     *tools_data_map = tdm;
+                                    projected_loaded = true;
                                 },
                                 ctrl.load(&filename),
                                 self
@@ -447,6 +453,7 @@ impl Menu {
                 self.stats.n_files_annotated_info = None;
             }
         });
+        projected_loaded
     }
 }
 

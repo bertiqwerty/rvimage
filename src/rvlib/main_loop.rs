@@ -157,8 +157,15 @@ impl Default for MainEventLoop {
 }
 impl MainEventLoop {
     pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
-        self.menu
+        let project_loaded = self
+            .menu
             .ui(ctx, &mut self.ctrl, &mut self.world.data.tools_data_map);
+        if project_loaded {
+            for t in &mut self.tools {
+                (self.world, self.history) =
+                    t.deactivate(mem::take(&mut self.world), mem::take(&mut self.history));
+            }
+        }
         egui::SidePanel::right("my_panel")
             .show(ctx, |ui| {
                 ui.vertical(|ui| {

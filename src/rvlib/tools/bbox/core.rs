@@ -334,7 +334,9 @@ impl Manipulate for BBox {
 
     fn on_deactivate(&mut self, mut world: World, history: History) -> (World, History) {
         self.prev_pos = PrevPos::default();
-        get_tools_data_mut(&mut world).menu_active = false;
+        if let Some(td) = world.data.tools_data_map.get_mut(BBOX_NAME) {
+            td.menu_active = false;
+        }
         let are_boxes_visible = false;
         world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         (world, history)
@@ -404,7 +406,7 @@ impl Manipulate for BBox {
                     fill_alpha: options.fill_alpha,
                     outline: Stroke {
                         color,
-                        thickness: options.outline_thickness,
+                        thickness: options.outline_thickness as f32 / 4.0,
                     },
                     outline_alpha: options.outline_alpha,
                     is_selected: None,
