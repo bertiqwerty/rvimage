@@ -1,7 +1,10 @@
 use std::{
+    collections::hash_map::DefaultHasher,
     ffi::OsStr,
     fmt::Debug,
-    fs, io,
+    fs,
+    hash::{Hash, Hasher},
+    io,
     path::{Path, PathBuf},
 };
 
@@ -30,6 +33,12 @@ lazy_static! {
     };
 }
 
+fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
+
 pub const RVPRJ_PREFIX: &str = "rvprj_";
 
 pub fn read_to_string<P>(p: P) -> RvResult<String>
@@ -41,10 +50,14 @@ where
 pub trait PixelEffect: FnMut(u32, u32) {}
 impl<T: FnMut(u32, u32)> PixelEffect for T {}
 pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
+    let path_hash = calculate_hash(&path);
     let path = PathBuf::from_str(path).unwrap();
-    let fname = osstr_to_str(path.file_name()).map_err(to_rv)?;
+    let fname = format!(
+        "{path_hash}_{}",
+        osstr_to_str(path.file_name()).map_err(to_rv)?
+    );
     Path::new(tmpdir)
-        .join(fname)
+        .join(&fname)
         .to_str()
         .map(|s| s.to_string())
         .ok_or_else(|| rverr!("could not transform {:?} to &str", fname))
