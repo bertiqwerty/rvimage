@@ -433,8 +433,10 @@ pub fn make_data(
 
     let annos =
         bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), Shape::new(10, 10));
-    for bb in bbs {
-        annos.add_bb(bb, 0);
+    if let Some(a) = annos {
+        for bb in bbs {
+            a.add_bb(bb, 0);
+        }
     }
     (bbox_data, meta, test_export_path)
 }

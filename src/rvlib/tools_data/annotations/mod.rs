@@ -10,13 +10,18 @@ mod core;
 #[macro_export]
 macro_rules! implement_annotations_getters {
     ($tool_data_type:ident) => {
-        pub fn get_annos_mut(&mut self, file_path: &str, shape: Shape) -> &mut $tool_data_type {
+        pub fn get_annos_mut(
+            &mut self,
+            file_path: &str,
+            shape: Shape,
+        ) -> Option<&mut $tool_data_type> {
             if !self.annotations_map.contains_key(file_path) {
                 self.annotations_map
                     .insert(file_path.to_string(), ($tool_data_type::default(), shape));
             }
-            let (annos, _) = self.annotations_map.get_mut(file_path).unwrap();
-            annos
+            self.annotations_map
+                .get_mut(file_path)
+                .map(|(annos, _)| annos)
         }
         pub fn get_annos(&self, file_path: &str) -> Option<&$tool_data_type> {
             let annos = self.annotations_map.get(file_path);

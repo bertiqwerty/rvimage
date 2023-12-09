@@ -483,8 +483,10 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
 
     let annos =
         bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), Shape::new(10, 10));
-    for bb in bbs {
-        annos.add_bb(bb, 0);
+    if let Some(a) = annos {
+        for bb in bbs {
+            a.add_bb(bb, 0);
+        }
     }
     let tools_data_map =
         HashMap::from([(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)))]);

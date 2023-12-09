@@ -27,15 +27,19 @@ macro_rules! tools_data_initializer {
 macro_rules! annotations_accessor {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
         pub(super) fn get_annos(world: &World) -> Option<&$annotations_type> {
-            let current_file_path = world.data.meta_data.file_path.as_ref().unwrap();
-            world
-                .data
-                .tools_data_map
-                .get($actor)
-                .expect($error_msg)
-                .specifics
-                .$access_func()
-                .get_annos(&current_file_path)
+            if let Some(current_file_path) = world.data.meta_data.file_path.as_ref() {
+                let res = world
+                    .data
+                    .tools_data_map
+                    .get($actor)
+                    .and_then(|x| x.specifics.$access_func().get_annos(&current_file_path));
+                if res.is_none() {
+                    println!("{}", $error_msg);
+                }
+                res
+            } else {
+                None
+            }
         }
     };
 }
@@ -43,18 +47,20 @@ macro_rules! annotations_accessor {
 macro_rules! annotations_accessor_mut {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
         pub(super) fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
-            let current_file_path = world.data.meta_data.file_path.as_ref().unwrap();
-            let shape = world.data.shape();
-            match world.data.tools_data_map.get_mut($actor) {
-                Some(x) => Some(
+            if let Some(current_file_path) = world.data.meta_data.file_path.as_ref() {
+                let shape = world.data.shape();
+                let res = world.data.tools_data_map.get_mut($actor).and_then(|x| {
                     x.specifics
                         .$access_func()
-                        .get_annos_mut(&current_file_path, shape),
-                ),
-                None => {
+                        .get_annos_mut(&current_file_path, shape)
+                });
+                if res.is_none() {
                     println!("{}", $error_msg);
-                    None
                 }
+                res
+            } else {
+                println!("could not filepath in meta data");
+                None
             }
         }
     };
