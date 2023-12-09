@@ -7,7 +7,7 @@ use crate::result::RvResult;
 use crate::types::AsyncResultImage;
 
 pub const SUPPORTED_EXTENSIONS: [&str; 10] = [
-    ".PNG", ".png", ".JPG", ".jpg", ".JPEG", ".jpeg", ".TIF", ".tif", ".TIFF",".tiff",
+    ".PNG", ".png", ".JPG", ".jpg", ".JPEG", ".jpeg", ".TIF", ".tif", ".TIFF", ".tiff",
 ];
 
 #[derive(Clone)]
