@@ -49,18 +49,23 @@ pub(super) fn get_cfg() -> (Cfg, Info) {
 }
 // evaluates an expression that is expected to return Result,
 // passes unpacked value to effect function in case of Ok,
-// sets according error message in case of Err
+// sets according error message in case of Err.
+// Closure $f_err_cleanup will be called in case of an error.
 macro_rules! handle_error {
-    ($effect:expr, $result:expr, $self:expr) => {
+    ($f_effect:expr, $f_err_cleanup:expr, $result:expr, $self:expr) => {
         match $result {
             Ok(r) => {
                 #[allow(clippy::redundant_closure_call)]
-                $effect(r);
+                $f_effect(r);
             }
             Err(e) => {
+                $f_err_cleanup();
                 $self.info_message = Info::Error(e.to_string());
             }
         }
+    };
+    ($effect:expr, $result:expr, $self:expr) => {
+        handle_error!($effect, || (), $result, $self)
     };
     ($result:expr, $self:expr) => {
         handle_error!(|_| {}, $result, $self);
@@ -306,7 +311,15 @@ impl Menu {
                             }
                             Ok(())
                         };
-                        handle_error!(exports(), self);
+                        handle_error!(
+                            |_| {},
+                            || {
+                                self.load_button_resp.resp = None;
+                                self.load_button_resp.popup_open = false;
+                            },
+                            exports(),
+                            self
+                        );
                         if let Some(filename) = filename_for_import {
                             handle_error!(
                                 |tdm| {

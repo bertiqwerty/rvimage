@@ -159,7 +159,7 @@ impl Cfg {
         match ef {
             None => DEFAULT_HOMEDIR
                 .to_str()
-                .ok_or_else(|| RvError::new("could not get tmpdir")),
+                .ok_or_else(|| RvError::new("could not get homedir")),
             Some(ef) => Ok(ef),
         }
     }

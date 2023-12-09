@@ -204,8 +204,9 @@ pub fn files_in_folder<'a>(
     folder: &'a str,
     prefix: &'a str,
     extension: &'a str,
-) -> io::Result<impl Iterator<Item = PathBuf> + 'a> {
-    Ok(fs::read_dir(folder)?
+) -> RvResult<impl Iterator<Item = PathBuf> + 'a> {
+    Ok(fs::read_dir(folder)
+        .map_err(|e| rverr!("could not open folder {} due to {}", folder, e))?
         .flatten()
         .map(|de| de.path())
         .filter(|p| {
