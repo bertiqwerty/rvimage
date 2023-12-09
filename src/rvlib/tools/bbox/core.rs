@@ -48,11 +48,13 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
         let cb_bbs = clipboard.geos();
         if !cb_bbs.is_empty() {
             let shape_orig = Shape::from_im(world.data.im_background());
-            get_annos_mut(&mut world).extend(
-                cb_bbs.iter().cloned(),
-                clipboard.cat_idxs().iter().copied(),
-                shape_orig,
-            );
+            get_annos_mut(&mut world).map(|a| {
+                a.extend(
+                    cb_bbs.iter().cloned(),
+                    clipboard.cat_idxs().iter().copied(),
+                    shape_orig,
+                )
+            });
             get_tools_data_mut(&mut world)
                 .specifics
                 .bbox_mut()
@@ -268,30 +270,32 @@ impl BBox {
         let shape_orig = world.data.shape();
         let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let annos = get_annos_mut(&mut world);
-        if events.held(KeyCode::Up) && events.held_ctrl() {
-            annos.shift_min_bbs(0, -1, shape_orig, split_mode);
-        } else if events.held(KeyCode::Down) && events.held_ctrl() {
-            annos.shift_min_bbs(0, 1, shape_orig, split_mode);
-        } else if events.held(KeyCode::Right) && events.held_ctrl() {
-            annos.shift_min_bbs(1, 0, shape_orig, split_mode);
-        } else if events.held(KeyCode::Left) && events.held_ctrl() {
-            annos.shift_min_bbs(-1, 0, shape_orig, split_mode);
-        } else if events.held(KeyCode::Up) && events.held_alt() {
-            annos.shift(0, -1, shape_orig, split_mode);
-        } else if events.held(KeyCode::Down) && events.held_alt() {
-            annos.shift(0, 1, shape_orig, split_mode);
-        } else if events.held(KeyCode::Right) && events.held_alt() {
-            annos.shift(1, 0, shape_orig, split_mode);
-        } else if events.held(KeyCode::Left) && events.held_alt() {
-            annos.shift(-1, 0, shape_orig, split_mode);
-        } else if events.held(KeyCode::Up) {
-            annos.shift_max_bbs(0, -1, shape_orig, split_mode);
-        } else if events.held(KeyCode::Down) {
-            annos.shift_max_bbs(0, 1, shape_orig, split_mode);
-        } else if events.held(KeyCode::Right) {
-            annos.shift_max_bbs(1, 0, shape_orig, split_mode);
-        } else if events.held(KeyCode::Left) {
-            annos.shift_max_bbs(-1, 0, shape_orig, split_mode);
+        if let Some(annos) = annos {
+            if events.held(KeyCode::Up) && events.held_ctrl() {
+                annos.shift_min_bbs(0, -1, shape_orig, split_mode);
+            } else if events.held(KeyCode::Down) && events.held_ctrl() {
+                annos.shift_min_bbs(0, 1, shape_orig, split_mode);
+            } else if events.held(KeyCode::Right) && events.held_ctrl() {
+                annos.shift_min_bbs(1, 0, shape_orig, split_mode);
+            } else if events.held(KeyCode::Left) && events.held_ctrl() {
+                annos.shift_min_bbs(-1, 0, shape_orig, split_mode);
+            } else if events.held(KeyCode::Up) && events.held_alt() {
+                annos.shift(0, -1, shape_orig, split_mode);
+            } else if events.held(KeyCode::Down) && events.held_alt() {
+                annos.shift(0, 1, shape_orig, split_mode);
+            } else if events.held(KeyCode::Right) && events.held_alt() {
+                annos.shift(1, 0, shape_orig, split_mode);
+            } else if events.held(KeyCode::Left) && events.held_alt() {
+                annos.shift(-1, 0, shape_orig, split_mode);
+            } else if events.held(KeyCode::Up) {
+                annos.shift_max_bbs(0, -1, shape_orig, split_mode);
+            } else if events.held(KeyCode::Down) {
+                annos.shift_max_bbs(0, 1, shape_orig, split_mode);
+            } else if events.held(KeyCode::Right) {
+                annos.shift_max_bbs(1, 0, shape_orig, split_mode);
+            } else if events.held(KeyCode::Left) {
+                annos.shift_max_bbs(-1, 0, shape_orig, split_mode);
+            }
         }
         world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         (world, history)

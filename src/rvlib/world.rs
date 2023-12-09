@@ -42,17 +42,18 @@ macro_rules! annotations_accessor {
 #[macro_export]
 macro_rules! annotations_accessor_mut {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
-        pub(super) fn get_annos_mut(world: &mut World) -> &mut $annotations_type {
+        pub(super) fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
             let current_file_path = world.data.meta_data.file_path.as_ref().unwrap();
             let shape = world.data.shape();
-            world
-                .data
-                .tools_data_map
-                .get_mut($actor)
-                .expect($error_msg)
-                .specifics
-                .$access_func()
-                .get_annos_mut(&current_file_path, shape)
+            match world.data.tools_data_map.get_mut($actor) {
+                Some(x) => Some(x.specifics
+                    .$access_func()
+                    .get_annos_mut(&current_file_path, shape)),
+                None => {
+                    println!("{}", $error_msg);
+                    None
+                }
+            }
         }
     };
 }
