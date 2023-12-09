@@ -6,7 +6,9 @@ use crate::paths_selector::PathsSelector;
 use crate::result::RvResult;
 use crate::types::AsyncResultImage;
 
-pub const SUPPORTED_EXTENSIONS: [&str; 4] = [".png", ".jpg", ".tif", ".tiff"];
+pub const SUPPORTED_EXTENSIONS: [&str; 10] = [
+    ".PNG", ".png", ".JPG", ".jpg", ".JPEG", ".jpeg", ".TIF", ".tif", ".TIFF",".tiff",
+];
 
 #[derive(Clone)]
 pub struct CloneDummy;
