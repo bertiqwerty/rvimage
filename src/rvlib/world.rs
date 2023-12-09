@@ -46,9 +46,11 @@ macro_rules! annotations_accessor_mut {
             let current_file_path = world.data.meta_data.file_path.as_ref().unwrap();
             let shape = world.data.shape();
             match world.data.tools_data_map.get_mut($actor) {
-                Some(x) => Some(x.specifics
-                    .$access_func()
-                    .get_annos_mut(&current_file_path, shape)),
+                Some(x) => Some(
+                    x.specifics
+                        .$access_func()
+                        .get_annos_mut(&current_file_path, shape),
+                ),
                 None => {
                     println!("{}", $error_msg);
                     None

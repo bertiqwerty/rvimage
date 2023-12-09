@@ -48,13 +48,13 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
         let cb_bbs = clipboard.geos();
         if !cb_bbs.is_empty() {
             let shape_orig = Shape::from_im(world.data.im_background());
-            get_annos_mut(&mut world).map(|a| {
+            if let Some(a) = get_annos_mut(&mut world) {
                 a.extend(
                     cb_bbs.iter().cloned(),
                     clipboard.cat_idxs().iter().copied(),
                     shape_orig,
                 )
-            });
+            }
             get_tools_data_mut(&mut world)
                 .specifics
                 .bbox_mut()

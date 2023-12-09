@@ -440,12 +440,16 @@ pub(super) fn on_key_released(
         }
         ReleasedKey::A if params.is_ctrl_held => {
             // Select all
-            get_annos_mut(&mut world).map(|a| a.select_all());
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.select_all()
+            };
             world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
         }
         ReleasedKey::D if params.is_ctrl_held => {
             // Deselect all
-            get_annos_mut(&mut world).map(|a| a.deselect_all());
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.deselect_all()
+            };
             world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
         }
         ReleasedKey::C if params.is_ctrl_held => {
@@ -470,7 +474,10 @@ pub(super) fn on_key_released(
             } else {
                 false
             };
-            get_annos_mut(&mut world).map(|a| a.show_labels = !show_label);
+
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.show_labels = !show_label
+            };
             world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
         }
         ReleasedKey::C => {

@@ -28,8 +28,8 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if events.mouse_pos.is_some() {
-            get_annos_mut(&mut world).map(|a| a.points.push(vec![]));
+        if let (Some(_), Some(a)) = (events.mouse_pos, get_annos_mut(&mut world)) {
+            a.points.push(vec![]);
         }
         (world, history)
     }
@@ -39,11 +39,10 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if let Some(mp) = events.mouse_pos {
-            get_annos_mut(&mut world).map(|a| a.points.last_mut().unwrap().push(mp.into()));
+        if let (Some(mp), Some(annos)) = (events.mouse_pos, get_annos_mut(&mut world)) {
+            annos.points.last_mut().unwrap().push(mp.into());
             world.request_redraw_annotations(BRUSH_NAME, true)
         }
-
         (world, history)
     }
 
@@ -62,13 +61,9 @@ impl Brush {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        let mut changed = false;
-        get_annos_mut(&mut world).map(|a| {
+        if let Some(a) = get_annos_mut(&mut world) {
             a.points.clear();
-            changed = true;
-        });
-        world.request_redraw_annotations(BRUSH_NAME, true);
-        if changed {
+            world.request_redraw_annotations(BRUSH_NAME, true);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
         }
         (world, history)
