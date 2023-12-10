@@ -28,11 +28,12 @@ pub fn pick<'a, I>(
     mut folder_iter: I,
     min_width: f32,
     response: &Response,
+    popup_str: &str,
 ) -> Option<&'a str>
 where
     I: Iterator<Item = &'a str> + Clone,
 {
-    let popup_id = ui.make_persistent_id("ssh-folder-popup");
+    let popup_id = ui.make_persistent_id(popup_str);
     let idx = show_list_popup(ui, folder_iter.clone(), popup_id, min_width, response);
 
     idx.and_then(|idx| folder_iter.nth(idx))

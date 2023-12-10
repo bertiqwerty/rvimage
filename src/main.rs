@@ -24,6 +24,7 @@ fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
         egui::Key::M => Some(rvlib::KeyCode::M),
         egui::Key::Q => Some(rvlib::KeyCode::Q),
         egui::Key::R => Some(rvlib::KeyCode::R),
+        egui::Key::S => Some(rvlib::KeyCode::S),
         egui::Key::T => Some(rvlib::KeyCode::T),
         egui::Key::V => Some(rvlib::KeyCode::V),
         egui::Key::Y => Some(rvlib::KeyCode::Y),

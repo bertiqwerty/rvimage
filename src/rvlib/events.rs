@@ -62,6 +62,7 @@ pub enum KeyCode {
     M,
     Q,
     R,
+    S,
     T,
     V,
     Y,

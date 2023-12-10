@@ -33,6 +33,7 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                     .map(|s| s.as_str()),
                 500.0,
                 &resp,
+                "ssh-open-popup",
             )
             .map(|s| s.to_string()),
             Connection::PyHttp => {

@@ -59,6 +59,7 @@ macro_rules! handle_error {
                 $f_effect(r);
             }
             Err(e) => {
+                #[allow(clippy::redundant_closure_call)]
                 $f_err_cleanup();
                 $self.info_message = Info::Error(e.to_string());
             }
@@ -73,14 +74,12 @@ macro_rules! handle_error {
 }
 
 pub struct ToolSelectMenu {
-    window_open: bool,      // Only show the egui window when true.
     are_tools_active: bool, // can deactivate all tools, overrides activated_tool
     recently_activated_tool: Option<usize>,
 }
 impl ToolSelectMenu {
     fn new() -> Self {
         Self {
-            window_open: true,
             are_tools_active: true,
             recently_activated_tool: None,
         }
@@ -111,15 +110,6 @@ impl ToolSelectMenu {
         }
         Ok(())
     }
-
-    pub fn toggle(&mut self) {
-        if self.window_open {
-            self.window_open = false;
-            self.are_tools_active = true;
-        } else {
-            self.window_open = true;
-        }
-    }
 }
 impl Default for ToolSelectMenu {
     fn default() -> Self {
@@ -127,7 +117,8 @@ impl Default for ToolSelectMenu {
     }
 }
 
-struct ImportBtnResp {
+#[derive(Default)]
+struct PopupBtnResp {
     pub resp: Option<Response>,
     pub popup_open: bool,
 }
@@ -136,6 +127,66 @@ struct ImportBtnResp {
 struct Stats {
     n_files_filtered_info: Option<String>,
     n_files_annotated_info: Option<String>,
+}
+
+struct SavePopup<'a> {
+    id: Id,
+    show: &'a mut bool,
+    ctrl: &'a mut Control,
+    tools_data_map: &'a mut ToolsDataMap,
+}
+impl<'a> SavePopup<'a> {
+    fn new(
+        id: Id,
+        show: &'a mut bool,
+        ctrl: &'a mut Control,
+        tools_data_map: &'a mut ToolsDataMap,
+    ) -> Self {
+        Self {
+            id,
+            show,
+            ctrl,
+            tools_data_map,
+        }
+    }
+}
+impl<'a> Widget for SavePopup<'a> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let save_btn = ui.button("save project");
+        if save_btn.clicked() {
+            *self.show = true;
+        }
+        if *self.show {
+            ui.memory_mut(|m| m.open_popup(self.id));
+            if ui.memory(|m| m.is_popup_open(self.id)) {
+                let area = Area::new(self.id)
+                    .order(Order::Foreground)
+                    .default_pos(save_btn.rect.left_bottom());
+                area.show(ui.ctx(), |ui| {
+                    Frame::popup(ui.style()).show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("project name");
+                            ui.text_edit_singleline(&mut self.ctrl.cfg.current_prj_name);
+                        });
+                        ui.horizontal(|ui| {
+                            let save_resp_clicked = ui.button("save").clicked();
+                            if save_resp_clicked {
+                                if let Err(e) = self.ctrl.save(self.tools_data_map) {
+                                    println!("could not save project due to {e:?}");
+                                }
+                            }
+                            let resp_close = ui.button("close");
+                            if resp_close.clicked() || save_resp_clicked {
+                                ui.memory_mut(|m| m.close_popup());
+                                *self.show = false;
+                            }
+                        });
+                    });
+                });
+            }
+        }
+        save_btn
+    }
 }
 
 struct About<'a> {
@@ -197,7 +248,8 @@ pub struct Menu {
     editable_ssh_cfg_str: String,
     scroll_offset: f32,
     open_folder_popup_open: bool,
-    load_button_resp: ImportBtnResp,
+    load_button_resp: PopupBtnResp,
+    show_save: bool,
     stats: Stats,
     filename_sort_type: SortType,
     show_about: bool,
@@ -215,10 +267,8 @@ impl Menu {
             editable_ssh_cfg_str: ssh_cfg_str,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
-            load_button_resp: ImportBtnResp {
-                resp: None,
-                popup_open: false,
-            },
+            load_button_resp: PopupBtnResp::default(),
+            show_save: false,
             stats: Stats::default(),
             filename_sort_type: SortType::default(),
             show_about: false,
@@ -268,13 +318,17 @@ impl Menu {
                     button_resp,
                     self
                 );
-                let popup_id = ui.make_persistent_id("cfg-popup");
+
                 self.load_button_resp.resp = Some(ui.button("load project"));
 
-                if ui.button("save project").clicked() {
-                    handle_error!(ctrl.save(tools_data_map), self);
-                }
-
+                let save_popup_id = ui.make_persistent_id("save-popup");
+                ui.add(SavePopup::new(
+                    save_popup_id,
+                    &mut self.show_save,
+                    ctrl,
+                    tools_data_map,
+                ));
+                let popup_id = ui.make_persistent_id("cfg-popup");
                 let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.editable_ssh_cfg_str);
                 ui.add(cfg_gui);
                 let about_popup_id = ui.make_persistent_id("about-popup");
@@ -304,6 +358,7 @@ impl Menu {
                                     files.iter().map(|s| s.as_str()),
                                     200.0,
                                     load_btn_resp,
+                                    "load-prj-popup",
                                 )
                                 .map(|s| s.to_string());
                             } else {

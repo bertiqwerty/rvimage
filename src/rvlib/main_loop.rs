@@ -233,15 +233,19 @@ impl MainEventLoop {
             self.tools
         );
 
-        if e.held_ctrl() && e.pressed(KeyCode::T) {
-            self.tools_select_menu.toggle();
+        if e.held_ctrl() && e.pressed(KeyCode::S) {
+            if let Err(e) = self.ctrl.save(&self.world.data.tools_data_map) {
+                self.menu
+                    .show_info(Info::Error(format!("could not save project due to {e:?}")));
+            }
         }
         if e.held_ctrl() && e.pressed(KeyCode::M) {
             self.menu.toggle();
         }
         if e.released(KeyCode::F5) {
             if let Err(e) = self.ctrl.reload(self.menu.sort_type()) {
-                self.menu.show_info(Info::Error(format!("{e:?}")));
+                self.menu
+                    .show_info(Info::Error(format!("could not reload due to {e:?}")));
             }
         }
         if e.pressed(KeyCode::PageDown) {

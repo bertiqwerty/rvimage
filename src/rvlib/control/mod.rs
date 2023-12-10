@@ -28,7 +28,7 @@ mod detail {
     use crate::{
         cfg::Cfg,
         domain::Shape,
-        file_util::{self, make_prjcfg_path, ExportData},
+        file_util::{self, make_prjcfg_path, ExportData, DEFAULT_PRJ_NAME},
         result::{to_rv, RvResult},
         rverr,
         tools::BBOX_NAME,
@@ -74,12 +74,12 @@ mod detail {
                 .map(|bbox_data| bbox_data.specifics.bbox().options),
             cfg: cfg.clone(),
         };
-        let prj_name = if "default" != &cfg.current_prj_name {
+        let prj_name = if DEFAULT_PRJ_NAME != cfg.current_prj_name {
             &cfg.current_prj_name
         } else if let Some(of) = opened_folder {
             of.as_str()
         } else {
-            "default"
+            DEFAULT_PRJ_NAME
         };
         let ef_path = Path::new(export_folder);
         let path = make_prjcfg_path(ef_path, prj_name);
