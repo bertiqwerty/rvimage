@@ -84,11 +84,9 @@ impl<'a> Widget for CfgMenu<'a> {
                                     self.cfg.darkmode = Some(false);
                                     ui.ctx().set_visuals(Visuals::light());
                                 }
-                            } else {
-                                if ui.button("dark").clicked() {
-                                    self.cfg.darkmode = Some(true);
-                                    ui.ctx().set_visuals(Visuals::dark());
-                                }
+                            } else if ui.button("dark").clicked() {
+                                self.cfg.darkmode = Some(true);
+                                ui.ctx().set_visuals(Visuals::dark());
                             }
                         });
                         ui.separator();

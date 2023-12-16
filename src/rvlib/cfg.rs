@@ -64,7 +64,7 @@ pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
 }
 
 pub fn get_darkmode() -> Option<bool> {
-   get_cfg().ok().and_then(|cfg|cfg.darkmode) 
+    get_cfg().ok().and_then(|cfg| cfg.darkmode)
 }
 
 pub fn remove_tmpdir() {
@@ -144,7 +144,7 @@ pub struct CocoFile {
 
 pub enum Style {
     Dark,
-    Light
+    Light,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq)]
