@@ -1,4 +1,4 @@
-use egui::{Area, Color32, Frame, Id, Order, Response, TextEdit, Ui, Widget};
+use egui::{Area, Color32, Frame, Id, Order, Response, TextEdit, Ui, Visuals, Widget};
 
 use crate::{
     cfg::{self, Cache, Cfg, Connection, SshCfg},
@@ -77,6 +77,21 @@ impl<'a> Widget for CfgMenu<'a> {
                             ui.text_edit_singleline(&mut self.cfg.current_prj_name);
                         });
                         ui.separator();
+                        ui.horizontal(|ui| {
+                            ui.label("STYLE");
+                            if ui.visuals().dark_mode {
+                                if ui.button("light").clicked() {
+                                    self.cfg.darkmode = Some(false);
+                                    ui.ctx().set_visuals(Visuals::light());
+                                }
+                            } else {
+                                if ui.button("dark").clicked() {
+                                    self.cfg.darkmode = Some(true);
+                                    ui.ctx().set_visuals(Visuals::dark());
+                                }
+                            }
+                        });
+                        ui.separator();
                         ui.label("CONNECTION");
                         ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");
                         ui.radio_value(&mut self.cfg.connection, Connection::Ssh, "Ssh");
@@ -92,9 +107,11 @@ impl<'a> Widget for CfgMenu<'a> {
                             "Azure blob experimental",
                         );
                         ui.separator();
-                        ui.label("CACHE");
-                        ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File cache");
-                        ui.radio_value(&mut self.cfg.cache, Cache::NoCache, "No cache");
+                        ui.horizontal(|ui| {
+                            ui.label("CACHE");
+                            ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File cache");
+                            ui.radio_value(&mut self.cfg.cache, Cache::NoCache, "No cache");
+                        });
                         ui.separator();
                         ui.label("SSH CONNECTION PARAMETERS");
                         let clr = if is_valid_ssh_cfg(self.ssh_cfg_str) {

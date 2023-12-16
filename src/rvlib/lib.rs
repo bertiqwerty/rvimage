@@ -21,6 +21,7 @@ mod types;
 mod util;
 mod view;
 pub mod world;
+pub use cfg::get_darkmode;
 pub use domain::{GeoFig, Polygon, Shape, BB};
 pub use drawme::{Annotation, Stroke, UpdateAnnos, UpdateImage, UpdateView, UpdateZoomBox};
 pub use events::{Event, Events, KeyCode};

@@ -63,6 +63,10 @@ pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
     Ok(())
 }
 
+pub fn get_darkmode() -> Option<bool> {
+   get_cfg().ok().and_then(|cfg|cfg.darkmode) 
+}
+
 pub fn remove_tmpdir() {
     match get_cfg() {
         Ok(cfg) => {
@@ -138,6 +142,11 @@ pub struct CocoFile {
     pub conn: CocoFileConnection,
 }
 
+pub enum Style {
+    Dark,
+    Light
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct Cfg {
     pub connection: Connection,
@@ -150,6 +159,7 @@ pub struct Cfg {
     pub export_folder: Option<String>,
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
     pub coco_file: Option<CocoFile>,
+    pub darkmode: Option<bool>,
     #[cfg(feature = "azure_blob")]
     pub azure_blob_cfg: Option<AzureBlobCfg>,
 }

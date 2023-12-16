@@ -3,13 +3,14 @@
 use egui::{
     epaint::{PathShape, RectShape},
     Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
-    Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2,
+    Sense, Shape, Stroke, Style, TextureHandle, TextureOptions, Ui, Vec2, Visuals,
 };
 use image::{ImageBuffer, Rgb};
 use rvlib::{
     domain::{PtF, PtI},
-    orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, Annotation,
-    GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage, UpdateZoomBox, BB,
+    get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord,
+    view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos,
+    UpdateImage, UpdateZoomBox, BB,
 };
 use tracing::error;
 
@@ -439,7 +440,21 @@ fn main() {
     if let Err(e) = eframe::run_native(
         "RV Image",
         native_options,
-        Box::new(|cc| Box::new(RvImageApp::new(cc))),
+        Box::new(|cc| {
+            if let Some(dm) = get_darkmode() {
+                let viz = if dm {
+                    Visuals::dark()
+                } else {
+                    Visuals::light()
+                };
+                let style = Style {
+                    visuals: viz,
+                    ..Style::default()
+                };
+                cc.egui_ctx.set_style(style);
+            }
+            Box::new(RvImageApp::new(cc))
+        }),
     ) {
         error!("{e:?}");
     }
