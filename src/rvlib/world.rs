@@ -1,5 +1,5 @@
 use crate::domain::{Shape, BB};
-use crate::drawme::{Annotation, ImageInfo, UpdateImage};
+use crate::drawme::{Annotation, UpdateImage};
 use crate::file_util::MetaData;
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
@@ -166,7 +166,7 @@ impl World {
                 image: UpdateImage::Yes(im),
                 annos: UpdateAnnos::No,
                 zoom_box: UpdateZoomBox::Yes(zoom_box),
-                image_info: ImageInfo::default(),
+                image_info: None,
             },
         }
     }

@@ -398,11 +398,6 @@ impl eframe::App for RvImageApp {
         let update_view = self.event_loop.one_iteration(&self.events, ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Ok(update_view) = update_view {
-                let info = update_view.image_info;
-                ui.label(info.filename);
-                ui.label(format!("{}, {}", info.shape_info, info.pixel_value));
-                ui.label(info.tool_info);
-
                 if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
                     self.zoom_box = zb;
                     self.update_texture(ctx);
@@ -411,17 +406,24 @@ impl eframe::App for RvImageApp {
                     self.im_orig = im;
                     self.update_texture(ctx);
                 }
-                let image_response = self.add_image(ui);
-                if let Some(ir) = image_response {
-                    self.events = self.collect_events(ui, &ir);
-                    if let UpdateAnnos::Yes((perm_annos, tmp_anno)) = update_view.annos {
-                        self.annos = perm_annos;
-                        if let Some(tmp_anno) = tmp_anno {
-                            self.annos.push(tmp_anno);
+
+                if let Some(info) = update_view.image_info {
+                    ui.label(format!(
+                        "{}  |  {}  |  {}",
+                        info.filename, info.shape_info, info.pixel_value
+                    ));
+                    let image_response = self.add_image(ui);
+                    if let Some(ir) = image_response {
+                        self.events = self.collect_events(ui, &ir);
+                        if let UpdateAnnos::Yes((perm_annos, tmp_anno)) = update_view.annos {
+                            self.annos = perm_annos;
+                            if let Some(tmp_anno) = tmp_anno {
+                                self.annos.push(tmp_anno);
+                            }
                         }
-                    }
-                    if !self.annos.is_empty() {
-                        self.draw_annos(ui, &ir.rect);
+                        if !self.annos.is_empty() {
+                            self.draw_annos(ui, &ir.rect);
+                        }
                     }
                 }
             }

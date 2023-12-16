@@ -349,7 +349,7 @@ impl MainEventLoop {
                     tool_info: tool_string,
                 },
             };
-            self.world.update_view.image_info = s;
+            self.world.update_view.image_info = Some(s);
         }
 
         self.loop_counter += 1;
