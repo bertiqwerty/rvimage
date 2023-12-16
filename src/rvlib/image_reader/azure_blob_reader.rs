@@ -44,7 +44,7 @@ async fn blob_list(container_client: &ContainerClient, prefix: &str) -> RvResult
         }) {
             res.push(cont.name.clone());
         }
-        println!("retrieved {} blobs ", res.len());
+        tracing::info!("retrieved {} blobs ", res.len());
     }
     Ok(res)
 }

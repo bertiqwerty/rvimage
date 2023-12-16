@@ -1,3 +1,7 @@
+use crate::{
+    result::{to_rv, RvResult},
+    rverr,
+};
 use httparse::{Request, EMPTY_HEADER};
 use std::{
     fmt::Debug,
@@ -7,11 +11,7 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
     thread::{self, JoinHandle},
 };
-
-use crate::{
-    result::{to_rv, RvResult},
-    rverr,
-};
+use tracing::info;
 
 #[derive(Debug, PartialEq)]
 enum HandleResult {
@@ -63,7 +63,7 @@ where
 }
 pub type LaunchResultType = RvResult<(JoinHandle<RvResult<()>>, Receiver<RvResult<String>>)>;
 pub fn launch(address: String) -> LaunchResultType {
-    println!("spawning httpserver at {address}");
+    info!("spawning httpserver at {address}");
     let (tx_from_server, rx_from_server) = mpsc::channel();
     let handle = thread::spawn(move || -> RvResult<()> {
         let bind_result = TcpListener::bind(address);
@@ -93,22 +93,22 @@ pub fn launch(address: String) -> LaunchResultType {
             if let Ok(p) = to_rv_or_send(&tx_from_server, stream_processing_result) {
                 match p {
                     HandleResult::Terminate => {
-                        println!("terminating httpserver");
+                        info!("terminating httpserver");
                         return Ok(());
                     }
                     HandleResult::Path(p_) => {
-                        println!("tcp listener sending result...");
+                        info!("tcp listener sending result...");
                         let send_result = tx_from_server.send(Ok(p_));
-                        println!("done. {send_result:?}");
+                        info!("done. {send_result:?}");
                         to_rv_or_send(&tx_from_server, send_result)?;
                     }
                 }
             }
-            println!("tcp listener waiting for new input");
+            info!("tcp listener waiting for new input");
         }
         Ok(())
     });
-    println!("...done");
+    info!("...done");
     Ok((handle, rx_from_server))
 }
 
@@ -135,7 +135,7 @@ pub fn restart_with_increased_port(
 ) -> RvResult<(String, Option<Receiver<RvResult<String>>>)> {
     let http_addr = increase_port(http_addr)?;
 
-    println!("restarting http server with increased port");
+    info!("restarting http server with increased port");
     Ok(if let Ok((_, rx)) = launch(http_addr.clone()) {
         (http_addr, Some(rx))
     } else {

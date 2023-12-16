@@ -15,8 +15,8 @@ use crate::{
 };
 
 use super::core::{
-    current_cat_idx, get_annos, get_annos_mut, get_tools_data, get_tools_data_mut, paste,
-    ACTOR_NAME,
+    current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_tools_data,
+    get_tools_data_mut, paste, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
@@ -62,7 +62,7 @@ pub(super) fn import_coco_if_triggered(
         match tools_data::coco_io::read_coco(meta_data, coco_file) {
             Ok(bbox_data) => Some(bbox_data),
             Err(e) => {
-                println!("could not import coco due to {e:?}");
+                tracing::error!("could not import coco due to {e:?}");
                 None
             }
         }
@@ -74,8 +74,8 @@ pub(super) fn import_coco_if_triggered(
 pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecificData) {
     if bbox_data.options.is_export_triggered {
         match tools_data::write_coco(meta_data, bbox_data.clone()) {
-            Ok(p) => println!("export to {p:?} successful"),
-            Err(e) => println!("export failed due to {e:?}"),
+            Ok(p) => tracing::info!("export to {p:?} successful"),
+            Err(e) => tracing::error!("export failed due to {e:?}"),
         }
     }
 }
@@ -259,11 +259,11 @@ pub(super) fn on_mouse_released_left(
         let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
         let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
         let close_corner = mouse_pos.and_then(|mp| {
-            get_annos(&world).and_then(|a| find_close_vertex(mp, a.geos(), tolerance as i64))
+            get_annos_if_some(&world)
+                .and_then(|a| find_close_vertex(mp, a.geos(), tolerance as i64))
         });
         if let Some((bb_idx, vertex_idx)) = close_corner {
             // move an existing corner
-
             let annos = get_annos_mut(&mut world);
             if let Some(annos) = annos {
                 let geo = annos.remove(bb_idx);

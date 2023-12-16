@@ -172,7 +172,7 @@ impl<'a> Widget for SavePopup<'a> {
                             let save_resp_clicked = ui.button("save").clicked();
                             if save_resp_clicked {
                                 if let Err(e) = self.ctrl.save(self.tools_data_map) {
-                                    println!("could not save project due to {e:?}");
+                                    tracing::error!("could not save project due to {e:?}");
                                 }
                             }
                             let resp_close = ui.button("close");
@@ -362,7 +362,7 @@ impl Menu {
                                 )
                                 .map(|s| s.to_string());
                             } else {
-                                println!("no projects found that can be loaded")
+                                tracing::info!("no projects found that can be loaded")
                             }
                             Ok(())
                         };

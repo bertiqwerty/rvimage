@@ -66,7 +66,7 @@ where
             .load_from_cache(selected_file_idx, file_paths, reload);
         let mut counter = 0usize;
         while let Err(e) = loaded {
-            println!(
+            tracing::info!(
                 "recreating cache ({}/{}), {:?}",
                 counter + 1,
                 self.n_cache_recreations,
@@ -78,7 +78,7 @@ where
                 .cache
                 .load_from_cache(selected_file_idx, file_paths, reload);
             if counter == self.n_cache_recreations {
-                println!("max recreations (={counter}) reached.");
+                tracing::info!("max recreations (={counter}) reached.");
                 return loaded;
             }
             counter += 1;

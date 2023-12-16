@@ -1,6 +1,5 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
-
 use crate::cfg::{self, Cfg};
 use crate::control::{Control, Info};
 use crate::domain::PtI;
@@ -21,6 +20,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::mem;
 use std::sync::mpsc::Receiver;
+use tracing::{error, info, warn};
 
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
@@ -117,7 +117,7 @@ impl Default for MainEventLoop {
     fn default() -> Self {
         let mut world = empty_world();
         let mut ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
-            println!("could not read cfg due to {e:?}, returning default");
+            warn!("could not read cfg due to {e:?}, returning default");
             cfg::get_default_cfg()
         }));
         {
@@ -125,11 +125,11 @@ impl Default for MainEventLoop {
             let prj_name = ctrl.cfg.current_prj_name.clone();
             match ctrl.load(&make_prjcfg_filename(&prj_name)) {
                 Ok(td) => {
-                    println!("loaded {}", ctrl.cfg.current_prj_name);
+                    info!("loaded {}", ctrl.cfg.current_prj_name);
                     world.data.tools_data_map = td;
                 }
                 Err(e) => {
-                    println!("could not read specified project {prj_name} which is fine if a project has never been saved due to {e:?} ");
+                    info!("could not read specified project {prj_name} which is fine if a project has never been saved due to {e:?} ");
                 }
             };
         }
@@ -207,7 +207,7 @@ impl MainEventLoop {
         }
 
         if e.held_alt() && e.pressed(KeyCode::Q) {
-            println!("deactivate all tools");
+            info!("deactivate all tools");
             for t in self.tools.iter_mut() {
                 let meta_data = self.ctrl.meta_data(
                     self.ctrl.file_selected_idx,
@@ -267,12 +267,12 @@ impl MainEventLoop {
                 .activate_scroll_to_selected_label();
         } else if let Some(Some(Err(e))) = rx_match {
             // if the server thread sends an error we restart the server
-            println!("{e:?}");
+            warn!("{e:?}");
             (self.http_addr, self.rx_from_http) =
                 match httpserver::restart_with_increased_port(&self.http_addr) {
                     Ok(x) => x,
                     Err(e) => {
-                        println!("{e:?}");
+                        error!("{e:?}");
                         (self.http_addr.to_string(), None)
                     }
                 };

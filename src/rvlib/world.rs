@@ -7,7 +7,6 @@ use crate::{image_util, UpdateAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
 use std::collections::HashMap;
 use std::{fmt::Debug, mem};
-
 #[macro_export]
 macro_rules! tools_data_initializer {
     ($actor:expr, $variant:ident, $tool_data_type:ident) => {
@@ -26,20 +25,29 @@ macro_rules! tools_data_initializer {
 #[macro_export]
 macro_rules! annotations_accessor {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
-        pub(super) fn get_annos(world: &World) -> Option<&$annotations_type> {
+        pub(super) fn get_annos_(
+            world: &World,
+            is_no_anno_fine: bool,
+        ) -> Option<&$annotations_type> {
             if let Some(current_file_path) = world.data.meta_data.file_path.as_ref() {
                 let res = world
                     .data
                     .tools_data_map
                     .get($actor)
                     .and_then(|x| x.specifics.$access_func().get_annos(&current_file_path));
-                if res.is_none() {
-                    println!("{}", $error_msg);
+                if res.is_none() && !is_no_anno_fine {
+                    tracing::error!("{}", $error_msg);
                 }
                 res
             } else {
                 None
             }
+        }
+        pub(super) fn get_annos(world: &World) -> Option<&$annotations_type> {
+            get_annos_(world, false)
+        }
+        pub(super) fn get_annos_if_some(world: &World) -> Option<&$annotations_type> {
+            get_annos_(world, true)
         }
     };
 }
@@ -55,11 +63,11 @@ macro_rules! annotations_accessor_mut {
                         .get_annos_mut(&current_file_path, shape)
                 });
                 if res.is_none() {
-                    println!("{}", $error_msg);
+                    tracing::error!("{}", $error_msg);
                 }
                 res
             } else {
-                println!("could not filepath in meta data");
+                tracing::error!("could not find filepath in meta data");
                 None
             }
         }

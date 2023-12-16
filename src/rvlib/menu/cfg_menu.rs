@@ -46,15 +46,15 @@ impl<'a> Widget for CfgMenu<'a> {
                                 match cfg::get_cfg_path() {
                                     Ok(p) => {
                                         if let Err(e) = edit::edit_file(p) {
-                                            println!("{e:?}");
-                                            println!(
+                                            tracing::error!("{e:?}");
+                                            tracing::error!(
                                                 "could not open editor. {:?}",
                                                 edit::get_editor()
                                             );
                                         }
                                     }
                                     Err(e) => {
-                                        println!("could not open config file. {e:?}");
+                                        tracing::error!("could not open config file. {e:?}");
                                     }
                                 }
                                 if let Ok(cfg) = cfg::get_cfg() {
@@ -62,7 +62,7 @@ impl<'a> Widget for CfgMenu<'a> {
                                     *self.ssh_cfg_str =
                                         toml::to_string_pretty(&self.cfg.ssh_cfg).unwrap();
                                 } else {
-                                    println!("could not reload cfg from file");
+                                    tracing::error!("could not reload cfg from file");
                                 }
                             }
                             if ui.button("OK").clicked() {
@@ -123,8 +123,8 @@ impl<'a> Widget for CfgMenu<'a> {
                 if save && is_valid_ssh_cfg(self.ssh_cfg_str) {
                     self.cfg.ssh_cfg = toml::from_str::<SshCfg>(self.ssh_cfg_str).unwrap();
                     if let Err(e) = cfg::write_cfg(self.cfg) {
-                        println!("could not write config,\n{e:#?}");
-                        println!("{:?}", self.cfg);
+                        tracing::error!("could not write config,\n{e:#?}");
+                        tracing::error!("{:?}", self.cfg);
                     }
                 } else {
                     let tmp = menu::core::get_cfg();

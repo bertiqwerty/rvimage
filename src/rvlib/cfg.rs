@@ -9,6 +9,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use tracing::{error, warn};
 
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
@@ -69,16 +70,16 @@ pub fn remove_tmpdir() {
                 Ok(td) => match fs::remove_dir_all(Path::new(td)) {
                     Ok(_) => {}
                     Err(e) => {
-                        println!("couldn't remove tmpdir {e:?}")
+                        warn!("couldn't remove tmpdir {e:?}")
                     }
                 },
                 Err(e) => {
-                    println!("couldn't remove tmpdir {e:?}")
+                    warn!("couldn't remove tmpdir {e:?}")
                 }
             };
         }
         Err(e) => {
-            println!("could not load cfg {e:?}");
+            error!("could not load cfg {e:?}");
         }
     };
 }

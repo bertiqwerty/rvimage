@@ -89,7 +89,7 @@ mod detail {
         }?;
         let data_str = serde_json::to_string(&data).map_err(to_rv)?;
         file_util::write(&path, data_str)?;
-        println!("saved to {path:?}");
+        tracing::info!("saved to {path:?}");
         Ok(path)
     }
     pub(super) fn loading_image(shape: Shape, counter: u128) -> DynamicImage {
@@ -261,7 +261,7 @@ impl Control {
     }
 
     pub fn open_folder(&mut self, new_folder: String) -> RvResult<()> {
-        println!("new opened folder {new_folder}");
+        tracing::info!("new opened folder {new_folder}");
         self.make_reader(self.cfg.clone())?;
         self.opened_folder = Some(new_folder);
         Ok(())

@@ -1,6 +1,5 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
-
 use egui::{
     epaint::{PathShape, RectShape},
     Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
@@ -12,6 +11,7 @@ use rvlib::{
     orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, Annotation,
     GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos, UpdateImage, UpdateZoomBox, BB,
 };
+use tracing::error;
 
 fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
     match egui_key {
@@ -431,7 +431,7 @@ impl eframe::App for RvImageApp {
 
 fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
-    // tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt::init();
 
     let native_options = eframe::NativeOptions::default();
     if let Err(e) = eframe::run_native(
@@ -439,6 +439,6 @@ fn main() {
         native_options,
         Box::new(|cc| Box::new(RvImageApp::new(cc))),
     ) {
-        println!("{e:?}");
+        error!("{e:?}");
     }
 }

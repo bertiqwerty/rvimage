@@ -138,7 +138,7 @@ pub fn bbox_menu(
         data.coco_file.path = PathBuf::from_str(&txt).map_err(to_rv)?;
     }
     if pathincfg_triggered {
-        println!("saving coco path to cfg file");
+        tracing::info!("saving coco path to cfg file");
         let mut curcfg = get_cfg()?;
         curcfg.coco_file = Some(data.coco_file.clone());
         cfg::write_cfg(&curcfg)?;
@@ -146,12 +146,12 @@ pub fn bbox_menu(
     ui.separator();
     ui.horizontal(|ui| {
         if ui.button("export coco").clicked() {
-            println!("export coco triggered");
+            tracing::info!("export coco triggered");
             data.options.is_export_triggered = true;
             pathincfg_triggered = true;
         }
         if ui.button("import coco").clicked() {
-            println!("import triggered");
+            tracing::info!("import triggered");
             data.options.is_coco_import_triggered = true;
             pathincfg_triggered = true;
         }

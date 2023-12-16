@@ -1,13 +1,3 @@
-use std::{
-    collections::hash_map::DefaultHasher,
-    ffi::OsStr,
-    fmt::Debug,
-    fs,
-    hash::{Hash, Hasher},
-    io,
-    path::{Path, PathBuf},
-};
-
 #[cfg(feature = "azure_blob")]
 use crate::cfg::AzureBlobCfg;
 use crate::{
@@ -22,6 +12,16 @@ use crate::{
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use std::{
+    collections::hash_map::DefaultHasher,
+    ffi::OsStr,
+    fmt::Debug,
+    fs,
+    hash::{Hash, Hasher},
+    io,
+    path::{Path, PathBuf},
+};
+use tracing::{error, info};
 
 lazy_static! {
     pub static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
@@ -180,8 +180,8 @@ pub fn checked_remove<'a, P: AsRef<Path> + Debug>(
     func: fn(p: &'a P) -> io::Result<()>,
 ) {
     match func(path) {
-        Ok(_) => println!("removed {path:?}"),
-        Err(e) => println!("could not remove {path:?} due to {e:?}"),
+        Ok(_) => info!("removed {path:?}"),
+        Err(e) => error!("could not remove {path:?} due to {e:?}"),
     }
 }
 #[macro_export]

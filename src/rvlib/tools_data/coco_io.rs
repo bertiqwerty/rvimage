@@ -216,7 +216,9 @@ impl CocoExportData {
             let geo = if let Some(segmentation) = coco_anno.segmentation {
                 if !segmentation.is_empty() {
                     if segmentation.len() > 1 {
-                        println!("multiply polygons per box not supported. ignoring all but first.")
+                        tracing::error!(
+                            "multiple polygons per box not supported. ignoring all but first."
+                        )
                     }
                     let n_points = segmentation[0].len();
                     let coco_data = &segmentation[0];
@@ -343,7 +345,7 @@ pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvR
             file_util::write(&coco_out_path, data_str)?;
         }
     }
-    println!("exported coco labels to {coco_out_path:?}");
+    tracing::info!("exported coco labels to {coco_out_path:?}");
     Ok(coco_out_path)
 }
 
@@ -353,7 +355,7 @@ pub fn read_coco(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<BboxSpe
         CocoFileConnection::Local => {
             let s = file_util::read_to_string(&coco_inpath)?;
             let read_data: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-            println!("imported coco file from {coco_inpath:?}");
+            tracing::info!("imported coco file from {coco_inpath:?}");
             read_data.convert_to_bboxdata(coco_file.clone())
         }
         CocoFileConnection::Ssh => {
@@ -363,7 +365,7 @@ pub fn read_coco(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<BboxSpe
                 let s = String::from_utf8(read_bytes).map_err(to_rv)?;
 
                 let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-                println!("imported coco file from {coco_inpath:?}");
+                tracing::info!("imported coco file from {coco_inpath:?}");
                 read.convert_to_bboxdata(coco_file.clone())
             } else {
                 Err(rverr!("cannot read coco from ssh, ssh-cfg missing.",))
