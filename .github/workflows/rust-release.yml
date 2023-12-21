@@ -77,7 +77,7 @@ jobs:
         shell: bash
         if: matrix.os == 'macos-latest'
         run: |
-          cargo build --verbose --release --target-dir
+          cargo build --verbose --release --target-dir ${{ matrix.target }}
           bin="${{ matrix.target }}/release/rvimage"
           echo "BIN=$bin" >> $GITHUB_ENV
       - name: Show dir and contents
