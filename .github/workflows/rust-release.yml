@@ -52,6 +52,9 @@ jobs:
           include:
           - build: macos
             os: macos-latest
+            target: aarch64-apple-darwin
+          - build: macos
+            os: macos-latest
             target: x86_64-apple-darwin
           - build: windows-msvc
             os: windows-latest
@@ -68,23 +71,17 @@ jobs:
 
       - name: Build release binary Windows
         if: matrix.os == 'windows-latest'
+        shell: powershell
         run: |
           cargo build --verbose --release --target-dir ${{ matrix.target }}
-          set bin="${{ matrix.target }}/release/rvimage.exe"
-          echo "BIN=%bin%" >> $GITHUB_ENV
+          echo "BIN=${{ matrix.target }}/release/rvimage.exe" >> $env:GITHUB_ENV
 
       - name: Build release binary MacOS
         shell: bash
         if: matrix.os == 'macos-latest'
         run: |
           cargo build --verbose --release --target-dir ${{ matrix.target }}
-          bin="${{ matrix.target }}/release/rvimage"
-          echo "BIN=$bin" >> $GITHUB_ENV
-      - name: Show dir and contents
-        shell: bash
-        run: |
-          pwd
-          ls -l
+          echo "${{ matrix.target }}/release/rvimage" >> $GITHUB_ENV
 
       - name: Build archive
         shell: bash
