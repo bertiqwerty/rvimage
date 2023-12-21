@@ -20,18 +20,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Get the release version tag
-        if: env.VERSION_TAG == ''
-        run: echo "VERSION_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
-      - name: Get the release version from the tag
         if: env.VERSION == ''
-        run: echo "VERSION=${VERSION_TAG:1}" >> $GITHUB_ENV
+        run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+      - name: Get the release version from the tag
+        if: env.VERSION_CARGO == ''
+        run: echo "VERSION_CARGO=${VERSION:1}" >> $GITHUB_ENV
       - name: Show the version
         run: |
-          echo "version is: $VERSION"
+          echo "version is: $VERSION and $VERSION_CARGO"
       - name: Check that tag version and Cargo.toml version are the same
         shell: bash
         run: |
-          if ! grep -q "version = \"$VERSION\"" Cargo.toml; then
+          if ! grep -q "version = \"$VERSION_CARGO\"" Cargo.toml; then
             echo "version does not match Cargo.toml" >&2
             exit 1
           fi
@@ -81,7 +81,7 @@ jobs:
         run: |
           # Replace with the name of your binary
 
-          FOLDER="$BIN-${{ env.VERSION }}-${{ matrix.target }}"
+          FOLDER="$BIN-${{ env.VERSION_CARGO }}-${{ matrix.target }}"
           mkdir "$FOLDER"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             mv "target/${{ matrix.target }}/release/$BIN" "$FOLDER"
