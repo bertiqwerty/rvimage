@@ -66,14 +66,14 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
-            
-      - name: Install OpenSSL (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Configure Perl environment
+        if: matrix.os == 'windows-latest' 
         run: |
-          Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-          choco install openssl
-          choco install strawberryperl
-          
+          echo "C:\strawberry\perl\bin" >> $env:PATH
+          set PERL_MM_USE_DEFAULT=1
+          set PERL_MB_OPT=--install_base "C:\strawberry\perl"
+          set PERL_MM_OPT=INSTALL_BASE=C:\strawberry\perl      
+    
       - name: Build release binary
         shell: bash
         run: |
