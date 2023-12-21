@@ -66,14 +66,12 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
-      - name: Configure Perl environment
-        if: matrix.os == 'windows-latest' 
+      - name: Install missing Perl module
+        if: runner.os == 'Windows'
         run: |
-          echo "C:\strawberry\perl\bin" >> $env:PATH
-          set PERL_MM_USE_DEFAULT=1
-          set PERL_MB_OPT=--install_base "C:\strawberry\perl"
-          set PERL_MM_OPT=INSTALL_BASE=C:\strawberry\perl      
-    
+          curl -L https://cpanmin.us | perl - App::cpanminus
+          cpanm Locale::Maketext::Simple
+      
       - name: Build release binary
         shell: bash
         run: |
