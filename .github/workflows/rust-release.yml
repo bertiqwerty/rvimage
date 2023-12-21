@@ -1,22 +1,106 @@
+# inspired by https://github.com/BurntSushi/ripgrep/blob/master/.github/workflows/release.yml
+# and https://dzfrias.dev/blog/deploy-rust-cross-platform-github-actions
 name: Release
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+    - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+    contents: write
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  create-release:
+    name: create-release
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+      - name: Get the release version from the tag
+        if: env.VERSION == ''
+        run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+      - name: Show the version
+        run: |
+          echo "version is: $VERSION"
+      - name: Check that tag version and Cargo.toml version are the same
+        shell: bash
+        run: |
+          if ! grep -q "version = \"$VERSION\"" Cargo.toml; then
+            echo "version does not match Cargo.toml" >&2
+            exit 1
+          fi
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create $VERSION --draft --verify-tag --title $VERSION
+    outputs:
+      version: ${{ env.VERSION }}
+  
+  build-release:
+    name: build-release
+    needs: ['create-release']
+    runs-on: ${{ matrix.os }}
+    strategy:
+        matrix:
+            include:
+            - build: macos
+              os: macos-latest
+              target: x86_64-apple-darwin
+            - build: windows-msvc
+              os: windows-latest
+              target: x86_64-pc-windows-msvc
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+    
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Build release binary
+        shell: bash
+        run: |
+          cargo build --verbose --release
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            bin="target/${{ matrix.target }}/release/rvimage.exe"
+          else
+            bin="target/${{ matrix.target }}/release/rvimage"
+          fi
+          echo "BIN=$bin" >> $GITHUB_ENV
+      
+      - name: Build archive
+        shell: bash
+        run: |
+          # Replace with the name of your binary
+
+          FOLDER="$BIN-${{ env.VERSION }}-${{ matrix.target }}"
+          mkdir "$FOLDER"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            mv "target/${{ matrix.target }}/release/$BIN" "$FOLDER"
+          else
+            mv "target/${{ matrix.target }}/release/$BIN" "$FOLDER"
+          fi
+
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a "$FOLDER.zip" "$FOLDER"
+            certutil -hashfile "$FOLDER.zip" SHA256 > "$FOLDER.zip.sha256"
+            echo "ASSET=$FOLDER.zip" >> $GITHUB_ENV
+            echo "ASSET_SUM=$FOLDER.zip.sha256" >> $GITHUB_ENV
+          else
+            tar -czf "$FOLDER.tar.gz" "$FOLDER"
+            shasum -a 256 "$FOLDER.tar.gz" > "$FOLDER.tar.gz.sha256"
+            echo "ASSET=$FOLDER.tar.gz" >> $GITHUB_ENV
+            echo "ASSET_SUM=$FOLDER.tar.gz.sha256" >> $GITHUB_ENV
+          fi
+      - name: Upload release archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version="${{ needs.create-release.outputs.version }}"
+          gh release upload "$version" ${{ env.ASSET }} ${{ env.ASSET_SUM }}
