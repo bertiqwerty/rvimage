@@ -75,10 +75,11 @@ jobs:
       - name: Build release binary
         shell: bash
         run: |
-          cargo build --verbose --release
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cargo build --verbose --release --features optimize
             bin="target/release/rvimage.exe"
           else
+            cargo build --verbose --release
             bin="target/release/rvimage"
           fi
           echo "BIN=$bin" >> $GITHUB_ENV
