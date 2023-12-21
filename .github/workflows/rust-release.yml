@@ -47,14 +47,15 @@ jobs:
     needs: ['create-release']
     runs-on: ${{ matrix.os }}
     strategy:
-        matrix:
-            include:
-            - build: macos
-              os: macos-latest
-              target: x86_64-apple-darwin
-            - build: windows-msvc
-              os: windows-latest
-              target: x86_64-pc-windows-msvc
+      fail-fast: false
+      matrix:
+          include:
+          - build: macos
+            os: macos-latest
+            target: x86_64-apple-darwin
+          - build: windows-msvc
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -86,13 +87,9 @@ jobs:
         run: |
           # Replace with the name of your binary
 
-          FOLDER="$BIN-${{ env.VERSION_CARGO }}-${{ matrix.target }}"
+          FOLDER="rvimage-${{ env.VERSION_CARGO }}-${{ matrix.target }}"
           mkdir "$FOLDER"
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            mv "target/${{ matrix.target }}/release/$BIN" "$FOLDER"
-          else
-            mv "target/${{ matrix.target }}/release/$BIN" "$FOLDER"
-          fi
+          mv "$BIN" "$FOLDER"
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             7z a "$FOLDER.zip" "$FOLDER"
