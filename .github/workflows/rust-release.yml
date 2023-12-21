@@ -83,9 +83,9 @@ jobs:
           fi
           cargo build --verbose --release
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            bin="rvimage/target/${{ matrix.target }}/release/rvimage.exe"
+            bin="target/release/rvimage.exe"
           else
-            bin="rvimage/target/${{ matrix.target }}/release/rvimage"
+            bin="target/release/rvimage"
           fi
           echo "BIN=$bin" >> $GITHUB_ENV
 
