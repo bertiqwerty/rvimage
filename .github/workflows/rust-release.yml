@@ -74,14 +74,17 @@ jobs:
         shell: powershell
         run: |
           cargo build --verbose --release --target-dir ${{ matrix.target }}
-          echo "BIN=${{ matrix.target }}/release/rvimage.exe" >> $env:GITHUB_ENV
+          $bin="${{ matrix.target }}/release/rvimage.exe"
+          echo "BIN=$bin" >> $env:GITHUB_ENV
 
       - name: Build release binary MacOS
         shell: bash
         if: matrix.os == 'macos-latest'
         run: |
           cargo build --verbose --release --target-dir ${{ matrix.target }}
-          echo "${{ matrix.target }}/release/rvimage" >> $GITHUB_ENV
+          bin=${{ matrix.target }}/release/rvimage
+          echo "BIN=$bin" >> $GITHUB_ENV
+          
 
       - name: Build archive
         shell: bash
