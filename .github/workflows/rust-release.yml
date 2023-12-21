@@ -19,9 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Get the release version tag
+        if: env.VERSION_TAG == ''
+        run: echo "VERSION_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
       - name: Get the release version from the tag
         if: env.VERSION == ''
-        run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+        run: echo "VERSION=${VERSION_TAG:1}" >> $GITHUB_ENV
       - name: Show the version
         run: |
           echo "version is: $VERSION"
