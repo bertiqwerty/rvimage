@@ -10,8 +10,10 @@ RV Image is a **r**emote **v**iewer for **image**s written in Rust. You can view
 
 ## Installation
 
-Currently, we do not provide pre-built binaries. With [Rust installed](https://www.rust-lang.org/tools/install)
-you can
+We have a few pre-built binaries for Windows and MacOS on the [releases page](https://github.com/bertiqwerty/rvimage/releases).
+
+With [Rust installed](https://www.rust-lang.org/tools/install)
+you can also
 ```
 cargo install rvimage
 ```
