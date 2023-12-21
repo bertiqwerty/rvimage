@@ -88,6 +88,12 @@ jobs:
           fi
           echo "BIN=$bin" >> $GITHUB_ENV
 
+      - name: Show dir and contents
+        shell: bash
+        run: |
+          pwd
+          ls -l
+
       - name: Build archive
         shell: bash
         run: |
