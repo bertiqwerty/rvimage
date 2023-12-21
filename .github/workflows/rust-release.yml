@@ -66,13 +66,14 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
+            
       - name: Install OpenSSL (Windows)
         if: matrix.os == 'windows-latest'
-        shell: powershell
         run: |
-          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
-          vcpkg install openssl:x64-windows-static-md
-
+          Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+          choco install openssl
+          choco install strawberryperl
+          
       - name: Build release binary
         shell: bash
         run: |
