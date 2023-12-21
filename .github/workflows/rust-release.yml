@@ -78,7 +78,6 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cpan CPAN::Author
             cpan Locale::Maketext::Simple
           fi
           cargo build --verbose --release
