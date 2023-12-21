@@ -67,7 +67,7 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Install missing Perl module
-        if: runner.os == 'Windows'
+        if: runner.os == 'windows-latest'
         run: |
           curl -L https://cpanmin.us | perl - App::cpanminus
           cpanm Locale::Maketext::Simple
@@ -75,11 +75,11 @@ jobs:
       - name: Build release binary
         shell: bash
         run: |
+          set OPENSSL_NO_VENDOR=1
+          cargo build --verbose --release
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cargo build --verbose --release --features optimize
             bin="target/release/rvimage.exe"
           else
-            cargo build --verbose --release
             bin="target/release/rvimage"
           fi
           echo "BIN=$bin" >> $GITHUB_ENV
