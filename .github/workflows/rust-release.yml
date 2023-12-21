@@ -77,13 +77,14 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cpan install Locale::Maketext::Simple
+            cpan CPAN::Author
+            cpan Locale::Maketext::Simple
           fi
           cargo build --verbose --release
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            bin="target/${{ matrix.target }}/release/rvimage.exe"
+            bin="rvimage/target/${{ matrix.target }}/release/rvimage.exe"
           else
-            bin="target/${{ matrix.target }}/release/rvimage"
+            bin="rvimage/target/${{ matrix.target }}/release/rvimage"
           fi
           echo "BIN=$bin" >> $GITHUB_ENV
 
