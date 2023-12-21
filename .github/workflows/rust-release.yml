@@ -65,15 +65,20 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.target }}
+
       - name: Install OpenSSL (Windows)
         if: matrix.os == 'windows-latest'
         shell: powershell
         run: |
           echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
           vcpkg install openssl:x64-windows-static-md
+
       - name: Build release binary
         shell: bash
         run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cpan install Locale::Maketext::Simple
+          fi
           cargo build --verbose --release
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             bin="target/${{ matrix.target }}/release/rvimage.exe"
@@ -81,15 +86,16 @@ jobs:
             bin="target/${{ matrix.target }}/release/rvimage"
           fi
           echo "BIN=$bin" >> $GITHUB_ENV
-      
+
       - name: Build archive
         shell: bash
         run: |
           # Replace with the name of your binary
 
-          FOLDER="rvimage-${{ env.VERSION_CARGO }}-${{ matrix.target }}"
+          FOLDER="rvimage-${{ needs.create-release.outputs.version }}-${{ matrix.target }}"
           mkdir "$FOLDER"
-          mv "$BIN" "$FOLDER"
+          cp "$BIN" "$FOLDER"
+          cp {README.md,LICENSE} "$FOLDER"
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             7z a "$FOLDER.zip" "$FOLDER"
@@ -102,6 +108,7 @@ jobs:
             echo "ASSET=$FOLDER.tar.gz" >> $GITHUB_ENV
             echo "ASSET_SUM=$FOLDER.tar.gz.sha256" >> $GITHUB_ENV
           fi
+
       - name: Upload release archive
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
