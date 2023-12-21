@@ -66,30 +66,20 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
-      - name: Install missing Perl module
-        if: runner.os == 'windows-latest'
+      - name: Build release binary Windows
+        if: matrix.os == 'windows-latest'
         run: |
-          curl -L https://cpanmin.us | perl - App::cpanminus
-          cpanm Locale::Maketext::Simple
-      
-      - name: Verify Perl and OpenSSL installation
-        if: runner.os == 'Windows'
-        run: |
-          perl -v
-          openssl version
-
-      - name: Build release binary
-        shell: bash
-        run: |
-          set OPENSSL_NO_VENDOR=1
           cargo build --verbose --release
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            bin="target/release/rvimage.exe"
-          else
-            bin="target/release/rvimage"
-          fi
+          bin="target/release/rvimage.exe"
           echo "BIN=$bin" >> $GITHUB_ENV
 
+      - name: Build release binary MacOS
+        shell: bash
+        if: matrix.os == 'macos-latest'
+        run: |
+          cargo build --verbose --release
+          bin="target/release/rvimage"
+          echo "BIN=$bin" >> $GITHUB_ENV
       - name: Show dir and contents
         shell: bash
         run: |
