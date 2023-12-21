@@ -72,6 +72,12 @@ jobs:
           curl -L https://cpanmin.us | perl - App::cpanminus
           cpanm Locale::Maketext::Simple
       
+      - name: Verify Perl and OpenSSL installation
+        if: runner.os == 'Windows'
+        run: |
+          perl -v
+          openssl version
+
       - name: Build release binary
         shell: bash
         run: |
