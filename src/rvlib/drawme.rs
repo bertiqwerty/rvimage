@@ -1,4 +1,4 @@
-use crate::{domain::BB, types::ViewImage, GeoFig};
+use crate::{domain::BB, types::ViewImage, GeoFig, Line};
 use std::default::Default;
 
 #[derive(Clone, Debug)]
@@ -17,7 +17,7 @@ impl Stroke {
 }
 
 #[derive(Clone, Debug)]
-pub struct Annotation {
+pub struct BboxAnnotation {
     pub geofig: GeoFig,
     pub fill_color: Option<[u8; 3]>,
     pub fill_alpha: u8,
@@ -25,6 +25,20 @@ pub struct Annotation {
     pub outline_alpha: u8,
     pub label: Option<String>,
     pub is_selected: Option<bool>,
+}
+
+#[derive(Clone, Debug)]
+pub struct BrushAnnotation {
+    pub line: Line,
+    pub outline: Stroke,
+    pub intensity: f32,
+    pub label: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub enum Annotation {
+    Bbox(BboxAnnotation),
+    Brush(BrushAnnotation),
 }
 
 #[derive(Clone, Debug, Default)]

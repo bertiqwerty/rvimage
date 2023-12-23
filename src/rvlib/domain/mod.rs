@@ -7,6 +7,24 @@ pub use core::{Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+pub struct Line {
+    pub points: Vec<PtI>,
+}
+
+impl Line {
+    pub fn push(&mut self, p: PtI) {
+        self.points.push(p);
+    }
+    pub fn new() -> Self {
+        Self { points: vec![] }
+    }
+    #[allow(clippy::needless_lifetimes)]
+    pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
+        self.points.iter().copied()
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub enum GeoFig {
     BB(BB),

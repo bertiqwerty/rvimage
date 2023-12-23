@@ -260,11 +260,49 @@ impl RvImageApp {
         rvlib::Shape::from_im(&self.im_view)
     }
 
+    fn orig_pos_2_egui_rect(&self, p: PtI, offset: Pos2, rect_size: Vec2) -> Pos2 {
+        orig_pos_2_egui_rect(
+            p,
+            offset,
+            self.shape_orig(),
+            self.shape_view(),
+            rect_size,
+            &self.zoom_box,
+        )
+    }
     fn draw_annos(&self, ui: &mut Ui, image_rect: &Rect) {
-        let shapes = self
+        let brush_annos = self
             .annos
             .iter()
-            .flat_map(|anno| {
+            .flat_map(|anno| match anno {
+                Annotation::Brush(brush) => Some(brush),
+                _ => None,
+            })
+            .map(|anno| {
+                let stroke = Stroke::new(
+                    anno.outline.thickness,
+                    rgb_2_clr(
+                        Some(anno.outline.color),
+                        (anno.intensity.clamp(0.0, 1.0) * 255.0) as u8,
+                    ),
+                );
+                println!("stroke {:?}", stroke);
+                let egui_rect_points = anno
+                    .line
+                    .points_iter()
+                    .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
+                    .collect::<Vec<_>>();
+                println!("len points {}", egui_rect_points.len());
+                Shape::Path(PathShape::line(egui_rect_points, stroke))
+            });
+        let bbox_annos = self
+            .annos
+            .iter()
+            .flat_map(|anno| match anno {
+                Annotation::Bbox(bbox) => Some(bbox),
+                _ => None,
+            })
+            .map(|anno| {
                 let (fill_alpha, outline_thickness) = if let Some(is_selected) = anno.is_selected {
                     if is_selected {
                         (
@@ -284,28 +322,16 @@ impl RvImageApp {
                             outline_thickness,
                             rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
                         );
-                        let bb_min_rect = orig_pos_2_egui_rect(
-                            bb.min(),
-                            image_rect.min,
-                            self.shape_orig(),
-                            self.shape_view(),
-                            image_rect.size(),
-                            &self.zoom_box,
-                        );
-                        let bb_max_rect = orig_pos_2_egui_rect(
-                            bb.max(),
-                            image_rect.min,
-                            self.shape_orig(),
-                            self.shape_view(),
-                            image_rect.size(),
-                            &self.zoom_box,
-                        );
-                        Some(Shape::Rect(RectShape::new(
+                        let bb_min_rect =
+                            self.orig_pos_2_egui_rect(bb.min(), image_rect.min, image_rect.size());
+                        let bb_max_rect =
+                            self.orig_pos_2_egui_rect(bb.max(), image_rect.min, image_rect.size());
+                        Shape::Rect(RectShape::new(
                             Rect::from_min_max(bb_min_rect, bb_max_rect),
                             Rounding::ZERO,
                             fill_rgb,
                             stroke,
-                        )))
+                        ))
                     }
                     GeoFig::Poly(poly) => {
                         let stroke = Stroke::new(
@@ -324,25 +350,15 @@ impl RvImageApp {
                         let egui_rect_points = poly
                             .points_iter()
                             .map(|p| {
-                                orig_pos_2_egui_rect(
-                                    p,
-                                    image_rect.min,
-                                    self.shape_orig(),
-                                    self.shape_view(),
-                                    image_rect.size(),
-                                    &self.zoom_box,
-                                )
+                                self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size())
                             })
                             .collect::<Vec<_>>();
 
-                        Some(Shape::Path(PathShape::closed_line(
-                            egui_rect_points,
-                            stroke,
-                        )))
+                        Shape::Path(PathShape::closed_line(egui_rect_points, stroke))
                     }
                 }
-            })
-            .collect::<Vec<Shape>>();
+            });
+        let shapes = brush_annos.chain(bbox_annos).collect::<Vec<Shape>>();
         ui.painter().add(Shape::Vec(shapes));
     }
     fn collect_events(&mut self, ui: &mut Ui, image_response: &Response) -> rvlib::Events {
@@ -425,7 +441,7 @@ impl eframe::App for RvImageApp {
                         if !self.annos.is_empty() {
                             self.draw_annos(ui, &ir.rect);
                         }
-                    }
+                    };
                 }
             }
         });

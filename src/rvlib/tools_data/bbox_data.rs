@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use super::annotations::BboxAnnotations;
 use crate::{
-    annotations::SplitMode,
     cfg::{get_cfg, CocoFile},
     domain::Shape,
     file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
+    tools_data::annotations::SplitMode,
     util::true_indices,
     GeoFig,
 };
@@ -345,7 +345,7 @@ impl BboxExportData {
             annotations: bbox_specifics
                 .anno_intoiter()
                 .map(|(filename, (annos, shape))| {
-                    let (bbs, labels) = annos.to_data();
+                    let (bbs, labels) = annos.data();
                     (filename, (bbs, labels, shape))
                 })
                 .collect::<HashMap<_, _>>(),

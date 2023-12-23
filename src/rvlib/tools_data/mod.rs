@@ -1,6 +1,6 @@
 use crate::{
-    drawme::{Annotation, Stroke},
-    UpdateAnnos,
+    drawme::{Annotation, BboxAnnotation, Stroke},
+    BrushAnnotation, UpdateAnnos,
 };
 
 use self::bbox_data::OUTLINE_THICKNESS_CONVERSION;
@@ -55,18 +55,20 @@ impl ToolSpecifics {
                         .iter()
                         .zip(cats.iter())
                         .zip(selected_bbs.iter())
-                        .map(|((bb, cat_idx), is_selected)| Annotation {
-                            geofig: bb.clone(),
-                            fill_color: Some(colors[*cat_idx]),
-                            fill_alpha: bb_data.options.fill_alpha,
-                            label: Some(labels[*cat_idx].clone()),
-                            outline: Stroke {
-                                thickness: bb_data.options.outline_thickness as f32
-                                    / OUTLINE_THICKNESS_CONVERSION,
-                                color: colors[*cat_idx],
-                            },
-                            outline_alpha: bb_data.options.outline_alpha,
-                            is_selected: Some(*is_selected),
+                        .map(|((bb, cat_idx), is_selected)| {
+                            Annotation::Bbox(BboxAnnotation {
+                                geofig: bb.clone(),
+                                fill_color: Some(colors[*cat_idx]),
+                                fill_alpha: bb_data.options.fill_alpha,
+                                label: Some(labels[*cat_idx].clone()),
+                                outline: Stroke {
+                                    thickness: bb_data.options.outline_thickness as f32
+                                        / OUTLINE_THICKNESS_CONVERSION,
+                                    color: colors[*cat_idx],
+                                },
+                                outline_alpha: bb_data.options.outline_alpha,
+                                is_selected: Some(*is_selected),
+                            })
                         })
                         .collect::<Vec<Annotation>>();
                     UpdateAnnos::Yes((bbs_colored, None))
@@ -74,7 +76,28 @@ impl ToolSpecifics {
                     UpdateAnnos::clear()
                 }
             }
-            ToolSpecifics::Brush(_) => UpdateAnnos::default(),
+            ToolSpecifics::Brush(br_data) => {
+                if let Some(annos) = br_data.get_annos(file_path) {
+                    let annos = annos
+                        .lines
+                        .iter()
+                        .map(|line| {
+                            Annotation::Brush(BrushAnnotation {
+                                line: line.clone(),
+                                outline: Stroke {
+                                    thickness: br_data.thickness,
+                                    color: [255, 255, 255],
+                                },
+                                intensity: br_data.intensity,
+                                label: None,
+                            })
+                        })
+                        .collect::<Vec<Annotation>>();
+                    UpdateAnnos::Yes((annos, None))
+                } else {
+                    UpdateAnnos::clear()
+                }
+            }
             ToolSpecifics::Rot90(_) => UpdateAnnos::default(),
         }
     }

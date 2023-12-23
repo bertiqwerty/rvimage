@@ -3,11 +3,11 @@ use std::{path::PathBuf, str::FromStr};
 use egui::Ui;
 
 use crate::{
-    annotations::SplitMode,
     cfg::{self, get_cfg, CocoFileConnection},
     file_util::path_to_str,
     result::{to_rv, RvResult},
     tools_data::{
+        annotations::SplitMode,
         bbox_data::{BboxSpecificData, OUTLINE_THICKNESS_CONVERSION},
         ToolSpecifics, ToolsData,
     },

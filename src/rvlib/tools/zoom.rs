@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     domain::{OutOfBoundsMode, PtF, PtI, Shape, BB},
-    drawme::{Annotation, Stroke},
+    drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     history::History,
     make_tool_transform,
@@ -140,7 +140,7 @@ impl Zoom {
                 // animation
                 let bb = BB::from_points(mps.into(), m.into());
                 let white = [255, 255, 255];
-                let anno = Annotation {
+                let anno = BboxAnnotation {
                     geofig: GeoFig::BB(bb),
                     fill_color: None,
                     fill_alpha: 0,
@@ -149,7 +149,7 @@ impl Zoom {
                     label: None,
                     is_selected: None,
                 };
-                world.request_redraw_tmp_anno(anno);
+                world.request_redraw_tmp_anno(Annotation::Bbox(anno));
             }
         }
         (world, history)

@@ -1,12 +1,13 @@
 use crate::{
-    annotations::BrushAnnotations,
     annotations_accessor_mut,
     events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
+    tools_data::annotations::BrushAnnotations,
     tools_data::BrushToolData,
     tools_data_initializer,
     world::World,
+    Line,
 };
 
 use super::{Manipulate, BRUSH_NAME};
@@ -28,7 +29,7 @@ impl Brush {
         history: History,
     ) -> (World, History) {
         if let (Some(_), Some(a)) = (events.mouse_pos, get_annos_mut(&mut world)) {
-            a.points.push(vec![]);
+            a.lines.push(Line::new());
         }
         (world, history)
     }
@@ -39,7 +40,7 @@ impl Brush {
         history: History,
     ) -> (World, History) {
         if let (Some(mp), Some(annos)) = (events.mouse_pos, get_annos_mut(&mut world)) {
-            annos.points.last_mut().unwrap().push(mp.into());
+            annos.lines.last_mut().unwrap().push(mp.into());
             world.request_redraw_annotations(BRUSH_NAME, true)
         }
         (world, history)
@@ -61,7 +62,7 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if let Some(a) = get_annos_mut(&mut world) {
-            a.points.clear();
+            a.lines.clear();
             world.request_redraw_annotations(BRUSH_NAME, true);
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
         }

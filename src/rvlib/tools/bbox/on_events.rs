@@ -1,14 +1,13 @@
 use std::{cmp::Ordering, iter::empty};
 
 use crate::{
-    annotations::SplitMode,
     cfg::CocoFile,
     domain::{shape_unscaled, OutOfBoundsMode, Point, PtF, PtI, BB},
     events::{Events, KeyCode},
     file_util::MetaData,
     history::Record,
     tools::{core::Mover, BBOX_NAME},
-    tools_data::{self, bbox_data::ClipboardData, BboxSpecificData},
+    tools_data::{self, annotations::SplitMode, bbox_data::ClipboardData, BboxSpecificData},
     util::true_indices,
     GeoFig, Polygon,
     {history::History, world::World},
@@ -562,9 +561,9 @@ pub(super) fn on_key_released(
 use {
     super::core::initialize_tools_menu_data,
     crate::{
-        annotations::BboxAnnotations,
         domain::{make_test_bbs, make_test_geos, Shape},
         point,
+        tools_data::annotations::BboxAnnotations,
         types::ViewImage,
     },
     image::DynamicImage,

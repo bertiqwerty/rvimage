@@ -1,8 +1,8 @@
-use crate::domain::PtI;
+use crate::Line;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct BrushAnnotations {
-    pub points: Vec<Vec<PtI>>,
-    pub color: [u8; 3],
+    pub lines: Vec<Line>,
+    pub cat_idx: Vec<usize>,
 }

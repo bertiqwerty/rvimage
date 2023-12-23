@@ -16,17 +16,19 @@ pub mod result;
 mod ssh;
 mod threadpool;
 pub mod tools;
-pub mod tools_data;
+mod tools_data;
 mod types;
 mod util;
 mod view;
 pub mod world;
 pub use cfg::get_darkmode;
-pub use domain::{GeoFig, Polygon, Shape, BB};
-pub use drawme::{Annotation, Stroke, UpdateAnnos, UpdateImage, UpdateView, UpdateZoomBox};
+pub use domain::{GeoFig, Line, Polygon, Shape, BB};
+pub use drawme::{
+    Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateAnnos, UpdateImage, UpdateView,
+    UpdateZoomBox,
+};
 pub use events::{Event, Events, KeyCode};
 pub use main_loop::MainEventLoop;
-pub use tools_data::annotations;
 pub use view::{
     orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, ImageU8,
 };

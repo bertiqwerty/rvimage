@@ -1,14 +1,13 @@
 use crate::{
-    annotations::BboxAnnotations,
     annotations_accessor, annotations_accessor_mut,
     domain::{Shape, BB},
-    drawme::{Annotation, Stroke},
+    drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     file_util,
     history::{History, Record},
     make_tool_transform,
     tools::{core::Mover, Manipulate, BBOX_NAME},
-    tools_data::{bbox_data::Options, BboxSpecificData},
+    tools_data::{annotations::BboxAnnotations, bbox_data::Options, BboxSpecificData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     world::World,
     GeoFig, Polygon,
@@ -384,7 +383,7 @@ impl Manipulate for BBox {
                 let bb_data = get_tools_data(&world).specifics.bbox();
                 let label = Some(bb_data.labels()[in_menu_selected_label].clone());
                 let color = bb_data.colors()[in_menu_selected_label];
-                let anno = Annotation {
+                let anno = BboxAnnotation {
                     geofig: geo,
                     label,
                     fill_color: Some(color),
@@ -398,7 +397,7 @@ impl Manipulate for BBox {
                 };
                 let are_boxes_visible = are_boxes_visible(&world);
                 world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
-                world.request_redraw_tmp_anno(anno);
+                world.request_redraw_tmp_anno(Annotation::Bbox(anno));
             } else if self.prev_pos.prev_pos.len() > 1 {
             }
         }
