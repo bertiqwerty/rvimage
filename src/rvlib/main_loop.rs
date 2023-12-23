@@ -184,7 +184,7 @@ impl MainEventLoop {
             })
             .inner?;
 
-        // update world based on tools
+        // tool activation
         if self.recently_activated_tool_idx.is_none() {
             self.recently_activated_tool_idx = self.tools_select_menu.recently_activated_tool();
         }
@@ -197,6 +197,7 @@ impl MainEventLoop {
                     if i == idx_active {
                         (self.world, self.history) =
                             t.activate(mem::take(&mut self.world), mem::take(&mut self.history));
+                        info!("activate {}", t.name);
                     } else {
                         let meta_data = self.ctrl.meta_data(
                             self.ctrl.file_selected_idx,
@@ -223,6 +224,7 @@ impl MainEventLoop {
                     t.deactivate(mem::take(&mut self.world), mem::take(&mut self.history));
             }
         }
+        // tool activation keyboard shortcuts
         activate_tool_event!(
             B,
             BBOX_NAME,
