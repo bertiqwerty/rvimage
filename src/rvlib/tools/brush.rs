@@ -5,7 +5,6 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     tools_data::BrushToolData,
-    tools_data::{ToolSpecifics, ToolsData},
     tools_data_initializer,
     world::World,
 };

@@ -8,7 +8,7 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     tools::{core::Mover, Manipulate, BBOX_NAME},
-    tools_data::{bbox_data::Options, BboxSpecificData, ToolSpecifics, ToolsData},
+    tools_data::{bbox_data::Options, BboxSpecificData},
     tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
     world::World,
     GeoFig, Polygon,
@@ -93,25 +93,12 @@ fn check_recolorboxes(mut world: World) -> World {
     world
 }
 
-fn check_filechange(
-    mut world: World,
-    previous_file: Option<String>,
-) -> (bool, World, Option<String>) {
-    let is_file_new = previous_file != world.data.meta_data.file_path;
-    if is_file_new {
-        {
-            let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-            for (_, (anno, _)) in bbox_data.anno_iter_mut() {
-                anno.deselect_all();
-            }
-            let are_boxes_visible = bbox_data.options.are_boxes_visible;
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
-        }
-        let new_file_path = world.data.meta_data.file_path.clone();
-        (is_file_new, world, new_file_path)
-    } else {
-        (is_file_new, world, previous_file)
+fn filechange(mut world: World) -> World {
+    let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+    for (_, (anno, _)) in bbox_data.anno_iter_mut() {
+        anno.deselect_all();
     }
+    world
 }
 
 fn check_annoremove(mut world: World) -> World {
@@ -185,14 +172,8 @@ fn check_labelchange(mut world: World, prev_label: usize, options: Options) -> W
     world
 }
 
-fn check_autopaste(
-    mut world: World,
-    mut history: History,
-    auto_paste: bool,
-    is_file_changed: bool,
-) -> (World, History) {
-    if world.data.meta_data.is_loading_screen_active == Some(false) && is_file_changed && auto_paste
-    {
+fn check_autopaste(mut world: World, mut history: History, auto_paste: bool) -> (World, History) {
+    if world.data.meta_data.is_loading_screen_active == Some(false) && auto_paste {
         (world, history) = paste(world, history);
     }
     (world, history)
@@ -203,7 +184,6 @@ pub struct BBox {
     prev_pos: PrevPos,
     mover: Mover,
     prev_label: usize,
-    previous_file: Option<String>,
 }
 
 impl BBox {
@@ -322,7 +302,6 @@ impl Manipulate for BBox {
             prev_pos: PrevPos::default(),
             mover: Mover::new(),
             prev_label: 0,
-            previous_file: None,
         }
     }
 
@@ -346,6 +325,14 @@ impl Manipulate for BBox {
         (world, history)
     }
 
+    fn on_filechange(&mut self, world: World, history: History) -> (World, History) {
+        let world = filechange(world);
+        let options = get_tools_data(&world).specifics.bbox().options;
+        let (mut world, history) = check_autopaste(world, history, options.auto_paste);
+        world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+        (world, history)
+    }
+
     fn events_tf(
         &mut self,
         mut world: World,
@@ -353,10 +340,6 @@ impl Manipulate for BBox {
         events: &Events,
     ) -> (World, History) {
         world = check_recolorboxes(world);
-        let is_file_changed;
-        (is_file_changed, world, self.previous_file) =
-            check_filechange(world, mem::take(&mut self.previous_file));
-
         world = check_annoremove(world);
 
         // this is necessary in addition to the call in on_activate due to undo/redo
@@ -369,8 +352,6 @@ impl Manipulate for BBox {
         let options = get_tools_data(&world).specifics.bbox().options;
 
         world = check_labelchange(world, self.prev_label, options);
-
-        (world, history) = check_autopaste(world, history, options.auto_paste, is_file_changed);
 
         if options.is_redraw_annos_triggered {
             world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));

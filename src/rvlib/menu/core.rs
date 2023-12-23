@@ -105,6 +105,7 @@ impl ToolSelectMenu {
             let tmp = match &mut v.specifics {
                 ToolSpecifics::Bbox(x) => bbox_menu(ui, v.menu_active, mem::take(x)),
                 ToolSpecifics::Brush(_) => Ok(mem::take(v)),
+                ToolSpecifics::Rot90(_) => Ok(mem::take(v)),
             };
             *v = tmp?;
         }

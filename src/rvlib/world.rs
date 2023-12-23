@@ -14,7 +14,9 @@ macro_rules! tools_data_initializer {
             if world.data.tools_data_map.get_mut($actor).is_none() {
                 world.data.tools_data_map.insert(
                     $actor,
-                    ToolsData::new(ToolSpecifics::$variant($tool_data_type::default())),
+                    $crate::tools_data::ToolsData::new(
+                        $crate::tools_data::ToolSpecifics::$variant($tool_data_type::default()),
+                    ),
                 );
             }
             world
@@ -43,9 +45,11 @@ macro_rules! annotations_accessor {
                 None
             }
         }
+        #[allow(unused)]
         pub(super) fn get_annos(world: &World) -> Option<&$annotations_type> {
             get_annos_(world, false)
         }
+        #[allow(unused)]
         pub(super) fn get_annos_if_some(world: &World) -> Option<&$annotations_type> {
             get_annos_(world, true)
         }
@@ -76,7 +80,7 @@ macro_rules! annotations_accessor_mut {
 #[macro_export]
 macro_rules! tools_data_accessor_mut {
     ($actor:expr, $error_msg:expr) => {
-        pub(super) fn get_tools_data_mut(world: &mut World) -> &mut ToolsData {
+        pub(super) fn get_tools_data_mut(world: &mut World) -> &mut $crate::tools_data::ToolsData {
             world.data.tools_data_map.get_mut($actor).expect($error_msg)
         }
     };
@@ -84,7 +88,7 @@ macro_rules! tools_data_accessor_mut {
 #[macro_export]
 macro_rules! tools_data_accessor {
     ($actor:expr, $error_msg:expr) => {
-        pub(super) fn get_tools_data(world: &World) -> &ToolsData {
+        pub(super) fn get_tools_data(world: &World) -> &$crate::tools_data::ToolsData {
             world.data.tools_data_map.get($actor).expect($error_msg)
         }
     };

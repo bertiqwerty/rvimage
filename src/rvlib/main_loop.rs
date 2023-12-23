@@ -133,7 +133,12 @@ impl Default for MainEventLoop {
                 }
             };
         }
-        let tools = make_tool_vec();
+        let mut tools = make_tool_vec();
+        for t in &mut tools {
+            if t.is_active() {
+                (world, _) = t.activate(world, History::default());
+            }
+        }
         let http_addr = http_address().to_string();
         // http server state
         let rx_from_http = if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
@@ -286,7 +291,7 @@ impl MainEventLoop {
         } else {
             match self
                 .ctrl
-                .load_new_image_if_triggered(&self.world, &mut self.history)
+                .load_new_image_if_triggered(&mut self.world, &mut self.history)
             {
                 Ok(iip) => iip,
                 Err(e) => {
@@ -297,17 +302,27 @@ impl MainEventLoop {
         };
 
         if let Some((ims_raw, file_label_idx)) = ims_raw_idx_pair {
-            if file_label_idx.is_some() {
-                self.ctrl.paths_navigator.select_label_idx(file_label_idx);
-            }
             let zoom_box = if ims_raw.shape() == self.world.data.shape() {
                 *self.world.zoom_box()
             } else {
                 None
             };
             self.world = World::new(ims_raw, zoom_box);
+            if file_label_idx.is_some() {
+                self.ctrl.paths_navigator.select_label_idx(file_label_idx);
+                let meta_data = self.ctrl.meta_data(
+                    self.ctrl.file_selected_idx,
+                    Some(self.ctrl.flags().is_loading_screen_active),
+                );
+                self.world.data.meta_data = meta_data;
+                for t in &mut self.tools {
+                    if t.is_active() {
+                        (self.world, self.history) = t
+                            .file_changed(mem::take(&mut self.world), mem::take(&mut self.history));
+                    }
+                }
+            }
         }
-        // Update the scale factor
 
         if are_tools_active(&self.menu, &self.tools_select_menu) {
             let meta_data = self.ctrl.meta_data(

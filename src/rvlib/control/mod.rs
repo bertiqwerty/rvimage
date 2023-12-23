@@ -241,6 +241,7 @@ impl Control {
     pub fn read_image(&mut self, file_label_selected_idx: usize, reload: bool) -> AsyncResultImage {
         let wrapped_image = self.reader.as_mut().and_then(|r| {
             self.paths_navigator.paths_selector().as_ref().map(|ps| {
+                thread::sleep(Duration::from_millis(1000));
                 let ffp = ps.filtered_file_paths();
                 r.read_image(file_label_selected_idx, &ffp, reload)
             })
@@ -381,7 +382,7 @@ impl Control {
 
     pub fn load_new_image_if_triggered(
         &mut self,
-        world: &World,
+        world: &mut World,
         history: &mut History,
     ) -> RvResult<Option<(DataRaw, Option<usize>)>> {
         let menu_file_selected = self.paths_navigator.file_label_selected_idx();

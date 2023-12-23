@@ -6,12 +6,13 @@ use crate::{
 use self::bbox_data::OUTLINE_THICKNESS_CONVERSION;
 pub use self::{
     bbox_data::BboxExportData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
-    coco_io::write_coco,
+    coco_io::write_coco, rot90_data::Rot90ToolData,
 };
 pub mod annotations;
 pub mod bbox_data;
 pub mod brush_data;
 pub mod coco_io;
+pub mod rot90_data;
 
 macro_rules! variant_access {
     ($variant:ident, $func_name:ident, $self:ty, $return_type:ty) => {
@@ -29,12 +30,15 @@ macro_rules! variant_access {
 pub enum ToolSpecifics {
     Bbox(BboxSpecificData),
     Brush(BrushToolData),
+    Rot90(Rot90ToolData),
 }
 impl ToolSpecifics {
     variant_access!(Bbox, bbox, &Self, &BboxSpecificData);
     variant_access!(Brush, brush, &Self, &BrushToolData);
+    variant_access!(Rot90, rot90, &Self, &Rot90ToolData);
     variant_access!(Bbox, bbox_mut, &mut Self, &mut BboxSpecificData);
     variant_access!(Brush, brush_mut, &mut Self, &mut BrushToolData);
+    variant_access!(Rot90, rot90_mut, &mut Self, &mut Rot90ToolData);
 
     pub fn to_annotations_view(&self, file_path: &str) -> UpdateAnnos {
         match &self {
@@ -69,10 +73,8 @@ impl ToolSpecifics {
                     UpdateAnnos::clear()
                 }
             }
-            ToolSpecifics::Brush(_) => {
-                // TODO: draw polygon
-                UpdateAnnos::default()
-            }
+            ToolSpecifics::Brush(_) => UpdateAnnos::default(),
+            ToolSpecifics::Rot90(_) => UpdateAnnos::default(),
         }
     }
 }

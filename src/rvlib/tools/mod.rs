@@ -40,7 +40,7 @@ macro_rules! make_tools {
     };
 }
 make_tools!(
-    (Rot90, "🔄", ROT90_NAME, false, false),
+    (Rot90, "🔄", ROT90_NAME, true, true),
     (Brush, "✏", BRUSH_NAME, false, false),
     (BBox, "⬜", BBOX_NAME, false, false),
     (Zoom, "🔍", ZOOM_NAME, false, false),
@@ -71,6 +71,10 @@ impl ToolState {
     pub fn activate(&mut self, mut world: World, mut history: History) -> (World, History) {
         self.is_active = true;
         (world, history) = apply_tool_method_mut!(self, on_activate, world, history);
+        (world, history)
+    }
+    pub fn file_changed(&mut self, mut world: World, mut history: History) -> (World, History) {
+        (world, history) = apply_tool_method_mut!(self, on_filechange, world, history);
         (world, history)
     }
     pub fn deactivate(&mut self, mut world: World, mut history: History) -> (World, History) {
