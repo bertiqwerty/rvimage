@@ -316,6 +316,7 @@ impl Menu {
                     |open| {
                         self.open_folder_popup_open = open;
                     },
+                    || self.open_folder_popup_open = false,
                     button_resp,
                     self
                 );
