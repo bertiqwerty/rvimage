@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 use egui::{
-    epaint::{PathShape, RectShape},
+    epaint::{CircleShape, PathShape, RectShape},
     Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
     Sense, Shape, Stroke, Style, TextureHandle, TextureOptions, Ui, Vec2, Visuals,
 };
@@ -278,7 +278,7 @@ impl RvImageApp {
                 Annotation::Brush(brush) => Some(brush),
                 _ => None,
             })
-            .map(|anno| {
+            .flat_map(|anno| {
                 let stroke = Stroke::new(
                     anno.outline.thickness,
                     rgb_2_clr(
@@ -286,14 +286,34 @@ impl RvImageApp {
                         (anno.intensity.clamp(0.0, 1.0) * 255.0) as u8,
                     ),
                 );
-                println!("stroke {:?}", stroke);
                 let egui_rect_points = anno
                     .line
                     .points_iter()
                     .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
                     .collect::<Vec<_>>();
-                println!("len points {}", egui_rect_points.len());
-                Shape::Path(PathShape::line(egui_rect_points, stroke))
+
+                if egui_rect_points.len() > 3 {
+                    Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
+                } else {
+                    let center = anno.line.mean();
+                    if let Some(center) = center {
+                        let center = self.orig_pos_2_egui_rect(
+                            center.into(),
+                            image_rect.min,
+                            image_rect.size(),
+                        );
+                        Some(Shape::Circle(CircleShape::filled(
+                            Pos2 {
+                                x: center.x,
+                                y: center.y,
+                            },
+                            stroke.width,
+                            stroke.color,
+                        )))
+                    } else {
+                        None
+                    }
+                }
             });
         let bbox_annos = self
             .annos

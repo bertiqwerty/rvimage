@@ -79,16 +79,15 @@ impl ToolSpecifics {
             ToolSpecifics::Brush(br_data) => {
                 if let Some(annos) = br_data.get_annos(file_path) {
                     let annos = annos
-                        .lines
-                        .iter()
-                        .map(|line| {
+                        .annos_iter()
+                        .map(|(line, _, i, t)| {
                             Annotation::Brush(BrushAnnotation {
                                 line: line.clone(),
                                 outline: Stroke {
-                                    thickness: br_data.thickness,
+                                    thickness: t,
                                     color: [255, 255, 255],
                                 },
-                                intensity: br_data.intensity,
+                                intensity: i,
                                 label: None,
                             })
                         })

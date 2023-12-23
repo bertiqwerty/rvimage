@@ -23,6 +23,31 @@ impl Line {
     pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
         self.points.iter().copied()
     }
+    pub fn last_point(&self) -> Option<PtI> {
+        self.points.last().map(|p| *p)
+    }
+    pub fn max_dist_squared(&self) -> Option<u32> {
+        (0..self.points.len())
+            .flat_map(|i| {
+                (0..self.points.len())
+                    .map(|j| self.points[i].dist_square(&self.points[j]))
+                    .max()
+            })
+            .max()
+    }
+    pub fn mean(&self) -> Option<PtF> {
+        let n_points = self.points.len() as u32;
+        if n_points == 0 {
+            None
+        } else {
+            Some(
+                PtF::from(
+                    self.points_iter()
+                        .fold(Point { x: 0, y: 0 }, |p1, p2| p1 + p2),
+                ) / n_points as f32,
+            )
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]

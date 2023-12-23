@@ -12,7 +12,7 @@ use crate::{
 use egui::{Area, Context, Frame, Id, Order, Response, Ui, Widget};
 use std::mem;
 
-use super::tools_menus::bbox_menu;
+use super::tools_menus::{bbox_menu, brush_menu};
 
 fn show_popup(
     ui: &mut Ui,
@@ -104,7 +104,7 @@ impl ToolSelectMenu {
         for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
             let tmp = match &mut v.specifics {
                 ToolSpecifics::Bbox(x) => bbox_menu(ui, v.menu_active, mem::take(x)),
-                ToolSpecifics::Brush(_) => Ok(mem::take(v)),
+                ToolSpecifics::Brush(x) => brush_menu(ui, v.menu_active, mem::take(x)),
                 ToolSpecifics::Rot90(_) => Ok(mem::take(v)),
             };
             *v = tmp?;

@@ -9,7 +9,7 @@ use crate::{
     tools_data::{
         annotations::SplitMode,
         bbox_data::{BboxSpecificData, OUTLINE_THICKNESS_CONVERSION},
-        ToolSpecifics, ToolsData,
+        BrushToolData, ToolSpecifics, ToolsData,
     },
 };
 
@@ -161,6 +161,24 @@ pub fn bbox_menu(
     });
     Ok(ToolsData {
         specifics: ToolSpecifics::Bbox(data),
+        menu_active: window_open,
+    })
+}
+
+pub fn brush_menu(
+    ui: &mut Ui,
+    mut window_open: bool,
+    mut data: BrushToolData,
+) -> RvResult<ToolsData> {
+    ui.add(egui::Slider::new(&mut data.thickness, 0.0..=10.0).text("thickness"))
+        .changed();
+    ui.add(egui::Slider::new(&mut data.intensity, 0.0..=1.0).text("intensity"))
+        .changed();
+    if ui.button("close").clicked() {
+        window_open = false;
+    }
+    Ok(ToolsData {
+        specifics: ToolSpecifics::Brush(data),
         menu_active: window_open,
     })
 }
