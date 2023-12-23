@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{implement_annotations_getters, Shape};
 
-#[derive(Clone, Debug, PartialEq, Eq, Default, Copy)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Default, Copy)]
 pub enum NRotations {
     #[default]
     Zero,
@@ -22,7 +23,7 @@ impl NRotations {
     }
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
 pub struct Rot90ToolData {
     // maps the filename to the number of rotations
     annotations_map: HashMap<String, (NRotations, Shape)>,

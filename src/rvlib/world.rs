@@ -13,7 +13,7 @@ macro_rules! tools_data_initializer {
         pub(super) fn initialize_tools_menu_data(mut world: World) -> World {
             if world.data.tools_data_map.get_mut($actor).is_none() {
                 world.data.tools_data_map.insert(
-                    $actor,
+                    $actor.to_string(),
                     $crate::tools_data::ToolsData::new(
                         $crate::tools_data::ToolSpecifics::$variant($tool_data_type::default()),
                     ),
@@ -95,7 +95,7 @@ macro_rules! tools_data_accessor {
 }
 
 // tool name -> tool's menu data type
-pub type ToolsDataMap = HashMap<&'static str, ToolsData>;
+pub type ToolsDataMap = HashMap<String, ToolsData>;
 
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {

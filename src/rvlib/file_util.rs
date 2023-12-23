@@ -1,13 +1,11 @@
 #[cfg(feature = "azure_blob")]
 use crate::cfg::AzureBlobCfg;
+use crate::result::{to_rv, RvResult};
+use crate::tools_data::{bbox_data, BboxExportData};
 use crate::{
     cfg::{Cfg, PyHttpReaderCfg, SshCfg},
     rverr,
-    tools_data::bbox_data,
-};
-use crate::{
-    result::{to_rv, RvResult},
-    tools_data::BboxExportData,
+    world::ToolsDataMap,
 };
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -153,14 +151,19 @@ pub fn filename_to_prjname(filename: &str) -> RvResult<&str> {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct ExportData {
+    pub opened_folder: Option<String>,
+    pub tools_data_map: ToolsDataMap,
+    pub cfg: Cfg,
+}
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct ExportDataLegacy {
     pub opened_folder: Option<String>,
     pub bbox_data: Option<BboxExportData>,
     pub bbox_options: Option<bbox_data::Options>,
     pub cfg: Cfg,
 }
-
 pub struct Defer<F: FnMut()> {
     pub func: F,
 }

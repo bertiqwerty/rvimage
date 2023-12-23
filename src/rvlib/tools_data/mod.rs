@@ -8,6 +8,7 @@ pub use self::{
     bbox_data::BboxExportData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
     coco_io::write_coco, rot90_data::Rot90ToolData,
 };
+use serde::{Deserialize, Serialize};
 pub mod annotations;
 pub mod bbox_data;
 pub mod brush_data;
@@ -25,7 +26,7 @@ macro_rules! variant_access {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum ToolSpecifics {
     Bbox(BboxSpecificData),
@@ -84,7 +85,7 @@ impl Default for ToolSpecifics {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct ToolsData {
     pub specifics: ToolSpecifics,
     pub menu_active: bool,

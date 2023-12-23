@@ -24,15 +24,16 @@ mod detail {
     };
 
     use image::{DynamicImage, ImageBuffer};
+    use tracing::info;
 
     use crate::{
         cfg::Cfg,
         domain::Shape,
-        file_util::{self, make_prjcfg_path, ExportData, DEFAULT_PRJ_NAME},
+        file_util::{self, make_prjcfg_path, ExportData, ExportDataLegacy, DEFAULT_PRJ_NAME},
         result::{to_rv, RvResult},
         rverr,
         tools::BBOX_NAME,
-        tools_data::{BboxExportData, BboxSpecificData, ToolSpecifics, ToolsData},
+        tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
         world::ToolsDataMap,
     };
 
@@ -42,18 +43,35 @@ mod detail {
     ) -> RvResult<(ToolsDataMap, Option<String>, Cfg)> {
         let file_path = Path::new(export_folder).join(file_name);
         let s = file_util::read_to_string(file_path)?;
-        let read: ExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
+        let (tools_data_map, cfg, opened_folder) =
+            match serde_json::from_str::<ExportData>(s.as_str()).map_err(to_rv) {
+                Ok(export_data) => (
+                    export_data.tools_data_map,
+                    export_data.cfg,
+                    export_data.opened_folder,
+                ),
+                Err(e) => {
+                    info!("trying legacy-read on {file_name:?} due to {e:?}");
+                    let read =
+                        serde_json::from_str::<ExportDataLegacy>(s.as_str()).map_err(to_rv)?;
+                    let tdm = if let Some(bbox_data) = read.bbox_data {
+                        let mut bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
 
-        let tools_data_map = if let Some(bbox_data) = read.bbox_data {
-            let mut bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
-            if let Some(options) = read.bbox_options {
-                bbox_data.options = options;
-            }
-            ToolsDataMap::from([(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)))])
-        } else {
-            ToolsDataMap::new()
-        };
-        Ok((tools_data_map, read.opened_folder, read.cfg))
+                        if let Some(options) = read.bbox_options {
+                            bbox_data.options = options;
+                        }
+                        ToolsDataMap::from([(
+                            BBOX_NAME.to_string(),
+                            ToolsData::new(ToolSpecifics::Bbox(bbox_data)),
+                        )])
+                    } else {
+                        ToolsDataMap::new()
+                    };
+                    (tdm, read.cfg, read.opened_folder)
+                }
+            };
+
+        Ok((tools_data_map, opened_folder, cfg))
     }
 
     pub fn save(
@@ -62,16 +80,9 @@ mod detail {
         export_folder: &str,
         cfg: &Cfg,
     ) -> RvResult<PathBuf> {
-        let bbox_data = tools_data_map.get(BBOX_NAME);
-
         let data = ExportData {
             opened_folder: opened_folder.cloned(),
-            bbox_data: bbox_data.map(|bbox_data| {
-                BboxExportData::from_bbox_data(bbox_data.specifics.bbox().clone())
-            }),
-            bbox_options: tools_data_map
-                .get(BBOX_NAME)
-                .map(|bbox_data| bbox_data.specifics.bbox().options),
+            tools_data_map: tools_data_map.clone(),
             cfg: cfg.clone(),
         };
         let prj_name = if DEFAULT_PRJ_NAME != cfg.current_prj_name {
@@ -488,8 +499,10 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
             a.add_bb(bb, 0);
         }
     }
-    let tools_data_map =
-        HashMap::from([(BBOX_NAME, ToolsData::new(ToolSpecifics::Bbox(bbox_data)))]);
+    let tools_data_map = HashMap::from([(
+        BBOX_NAME.to_string(),
+        ToolsData::new(ToolSpecifics::Bbox(bbox_data)),
+    )]);
     tools_data_map
 }
 
