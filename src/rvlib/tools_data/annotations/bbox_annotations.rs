@@ -73,7 +73,7 @@ impl BboxAnnotations {
         }
     }
 
-    pub fn data(self) -> (Vec<GeoFig>, Vec<usize>) {
+    pub fn separate_data(self) -> (Vec<GeoFig>, Vec<usize>) {
         (self.geos, self.cat_idxs)
     }
 

@@ -220,7 +220,7 @@ impl BboxExportData {
         let annotations = annotations_map
             .into_iter()
             .map(|(filename, (annos, shape))| {
-                let (bbs, labels) = annos.data();
+                let (bbs, labels) = annos.separate_data();
                 (filename, (bbs, labels, shape))
             })
             .collect::<HashMap<_, _>>();
