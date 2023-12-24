@@ -24,7 +24,7 @@ impl Line {
         self.points.iter().copied()
     }
     pub fn last_point(&self) -> Option<PtI> {
-        self.points.last().map(|p| *p)
+        self.points.last().copied()
     }
     pub fn max_dist_squared(&self) -> Option<u32> {
         (0..self.points.len())
