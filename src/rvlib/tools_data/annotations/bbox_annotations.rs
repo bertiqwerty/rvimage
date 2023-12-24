@@ -62,7 +62,6 @@ pub struct BboxAnnotations {
     geos: Vec<GeoFig>,
     cat_idxs: Vec<usize>,
     selected_bbs: Vec<bool>,
-    pub show_labels: bool,
 }
 
 impl BboxAnnotations {
@@ -71,7 +70,6 @@ impl BboxAnnotations {
             geos: vec![],
             cat_idxs: vec![],
             selected_bbs: vec![],
-            show_labels: false,
         }
     }
 
@@ -97,7 +95,6 @@ impl BboxAnnotations {
             geos,
             cat_idxs: cat_ids,
             selected_bbs: vec![false; geos_len],
-            show_labels: false,
         }
     }
 
@@ -108,7 +105,6 @@ impl BboxAnnotations {
             geos,
             cat_idxs: vec![cat_id; bbs_len],
             selected_bbs: vec![false; bbs_len],
-            show_labels: false,
         }
     }
 

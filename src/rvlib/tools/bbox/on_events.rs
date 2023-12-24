@@ -467,18 +467,6 @@ pub(super) fn on_key_released(
         ReleasedKey::V => {
             flags.auto_paste = !flags.auto_paste;
         }
-        ReleasedKey::L if params.is_ctrl_held => {
-            let show_label = if let Some(annos) = get_annos(&world) {
-                annos.show_labels
-            } else {
-                false
-            };
-
-            if let Some(a) = get_annos_mut(&mut world) {
-                a.show_labels = !show_label
-            };
-            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
-        }
         ReleasedKey::C => {
             // Paste selection directly at current mouse position
             if let Some((x_shift, y_shift)) = mouse_pos.map(<PtF as Into<(i32, i32)>>::into) {
