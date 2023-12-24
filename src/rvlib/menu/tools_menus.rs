@@ -7,32 +7,33 @@ use crate::{
     file_util::path_to_str,
     result::{to_rv, RvResult},
     tools_data::{
-        annotations::SplitMode,
-        bbox_data::{BboxSpecificData, OUTLINE_THICKNESS_CONVERSION},
-        BrushToolData, ToolSpecifics, ToolsData,
+        annotations::SplitMode, bbox_data::BboxSpecificData, BrushToolData, LabelInfo,
+        ToolSpecifics, ToolsData, OUTLINE_THICKNESS_CONVERSION,
     },
 };
 
-pub fn bbox_menu(
+pub fn label_menu(
     ui: &mut Ui,
-    mut window_open: bool,
-    mut data: BboxSpecificData,
-) -> RvResult<ToolsData> {
-    let mut new_idx = data.cat_idx_current;
+    label_info: &mut LabelInfo,
+) -> RvResult<(usize, Option<usize>)> {
+    let mut new_idx = label_info.cat_idx_current;
     let mut new_label = None;
-    if ui.text_edit_singleline(&mut data.new_label).lost_focus() {
-        new_label = Some(data.new_label.clone());
+    if ui
+        .text_edit_singleline(&mut label_info.new_label)
+        .lost_focus()
+    {
+        new_label = Some(label_info.new_label.clone());
     }
-    let default_label = data.find_default();
+    let default_label = label_info.find_default();
     if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
         *default_label = new_label.clone();
     } else if let Some(new_label) = new_label {
-        data.push(new_label, None, None)?;
-        new_idx = data.len() - 1;
+        label_info.push(new_label, None, None)?;
+        new_idx = label_info.len() - 1;
     }
     let mut to_be_removed = None;
-    for (label_idx, label) in data.labels().iter().enumerate() {
-        let checked = label_idx == data.cat_idx_current;
+    for (label_idx, label) in label_info.labels().iter().enumerate() {
+        let checked = label_idx == label_info.cat_idx_current;
         ui.horizontal_top(|ui| {
             if ui.button("x").clicked() {
                 to_be_removed = Some(label_idx);
@@ -40,7 +41,7 @@ pub fn bbox_menu(
             if ui.selectable_label(checked, label).clicked() {
                 new_idx = label_idx;
             }
-            let rgb = data.colors()[label_idx];
+            let rgb = label_info.colors()[label_idx];
             ui.label(
                 egui::RichText::new("■")
                     .heading()
@@ -49,17 +50,26 @@ pub fn bbox_menu(
             );
         });
     }
-    if new_idx != data.cat_idx_current {
+    Ok((new_idx, to_be_removed))
+}
+
+pub fn bbox_menu(
+    ui: &mut Ui,
+    mut window_open: bool,
+    mut data: BboxSpecificData,
+) -> RvResult<ToolsData> {
+    let (new_idx, to_be_removed) = label_menu(ui, &mut data.label_info)?;
+    if new_idx != data.label_info.cat_idx_current {
         for (_, (anno, _)) in data.anno_iter_mut() {
             anno.label_selected(new_idx);
         }
-        data.cat_idx_current = new_idx;
+        data.label_info.cat_idx_current = new_idx;
     }
     if let Some(idx) = to_be_removed {
         data.remove_catidx(idx);
     }
-    let mut pathincfg_triggered = false;
     ui.separator();
+    let mut pathincfg_triggered = false;
 
     let mut hide_boxes = !data.options.are_boxes_visible;
     if ui.checkbox(&mut hide_boxes, "hide boxes").clicked() {
@@ -170,9 +180,10 @@ pub fn brush_menu(
     mut window_open: bool,
     mut data: BrushToolData,
 ) -> RvResult<ToolsData> {
-    ui.add(egui::Slider::new(&mut data.thickness, 0.0..=20.0).text("thickness"))
+    let (new_idx, to_be_removed) = label_menu(ui, &mut data.label_info)?;
+    ui.add(egui::Slider::new(&mut data.options.thickness, 0.0..=20.0).text("thickness"))
         .changed();
-    ui.add(egui::Slider::new(&mut data.intensity, 0.0..=1.0).text("intensity"))
+    ui.add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))
         .changed();
     if ui.button("close").clicked() {
         window_open = false;

@@ -402,8 +402,8 @@ released_key!(
 macro_rules! set_cat_current {
     ($num:expr, $world:expr) => {
         let specifics = get_tools_data_mut(&mut $world).specifics.bbox_mut();
-        if $num < specifics.cat_ids().len() + 1 {
-            specifics.cat_idx_current = $num - 1;
+        if $num < specifics.label_info.cat_ids().len() + 1 {
+            specifics.label_info.cat_idx_current = $num - 1;
         }
     };
 }
@@ -580,6 +580,7 @@ fn test_data() -> (Option<PtF>, World, History) {
     tools_data
         .specifics
         .bbox_mut()
+        .label_info
         .push("label".to_string(), None, None)
         .unwrap();
     let history = History::default();
@@ -814,11 +815,13 @@ fn test_mouse_release() {
         get_tools_data_mut(&mut world)
             .specifics
             .bbox_mut()
+            .label_info
             .push("label2".to_string(), None, None)
             .unwrap();
         get_tools_data_mut(&mut world)
             .specifics
             .bbox_mut()
+            .label_info
             .cat_idx_current = 1;
         let annos = get_annos_mut(&mut world).unwrap();
         annos.add_bb(BB::from_arr(&[20, 20, 20, 20]), 0);
@@ -840,6 +843,7 @@ fn test_mouse_release() {
         get_tools_data_mut(&mut world)
             .specifics
             .bbox_mut()
+            .label_info
             .cat_idx_current = 1;
         let mut params = make_params(vec![], true);
         params.is_alt_held = true;

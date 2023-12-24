@@ -72,7 +72,11 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
 }
 
 pub(super) fn current_cat_idx(world: &World) -> usize {
-    get_tools_data(world).specifics.bbox().cat_idx_current
+    get_tools_data(world)
+        .specifics
+        .bbox()
+        .label_info
+        .cat_idx_current
 }
 
 fn check_recolorboxes(mut world: World) -> World {
@@ -83,19 +87,11 @@ fn check_recolorboxes(mut world: World) -> World {
         let are_boxes_visible = true;
         {
             let data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-            data.new_random_colors();
+            data.label_info.new_random_colors();
             data.options.is_colorchange_triggered = false;
             data.options.are_boxes_visible = true;
         }
         world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
-    }
-    world
-}
-
-fn filechange(mut world: World) -> World {
-    let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-    for (_, (anno, _)) in bbox_data.anno_iter_mut() {
-        anno.deselect_all();
     }
     world
 }
@@ -324,8 +320,11 @@ impl Manipulate for BBox {
         (world, history)
     }
 
-    fn on_filechange(&mut self, world: World, history: History) -> (World, History) {
-        let world = filechange(world);
+    fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
+        let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+        for (_, (anno, _)) in bbox_data.anno_iter_mut() {
+            anno.deselect_all();
+        }
         let options = get_tools_data(&world).specifics.bbox().options;
         let (mut world, history) = check_autopaste(world, history, options.auto_paste);
         world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
@@ -381,8 +380,8 @@ impl Manipulate for BBox {
                 };
                 // animation
                 let bb_data = get_tools_data(&world).specifics.bbox();
-                let label = Some(bb_data.labels()[in_menu_selected_label].clone());
-                let color = bb_data.colors()[in_menu_selected_label];
+                let label = Some(bb_data.label_info.labels()[in_menu_selected_label].clone());
+                let color = bb_data.label_info.colors()[in_menu_selected_label];
                 let anno = BboxAnnotation {
                     geofig: geo,
                     label,

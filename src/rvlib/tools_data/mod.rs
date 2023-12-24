@@ -3,7 +3,7 @@ use crate::{
     BrushAnnotation, UpdateAnnos,
 };
 
-use self::bbox_data::OUTLINE_THICKNESS_CONVERSION;
+pub use self::core::{LabelInfo, OUTLINE_THICKNESS_CONVERSION};
 pub use self::{
     bbox_data::BboxExportData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
     coco_io::write_coco, rot90_data::Rot90ToolData,
@@ -13,6 +13,7 @@ pub mod annotations;
 pub mod bbox_data;
 pub mod brush_data;
 pub mod coco_io;
+mod core;
 pub mod rot90_data;
 
 macro_rules! variant_access {
@@ -25,7 +26,6 @@ macro_rules! variant_access {
         }
     };
 }
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum ToolSpecifics {
@@ -48,8 +48,8 @@ impl ToolSpecifics {
                     let bbs = annos.geos();
                     let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_bbs();
-                    let labels = bb_data.labels();
-                    let colors = bb_data.colors();
+                    let labels = bb_data.label_info.labels();
+                    let colors = bb_data.label_info.colors();
 
                     let bbs_colored = bbs
                         .iter()

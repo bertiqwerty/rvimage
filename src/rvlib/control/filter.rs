@@ -35,7 +35,7 @@ impl FilterPredicate {
                 };
                 let tdm = tdm.unwrap();
                 if let Some(bbox_data) = tdm.get(tools::BBOX_NAME) {
-                    let labels = bbox_data.specifics.bbox().labels();
+                    let labels = bbox_data.specifics.bbox().label_info.labels();
                     let annos = bbox_data.specifics.bbox().get_annos(path);
                     if let Some(annos) = annos {
                         annos

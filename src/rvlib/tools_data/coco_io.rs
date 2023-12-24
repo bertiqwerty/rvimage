@@ -15,7 +15,7 @@ use crate::{
     rverr, ssh, GeoFig, Polygon,
 };
 
-use super::{bbox_data::new_random_colors, BboxExportData, BboxSpecificData};
+use super::{core::new_random_colors, BboxExportData, BboxSpecificData};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CocoInfo {
@@ -79,7 +79,7 @@ struct CocoExportData {
 }
 impl CocoExportData {
     fn from_bboxdata(bbox_specifics: BboxSpecificData) -> RvResult<Self> {
-        let color_str = if let Some(s) = colors_to_string(bbox_specifics.colors()) {
+        let color_str = if let Some(s) = colors_to_string(bbox_specifics.label_info.colors()) {
             format!(", {s}")
         } else {
             "".to_string()
@@ -422,7 +422,10 @@ pub fn make_data(
     let mut bbox_data = BboxSpecificData::new();
     bbox_data.options.export_absolute = export_absolute;
     bbox_data.coco_file = CocoFile::default();
-    bbox_data.push("x".to_string(), None, None).unwrap();
+    bbox_data
+        .label_info
+        .push("x".to_string(), None, None)
+        .unwrap();
     bbox_data.remove_catidx(0);
     let mut bbs = make_test_bbs();
     bbs.extend(bbs.clone());
@@ -456,8 +459,8 @@ fn test_coco_export() -> RvResult<()> {
                 conn: CocoFileConnection::Local,
             },
         )?;
-        assert_eq!(bbox_data.cat_ids(), read.cat_ids());
-        assert_eq!(bbox_data.labels(), read.labels());
+        assert_eq!(bbox_data.label_info.cat_ids(), read.label_info.cat_ids());
+        assert_eq!(bbox_data.label_info.labels(), read.label_info.labels());
         for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
             assert_eq!(bbd_anno, read_anno);
         }
@@ -491,8 +494,11 @@ fn test_coco_import() -> RvResult<()> {
             is_loading_screen_active: None,
         };
         let read = read_coco(&meta, &CocoFile::default()).unwrap();
-        assert_eq!(read.cat_ids(), &cat_ids);
-        assert_eq!(read.labels(), &vec!["first label", "second label"]);
+        assert_eq!(read.label_info.cat_ids(), &cat_ids);
+        assert_eq!(
+            read.label_info.labels(),
+            &vec!["first label", "second label"]
+        );
         for (bb, file_path) in reference_bbs {
             let annos = read.get_annos(file_path);
             println!("");

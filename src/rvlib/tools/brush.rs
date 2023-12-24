@@ -29,10 +29,9 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        let intensity = get_tools_data(&world).specifics.brush().intensity;
-        let thickness = get_tools_data(&world).specifics.brush().thickness;
+        let options = get_tools_data(&world).specifics.brush().options;
         if let (Some(_), Some(a)) = (events.mouse_pos, get_annos_mut(&mut world)) {
-            a.push(Line::new(), 0, intensity, thickness);
+            a.push(Line::new(), 0, options.intensity, options.thickness);
         }
         (world, history)
     }
@@ -89,11 +88,28 @@ impl Manipulate for Brush {
         Self {}
     }
 
+    fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
+        let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
+        for (_, (anno, _)) in bbox_data.anno_iter_mut() {
+            anno.deselect_all();
+        }
+        let options = get_tools_data(&world).specifics.bbox().options;
+        world.request_redraw_annotations(BRUSH_NAME, options.are_boxes_visible);
+        (world, history)
+    }
     fn on_activate(&mut self, mut world: World, history: History) -> (World, History) {
         world = initialize_tools_menu_data(world);
         get_tools_data_mut(&mut world).menu_active = true;
         let are_annos_visible = true;
         world.request_redraw_annotations(BRUSH_NAME, are_annos_visible);
+        (world, history)
+    }
+    fn on_deactivate(&mut self, mut world: World, history: History) -> (World, History) {
+        if let Some(td) = world.data.tools_data_map.get_mut(BRUSH_NAME) {
+            td.menu_active = false;
+        }
+        let are_boxes_visible = false;
+        world.request_redraw_annotations(BRUSH_NAME, are_boxes_visible);
         (world, history)
     }
 
