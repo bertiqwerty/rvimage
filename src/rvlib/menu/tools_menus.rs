@@ -170,7 +170,7 @@ pub fn brush_menu(
     mut window_open: bool,
     mut data: BrushToolData,
 ) -> RvResult<ToolsData> {
-    ui.add(egui::Slider::new(&mut data.thickness, 0.0..=10.0).text("thickness"))
+    ui.add(egui::Slider::new(&mut data.thickness, 0.0..=20.0).text("thickness"))
         .changed();
     ui.add(egui::Slider::new(&mut data.intensity, 0.0..=1.0).text("intensity"))
         .changed();

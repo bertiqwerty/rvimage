@@ -279,8 +279,11 @@ impl RvImageApp {
                 _ => None,
             })
             .flat_map(|anno| {
+                let size_from = self.shape_view().w as f32;
+                let size_to = image_rect.size().x;
+                let thickness = scale_coord(anno.outline.thickness, size_from, size_to);
                 let stroke = Stroke::new(
-                    anno.outline.thickness,
+                    thickness,
                     rgb_2_clr(
                         Some(anno.outline.color),
                         (anno.intensity.clamp(0.0, 1.0) * 255.0) as u8,
