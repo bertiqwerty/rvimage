@@ -28,10 +28,10 @@ pub struct ClipboardData {
 
 impl ClipboardData {
     pub fn from_annotations(annos: &BboxAnnotations) -> Self {
-        let selected_inds = true_indices(annos.selected_bbs());
+        let selected_inds = true_indices(annos.selected_mask());
         let bbs = selected_inds
             .clone()
-            .map(|idx| annos.geos()[idx].clone())
+            .map(|idx| annos.elts()[idx].clone())
             .collect();
         let cat_idxs = selected_inds.map(|idx| annos.cat_idxs()[idx]).collect();
         ClipboardData {
@@ -103,7 +103,7 @@ impl BboxSpecificData {
             .iter()
             .filter(|p| {
                 if let Some((anno, _)) = self.annotations_map.get(**p) {
-                    !anno.geos().is_empty()
+                    !anno.elts().is_empty()
                 } else {
                     false
                 }
@@ -133,8 +133,8 @@ impl BboxSpecificData {
             input_data
                 .annotations
                 .into_iter()
-                .map(|(s, (bbs, cat_ids, dims))| {
-                    (s, (BboxAnnotations::from_bbs_cats(bbs, cat_ids), dims))
+                .map(|(s, (geos, cat_ids, dims))| {
+                    (s, (BboxAnnotations::from_elts_cats(geos, cat_ids), dims))
                 })
                 .collect(),
         )?;
@@ -220,7 +220,7 @@ impl BboxExportData {
         let annotations = annotations_map
             .into_iter()
             .map(|(filename, (annos, shape))| {
-                let (bbs, labels) = annos.separate_data();
+                let (bbs, labels, _) = annos.separate_data();
                 (filename, (bbs, labels, shape))
             })
             .collect::<HashMap<_, _>>();

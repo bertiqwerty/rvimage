@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, iter::empty};
+use std::{cmp::Ordering, iter::empty, mem};
 
 use crate::{
     cfg::CocoFile,
@@ -94,8 +94,8 @@ pub(super) fn on_mouse_held_right(
         let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let annos = get_annos_mut(&mut world);
         if let Some(annos) = annos {
-            add_to_history =
-                annos.selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
+            let tmp = mem::take(annos).selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
+            (*annos, add_to_history) = tmp;
         }
         Some(())
     };
@@ -173,7 +173,7 @@ pub(super) fn on_mouse_released_right(
                 prev_pos.prev_pos = vec![];
                 let annos = get_annos_mut(&mut world);
                 if let Some(annos) = annos {
-                    annos.add_geo(GeoFig::Poly(poly), in_menu_selected_label);
+                    annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
                     history.push(Record::new(world.data.clone(), ACTOR_NAME));
                     prev_pos.prev_pos = vec![];
                     world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
@@ -218,7 +218,7 @@ pub(super) fn on_mouse_released_left(
         // selection
         let annos = get_annos_mut(&mut world);
         if let Some(annos) = annos {
-            let idx = mouse_pos.and_then(|p| find_closest_boundary_idx(p, annos.geos()));
+            let idx = mouse_pos.and_then(|p| find_closest_boundary_idx(p, annos.elts()));
             if let Some(i) = idx {
                 if is_shift_held {
                     // If shift is held a new selection box will be spanned between the currently clicked
@@ -226,15 +226,15 @@ pub(super) fn on_mouse_released_left(
                     // All boxes that have overlap with this new selection box will be selected. If no box
                     // is selected only the currently clicked box will be selected.
                     annos.select(i);
-                    let newly_selected_bb = &annos.geos()[i];
-                    let sel_indxs = true_indices(annos.selected_bbs());
+                    let newly_selected_bb = &annos.elts()[i];
+                    let sel_indxs = true_indices(annos.selected_mask());
                     if let Some((p1, p2, _)) = sel_indxs
-                        .map(|i| (newly_selected_bb.max_squaredist(&annos.geos()[i])))
+                        .map(|i| (newly_selected_bb.max_squaredist(&annos.elts()[i])))
                         .max_by_key(|(_, _, d)| *d)
                     {
                         let spanned_bb = BB::from_points(p1, p2);
                         let to_be_selected_inds = annos
-                            .geos()
+                            .elts()
                             .iter()
                             .enumerate()
                             .filter(|(_, bb)| bb.has_overlap(&spanned_bb))
@@ -259,7 +259,7 @@ pub(super) fn on_mouse_released_left(
         let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
         let close_corner = mouse_pos.and_then(|mp| {
             get_annos_if_some(&world)
-                .and_then(|a| find_close_vertex(mp, a.geos(), tolerance as i64))
+                .and_then(|a| find_close_vertex(mp, a.elts(), tolerance as i64))
         });
         if let Some((bb_idx, vertex_idx)) = close_corner {
             // move an existing corner
@@ -297,7 +297,7 @@ pub(super) fn on_mouse_released_left(
                     if let Some(mp) = mouse_pos {
                         let existing_bbs = || -> Box<dyn Iterator<Item = &BB>> {
                             if let Some(annos) = get_annos(&world) {
-                                Box::new(annos.geos().iter().flat_map(|geo| match geo {
+                                Box::new(annos.elts().iter().flat_map(|geo| match geo {
                                     GeoFig::BB(bb) => Some(bb),
                                     GeoFig::Poly(_) => None,
                                 }))
@@ -430,7 +430,7 @@ pub(super) fn on_key_released(
             // Remove selected
             let annos = get_annos_mut(&mut world);
             if let Some(annos) = annos {
-                if !annos.selected_bbs().is_empty() {
+                if !annos.selected_mask().is_empty() {
                     annos.remove_selected();
                     world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
                     history.push(Record::new(world.data.clone(), ACTOR_NAME));
@@ -473,12 +473,12 @@ pub(super) fn on_key_released(
                 let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
                 if let Some(annos) = annos {
-                    let selected_inds = true_indices(annos.selected_bbs());
-                    let first_selected_idx = true_indices(annos.selected_bbs()).next();
+                    let selected_inds = true_indices(annos.selected_mask());
+                    let first_selected_idx = true_indices(annos.selected_mask()).next();
                     if let Some(first_idx) = first_selected_idx {
                         let translated = selected_inds.flat_map(|idx| {
-                            let geo = annos.geos()[idx].clone();
-                            let first = &annos.geos()[first_idx];
+                            let geo = annos.elts()[idx].clone();
+                            let first = &annos.elts()[first_idx];
                             geo.translate(
                                 Point {
                                     x: x_shift - first.enclosing_bb().min().x as i32,
@@ -598,33 +598,33 @@ fn test_key_released() {
         },
         0,
     );
-    assert!(!annos.selected_bbs()[0]);
+    assert!(!annos.selected_mask()[0]);
     let annos_orig = annos.clone();
 
     // select all boxes with ctrl+A
     let params = make_params(ReleasedKey::A, false);
     let (world, history) = on_key_released(world, history, None, params);
-    assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
+    assert!(!get_annos(&world).unwrap().selected_mask()[0]);
     let params = make_params(ReleasedKey::A, true);
     let (world, history) = on_key_released(world, history, None, params);
-    assert!(get_annos(&world).unwrap().selected_bbs()[0]);
+    assert!(get_annos(&world).unwrap().selected_mask()[0]);
 
     // copy and paste boxes to and from clipboard
     let params = make_params(ReleasedKey::C, true);
     let (world, history) = on_key_released(world, history, None, params);
-    assert!(get_annos(&world).unwrap().selected_bbs()[0]);
+    assert!(get_annos(&world).unwrap().selected_mask()[0]);
     if let Some(clipboard) = get_tools_data(&world).specifics.bbox().clipboard.clone() {
-        let mut annos = BboxAnnotations::new();
+        let mut annos = BboxAnnotations::default();
         annos.extend(
             clipboard.geos().iter().cloned(),
             clipboard.cat_idxs().iter().copied(),
             Shape { w: 100, h: 100 },
         );
-        assert_eq!(annos.geos(), get_annos(&world).unwrap().geos());
+        assert_eq!(annos.elts(), get_annos(&world).unwrap().elts());
         assert_eq!(annos.cat_idxs(), get_annos(&world).unwrap().cat_idxs());
         assert_ne!(
-            annos.selected_bbs(),
-            get_annos(&world).unwrap().selected_bbs()
+            annos.selected_mask(),
+            get_annos(&world).unwrap().selected_mask()
         );
     } else {
         assert!(false);
@@ -632,23 +632,23 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::V, true);
     let (world, history) = on_key_released(world, history, None, params);
     assert!(get_tools_data(&world).specifics.bbox().clipboard.is_some());
-    assert_eq!(get_annos(&world).unwrap().geos(), annos_orig.geos());
+    assert_eq!(get_annos(&world).unwrap().elts(), annos_orig.elts());
     let params = make_params(ReleasedKey::C, true);
     let (mut world, history) = on_key_released(world, history, None, params);
     get_annos_mut(&mut world).unwrap().remove(0);
     let params = make_params(ReleasedKey::V, true);
     let (world, history) = on_key_released(world, history, None, params);
-    assert_eq!(get_annos(&world).unwrap().geos(), annos_orig.geos());
+    assert_eq!(get_annos(&world).unwrap().elts(), annos_orig.elts());
 
     // clone box
     let params = make_params(ReleasedKey::A, true);
     let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::C, false);
     let (world, history) = on_key_released(world, history, Some(point!(2.0, 2.0)), params);
-    assert_eq!(get_annos(&world).unwrap().geos()[0], annos_orig.geos()[0]);
+    assert_eq!(get_annos(&world).unwrap().elts()[0], annos_orig.elts()[0]);
     assert_eq!(
-        get_annos(&world).unwrap().geos()[1],
-        annos_orig.geos()[0]
+        get_annos(&world).unwrap().elts()[1],
+        annos_orig.elts()[0]
             .clone()
             .translate(
                 Point { x: 1, y: 1 },
@@ -657,19 +657,19 @@ fn test_key_released() {
             )
             .unwrap()
     );
-    assert_eq!(get_annos(&world).unwrap().geos().len(), 2);
+    assert_eq!(get_annos(&world).unwrap().elts().len(), 2);
 
     // deselect all boxes with ctrl+D
     let params = make_params(ReleasedKey::A, true);
     let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::D, false);
     let (world, history) = on_key_released(world, history, None, params);
-    assert!(get_annos(&world).unwrap().selected_bbs()[0]);
+    assert!(get_annos(&world).unwrap().selected_mask()[0]);
     let params = make_params(ReleasedKey::D, true);
     let (world, history) = on_key_released(world, history, None, params);
     let flags = get_tools_data(&world).specifics.bbox().options;
     assert!(flags.are_boxes_visible);
-    assert!(!get_annos(&world).unwrap().selected_bbs()[0]);
+    assert!(!get_annos(&world).unwrap().selected_mask()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
@@ -680,12 +680,12 @@ fn test_key_released() {
     // delete all selected boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
     let (world, history) = on_key_released(world, history, None, params);
-    assert!(!get_annos(&world).unwrap().selected_bbs().is_empty());
+    assert!(!get_annos(&world).unwrap().selected_mask().is_empty());
     let params = make_params(ReleasedKey::A, true);
     let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::Delete, true);
     let (world, _) = on_key_released(world, history, None, params);
-    assert!(get_annos(&world).unwrap().selected_bbs().is_empty());
+    assert!(get_annos(&world).unwrap().selected_mask().is_empty());
 }
 
 #[test]
@@ -700,7 +700,7 @@ fn test_mouse_held() {
         let params = MouseHeldParams { mover: &mut mover };
         let (world, new_hist) =
             on_mouse_held_right(mouse_pos, params, world.clone(), history.clone());
-        assert_eq!(get_annos(&world).unwrap().geos()[0], GeoFig::BB(bbs[0]));
+        assert_eq!(get_annos(&world).unwrap().elts()[0], GeoFig::BB(bbs[0]));
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -710,7 +710,7 @@ fn test_mouse_held() {
         let annos = get_annos_mut(&mut world);
         annos.unwrap().select(0);
         let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());
-        assert_ne!(get_annos(&world).unwrap().geos()[0], GeoFig::BB(bbs[0]));
+        assert_ne!(get_annos(&world).unwrap().elts()[0], GeoFig::BB(bbs[0]));
 
         assert!(!history_equal(&history, &new_hist));
     }
@@ -746,7 +746,7 @@ fn test_mouse_release() {
         );
         assert!(prev_pos.prev_pos.is_empty());
         let annos = get_annos(&world);
-        assert_eq!(annos.unwrap().geos().len(), 1);
+        assert_eq!(annos.unwrap().elts().len(), 1);
         assert_eq!(annos.unwrap().cat_idxs()[0], 0);
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
@@ -765,7 +765,7 @@ fn test_mouse_release() {
             }
         );
         let annos = get_annos(&world);
-        assert!(annos.is_none() || annos.unwrap().geos().is_empty());
+        assert!(annos.is_none() || annos.unwrap().elts().is_empty());
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -776,7 +776,7 @@ fn test_mouse_release() {
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(prev_pos.prev_pos, vec![]);
         let annos = get_annos(&world);
-        assert!(annos.is_none() || annos.unwrap().geos().is_empty());
+        assert!(annos.is_none() || annos.unwrap().elts().is_empty());
         assert!(history_equal(&history, &new_hist));
     }
     {
@@ -792,8 +792,8 @@ fn test_mouse_release() {
         );
         assert_eq!(prev_pos.prev_pos, vec![]);
         let annos = get_annos(&world);
-        assert_eq!(annos.unwrap().geos().len(), 1);
-        assert!(!annos.unwrap().selected_bbs()[0]);
+        assert_eq!(annos.unwrap().elts().len(), 1);
+        assert!(!annos.unwrap().selected_mask()[0]);
         assert!(format!("{:?}", new_hist).len() > format!("{:?}", history).len());
     }
     {
@@ -821,8 +821,8 @@ fn test_mouse_release() {
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
         assert_eq!(prev_pos.prev_pos, vec![]);
-        assert!(annos.selected_bbs()[0]);
-        assert!(!annos.selected_bbs()[1]);
+        assert!(annos.selected_mask()[0]);
+        assert!(!annos.selected_mask()[1]);
         assert_eq!(annos.cat_idxs()[0], 0);
         assert_eq!(annos.cat_idxs()[1], 0);
         assert_eq!(annos.cat_idxs()[2], 1);
@@ -842,8 +842,8 @@ fn test_mouse_release() {
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
         assert_eq!(prev_pos.prev_pos, vec![]);
-        assert!(annos.selected_bbs()[0]);
-        assert!(!annos.selected_bbs()[1]);
+        assert!(annos.selected_mask()[0]);
+        assert!(!annos.selected_mask()[1]);
         assert_eq!(annos.cat_idxs()[0], 1);
         assert_eq!(annos.cat_idxs()[1], 0);
         assert_eq!(annos.cat_idxs()[2], 1);
@@ -857,10 +857,10 @@ fn test_mouse_release() {
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());
         let annos = get_annos(&world).unwrap();
         assert_eq!(prev_pos.prev_pos, vec![]);
-        assert!(annos.selected_bbs()[0]);
-        assert!(!annos.selected_bbs()[1]);
-        assert!(annos.selected_bbs()[2]);
-        assert!(annos.selected_bbs()[3]);
+        assert!(annos.selected_mask()[0]);
+        assert!(!annos.selected_mask()[1]);
+        assert!(annos.selected_mask()[2]);
+        assert!(annos.selected_mask()[3]);
         assert_eq!(annos.cat_idxs()[0], 1);
         assert_eq!(annos.cat_idxs()[1], 0);
         assert_eq!(annos.cat_idxs()[2], 1);

@@ -504,7 +504,7 @@ fn test_coco_import() -> RvResult<()> {
             println!("");
             println!("{file_path:?}");
             println!("{annos:?}");
-            assert!(annos.unwrap().geos().contains(&GeoFig::BB(*bb)));
+            assert!(annos.unwrap().elts().contains(&GeoFig::BB(*bb)));
         }
     }
 

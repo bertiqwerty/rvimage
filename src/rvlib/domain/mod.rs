@@ -3,7 +3,7 @@ mod core;
 mod polygon;
 
 pub use bb::BB;
-pub use core::{Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
+pub use core::{Annotate, Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
 
@@ -50,6 +50,22 @@ impl Line {
     }
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]
+pub struct BrushLine {
+    pub line: Line,
+    pub intensity: f32,
+    pub thickness: f32,
+}
+impl Eq for BrushLine {}
+
+impl Annotate for BrushLine {
+    fn is_contained_in_image(&self, shape: Shape) -> bool {
+        self.line
+            .points_iter()
+            .all(|p| p.x < shape.w && p.y < shape.h)
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub enum GeoFig {
     BB(BB),
@@ -70,12 +86,6 @@ impl GeoFig {
         match self {
             Self::BB(bb) => bb.distance_to_boundary(point),
             Self::Poly(poly) => poly.distance_to_boundary(point),
-        }
-    }
-    pub fn is_contained_in_image(&self, shape: Shape) -> bool {
-        match self {
-            Self::BB(bb) => bb.is_contained_in_image(shape),
-            Self::Poly(poly) => poly.is_contained_in_image(shape),
         }
     }
     pub fn max_squaredist(&self, other: &Self) -> (PtI, PtI, i64) {
@@ -145,6 +155,14 @@ impl GeoFig {
 impl Default for GeoFig {
     fn default() -> Self {
         Self::BB(BB::default())
+    }
+}
+impl Annotate for GeoFig {
+    fn is_contained_in_image(&self, shape: Shape) -> bool {
+        match self {
+            Self::BB(bb) => bb.is_contained_in_image(shape),
+            Self::Poly(poly) => poly.is_contained_in_image(shape),
+        }
     }
 }
 

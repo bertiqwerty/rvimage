@@ -247,29 +247,29 @@ impl BBox {
         let annos = get_annos_mut(&mut world);
         if let Some(annos) = annos {
             if events.held(KeyCode::Up) && events.held_ctrl() {
-                annos.shift_min_bbs(0, -1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_min_bbs(0, -1, shape_orig, split_mode);
             } else if events.held(KeyCode::Down) && events.held_ctrl() {
-                annos.shift_min_bbs(0, 1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_min_bbs(0, 1, shape_orig, split_mode);
             } else if events.held(KeyCode::Right) && events.held_ctrl() {
-                annos.shift_min_bbs(1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_min_bbs(1, 0, shape_orig, split_mode);
             } else if events.held(KeyCode::Left) && events.held_ctrl() {
-                annos.shift_min_bbs(-1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_min_bbs(-1, 0, shape_orig, split_mode);
             } else if events.held(KeyCode::Up) && events.held_alt() {
-                annos.shift(0, -1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift(0, -1, shape_orig, split_mode);
             } else if events.held(KeyCode::Down) && events.held_alt() {
-                annos.shift(0, 1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift(0, 1, shape_orig, split_mode);
             } else if events.held(KeyCode::Right) && events.held_alt() {
-                annos.shift(1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift(1, 0, shape_orig, split_mode);
             } else if events.held(KeyCode::Left) && events.held_alt() {
-                annos.shift(-1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift(-1, 0, shape_orig, split_mode);
             } else if events.held(KeyCode::Up) {
-                annos.shift_max_bbs(0, -1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_max_bbs(0, -1, shape_orig, split_mode);
             } else if events.held(KeyCode::Down) {
-                annos.shift_max_bbs(0, 1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_max_bbs(0, 1, shape_orig, split_mode);
             } else if events.held(KeyCode::Right) {
-                annos.shift_max_bbs(1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_max_bbs(1, 0, shape_orig, split_mode);
             } else if events.held(KeyCode::Left) {
-                annos.shift_max_bbs(-1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_max_bbs(-1, 0, shape_orig, split_mode);
             }
         }
         world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);

@@ -1,4 +1,5 @@
 use crate::{
+    domain::BrushLine,
     drawme::{Annotation, BboxAnnotation, Stroke},
     BrushAnnotation, UpdateAnnos,
 };
@@ -45,9 +46,9 @@ impl ToolSpecifics {
         match &self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
-                    let bbs = annos.geos();
+                    let bbs = annos.elts();
                     let cats = annos.cat_idxs();
-                    let selected_bbs = annos.selected_bbs();
+                    let selected_bbs = annos.selected_mask();
                     let labels = bb_data.label_info.labels();
                     let colors = bb_data.label_info.colors();
 
@@ -79,18 +80,25 @@ impl ToolSpecifics {
             ToolSpecifics::Brush(br_data) => {
                 if let Some(annos) = br_data.get_annos(file_path) {
                     let annos = annos
-                        .annos_iter()
-                        .map(|(line, _, i, t)| {
-                            Annotation::Brush(BrushAnnotation {
-                                line: line.clone(),
-                                outline: Stroke {
-                                    thickness: t,
-                                    color: [255, 255, 255],
-                                },
-                                intensity: i,
-                                label: None,
-                            })
-                        })
+                        .elts()
+                        .iter()
+                        .map(
+                            |BrushLine {
+                                 line,
+                                 intensity,
+                                 thickness,
+                             }| {
+                                Annotation::Brush(BrushAnnotation {
+                                    line: line.clone(),
+                                    outline: Stroke {
+                                        thickness: *thickness,
+                                        color: [255, 255, 255],
+                                    },
+                                    intensity: *intensity,
+                                    label: None,
+                                })
+                            },
+                        )
                         .collect::<Vec<Annotation>>();
                     UpdateAnnos::Yes((annos, None))
                 } else {

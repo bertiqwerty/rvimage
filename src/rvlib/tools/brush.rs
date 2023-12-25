@@ -1,5 +1,6 @@
 use crate::{
     annotations_accessor_mut,
+    domain::BrushLine,
     events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
@@ -31,7 +32,14 @@ impl Brush {
     ) -> (World, History) {
         let options = get_tools_data(&world).specifics.brush().options;
         if let (Some(_), Some(a)) = (events.mouse_pos, get_annos_mut(&mut world)) {
-            a.push(Line::new(), 0, options.intensity, options.thickness);
+            a.add_elt(
+                BrushLine {
+                    line: Line::new(),
+                    intensity: options.intensity,
+                    thickness: options.thickness,
+                },
+                0,
+            );
         }
         (world, history)
     }
@@ -42,7 +50,7 @@ impl Brush {
         history: History,
     ) -> (World, History) {
         if let (Some(mp), Some(annos)) = (events.mouse_pos, get_annos_mut(&mut world)) {
-            if let Some(line) = annos.last_line() {
+            if let Some(line) = annos.last_line_mut() {
                 let last_point = line.last_point();
                 let dist = if let Some(last_point) = last_point {
                     last_point.dist_square(&mp.into())
@@ -89,12 +97,12 @@ impl Manipulate for Brush {
     }
 
     fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
-        let bbox_data = get_tools_data_mut(&mut world).specifics.bbox_mut();
-        for (_, (anno, _)) in bbox_data.anno_iter_mut() {
+        let brush_data = get_tools_data_mut(&mut world).specifics.brush_mut();
+        for (_, (anno, _)) in brush_data.anno_iter_mut() {
             anno.deselect_all();
         }
-        let options = get_tools_data(&world).specifics.bbox().options;
-        world.request_redraw_annotations(BRUSH_NAME, options.are_boxes_visible);
+        let options = get_tools_data(&world).specifics.brush().options;
+        world.request_redraw_annotations(BRUSH_NAME, options.visible);
         (world, history)
     }
     fn on_activate(&mut self, mut world: World, history: History) -> (World, History) {

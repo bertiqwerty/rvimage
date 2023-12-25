@@ -13,6 +13,10 @@ impl Calc for i32 {}
 impl Calc for u32 {}
 impl Calc for f32 {}
 
+pub trait Annotate {
+    fn is_contained_in_image(&self, shape: Shape) -> bool;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Shape {
     pub w: u32,
