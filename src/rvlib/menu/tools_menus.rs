@@ -1,21 +1,28 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use egui::Ui;
 
 use crate::{
     cfg::{self, get_cfg, CocoFileConnection},
+    domain::Annotate,
     file_util::path_to_str,
     result::{to_rv, RvResult},
     tools_data::{
-        annotations::SplitMode, bbox_data::BboxSpecificData, BrushToolData, LabelInfo,
-        ToolSpecifics, ToolsData, OUTLINE_THICKNESS_CONVERSION,
+        annotations::{InstanceAnnotations, SplitMode},
+        bbox_data::BboxSpecificData,
+        BrushToolData, LabelInfo, ToolSpecifics, ToolsData, OUTLINE_THICKNESS_CONVERSION,
     },
+    Shape,
 };
 
-pub fn label_menu(
+pub fn label_menu<'a, T>(
     ui: &mut Ui,
     label_info: &mut LabelInfo,
-) -> RvResult<(usize, Option<usize>)> {
+    annotations_map: &mut HashMap<String, (InstanceAnnotations<T>, Shape)>,
+) -> RvResult<()>
+where
+    T: Annotate + PartialEq + std::default::Default + 'a,
+{
     let mut new_idx = label_info.cat_idx_current;
     let mut new_label = None;
     if ui
@@ -50,7 +57,16 @@ pub fn label_menu(
             );
         });
     }
-    Ok((new_idx, to_be_removed))
+    if new_idx != label_info.cat_idx_current {
+        for (annos, _) in annotations_map.values_mut() {
+            annos.label_selected(new_idx);
+        }
+        label_info.cat_idx_current = new_idx;
+    }
+    if let Some(tbr) = to_be_removed {
+        label_info.remove_catidx(tbr, annotations_map)
+    }
+    Ok(())
 }
 
 pub fn bbox_menu(
@@ -58,16 +74,7 @@ pub fn bbox_menu(
     mut window_open: bool,
     mut data: BboxSpecificData,
 ) -> RvResult<ToolsData> {
-    let (new_idx, to_be_removed) = label_menu(ui, &mut data.label_info)?;
-    if new_idx != data.label_info.cat_idx_current {
-        for (_, (anno, _)) in data.anno_iter_mut() {
-            anno.label_selected(new_idx);
-        }
-        data.label_info.cat_idx_current = new_idx;
-    }
-    if let Some(idx) = to_be_removed {
-        data.remove_catidx(idx);
-    }
+    label_menu(ui, &mut data.label_info, &mut data.annotations_map)?;
     ui.separator();
     let mut pathincfg_triggered = false;
 
@@ -180,7 +187,7 @@ pub fn brush_menu(
     mut window_open: bool,
     mut data: BrushToolData,
 ) -> RvResult<ToolsData> {
-    let (new_idx, to_be_removed) = label_menu(ui, &mut data.label_info)?;
+    label_menu(ui, &mut data.label_info, &mut data.annotations_map)?;
     ui.add(egui::Slider::new(&mut data.options.thickness, 0.0..=20.0).text("thickness"))
         .changed();
     ui.add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))

@@ -481,8 +481,13 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
     }
 
     let mut bbox_data = BboxSpecificData::new();
-    bbox_data.label_info.push("x".to_string(), None, None).unwrap();
-    bbox_data.remove_catidx(0);
+    bbox_data
+        .label_info
+        .push("x".to_string(), None, None)
+        .unwrap();
+    bbox_data
+        .label_info
+        .remove_catidx(0, &mut bbox_data.annotations_map);
     let mut bbs = make_test_bbs();
     bbs.extend(bbs.clone());
     bbs.extend(bbs.clone());

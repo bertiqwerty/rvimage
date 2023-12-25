@@ -16,27 +16,18 @@ impl Default for Options {
         Self {
             thickness: 1.0,
             intensity: 1.0,
-            visible: true
+            visible: true,
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct BrushToolData {
-    annotations_map: HashMap<String, (BrushAnnotations, Shape)>,
+    pub annotations_map: HashMap<String, (BrushAnnotations, Shape)>,
     pub options: Options,
-    pub label_info: LabelInfo
+    pub label_info: LabelInfo,
 }
 impl BrushToolData {
     implement_annotations_getters!(BrushAnnotations);
-}
-impl Default for BrushToolData {
-    fn default() -> Self {
-        BrushToolData {
-            annotations_map: HashMap::new(),
-            options: Options::default(),
-            label_info: LabelInfo::default()
-        }
-    }
 }
 impl Eq for BrushToolData {}

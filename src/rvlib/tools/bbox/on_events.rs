@@ -94,7 +94,8 @@ pub(super) fn on_mouse_held_right(
         let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
         let annos = get_annos_mut(&mut world);
         if let Some(annos) = annos {
-            let tmp = mem::take(annos).selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
+            let tmp =
+                mem::take(annos).selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
             (*annos, add_to_history) = tmp;
         }
         Some(())

@@ -85,7 +85,7 @@ impl Default for Options {
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct BboxSpecificData {
     pub label_info: LabelInfo,
-    annotations_map: AnnotationsMap,
+    pub annotations_map: AnnotationsMap,
     pub clipboard: Option<ClipboardData>,
     pub options: Options,
     pub coco_file: CocoFile,
@@ -139,18 +139,6 @@ impl BboxSpecificData {
                 .collect(),
         )?;
         Ok(out_data)
-    }
-
-    pub fn remove_catidx(&mut self, cat_idx: usize) {
-        if self.label_info.len() > 1 {
-            self.label_info.remove(cat_idx);
-            if self.label_info.cat_idx_current >= cat_idx.max(1) {
-                self.label_info.cat_idx_current -= 1;
-            }
-            for (anno, _) in self.annotations_map.values_mut() {
-                anno.reduce_cat_idxs(cat_idx);
-            }
-        }
     }
 
     pub fn retain_fileannos_in_folder(&mut self, folder: &str) {

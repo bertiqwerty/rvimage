@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
-use crate::{result::RvResult, rverr};
+use crate::{domain::Annotate, result::RvResult, rverr, Shape};
+
+use super::annotations::InstanceAnnotations;
 
 pub const OUTLINE_THICKNESS_CONVERSION: f32 = 10.0;
 
@@ -141,6 +145,23 @@ impl LabelInfo {
             colors: vec![],
             cat_ids: vec![],
             cat_idx_current: 0,
+        }
+    }
+    pub fn remove_catidx<'a, T>(
+        &mut self,
+        cat_idx: usize,
+        annotaions_map: &mut HashMap<String, (InstanceAnnotations<T>, Shape)>,
+    ) where
+        T: Annotate + PartialEq + Default + 'a,
+    {
+        if self.len() > 1 {
+            self.remove(cat_idx);
+            if self.cat_idx_current >= cat_idx.max(1) {
+                self.cat_idx_current -= 1;
+            }
+            for (anno, _) in annotaions_map.values_mut() {
+                anno.reduce_cat_idxs(cat_idx);
+            }
         }
     }
 }
