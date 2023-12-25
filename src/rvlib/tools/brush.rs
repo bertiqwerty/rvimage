@@ -30,7 +30,9 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        let options = get_tools_data(&world).specifics.brush().options;
+        let data = get_tools_data(&world).specifics.brush();
+        let options = data.options;
+        let cat_idx = data.label_info.cat_idx_current;
         if let (Some(_), Some(a)) = (events.mouse_pos, get_annos_mut(&mut world)) {
             a.add_elt(
                 BrushLine {
@@ -38,7 +40,7 @@ impl Brush {
                     intensity: options.intensity,
                     thickness: options.thickness,
                 },
-                0,
+                cat_idx,
             );
         }
         (world, history)
