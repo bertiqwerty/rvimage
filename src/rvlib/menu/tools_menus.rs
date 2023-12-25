@@ -188,7 +188,7 @@ pub fn brush_menu(
     mut data: BrushToolData,
 ) -> RvResult<ToolsData> {
     label_menu(ui, &mut data.label_info, &mut data.annotations_map)?;
-    ui.add(egui::Slider::new(&mut data.options.thickness, 0.0..=20.0).text("thickness"))
+    ui.add(egui::Slider::new(&mut data.options.thickness, 0.0..=50.0).text("thickness"))
         .changed();
     ui.add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))
         .changed();
