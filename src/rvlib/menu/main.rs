@@ -240,7 +240,7 @@ impl<'a> Widget for About<'a> {
                             format!("Version {VERSION} - no git, version from Cargo.toml")
                         };
                         ui.label(version_label);
-                        ui.hyperlink_to("license and code", CODE);
+                        ui.hyperlink_to("docs, license, and code", CODE);
                         let resp_close = ui.button("close");
                         if resp_close.clicked() {
                             ui.memory_mut(|m| m.close_popup());
