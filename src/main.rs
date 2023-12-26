@@ -310,7 +310,7 @@ impl RvImageApp {
                                 x: center.x,
                                 y: center.y,
                             },
-                            stroke.width,
+                            stroke.width * 0.5,
                             stroke.color,
                         )))
                     } else {
