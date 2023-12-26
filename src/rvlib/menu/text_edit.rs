@@ -5,15 +5,15 @@ pub fn text_edit(
     are_tools_active: &mut bool,
     mut f_text_edit: impl FnMut(&mut String) -> Response,
 ) -> Response {
-    let filter_txt_field = f_text_edit(text);
-    *are_tools_active = if filter_txt_field.gained_focus() {
+    let txt_field = f_text_edit(text);
+    *are_tools_active = if txt_field.gained_focus() {
         false
-    } else if filter_txt_field.lost_focus() {
+    } else if txt_field.lost_focus() {
         true
     } else {
         *are_tools_active
     };
-    filter_txt_field
+    txt_field
 }
 pub fn text_edit_singleline(
     ui: &mut Ui,
