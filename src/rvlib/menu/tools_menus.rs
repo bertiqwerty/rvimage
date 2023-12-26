@@ -15,20 +15,22 @@ use crate::{
     Shape,
 };
 
+use super::text_edit::text_edit_singleline;
+
 pub fn label_menu<'a, T>(
     ui: &mut Ui,
     label_info: &mut LabelInfo,
     annotations_map: &mut HashMap<String, (InstanceAnnotations<T>, Shape)>,
+    are_tools_active: &mut bool,
 ) -> RvResult<()>
 where
     T: Annotate + PartialEq + std::default::Default + 'a,
 {
     let mut new_idx = label_info.cat_idx_current;
     let mut new_label = None;
-    if ui
-        .text_edit_singleline(&mut label_info.new_label)
-        .lost_focus()
-    {
+
+    let label_field = text_edit_singleline(ui, &mut label_info.new_label, are_tools_active);
+    if label_field.lost_focus() {
         new_label = Some(label_info.new_label.clone());
     }
     let default_label = label_info.find_default();
@@ -73,8 +75,14 @@ pub fn bbox_menu(
     ui: &mut Ui,
     mut window_open: bool,
     mut data: BboxSpecificData,
+    are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    label_menu(ui, &mut data.label_info, &mut data.annotations_map)?;
+    label_menu(
+        ui,
+        &mut data.label_info,
+        &mut data.annotations_map,
+        are_tools_active,
+    )?;
     ui.separator();
     let mut pathincfg_triggered = false;
 
@@ -186,8 +194,14 @@ pub fn brush_menu(
     ui: &mut Ui,
     mut window_open: bool,
     mut data: BrushToolData,
+    are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    label_menu(ui, &mut data.label_info, &mut data.annotations_map)?;
+    label_menu(
+        ui,
+        &mut data.label_info,
+        &mut data.annotations_map,
+        are_tools_active,
+    )?;
     ui.add(egui::Slider::new(&mut data.options.thickness, 0.0..=50.0).text("thickness"))
         .changed();
     ui.add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))

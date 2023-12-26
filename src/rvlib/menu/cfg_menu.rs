@@ -142,14 +142,14 @@ impl<'a> Widget for CfgMenu<'a> {
                         tracing::error!("{:?}", self.cfg);
                     }
                 } else {
-                    let tmp = menu::core::get_cfg();
+                    let tmp = menu::main::get_cfg();
                     *self.cfg = tmp.0;
                 }
                 ui.memory_mut(|m| m.toggle_popup(self.id));
             }
             if !edit_cfg_btn_resp.clicked() && area_response.clicked_elsewhere() {
                 ui.memory_mut(|m| m.toggle_popup(self.id));
-                let tmp = menu::core::get_cfg();
+                let tmp = menu::main::get_cfg();
                 *self.cfg = tmp.0;
             }
         }

@@ -480,9 +480,11 @@ impl eframe::App for RvImageApp {
 }
 
 fn main() {
-    // Log to stdout (if you run with `RUST_LOG=debug`).
-    let cfg_path = get_cfg_path().unwrap();
-    let log_folder = cfg_path.parent().unwrap().join("logs");
+    let cfg_path = get_cfg_path().expect("we need a cfg path");
+    let log_folder = cfg_path
+        .parent()
+        .expect("the cfg file needs a parent")
+        .join("logs");
     let file_appender = tracing_appender::rolling::daily(log_folder, "log");
     let (file_appender, _guard_file) = tracing_appender::non_blocking(file_appender);
     let file_appender = Layer::new()

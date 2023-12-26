@@ -2,7 +2,7 @@ use crate::{
     cfg::{self, Cfg},
     control::{Control, Info, SortType},
     file_util::{self, RVPRJ_PREFIX},
-    menu::{self, cfg_menu::CfgMenu, open_folder, picklist},
+    menu::{self, cfg_menu::CfgMenu, open_folder, picklist, text_edit::text_edit_singleline},
     paths_selector::PathsSelector,
     result::{to_rv, RvResult},
     tools::{ToolState, BBOX_NAME},
@@ -103,8 +103,12 @@ impl ToolSelectMenu {
         });
         for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
             let tmp = match &mut v.specifics {
-                ToolSpecifics::Bbox(x) => bbox_menu(ui, v.menu_active, mem::take(x)),
-                ToolSpecifics::Brush(x) => brush_menu(ui, v.menu_active, mem::take(x)),
+                ToolSpecifics::Bbox(x) => {
+                    bbox_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
+                }
+                ToolSpecifics::Brush(x) => {
+                    brush_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
+                }
                 ToolSpecifics::Rot90(_) => Ok(mem::take(v)),
             };
             *v = tmp?;
@@ -408,13 +412,9 @@ impl Menu {
                 ui.label("connecting...");
             }
 
-            let filter_txt_field = ui.text_edit_singleline(&mut self.filter_string);
-            if filter_txt_field.gained_focus() {
-                self.are_tools_active = false;
-            }
-            if filter_txt_field.lost_focus() {
-                self.are_tools_active = true;
-            }
+            let filter_txt_field =
+                text_edit_singleline(ui, &mut self.filter_string, &mut self.are_tools_active);
+
             if filter_txt_field.changed() {
                 handle_error!(
                     ctrl.paths_navigator
