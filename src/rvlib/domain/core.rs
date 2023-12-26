@@ -127,6 +127,17 @@ macro_rules! impl_point_into {
     };
 }
 
+fn unsigned_dist<T>(x1: T, x2: T) -> T
+where
+    T: Sub<Output = T> + PartialOrd,
+{
+    if x1 > x2 {
+        x1 - x2
+    } else {
+        x2 - x1
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Point<T> {
     pub x: T,
@@ -140,8 +151,16 @@ where
     pub fn len_square(&self) -> T {
         self.x * self.x + self.y * self.y
     }
-    pub fn dist_square(&self, other: &Self) -> T {
-        <(T, T) as Into<Point<T>>>::into((self.x - other.x, self.y - other.y)).len_square()
+    pub fn dist_square(&self, other: &Self) -> T
+    where
+        T: PartialOrd,
+    {
+        <(T, T) as Into<Point<T>>>::into((
+            // make this work also for unsigned types
+            unsigned_dist(self.x, other.x),
+            unsigned_dist(self.y, other.y),
+        ))
+        .len_square()
     }
     pub fn dot(&self, rhs: &Self) -> T {
         self.x * rhs.x + self.y * rhs.y

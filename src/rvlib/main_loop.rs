@@ -310,6 +310,11 @@ impl MainEventLoop {
                 None
             };
             self.world = World::new(ims_raw, zoom_box);
+            let active_tool_name = self.tools.iter().find(|t| t.is_active()).map(|t| t.name);
+            if let Some(active_tool_name) = active_tool_name {
+                self.world
+                    .request_redraw_annotations(active_tool_name, true);
+            }
             if file_label_idx.is_some() {
                 self.ctrl.paths_navigator.select_label_idx(file_label_idx);
                 let meta_data = self.ctrl.meta_data(
