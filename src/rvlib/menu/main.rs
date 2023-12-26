@@ -139,6 +139,7 @@ struct SavePopup<'a> {
     show: &'a mut bool,
     ctrl: &'a mut Control,
     tools_data_map: &'a mut ToolsDataMap,
+    are_tools_active: &'a mut bool,
 }
 impl<'a> SavePopup<'a> {
     fn new(
@@ -146,12 +147,14 @@ impl<'a> SavePopup<'a> {
         show: &'a mut bool,
         ctrl: &'a mut Control,
         tools_data_map: &'a mut ToolsDataMap,
+        are_tools_active: &'a mut bool,
     ) -> Self {
         Self {
             id,
             show,
             ctrl,
             tools_data_map,
+            are_tools_active,
         }
     }
 }
@@ -171,7 +174,11 @@ impl<'a> Widget for SavePopup<'a> {
                     Frame::popup(ui.style()).show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("project name");
-                            ui.text_edit_singleline(&mut self.ctrl.cfg.current_prj_name);
+                            text_edit_singleline(
+                                ui,
+                                &mut self.ctrl.cfg.current_prj_name,
+                                self.are_tools_active,
+                            );
                         });
                         ui.horizontal(|ui| {
                             let save_resp_clicked = ui.button("save").clicked();
@@ -335,9 +342,15 @@ impl Menu {
                     &mut self.show_save,
                     ctrl,
                     tools_data_map,
+                    &mut self.are_tools_active,
                 ));
                 let popup_id = ui.make_persistent_id("cfg-popup");
-                let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.editable_ssh_cfg_str);
+                let cfg_gui = CfgMenu::new(
+                    popup_id,
+                    &mut ctrl.cfg,
+                    &mut self.editable_ssh_cfg_str,
+                    &mut self.are_tools_active,
+                );
                 ui.add(cfg_gui);
                 let about_popup_id = ui.make_persistent_id("about-popup");
                 ui.add(About::new(about_popup_id, &mut self.show_about));

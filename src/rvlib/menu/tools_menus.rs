@@ -146,7 +146,7 @@ pub fn bbox_menu(
             ui.label("coco file");
             ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Local, "local");
             ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Ssh, "ssh");
-            ui.text_edit_singleline(&mut txt);
+            text_edit_singleline(ui, &mut txt, are_tools_active);
         });
         if ui.button("store path in cfg").clicked() {
             pathincfg_triggered = true;

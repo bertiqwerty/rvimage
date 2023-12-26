@@ -2,7 +2,10 @@ use egui::{Area, Color32, Frame, Id, Order, Response, TextEdit, Ui, Visuals, Wid
 
 use crate::{
     cfg::{self, Cache, Cfg, Connection, SshCfg},
-    menu,
+    menu::{
+        self,
+        text_edit::{self, text_edit_singleline},
+    },
 };
 
 fn is_valid_ssh_cfg(s: &str) -> bool {
@@ -12,13 +15,20 @@ pub struct CfgMenu<'a> {
     id: Id,
     cfg: &'a mut Cfg,
     ssh_cfg_str: &'a mut String,
+    are_tools_active: &'a mut bool,
 }
 impl<'a> CfgMenu<'a> {
-    pub fn new(id: Id, cfg: &'a mut Cfg, ssh_cfg_str: &'a mut String) -> CfgMenu<'a> {
+    pub fn new(
+        id: Id,
+        cfg: &'a mut Cfg,
+        ssh_cfg_str: &'a mut String,
+        are_tools_active: &'a mut bool,
+    ) -> CfgMenu<'a> {
         Self {
             id,
             cfg,
             ssh_cfg_str,
+            are_tools_active,
         }
     }
 }
@@ -74,7 +84,11 @@ impl<'a> Widget for CfgMenu<'a> {
                         });
                         ui.horizontal(|ui| {
                             ui.label("Project name");
-                            ui.text_edit_singleline(&mut self.cfg.current_prj_name);
+                            text_edit_singleline(
+                                ui,
+                                &mut self.cfg.current_prj_name,
+                                self.are_tools_active,
+                            );
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
@@ -112,17 +126,20 @@ impl<'a> Widget for CfgMenu<'a> {
                         });
                         ui.separator();
                         ui.label("SSH CONNECTION PARAMETERS");
-                        let clr = if is_valid_ssh_cfg(self.ssh_cfg_str) {
-                            Color32::LIGHT_YELLOW
-                        } else {
-                            Color32::LIGHT_RED
+                        let multiline = |txt: &mut String| {
+                            let clr = if is_valid_ssh_cfg(txt) {
+                                Color32::LIGHT_BLUE
+                            } else {
+                                Color32::LIGHT_RED
+                            };
+                            ui.add(
+                                TextEdit::multiline(txt)
+                                    .desired_width(f32::INFINITY)
+                                    .code_editor()
+                                    .text_color(clr),
+                            )
                         };
-                        ui.add(
-                            TextEdit::multiline(self.ssh_cfg_str)
-                                .desired_width(f32::INFINITY)
-                                .code_editor()
-                                .text_color(clr),
-                        );
+                        text_edit::text_edit(self.ssh_cfg_str, self.are_tools_active, multiline);
                         ui.horizontal(|ui| {
                             if ui.button("OK").clicked() {
                                 close = Close::Yes(true);
