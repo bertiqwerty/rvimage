@@ -482,8 +482,8 @@ impl eframe::App for RvImageApp {
 fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     let cfg_path = get_cfg_path().unwrap();
-    let log_folder = cfg_path.parent().unwrap();
-    let file_appender = tracing_appender::rolling::daily(log_folder, "rvimage.log");
+    let log_folder = cfg_path.parent().unwrap().join("logs");
+    let file_appender = tracing_appender::rolling::daily(log_folder, "log");
     let (file_appender, _guard_file) = tracing_appender::non_blocking(file_appender);
     let file_appender = Layer::new()
         .with_writer(file_appender.with_max_level(Level::INFO))
