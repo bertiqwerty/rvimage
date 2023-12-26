@@ -215,18 +215,16 @@ impl<'a> Widget for About<'a> {
                     Frame::popup(ui.style()).show(ui, |ui| {
                         const VERSION: &str = env!("CARGO_PKG_VERSION");
                         const CODE: &str = env!("CARGO_PKG_REPOSITORY");
-                        const GIT_HASH: &str = env!("GIT_HASH");
+                        const GIT_DESC: &str = env!("GIT_DESC");
                         ui.label("RV Image\n");
-                        ui.label(format!("Version {VERSION}"));
-                        if !GIT_HASH.is_empty() {
+                        let version_label = if !GIT_DESC.is_empty() {
                             const GIT_DIRTY: &str = env!("GIT_DIRTY");
                             let is_dirty = GIT_DIRTY == "true";
-                            ui.label(format!(
-                                "{}{}\n",
-                                &GIT_HASH[..8],
-                                if is_dirty { " DIRTY" } else { "" }
-                            ));
-                        }
+                            format!("{}{}\n", &GIT_DESC, if is_dirty { " DIRTY" } else { "" })
+                        } else {
+                            format!("Version {VERSION} - no git, version from Cargo.toml")
+                        };
+                        ui.label(version_label);
                         ui.hyperlink_to("license and code", CODE);
                         let resp_close = ui.button("close");
                         if resp_close.clicked() {

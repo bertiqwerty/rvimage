@@ -9,9 +9,9 @@ fn git_cmd(args: &[&str]) -> Option<String> {
 }
 
 fn main() {
-    let git_hash = git_cmd(&["rev-parse", "HEAD"]).unwrap_or("".to_string());
+    let git_desc = git_cmd(&["describe"]).unwrap_or("".to_string());
     let is_dirty = git_cmd(&["diff"]).map(|o| !o.trim().is_empty()) == Some(true);
 
-    println!("cargo:rustc-env=GIT_HASH={git_hash}");
+    println!("cargo:rustc-env=GIT_DESC={git_desc}");
     println!("cargo:rustc-env=GIT_DIRTY={is_dirty}");
 }
