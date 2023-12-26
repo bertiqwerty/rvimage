@@ -61,6 +61,6 @@ toml = "0.8.8"
 walkdir = "2.4"
 tokio = { version = "1.32.0", optional = true }
 uuid = { version = "1.6.1", features = ["v4", "fast-rng"] }
-exmex = "0.18.0"
+exmex = "0.19.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
