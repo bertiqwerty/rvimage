@@ -1,5 +1,8 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
+
+use std::io;
+
 use egui::{
     epaint::{CircleShape, PathShape, RectShape},
     Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
@@ -7,12 +10,17 @@ use egui::{
 };
 use image::{ImageBuffer, Rgb};
 use rvlib::{
+    cfg::get_cfg_path,
     domain::{PtF, PtI},
     get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord,
     view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos,
     UpdateImage, UpdateZoomBox, BB,
 };
-use tracing::error;
+use tracing::{error, Level};
+use tracing_subscriber::{
+    fmt::{writer::MakeWriterExt, Layer},
+    prelude::*,
+};
 
 fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
     match egui_key {
@@ -473,7 +481,21 @@ impl eframe::App for RvImageApp {
 
 fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
-    tracing_subscriber::fmt::init();
+    let cfg_path = get_cfg_path().unwrap();
+    let log_folder = cfg_path.parent().unwrap();
+    let file_appender = tracing_appender::rolling::daily(log_folder, "rvimage.log");
+    let (file_appender, _guard_file) = tracing_appender::non_blocking(file_appender);
+    let file_appender = Layer::new()
+        .with_writer(file_appender.with_max_level(Level::INFO))
+        .with_line_number(true)
+        .with_file(true);
+
+    let stdout = Layer::new()
+        .with_writer(io::stdout.with_max_level(Level::INFO));
+    tracing_subscriber::registry()
+        .with(file_appender)
+        .with(stdout)
+        .init();
 
     let native_options = eframe::NativeOptions::default();
     if let Err(e) = eframe::run_native(
