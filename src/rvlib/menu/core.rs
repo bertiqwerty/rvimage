@@ -220,7 +220,7 @@ impl<'a> Widget for About<'a> {
                         let version_label = if !GIT_DESC.is_empty() {
                             const GIT_DIRTY: &str = env!("GIT_DIRTY");
                             let is_dirty = GIT_DIRTY == "true";
-                            format!("{}{}\n", &GIT_DESC, if is_dirty { " DIRTY" } else { "" })
+                            format!("Version {}{}\n", &GIT_DESC, if is_dirty { " DIRTY" } else { "" })
                         } else {
                             format!("Version {VERSION} - no git, version from Cargo.toml")
                         };
