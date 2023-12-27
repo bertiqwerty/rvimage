@@ -12,7 +12,7 @@ use crate::{
     file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
-    tools_data::annotations::SplitMode,
+    tools_data::{annotations::SplitMode, core},
     util::true_indices,
     GeoFig,
 };
@@ -51,13 +51,10 @@ impl ClipboardData {
 
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
-    pub are_boxes_visible: bool,
+    pub core_options: core::Options,
     pub auto_paste: bool,
     pub is_anno_rm_triggered: bool,
     pub is_coco_import_triggered: bool,
-    pub is_export_triggered: bool,
-    pub is_colorchange_triggered: bool,
-    pub is_redraw_annos_triggered: bool,
     pub split_mode: SplitMode,
     pub export_absolute: bool,
     pub fill_alpha: u8,
@@ -67,13 +64,10 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            are_boxes_visible: true,
+            core_options: core::Options::default(),
             auto_paste: false,
             is_anno_rm_triggered: false,
             is_coco_import_triggered: false,
-            is_export_triggered: false,
-            is_colorchange_triggered: false,
-            is_redraw_annos_triggered: false,
             split_mode: SplitMode::default(),
             export_absolute: false,
             fill_alpha: 30,
@@ -124,7 +118,10 @@ impl BboxSpecificData {
             annotations_map: HashMap::new(),
             clipboard: None,
             options: Options {
-                are_boxes_visible: true,
+                core_options: core::Options {
+                    visible: true,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             coco_file: input_data.coco_file,
@@ -155,7 +152,10 @@ impl BboxSpecificData {
             annotations_map: HashMap::new(),
             clipboard: None,
             options: Options {
-                are_boxes_visible: true,
+                core_options: core::Options {
+                    visible: true,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             coco_file: if let Some(cf) = cfg.coco_file {

@@ -7,12 +7,15 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     result::{trace_ok, RvResult},
-    tools::{core::Mover, Manipulate, BBOX_NAME},
+    tools::{
+        core::{check_trigger_redraw, Mover},
+        Manipulate, BBOX_NAME,
+    },
     tools_data::{
         self,
         annotations::BboxAnnotations,
         bbox_data::{self, Options},
-        ToolsData,
+        bbox_mut, ToolsData,
     },
     world::World,
     GeoFig, Polygon,
@@ -51,7 +54,7 @@ pub(super) fn get_options_mut(world: &mut World) -> Option<&mut bbox_data::Optio
     get_specific_mut(world).map(|d| &mut d.options)
 }
 pub(super) fn are_boxes_visible(world: &World) -> bool {
-    get_options(world).map(|o| o.are_boxes_visible) != Some(false)
+    get_options(world).map(|o| o.core_options.visible) != Some(false)
 }
 
 pub(super) fn paste(mut world: World, mut history: History) -> (World, History) {
@@ -71,7 +74,7 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
     }
     if let (Some(_), Some(specific_mut)) = (clipboard, get_specific_mut(&mut world)) {
         let are_boxes_visible = true;
-        specific_mut.options.are_boxes_visible = are_boxes_visible;
+        specific_mut.options.core_options.visible = are_boxes_visible;
         world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
     }
@@ -86,14 +89,14 @@ pub(super) fn current_cat_idx(world: &World) -> Option<usize> {
 fn check_recolorboxes(mut world: World) -> World {
     // check if re-color was triggered
     let options = get_options(&world);
-    if options.map(|o| o.is_colorchange_triggered) == Some(true) {
+    if options.map(|o| o.core_options.is_colorchange_triggered) == Some(true) {
         let data = get_specific_mut(&mut world);
         if let Some(data) = data {
             // we show annotations after recoloring
             let are_boxes_visible = true;
             data.label_info.new_random_colors();
-            data.options.is_colorchange_triggered = false;
-            data.options.are_boxes_visible = true;
+            data.options.core_options.is_colorchange_triggered = false;
+            data.options.core_options.visible = true;
             world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
         }
     }
@@ -116,7 +119,7 @@ fn check_annoremove(mut world: World) -> World {
         if let (Some(data), Some(opened_folder)) = (data, &opened_folder) {
             data.retain_fileannos_in_folder(opened_folder);
             data.options.is_anno_rm_triggered = false;
-            data.options.are_boxes_visible = are_boxes_visible;
+            data.options.core_options.visible = are_boxes_visible;
         }
         world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
     }
@@ -129,7 +132,7 @@ fn check_cocoexport(mut world: World) -> World {
     if let Some(bbox_data) = bbox_data {
         export_if_triggered(&world.data.meta_data, bbox_data);
         if let Some(o) = get_options_mut(&mut world) {
-            o.is_export_triggered = false;
+            o.core_options.is_export_triggered = false;
         }
     }
     world
@@ -147,7 +150,7 @@ fn check_cocoimport(mut world: World) -> World {
                 None
             },
         ) {
-            let are_boxes_visible = imported_data.options.are_boxes_visible;
+            let are_boxes_visible = imported_data.options.core_options.visible;
             if let Some(data_mut) = get_specific_mut(&mut world) {
                 *data_mut = imported_data;
                 data_mut.options.is_coco_import_triggered = false;
@@ -161,7 +164,7 @@ fn check_cocoimport(mut world: World) -> World {
 fn check_labelchange(mut world: World, prev_label: usize, options: Options) -> World {
     let in_menu_selected_label = current_cat_idx(&world);
     if Some(prev_label) != in_menu_selected_label {
-        world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+        world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
     }
     world
 }
@@ -208,7 +211,7 @@ impl Bbox {
         if event.released(KeyCode::MouseLeft) {
             let params = MouseReleaseParams {
                 prev_pos: self.prev_pos.clone(),
-                are_boxes_visible,
+                visible: are_boxes_visible,
                 is_alt_held: event.held_alt(),
                 is_shift_held: event.held_shift(),
                 is_ctrl_held: event.held_ctrl(),
@@ -324,7 +327,7 @@ impl Manipulate for Bbox {
                 anno.deselect_all();
             }
             (world, history) = check_autopaste(world, history, options.auto_paste);
-            world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+            world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
         }
         (world, history)
     }
@@ -347,12 +350,9 @@ impl Manipulate for Bbox {
         if let Some(options) = options {
             world = check_labelchange(world, self.prev_label, options);
 
-            if options.is_redraw_annos_triggered {
-                world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
-                if let Some(options) = get_options_mut(&mut world) {
-                    options.is_redraw_annos_triggered = false;
-                }
-            }
+            world = check_trigger_redraw(world, BBOX_NAME, |d| {
+                bbox_mut(d).map(|d| &mut d.options.core_options)
+            });
 
             let in_menu_selected_label = current_cat_idx(&world);
             if let (Some(in_menu_selected_label), Some(mp)) =

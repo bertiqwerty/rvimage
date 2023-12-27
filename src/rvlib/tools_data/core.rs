@@ -9,9 +9,28 @@ use super::annotations::InstanceAnnotations;
 pub const OUTLINE_THICKNESS_CONVERSION: f32 = 10.0;
 
 const DEFAULT_LABEL: &str = "foreground";
+
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub struct Options {
+    pub visible: bool,
+    pub is_colorchange_triggered: bool,
+    pub is_redraw_annos_triggered: bool,
+    pub is_export_triggered: bool,
+}
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            visible: true,
+            is_colorchange_triggered: false,
+            is_redraw_annos_triggered: false,
+            is_export_triggered: false
+        }
+    }
 }
 
 pub fn random_clr() -> [u8; 3] {

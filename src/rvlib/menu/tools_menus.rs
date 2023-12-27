@@ -7,7 +7,7 @@ use crate::{
     domain::Annotate,
     file_util::path_to_str,
     result::{to_rv, RvResult},
-    tools_data::{
+    tools_data::{CoreOptions,
         annotations::{InstanceAnnotations, SplitMode},
         bbox_data::BboxSpecificData,
         BrushToolData, LabelInfo, ToolSpecifics, ToolsData, OUTLINE_THICKNESS_CONVERSION,
@@ -71,6 +71,15 @@ where
     Ok(())
 }
 
+fn hide_menu(ui: &mut Ui, mut core_options:  CoreOptions) -> CoreOptions {
+    let mut hide = !core_options.visible;
+    if ui.checkbox(&mut hide, "hide").clicked() {
+        core_options.is_redraw_annos_triggered = true;
+    }
+    core_options.visible = !hide;
+    core_options
+}
+
 pub fn bbox_menu(
     ui: &mut Ui,
     mut window_open: bool,
@@ -86,12 +95,8 @@ pub fn bbox_menu(
     ui.separator();
     let mut pathincfg_triggered = false;
 
-    let mut hide_boxes = !data.options.are_boxes_visible;
-    if ui.checkbox(&mut hide_boxes, "hide boxes").clicked() {
-        data.options.is_redraw_annos_triggered = true;
-    }
-    data.options.are_boxes_visible = !hide_boxes;
-
+    data.options.core_options = hide_menu(ui, data.options.core_options);
+    
     ui.checkbox(&mut data.options.auto_paste, "auto paste");
 
     let mut txt = path_to_str(&data.coco_file.path)?.to_string();
@@ -102,7 +107,7 @@ pub fn bbox_menu(
             .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("fill"))
             .changed()
         {
-            data.options.is_redraw_annos_triggered = true;
+            data.options.core_options.is_redraw_annos_triggered = true;
         }
         data.options.fill_alpha = (transparency / 100.0 * 255.0).round() as u8;
         let mut transparency: f32 = data.options.outline_alpha as f32 / 255.0 * 100.0;
@@ -110,7 +115,7 @@ pub fn bbox_menu(
             .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("outline"))
             .changed()
         {
-            data.options.is_redraw_annos_triggered = true;
+            data.options.core_options.is_redraw_annos_triggered = true;
         }
         data.options.outline_alpha = (transparency / 100.0 * 255.0).round() as u8;
         let mut outline_thickness_f =
@@ -120,7 +125,7 @@ pub fn bbox_menu(
             .add(egui::Slider::new(&mut outline_thickness_f, 0.0..=10.0).text("outline thickness"))
             .changed()
         {
-            data.options.is_redraw_annos_triggered = true;
+            data.options.core_options.is_redraw_annos_triggered = true;
         }
         data.options.outline_thickness =
             (outline_thickness_f * OUTLINE_THICKNESS_CONVERSION).round() as u16;
@@ -153,7 +158,7 @@ pub fn bbox_menu(
         }
         ui.separator();
         if ui.button("new random colors").clicked() {
-            data.options.is_colorchange_triggered = true;
+            data.options.core_options.is_colorchange_triggered = true;
         }
         if ui.button("clear out of folder annotations").clicked() {
             data.options.is_anno_rm_triggered = true;
@@ -172,7 +177,7 @@ pub fn bbox_menu(
     ui.horizontal(|ui| {
         if ui.button("export coco").clicked() {
             tracing::info!("export coco triggered");
-            data.options.is_export_triggered = true;
+            data.options.core_options.is_export_triggered = true;
             pathincfg_triggered = true;
         }
         if ui.button("import coco").clicked() {
@@ -202,6 +207,7 @@ pub fn brush_menu(
         &mut data.annotations_map,
         are_tools_active,
     )?;
+    data.options.core_options = hide_menu(ui, data.options.core_options);
     ui.add(egui::Slider::new(&mut data.options.thickness, 0.0..=50.0).text("thickness"))
         .changed();
     ui.add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))

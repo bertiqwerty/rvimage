@@ -1,4 +1,4 @@
-use super::{annotations::BrushAnnotations, core::LabelInfo};
+use super::{annotations::BrushAnnotations, core::{LabelInfo, self}};
 use crate::domain::Shape;
 use crate::implement_annotations_getters;
 use std::collections::HashMap;
@@ -9,14 +9,14 @@ use serde::{Deserialize, Serialize};
 pub struct Options {
     pub thickness: f32,
     pub intensity: f32,
-    pub visible: bool,
+    pub core_options: core::Options
 }
 impl Default for Options {
     fn default() -> Self {
         Self {
             thickness: 5.0,
             intensity: 1.0,
-            visible: true,
+            core_options: core::Options::default(),
         }
     }
 }

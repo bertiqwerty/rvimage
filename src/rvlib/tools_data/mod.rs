@@ -18,7 +18,7 @@ pub mod brush_data;
 pub mod coco_io;
 mod core;
 pub mod rot90_data;
-
+pub use core::Options as CoreOptions;
 macro_rules! variant_access {
     ($variant:ident, $func_name:ident, $self:ty, $return_type:ty) => {
         pub fn $func_name(self: $self) -> $crate::result::RvResult<$return_type> {

@@ -70,7 +70,7 @@ pub(super) fn import_coco_if_triggered(
 }
 
 pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecificData) {
-    if bbox_data.options.is_export_triggered {
+    if bbox_data.options.core_options.is_export_triggered {
         match tools_data::write_coco(meta_data, bbox_data.clone()) {
             Ok(p) => tracing::info!("export to {p:?} successful"),
             Err(e) => tracing::error!("export failed due to {e:?}"),
@@ -103,8 +103,8 @@ pub(super) fn on_mouse_held_right(
     if add_to_history {
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
     }
-    let are_boxes_visible = are_boxes_visible(&world);
-    world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+    let visible = are_boxes_visible(&world);
+    world.request_redraw_annotations(BBOX_NAME, visible);
     (world, history)
 }
 
@@ -117,7 +117,7 @@ pub(super) struct PrevPos {
 pub(super) struct MouseReleaseParams {
     pub prev_pos: PrevPos,
 
-    pub are_boxes_visible: bool,
+    pub visible: bool,
     pub is_alt_held: bool,
     pub is_shift_held: bool,
     pub is_ctrl_held: bool,
@@ -126,7 +126,7 @@ pub(super) struct MouseReleaseParams {
 pub(super) fn on_mouse_released_right(
     mouse_pos: Option<PtF>,
     mut prev_pos: PrevPos,
-    are_boxes_visible: bool,
+    visible: bool,
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
@@ -154,7 +154,7 @@ pub(super) fn on_mouse_released_right(
                         );
                         history.push(Record::new(world.data.clone(), ACTOR_NAME));
                         prev_pos.prev_pos = vec![];
-                        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+                        world.request_redraw_annotations(BBOX_NAME, visible);
                     }
                 }
             }
@@ -174,7 +174,7 @@ pub(super) fn on_mouse_released_right(
                     annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
                     history.push(Record::new(world.data.clone(), ACTOR_NAME));
                     prev_pos.prev_pos = vec![];
-                    world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+                    world.request_redraw_annotations(BBOX_NAME, visible);
                 }
             }
             _ => (),
@@ -192,7 +192,7 @@ pub(super) fn on_mouse_released_left(
     let are_annotations_visible = are_boxes_visible(&world);
     let MouseReleaseParams {
         mut prev_pos,
-        are_boxes_visible,
+        visible,
         is_alt_held,
         is_shift_held,
         is_ctrl_held,
@@ -250,7 +250,7 @@ pub(super) fn on_mouse_released_left(
                     annos.toggle_selection(i);
                 }
             }
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+            world.request_redraw_annotations(BBOX_NAME, visible);
         }
     } else {
         let shape_orig = world.data.shape();
@@ -365,7 +365,7 @@ pub(super) fn on_mouse_released_left(
                             }
                             history.push(Record::new(world.data.clone(), ACTOR_NAME));
                             prev_pos.prev_pos = vec![];
-                            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+                            world.request_redraw_annotations(BBOX_NAME, visible);
                         }
                     }
                 }
@@ -428,9 +428,9 @@ pub(super) fn on_key_released(
             ReleasedKey::H if params.is_ctrl_held => {
                 // Hide all boxes (selected or not)
                 if let Some(options_mut) = get_options_mut(&mut world) {
-                    options_mut.are_boxes_visible = !options.are_boxes_visible;
+                    options_mut.core_options.visible = !options.core_options.visible;
                 }
-                world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+                world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
             }
             ReleasedKey::Delete | ReleasedKey::Back => {
                 // Remove selected
@@ -438,7 +438,7 @@ pub(super) fn on_key_released(
                 if let Some(annos) = annos {
                     if !annos.selected_mask().is_empty() {
                         annos.remove_selected();
-                        world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+                        world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
                         history.push(Record::new(world.data.clone(), ACTOR_NAME));
                     }
                 }
@@ -448,14 +448,14 @@ pub(super) fn on_key_released(
                 if let Some(a) = get_annos_mut(&mut world) {
                     a.select_all()
                 };
-                world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+                world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
             }
             ReleasedKey::D if params.is_ctrl_held => {
                 // Deselect all
                 if let Some(a) = get_annos_mut(&mut world) {
                     a.deselect_all()
                 };
-                world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+                world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
             }
             ReleasedKey::C if params.is_ctrl_held => {
                 // Copy to clipboard
@@ -465,7 +465,7 @@ pub(super) fn on_key_released(
                     *clipboard_mut = clipboard_data;
                 }
 
-                world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+                world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
             }
             ReleasedKey::V if params.is_ctrl_held => {
                 (world, history) = paste(world, history);
@@ -512,7 +512,7 @@ pub(super) fn on_key_released(
                                 annos.select_last_n(translated_bbs.len());
                                 world.request_redraw_annotations(
                                     BBOX_NAME,
-                                    options.are_boxes_visible,
+                                    options.core_options.visible,
                                 );
                                 history.push(Record::new(world.data.clone(), ACTOR_NAME));
                             }
@@ -676,14 +676,14 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::D, true);
     let (world, history) = on_key_released(world, history, None, params);
     let flags = get_options(&world).unwrap();
-    assert!(flags.are_boxes_visible);
+    assert!(flags.core_options.visible);
     assert!(!get_annos(&world).unwrap().selected_mask()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
     let (world, history) = on_key_released(world, history, None, params);
     let flags = get_options(&world).unwrap();
-    assert!(!flags.are_boxes_visible);
+    assert!(!flags.core_options.visible);
 
     // delete all selected boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
@@ -735,7 +735,7 @@ fn test_mouse_release() {
                 prev_pos,
                 last_valid_click: if is_pp_empty { None } else { last },
             },
-            are_boxes_visible: true,
+            visible: true,
             is_alt_held: false,
             is_shift_held: false,
             is_ctrl_held,
@@ -748,7 +748,7 @@ fn test_mouse_release() {
         let (world, new_hist, prev_pos) = on_mouse_released_right(
             mouse_pos,
             params.prev_pos,
-            params.are_boxes_visible,
+            params.visible,
             world.clone(),
             history.clone(),
         );
@@ -794,7 +794,7 @@ fn test_mouse_release() {
         let (world, new_hist, prev_pos) = on_mouse_released_right(
             mouse_pos,
             params.prev_pos,
-            params.are_boxes_visible,
+            params.visible,
             world.clone(),
             history.clone(),
         );

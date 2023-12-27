@@ -1,4 +1,24 @@
+use crate::result::RvResult;
+use crate::tools_data::{get_mut, get_specific_mut, CoreOptions, ToolSpecifics};
 use crate::{domain::PtF, events::Events, history::History, world::World};
+
+pub(super) fn check_trigger_redraw<'a>(
+    mut world: World,
+    name: &'static str,
+    f_tool_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut CoreOptions> + Clone,
+) -> World {
+    let data_mut = get_mut(&mut world, name, "could not access data");
+    let core_options = get_specific_mut(f_tool_access.clone(), data_mut).cloned();
+    if core_options.map(|o| o.is_redraw_annos_triggered) == Some(true) {
+        world.request_redraw_annotations(name, core_options.map(|o| o.visible) == Some(true));
+        let data_mut = get_mut(&mut world, name, "could not access data");
+        let core_options_mut = get_specific_mut(f_tool_access, data_mut);
+        if let Some(core_options_mut) = core_options_mut {
+            core_options_mut.is_redraw_annos_triggered = false;
+        }
+    }
+    world
+}
 
 pub trait Manipulate {
     fn new() -> Self

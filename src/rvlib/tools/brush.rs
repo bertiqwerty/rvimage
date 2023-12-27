@@ -5,8 +5,9 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     result::{trace_ok, RvResult},
-    tools_data::annotations::BrushAnnotations,
+    tools::core::check_trigger_redraw,
     tools_data::{self, brush_data, ToolsData},
+    tools_data::{annotations::BrushAnnotations, brush_mut},
     world::World,
     Line,
 };
@@ -128,7 +129,7 @@ impl Manipulate for Brush {
         }
         let options = get_options(&world);
         if let Some(options) = options {
-            world.request_redraw_annotations(BRUSH_NAME, options.visible);
+            world.request_redraw_annotations(BRUSH_NAME, options.core_options.visible);
         }
         (world, history)
     }
@@ -149,7 +150,10 @@ impl Manipulate for Brush {
         (world, history)
     }
 
-    fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History) {
+    fn events_tf(&mut self, mut world: World, history: History, events: &Events) -> (World, History) {
+        world = check_trigger_redraw(world, BRUSH_NAME, |d| {
+            brush_mut(d).map(|d| &mut d.options.core_options)
+        });
         make_tool_transform!(
             self,
             world,
