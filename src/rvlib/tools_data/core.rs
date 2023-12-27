@@ -28,7 +28,7 @@ impl Default for Options {
             visible: true,
             is_colorchange_triggered: false,
             is_redraw_annos_triggered: false,
-            is_export_triggered: false
+            is_export_triggered: false,
         }
     }
 }

@@ -150,7 +150,12 @@ impl Manipulate for Brush {
         (world, history)
     }
 
-    fn events_tf(&mut self, mut world: World, history: History, events: &Events) -> (World, History) {
+    fn events_tf(
+        &mut self,
+        mut world: World,
+        history: History,
+        events: &Events,
+    ) -> (World, History) {
         world = check_trigger_redraw(world, BRUSH_NAME, |d| {
             brush_mut(d).map(|d| &mut d.options.core_options)
         });

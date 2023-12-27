@@ -2,7 +2,7 @@ use crate::result::RvResult;
 use crate::tools_data::{get_mut, get_specific_mut, CoreOptions, ToolSpecifics};
 use crate::{domain::PtF, events::Events, history::History, world::World};
 
-pub(super) fn check_trigger_redraw<'a>(
+pub(super) fn check_trigger_redraw(
     mut world: World,
     name: &'static str,
     f_tool_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut CoreOptions> + Clone,

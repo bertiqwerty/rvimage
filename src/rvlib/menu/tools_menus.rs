@@ -7,10 +7,11 @@ use crate::{
     domain::Annotate,
     file_util::path_to_str,
     result::{to_rv, RvResult},
-    tools_data::{CoreOptions,
+    tools_data::{
         annotations::{InstanceAnnotations, SplitMode},
         bbox_data::BboxSpecificData,
-        BrushToolData, LabelInfo, ToolSpecifics, ToolsData, OUTLINE_THICKNESS_CONVERSION,
+        BrushToolData, CoreOptions, LabelInfo, ToolSpecifics, ToolsData,
+        OUTLINE_THICKNESS_CONVERSION,
     },
     Shape,
 };
@@ -71,7 +72,7 @@ where
     Ok(())
 }
 
-fn hide_menu(ui: &mut Ui, mut core_options:  CoreOptions) -> CoreOptions {
+fn hide_menu(ui: &mut Ui, mut core_options: CoreOptions) -> CoreOptions {
     let mut hide = !core_options.visible;
     if ui.checkbox(&mut hide, "hide").clicked() {
         core_options.is_redraw_annos_triggered = true;
@@ -96,7 +97,7 @@ pub fn bbox_menu(
     let mut pathincfg_triggered = false;
 
     data.options.core_options = hide_menu(ui, data.options.core_options);
-    
+
     ui.checkbox(&mut data.options.auto_paste, "auto paste");
 
     let mut txt = path_to_str(&data.coco_file.path)?.to_string();
