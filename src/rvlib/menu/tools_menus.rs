@@ -23,12 +23,13 @@ pub fn label_menu<'a, T>(
     label_info: &mut LabelInfo,
     annotations_map: &mut HashMap<String, (InstanceAnnotations<T>, Shape)>,
     are_tools_active: &mut bool,
-) -> RvResult<()>
+) -> RvResult<bool>
 where
     T: Annotate + PartialEq + std::default::Default + 'a,
 {
     let mut new_idx = label_info.cat_idx_current;
     let mut new_label = None;
+    let mut trigger_redraw = false;
 
     let label_field = text_edit_singleline(ui, &mut label_info.new_label, are_tools_active);
     if label_field.lost_focus() {
@@ -64,12 +65,14 @@ where
         for (annos, _) in annotations_map.values_mut() {
             annos.label_selected(new_idx);
         }
+        trigger_redraw = true;
         label_info.cat_idx_current = new_idx;
     }
     if let Some(tbr) = to_be_removed {
+        trigger_redraw = true;
         label_info.remove_catidx(tbr, annotations_map)
     }
-    Ok(())
+    Ok(trigger_redraw)
 }
 
 fn hide_menu(ui: &mut Ui, mut core_options: CoreOptions) -> CoreOptions {
@@ -87,7 +90,7 @@ pub fn bbox_menu(
     mut data: BboxSpecificData,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    label_menu(
+    data.options.core_options.is_redraw_annos_triggered = label_menu(
         ui,
         &mut data.label_info,
         &mut data.annotations_map,
@@ -202,7 +205,7 @@ pub fn brush_menu(
     mut data: BrushToolData,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    label_menu(
+    data.options.core_options.is_redraw_annos_triggered = label_menu(
         ui,
         &mut data.label_info,
         &mut data.annotations_map,

@@ -11,12 +11,7 @@ use crate::{
         core::{check_trigger_redraw, Mover},
         Manipulate, BBOX_NAME,
     },
-    tools_data::{
-        self,
-        annotations::BboxAnnotations,
-        bbox_data::{self, Options},
-        bbox_mut, ToolsData,
-    },
+    tools_data::{self, annotations::BboxAnnotations, bbox_data, bbox_mut, ToolsData},
     world::World,
     GeoFig, Polygon,
 };
@@ -161,14 +156,6 @@ fn check_cocoimport(mut world: World) -> World {
     world
 }
 
-fn check_labelchange(mut world: World, prev_label: usize, options: Options) -> World {
-    let in_menu_selected_label = current_cat_idx(&world);
-    if Some(prev_label) != in_menu_selected_label {
-        world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
-    }
-    world
-}
-
 fn check_autopaste(mut world: World, mut history: History, auto_paste: bool) -> (World, History) {
     if world.data.meta_data.is_loading_screen_active == Some(false) && auto_paste {
         (world, history) = paste(world, history);
@@ -180,7 +167,6 @@ fn check_autopaste(mut world: World, mut history: History, auto_paste: bool) -> 
 pub struct Bbox {
     prev_pos: PrevPos,
     mover: Mover,
-    prev_label: usize,
 }
 
 impl Bbox {
@@ -294,7 +280,6 @@ impl Manipulate for Bbox {
         Self {
             prev_pos: PrevPos::default(),
             mover: Mover::new(),
-            prev_label: 0,
         }
     }
 
@@ -348,8 +333,6 @@ impl Manipulate for Bbox {
         let options = get_options(&world);
 
         if let Some(options) = options {
-            world = check_labelchange(world, self.prev_label, options);
-
             world = check_trigger_redraw(world, BBOX_NAME, |d| {
                 bbox_mut(d).map(|d| &mut d.options.core_options)
             });
@@ -397,7 +380,6 @@ impl Manipulate for Bbox {
                         world.request_redraw_tmp_anno(Annotation::Bbox(anno));
                     }
                 }
-                self.prev_label = in_menu_selected_label;
             }
             (world, history) = make_tool_transform!(
                 self,
