@@ -150,7 +150,7 @@ where
         ReleasedKey::C if is_ctrl_held => {
             // Copy to clipboard
             let clipboard_data =
-                get_annos_mut(&mut world).map(|d| ClipboardData::from_annotations(&d));
+                get_annos_mut(&mut world).map(|d| ClipboardData::from_annotations(d));
             if let (Some(clipboard_data), Some(clipboard_mut)) =
                 (clipboard_data, get_clipboard_mut(&mut world))
             {

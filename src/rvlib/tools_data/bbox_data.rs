@@ -19,7 +19,6 @@ use crate::{
 /// filename -> (annotations per file, file dimensions)
 pub type AnnotationsMap = HashMap<String, (BboxAnnotations, Shape)>;
 
-
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
     pub core_options: core::Options,
