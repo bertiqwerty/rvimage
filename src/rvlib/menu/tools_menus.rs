@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use egui::Ui;
+use tracing::warn;
 
 use crate::{
     cfg::{self, get_cfg, CocoFileConnection},
@@ -39,7 +40,10 @@ where
     if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
         *default_label = new_label.clone();
     } else if let Some(new_label) = new_label {
-        label_info.push(new_label, None, None)?;
+        if let Err(e) = label_info.push(new_label, None, None) {
+            warn!("{e:?}");
+            return Ok(false);
+        }
         new_idx = label_info.len() - 1;
     }
     let mut to_be_removed = None;
