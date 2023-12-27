@@ -162,7 +162,7 @@ impl ToolSpecifics {
                                     },
                                     intensity: *intensity,
                                     label: None,
-                                    is_selected: Some(*is_selected)
+                                    is_selected: Some(*is_selected),
                                 })
                             },
                         )
