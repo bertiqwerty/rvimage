@@ -5,24 +5,28 @@ mod core;
 mod rot90;
 mod zoom;
 
-use crate::{history::History, world::World};
+use crate::{
+    history::History,
+    tools_data::{BboxSpecificData, BrushToolData},
+    world::World,
+};
 
 pub use self::core::Manipulate;
+use crate::tools_data::Rot90ToolData;
 pub use always_active_zoom::AlwaysActiveZoom;
-pub use bbox::BBox;
+pub use bbox::Bbox;
 pub use brush::Brush;
 pub use rot90::Rot90;
 use std::fmt::Debug;
 pub use zoom::Zoom;
-
 pub const BBOX_NAME: &str = bbox::ACTOR_NAME;
-pub const BRUSH_NAME: &str = "Brush";
+pub const BRUSH_NAME: &str = brush::ACTOR_NAME;
 pub const ZOOM_NAME: &str = "Zoom";
 pub const ROT90_NAME: &str = "Rot90";
 pub const ALWAYS_ACTIVE_ZOOM: &str = "AlwaysActiveZoom";
 
 macro_rules! make_tools {
-($(($tool:ident, $label:expr, $name:expr, $active:expr, $always_active:expr)),+) => {
+($(($tool:ident, $label:expr, $name:expr, $active:expr, $always_active:expr, $data_default:expr)),+) => {
         #[derive(Clone, Debug)]
         pub enum ToolWrapper {
             $($tool($tool)),+
@@ -37,14 +41,46 @@ macro_rules! make_tools {
                     button_label: $label
                 }),+]
         }
+        pub fn add_tools_initial_data(mut world: World) -> World {
+            $(if world.data.tools_data_map.get_mut($name).is_none() {
+                world.data.tools_data_map.insert(
+                    $name.to_string(),
+                    $crate::tools_data::ToolsData::new(
+                        $crate::tools_data::ToolSpecifics::$tool($data_default),
+                    ),
+                );
+            })+
+            world
+        }
     };
 }
 make_tools!(
-    (Rot90, "🔄", ROT90_NAME, true, true),
-    (Brush, "✏", BRUSH_NAME, false, false),
-    (BBox, "⬜", BBOX_NAME, false, false),
-    (Zoom, "🔍", ZOOM_NAME, false, false),
-    (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true)
+    (
+        Rot90,
+        "🔄",
+        ROT90_NAME,
+        true,
+        true,
+        Rot90ToolData::default()
+    ),
+    (
+        Brush,
+        "✏",
+        BRUSH_NAME,
+        false,
+        false,
+        BrushToolData::default()
+    ),
+    (
+        Bbox,
+        "⬜",
+        BBOX_NAME,
+        false,
+        false,
+        BboxSpecificData::default()
+    ),
+    (Zoom, "🔍", ZOOM_NAME, false, false, ()),
+    (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true, ())
 );
 
 #[macro_export]
@@ -53,7 +89,7 @@ macro_rules! apply_tool_method_mut {
         match &mut $tool_state.tool_wrapper {
             ToolWrapper::Rot90(z) => z.$f($($args,)*),
             ToolWrapper::Brush(z) => z.$f($($args,)*),
-            ToolWrapper::BBox(z) => z.$f($($args,)*),
+            ToolWrapper::Bbox(z) => z.$f($($args,)*),
             ToolWrapper::Zoom(z) => z.$f($($args,)*),
             ToolWrapper::AlwaysActiveZoom(z) => z.$f($($args,)*),
         }

@@ -558,7 +558,7 @@ pub(super) fn on_key_released(
 
 #[cfg(test)]
 use {
-    super::core::{get_specific, initialize_tools_menu_data},
+    super::core::get_specific,
     crate::{
         domain::{make_test_bbs, make_test_geos, Shape},
         point,
@@ -572,8 +572,7 @@ use {
 #[cfg(test)]
 fn test_data() -> (Option<PtF>, World, History) {
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
-    let world = World::from_real_im(im_test, HashMap::new(), "superimage.png".to_string());
-    let mut world = initialize_tools_menu_data(world);
+    let mut world = World::from_real_im(im_test, HashMap::new(), "superimage.png".to_string());
     world.data.meta_data.is_loading_screen_active = Some(false);
     get_specific_mut(&mut world)
         .unwrap()

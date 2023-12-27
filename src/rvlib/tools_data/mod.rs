@@ -86,6 +86,8 @@ pub enum ToolSpecifics {
     Bbox(BboxSpecificData),
     Brush(BrushToolData),
     Rot90(Rot90ToolData),
+    Zoom(()),
+    AlwaysActiveZoom(()),
 }
 impl ToolSpecifics {
     variant_access!(Bbox, bbox, &Self, &BboxSpecificData);
@@ -96,7 +98,7 @@ impl ToolSpecifics {
     variant_access!(Rot90, rot90_mut, &mut Self, &mut Rot90ToolData);
 
     pub fn to_annotations_view(&self, file_path: &str) -> UpdateAnnos {
-        match &self {
+        match self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
                     let bbs = annos.elts();
@@ -164,7 +166,7 @@ impl ToolSpecifics {
                     UpdateAnnos::clear()
                 }
             }
-            ToolSpecifics::Rot90(_) => UpdateAnnos::default(),
+            _ => UpdateAnnos::default(),
         }
     }
 }

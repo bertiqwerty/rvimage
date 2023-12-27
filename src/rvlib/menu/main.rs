@@ -109,7 +109,7 @@ impl ToolSelectMenu {
                 ToolSpecifics::Brush(x) => {
                     brush_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
                 }
-                ToolSpecifics::Rot90(_) => Ok(mem::take(v)),
+                _ => Ok(mem::take(v)),
             };
             *v = tmp?;
         }

@@ -287,8 +287,10 @@ impl MainEventLoop {
 
         // load new image if requested by a menu click or by the http server
         let ims_raw_idx_pair = if e.held_ctrl() && e.pressed(KeyCode::Z) {
+            info!("undo");
             self.ctrl.undo(&mut self.history)
         } else if e.held_ctrl() && e.pressed(KeyCode::Y) {
+            info!("redo");
             self.ctrl.redo(&mut self.history)
         } else {
             match self
@@ -310,12 +312,17 @@ impl MainEventLoop {
                 None
             };
             self.world = World::new(ims_raw, zoom_box);
-            let active_tool_name = self.tools.iter().find(|t| t.is_active()).map(|t| t.name);
+            let active_tool_name = self
+                .tools
+                .iter()
+                .find(|t| t.is_active() && !t.is_always_active())
+                .map(|t| t.name);
             if let Some(active_tool_name) = active_tool_name {
                 self.world
                     .request_redraw_annotations(active_tool_name, true);
             }
             if file_label_idx.is_some() {
+                info!("new file loaded");
                 self.ctrl.paths_navigator.select_label_idx(file_label_idx);
                 let meta_data = self.ctrl.meta_data(
                     self.ctrl.file_selected_idx,

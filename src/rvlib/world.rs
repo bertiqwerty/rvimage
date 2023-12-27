@@ -1,28 +1,13 @@
 use crate::domain::{Shape, BB};
 use crate::drawme::{Annotation, UpdateImage};
 use crate::file_util::MetaData;
+use crate::tools::add_tools_initial_data;
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
 use crate::{image_util, UpdateAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
 use std::collections::HashMap;
 use std::{fmt::Debug, mem};
-#[macro_export]
-macro_rules! tools_data_initializer {
-    ($actor:expr, $variant:ident, $tool_data_type:ident) => {
-        pub(super) fn initialize_tools_menu_data(mut world: World) -> World {
-            if world.data.tools_data_map.get_mut($actor).is_none() {
-                world.data.tools_data_map.insert(
-                    $actor.to_string(),
-                    $crate::tools_data::ToolsData::new(
-                        $crate::tools_data::ToolSpecifics::$variant($tool_data_type::default()),
-                    ),
-                );
-            }
-            world
-        }
-    };
-}
 
 #[macro_export]
 macro_rules! annotations_accessor {
@@ -148,7 +133,7 @@ pub struct World {
 impl World {
     pub fn new(ims_raw: DataRaw, zoom_box: Option<BB>) -> Self {
         let im = ims_raw.bg_to_uncropped_view();
-        Self {
+        let world = Self {
             data: ims_raw,
             zoom_box,
             update_view: UpdateView {
@@ -157,15 +142,17 @@ impl World {
                 zoom_box: UpdateZoomBox::Yes(zoom_box),
                 image_info: None,
             },
-        }
+        };
+        add_tools_initial_data(world)
     }
 
     pub fn request_redraw_annotations(&mut self, tool_name: &str, are_annotations_visible: bool) {
         if are_annotations_visible {
-            if let Some(file_path) = &self.data.meta_data.file_path {
-                self.update_view.annos = self.data.tools_data_map[tool_name]
-                    .specifics
-                    .to_annotations_view(file_path);
+            if let (Some(file_path), Some(td)) = (
+                &self.data.meta_data.file_path,
+                self.data.tools_data_map.get(tool_name),
+            ) {
+                self.update_view.annos = td.specifics.to_annotations_view(file_path);
             }
         } else {
             // we override existing annotations

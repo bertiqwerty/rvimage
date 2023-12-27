@@ -12,9 +12,8 @@ use crate::{
         self,
         annotations::BboxAnnotations,
         bbox_data::{self, Options},
-        BboxSpecificData, ToolsData,
+        ToolsData,
     },
-    tools_data_initializer,
     world::World,
     GeoFig, Polygon,
 };
@@ -25,10 +24,9 @@ use super::on_events::{
     on_mouse_held_right, on_mouse_released_left, on_mouse_released_right, KeyReleasedParams,
     MouseHeldParams, MouseReleaseParams, PrevPos,
 };
-pub const ACTOR_NAME: &str = "BBox";
+pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
-const MISSING_DATA_MSG: &str = "bbox tools data have not yet been initialized";
-tools_data_initializer!(ACTOR_NAME, Bbox, BboxSpecificData);
+const MISSING_DATA_MSG: &str = "bbox tools data not available";
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 
@@ -176,13 +174,13 @@ fn check_autopaste(mut world: World, mut history: History, auto_paste: bool) -> 
 }
 
 #[derive(Clone, Debug)]
-pub struct BBox {
+pub struct Bbox {
     prev_pos: PrevPos,
     mover: Mover,
     prev_label: usize,
 }
 
-impl BBox {
+impl Bbox {
     fn mouse_pressed(
         &mut self,
         event: &Events,
@@ -288,7 +286,7 @@ impl BBox {
     }
 }
 
-impl Manipulate for BBox {
+impl Manipulate for Bbox {
     fn new() -> Self {
         Self {
             prev_pos: PrevPos::default(),
@@ -299,7 +297,6 @@ impl Manipulate for BBox {
 
     fn on_activate(&mut self, mut world: World, mut history: History) -> (World, History) {
         self.prev_pos = PrevPos::default();
-        world = initialize_tools_menu_data(world);
         if let Some(data) = trace_ok(get_data_mut(&mut world)) {
             data.menu_active = true;
         }
@@ -340,9 +337,6 @@ impl Manipulate for BBox {
     ) -> (World, History) {
         world = check_recolorboxes(world);
         world = check_annoremove(world);
-
-        // this is necessary in addition to the call in on_activate due to undo/redo
-        world = initialize_tools_menu_data(world);
 
         world = check_cocoexport(world);
 

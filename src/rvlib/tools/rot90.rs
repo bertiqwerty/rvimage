@@ -3,15 +3,13 @@ use crate::{
     events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
-    tools_data::{rot90_data::NRotations, Rot90ToolData},
-    tools_data_initializer,
+    tools_data::rot90_data::NRotations,
     world::{DataRaw, World},
 };
 
 use super::Manipulate;
 
 const ACTOR_NAME: &str = "Rot90";
-tools_data_initializer!(ACTOR_NAME, Rot90, Rot90ToolData);
 annotations_accessor_mut!(ACTOR_NAME, rot90_mut, "Rotation 90 didn't work", NRotations);
 annotations_accessor!(ACTOR_NAME, rot90, "Rotation 90 didn't work", NRotations);
 
@@ -50,10 +48,6 @@ impl Manipulate for Rot90 {
         Self {}
     }
 
-    fn on_activate(&mut self, mut world: World, history: History) -> (World, History) {
-        world = initialize_tools_menu_data(world);
-        (world, history)
-    }
     fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
         if let Some(nrot) = get_annos_if_some(&world) {
             world = World::new(rot90(&world.data, *nrot), *world.zoom_box());

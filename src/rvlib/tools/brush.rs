@@ -6,19 +6,17 @@ use crate::{
     make_tool_transform,
     result::{trace_ok, RvResult},
     tools_data::annotations::BrushAnnotations,
-    tools_data::{self, brush_data, BrushToolData, ToolsData},
-    tools_data_initializer,
+    tools_data::{self, brush_data, ToolsData},
     world::World,
     Line,
 };
 
 use super::{Manipulate, BRUSH_NAME};
 
-const ACTOR_NAME: &str = "Brush";
+pub const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
 const MISSING_DATA_MSG: &str = "brush data not available";
 
-tools_data_initializer!(ACTOR_NAME, Brush, BrushToolData);
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
 
 fn get_data(world: &World) -> RvResult<&ToolsData> {
@@ -135,7 +133,6 @@ impl Manipulate for Brush {
         (world, history)
     }
     fn on_activate(&mut self, mut world: World, history: History) -> (World, History) {
-        world = initialize_tools_menu_data(world);
         if let Some(data) = trace_ok(get_data_mut(&mut world)) {
             data.menu_active = true;
             let are_annos_visible = true;
@@ -154,11 +151,10 @@ impl Manipulate for Brush {
 
     fn events_tf(
         &mut self,
-        mut world: World,
+        world: World,
         history: History,
         events: &Events,
     ) -> (World, History) {
-        world = initialize_tools_menu_data(world);
         make_tool_transform!(
             self,
             world,
