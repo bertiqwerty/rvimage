@@ -291,8 +291,13 @@ impl RvImageApp {
                 let size_from = self.shape_view().w as f32;
                 let size_to = image_rect.size().x;
                 let thickness = scale_coord(anno.outline.thickness, size_from, size_to);
+                let selected_addon = if anno.is_selected == Some(true) {
+                    2.0
+                } else {
+                    0.0
+                };
                 let stroke = Stroke::new(
-                    thickness,
+                    thickness + selected_addon,
                     rgb_2_clr(
                         Some(anno.outline.color),
                         (anno.intensity.clamp(0.0, 1.0) * 255.0) as u8,
@@ -335,15 +340,11 @@ impl RvImageApp {
                 _ => None,
             })
             .map(|anno| {
-                let (fill_alpha, outline_thickness) = if let Some(is_selected) = anno.is_selected {
-                    if is_selected {
-                        (
-                            anno.fill_alpha.saturating_add(60),
-                            anno.outline.thickness + 2.0,
-                        )
-                    } else {
-                        (anno.fill_alpha, anno.outline.thickness)
-                    }
+                let (fill_alpha, outline_thickness) = if anno.is_selected == Some(true) {
+                    (
+                        anno.fill_alpha.saturating_add(60),
+                        anno.outline.thickness + 2.0,
+                    )
                 } else {
                     (anno.fill_alpha, anno.outline.thickness)
                 };

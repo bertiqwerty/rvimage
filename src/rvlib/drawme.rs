@@ -33,6 +33,7 @@ pub struct BrushAnnotation {
     pub outline: Stroke,
     pub intensity: f32,
     pub label: Option<String>,
+    pub is_selected: Option<bool>,
 }
 
 #[derive(Clone, Debug)]

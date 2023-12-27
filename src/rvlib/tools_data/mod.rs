@@ -136,18 +136,23 @@ impl ToolSpecifics {
                 if let Some(annos) = br_data.get_annos(file_path) {
                     let colors = br_data.label_info.colors();
                     let cats = annos.cat_idxs();
+                    let selected_mask = annos.selected_mask();
                     let annos = annos
                         .elts()
                         .iter()
                         .zip(cats.iter())
+                        .zip(selected_mask.iter())
                         .map(
                             |(
-                                BrushLine {
-                                    line,
-                                    intensity,
-                                    thickness,
-                                },
-                                cat_idx,
+                                (
+                                    BrushLine {
+                                        line,
+                                        intensity,
+                                        thickness,
+                                    },
+                                    cat_idx,
+                                ),
+                                is_selected,
                             )| {
                                 Annotation::Brush(BrushAnnotation {
                                     line: line.clone(),
@@ -157,6 +162,7 @@ impl ToolSpecifics {
                                     },
                                     intensity: *intensity,
                                     label: None,
+                                    is_selected: Some(*is_selected)
                                 })
                             },
                         )
