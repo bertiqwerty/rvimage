@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use egui::Ui;
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::{
     cfg::{self, get_cfg, CocoFileConnection},
@@ -38,6 +38,7 @@ where
     }
     let default_label = label_info.find_default();
     if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
+        info!("replaced default '{default_label}' label by '{new_label}'");
         *default_label = new_label.clone();
     } else if let Some(new_label) = new_label {
         if let Err(e) = label_info.push(new_label, None, None) {

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use crate::{domain::Annotate, result::RvResult, rverr, Shape};
 
@@ -84,6 +85,7 @@ pub struct LabelInfo {
 }
 impl LabelInfo {
     pub fn new_random_colors(&mut self) {
+        info!("new random colors for annotations");
         self.colors = new_random_colors(self.colors.len());
     }
     pub fn push(
@@ -95,6 +97,7 @@ impl LabelInfo {
         if self.labels.contains(&label) {
             Err(rverr!("label '{}' already exists", label))
         } else {
+            info!("adding label '{label}'");
             self.labels.push(label);
             if let Some(clr) = color {
                 if self.colors.contains(&clr) {
@@ -132,11 +135,13 @@ impl LabelInfo {
         self.labels.len()
     }
     pub fn remove(&mut self, idx: usize) -> (String, [u8; 3], u32) {
-        (
+        let removed_items = (
             self.labels.remove(idx),
             self.colors.remove(idx),
             self.cat_ids.remove(idx),
-        )
+        );
+        info!("label '{}' removed", removed_items.0);
+        removed_items
     }
     pub fn find_default(&mut self) -> Option<&mut String> {
         self.labels.iter_mut().find(|lab| lab == &DEFAULT_LABEL)
