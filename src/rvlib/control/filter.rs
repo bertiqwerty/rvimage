@@ -35,13 +35,17 @@ impl FilterPredicate {
                 };
                 let tdm = tdm.unwrap();
                 if let Some(bbox_data) = tdm.get(tools::BBOX_NAME) {
-                    let labels = bbox_data.specifics.bbox().label_info.labels();
-                    let annos = bbox_data.specifics.bbox().get_annos(path);
-                    if let Some(annos) = annos {
-                        annos
-                            .cat_idxs()
-                            .iter()
-                            .any(|cat_idx| labels[*cat_idx].contains(label))
+                    if let Ok(specifics) = bbox_data.specifics.bbox() {
+                        let labels = specifics.label_info.labels();
+                        let annos = specifics.get_annos(path);
+                        if let Some(annos) = annos {
+                            annos
+                                .cat_idxs()
+                                .iter()
+                                .any(|cat_idx| labels[*cat_idx].contains(label))
+                        } else {
+                            false
+                        }
                     } else {
                         false
                     }
@@ -52,7 +56,9 @@ impl FilterPredicate {
             FilterPredicate::Nolabel => {
                 if let Some(tdm) = tdm {
                     let bb_tool = tdm.get(tools::BBOX_NAME);
-                    let annos = bb_tool.and_then(|bbt| bbt.specifics.bbox().get_annos(path));
+                    let annos = bb_tool
+                        .and_then(|bbt| bbt.specifics.bbox().ok())
+                        .and_then(|d| d.get_annos(path));
                     if let Some(annos) = annos {
                         annos.cat_idxs().is_empty()
                     } else {

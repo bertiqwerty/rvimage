@@ -36,7 +36,8 @@ macro_rules! annotations_accessor {
                     .data
                     .tools_data_map
                     .get($actor)
-                    .and_then(|x| x.specifics.$access_func().get_annos(&current_file_path));
+                    .and_then(|x| x.specifics.$access_func().ok())
+                    .and_then(|d| d.get_annos(&current_file_path));
                 if res.is_none() && !is_no_anno_fine {
                     tracing::error!("{}", $error_msg);
                 }
@@ -61,11 +62,12 @@ macro_rules! annotations_accessor_mut {
         pub(super) fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
             if let Some(current_file_path) = world.data.meta_data.file_path.as_ref() {
                 let shape = world.data.shape();
-                let res = world.data.tools_data_map.get_mut($actor).and_then(|x| {
-                    x.specifics
-                        .$access_func()
-                        .get_annos_mut(&current_file_path, shape)
-                });
+                let res = world
+                    .data
+                    .tools_data_map
+                    .get_mut($actor)
+                    .and_then(|x| x.specifics.$access_func().ok())
+                    .and_then(|d| d.get_annos_mut(&current_file_path, shape));
                 if res.is_none() {
                     tracing::error!("{}", $error_msg);
                 }
@@ -80,16 +82,28 @@ macro_rules! annotations_accessor_mut {
 #[macro_export]
 macro_rules! tools_data_accessor_mut {
     ($actor:expr, $error_msg:expr) => {
-        pub(super) fn get_tools_data_mut(world: &mut World) -> &mut $crate::tools_data::ToolsData {
-            world.data.tools_data_map.get_mut($actor).expect($error_msg)
+        pub(super) fn get_tools_data_mut(
+            world: &mut World,
+        ) -> $crate::result::RvResult<&mut $crate::tools_data::ToolsData> {
+            world
+                .data
+                .tools_data_map
+                .get_mut($actor)
+                .ok_or_else(|| $crate::result::RvError::new($error_msg))
         }
     };
 }
 #[macro_export]
 macro_rules! tools_data_accessor {
     ($actor:expr, $error_msg:expr) => {
-        pub(super) fn get_tools_data(world: &World) -> &$crate::tools_data::ToolsData {
-            world.data.tools_data_map.get($actor).expect($error_msg)
+        pub(super) fn get_tools_data(
+            world: &World,
+        ) -> $crate::result::RvResult<&$crate::tools_data::ToolsData> {
+            world
+                .data
+                .tools_data_map
+                .get($actor)
+                .ok_or_else(|| $crate::result::RvError::new($error_msg))
         }
     };
 }

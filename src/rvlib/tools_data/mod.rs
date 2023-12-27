@@ -1,6 +1,8 @@
 use crate::{
     domain::BrushLine,
     drawme::{Annotation, BboxAnnotation, Stroke},
+    result::{trace_ok, RvError, RvResult},
+    world::World,
     BrushAnnotation, UpdateAnnos,
 };
 
@@ -19,14 +21,65 @@ pub mod rot90_data;
 
 macro_rules! variant_access {
     ($variant:ident, $func_name:ident, $self:ty, $return_type:ty) => {
-        pub fn $func_name(self: $self) -> $return_type {
+        pub fn $func_name(self: $self) -> $crate::result::RvResult<$return_type> {
             match self {
-                ToolSpecifics::$variant(x) => x,
-                _ => panic!("this is not a {}", stringify!($variant)),
+                ToolSpecifics::$variant(x) => Ok(x),
+                _ => Err($crate::rverr!("this is not a {}", stringify!($variant))),
             }
         }
     };
 }
+macro_rules! variant_access_free {
+    ($variant:ident, $func_name:ident, $lt:lifetime, $ToolsSpecific:ty, $return_type:ty) => {
+        pub fn $func_name<$lt>(x: $ToolsSpecific) -> $crate::result::RvResult<$return_type> {
+            match x {
+                ToolSpecifics::$variant(x) => Ok(x),
+                _ => Err($crate::rverr!("this is not a {}", stringify!($variant))),
+            }
+        }
+    };
+}
+
+variant_access_free!(Bbox, bbox, 'a, &'a ToolSpecifics, &'a BboxSpecificData);
+variant_access_free!(Bbox, bbox_mut, 'a, &'a mut ToolSpecifics, &'a mut BboxSpecificData);
+variant_access_free!(Brush, brush, 'a, &'a ToolSpecifics, &'a BrushToolData);
+variant_access_free!(Brush, brush_mut, 'a, &'a mut ToolSpecifics, &'a mut BrushToolData);
+
+pub(super) fn get<'a>(
+    world: &'a World,
+    actor: &'static str,
+    error_msg: &'a str,
+) -> RvResult<&'a ToolsData> {
+    world
+        .data
+        .tools_data_map
+        .get(actor)
+        .ok_or_else(|| RvError::new(error_msg))
+}
+pub fn get_specific<'a, T>(
+    f: impl Fn(&ToolSpecifics) -> RvResult<&T>,
+    data: RvResult<&'a ToolsData>,
+) -> Option<&'a T> {
+    trace_ok(data.and_then(|d| Ok(&d.specifics)).and_then(f))
+}
+pub(super) fn get_mut<'a>(
+    world: &'a mut World,
+    actor: &'static str,
+    error_msg: &'a str,
+) -> RvResult<&'a mut ToolsData> {
+    world
+        .data
+        .tools_data_map
+        .get_mut(actor)
+        .ok_or_else(|| RvError::new(error_msg))
+}
+pub fn get_specific_mut<'a, T>(
+    f: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut T>,
+    data: RvResult<&'a mut ToolsData>,
+) -> Option<&'a mut T> {
+    trace_ok(data.and_then(|d| Ok(&mut d.specifics)).and_then(f))
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum ToolSpecifics {

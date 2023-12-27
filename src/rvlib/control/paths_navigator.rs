@@ -151,11 +151,13 @@ impl PathsNavigator {
             let no_labels_keyword = "nolabel:";
             if let (Some(needle), Some(bbox_data)) = (
                 s.strip_prefix(labels_keyword),
-                tools_data_map.get(tools::BBOX_NAME),
+                tools_data_map
+                    .get(tools::BBOX_NAME)
+                    .and_then(|d| d.specifics.bbox().ok()),
             ) {
-                let labels = bbox_data.specifics.bbox().label_info.labels();
+                let labels = bbox_data.label_info.labels();
                 let filter_pred = |path: &str| {
-                    let annos = bbox_data.specifics.bbox().get_annos(path);
+                    let annos = bbox_data.get_annos(path);
                     if let Some(annos) = annos {
                         annos
                             .cat_idxs()
@@ -169,7 +171,9 @@ impl PathsNavigator {
             } else if s.strip_prefix(no_labels_keyword).is_some() {
                 let filter_pred = |path: &str| {
                     let bb_tool = tools_data_map.get(tools::BBOX_NAME);
-                    let annos = bb_tool.and_then(|bbt| bbt.specifics.bbox().get_annos(path));
+                    let annos = bb_tool
+                        .and_then(|bbt| bbt.specifics.bbox().ok())
+                        .and_then(|d| d.get_annos(path));
                     if let Some(annos) = annos {
                         annos.cat_idxs().is_empty()
                     } else {

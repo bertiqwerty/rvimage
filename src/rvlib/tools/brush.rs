@@ -4,9 +4,10 @@ use crate::{
     events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
+    result::{trace_ok, RvResult},
     tools_data::annotations::BrushAnnotations,
-    tools_data::BrushToolData,
-    tools_data_accessor, tools_data_accessor_mut, tools_data_initializer,
+    tools_data::{self, brush_data, BrushToolData, ToolsData},
+    tools_data_initializer,
     world::World,
     Line,
 };
@@ -15,11 +16,29 @@ use super::{Manipulate, BRUSH_NAME};
 
 const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
+const MISSING_DATA_MSG: &str = "brush data not available";
 
 tools_data_initializer!(ACTOR_NAME, Brush, BrushToolData);
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
-tools_data_accessor!(ACTOR_NAME, MISSING_ANNO_MSG);
-tools_data_accessor_mut!(ACTOR_NAME, MISSING_ANNO_MSG);
+
+fn get_data(world: &World) -> RvResult<&ToolsData> {
+    tools_data::get(world, ACTOR_NAME, MISSING_DATA_MSG)
+}
+
+fn get_specific(world: &World) -> Option<&brush_data::BrushToolData> {
+    tools_data::get_specific(tools_data::brush, get_data(&world))
+}
+fn get_options(world: &World) -> Option<brush_data::Options> {
+    get_specific(world).map(|d| d.options)
+}
+
+fn get_data_mut(world: &mut World) -> RvResult<&mut ToolsData> {
+    tools_data::get_mut(world, ACTOR_NAME, MISSING_DATA_MSG)
+}
+fn get_specific_mut(world: &mut World) -> Option<&mut brush_data::BrushToolData> {
+    tools_data::get_specific_mut(tools_data::brush_mut, get_data_mut(world))
+}
+
 #[derive(Clone, Debug)]
 pub struct Brush {}
 
@@ -30,10 +49,14 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        let data = get_tools_data(&world).specifics.brush();
-        let options = data.options;
-        let cat_idx = data.label_info.cat_idx_current;
-        if let (Some(_), Some(a)) = (events.mouse_pos, get_annos_mut(&mut world)) {
+        let options = get_options(&world);
+        let cat_idx = get_specific(&world).map(|d| d.label_info.cat_idx_current);
+        if let (Some(_), Some(a), Some(options), Some(cat_idx)) = (
+            events.mouse_pos,
+            get_annos_mut(&mut world),
+            options,
+            cat_idx,
+        ) {
             a.add_elt(
                 BrushLine {
                     line: Line::new(),
@@ -99,19 +122,25 @@ impl Manipulate for Brush {
     }
 
     fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
-        let brush_data = get_tools_data_mut(&mut world).specifics.brush_mut();
-        for (_, (anno, _)) in brush_data.anno_iter_mut() {
-            anno.deselect_all();
+        let brush_data = get_specific_mut(&mut world);
+        if let Some(brush_data) = brush_data {
+            for (_, (anno, _)) in brush_data.anno_iter_mut() {
+                anno.deselect_all();
+            }
         }
-        let options = get_tools_data(&world).specifics.brush().options;
-        world.request_redraw_annotations(BRUSH_NAME, options.visible);
+        let options = get_options(&world);
+        if let Some(options) = options {
+            world.request_redraw_annotations(BRUSH_NAME, options.visible);
+        }
         (world, history)
     }
     fn on_activate(&mut self, mut world: World, history: History) -> (World, History) {
         world = initialize_tools_menu_data(world);
-        get_tools_data_mut(&mut world).menu_active = true;
-        let are_annos_visible = true;
-        world.request_redraw_annotations(BRUSH_NAME, are_annos_visible);
+        if let Some(data) = trace_ok(get_data_mut(&mut world)) {
+            data.menu_active = true;
+            let are_annos_visible = true;
+            world.request_redraw_annotations(BRUSH_NAME, are_annos_visible);
+        }
         (world, history)
     }
     fn on_deactivate(&mut self, mut world: World, history: History) -> (World, History) {

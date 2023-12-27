@@ -511,11 +511,13 @@ impl Menu {
             };
             let get_annotation_info = |ps: &PathsSelector| {
                 if let Some(bbox_data) = tools_data_map.get(BBOX_NAME) {
-                    let n_files_annotated = bbox_data
-                        .specifics
-                        .bbox()
-                        .n_annotated_images(&ps.filtered_file_paths());
-                    Some(format!("{n_files_annotated} files with bbox annotations"))
+                    if let Ok(specifics) = bbox_data.specifics.bbox() {
+                        let n_files_annotated =
+                            specifics.n_annotated_images(&ps.filtered_file_paths());
+                        Some(format!("{n_files_annotated} files with bbox annotations"))
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }

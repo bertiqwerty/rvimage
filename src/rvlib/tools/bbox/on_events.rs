@@ -14,8 +14,8 @@ use crate::{
 };
 
 use super::core::{
-    current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_tools_data,
-    get_tools_data_mut, paste, ACTOR_NAME,
+    are_boxes_visible, current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_options,
+    get_options_mut, get_specific_mut, paste, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
@@ -54,10 +54,9 @@ fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: i64) -> Option<(
 
 pub(super) fn import_coco_if_triggered(
     meta_data: &MetaData,
-    is_coco_import_triggered: bool,
-    coco_file: &CocoFile,
+    coco_file: Option<&CocoFile>,
 ) -> Option<BboxSpecificData> {
-    if is_coco_import_triggered {
+    if let Some(coco_file) = coco_file {
         match tools_data::coco_io::read_coco(meta_data, coco_file) {
             Ok(bbox_data) => Some(bbox_data),
             Err(e) => {
@@ -91,9 +90,9 @@ pub(super) fn on_mouse_held_right(
     let orig_shape = world.data.shape();
     let mut add_to_history = false;
     let move_boxes = |mpo_from, mpo_to| {
-        let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
+        let split_mode = get_options(&world).map(|o| o.split_mode);
         let annos = get_annos_mut(&mut world);
-        if let Some(annos) = annos {
+        if let (Some(annos), Some(split_mode)) = (annos, split_mode) {
             let tmp =
                 mem::take(annos).selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
             (*annos, add_to_history) = tmp;
@@ -104,11 +103,7 @@ pub(super) fn on_mouse_held_right(
     if add_to_history {
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
     }
-    let are_boxes_visible = get_tools_data(&world)
-        .specifics
-        .bbox()
-        .options
-        .are_boxes_visible;
+    let are_boxes_visible = are_boxes_visible(&world);
     world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
     (world, history)
 }
@@ -135,10 +130,12 @@ pub(super) fn on_mouse_released_right(
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
-    let split_mode = get_tools_data(&world).specifics.bbox().options.split_mode;
+    let split_mode = get_options(&world).map(|o| o.split_mode);
     let lc_orig = prev_pos.last_valid_click;
     let in_menu_selected_label = current_cat_idx(&world);
-    if let (Some(mp), Some(last_click)) = (mouse_pos, lc_orig) {
+    if let (Some(mp), Some(last_click), Some(split_mode), Some(in_menu_selected_label)) =
+        (mouse_pos, lc_orig, split_mode, in_menu_selected_label)
+    {
         match prev_pos.prev_pos.len().cmp(&1) {
             Ordering::Equal => {
                 // second click new bb
@@ -191,9 +188,8 @@ pub(super) fn on_mouse_released_left(
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
-    let options = get_tools_data(&world).specifics.bbox().options;
-    let split_mode = options.split_mode;
-    let are_annotations_visible = options.are_boxes_visible;
+    let split_mode = get_options(&world).map(|o| o.split_mode);
+    let are_annotations_visible = are_boxes_visible(&world);
     let MouseReleaseParams {
         mut prev_pos,
         are_boxes_visible,
@@ -246,7 +242,9 @@ pub(super) fn on_mouse_released_left(
                 } else if is_alt_held {
                     annos.deselect_all();
                     annos.select(i);
-                    annos.label_selected(in_menu_selected_label);
+                    if let Some(selected) = in_menu_selected_label {
+                        annos.label_selected(selected);
+                    }
                 } else {
                     // ctrl
                     annos.toggle_selection(i);
@@ -287,7 +285,7 @@ pub(super) fn on_mouse_released_left(
             }
         } else {
             match split_mode {
-                SplitMode::None => {
+                Some(SplitMode::None) => {
                     // first click new bb
                     if let Some(mp) = mouse_pos {
                         prev_pos.prev_pos.push(mp);
@@ -306,7 +304,7 @@ pub(super) fn on_mouse_released_left(
                                 Box::new(empty())
                             }
                         };
-                        let new_bbs = if let SplitMode::Horizontal = split_mode {
+                        let new_bbs = if let Some(SplitMode::Horizontal) = split_mode {
                             if let Some((i, bb)) = existing_bbs()
                                 .enumerate()
                                 .find(|(_, bb)| bb.contains((mp.x, mp.y)))
@@ -359,9 +357,11 @@ pub(super) fn on_mouse_released_left(
                             let removers =
                                 new_bbs.iter().flat_map(|(i, _, _)| *i).collect::<Vec<_>>();
                             annos.remove_multiple(&removers);
-                            for (_, bb1, bb2) in new_bbs {
-                                annos.add_bb(bb1, in_menu_selected_label);
-                                annos.add_bb(bb2, in_menu_selected_label);
+                            if let Some(selected) = in_menu_selected_label {
+                                for (_, bb1, bb2) in new_bbs {
+                                    annos.add_bb(bb1, selected);
+                                    annos.add_bb(bb2, selected);
+                                }
                             }
                             history.push(Record::new(world.data.clone(), ACTOR_NAME));
                             prev_pos.prev_pos = vec![];
@@ -402,9 +402,11 @@ released_key!(
 
 macro_rules! set_cat_current {
     ($num:expr, $world:expr) => {
-        let specifics = get_tools_data_mut(&mut $world).specifics.bbox_mut();
-        if $num < specifics.label_info.cat_ids().len() + 1 {
-            specifics.label_info.cat_idx_current = $num - 1;
+        let specifics = get_specific_mut(&mut $world);
+        if let Some(specifics) = specifics {
+            if $num < specifics.label_info.cat_ids().len() + 1 {
+                specifics.label_info.cat_idx_current = $num - 1;
+            }
         }
     };
 }
@@ -420,135 +422,144 @@ pub(super) fn on_key_released(
     mouse_pos: Option<PtF>,
     params: KeyReleasedParams,
 ) -> (World, History) {
-    let mut flags = get_tools_data_mut(&mut world).specifics.bbox_mut().options;
-    match params.released_key {
-        ReleasedKey::H if params.is_ctrl_held => {
-            // Hide all boxes (selected or not)
-            flags.are_boxes_visible = !flags.are_boxes_visible;
-            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
-        }
-        ReleasedKey::Delete | ReleasedKey::Back => {
-            // Remove selected
-            let annos = get_annos_mut(&mut world);
-            if let Some(annos) = annos {
-                if !annos.selected_mask().is_empty() {
-                    annos.remove_selected();
-                    world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
-                    history.push(Record::new(world.data.clone(), ACTOR_NAME));
+    let options = get_options(&mut world);
+    if let Some(options) = options {
+        match params.released_key {
+            ReleasedKey::H if params.is_ctrl_held => {
+                // Hide all boxes (selected or not)
+                if let Some(options_mut) = get_options_mut(&mut world) {
+                    options_mut.are_boxes_visible = !options.are_boxes_visible;
                 }
+                world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
             }
-        }
-        ReleasedKey::A if params.is_ctrl_held => {
-            // Select all
-            if let Some(a) = get_annos_mut(&mut world) {
-                a.select_all()
-            };
-            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
-        }
-        ReleasedKey::D if params.is_ctrl_held => {
-            // Deselect all
-            if let Some(a) = get_annos_mut(&mut world) {
-                a.deselect_all()
-            };
-            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
-        }
-        ReleasedKey::C if params.is_ctrl_held => {
-            // Copy to clipboard
-            if let Some(annos) = get_annos(&world) {
-                get_tools_data_mut(&mut world)
-                    .specifics
-                    .bbox_mut()
-                    .clipboard = Some(ClipboardData::from_annotations(annos));
-                world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
-            }
-        }
-        ReleasedKey::V if params.is_ctrl_held => {
-            (world, history) = paste(world, history);
-        }
-        ReleasedKey::V => {
-            flags.auto_paste = !flags.auto_paste;
-        }
-        ReleasedKey::C => {
-            // Paste selection directly at current mouse position
-            if let Some((x_shift, y_shift)) = mouse_pos.map(<PtF as Into<(i32, i32)>>::into) {
-                let shape_orig = world.shape_orig();
+            ReleasedKey::Delete | ReleasedKey::Back => {
+                // Remove selected
                 let annos = get_annos_mut(&mut world);
                 if let Some(annos) = annos {
-                    let selected_inds = true_indices(annos.selected_mask());
-                    let first_selected_idx = true_indices(annos.selected_mask()).next();
-                    if let Some(first_idx) = first_selected_idx {
-                        let translated = selected_inds.flat_map(|idx| {
-                            let geo = annos.elts()[idx].clone();
-                            let first = &annos.elts()[first_idx];
-                            geo.translate(
-                                Point {
-                                    x: x_shift - first.enclosing_bb().min().x as i32,
-                                    y: y_shift - first.enclosing_bb().min().y as i32,
-                                },
-                                shape_orig,
-                                OutOfBoundsMode::Deny,
-                            )
-                            .map(|bb| (bb, annos.cat_idxs()[idx]))
-                        });
-                        let translated_bbs =
-                            translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
-                        let translated_cat_ids =
-                            translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
+                    if !annos.selected_mask().is_empty() {
+                        annos.remove_selected();
+                        world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+                        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                    }
+                }
+            }
+            ReleasedKey::A if params.is_ctrl_held => {
+                // Select all
+                if let Some(a) = get_annos_mut(&mut world) {
+                    a.select_all()
+                };
+                world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+            }
+            ReleasedKey::D if params.is_ctrl_held => {
+                // Deselect all
+                if let Some(a) = get_annos_mut(&mut world) {
+                    a.deselect_all()
+                };
+                world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+            }
+            ReleasedKey::C if params.is_ctrl_held => {
+                // Copy to clipboard
+                let clipboard_data =
+                    get_annos(&world).map(|annos| ClipboardData::from_annotations(annos));
+                let clipboard_mut = get_specific_mut(&mut world).map(|d| &mut d.clipboard);
+                if let Some(clipboard_mut) = clipboard_mut {
+                    *clipboard_mut = clipboard_data;
+                }
 
-                        if !translated_bbs.is_empty() {
-                            annos.extend(
-                                translated_bbs.iter().cloned(),
-                                translated_cat_ids.iter().copied(),
-                                shape_orig,
-                            );
-                            annos.deselect_all();
-                            annos.select_last_n(translated_bbs.len());
-                            world.request_redraw_annotations(BBOX_NAME, flags.are_boxes_visible);
-                            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                world.request_redraw_annotations(BBOX_NAME, options.are_boxes_visible);
+            }
+            ReleasedKey::V if params.is_ctrl_held => {
+                (world, history) = paste(world, history);
+            }
+            ReleasedKey::V => {
+                if let Some(options_mut) = get_options_mut(&mut world) {
+                    options_mut.auto_paste = !options.auto_paste;
+                }
+            }
+            ReleasedKey::C => {
+                // Paste selection directly at current mouse position
+                if let Some((x_shift, y_shift)) = mouse_pos.map(<PtF as Into<(i32, i32)>>::into) {
+                    let shape_orig = world.shape_orig();
+                    let annos = get_annos_mut(&mut world);
+                    if let Some(annos) = annos {
+                        let selected_inds = true_indices(annos.selected_mask());
+                        let first_selected_idx = true_indices(annos.selected_mask()).next();
+                        if let Some(first_idx) = first_selected_idx {
+                            let translated = selected_inds.flat_map(|idx| {
+                                let geo = annos.elts()[idx].clone();
+                                let first = &annos.elts()[first_idx];
+                                geo.translate(
+                                    Point {
+                                        x: x_shift - first.enclosing_bb().min().x as i32,
+                                        y: y_shift - first.enclosing_bb().min().y as i32,
+                                    },
+                                    shape_orig,
+                                    OutOfBoundsMode::Deny,
+                                )
+                                .map(|bb| (bb, annos.cat_idxs()[idx]))
+                            });
+                            let translated_bbs =
+                                translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
+                            let translated_cat_ids =
+                                translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
+
+                            if !translated_bbs.is_empty() {
+                                annos.extend(
+                                    translated_bbs.iter().cloned(),
+                                    translated_cat_ids.iter().copied(),
+                                    shape_orig,
+                                );
+                                annos.deselect_all();
+                                annos.select_last_n(translated_bbs.len());
+                                world.request_redraw_annotations(
+                                    BBOX_NAME,
+                                    options.are_boxes_visible,
+                                );
+                                history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                            }
                         }
                     }
                 }
             }
+            ReleasedKey::Up | ReleasedKey::Down | ReleasedKey::Left | ReleasedKey::Right => {
+                history.push(Record::new(world.data.clone(), ACTOR_NAME));
+            }
+            ReleasedKey::Key1 => {
+                set_cat_current!(1, world);
+            }
+            ReleasedKey::Key2 => {
+                set_cat_current!(2, world);
+            }
+            ReleasedKey::Key3 => {
+                set_cat_current!(3, world);
+            }
+            ReleasedKey::Key4 => {
+                set_cat_current!(4, world);
+            }
+            ReleasedKey::Key5 => {
+                set_cat_current!(5, world);
+            }
+            ReleasedKey::Key6 => {
+                set_cat_current!(6, world);
+            }
+            ReleasedKey::Key7 => {
+                set_cat_current!(7, world);
+            }
+            ReleasedKey::Key8 => {
+                set_cat_current!(8, world);
+            }
+            ReleasedKey::Key9 => {
+                set_cat_current!(9, world);
+            }
+            _ => (),
         }
-        ReleasedKey::Up | ReleasedKey::Down | ReleasedKey::Left | ReleasedKey::Right => {
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
-        }
-        ReleasedKey::Key1 => {
-            set_cat_current!(1, world);
-        }
-        ReleasedKey::Key2 => {
-            set_cat_current!(2, world);
-        }
-        ReleasedKey::Key3 => {
-            set_cat_current!(3, world);
-        }
-        ReleasedKey::Key4 => {
-            set_cat_current!(4, world);
-        }
-        ReleasedKey::Key5 => {
-            set_cat_current!(5, world);
-        }
-        ReleasedKey::Key6 => {
-            set_cat_current!(6, world);
-        }
-        ReleasedKey::Key7 => {
-            set_cat_current!(7, world);
-        }
-        ReleasedKey::Key8 => {
-            set_cat_current!(8, world);
-        }
-        ReleasedKey::Key9 => {
-            set_cat_current!(9, world);
-        }
-        _ => (),
     }
-    get_tools_data_mut(&mut world).specifics.bbox_mut().options = flags;
     (world, history)
 }
 
 #[cfg(test)]
 use {
-    super::core::initialize_tools_menu_data,
+    super::core::{get_specific, initialize_tools_menu_data},
     crate::{
         domain::{make_test_bbs, make_test_geos, Shape},
         point,
@@ -565,10 +576,8 @@ fn test_data() -> (Option<PtF>, World, History) {
     let world = World::from_real_im(im_test, HashMap::new(), "superimage.png".to_string());
     let mut world = initialize_tools_menu_data(world);
     world.data.meta_data.is_loading_screen_active = Some(false);
-    let tools_data = get_tools_data_mut(&mut world);
-    tools_data
-        .specifics
-        .bbox_mut()
+    get_specific_mut(&mut world)
+        .unwrap()
         .label_info
         .push("label".to_string(), None, None)
         .unwrap();
@@ -614,7 +623,7 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::C, true);
     let (world, history) = on_key_released(world, history, None, params);
     assert!(get_annos(&world).unwrap().selected_mask()[0]);
-    if let Some(clipboard) = get_tools_data(&world).specifics.bbox().clipboard.clone() {
+    if let Some(clipboard) = get_specific(&world).and_then(|d| d.clipboard.clone()) {
         let mut annos = BboxAnnotations::default();
         annos.extend(
             clipboard.geos().iter().cloned(),
@@ -632,7 +641,7 @@ fn test_key_released() {
     }
     let params = make_params(ReleasedKey::V, true);
     let (world, history) = on_key_released(world, history, None, params);
-    assert!(get_tools_data(&world).specifics.bbox().clipboard.is_some());
+    assert!(get_specific(&world).unwrap().clipboard.is_some());
     assert_eq!(get_annos(&world).unwrap().elts(), annos_orig.elts());
     let params = make_params(ReleasedKey::C, true);
     let (mut world, history) = on_key_released(world, history, None, params);
@@ -668,14 +677,14 @@ fn test_key_released() {
     assert!(get_annos(&world).unwrap().selected_mask()[0]);
     let params = make_params(ReleasedKey::D, true);
     let (world, history) = on_key_released(world, history, None, params);
-    let flags = get_tools_data(&world).specifics.bbox().options;
+    let flags = get_options(&world).unwrap();
     assert!(flags.are_boxes_visible);
     assert!(!get_annos(&world).unwrap().selected_mask()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
     let (world, history) = on_key_released(world, history, None, params);
-    let flags = get_tools_data(&world).specifics.bbox().options;
+    let flags = get_options(&world).unwrap();
     assert!(!flags.are_boxes_visible);
 
     // delete all selected boxes with ctrl+Delete
@@ -801,15 +810,13 @@ fn test_mouse_release() {
         // If ctrl is hold the box is selected.
         let params = make_params(vec![], true);
         let mut world = world.clone();
-        get_tools_data_mut(&mut world)
-            .specifics
-            .bbox_mut()
+        get_specific_mut(&mut world)
+            .unwrap()
             .label_info
             .push("label2".to_string(), None, None)
             .unwrap();
-        get_tools_data_mut(&mut world)
-            .specifics
-            .bbox_mut()
+        get_specific_mut(&mut world)
+            .unwrap()
             .label_info
             .cat_idx_current = 1;
         let annos = get_annos_mut(&mut world).unwrap();
@@ -829,9 +836,8 @@ fn test_mouse_release() {
         assert_eq!(annos.cat_idxs()[2], 1);
         assert_eq!(annos.cat_idxs()[3], 0);
         // alt
-        get_tools_data_mut(&mut world)
-            .specifics
-            .bbox_mut()
+        get_specific_mut(&mut world)
+            .unwrap()
             .label_info
             .cat_idx_current = 1;
         let mut params = make_params(vec![], true);
