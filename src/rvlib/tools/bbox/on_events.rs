@@ -3,10 +3,12 @@ use std::{cmp::Ordering, iter::empty, mem};
 use crate::{
     cfg::CocoFile,
     domain::{shape_unscaled, OutOfBoundsMode, Point, PtF, PtI, BB},
-    events::{Events, KeyCode},
     file_util::MetaData,
     history::Record,
-    tools::{core::Mover, BBOX_NAME},
+    tools::{
+        core::{label_change_key, Mover, ReleasedKey},
+        BBOX_NAME,
+    },
     tools_data::{self, annotations::SplitMode, bbox_data::ClipboardData, BboxSpecificData},
     util::true_indices,
     GeoFig, Polygon,
@@ -375,42 +377,6 @@ pub(super) fn on_mouse_released_left(
     (world, history, prev_pos)
 }
 
-macro_rules! released_key {
-    ($($key:ident),*) => {
-        #[derive(Debug, Clone, Copy)]
-        pub(super) enum ReleasedKey {
-            None,
-            $($key,)*
-        }
-        pub(super) fn map_released_key(event: &Events) -> ReleasedKey {
-            if false {
-                ReleasedKey::None
-            } $(else if event.released(KeyCode::$key) {
-                ReleasedKey::$key
-            })*
-            else {
-                ReleasedKey::None
-            }
-        }
-    };
-}
-
-released_key!(
-    A, D, H, C, V, L, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Delete, Back,
-    Left, Right, Up, Down
-);
-
-macro_rules! set_cat_current {
-    ($num:expr, $world:expr) => {
-        let specifics = get_specific_mut(&mut $world);
-        if let Some(specifics) = specifics {
-            if $num < specifics.label_info.cat_ids().len() + 1 {
-                specifics.label_info.cat_idx_current = $num - 1;
-            }
-        }
-    };
-}
-
 pub(super) struct KeyReleasedParams {
     pub is_ctrl_held: bool,
     pub released_key: ReleasedKey,
@@ -422,136 +388,106 @@ pub(super) fn on_key_released(
     mouse_pos: Option<PtF>,
     params: KeyReleasedParams,
 ) -> (World, History) {
-    let options = get_options(&world);
-    if let Some(options) = options {
-        match params.released_key {
-            ReleasedKey::H if params.is_ctrl_held => {
-                // Hide all boxes (selected or not)
-                if let Some(options_mut) = get_options_mut(&mut world) {
-                    options_mut.core_options.visible = !options.core_options.visible;
-                }
-                world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
+    if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
+        *label_info = label_change_key(params.released_key, mem::take(label_info));
+    }
+    match params.released_key {
+        ReleasedKey::H if params.is_ctrl_held => {
+            // Hide all boxes (selected or not)
+            if let Some(options_mut) = get_options_mut(&mut world) {
+                options_mut.core_options.visible = !options_mut.core_options.visible;
             }
-            ReleasedKey::Delete | ReleasedKey::Back => {
-                // Remove selected
+            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+        }
+        ReleasedKey::Delete | ReleasedKey::Back => {
+            // Remove selected
+            let annos = get_annos_mut(&mut world);
+            if let Some(annos) = annos {
+                if !annos.selected_mask().is_empty() {
+                    annos.remove_selected();
+                    world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+                    history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                }
+            }
+        }
+        ReleasedKey::A if params.is_ctrl_held => {
+            // Select all
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.select_all()
+            };
+            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+        }
+        ReleasedKey::D if params.is_ctrl_held => {
+            // Deselect all
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.deselect_all()
+            };
+            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+        }
+        ReleasedKey::C if params.is_ctrl_held => {
+            // Copy to clipboard
+            let clipboard_data = get_annos(&world).map(ClipboardData::from_annotations);
+            let clipboard_mut = get_specific_mut(&mut world).map(|d| &mut d.clipboard);
+            if let Some(clipboard_mut) = clipboard_mut {
+                *clipboard_mut = clipboard_data;
+            }
+
+            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+        }
+        ReleasedKey::V if params.is_ctrl_held => {
+            (world, history) = paste(world, history);
+        }
+        ReleasedKey::V => {
+            if let Some(options_mut) = get_options_mut(&mut world) {
+                options_mut.auto_paste = !options_mut.auto_paste;
+            }
+        }
+        ReleasedKey::C => {
+            // Paste selection directly at current mouse position
+            if let Some((x_shift, y_shift)) = mouse_pos.map(<PtF as Into<(i32, i32)>>::into) {
+                let shape_orig = world.shape_orig();
                 let annos = get_annos_mut(&mut world);
                 if let Some(annos) = annos {
-                    if !annos.selected_mask().is_empty() {
-                        annos.remove_selected();
-                        world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
-                        history.push(Record::new(world.data.clone(), ACTOR_NAME));
-                    }
-                }
-            }
-            ReleasedKey::A if params.is_ctrl_held => {
-                // Select all
-                if let Some(a) = get_annos_mut(&mut world) {
-                    a.select_all()
-                };
-                world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
-            }
-            ReleasedKey::D if params.is_ctrl_held => {
-                // Deselect all
-                if let Some(a) = get_annos_mut(&mut world) {
-                    a.deselect_all()
-                };
-                world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
-            }
-            ReleasedKey::C if params.is_ctrl_held => {
-                // Copy to clipboard
-                let clipboard_data = get_annos(&world).map(ClipboardData::from_annotations);
-                let clipboard_mut = get_specific_mut(&mut world).map(|d| &mut d.clipboard);
-                if let Some(clipboard_mut) = clipboard_mut {
-                    *clipboard_mut = clipboard_data;
-                }
+                    let selected_inds = true_indices(annos.selected_mask());
+                    let first_selected_idx = true_indices(annos.selected_mask()).next();
+                    if let Some(first_idx) = first_selected_idx {
+                        let translated = selected_inds.flat_map(|idx| {
+                            let geo = annos.elts()[idx].clone();
+                            let first = &annos.elts()[first_idx];
+                            geo.translate(
+                                Point {
+                                    x: x_shift - first.enclosing_bb().min().x as i32,
+                                    y: y_shift - first.enclosing_bb().min().y as i32,
+                                },
+                                shape_orig,
+                                OutOfBoundsMode::Deny,
+                            )
+                            .map(|bb| (bb, annos.cat_idxs()[idx]))
+                        });
+                        let translated_bbs =
+                            translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
+                        let translated_cat_ids =
+                            translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
 
-                world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
-            }
-            ReleasedKey::V if params.is_ctrl_held => {
-                (world, history) = paste(world, history);
-            }
-            ReleasedKey::V => {
-                if let Some(options_mut) = get_options_mut(&mut world) {
-                    options_mut.auto_paste = !options.auto_paste;
-                }
-            }
-            ReleasedKey::C => {
-                // Paste selection directly at current mouse position
-                if let Some((x_shift, y_shift)) = mouse_pos.map(<PtF as Into<(i32, i32)>>::into) {
-                    let shape_orig = world.shape_orig();
-                    let annos = get_annos_mut(&mut world);
-                    if let Some(annos) = annos {
-                        let selected_inds = true_indices(annos.selected_mask());
-                        let first_selected_idx = true_indices(annos.selected_mask()).next();
-                        if let Some(first_idx) = first_selected_idx {
-                            let translated = selected_inds.flat_map(|idx| {
-                                let geo = annos.elts()[idx].clone();
-                                let first = &annos.elts()[first_idx];
-                                geo.translate(
-                                    Point {
-                                        x: x_shift - first.enclosing_bb().min().x as i32,
-                                        y: y_shift - first.enclosing_bb().min().y as i32,
-                                    },
-                                    shape_orig,
-                                    OutOfBoundsMode::Deny,
-                                )
-                                .map(|bb| (bb, annos.cat_idxs()[idx]))
-                            });
-                            let translated_bbs =
-                                translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
-                            let translated_cat_ids =
-                                translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
-
-                            if !translated_bbs.is_empty() {
-                                annos.extend(
-                                    translated_bbs.iter().cloned(),
-                                    translated_cat_ids.iter().copied(),
-                                    shape_orig,
-                                );
-                                annos.deselect_all();
-                                annos.select_last_n(translated_bbs.len());
-                                world.request_redraw_annotations(
-                                    BBOX_NAME,
-                                    options.core_options.visible,
-                                );
-                                history.push(Record::new(world.data.clone(), ACTOR_NAME));
-                            }
+                        if !translated_bbs.is_empty() {
+                            annos.extend(
+                                translated_bbs.iter().cloned(),
+                                translated_cat_ids.iter().copied(),
+                                shape_orig,
+                            );
+                            annos.deselect_all();
+                            annos.select_last_n(translated_bbs.len());
+                            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+                            history.push(Record::new(world.data.clone(), ACTOR_NAME));
                         }
                     }
                 }
             }
-            ReleasedKey::Up | ReleasedKey::Down | ReleasedKey::Left | ReleasedKey::Right => {
-                history.push(Record::new(world.data.clone(), ACTOR_NAME));
-            }
-            ReleasedKey::Key1 => {
-                set_cat_current!(1, world);
-            }
-            ReleasedKey::Key2 => {
-                set_cat_current!(2, world);
-            }
-            ReleasedKey::Key3 => {
-                set_cat_current!(3, world);
-            }
-            ReleasedKey::Key4 => {
-                set_cat_current!(4, world);
-            }
-            ReleasedKey::Key5 => {
-                set_cat_current!(5, world);
-            }
-            ReleasedKey::Key6 => {
-                set_cat_current!(6, world);
-            }
-            ReleasedKey::Key7 => {
-                set_cat_current!(7, world);
-            }
-            ReleasedKey::Key8 => {
-                set_cat_current!(8, world);
-            }
-            ReleasedKey::Key9 => {
-                set_cat_current!(9, world);
-            }
-            _ => (),
         }
+        ReleasedKey::Up | ReleasedKey::Down | ReleasedKey::Left | ReleasedKey::Right => {
+            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        }
+        _ => (),
     }
     (world, history)
 }

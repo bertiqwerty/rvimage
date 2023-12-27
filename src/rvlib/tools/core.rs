@@ -1,5 +1,5 @@
 use crate::result::RvResult;
-use crate::tools_data::{get_mut, get_specific_mut, CoreOptions, ToolSpecifics};
+use crate::tools_data::{get_mut, get_specific_mut, CoreOptions, LabelInfo, ToolSpecifics};
 use crate::{domain::PtF, events::Events, history::History, world::World};
 
 pub(super) fn check_trigger_redraw(
@@ -18,6 +18,72 @@ pub(super) fn check_trigger_redraw(
         }
     }
     world
+}
+
+macro_rules! released_key {
+    ($($key:ident),*) => {
+        #[derive(Debug, Clone, Copy)]
+        pub(super) enum ReleasedKey {
+            None,
+            $($key,)*
+        }
+        pub(super) fn map_released_key(event: &Events) -> ReleasedKey {
+            if false {
+                ReleasedKey::None
+            } $(else if event.released($crate::KeyCode::$key) {
+                ReleasedKey::$key
+            })*
+            else {
+                ReleasedKey::None
+            }
+        }
+    };
+}
+macro_rules! set_cat_current {
+    ($num:expr, $label_info:expr) => {
+        if $num < $label_info.cat_ids().len() + 1 {
+            $label_info.cat_idx_current = $num - 1;
+        }
+    };
+}
+
+released_key!(
+    A, D, E, H, C, V, L, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Delete, Back,
+    Left, Right, Up, Down
+);
+
+pub fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> LabelInfo {
+    match key {
+        ReleasedKey::Key1 => {
+            set_cat_current!(1, label_info);
+        }
+        ReleasedKey::Key2 => {
+            set_cat_current!(2, label_info);
+        }
+        ReleasedKey::Key3 => {
+            set_cat_current!(3, label_info);
+        }
+        ReleasedKey::Key4 => {
+            set_cat_current!(4, label_info);
+        }
+        ReleasedKey::Key5 => {
+            set_cat_current!(5, label_info);
+        }
+        ReleasedKey::Key6 => {
+            set_cat_current!(6, label_info);
+        }
+        ReleasedKey::Key7 => {
+            set_cat_current!(7, label_info);
+        }
+        ReleasedKey::Key8 => {
+            set_cat_current!(8, label_info);
+        }
+        ReleasedKey::Key9 => {
+            set_cat_current!(9, label_info);
+        }
+        _ => (),
+    }
+    label_info
 }
 
 pub trait Manipulate {

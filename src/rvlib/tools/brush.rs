@@ -1,4 +1,6 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, mem};
+
+use tracing::info;
 
 use crate::{
     annotations_accessor_mut,
@@ -14,13 +16,18 @@ use crate::{
     Line,
 };
 
-use super::{Manipulate, BRUSH_NAME};
+use super::{
+    core::{label_change_key, map_released_key, ReleasedKey},
+    Manipulate, BRUSH_NAME,
+};
 
 pub const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
 const MISSING_DATA_MSG: &str = "brush data not available";
 
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
+
+const MAX_ERASE_DIST: f32 = 20.0;
 
 fn get_data(world: &World) -> RvResult<&ToolsData> {
     tools_data::get(world, ACTOR_NAME, MISSING_DATA_MSG)
@@ -38,6 +45,12 @@ fn get_data_mut(world: &mut World) -> RvResult<&mut ToolsData> {
 }
 fn get_specific_mut(world: &mut World) -> Option<&mut brush_data::BrushToolData> {
     tools_data::get_specific_mut(tools_data::brush_mut, get_data_mut(world))
+}
+fn get_options_mut(world: &mut World) -> Option<&mut brush_data::Options> {
+    get_specific_mut(world).map(|d| &mut d.options)
+}
+fn are_brushlines_visible(world: &World) -> bool {
+    get_options(world).map(|o| o.core_options.visible) == Some(true)
 }
 
 #[derive(Clone, Debug)]
@@ -60,20 +73,21 @@ impl Brush {
         ) {
             let erase = options.erase;
             if erase {
-                let to_be_removed_line_idx: Option<usize> = annos
+                let to_be_removed_line_idx: Option<(usize, f32)> = annos
                     .elts()
                     .iter()
                     .enumerate()
-                    .map(|(i, line)| (i, line.line.dist_square_to_point(mp)))
+                    .map(|(i, line)| (i, line.line.dist_to_point(mp)))
                     .filter(|(_, dist)| dist.is_some())
                     .map(|(i, dist)| (i, dist.unwrap()))
                     .min_by(|(_, x), (_, y)| match x.partial_cmp(y) {
                         Some(o) => o,
                         None => Ordering::Greater,
-                    })
-                    .map(|(i, _)| i);
-                if let Some(idx) = to_be_removed_line_idx {
-                    annos.remove(idx);
+                    });
+                if let Some((idx, dist)) = to_be_removed_line_idx {
+                    if dist < MAX_ERASE_DIST {
+                        annos.remove(idx);
+                    }
                 }
                 world.request_redraw_annotations(BRUSH_NAME, true)
             } else {
@@ -137,6 +151,40 @@ impl Brush {
         }
         (world, history)
     }
+    fn key_released(
+        &mut self,
+        events: &Events,
+        mut world: World,
+        history: History,
+    ) -> (World, History) {
+        let released_key = map_released_key(events);
+        if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
+            *label_info = label_change_key(released_key, mem::take(label_info));
+        }
+        match released_key {
+            ReleasedKey::H if events.held_ctrl() => {
+                // Hide all boxes (selected or not)
+                if let Some(options_mut) = get_options_mut(&mut world) {
+                    options_mut.core_options.visible = !options_mut.core_options.visible;
+                }
+                world.request_redraw_annotations(BRUSH_NAME, are_brushlines_visible(&world));
+            }
+            ReleasedKey::E => {
+                // Hide all boxes (selected or not)
+                if let Some(options_mut) = get_options_mut(&mut world) {
+                    if options_mut.erase {
+                        info!("stop erase via shortcut");
+                    } else {
+                        info!("start erase via shortcut");
+                    }
+                    options_mut.erase = !options_mut.erase;
+                }
+                world.request_redraw_annotations(BRUSH_NAME, are_brushlines_visible(&world));
+            }
+            _ => (),
+        }
+        (world, history)
+    }
 }
 
 impl Manipulate for Brush {
@@ -192,7 +240,18 @@ impl Manipulate for Brush {
                 (pressed, KeyCode::MouseLeft, mouse_pressed),
                 (held, KeyCode::MouseLeft, mouse_held),
                 (released, KeyCode::MouseLeft, mouse_released),
-                (pressed, KeyCode::Back, key_pressed)
+                (pressed, KeyCode::Back, key_pressed),
+                (released, KeyCode::E, key_released),
+                (released, KeyCode::H, key_released),
+                (released, KeyCode::Key1, key_released),
+                (released, KeyCode::Key2, key_released),
+                (released, KeyCode::Key3, key_released),
+                (released, KeyCode::Key4, key_released),
+                (released, KeyCode::Key5, key_released),
+                (released, KeyCode::Key6, key_released),
+                (released, KeyCode::Key7, key_released),
+                (released, KeyCode::Key8, key_released),
+                (released, KeyCode::Key9, key_released)
             ]
         )
     }

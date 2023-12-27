@@ -28,6 +28,7 @@ fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
         egui::Key::B => Some(rvlib::KeyCode::B),
         egui::Key::C => Some(rvlib::KeyCode::C),
         egui::Key::D => Some(rvlib::KeyCode::D),
+        egui::Key::E => Some(rvlib::KeyCode::E),
         egui::Key::L => Some(rvlib::KeyCode::L),
         egui::Key::H => Some(rvlib::KeyCode::H),
         egui::Key::M => Some(rvlib::KeyCode::M),
@@ -97,7 +98,7 @@ fn map_modifiers(modifiers: &Modifiers) -> Option<Vec<rvlib::Event>> {
     if modifiers.alt {
         events.push(rvlib::Event::Held(KeyCode::Alt))
     }
-    if modifiers.command {
+    if modifiers.command || modifiers.ctrl {
         events.push(rvlib::Event::Held(KeyCode::Ctrl))
     }
     if modifiers.shift {

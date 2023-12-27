@@ -8,7 +8,7 @@ use crate::{
     make_tool_transform,
     result::{trace_ok, RvResult},
     tools::{
-        core::{check_trigger_redraw, Mover},
+        core::{check_trigger_redraw, map_released_key, Mover},
         Manipulate, BBOX_NAME,
     },
     tools_data::{self, annotations::BboxAnnotations, bbox_data, bbox_mut, ToolsData},
@@ -18,9 +18,9 @@ use crate::{
 use std::{iter, mem};
 
 use super::on_events::{
-    export_if_triggered, import_coco_if_triggered, map_released_key, on_key_released,
-    on_mouse_held_right, on_mouse_released_left, on_mouse_released_right, KeyReleasedParams,
-    MouseHeldParams, MouseReleaseParams, PrevPos,
+    export_if_triggered, import_coco_if_triggered, on_key_released, on_mouse_held_right,
+    on_mouse_released_left, on_mouse_released_right, KeyReleasedParams, MouseHeldParams,
+    MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";

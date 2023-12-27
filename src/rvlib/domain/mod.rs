@@ -30,7 +30,7 @@ impl Line {
     pub fn last_point(&self) -> Option<PtI> {
         self.points.last().copied()
     }
-    pub fn dist_square_to_point(&self, p: PtF) -> Option<f32> {
+    pub fn dist_to_point(&self, p: PtF) -> Option<f32> {
         match self.points.len().cmp(&1) {
             Ordering::Greater => (0..(self.points.len() - 1))
                 .map(|i| {
@@ -44,7 +44,7 @@ impl Line {
                         std::cmp::Ordering::Greater
                     }
                 }),
-            Ordering::Equal => Some(p.dist_square(&PtF::from(self.points[0]))),
+            Ordering::Equal => Some(p.dist_square(&PtF::from(self.points[0])).sqrt()),
             Ordering::Less => None,
         }
     }
