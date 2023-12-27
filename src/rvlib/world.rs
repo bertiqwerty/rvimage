@@ -79,35 +79,6 @@ macro_rules! annotations_accessor_mut {
         }
     };
 }
-#[macro_export]
-macro_rules! tools_data_accessor_mut {
-    ($actor:expr, $error_msg:expr) => {
-        pub(super) fn get_tools_data_mut(
-            world: &mut World,
-        ) -> $crate::result::RvResult<&mut $crate::tools_data::ToolsData> {
-            world
-                .data
-                .tools_data_map
-                .get_mut($actor)
-                .ok_or_else(|| $crate::result::RvError::new($error_msg))
-        }
-    };
-}
-#[macro_export]
-macro_rules! tools_data_accessor {
-    ($actor:expr, $error_msg:expr) => {
-        pub(super) fn get_tools_data(
-            world: &World,
-        ) -> $crate::result::RvResult<&$crate::tools_data::ToolsData> {
-            world
-                .data
-                .tools_data_map
-                .get($actor)
-                .ok_or_else(|| $crate::result::RvError::new($error_msg))
-        }
-    };
-}
-
 // tool name -> tool's menu data type
 pub type ToolsDataMap = HashMap<String, ToolsData>;
 
