@@ -9,7 +9,7 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     result::{trace_ok, RvResult},
-    tools::core::check_trigger_redraw,
+    tools::core::{check_recolorboxes, check_trigger_redraw},
     tools_data::{self, annotations::InstanceAnnotations, brush_data, ToolsData},
     tools_data::{annotations::BrushAnnotations, brush_mut},
     world::World,
@@ -251,6 +251,12 @@ impl Manipulate for Brush {
         world = check_trigger_redraw(world, BRUSH_NAME, |d| {
             brush_mut(d).map(|d| &mut d.options.core_options)
         });
+        world = check_recolorboxes(
+            world,
+            BRUSH_NAME,
+            |world| get_options_mut(world).map(|o| &mut o.core_options),
+            |world| get_specific_mut(world).map(|d| &mut d.label_info),
+        );
         make_tool_transform!(
             self,
             world,

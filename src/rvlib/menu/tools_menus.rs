@@ -228,6 +228,9 @@ pub fn brush_menu(
             info!("stop erasing");
         }
     }
+    if ui.button("new random colors").clicked() {
+        data.options.core_options.is_colorchange_triggered = true;
+    }
     if ui.button("close").clicked() {
         window_open = false;
     }

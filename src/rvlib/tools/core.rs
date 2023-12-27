@@ -56,6 +56,28 @@ released_key!(
     Left, Right, Up, Down
 );
 
+pub fn check_recolorboxes(
+    mut world: World,
+    actor: &'static str,
+    mut get_core_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
+    mut get_label_info_mut: impl FnMut(&mut World) -> Option<&mut LabelInfo>,
+) -> World {
+    let is_colorchange_triggered =
+        get_core_options_mut(&mut world).map(|o| o.is_colorchange_triggered);
+    if is_colorchange_triggered == Some(true) {
+        let core_options = get_core_options_mut(&mut world);
+        if let Some(core_options) = core_options {
+            core_options.is_colorchange_triggered = false;
+            core_options.visible = true;
+        }
+        if let Some(label_info) = get_label_info_mut(&mut world) {
+            label_info.new_random_colors();
+        }
+    }
+    let are_boxes_visible = true;
+    world.request_redraw_annotations(actor, are_boxes_visible);
+    world
+}
 pub fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> LabelInfo {
     match key {
         ReleasedKey::Key1 => {

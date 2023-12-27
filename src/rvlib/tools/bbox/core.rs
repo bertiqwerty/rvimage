@@ -8,7 +8,7 @@ use crate::{
     make_tool_transform,
     result::{trace_ok, RvResult},
     tools::{
-        core::{check_trigger_redraw, map_released_key, Mover},
+        core::{check_recolorboxes, check_trigger_redraw, map_released_key, Mover},
         Manipulate, BBOX_NAME,
     },
     tools_data::{self, annotations::BboxAnnotations, bbox_data, bbox_mut, ToolsData},
@@ -79,23 +79,6 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
 
 pub(super) fn current_cat_idx(world: &World) -> Option<usize> {
     get_specific(world).map(|d| d.label_info.cat_idx_current)
-}
-
-fn check_recolorboxes(mut world: World) -> World {
-    // check if re-color was triggered
-    let options = get_options(&world);
-    if options.map(|o| o.core_options.is_colorchange_triggered) == Some(true) {
-        let data = get_specific_mut(&mut world);
-        if let Some(data) = data {
-            // we show annotations after recoloring
-            let are_boxes_visible = true;
-            data.label_info.new_random_colors();
-            data.options.core_options.is_colorchange_triggered = false;
-            data.options.core_options.visible = true;
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
-        }
-    }
-    world
 }
 
 fn check_annoremove(mut world: World) -> World {
@@ -323,7 +306,13 @@ impl Manipulate for Bbox {
         mut history: History,
         events: &Events,
     ) -> (World, History) {
-        world = check_recolorboxes(world);
+        world = check_recolorboxes(
+            world,
+            BBOX_NAME,
+            |world| get_options_mut(world).map(|o| &mut o.core_options),
+            |world| get_specific_mut(world).map(|d| &mut d.label_info),
+        );
+
         world = check_annoremove(world);
 
         world = check_cocoexport(world);
