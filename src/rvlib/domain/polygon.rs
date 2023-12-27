@@ -1,7 +1,7 @@
 use crate::result::RvResult;
 use std::mem;
 
-use super::core::{max_squaredist, dist_lineseg_point};
+use super::core::{dist_lineseg_point, max_squaredist};
 use super::{OutOfBoundsMode, Point, PtF, PtI, Shape, BB};
 use serde::{Deserialize, Serialize};
 

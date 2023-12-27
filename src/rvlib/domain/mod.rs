@@ -6,6 +6,7 @@ pub use bb::BB;
 pub use core::{Annotate, Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use tracing::warn;
 
 use self::core::dist_lineseg_point;
@@ -30,8 +31,8 @@ impl Line {
         self.points.last().copied()
     }
     pub fn dist_square_to_point(&self, p: PtF) -> Option<f32> {
-        if self.points.len() > 1 {
-            (0..(self.points.len() - 1))
+        match self.points.len().cmp(&1) {
+            Ordering::Greater => (0..(self.points.len() - 1))
                 .map(|i| {
                     let ls: (PtF, PtF) = (self.points[i].into(), self.points[i + 1].into());
                     dist_lineseg_point(&ls, p)
@@ -42,11 +43,9 @@ impl Line {
                         warn!("NaN appeared in distance to line computation.");
                         std::cmp::Ordering::Greater
                     }
-                })
-        } else if self.points.len() == 1 {
-            Some(p.dist_square(&PtF::from(self.points[0])))
-        } else {
-            None
+                }),
+            Ordering::Equal => Some(p.dist_square(&PtF::from(self.points[0]))),
+            Ordering::Less => None,
         }
     }
     pub fn max_dist_squared(&self) -> Option<u32> {
