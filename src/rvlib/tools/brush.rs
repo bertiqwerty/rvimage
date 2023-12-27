@@ -87,9 +87,9 @@ impl Brush {
                 if let Some((idx, dist)) = to_be_removed_line_idx {
                     if dist < MAX_ERASE_DIST {
                         annos.remove(idx);
+                        world.request_redraw_annotations(BRUSH_NAME, true)
                     }
                 }
-                world.request_redraw_annotations(BRUSH_NAME, true)
             } else {
                 annos.add_elt(
                     BrushLine {
