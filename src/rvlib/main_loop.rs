@@ -322,7 +322,6 @@ impl MainEventLoop {
                     .request_redraw_annotations(active_tool_name, true);
             }
             if file_label_idx.is_some() {
-                info!("new file loaded");
                 self.ctrl.paths_navigator.select_label_idx(file_label_idx);
                 let meta_data = self.ctrl.meta_data(
                     self.ctrl.file_selected_idx,

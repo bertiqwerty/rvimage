@@ -149,12 +149,7 @@ impl Manipulate for Brush {
         (world, history)
     }
 
-    fn events_tf(
-        &mut self,
-        world: World,
-        history: History,
-        events: &Events,
-    ) -> (World, History) {
+    fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History) {
         make_tool_transform!(
             self,
             world,
