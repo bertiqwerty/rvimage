@@ -49,6 +49,23 @@ pub enum OutOfBoundsMode {
     Resize(Shape), // minimal area the box needs to keep
 }
 
+pub fn dist_lineseg_point(ls: &(PtF, PtF), p: PtF) -> f32 {
+    let (p1, p2) = ls;
+    let p1 = *p1;
+    let p2 = *p2;
+    let d = (p1 - p2).len_square().sqrt();
+    let n = (p1 - p2) / d;
+    let proj = p1 + n * (p - p1).dot(&n);
+    if proj.x >= p1.x.min(p2.x)
+        && proj.x <= p1.x.max(p2.x)
+        && proj.y >= p1.y.min(p2.y)
+        && proj.y <= p1.y.max(p2.y)
+    {
+        (p - proj).len_square().sqrt()
+    } else {
+        (p - p1).len_square().min((p - p2).len_square()).sqrt()
+    }
+}
 pub fn max_squaredist<'a, I1, I2>(points1: I1, points2: I2) -> (PtI, PtI, i64)
 where
     I1: Iterator<Item = PtI> + 'a + Clone,

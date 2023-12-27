@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 pub struct Options {
     pub thickness: f32,
     pub intensity: f32,
+    pub erase: bool,
     pub core_options: core::Options,
 }
 impl Default for Options {
@@ -19,6 +20,7 @@ impl Default for Options {
         Self {
             thickness: 5.0,
             intensity: 1.0,
+            erase: false,
             core_options: core::Options::default(),
         }
     }

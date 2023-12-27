@@ -221,6 +221,13 @@ pub fn brush_menu(
         .changed();
     ui.add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))
         .changed();
+    if ui.checkbox(&mut data.options.erase, "erase").clicked() {
+        if data.options.erase {
+            info!("start erasing");
+        } else {
+            info!("stop erasing");
+        }
+    }
     if ui.button("close").clicked() {
         window_open = false;
     }

@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::{
     annotations_accessor_mut,
     domain::BrushLine,
@@ -50,20 +52,40 @@ impl Brush {
     ) -> (World, History) {
         let options = get_options(&world);
         let cat_idx = get_specific(&world).map(|d| d.label_info.cat_idx_current);
-        if let (Some(_), Some(a), Some(options), Some(cat_idx)) = (
+        if let (Some(mp), Some(annos), Some(options), Some(cat_idx)) = (
             events.mouse_pos,
             get_annos_mut(&mut world),
             options,
             cat_idx,
         ) {
-            a.add_elt(
-                BrushLine {
-                    line: Line::new(),
-                    intensity: options.intensity,
-                    thickness: options.thickness,
-                },
-                cat_idx,
-            );
+            let erase = options.erase;
+            if erase {
+                let to_be_removed_line_idx: Option<usize> = annos
+                    .elts()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, line)| (i, line.line.dist_square_to_point(mp)))
+                    .filter(|(_, dist)| dist.is_some())
+                    .map(|(i, dist)| (i, dist.unwrap()))
+                    .min_by(|(_, x), (_, y)| match x.partial_cmp(y) {
+                        Some(o) => o,
+                        None => Ordering::Greater,
+                    })
+                    .map(|(i, _)| i);
+                if let Some(idx) = to_be_removed_line_idx {
+                    annos.remove(idx);
+                }
+                world.request_redraw_annotations(BRUSH_NAME, true)
+            } else {
+                annos.add_elt(
+                    BrushLine {
+                        line: Line::new(),
+                        intensity: options.intensity,
+                        thickness: options.thickness,
+                    },
+                    cat_idx,
+                );
+            }
         }
         (world, history)
     }
@@ -73,20 +95,22 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
+        let erase = get_options(&world).map(|o| o.erase);
         if let (Some(mp), Some(annos)) = (events.mouse_pos, get_annos_mut(&mut world)) {
-            if let Some(line) = annos.last_line_mut() {
-                let last_point = line.last_point();
-                let dist = if let Some(last_point) = last_point {
-                    last_point.dist_square(&mp.into())
-                } else {
-                    100
-                };
-                if dist >= 1 {
-                    line.push(mp.into());
+            if erase != Some(true) {
+                if let Some(line) = annos.last_line_mut() {
+                    let last_point = line.last_point();
+                    let dist = if let Some(last_point) = last_point {
+                        last_point.dist_square(&mp.into())
+                    } else {
+                        100
+                    };
+                    if dist >= 1 {
+                        line.push(mp.into());
+                    }
                 }
+                world.request_redraw_annotations(BRUSH_NAME, true)
             }
-
-            world.request_redraw_annotations(BRUSH_NAME, true)
         }
         (world, history)
     }

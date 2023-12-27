@@ -6,6 +6,9 @@ pub use bb::BB;
 pub use core::{Annotate, Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
+
+use self::core::dist_lineseg_point;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Line {
@@ -25,6 +28,26 @@ impl Line {
     }
     pub fn last_point(&self) -> Option<PtI> {
         self.points.last().copied()
+    }
+    pub fn dist_square_to_point(&self, p: PtF) -> Option<f32> {
+        if self.points.len() > 1 {
+            (0..(self.points.len() - 1))
+                .map(|i| {
+                    let ls: (PtF, PtF) = (self.points[i].into(), self.points[i + 1].into());
+                    dist_lineseg_point(&ls, p)
+                })
+                .min_by(|x, y| match x.partial_cmp(y) {
+                    Some(o) => o,
+                    None => {
+                        warn!("NaN appeared in distance to line computation.");
+                        std::cmp::Ordering::Greater
+                    }
+                })
+        } else if self.points.len() == 1 {
+            Some(p.dist_square(&PtF::from(self.points[0])))
+        } else {
+            None
+        }
     }
     pub fn max_dist_squared(&self) -> Option<u32> {
         (0..self.points.len())
