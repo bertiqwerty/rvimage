@@ -130,11 +130,9 @@ where
         self.cat_idxs.clear();
     }
     pub fn reduce_cat_idxs(&mut self, cat_idx: usize) {
-        if cat_idx > 0 {
-            for cid in self.cat_idxs.iter_mut() {
-                if *cid >= cat_idx {
-                    *cid -= 1;
-                }
+        for cid in self.cat_idxs.iter_mut() {
+            if *cid >= cat_idx && *cid > 0 {
+                *cid -= 1;
             }
         }
     }
