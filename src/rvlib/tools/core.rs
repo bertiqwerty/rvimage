@@ -1,5 +1,9 @@
+use crate::domain::Annotate;
+use crate::history::Record;
 use crate::result::RvResult;
+use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::{get_mut, get_specific_mut, CoreOptions, LabelInfo, ToolSpecifics};
+use crate::Shape;
 use crate::{domain::PtF, events::Events, history::History, world::World};
 
 pub(super) fn check_trigger_redraw(
@@ -84,6 +88,95 @@ pub fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> LabelInf
         _ => (),
     }
     label_info
+}
+pub(super) fn paste<T>(
+    mut world: World,
+    mut history: History,
+    actor: &'static str,
+    mut get_annos_mut: impl FnMut(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    clipboard: Option<ClipboardData<T>>,
+) -> (World, History)
+where
+    T: Annotate + Default + PartialEq + Clone,
+{
+    if let Some(clipboard) = &clipboard {
+        let cb_bbs = clipboard.elts();
+        if !cb_bbs.is_empty() {
+            let shape_orig = Shape::from_im(world.data.im_background());
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.extend(
+                    cb_bbs.iter().cloned(),
+                    clipboard.cat_idxs().iter().copied(),
+                    shape_orig,
+                )
+            }
+        }
+    }
+    let are_boxes_visible = true;
+    world.request_redraw_annotations(actor, are_boxes_visible);
+    history.push(Record::new(world.data.clone(), actor));
+
+    (world, history)
+}
+
+pub fn on_selection_keys<T>(
+    mut world: World,
+    mut history: History,
+    key: ReleasedKey,
+    is_ctrl_held: bool,
+    actor: &'static str,
+    mut get_annos_mut: impl FnMut(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    mut get_clipboard_mut: impl FnMut(&mut World) -> Option<&mut Option<ClipboardData<T>>>,
+) -> (World, History)
+where
+    T: Annotate + PartialEq + Default + Clone,
+{
+    let visible = true;
+    match key {
+        ReleasedKey::A if is_ctrl_held => {
+            // Select all
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.select_all()
+            };
+            world.request_redraw_annotations(actor, visible);
+        }
+        ReleasedKey::D if is_ctrl_held => {
+            // Deselect all
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.deselect_all()
+            };
+            world.request_redraw_annotations(actor, visible);
+        }
+        ReleasedKey::C if is_ctrl_held => {
+            // Copy to clipboard
+            let clipboard_data =
+                get_annos_mut(&mut world).map(|d| ClipboardData::from_annotations(&d));
+            if let (Some(clipboard_data), Some(clipboard_mut)) =
+                (clipboard_data, get_clipboard_mut(&mut world))
+            {
+                *clipboard_mut = Some(clipboard_data);
+            }
+
+            world.request_redraw_annotations(actor, visible);
+        }
+        ReleasedKey::V if is_ctrl_held => {
+            let clipboard_data = get_clipboard_mut(&mut world).cloned().flatten();
+            (world, history) = paste(world, history, actor, get_annos_mut, clipboard_data);
+        }
+        ReleasedKey::Delete | ReleasedKey::Back => {
+            // Remove selected
+            let annos = get_annos_mut(&mut world);
+            if let Some(annos) = annos {
+                if !annos.selected_mask().is_empty() {
+                    annos.remove_selected();
+                    world.request_redraw_annotations(actor, visible);
+                    history.push(Record::new(world.data.clone(), actor));
+                }
+            }
+        }
+        _ => (),
+    }
+    (world, history)
 }
 
 pub trait Manipulate {

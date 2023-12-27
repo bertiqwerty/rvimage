@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    annotations::BboxAnnotations,
+    annotations::{BboxAnnotations, ClipboardData},
     core::{LabelInfo, OUTLINE_THICKNESS_CONVERSION},
 };
 use crate::{
@@ -13,41 +13,12 @@ use crate::{
     result::RvResult,
     rverr,
     tools_data::{annotations::SplitMode, core},
-    util::true_indices,
     GeoFig,
 };
 
 /// filename -> (annotations per file, file dimensions)
 pub type AnnotationsMap = HashMap<String, (BboxAnnotations, Shape)>;
 
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
-pub struct ClipboardData {
-    geos: Vec<GeoFig>,
-    cat_idxs: Vec<usize>,
-}
-
-impl ClipboardData {
-    pub fn from_annotations(annos: &BboxAnnotations) -> Self {
-        let selected_inds = true_indices(annos.selected_mask());
-        let bbs = selected_inds
-            .clone()
-            .map(|idx| annos.elts()[idx].clone())
-            .collect();
-        let cat_idxs = selected_inds.map(|idx| annos.cat_idxs()[idx]).collect();
-        ClipboardData {
-            geos: bbs,
-            cat_idxs,
-        }
-    }
-
-    pub fn geos(&self) -> &Vec<GeoFig> {
-        &self.geos
-    }
-
-    pub fn cat_idxs(&self) -> &Vec<usize> {
-        &self.cat_idxs
-    }
-}
 
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
@@ -80,7 +51,7 @@ impl Default for Options {
 pub struct BboxSpecificData {
     pub label_info: LabelInfo,
     pub annotations_map: AnnotationsMap,
-    pub clipboard: Option<ClipboardData>,
+    pub clipboard: Option<ClipboardData<GeoFig>>,
     pub options: Options,
     pub coco_file: CocoFile,
 }

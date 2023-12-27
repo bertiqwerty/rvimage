@@ -1,8 +1,8 @@
 use super::{
-    annotations::BrushAnnotations,
+    annotations::{BrushAnnotations, ClipboardData},
     core::{self, LabelInfo},
 };
-use crate::domain::Shape;
+use crate::domain::{Shape, BrushLine};
 use crate::implement_annotations_getters;
 use std::collections::HashMap;
 
@@ -31,6 +31,7 @@ pub struct BrushToolData {
     pub annotations_map: HashMap<String, (BrushAnnotations, Shape)>,
     pub options: Options,
     pub label_info: LabelInfo,
+    pub clipboard: Option<ClipboardData<BrushLine>>
 }
 impl BrushToolData {
     implement_annotations_getters!(BrushAnnotations);

@@ -17,7 +17,7 @@ use crate::{
 };
 
 use super::{
-    core::{label_change_key, map_released_key, ReleasedKey},
+    core::{label_change_key, map_released_key, on_selection_keys, ReleasedKey},
     Manipulate, BRUSH_NAME,
 };
 
@@ -162,29 +162,25 @@ impl Brush {
         }
         (world, history)
     }
-    fn key_pressed(
-        &mut self,
-        _events: &Events,
-        mut world: World,
-        mut history: History,
-    ) -> (World, History) {
-        if let Some(a) = get_annos_mut(&mut world) {
-            a.clear();
-            world.request_redraw_annotations(BRUSH_NAME, true);
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
-        }
-        (world, history)
-    }
     fn key_released(
         &mut self,
         events: &Events,
         mut world: World,
-        history: History,
+        mut history: History,
     ) -> (World, History) {
         let released_key = map_released_key(events);
         if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
             *label_info = label_change_key(released_key, mem::take(label_info));
         }
+        (world, history) = on_selection_keys(
+            world,
+            history,
+            released_key,
+            events.held_ctrl(),
+            BRUSH_NAME,
+            get_annos_mut,
+            |world| get_specific_mut(world).map(|d| &mut d.clipboard),
+        );
         match released_key {
             ReleasedKey::H if events.held_ctrl() => {
                 // Hide all boxes (selected or not)
@@ -264,9 +260,14 @@ impl Manipulate for Brush {
                 (pressed, KeyCode::MouseLeft, mouse_pressed),
                 (held, KeyCode::MouseLeft, mouse_held),
                 (released, KeyCode::MouseLeft, mouse_released),
-                (pressed, KeyCode::Back, key_pressed),
+                (released, KeyCode::Back, key_released),
+                (released, KeyCode::Delete, key_released),
+                (released, KeyCode::A, key_released),
+                (released, KeyCode::C, key_released),
+                (released, KeyCode::D, key_released),
                 (released, KeyCode::E, key_released),
                 (released, KeyCode::H, key_released),
+                (released, KeyCode::V, key_released),
                 (released, KeyCode::Key1, key_released),
                 (released, KeyCode::Key2, key_released),
                 (released, KeyCode::Key3, key_released),

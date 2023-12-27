@@ -6,10 +6,10 @@ use crate::{
     file_util::MetaData,
     history::Record,
     tools::{
-        core::{label_change_key, Mover, ReleasedKey},
+        core::{label_change_key, on_selection_keys, Mover, ReleasedKey},
         BBOX_NAME,
     },
-    tools_data::{self, annotations::SplitMode, bbox_data::ClipboardData, BboxSpecificData},
+    tools_data::{self, annotations::SplitMode, BboxSpecificData},
     util::true_indices,
     GeoFig, Polygon,
     {history::History, world::World},
@@ -17,7 +17,7 @@ use crate::{
 
 use super::core::{
     are_boxes_visible, current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_options,
-    get_options_mut, get_specific_mut, paste, ACTOR_NAME,
+    get_options_mut, get_specific_mut, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: u32 = 5000;
@@ -391,6 +391,15 @@ pub(super) fn on_key_released(
     if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
         *label_info = label_change_key(params.released_key, mem::take(label_info));
     }
+    (world, history) = on_selection_keys(
+        world,
+        history,
+        params.released_key,
+        params.is_ctrl_held,
+        BBOX_NAME,
+        get_annos_mut,
+        |world| get_specific_mut(world).map(|d| &mut d.clipboard),
+    );
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {
             // Hide all boxes (selected or not)
@@ -399,50 +408,12 @@ pub(super) fn on_key_released(
             }
             world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
         }
-        ReleasedKey::Delete | ReleasedKey::Back => {
-            // Remove selected
-            let annos = get_annos_mut(&mut world);
-            if let Some(annos) = annos {
-                if !annos.selected_mask().is_empty() {
-                    annos.remove_selected();
-                    world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
-                    history.push(Record::new(world.data.clone(), ACTOR_NAME));
-                }
-            }
-        }
-        ReleasedKey::A if params.is_ctrl_held => {
-            // Select all
-            if let Some(a) = get_annos_mut(&mut world) {
-                a.select_all()
-            };
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
-        }
-        ReleasedKey::D if params.is_ctrl_held => {
-            // Deselect all
-            if let Some(a) = get_annos_mut(&mut world) {
-                a.deselect_all()
-            };
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
-        }
-        ReleasedKey::C if params.is_ctrl_held => {
-            // Copy to clipboard
-            let clipboard_data = get_annos(&world).map(ClipboardData::from_annotations);
-            let clipboard_mut = get_specific_mut(&mut world).map(|d| &mut d.clipboard);
-            if let Some(clipboard_mut) = clipboard_mut {
-                *clipboard_mut = clipboard_data;
-            }
-
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
-        }
-        ReleasedKey::V if params.is_ctrl_held => {
-            (world, history) = paste(world, history);
-        }
-        ReleasedKey::V => {
+        ReleasedKey::V if !params.is_ctrl_held => {
             if let Some(options_mut) = get_options_mut(&mut world) {
                 options_mut.auto_paste = !options_mut.auto_paste;
             }
         }
-        ReleasedKey::C => {
+        ReleasedKey::C if !params.is_ctrl_held => {
             // Paste selection directly at current mouse position
             if let Some((x_shift, y_shift)) = mouse_pos.map(<PtF as Into<(i32, i32)>>::into) {
                 let shape_orig = world.shape_orig();
@@ -560,7 +531,7 @@ fn test_key_released() {
     if let Some(clipboard) = get_specific(&world).and_then(|d| d.clipboard.clone()) {
         let mut annos = BboxAnnotations::default();
         annos.extend(
-            clipboard.geos().iter().cloned(),
+            clipboard.elts().iter().cloned(),
             clipboard.cat_idxs().iter().copied(),
             Shape { w: 100, h: 100 },
         );

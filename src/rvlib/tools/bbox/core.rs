@@ -55,7 +55,7 @@ pub(super) fn are_boxes_visible(world: &World) -> bool {
 pub(super) fn paste(mut world: World, mut history: History) -> (World, History) {
     let clipboard = get_specific(&world).and_then(|d| d.clipboard.clone());
     if let Some(clipboard) = &clipboard {
-        let cb_bbs = clipboard.geos();
+        let cb_bbs = clipboard.elts();
         if !cb_bbs.is_empty() {
             let shape_orig = Shape::from_im(world.data.im_background());
             if let Some(a) = get_annos_mut(&mut world) {

@@ -3,7 +3,7 @@
 pub use self::bbox_annotations::BboxAnnotations;
 pub use self::bbox_splitmode::SplitMode;
 pub use self::brush_annotations::BrushAnnotations;
-pub use self::core::InstanceAnnotations;
+pub use self::core::{ClipboardData, InstanceAnnotations};
 mod bbox_annotations;
 mod bbox_splitmode;
 mod brush_annotations;

@@ -159,6 +159,37 @@ where
     }
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct ClipboardData<T> {
+    elts: Vec<T>,
+    cat_idxs: Vec<usize>,
+}
+
+impl<T> ClipboardData<T>
+where
+    T: Annotate + PartialEq + Default + Clone,
+{
+    pub fn from_annotations(annos: &InstanceAnnotations<T>) -> Self {
+        let selected_inds = true_indices(annos.selected_mask());
+        let selected_elts = selected_inds
+            .clone()
+            .map(|idx| annos.elts()[idx].clone())
+            .collect();
+        let cat_idxs = selected_inds.map(|idx| annos.cat_idxs()[idx]).collect();
+        ClipboardData {
+            elts: selected_elts,
+            cat_idxs,
+        }
+    }
+
+    pub fn elts(&self) -> &Vec<T> {
+        &self.elts
+    }
+
+    pub fn cat_idxs(&self) -> &Vec<usize> {
+        &self.cat_idxs
+    }
+}
 pub fn resize_bbs_inds<F>(
     mut bbs: Vec<BB>,
     bb_inds: impl Iterator<Item = usize>,
