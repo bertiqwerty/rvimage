@@ -56,11 +56,11 @@ pub(super) fn get<'a>(
         .get(actor)
         .ok_or_else(|| RvError::new(error_msg))
 }
-pub fn get_specific<'a, T>(
+pub fn get_specific<T>(
     f: impl Fn(&ToolSpecifics) -> RvResult<&T>,
-    data: RvResult<&'a ToolsData>,
-) -> Option<&'a T> {
-    trace_ok(data.and_then(|d| Ok(&d.specifics)).and_then(f))
+    data: RvResult<&ToolsData>,
+) -> Option<&T> {
+    trace_ok(data.map(|d| &d.specifics).and_then(f))
 }
 pub(super) fn get_mut<'a>(
     world: &'a mut World,
@@ -73,11 +73,11 @@ pub(super) fn get_mut<'a>(
         .get_mut(actor)
         .ok_or_else(|| RvError::new(error_msg))
 }
-pub fn get_specific_mut<'a, T>(
+pub fn get_specific_mut<T>(
     f: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut T>,
-    data: RvResult<&'a mut ToolsData>,
-) -> Option<&'a mut T> {
-    trace_ok(data.and_then(|d| Ok(&mut d.specifics)).and_then(f))
+    data: RvResult<&mut ToolsData>,
+) -> Option<&mut T> {
+    trace_ok(data.map(|d| &mut d.specifics).and_then(f))
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

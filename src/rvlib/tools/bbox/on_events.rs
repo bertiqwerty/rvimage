@@ -422,7 +422,7 @@ pub(super) fn on_key_released(
     mouse_pos: Option<PtF>,
     params: KeyReleasedParams,
 ) -> (World, History) {
-    let options = get_options(&mut world);
+    let options = get_options(&world);
     if let Some(options) = options {
         match params.released_key {
             ReleasedKey::H if params.is_ctrl_held => {
@@ -459,8 +459,7 @@ pub(super) fn on_key_released(
             }
             ReleasedKey::C if params.is_ctrl_held => {
                 // Copy to clipboard
-                let clipboard_data =
-                    get_annos(&world).map(|annos| ClipboardData::from_annotations(annos));
+                let clipboard_data = get_annos(&world).map(ClipboardData::from_annotations);
                 let clipboard_mut = get_specific_mut(&mut world).map(|d| &mut d.clipboard);
                 if let Some(clipboard_mut) = clipboard_mut {
                     *clipboard_mut = clipboard_data;

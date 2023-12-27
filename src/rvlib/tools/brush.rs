@@ -26,7 +26,7 @@ fn get_data(world: &World) -> RvResult<&ToolsData> {
 }
 
 fn get_specific(world: &World) -> Option<&brush_data::BrushToolData> {
-    tools_data::get_specific(tools_data::brush, get_data(&world))
+    tools_data::get_specific(tools_data::brush, get_data(world))
 }
 fn get_options(world: &World) -> Option<brush_data::Options> {
     get_specific(world).map(|d| d.options)

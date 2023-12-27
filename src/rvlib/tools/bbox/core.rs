@@ -37,7 +37,7 @@ pub(super) fn get_data(world: &World) -> RvResult<&ToolsData> {
 }
 
 pub(super) fn get_specific(world: &World) -> Option<&bbox_data::BboxSpecificData> {
-    tools_data::get_specific(tools_data::bbox, get_data(&world))
+    tools_data::get_specific(tools_data::bbox, get_data(world))
 }
 pub(super) fn get_options(world: &World) -> Option<bbox_data::Options> {
     get_specific(world).map(|d| d.options)
