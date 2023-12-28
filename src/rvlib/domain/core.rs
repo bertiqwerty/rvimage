@@ -13,7 +13,7 @@ impl Calc for i32 {}
 impl Calc for u32 {}
 impl Calc for f32 {}
 
-pub trait Annotate {
+pub trait Annotate: Clone + Default + PartialEq {
     fn is_contained_in_image(&self, shape: Shape) -> bool;
 }
 

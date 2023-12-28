@@ -1,15 +1,16 @@
 use super::{
     annotations::{BrushAnnotations, ClipboardData},
-    core::{self, LabelInfo},
+    core::{self, AnnotationsMap, LabelInfo},
 };
 use crate::implement_annotations_getters;
 use crate::{
     cfg::ExportPath,
     domain::{BrushLine, Shape},
 };
-use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+
+pub type BrushAnnoMap = AnnotationsMap<BrushLine>;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub struct Options {
@@ -33,7 +34,7 @@ impl Default for Options {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct BrushToolData {
-    pub annotations_map: HashMap<String, (BrushAnnotations, Shape)>,
+    pub annotations_map: BrushAnnoMap,
     pub options: Options,
     pub label_info: LabelInfo,
     pub clipboard: Option<ClipboardData<BrushLine>>,

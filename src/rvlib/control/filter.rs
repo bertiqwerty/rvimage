@@ -71,8 +71,8 @@ impl FilterPredicate {
                 if let (Some(tdm), Some(active_tool_name)) = (tdm, active_tool_name) {
                     if let Some(data) = tdm.get(active_tool_name) {
                         data.specifics.apply(
-                            |b| Ok(contains_label(label, &b.label_info, b.get_annos(path))),
-                            |b| Ok(contains_label(label, &b.label_info, b.get_annos(path))),
+                            |d| Ok(contains_label(label, &d.label_info, d.get_annos(path))),
+                            |d| Ok(contains_label(label, &d.label_info, d.get_annos(path))),
                         ) == Ok(true)
                     } else {
                         true
@@ -83,12 +83,12 @@ impl FilterPredicate {
             }
             FilterPredicate::Nolabel => {
                 if let (Some(tdm), Some(active_tool_name)) = (tdm, active_tool_name) {
-                    let bb_tool = tdm.get(active_tool_name);
-                    bb_tool.and_then(|bbt| {
-                        bbt.specifics
+                    let data = tdm.get(active_tool_name);
+                    data.and_then(|data| {
+                        data.specifics
                             .apply(
-                                |b| Ok(has_any_label(b.get_annos(path))),
-                                |b| Ok(has_any_label(b.get_annos(path))),
+                                |d| Ok(has_any_label(d.get_annos(path))),
+                                |d| Ok(has_any_label(d.get_annos(path))),
                             )
                             .ok()
                     }) == Some(false)

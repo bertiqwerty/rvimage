@@ -1,12 +1,13 @@
 use crate::{
     cfg::{self, Cfg},
     control::{Control, Info, SortType},
+    domain::Annotate,
     file_util::{self, RVPRJ_PREFIX},
     menu::{self, cfg_menu::CfgMenu, open_folder, picklist, text_edit::text_edit_singleline},
     paths_selector::PathsSelector,
     result::{to_rv, RvResult},
-    tools::{ToolState, BBOX_NAME},
-    tools_data::ToolSpecifics,
+    tools::ToolState,
+    tools_data::{AnnotationsMap, ToolSpecifics},
     util::version_label,
     world::ToolsDataMap,
 };
@@ -15,6 +16,21 @@ use std::mem;
 
 use super::tools_menus::{bbox_menu, brush_menu};
 
+pub fn n_annotated_images<T>(annotations_map: &AnnotationsMap<T>, paths: &[&str]) -> usize
+where
+    T: Annotate,
+{
+    paths
+        .iter()
+        .filter(|p| {
+            if let Some((anno, _)) = annotations_map.get(**p) {
+                !anno.elts().is_empty()
+            } else {
+                false
+            }
+        })
+        .count()
+}
 fn show_popup(
     ui: &mut Ui,
     msg: &str,
@@ -309,8 +325,7 @@ impl Menu {
         ctx: &Context,
         ctrl: &mut Control,
         tools_data_map: &mut ToolsDataMap,
-        active_tool_name: Option<&str>
-        
+        active_tool_name: Option<&str>,
     ) -> bool {
         egui::TopBottomPanel::top("top-menu-bar").show(ctx, |ui| {
             // Top row with open folder and settings button
@@ -421,8 +436,11 @@ impl Menu {
 
             if filter_txt_field.changed() {
                 handle_error!(
-                    ctrl.paths_navigator
-                        .filter(&self.filter_string, tools_data_map, active_tool_name),
+                    ctrl.paths_navigator.filter(
+                        &self.filter_string,
+                        tools_data_map,
+                        active_tool_name
+                    ),
                     self
                 );
             }
@@ -485,7 +503,12 @@ impl Menu {
             if clicked_nat || clicked_alp {
                 handle_error!(
                     |_| {},
-                    ctrl.sort(self.filename_sort_type, &self.filter_string, tools_data_map, active_tool_name),
+                    ctrl.sort(
+                        self.filename_sort_type,
+                        &self.filter_string,
+                        tools_data_map,
+                        active_tool_name
+                    ),
                     self
                 );
                 handle_error!(|_| {}, ctrl.reload(self.filename_sort_type), self);
@@ -501,11 +524,15 @@ impl Menu {
                 Some(format!("{n_files_filtered} files"))
             };
             let get_annotation_info = |ps: &PathsSelector| {
-                if let Some(bbox_data) = tools_data_map.get(BBOX_NAME) {
-                    if let Ok(specifics) = bbox_data.specifics.bbox() {
-                        let n_files_annotated =
-                            specifics.n_annotated_images(&ps.filtered_file_paths());
-                        Some(format!("{n_files_annotated} files with bbox annotations"))
+                if let Some(active_tool_name) = active_tool_name {
+                    if let Some(data) = tools_data_map.get(active_tool_name) {
+                        let paths = &ps.filtered_file_paths();
+                        let n = data.specifics.apply(
+                            |d| Ok(n_annotated_images(&d.annotations_map, paths)),
+                            |d| Ok(n_annotated_images(&d.annotations_map, paths)),
+                        );
+                        n.ok()
+                            .map(|n| format!("{n} files with {active_tool_name} annotations"))
                     } else {
                         None
                     }

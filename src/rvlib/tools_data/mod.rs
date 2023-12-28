@@ -2,8 +2,9 @@ use crate::{
     domain::BrushLine,
     drawme::{Annotation, BboxAnnotation, Stroke},
     result::{trace_ok, RvError, RvResult},
+    rverr,
     world::World,
-    BrushAnnotation, UpdateAnnos, rverr,
+    BrushAnnotation, UpdateAnnos,
 };
 
 pub use self::core::{LabelInfo, OUTLINE_THICKNESS_CONVERSION};
@@ -18,7 +19,8 @@ pub mod brush_data;
 pub mod coco_io;
 mod core;
 pub mod rot90_data;
-pub use core::Options as CoreOptions;
+pub use core::{AnnotationsMap, Options as CoreOptions};
+
 macro_rules! variant_access {
     ($variant:ident, $func_name:ident, $self:ty, $return_type:ty) => {
         pub fn $func_name(self: $self) -> $crate::result::RvResult<$return_type> {
@@ -105,7 +107,7 @@ impl ToolSpecifics {
         match self {
             Self::Bbox(bbox_data) => f_bbox(bbox_data),
             Self::Brush(brush_data) => f_brush(brush_data),
-            _ => Err(rverr!("only brush tool and bbox tool can be used in apply",))
+            _ => Err(rverr!("only brush tool and bbox tool can be used in apply",)),
         }
     }
 

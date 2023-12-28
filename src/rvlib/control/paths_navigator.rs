@@ -163,7 +163,7 @@ impl PathsNavigator {
                 }
             };
             self.filter_by_pred(filter_pred)?;
-}
+        }
         Ok(())
     }
 

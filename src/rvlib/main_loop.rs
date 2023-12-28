@@ -170,9 +170,12 @@ impl Default for MainEventLoop {
 }
 impl MainEventLoop {
     pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
-        let project_loaded = self
-            .menu
-            .ui(ctx, &mut self.ctrl, &mut self.world.data.tools_data_map, find_active_tool(&self.tools));
+        let project_loaded = self.menu.ui(
+            ctx,
+            &mut self.ctrl,
+            &mut self.world.data.tools_data_map,
+            find_active_tool(&self.tools),
+        );
         if project_loaded {
             for t in &mut self.tools {
                 (self.world, self.history) =

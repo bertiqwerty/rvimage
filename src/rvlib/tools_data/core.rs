@@ -16,6 +16,7 @@ fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
 }
 
+pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, Shape)>;
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
     pub visible: bool,

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     annotations::{BboxAnnotations, ClipboardData},
-    core::{LabelInfo, OUTLINE_THICKNESS_CONVERSION},
+    core::{AnnotationsMap, LabelInfo, OUTLINE_THICKNESS_CONVERSION},
 };
 use crate::{
     cfg::ExportPath,
@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// filename -> (annotations per file, file dimensions)
-pub type AnnotationsMap = HashMap<String, (BboxAnnotations, Shape)>;
+pub type BboxAnnoMap = AnnotationsMap<GeoFig>;
 
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
@@ -49,7 +49,7 @@ impl Default for Options {
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct BboxSpecificData {
     pub label_info: LabelInfo,
-    pub annotations_map: AnnotationsMap,
+    pub annotations_map: BboxAnnoMap,
     pub clipboard: Option<ClipboardData<GeoFig>>,
     pub options: Options,
     pub coco_file: ExportPath,
@@ -58,21 +58,8 @@ pub struct BboxSpecificData {
 impl BboxSpecificData {
     implement_annotations_getters!(BboxAnnotations);
 
-    fn separate_data(self) -> (LabelInfo, AnnotationsMap, ExportPath) {
+    fn separate_data(self) -> (LabelInfo, BboxAnnoMap, ExportPath) {
         (self.label_info, self.annotations_map, self.coco_file)
-    }
-
-    pub fn n_annotated_images(&self, paths: &[&str]) -> usize {
-        paths
-            .iter()
-            .filter(|p| {
-                if let Some((anno, _)) = self.annotations_map.get(**p) {
-                    !anno.elts().is_empty()
-                } else {
-                    false
-                }
-            })
-            .count()
     }
 
     pub fn from_bbox_export_data(input_data: BboxExportData) -> RvResult<Self> {
@@ -131,7 +118,7 @@ impl BboxSpecificData {
         }
     }
 
-    pub fn set_annotations_map(&mut self, map: AnnotationsMap) -> RvResult<()> {
+    pub fn set_annotations_map(&mut self, map: BboxAnnoMap) -> RvResult<()> {
         for (_, (annos, _)) in map.iter() {
             for cat_idx in annos.cat_idxs() {
                 let len = self.label_info.len();

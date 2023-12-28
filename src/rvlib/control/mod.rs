@@ -230,15 +230,17 @@ impl Control {
         sort_type: SortType,
         filter_str: &str,
         tools_data_map: &ToolsDataMap,
-        active_tool_name: Option<&str>
+        active_tool_name: Option<&str>,
     ) -> RvResult<()> {
         match sort_type {
-            SortType::Alphabetical => self
-                .paths_navigator
-                .alphabetical_sort(filter_str, tools_data_map, active_tool_name),
-            SortType::Natural => self
-                .paths_navigator
-                .natural_sort(filter_str, tools_data_map, active_tool_name),
+            SortType::Alphabetical => {
+                self.paths_navigator
+                    .alphabetical_sort(filter_str, tools_data_map, active_tool_name)
+            }
+            SortType::Natural => {
+                self.paths_navigator
+                    .natural_sort(filter_str, tools_data_map, active_tool_name)
+            }
         }
     }
 
