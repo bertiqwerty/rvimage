@@ -19,7 +19,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             thickness: 5.0,
-            intensity: 1.0,
+            intensity: 0.5,
             erase: false,
             core_options: core::Options::default(),
         }
