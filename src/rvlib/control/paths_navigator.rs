@@ -1,5 +1,5 @@
 use super::{filter::FilterExpr, SortType};
-use crate::{paths_selector::PathsSelector, result::RvResult, tools, world::ToolsDataMap};
+use crate::{paths_selector::PathsSelector, result::RvResult, world::ToolsDataMap};
 use exmex::prelude::*;
 
 fn next(file_selected_idx: usize, files_len: usize) -> usize {
@@ -96,10 +96,11 @@ impl PathsNavigator {
         &mut self,
         filter_str: &str,
         tools_data_map: &ToolsDataMap,
+        active_tool_name: Option<&str>,
     ) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
             ps.natural_sort()?;
-            self.filter(filter_str, tools_data_map)?;
+            self.filter(filter_str, tools_data_map, active_tool_name)?;
         }
         Ok(())
     }
@@ -107,10 +108,11 @@ impl PathsNavigator {
         &mut self,
         filter_str: &str,
         tools_data_map: &ToolsDataMap,
+        active_tool_name: Option<&str>,
     ) -> RvResult<()> {
         if let Some(ps) = &mut self.paths_selector {
             ps.alphabetical_sort()?;
-            self.filter(filter_str, tools_data_map)?;
+            self.filter(filter_str, tools_data_map, active_tool_name)?;
         }
         Ok(())
     }
@@ -138,61 +140,30 @@ impl PathsNavigator {
         Ok(())
     }
 
-    pub fn filter(&mut self, s: &str, tools_data_map: &ToolsDataMap) -> RvResult<()> {
+    pub fn filter(
+        &mut self,
+        s: &str,
+        tools_data_map: &ToolsDataMap,
+        active_tool_name: Option<&str>,
+    ) -> RvResult<()> {
         if let Ok(filter_pred) = FilterExpr::parse(s).and_then(|expr| expr.eval(&[])) {
             let filter_pred_wrapper = |path: &str| {
                 filter_pred
-                    .apply(path, Some(tools_data_map))
+                    .apply(path, Some(tools_data_map), active_tool_name)
                     .unwrap_or(true)
             };
             self.filter_by_pred(filter_pred_wrapper)?;
         } else {
-            let labels_keyword = "label:";
-            let no_labels_keyword = "nolabel:";
-            if let (Some(needle), Some(bbox_data)) = (
-                s.strip_prefix(labels_keyword),
-                tools_data_map
-                    .get(tools::BBOX_NAME)
-                    .and_then(|d| d.specifics.bbox().ok()),
-            ) {
-                let labels = bbox_data.label_info.labels();
-                let filter_pred = |path: &str| {
-                    let annos = bbox_data.get_annos(path);
-                    if let Some(annos) = annos {
-                        annos
-                            .cat_idxs()
-                            .iter()
-                            .any(|cat_idx| labels[*cat_idx].contains(needle))
-                    } else {
-                        false
-                    }
-                };
-                self.filter_by_pred(filter_pred)?;
-            } else if s.strip_prefix(no_labels_keyword).is_some() {
-                let filter_pred = |path: &str| {
-                    let bb_tool = tools_data_map.get(tools::BBOX_NAME);
-                    let annos = bb_tool
-                        .and_then(|bbt| bbt.specifics.bbox().ok())
-                        .and_then(|d| d.get_annos(path));
-                    if let Some(annos) = annos {
-                        annos.cat_idxs().is_empty()
-                    } else {
-                        true
-                    }
-                };
-                self.filter_by_pred(filter_pred)?;
-            } else {
-                let trimmed = s.trim();
-                let filter_pred = |path: &str| {
-                    if path.is_empty() {
-                        true
-                    } else {
-                        path.contains(trimmed)
-                    }
-                };
-                self.filter_by_pred(filter_pred)?;
-            }
-        }
+            let trimmed = s.trim();
+            let filter_pred = |path: &str| {
+                if path.is_empty() {
+                    true
+                } else {
+                    path.contains(trimmed)
+                }
+            };
+            self.filter_by_pred(filter_pred)?;
+}
         Ok(())
     }
 

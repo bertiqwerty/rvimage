@@ -101,6 +101,14 @@ fn empty_world() -> World {
         "".to_string(),
     )
 }
+
+fn find_active_tool(tools: &[ToolState]) -> Option<&str> {
+    tools
+        .iter()
+        .find(|t| t.is_active() && !t.is_always_active())
+        .map(|t| t.name)
+}
+
 pub struct MainEventLoop {
     menu: Menu,
     tools_select_menu: ToolSelectMenu,
@@ -164,7 +172,7 @@ impl MainEventLoop {
     pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
         let project_loaded = self
             .menu
-            .ui(ctx, &mut self.ctrl, &mut self.world.data.tools_data_map);
+            .ui(ctx, &mut self.ctrl, &mut self.world.data.tools_data_map, find_active_tool(&self.tools));
         if project_loaded {
             for t in &mut self.tools {
                 (self.world, self.history) =
@@ -312,12 +320,7 @@ impl MainEventLoop {
                 None
             };
             self.world = World::new(ims_raw, zoom_box);
-            let active_tool_name = self
-                .tools
-                .iter()
-                .find(|t| t.is_active() && !t.is_always_active())
-                .map(|t| t.name);
-            if let Some(active_tool_name) = active_tool_name {
+            if let Some(active_tool_name) = find_active_tool(&self.tools) {
                 self.world
                     .request_redraw_annotations(active_tool_name, true);
             }

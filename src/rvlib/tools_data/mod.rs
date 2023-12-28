@@ -3,7 +3,7 @@ use crate::{
     drawme::{Annotation, BboxAnnotation, Stroke},
     result::{trace_ok, RvError, RvResult},
     world::World,
-    BrushAnnotation, UpdateAnnos,
+    BrushAnnotation, UpdateAnnos, rverr,
 };
 
 pub use self::core::{LabelInfo, OUTLINE_THICKNESS_CONVERSION};
@@ -96,6 +96,18 @@ impl ToolSpecifics {
     variant_access!(Bbox, bbox_mut, &mut Self, &mut BboxSpecificData);
     variant_access!(Brush, brush_mut, &mut Self, &mut BrushToolData);
     variant_access!(Rot90, rot90_mut, &mut Self, &mut Rot90ToolData);
+
+    pub fn apply<T>(
+        &self,
+        mut f_bbox: impl FnMut(&BboxSpecificData) -> RvResult<T>,
+        mut f_brush: impl FnMut(&BrushToolData) -> RvResult<T>,
+    ) -> RvResult<T> {
+        match self {
+            Self::Bbox(bbox_data) => f_bbox(bbox_data),
+            Self::Brush(brush_data) => f_brush(brush_data),
+            _ => Err(rverr!("only brush tool and bbox tool can be used in apply",))
+        }
+    }
 
     pub fn to_annotations_view(&self, file_path: &str) -> UpdateAnnos {
         match self {

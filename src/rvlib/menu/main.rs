@@ -309,6 +309,8 @@ impl Menu {
         ctx: &Context,
         ctrl: &mut Control,
         tools_data_map: &mut ToolsDataMap,
+        active_tool_name: Option<&str>
+        
     ) -> bool {
         egui::TopBottomPanel::top("top-menu-bar").show(ctx, |ui| {
             // Top row with open folder and settings button
@@ -420,7 +422,7 @@ impl Menu {
             if filter_txt_field.changed() {
                 handle_error!(
                     ctrl.paths_navigator
-                        .filter(&self.filter_string, tools_data_map),
+                        .filter(&self.filter_string, tools_data_map, active_tool_name),
                     self
                 );
             }
@@ -483,7 +485,7 @@ impl Menu {
             if clicked_nat || clicked_alp {
                 handle_error!(
                     |_| {},
-                    ctrl.sort(self.filename_sort_type, &self.filter_string, tools_data_map),
+                    ctrl.sort(self.filename_sort_type, &self.filter_string, tools_data_map, active_tool_name),
                     self
                 );
                 handle_error!(|_| {}, ctrl.reload(self.filename_sort_type), self);

@@ -494,7 +494,10 @@ fn main() {
         .with_line_number(true)
         .with_file(true);
 
-    let stdout = Layer::new().with_writer(io::stdout.with_max_level(Level::INFO));
+    let stdout = Layer::new()
+        .with_writer(io::stdout.with_max_level(Level::INFO))
+        .with_file(true)
+        .with_line_number(true);
     tracing_subscriber::registry()
         .with(file_appender)
         .with(stdout)

@@ -3,9 +3,39 @@ use std::str::FromStr;
 use exmex::prelude::*;
 use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
 
+use crate::domain::Annotate;
 use crate::result::{RvError, RvResult};
-use crate::tools;
+use crate::tools_data::annotations::InstanceAnnotations;
+use crate::tools_data::LabelInfo;
 use crate::world::ToolsDataMap;
+
+fn contains_label<T>(
+    label: &str,
+    label_info: &LabelInfo,
+    annos: Option<&InstanceAnnotations<T>>,
+) -> bool
+where
+    T: Annotate + PartialEq + Clone + Default,
+{
+    if let Some(annos) = annos {
+        annos
+            .cat_idxs()
+            .iter()
+            .any(|cat_idx| label_info.labels()[*cat_idx].contains(label))
+    } else {
+        false
+    }
+}
+fn has_any_label<T>(annos: Option<&InstanceAnnotations<T>>) -> bool
+where
+    T: Annotate + PartialEq + Clone + Default,
+{
+    if let Some(annos) = annos {
+        !annos.elts().is_empty()
+    } else {
+        false
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub enum FilterPredicate {
@@ -19,7 +49,12 @@ pub enum FilterPredicate {
     TdmInjection,
 }
 impl FilterPredicate {
-    pub fn apply(&self, path: &str, tdm: Option<&ToolsDataMap>) -> RvResult<bool> {
+    pub fn apply(
+        &self,
+        path: &str,
+        tdm: Option<&ToolsDataMap>,
+        active_tool_name: Option<&str>,
+    ) -> RvResult<bool> {
         Ok(match &self {
             FilterPredicate::FilterStr(s) => {
                 if path.is_empty() {
@@ -33,34 +68,12 @@ impl FilterPredicate {
                     FilterPredicate::FilterStr(label) => label,
                     _ => Err(RvError::new("Label must be a string"))?,
                 };
-                let tdm = tdm.unwrap();
-                if let Some(bbox_data) = tdm.get(tools::BBOX_NAME) {
-                    if let Ok(specifics) = bbox_data.specifics.bbox() {
-                        let labels = specifics.label_info.labels();
-                        let annos = specifics.get_annos(path);
-                        if let Some(annos) = annos {
-                            annos
-                                .cat_idxs()
-                                .iter()
-                                .any(|cat_idx| labels[*cat_idx].contains(label))
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                } else {
-                    true
-                }
-            }
-            FilterPredicate::Nolabel => {
-                if let Some(tdm) = tdm {
-                    let bb_tool = tdm.get(tools::BBOX_NAME);
-                    let annos = bb_tool
-                        .and_then(|bbt| bbt.specifics.bbox().ok())
-                        .and_then(|d| d.get_annos(path));
-                    if let Some(annos) = annos {
-                        annos.cat_idxs().is_empty()
+                if let (Some(tdm), Some(active_tool_name)) = (tdm, active_tool_name) {
+                    if let Some(data) = tdm.get(active_tool_name) {
+                        data.specifics.apply(
+                            |b| Ok(contains_label(label, &b.label_info, b.get_annos(path))),
+                            |b| Ok(contains_label(label, &b.label_info, b.get_annos(path))),
+                        ) == Ok(true)
                     } else {
                         true
                     }
@@ -68,9 +81,28 @@ impl FilterPredicate {
                     true
                 }
             }
-            FilterPredicate::And(a, b) => a.apply(path, tdm)? && b.apply(path, tdm)?,
-            FilterPredicate::Or(a, b) => a.apply(path, tdm)? || b.apply(path, tdm)?,
-            FilterPredicate::Not(a) => !a.apply(path, tdm)?,
+            FilterPredicate::Nolabel => {
+                if let (Some(tdm), Some(active_tool_name)) = (tdm, active_tool_name) {
+                    let bb_tool = tdm.get(active_tool_name);
+                    bb_tool.and_then(|bbt| {
+                        bbt.specifics
+                            .apply(
+                                |b| Ok(has_any_label(b.get_annos(path))),
+                                |b| Ok(has_any_label(b.get_annos(path))),
+                            )
+                            .ok()
+                    }) == Some(false)
+                } else {
+                    true
+                }
+            }
+            FilterPredicate::And(a, b) => {
+                a.apply(path, tdm, active_tool_name)? && b.apply(path, tdm, active_tool_name)?
+            }
+            FilterPredicate::Or(a, b) => {
+                a.apply(path, tdm, active_tool_name)? || b.apply(path, tdm, active_tool_name)?
+            }
+            FilterPredicate::Not(a) => !a.apply(path, tdm, active_tool_name)?,
             FilterPredicate::TdmInjection => true,
         })
     }
@@ -135,7 +167,7 @@ fn test_filter_exmex() {
     let s = "nolabel";
     let expr = FilterExpr::parse(s).unwrap();
     let pred = expr.eval(&[]).unwrap();
-    assert!(pred.apply("", None).unwrap());
+    assert!(pred.apply("", None, None).unwrap());
     let s = "nolabel && (x || yy && zz)";
     let expr = FilterExpr::parse(s).unwrap();
     let pred = expr.eval(&[]).unwrap();
@@ -143,6 +175,6 @@ fn test_filter_exmex() {
     let expected = [false, false, true, false, true, false];
     for (path, expected) in paths.iter().zip(expected.iter()) {
         println!("path: {}", path);
-        assert_eq!(pred.apply(path, None).unwrap(), *expected);
+        assert_eq!(pred.apply(path, None, None).unwrap(), *expected);
     }
 }
