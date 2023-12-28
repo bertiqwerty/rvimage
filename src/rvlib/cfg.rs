@@ -142,11 +142,11 @@ impl ExportPathConnection {
         match (self, ssh_cfg) {
             (ExportPathConnection::Ssh, Some(ssh_cfg)) => {
                 let sess = ssh::auth(ssh_cfg)?;
-                ssh::write(&data_str, &dst_path, &sess).map_err(to_rv)?;
+                ssh::write(data_str, dst_path, &sess).map_err(to_rv)?;
                 Ok(())
             }
             (ExportPathConnection::Local, _) => {
-                file_util::write(&dst_path, data_str)?;
+                file_util::write(dst_path, data_str)?;
                 Ok(())
             }
             (ExportPathConnection::Ssh, None) => Err(rverr!("cannot save to ssh. config missing",)),
