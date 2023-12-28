@@ -1,6 +1,6 @@
-use std::{cmp::Ordering, mem, path::Path};
+use std::{cmp::Ordering, io::Cursor, mem, path::Path};
 
-use image::{EncodableLayout, ImageBuffer, Luma};
+use image::{codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, Luma};
 use imageproc::drawing::{draw_filled_circle_mut, BresenhamLineIter};
 use tracing::{error, info};
 
@@ -108,7 +108,8 @@ fn check_export(mut world: World) -> World {
                             .map(|(bl, _)| bl)
                         {
                             let p1_iter = brushline.line.points_iter();
-                            let p2_iter = brushline.line.points_iter().next();
+                            let mut p2_iter = brushline.line.points_iter();
+                            p2_iter.next();
                             for (p1, p2) in p1_iter.zip(p2_iter) {
                                 let lineseg_iter = BresenhamLineIter::new(
                                     (p1.x as f32, p1.y as f32),
@@ -132,8 +133,21 @@ fn check_export(mut world: World) -> World {
                             ))
                         );
                         let outpath = data.export_folder.path.join(outfilename);
-                        if let Err(e) = data.export_folder.conn.write_bytes(
+                        let mut buffer = Cursor::new(vec![]);
+                        let encoder = png::PngEncoder::new_with_quality(
+                            &mut buffer,
+                            png::CompressionType::Best,
+                            png::FilterType::NoFilter,
+                        );
+                        if let Err(e) = encoder.write_image(
                             im.as_bytes(),
+                            shape.w,
+                            shape.h,
+                            image::ColorType::L8,
+                        ) {
+                            error!("could not decode png due to {e:?}");
+                        } else if let Err(e) = data.export_folder.conn.write_bytes(
+                            buffer.get_ref(),
                             &outpath,
                             world.data.meta_data.ssh_cfg.as_ref(),
                         ) {
