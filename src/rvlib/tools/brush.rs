@@ -1,11 +1,14 @@
-use std::{cmp::Ordering, mem};
+use std::{cmp::Ordering, mem, path::Path};
 
-use tracing::info;
+use image::{EncodableLayout, ImageBuffer, Luma};
+use imageproc::drawing::{draw_filled_circle_mut, BresenhamLineIter};
+use tracing::{error, info};
 
 use crate::{
-    annotations_accessor_mut,
+    annotations_accessor, annotations_accessor_mut,
     domain::{BrushLine, PtF},
     events::{Events, KeyCode},
+    file_util::osstr_to_str,
     history::{History, Record},
     make_tool_transform,
     result::{trace_ok, RvResult},
@@ -26,6 +29,7 @@ const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized"
 const MISSING_DATA_MSG: &str = "brush data not available";
 
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
+annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
 
 const MAX_SELECT_DIST: f32 = 20.0;
 
@@ -81,6 +85,70 @@ fn check_selected_intensity_thickness(mut world: World) -> World {
     let options_mut = get_options_mut(&mut world);
     if let Some(options_mut) = options_mut {
         options_mut.is_selection_change_needed = false;
+    }
+    world
+}
+
+fn check_export(mut world: World) -> World {
+    let options = get_options(&world);
+    let specifics = get_specific(&world);
+
+    if options.map(|o| o.core_options.is_export_triggered) == Some(true) {
+        if let Some(data) = specifics {
+            for (filename, annos) in &data.annotations_map {
+                for label in data.label_info.labels() {
+                    let (annos, shape) = annos;
+                    if !annos.elts().is_empty() {
+                        let mut im = ImageBuffer::<Luma<u8>, Vec<u8>>::new(shape.w, shape.h);
+                        for brushline in annos
+                            .elts()
+                            .iter()
+                            .zip(annos.cat_idxs().iter())
+                            .filter(|(_, cat_idx)| &data.label_info.labels()[**cat_idx] == label)
+                            .map(|(bl, _)| bl)
+                        {
+                            let p1_iter = brushline.line.points_iter();
+                            let p2_iter = brushline.line.points_iter().next();
+                            for (p1, p2) in p1_iter.zip(p2_iter) {
+                                let lineseg_iter = BresenhamLineIter::new(
+                                    (p1.x as f32, p1.y as f32),
+                                    (p2.x as f32, p2.y as f32),
+                                );
+                                for center in lineseg_iter {
+                                    draw_filled_circle_mut(
+                                        &mut im,
+                                        center,
+                                        brushline.thickness as i32 / 2,
+                                        Luma([(brushline.intensity * 255.0) as u8]),
+                                    );
+                                }
+                            }
+                        }
+                        let filepath = Path::new(&filename);
+                        let outfilename = format!(
+                            "{}_{label}.png",
+                            osstr_to_str(filepath.file_stem()).expect(
+                                format!("a filepath needs a stem, what's wrong with {filepath:?}")
+                                    .as_str()
+                            )
+                        );
+                        let outpath = data.export_folder.path.join(outfilename);
+                        if let Err(e) = data.export_folder.conn.write_bytes(
+                            im.as_bytes(),
+                            &outpath,
+                            world.data.meta_data.ssh_cfg.as_ref(),
+                        ) {
+                            error!("export failed due to {e:?}");
+                        } else {
+                            info!("exported label file to '{outpath:?}'");
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(options_mut) = get_options_mut(&mut world) {
+            options_mut.core_options.is_export_triggered = false;
+        }
     }
     world
 }
@@ -276,6 +344,7 @@ impl Manipulate for Brush {
             |world| get_specific_mut(world).map(|d| &mut d.label_info),
         );
         world = check_selected_intensity_thickness(world);
+        world = check_export(world);
         make_tool_transform!(
             self,
             world,

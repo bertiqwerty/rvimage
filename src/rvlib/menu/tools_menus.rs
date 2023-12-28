@@ -257,7 +257,7 @@ pub fn brush_menu(
     export_file_menu(
         ui,
         "tiff export folder",
-        &mut data.tiff_export_folder,
+        &mut data.export_folder,
         are_tools_active,
         &mut data.options.core_options.is_export_triggered,
         None,

@@ -54,8 +54,7 @@ pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>>
     .map_err(|e: RvError| rverr!("could not download {} due to {e:?}", remote_src_file_path))
 }
 
-pub fn write(content: &str, remote_dst_path: &Path, sess: &Session) -> RvResult<()> {
-    let content_bytes = content.as_bytes();
+pub fn write_bytes(content_bytes: &[u8], remote_dst_path: &Path, sess: &Session) -> RvResult<()> {
     let mut remote_file = sess
         .scp_send(
             Path::new(remote_dst_path),

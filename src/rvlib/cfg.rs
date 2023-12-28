@@ -138,19 +138,27 @@ pub enum ExportPathConnection {
     Local,
 }
 impl ExportPathConnection {
-    pub fn write(&self, data_str: &str, dst_path: &Path, ssh_cfg: Option<&SshCfg>) -> RvResult<()> {
+    pub fn write_bytes(
+        &self,
+        data: &[u8],
+        dst_path: &Path,
+        ssh_cfg: Option<&SshCfg>,
+    ) -> RvResult<()> {
         match (self, ssh_cfg) {
             (ExportPathConnection::Ssh, Some(ssh_cfg)) => {
                 let sess = ssh::auth(ssh_cfg)?;
-                ssh::write(data_str, dst_path, &sess).map_err(to_rv)?;
+                ssh::write_bytes(data, dst_path, &sess).map_err(to_rv)?;
                 Ok(())
             }
             (ExportPathConnection::Local, _) => {
-                file_util::write(dst_path, data_str)?;
+                file_util::write(dst_path, data)?;
                 Ok(())
             }
             (ExportPathConnection::Ssh, None) => Err(rverr!("cannot save to ssh. config missing",)),
         }
+    }
+    pub fn write(&self, data_str: &str, dst_path: &Path, ssh_cfg: Option<&SshCfg>) -> RvResult<()> {
+        self.write_bytes(data_str.as_bytes(), dst_path, ssh_cfg)
     }
 }
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
