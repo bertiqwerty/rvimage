@@ -4,7 +4,7 @@ use egui::Ui;
 use tracing::{info, warn};
 
 use crate::{
-    cfg::{self, get_cfg, CocoFileConnection},
+    cfg::{self, get_cfg, ExportPathConnection},
     domain::Annotate,
     file_util::path_to_str,
     result::{to_rv, RvResult},
@@ -158,8 +158,8 @@ pub fn bbox_menu(
         ui.separator();
         ui.horizontal(|ui| {
             ui.label("coco file");
-            ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Local, "local");
-            ui.radio_value(&mut data.coco_file.conn, CocoFileConnection::Ssh, "ssh");
+            ui.radio_value(&mut data.coco_file.conn, ExportPathConnection::Local, "local");
+            ui.radio_value(&mut data.coco_file.conn, ExportPathConnection::Ssh, "ssh");
             text_edit_singleline(ui, &mut txt, are_tools_active);
         });
         if ui.button("store path in cfg").clicked() {

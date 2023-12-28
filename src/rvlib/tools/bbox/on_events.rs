@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, iter::empty, mem};
 
 use crate::{
-    cfg::CocoFile,
+    cfg::ExportPath,
     domain::{shape_unscaled, OutOfBoundsMode, Point, PtF, PtI, BB},
     file_util::MetaData,
     history::Record,
@@ -56,7 +56,7 @@ fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: i64) -> Option<(
 
 pub(super) fn import_coco_if_triggered(
     meta_data: &MetaData,
-    coco_file: Option<&CocoFile>,
+    coco_file: Option<&ExportPath>,
 ) -> Option<BboxSpecificData> {
     if let Some(coco_file) = coco_file {
         match tools_data::coco_io::read_coco(meta_data, coco_file) {

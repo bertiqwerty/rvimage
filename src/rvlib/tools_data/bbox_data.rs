@@ -7,7 +7,7 @@ use super::{
     core::{LabelInfo, OUTLINE_THICKNESS_CONVERSION},
 };
 use crate::{
-    cfg::{get_cfg, CocoFile},
+    cfg::{get_cfg, ExportPath},
     domain::Shape,
     file_util, implement_annotations_getters,
     result::RvResult,
@@ -52,13 +52,13 @@ pub struct BboxSpecificData {
     pub annotations_map: AnnotationsMap,
     pub clipboard: Option<ClipboardData<GeoFig>>,
     pub options: Options,
-    pub coco_file: CocoFile,
+    pub coco_file: ExportPath,
 }
 
 impl BboxSpecificData {
     implement_annotations_getters!(BboxAnnotations);
 
-    fn separate_data(self) -> (LabelInfo, AnnotationsMap, CocoFile) {
+    fn separate_data(self) -> (LabelInfo, AnnotationsMap, ExportPath) {
         (self.label_info, self.annotations_map, self.coco_file)
     }
 
@@ -131,7 +131,7 @@ impl BboxSpecificData {
             coco_file: if let Some(cf) = cfg.coco_file {
                 cf
             } else {
-                CocoFile::default()
+                ExportPath::default()
             },
         }
     }
@@ -167,7 +167,7 @@ pub struct BboxExportData {
     pub cat_ids: Vec<u32>,
     // filename, bounding boxes, classes of the boxes, dimensions of the image
     pub annotations: HashMap<String, (Vec<GeoFig>, Vec<usize>, Shape)>,
-    pub coco_file: CocoFile,
+    pub coco_file: ExportPath,
     pub is_export_absolute: bool,
 }
 

@@ -2,6 +2,7 @@ use crate::{
     cache::FileCacheCfgArgs,
     file_util::{self, DEFAULT_HOMEDIR, DEFAULT_TMPDIR},
     result::{to_rv, RvError, RvResult},
+    rverr, ssh,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -131,15 +132,31 @@ pub struct PyHttpReaderCfg {
 }
 
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
-pub enum CocoFileConnection {
+pub enum ExportPathConnection {
     Ssh,
     #[default]
     Local,
 }
+impl ExportPathConnection {
+    pub fn write(&self, data_str: &str, dst_path: &Path, ssh_cfg: Option<&SshCfg>) -> RvResult<()> {
+        match (self, ssh_cfg) {
+            (ExportPathConnection::Ssh, Some(ssh_cfg)) => {
+                let sess = ssh::auth(ssh_cfg)?;
+                ssh::write(&data_str, &dst_path, &sess).map_err(to_rv)?;
+                Ok(())
+            }
+            (ExportPathConnection::Local, _) => {
+                file_util::write(&dst_path, data_str)?;
+                Ok(())
+            }
+            (ExportPathConnection::Ssh, None) => Err(rverr!("cannot save to ssh. config missing",)),
+        }
+    }
+}
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
-pub struct CocoFile {
+pub struct ExportPath {
     pub path: PathBuf,
-    pub conn: CocoFileConnection,
+    pub conn: ExportPathConnection,
 }
 
 pub enum Style {
@@ -158,7 +175,7 @@ pub struct Cfg {
     pub ssh_cfg: SshCfg,
     pub export_folder: Option<String>,
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
-    pub coco_file: Option<CocoFile>,
+    pub coco_file: Option<ExportPath>,
     pub darkmode: Option<bool>,
     #[cfg(feature = "azure_blob")]
     pub azure_blob_cfg: Option<AzureBlobCfg>,

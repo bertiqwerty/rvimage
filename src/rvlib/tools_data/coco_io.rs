@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cfg::{CocoFile, CocoFileConnection},
+    cfg::{ExportPath, ExportPathConnection},
     domain::{Point, Shape, BB},
     file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
@@ -168,7 +168,7 @@ impl CocoExportData {
         })
     }
 
-    fn convert_to_bboxdata(self, coco_file: CocoFile) -> RvResult<BboxSpecificData> {
+    fn convert_to_bboxdata(self, coco_file: ExportPath) -> RvResult<BboxSpecificData> {
         let cat_ids: Vec<u32> = self.categories.iter().map(|coco_cat| coco_cat.id).collect();
         let labels: Vec<String> = self
             .categories
@@ -322,7 +322,7 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
     };
     Ok(export_folder.join(file_name))
 }
-fn get_cocofilepath(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<PathBuf> {
+fn get_cocofilepath(meta_data: &MetaData, coco_file: &ExportPath) -> RvResult<PathBuf> {
     if path_to_str(&coco_file.path)?.is_empty() {
         meta_data_to_coco_path(meta_data)
     } else {
@@ -334,31 +334,21 @@ pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvR
     let conn = bbox_specifics.coco_file.conn.clone();
     let coco_data = CocoExportData::from_bboxdata(bbox_specifics)?;
     let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
-    match conn {
-        CocoFileConnection::Ssh => {
-            if let Some(ssh_cfg) = &meta_data.ssh_cfg {
-                let sess = ssh::auth(ssh_cfg)?;
-                ssh::write(&data_str, &coco_out_path, &sess).map_err(to_rv)?;
-            }
-        }
-        CocoFileConnection::Local => {
-            file_util::write(&coco_out_path, data_str)?;
-        }
-    }
+    conn.write(&data_str, &coco_out_path, meta_data.ssh_cfg.as_ref())?;
     tracing::info!("exported coco labels to {coco_out_path:?}");
     Ok(coco_out_path)
 }
 
-pub fn read_coco(meta_data: &MetaData, coco_file: &CocoFile) -> RvResult<BboxSpecificData> {
+pub fn read_coco(meta_data: &MetaData, coco_file: &ExportPath) -> RvResult<BboxSpecificData> {
     let coco_inpath = get_cocofilepath(meta_data, coco_file)?;
     match &coco_file.conn {
-        CocoFileConnection::Local => {
+        ExportPathConnection::Local => {
             let s = file_util::read_to_string(&coco_inpath)?;
             let read_data: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
             tracing::info!("imported coco file from {coco_inpath:?}");
             read_data.convert_to_bboxdata(coco_file.clone())
         }
-        CocoFileConnection::Ssh => {
+        ExportPathConnection::Ssh => {
             if let Some(ssh_cfg) = &meta_data.ssh_cfg {
                 let sess = ssh::auth(ssh_cfg)?;
                 let read_bytes = ssh::download(path_to_str(&coco_file.path)?, &sess)?;
@@ -421,7 +411,7 @@ pub fn make_data(
     meta.connection_data = ConnectionData::Ssh(SshCfg::default());
     let mut bbox_data = BboxSpecificData::new();
     bbox_data.options.export_absolute = export_absolute;
-    bbox_data.coco_file = CocoFile::default();
+    bbox_data.coco_file = ExportPath::default();
     bbox_data
         .label_info
         .push("x".to_string(), None, None)
@@ -458,9 +448,9 @@ fn test_coco_export() -> RvResult<()> {
         defer_file_removal!(&coco_file);
         let read = read_coco(
             &meta,
-            &CocoFile {
+            &ExportPath {
                 path: coco_file.clone(),
-                conn: CocoFileConnection::Local,
+                conn: ExportPathConnection::Local,
             },
         )?;
         assert_eq!(bbox_data.label_info.cat_ids(), read.label_info.cat_ids());
@@ -497,7 +487,7 @@ fn test_coco_import() -> RvResult<()> {
             export_folder: Some(TEST_DATA_FOLDER.to_string()),
             is_loading_screen_active: None,
         };
-        let read = read_coco(&meta, &CocoFile::default()).unwrap();
+        let read = read_coco(&meta, &ExportPath::default()).unwrap();
         assert_eq!(read.label_info.cat_ids(), &cat_ids);
         assert_eq!(
             read.label_info.labels(),
