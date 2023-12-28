@@ -67,6 +67,24 @@ fn find_closest_brushline(annos: &InstanceAnnotations<BrushLine>, p: PtF) -> Opt
         })
 }
 
+fn check_selected_intensity_thickness(mut world: World) -> World {
+    let options = get_options(&world);
+    let annos = get_annos_mut(&mut world);
+    if let (Some(annos), Some(options)) = (annos, options) {
+        if options.is_selection_change_needed {
+            for brushline in annos.selected_elts_iter_mut() {
+                brushline.intensity = options.intensity;
+                brushline.thickness = options.thickness;
+            }
+        }
+    }
+    let options_mut = get_options_mut(&mut world);
+    if let Some(options_mut) = options_mut {
+        options_mut.is_selection_change_needed = false;
+    }
+    world
+}
+
 #[derive(Clone, Debug)]
 pub struct Brush {}
 
@@ -257,6 +275,7 @@ impl Manipulate for Brush {
             |world| get_options_mut(world).map(|o| &mut o.core_options),
             |world| get_specific_mut(world).map(|d| &mut d.label_info),
         );
+        world = check_selected_intensity_thickness(world);
         make_tool_transform!(
             self,
             world,

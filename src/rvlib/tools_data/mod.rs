@@ -74,10 +74,10 @@ pub(super) fn get_mut<'a>(
         .ok_or_else(|| RvError::new(error_msg))
 }
 pub fn get_specific_mut<T>(
-    f: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut T>,
+    f_data_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut T>,
     data: RvResult<&mut ToolsData>,
 ) -> Option<&mut T> {
-    trace_ok(data.map(|d| &mut d.specifics).and_then(f))
+    trace_ok(data.map(|d| &mut d.specifics).and_then(f_data_access))
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

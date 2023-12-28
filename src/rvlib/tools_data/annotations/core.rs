@@ -62,6 +62,13 @@ where
     pub fn elts_iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.elts.iter_mut()
     }
+    pub fn selected_elts_iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.elts
+            .iter_mut()
+            .zip(self.selected_mask.iter())
+            .filter(|(_, is_selected)| **is_selected)
+            .map(|(elt, _)| elt)
+    }
 
     pub fn elts(&self) -> &Vec<T> {
         &self.elts

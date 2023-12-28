@@ -217,10 +217,18 @@ pub fn brush_menu(
         are_tools_active,
     )?;
     data.options.core_options = hide_menu(ui, data.options.core_options);
-    ui.add(egui::Slider::new(&mut data.options.thickness, 0.0..=50.0).text("thickness"))
-        .changed();
-    ui.add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))
-        .changed();
+    if ui
+        .add(egui::Slider::new(&mut data.options.thickness, 0.0..=50.0).text("thickness"))
+        .changed()
+    {
+        data.options.is_selection_change_needed = true;
+    }
+    if ui
+        .add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))
+        .changed()
+    {
+        data.options.is_selection_change_needed = true;
+    }
     if ui.checkbox(&mut data.options.erase, "erase").clicked() {
         if data.options.erase {
             info!("start erasing");
