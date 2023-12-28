@@ -34,7 +34,7 @@ mod detail {
         rverr,
         tools::BBOX_NAME,
         tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
-        world::ToolsDataMap,
+        world::ToolsDataMap, util::version_label,
     };
 
     pub(super) fn load(
@@ -80,7 +80,13 @@ mod detail {
         export_folder: &str,
         cfg: &Cfg,
     ) -> RvResult<PathBuf> {
+        let tools_data_map = tools_data_map.iter().map(|(k, v)| {
+            let mut v  = v.clone();
+            v.menu_active = false;
+            (k.clone(), v)
+        }).collect::<ToolsDataMap>();
         let data = ExportData {
+            version: Some(version_label()),
             opened_folder: opened_folder.cloned(),
             tools_data_map: tools_data_map.clone(),
             cfg: cfg.clone(),

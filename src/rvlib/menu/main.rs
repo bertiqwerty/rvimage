@@ -7,6 +7,7 @@ use crate::{
     result::{to_rv, RvResult},
     tools::{ToolState, BBOX_NAME},
     tools_data::ToolSpecifics,
+    util::version_label,
     world::ToolsDataMap,
 };
 use egui::{Area, Context, Frame, Id, Order, Response, Ui, Widget};
@@ -224,21 +225,9 @@ impl<'a> Widget for About<'a> {
                     .default_pos(about_btn.rect.left_bottom());
                 area.show(ui.ctx(), |ui| {
                     Frame::popup(ui.style()).show(ui, |ui| {
-                        const VERSION: &str = env!("CARGO_PKG_VERSION");
-                        const CODE: &str = env!("CARGO_PKG_REPOSITORY");
-                        const GIT_DESC: &str = env!("GIT_DESC");
                         ui.label("RV Image\n");
-                        let version_label = if !GIT_DESC.is_empty() {
-                            const GIT_DIRTY: &str = env!("GIT_DIRTY");
-                            let is_dirty = GIT_DIRTY == "true";
-                            format!(
-                                "Version {}{}\n",
-                                &GIT_DESC,
-                                if is_dirty { " DIRTY" } else { "" }
-                            )
-                        } else {
-                            format!("Version {VERSION} - no git, version from Cargo.toml")
-                        };
+                        const CODE: &str = env!("CARGO_PKG_REPOSITORY");
+                        let version_label = version_label();
                         ui.label(version_label);
                         ui.hyperlink_to("docs, license, and code", CODE);
                         let resp_close = ui.button("close");

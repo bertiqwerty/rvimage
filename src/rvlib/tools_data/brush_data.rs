@@ -2,7 +2,7 @@ use super::{
     annotations::{BrushAnnotations, ClipboardData},
     core::{self, LabelInfo},
 };
-use crate::domain::{BrushLine, Shape};
+use crate::{domain::{BrushLine, Shape}, cfg::ExportPath};
 use crate::implement_annotations_getters;
 use std::collections::HashMap;
 
@@ -34,6 +34,7 @@ pub struct BrushToolData {
     pub options: Options,
     pub label_info: LabelInfo,
     pub clipboard: Option<ClipboardData<BrushLine>>,
+    pub tiff_export_folder: ExportPath
 }
 impl BrushToolData {
     implement_annotations_getters!(BrushAnnotations);

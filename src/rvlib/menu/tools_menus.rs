@@ -4,7 +4,7 @@ use egui::Ui;
 use tracing::{info, warn};
 
 use crate::{
-    cfg::{self, get_cfg, ExportPathConnection},
+    cfg::{ExportPath, ExportPathConnection},
     domain::Annotate,
     file_util::path_to_str,
     result::{to_rv, RvResult},
@@ -89,6 +89,39 @@ fn hide_menu(ui: &mut Ui, mut core_options: CoreOptions) -> CoreOptions {
     core_options
 }
 
+fn export_file_menu(
+    ui: &mut Ui,
+    label: &str,
+    export_path: &mut ExportPath,
+    are_tools_active: &mut bool,
+    is_export_triggered: &mut bool,
+    is_import_triggered: Option<&mut bool>,
+) -> RvResult<()> {
+    let mut file_txt = path_to_str(&export_path.path)?.to_string();
+    ui.horizontal(|ui| {
+        ui.label(label);
+        ui.radio_value(&mut export_path.conn, ExportPathConnection::Local, "local");
+        ui.radio_value(&mut export_path.conn, ExportPathConnection::Ssh, "ssh");
+    });
+    text_edit_singleline(ui, &mut file_txt, are_tools_active);
+    if path_to_str(&export_path.path)? != file_txt {
+        export_path.path = PathBuf::from_str(&file_txt).map_err(to_rv)?;
+    }
+    ui.horizontal(|ui| {
+        if ui.button("export").clicked() {
+            tracing::info!("export triggered");
+            *is_export_triggered = true;
+        }
+        if let Some(is_import_triggered) = is_import_triggered {
+            if ui.button("import").clicked() {
+                tracing::info!("import triggered");
+                *is_import_triggered = true;
+            }
+        }
+    });
+    Ok(())
+}
+
 pub fn bbox_menu(
     ui: &mut Ui,
     mut window_open: bool,
@@ -102,13 +135,12 @@ pub fn bbox_menu(
         are_tools_active,
     )?;
     ui.separator();
-    let mut pathincfg_triggered = false;
 
     data.options.core_options = hide_menu(ui, data.options.core_options);
 
     ui.checkbox(&mut data.options.auto_paste, "auto paste");
 
-    let mut txt = path_to_str(&data.coco_file.path)?.to_string();
+    let mut export_file_menu_result = Ok(());
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
         let mut transparency: f32 = data.options.fill_alpha as f32 / 255.0 * 100.0;
         ui.label("transparency");
@@ -119,7 +151,7 @@ pub fn bbox_menu(
             data.options.core_options.is_redraw_annos_triggered = true;
         }
         data.options.fill_alpha = (transparency / 100.0 * 255.0).round() as u8;
-        let mut transparency: f32 = data.options.outline_alpha as f32 / 255.0 * 100.0;
+        let mut transparency = data.options.outline_alpha as f32 / 255.0 * 100.0;
         if ui
             .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("outline"))
             .changed()
@@ -156,15 +188,16 @@ pub fn bbox_menu(
         });
 
         ui.separator();
-        ui.horizontal(|ui| {
-            ui.label("coco file");
-            ui.radio_value(&mut data.coco_file.conn, ExportPathConnection::Local, "local");
-            ui.radio_value(&mut data.coco_file.conn, ExportPathConnection::Ssh, "ssh");
-            text_edit_singleline(ui, &mut txt, are_tools_active);
-        });
-        if ui.button("store path in cfg").clicked() {
-            pathincfg_triggered = true;
-        }
+
+        export_file_menu_result = export_file_menu(
+            ui,
+            "coco file",
+            &mut data.coco_file,
+            are_tools_active,
+            &mut data.options.core_options.is_export_triggered,
+            Some(&mut data.options.is_coco_import_triggered),
+        );
+
         ui.separator();
         if ui.button("new random colors").clicked() {
             data.options.core_options.is_colorchange_triggered = true;
@@ -173,27 +206,9 @@ pub fn bbox_menu(
             data.options.is_anno_rm_triggered = true;
         }
     });
-    if path_to_str(&data.coco_file.path)? != txt {
-        data.coco_file.path = PathBuf::from_str(&txt).map_err(to_rv)?;
-    }
-    if pathincfg_triggered {
-        tracing::info!("saving coco path to cfg file");
-        let mut curcfg = get_cfg()?;
-        curcfg.coco_file = Some(data.coco_file.clone());
-        cfg::write_cfg(&curcfg)?;
-    }
+    export_file_menu_result?;
     ui.separator();
     ui.horizontal(|ui| {
-        if ui.button("export coco").clicked() {
-            tracing::info!("export coco triggered");
-            data.options.core_options.is_export_triggered = true;
-            pathincfg_triggered = true;
-        }
-        if ui.button("import coco").clicked() {
-            tracing::info!("import triggered");
-            data.options.is_coco_import_triggered = true;
-            pathincfg_triggered = true;
-        }
         if ui.button("close").clicked() {
             window_open = false;
         }
@@ -239,6 +254,14 @@ pub fn brush_menu(
     if ui.button("new random colors").clicked() {
         data.options.core_options.is_colorchange_triggered = true;
     }
+    export_file_menu(
+        ui,
+        "tiff export folder",
+        &mut data.tiff_export_folder,
+        are_tools_active,
+        &mut data.options.core_options.is_export_triggered,
+        None,
+    )?;
     if ui.button("close").clicked() {
         window_open = false;
     }

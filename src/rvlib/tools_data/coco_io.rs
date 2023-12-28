@@ -12,7 +12,7 @@ use crate::{
     domain::{Point, Shape, BB},
     file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
-    rverr, ssh, GeoFig, Polygon,
+    rverr, ssh, GeoFig, Polygon, util::version_label,
 };
 
 use super::{core::new_random_colors, BboxExportData, BboxSpecificData};
@@ -85,7 +85,7 @@ impl CocoExportData {
             "".to_string()
         };
         let info_str =
-            format!("created with Rvimage, https://github.com/bertiqwerty/rvimage{color_str}");
+            format!("created with RV Image {}, https://github.com/bertiqwerty/rvimage{color_str}", version_label());
         let info = CocoInfo {
             description: info_str,
         };

@@ -48,7 +48,21 @@ pub fn natural_cmp(s1: &str, s2: &str) -> Ordering {
     }
     s1.len().cmp(&s2.len())
 }
-
+pub fn version_label() -> String {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    const GIT_DESC: &str = env!("GIT_DESC");
+    if !GIT_DESC.is_empty() {
+        const GIT_DIRTY: &str = env!("GIT_DIRTY");
+        let is_dirty = GIT_DIRTY == "true";
+        format!(
+            "Version {}{}\n",
+            &GIT_DESC,
+            if is_dirty { " DIRTY" } else { "" }
+        )
+    } else {
+        format!("Version {VERSION} - no git, version from Cargo.toml")
+    }
+}
 #[test]
 fn test_natural_sort() {
     assert_eq!(natural_cmp("s10", "s2"), Ordering::Greater);

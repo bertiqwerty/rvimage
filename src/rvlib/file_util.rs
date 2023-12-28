@@ -153,6 +153,7 @@ pub fn filename_to_prjname(filename: &str) -> RvResult<&str> {
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct ExportData {
+    pub version: Option<String>,
     pub opened_folder: Option<String>,
     pub tools_data_map: ToolsDataMap,
     pub cfg: Cfg,

@@ -175,7 +175,6 @@ pub struct Cfg {
     pub ssh_cfg: SshCfg,
     pub export_folder: Option<String>,
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
-    pub coco_file: Option<ExportPath>,
     pub darkmode: Option<bool>,
     #[cfg(feature = "azure_blob")]
     pub azure_blob_cfg: Option<AzureBlobCfg>,

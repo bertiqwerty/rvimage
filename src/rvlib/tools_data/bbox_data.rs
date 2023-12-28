@@ -7,7 +7,7 @@ use super::{
     core::{LabelInfo, OUTLINE_THICKNESS_CONVERSION},
 };
 use crate::{
-    cfg::{get_cfg, ExportPath},
+    cfg::ExportPath,
     domain::Shape,
     file_util, implement_annotations_getters,
     result::RvResult,
@@ -115,7 +115,6 @@ impl BboxSpecificData {
 
     pub fn new() -> Self {
         let label_info = LabelInfo::default();
-        let cfg = get_cfg().expect("could not read config nor create default config");
 
         BboxSpecificData {
             label_info,
@@ -128,11 +127,7 @@ impl BboxSpecificData {
                 },
                 ..Default::default()
             },
-            coco_file: if let Some(cf) = cfg.coco_file {
-                cf
-            } else {
-                ExportPath::default()
-            },
+            coco_file: ExportPath::default(),
         }
     }
 
