@@ -78,7 +78,7 @@ pub fn check_recolorboxes(
     world.request_redraw_annotations(actor, are_boxes_visible);
     world
 }
-pub fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> LabelInfo {
+pub(super) fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> LabelInfo {
     match key {
         ReleasedKey::Key1 => {
             set_cat_current!(1, label_info);
@@ -141,7 +141,7 @@ where
     (world, history)
 }
 
-pub fn on_selection_keys<T>(
+pub(super) fn on_selection_keys<T>(
     mut world: World,
     mut history: History,
     key: ReleasedKey,
