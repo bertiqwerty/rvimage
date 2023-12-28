@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, io::Cursor, mem, path::Path};
+use std::{cmp::Ordering, io::Cursor, mem, path::Path, thread};
 
 use image::{codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, Luma};
 use imageproc::drawing::{draw_filled_circle_mut, BresenhamLineIter};
@@ -95,69 +95,76 @@ fn check_export(mut world: World) -> World {
 
     if options.map(|o| o.core_options.is_export_triggered) == Some(true) {
         if let Some(data) = specifics {
-            for (filename, annos) in &data.annotations_map {
-                for label in data.label_info.labels() {
-                    let (annos, shape) = annos;
-                    if !annos.elts().is_empty() {
-                        let mut im = ImageBuffer::<Luma<u8>, Vec<u8>>::new(shape.w, shape.h);
-                        for brushline in annos
-                            .elts()
-                            .iter()
-                            .zip(annos.cat_idxs().iter())
-                            .filter(|(_, cat_idx)| &data.label_info.labels()[**cat_idx] == label)
-                            .map(|(bl, _)| bl)
-                        {
-                            let p1_iter = brushline.line.points_iter();
-                            let mut p2_iter = brushline.line.points_iter();
-                            p2_iter.next();
-                            for (p1, p2) in p1_iter.zip(p2_iter) {
-                                let lineseg_iter = BresenhamLineIter::new(
-                                    (p1.x as f32, p1.y as f32),
-                                    (p2.x as f32, p2.y as f32),
-                                );
-                                for center in lineseg_iter {
-                                    draw_filled_circle_mut(
-                                        &mut im,
-                                        center,
-                                        brushline.thickness as i32 / 2,
-                                        Luma([(brushline.intensity * 255.0) as u8]),
+            let annotations_map = data.annotations_map.clone();
+            let ssh_cfg = world.data.meta_data.ssh_cfg.clone();
+            let label_info = data.label_info.clone();
+            let export_folder = data.export_folder.clone();
+            let f_export = move || {
+                for (filename, annos) in &annotations_map {
+                    for label in label_info.labels() {
+                        let (annos, shape) = annos;
+                        if !annos.elts().is_empty() {
+                            let mut im = ImageBuffer::<Luma<u8>, Vec<u8>>::new(shape.w, shape.h);
+                            for brushline in annos
+                                .elts()
+                                .iter()
+                                .zip(annos.cat_idxs().iter())
+                                .filter(|(_, cat_idx)| &label_info.labels()[**cat_idx] == label)
+                                .map(|(bl, _)| bl)
+                            {
+                                let p1_iter = brushline.line.points_iter();
+                                let mut p2_iter = brushline.line.points_iter();
+                                p2_iter.next();
+                                for (p1, p2) in p1_iter.zip(p2_iter) {
+                                    let lineseg_iter = BresenhamLineIter::new(
+                                        (p1.x as f32, p1.y as f32),
+                                        (p2.x as f32, p2.y as f32),
                                     );
+                                    for center in lineseg_iter {
+                                        draw_filled_circle_mut(
+                                            &mut im,
+                                            center,
+                                            brushline.thickness as i32 / 2,
+                                            Luma([(brushline.intensity * 255.0) as u8]),
+                                        );
+                                    }
                                 }
                             }
-                        }
-                        let filepath = Path::new(&filename);
-                        let outfilename = format!(
-                            "{}_{label}.png",
-                            osstr_to_str(filepath.file_stem()).unwrap_or_else(|_| panic!(
-                                "a filepath needs a stem, what's wrong with {filepath:?}"
-                            ))
-                        );
-                        let outpath = data.export_folder.path.join(outfilename);
-                        let mut buffer = Cursor::new(vec![]);
-                        let encoder = png::PngEncoder::new_with_quality(
-                            &mut buffer,
-                            png::CompressionType::Best,
-                            png::FilterType::NoFilter,
-                        );
-                        if let Err(e) = encoder.write_image(
-                            im.as_bytes(),
-                            shape.w,
-                            shape.h,
-                            image::ColorType::L8,
-                        ) {
-                            error!("could not decode png due to {e:?}");
-                        } else if let Err(e) = data.export_folder.conn.write_bytes(
-                            buffer.get_ref(),
-                            &outpath,
-                            world.data.meta_data.ssh_cfg.as_ref(),
-                        ) {
-                            error!("export failed due to {e:?}");
-                        } else {
-                            info!("exported label file to '{outpath:?}'");
+                            let filepath = Path::new(&filename);
+                            let outfilename = format!(
+                                "{}_{label}.png",
+                                osstr_to_str(filepath.file_stem()).unwrap_or_else(|_| panic!(
+                                    "a filepath needs a stem, what's wrong with {filepath:?}"
+                                ))
+                            );
+                            let outpath = export_folder.path.join(outfilename);
+                            let mut buffer = Cursor::new(vec![]);
+                            let encoder = png::PngEncoder::new_with_quality(
+                                &mut buffer,
+                                png::CompressionType::Best,
+                                png::FilterType::NoFilter,
+                            );
+                            if let Err(e) = encoder.write_image(
+                                im.as_bytes(),
+                                shape.w,
+                                shape.h,
+                                image::ColorType::L8,
+                            ) {
+                                error!("could not decode png due to {e:?}");
+                            } else if let Err(e) = export_folder.conn.write_bytes(
+                                buffer.get_ref(),
+                                &outpath,
+                                ssh_cfg.as_ref(),
+                            ) {
+                                error!("export failed due to {e:?}");
+                            } else {
+                                info!("exported label file to '{outpath:?}'");
+                            }
                         }
                     }
                 }
-            }
+            };
+            thread::spawn(f_export);
         }
         if let Some(options_mut) = get_options_mut(&mut world) {
             options_mut.core_options.is_export_triggered = false;
