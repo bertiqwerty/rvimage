@@ -127,10 +127,9 @@ fn check_export(mut world: World) -> World {
                         let filepath = Path::new(&filename);
                         let outfilename = format!(
                             "{}_{label}.png",
-                            osstr_to_str(filepath.file_stem()).expect(
-                                format!("a filepath needs a stem, what's wrong with {filepath:?}")
-                                    .as_str()
-                            )
+                            osstr_to_str(filepath.file_stem()).unwrap_or_else(|_| panic!(
+                                "a filepath needs a stem, what's wrong with {filepath:?}"
+                            ))
                         );
                         let outpath = data.export_folder.path.join(outfilename);
                         if let Err(e) = data.export_folder.conn.write_bytes(
