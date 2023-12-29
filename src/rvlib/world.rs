@@ -44,7 +44,10 @@ macro_rules! annotations_accessor {
 #[macro_export]
 macro_rules! annotations_accessor_mut {
     ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
-        pub(super) fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
+        pub(super) fn get_annos_mut_(
+            world: &mut World,
+            is_no_anno_fine: bool,
+        ) -> Option<&mut $annotations_type> {
             if let Some(current_file_path) = world.data.meta_data.file_path.as_ref() {
                 let shape = world.data.shape();
                 let res = world
@@ -58,9 +61,16 @@ macro_rules! annotations_accessor_mut {
                 }
                 res
             } else {
-                tracing::error!("could not find filepath in meta data");
+                if !is_no_anno_fine {
+                    tracing::error!("could not find filepath in meta data")
+                };
                 None
             }
+        }
+        pub(super) fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
+            let is_no_anno_fine = world.data.meta_data.is_file_list_empty == Some(true);
+            get_annos_mut_(world, is_no_anno_fine)
+            
         }
     };
 }

@@ -383,6 +383,7 @@ impl Control {
         let export_folder = self
             .cfg_of_opened_folder()
             .map(|cfg| cfg.export_folder().map(|ef| ef.to_string()).unwrap());
+        let is_file_list_empty = Some(file_path.is_none());
         MetaData {
             file_path,
             connection_data,
@@ -390,6 +391,7 @@ impl Control {
             opened_folder: open_folder,
             export_folder,
             is_loading_screen_active,
+            is_file_list_empty
         }
     }
 

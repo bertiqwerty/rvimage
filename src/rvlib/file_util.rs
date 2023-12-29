@@ -103,6 +103,7 @@ pub struct MetaData {
     pub opened_folder: Option<String>,
     pub export_folder: Option<String>,
     pub is_loading_screen_active: Option<bool>,
+    pub is_file_list_empty: Option<bool>
 }
 impl MetaData {
     pub fn from_filepath(file_path: String) -> Self {
@@ -113,6 +114,7 @@ impl MetaData {
             opened_folder: None,
             export_folder: None,
             is_loading_screen_active: None,
+            is_file_list_empty: None
         }
     }
 }

@@ -42,6 +42,7 @@ pub enum FilterPredicate {
     FilterStr(String),
     Label(Box<FilterPredicate>),
     Nolabel,
+    Anylabel,
     And(Box<FilterPredicate>, Box<FilterPredicate>),
     Or(Box<FilterPredicate>, Box<FilterPredicate>),
     Not(Box<FilterPredicate>),
@@ -79,6 +80,21 @@ impl FilterPredicate {
                     }
                 } else {
                     true
+                }
+            }
+            FilterPredicate::Anylabel => {
+                if let (Some(tdm), Some(active_tool_name)) = (tdm, active_tool_name) {
+                    let data = tdm.get(active_tool_name);
+                    data.and_then(|data| {
+                        data.specifics
+                            .apply(
+                                |d| Ok(has_any_label(d.get_annos(path))),
+                                |d| Ok(has_any_label(d.get_annos(path))),
+                            )
+                            .ok()
+                    }) == Some(true)
+                } else {
+                    false
                 }
             }
             FilterPredicate::Nolabel => {
@@ -141,7 +157,8 @@ ops_factory!(
     Operator::make_unary("label", |a: FilterPredicate| FilterPredicate::Label(
         Box::new(a)
     )),
-    Operator::make_constant("nolabel", FilterPredicate::Nolabel)
+    Operator::make_constant("nolabel", FilterPredicate::Nolabel),
+    Operator::make_constant("anylabel", FilterPredicate::Anylabel)
 );
 
 #[derive(Clone, Debug, Default)]
@@ -149,7 +166,7 @@ pub struct PathMatcher;
 impl MatchLiteral for PathMatcher {
     fn is_literal(text: &str) -> Option<&str> {
         let trimmed = text.trim();
-        if trimmed.starts_with("label") || trimmed.starts_with("nolabel") {
+        if trimmed.starts_with("label") || trimmed.starts_with("nolabel") || trimmed.starts_with("anylabel"){
             None
         } else {
             exmex::lazy_static::lazy_static! {
