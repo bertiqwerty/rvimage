@@ -78,6 +78,7 @@ macro_rules! handle_error {
             Err(e) => {
                 #[allow(clippy::redundant_closure_call)]
                 $f_err_cleanup();
+                tracing::error!("{e:?}");
                 $self.info_message = Info::Error(e.to_string());
             }
         }
