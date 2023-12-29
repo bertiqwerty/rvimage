@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use std::io;
+use std::{io, time::Instant};
 
 use egui::{
     epaint::{CircleShape, PathShape, RectShape},
@@ -252,6 +252,7 @@ struct RvImageApp {
     im_view: ImageU8,
     events: rvlib::Events,
     last_sensed_btncodes: LastSensedBtns,
+    t_last_iterations: [f64; 3],
 }
 
 impl RvImageApp {
@@ -442,6 +443,7 @@ impl RvImageApp {
 
 impl eframe::App for RvImageApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        let start = Instant::now();
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;
         });
@@ -456,11 +458,18 @@ impl eframe::App for RvImageApp {
                     self.im_orig = im;
                     self.update_texture(ctx);
                 }
-
+                let it_per_s = 1.0
+                    / (self.t_last_iterations.iter().sum::<f64>()
+                        / self.t_last_iterations.len() as f64);
+                let it_str = if it_per_s > 1000.0 {
+                    "1000+".to_string()
+                } else {
+                    format!("{}", it_per_s.round())
+                };
                 if let Some(info) = update_view.image_info {
                     ui.label(format!(
-                        "{}  |  {}  |  {}",
-                        info.filename, info.shape_info, info.pixel_value
+                        "{}  |  {}  |  {}  |  {} it/s",
+                        info.filename, info.shape_info, info.pixel_value, it_str
                     ));
                     let image_response = self.add_image(ui);
                     if let Some(ir) = image_response {
@@ -478,6 +487,11 @@ impl eframe::App for RvImageApp {
                 }
             }
         });
+        let n_millis = self.t_last_iterations.len();
+        for i in 0..(n_millis - 1) {
+            self.t_last_iterations[i] = self.t_last_iterations[i + 1];
+        }
+        self.t_last_iterations[n_millis - 1] = start.elapsed().as_secs_f64();
     }
 }
 
