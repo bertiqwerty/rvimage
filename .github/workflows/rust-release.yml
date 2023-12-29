@@ -84,7 +84,6 @@ jobs:
           cargo build --verbose --release --target-dir ${{ matrix.target }}
           bin=${{ matrix.target }}/release/rvimage
           echo "BIN=$bin" >> $GITHUB_ENV
-          
 
       - name: Build archive
         shell: bash
