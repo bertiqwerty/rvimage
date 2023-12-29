@@ -490,7 +490,7 @@ fn test_coco_import() -> RvResult<()> {
             opened_folder: Some(filename.to_string()),
             export_folder: Some(TEST_DATA_FOLDER.to_string()),
             is_loading_screen_active: None,
-            is_file_list_empty: None
+            is_file_list_empty: None,
         };
         let read = read_coco(&meta, &ExportPath::default()).unwrap();
         assert_eq!(read.label_info.cat_ids(), &cat_ids);

@@ -45,33 +45,37 @@ mod detail {
     ) -> RvResult<(ToolsDataMap, Option<String>, Cfg)> {
         let file_path = Path::new(export_folder).join(file_name);
         let s = file_util::read_to_string(file_path)?;
-        let (tools_data_map, cfg, opened_folder) =
-            match serde_json::from_str::<ExportData>(s.as_str()).map_err(to_rv) {
-                Ok(export_data) => (
-                    export_data.tools_data_map,
-                    export_data.cfg,
-                    export_data.opened_folder,
-                ),
-                Err(e) => {
-                    info!("trying legacy-read while skippin bbox options on {file_name:?} due to {e:?}");
-                    let read =
-                        serde_json::from_str::<ExportDataLegacy>(s.as_str()).map_err(to_rv)?;
-                    let tdm = if let Some(bbox_data) = read.bbox_data {
-                        let mut bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
+        let (tools_data_map, cfg, opened_folder) = match serde_json::from_str::<ExportData>(
+            s.as_str(),
+        )
+        .map_err(to_rv)
+        {
+            Ok(export_data) => (
+                export_data.tools_data_map,
+                export_data.cfg,
+                export_data.opened_folder,
+            ),
+            Err(e) => {
+                info!(
+                    "trying legacy-read while skippin bbox options on {file_name:?} due to {e:?}"
+                );
+                let read = serde_json::from_str::<ExportDataLegacy>(s.as_str()).map_err(to_rv)?;
+                let tdm = if let Some(bbox_data) = read.bbox_data {
+                    let mut bbox_data = BboxSpecificData::from_bbox_export_data(bbox_data)?;
 
-                        if let Some(options) = read.bbox_options {
-                            bbox_data.options = options;
-                        }
-                        ToolsDataMap::from([(
-                            BBOX_NAME.to_string(),
-                            ToolsData::new(ToolSpecifics::Bbox(bbox_data)),
-                        )])
-                    } else {
-                        ToolsDataMap::new()
-                    };
-                    (tdm, read.cfg, read.opened_folder)
-                }
-            };
+                    if let Some(options) = read.bbox_options {
+                        bbox_data.options = options;
+                    }
+                    ToolsDataMap::from([(
+                        BBOX_NAME.to_string(),
+                        ToolsData::new(ToolSpecifics::Bbox(bbox_data)),
+                    )])
+                } else {
+                    ToolsDataMap::new()
+                };
+                (tdm, read.cfg, read.opened_folder)
+            }
+        };
 
         Ok((tools_data_map, opened_folder, cfg))
     }
@@ -391,7 +395,7 @@ impl Control {
             opened_folder: open_folder,
             export_folder,
             is_loading_screen_active,
-            is_file_list_empty
+            is_file_list_empty,
         }
     }
 

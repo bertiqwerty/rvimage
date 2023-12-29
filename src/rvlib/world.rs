@@ -70,7 +70,6 @@ macro_rules! annotations_accessor_mut {
         pub(super) fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
             let is_no_anno_fine = world.data.meta_data.is_file_list_empty == Some(true);
             get_annos_mut_(world, is_no_anno_fine)
-            
         }
     };
 }
