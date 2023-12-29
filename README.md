@@ -100,7 +100,7 @@ You can zoom anytime with holding <kbd>Ctrl</kbd> and pressing <kbd>+</kbd> or <
 
 You can also use the separate zoom tool and draw a box on the image area you want to see enlarged. 
 
-To move the zoomed area hold <kbd>Alt</kbd> and drag
+To move the zoomed area hold <kbd>Ctrl</kbd> and drag
 with the left mouse button. 
 
 ### Filtering
