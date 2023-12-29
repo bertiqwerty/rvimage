@@ -162,6 +162,7 @@ pub struct ExportData {
 pub struct ExportDataLegacy {
     pub opened_folder: Option<String>,
     pub bbox_data: Option<BboxExportData>,
+    #[serde(skip_deserializing)]
     pub bbox_options: Option<bbox_data::Options>,
     pub cfg: Cfg,
 }

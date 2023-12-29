@@ -133,11 +133,11 @@ impl Default for MainEventLoop {
             let prj_name = ctrl.cfg.current_prj_name.clone();
             match ctrl.load(&make_prjcfg_filename(&prj_name)) {
                 Ok(td) => {
-                    info!("loaded {}", ctrl.cfg.current_prj_name);
+                    info!("loaded last project {}", ctrl.cfg.current_prj_name);
                     world.data.tools_data_map = td;
                 }
                 Err(e) => {
-                    info!("could not read specified project {prj_name} which is fine if a project has never been saved due to {e:?} ");
+                    info!("could not read last opened project {prj_name} which is fine if a project has never been saved due to {e:?} ");
                 }
             };
         }

@@ -1,0 +1,269 @@
+{
+    "opened_folder": "/images",
+    "bbox_data": {
+        "labels": [
+            "dummy1",
+            "dummy2",
+            "dummy3"
+        ],
+        "colors": [
+            [
+                255,
+                255,
+                255
+            ],
+            [
+                129,
+                29,
+                39
+            ],
+            [
+                49,
+                250,
+                194
+            ]
+        ],
+        "cat_ids": [
+            1,
+            2,
+            3
+        ],
+        "annotations": {
+            "/images/DSC00737.JPG": [
+                [
+                    {
+                        "Poly": {
+                            "points": [
+                                {
+                                    "x": 4558,
+                                    "y": 1531
+                                },
+                                {
+                                    "x": 4928,
+                                    "y": 1957
+                                },
+                                {
+                                    "x": 4932,
+                                    "y": 2298
+                                },
+                                {
+                                    "x": 4648,
+                                    "y": 2489
+                                },
+                                {
+                                    "x": 3999,
+                                    "y": 2299
+                                },
+                                {
+                                    "x": 3831,
+                                    "y": 1900
+                                },
+                                {
+                                    "x": 3977,
+                                    "y": 1539
+                                },
+                                {
+                                    "x": 4242,
+                                    "y": 1340
+                                }
+                            ],
+                            "enclosing_bb": {
+                                "x": 3831,
+                                "y": 1340,
+                                "w": 1102,
+                                "h": 1150
+                            }
+                        }
+                    }
+                ],
+                [
+                    2
+                ],
+                {
+                    "w": 6000,
+                    "h": 4000
+                }
+            ],
+            "/images/DSC00700.JPG": [
+                [
+                    {
+                        "Poly": {
+                            "points": [
+                                {
+                                    "x": 1126,
+                                    "y": 900
+                                },
+                                {
+                                    "x": 676,
+                                    "y": 1612
+                                },
+                                {
+                                    "x": 818,
+                                    "y": 2086
+                                },
+                                {
+                                    "x": 1368,
+                                    "y": 2230
+                                },
+                                {
+                                    "x": 2016,
+                                    "y": 1416
+                                },
+                                {
+                                    "x": 1647,
+                                    "y": 850
+                                },
+                                {
+                                    "x": 1025,
+                                    "y": 565
+                                },
+                                {
+                                    "x": 660,
+                                    "y": 765
+                                }
+                            ],
+                            "enclosing_bb": {
+                                "x": 660,
+                                "y": 565,
+                                "w": 1357,
+                                "h": 1666
+                            }
+                        }
+                    }
+                ],
+                [
+                    2
+                ],
+                {
+                    "w": 6000,
+                    "h": 4000
+                }
+            ],
+            "/images/DSC00698.JPG": [
+                [
+                    {
+                        "Poly": {
+                            "points": [
+                                {
+                                    "x": 3253,
+                                    "y": 849
+                                },
+                                {
+                                    "x": 3699,
+                                    "y": 1305
+                                },
+                                {
+                                    "x": 3133,
+                                    "y": 1672
+                                },
+                                {
+                                    "x": 2738,
+                                    "y": 1328
+                                }
+                            ],
+                            "enclosing_bb": {
+                                "x": 2738,
+                                "y": 849,
+                                "w": 962,
+                                "h": 824
+                            }
+                        }
+                    },
+                    {
+                        "Poly": {
+                            "points": [
+                                {
+                                    "x": 1144,
+                                    "y": 959
+                                },
+                                {
+                                    "x": 1817,
+                                    "y": 881
+                                },
+                                {
+                                    "x": 2033,
+                                    "y": 1090
+                                },
+                                {
+                                    "x": 1892,
+                                    "y": 1448
+                                },
+                                {
+                                    "x": 1667,
+                                    "y": 1664
+                                },
+                                {
+                                    "x": 1333,
+                                    "y": 1572
+                                },
+                                {
+                                    "x": 1215,
+                                    "y": 1449
+                                }
+                            ],
+                            "enclosing_bb": {
+                                "x": 1144,
+                                "y": 881,
+                                "w": 890,
+                                "h": 784
+                            }
+                        }
+                    }
+                ],
+                [
+                    2,
+                    2
+                ],
+                {
+                    "w": 6000,
+                    "h": 4000
+                }
+            ]
+        },
+        "coco_file": {
+            "path": "",
+            "conn": "Local"
+        },
+        "is_export_absolute": false
+    },
+    "bbox_options": {
+        "are_boxes_visible": true,
+        "auto_paste": false,
+        "is_anno_rm_triggered": false,
+        "is_coco_import_triggered": false,
+        "is_export_triggered": false,
+        "is_colorchange_triggered": false,
+        "is_redraw_annos_triggered": false,
+        "split_mode": "None",
+        "export_absolute": false,
+        "fill_alpha": 30,
+        "outline_alpha": 255,
+        "outline_thickness": 10
+    },
+    "cfg": {
+        "connection": "Local",
+        "cache": "FileCache",
+        "http_address": null,
+        "tmpdir": null,
+        "current_prj_name": "test_dummy",
+        "file_cache_args": {
+            "n_prev_images": 2,
+            "n_next_images": 8,
+            "n_threads": 2
+        },
+        "ssh_cfg": {
+            "remote_folder_paths": [
+                "a/b/c"
+            ],
+            "address": "73.42.73.42",
+            "user": "someuser",
+            "ssh_identity_file_path": "local/path",
+            "n_reconnection_attempts": null
+        },
+        "export_folder": null,
+        "py_http_reader_cfg": null,
+        "coco_file": null,
+        "darkmode": null,
+        "azure_blob_cfg": null
+    }
+}

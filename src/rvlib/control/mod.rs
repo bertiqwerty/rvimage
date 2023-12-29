@@ -16,6 +16,7 @@ mod filter;
 pub mod paths_navigator;
 use crate::image_reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;
+use tracing::info;
 
 mod detail {
     use std::{
@@ -52,7 +53,7 @@ mod detail {
                     export_data.opened_folder,
                 ),
                 Err(e) => {
-                    info!("trying legacy-read on {file_name:?} due to {e:?}");
+                    info!("trying legacy-read while skippin bbox options on {file_name:?} due to {e:?}");
                     let read =
                         serde_json::from_str::<ExportDataLegacy>(s.as_str()).map_err(to_rv)?;
                     let tdm = if let Some(bbox_data) = read.bbox_data {
@@ -209,6 +210,7 @@ impl Control {
         Ok(())
     }
     pub fn load(&mut self, file_name: &str) -> RvResult<ToolsDataMap> {
+        info!("opening project {file_name}");
         let export_folder = &self.cfg.export_folder()?;
         let (tools_data_map, to_be_opened_folder, read_cfg) =
             detail::load(export_folder, file_name)?;
