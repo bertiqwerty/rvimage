@@ -83,9 +83,34 @@ prefix = ''
 
 ```
 
-## Bounding Box Labeling Tool
+## Labeling Tools
 
-RV Image comes with a simple bounding box labeling tool that can export to and import from the [Coco format](https://cocodataset.org/#format-data).
+RV Image comes with two labeling tools:
+
+1. Draw bounding boxes and polygons and export in [Coco format](https://cocodataset.org/#format-data).
+2. Draw brush lines and export as png-masks, one per class and image.
+
+All annotations are also stored in the project file in json format.
+
+### Filtering
+
+You can filter for images to appear in the left selection area. The entered string will reveal those
+images that contain the string in their full pathname. There are three labeling related keywords, though:
+
+1. `nolabel` reveals all images that hae not been labeled with the currently active tool.
+1. `anylabel` reveals all images that have been labeled with the currently active tool.
+2. `label(<label-name>)` reveals all images that have a label of the class `<label-name>` for the currently active tool. 
+   For instance, if the bounding box tool is active `label(foreground)` will reveal all images that contain bounding boxes
+   or polygons of the class `foreground`.
+
+Filter strings can be combined with `&&`, `||`, and `!`. For instance
+- `!nolabel` corresponds to `anylabel`
+- `1055.png || label(cat)` reveals all iamges that either have a `1055.png` as part of their full pathname or contain 
+  the label `cat` from the currently active labeling tool. 
+
+### Bounding Boxes and Polygons
+
+RV Image comes with a simple bounding box and polygon labeling tool that can export to and import from the [Coco format](https://cocodataset.org/#format-data).
 For an import to work, the folder that contains the images needs to be opened beforehand. To filter for files that contain bounding boxes of a specific label, one can put `label(<name-of-label>)` into the filter text field. Thereby, `<name-of-label>` needs to be replaced by the real name of the label. To filter for unlabeled files use `nolabel`. Filters including filename-strings can be combined with `&&`, `||`, and `!`.
 
 | event                                                                                | action                                                                                   |
@@ -110,6 +135,21 @@ For an import to work, the folder that contains the images needs to be opened be
 | <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>                   | move bottom right corner of all selected boxes                                           |
 | <kbd>Ctrl</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd> | move top left corner of all selected boxes                                               |
 | <kbd>Alt</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>  | move all selected boxes                                                                  |
+| change label                                                                         | labels of selected boxes/polygons are changed                                            |
+
+
+### Brush Tool
+
+| event                                                                              | action                                                          |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| left click                                                                         | draw circle if not in erase mode, else erase close brush stroke |
+| hold left mouse                                                                    | draw brush if not in erase mode                                 |
+| <kbd>E</kbd>                                                                       | activate erase mode                                             |
+| <kbd>Ctrl</kbd> + click with left mouse                                            | select brush                                                    |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd>/<kbd>V</kbd>/<kbd>A</kbd>/<kbd>H</kbd>/<kbd>D</kbd> | see bounding box tool                                           |
+| <kbd>Delete</kbd>                                                                  | delete selected strokes                                         |
+| change label                                                                       | labels of selected strokes are changed                          |
+
 
 ---
 \* <sub>The connection to Azure blob storages has `tokio`, `futures`, `azure_storage`, and `azure_storage_blob` as additional dependencies, since the used [Azure SDK](https://github.com/Azure/azure-sdk-for-rust) is implemented `async`hronously and needs `tokio`. However, the rest of RV Image uses its own small threadpool implementation. Hence, the Azure blob storage connection is implemented as Cargo-feature `azure_blob` that is enabled by default.</sub>
