@@ -92,6 +92,17 @@ RV Image comes with two labeling tools:
 
 All annotations are also stored in the project file in json format.
 
+Besides labeling tools we also provide means to filter the images to select from and different ways to zoom in and out.
+
+### Zoom
+
+You can zoom anytime with holding <kbd>Ctrl</kbd> and pressing <kbd>+</kbd> or <kbd>-</kbd>. 
+
+You can also use the separate zoom tool and draw a box on the image area you want to see enlarged. 
+
+To move the zoomed area hold <kbd>Alt</kbd> and drag
+with the left mouse button. 
+
 ### Filtering
 
 You can filter for images to appear in the left selection area. The entered string will reveal those
