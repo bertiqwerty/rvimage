@@ -44,7 +44,7 @@ impl Default for Options {
             fill_alpha: 30,
             outline_alpha: 255,
             outline_thickness: OUTLINE_THICKNESS_CONVERSION as u16,
-            drawing_distance: 6,
+            drawing_distance: 10,
         }
     }
 }

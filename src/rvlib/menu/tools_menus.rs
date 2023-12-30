@@ -174,7 +174,7 @@ pub fn bbox_menu(
         ui.separator();
         if ui
             .add(
-                egui::Slider::new(&mut data.options.drawing_distance, 1..=10)
+                egui::Slider::new(&mut data.options.drawing_distance, 1..=50)
                     .text("drawing distance parameter"),
             )
             .changed()
