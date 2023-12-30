@@ -108,7 +108,7 @@ with the left mouse button.
 You can filter for images to appear in the left selection area. The entered string will reveal those
 images that contain the string in their full pathname. There are three labeling related keywords, though:
 
-1. `nolabel` reveals all images that hae not been labeled with the currently active tool.
+1. `nolabel` reveals all images that have not been labeled with the currently active tool.
 1. `anylabel` reveals all images that have been labeled with the currently active tool.
 2. `label(<label-name>)` reveals all images that have a label of the class `<label-name>` for the currently active tool. 
    For instance, if the bounding box tool is active `label(foreground)` will reveal all images that contain bounding boxes
@@ -130,7 +130,7 @@ There two main ways to draw a polygon or a box:
 
 | event                                                                                | action                                                                                   |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| drag left mouse                                                                      | draw polygon                                                                             |
+| drag and release left mouse                                                                      | draw polygon                                                                             |
 | first left click                                                                     | start drawing mode                                                                       |
 | $n$-th left click with $n>1$                                                         | add polygon vertex                                                                       |
 | right click                                                                          | finish drawing box or polygon                                                            |
