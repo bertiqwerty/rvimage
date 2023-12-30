@@ -124,8 +124,13 @@ Filter strings can be combined with `&&`, `||`, and `!`. For instance
 RV Image comes with a simple bounding box and polygon labeling tool that can export to and import from the [Coco format](https://cocodataset.org/#format-data).
 For an import to work, the folder that contains the images needs to be opened beforehand. To filter for files that contain bounding boxes of a specific label, one can put `label(<name-of-label>)` into the filter text field. Thereby, `<name-of-label>` needs to be replaced by the real name of the label. To filter for unlabeled files use `nolabel`. Filters including filename-strings can be combined with `&&`, `||`, and `!`.
 
+There two main ways to draw a polygon or a box:
+1. One corner per left-click for a polygon. Finish by right-click. One left-click and one right-clicks for a box.
+2. Drag the left mouse button. A polygon will follow you mouse.
+
 | event                                                                                | action                                                                                   |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| drag left mouse                                                                      | draw polygon                                                                             |
 | first left click                                                                     | start drawing mode                                                                       |
 | $n$-th left click with $n>1$                                                         | add polygon vertex                                                                       |
 | right click                                                                          | finish drawing box or polygon                                                            |
