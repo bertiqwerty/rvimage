@@ -2,7 +2,7 @@ use std::{cmp::Ordering, iter::empty, mem};
 
 use crate::{
     cfg::ExportPath,
-    domain::{shape_unscaled, OutOfBoundsMode, Point, PtF, PtI, BB},
+    domain::{self, shape_unscaled, OutOfBoundsMode, Point, PtF, PtI, BB},
     file_util::MetaData,
     history::Record,
     tools::{
@@ -80,12 +80,37 @@ pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecific
     }
 }
 
-pub(super) struct MouseHeldParams<'a> {
+fn close_polygon(
+    mut prev_pos: PrevPos,
+    in_menu_selected_label: usize,
+    visible: bool,
+    mut world: World,
+    mut history: History,
+) -> (World, History, PrevPos) {
+    let poly = Polygon::from_vec(
+        prev_pos
+            .prev_pos
+            .into_iter()
+            .map(|p| p.into())
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    prev_pos.prev_pos = vec![];
+    let annos = get_annos_mut(&mut world);
+    if let Some(annos) = annos {
+        annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
+        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        prev_pos.prev_pos = vec![];
+        world.request_redraw_annotations(BBOX_NAME, visible);
+    }
+    (world, history, prev_pos)
+}
+pub(super) struct MouseMoveParams<'a> {
     pub mover: &'a mut Mover,
 }
 pub(super) fn on_mouse_held_right(
     mouse_pos: Option<PtF>,
-    params: MouseHeldParams,
+    params: MouseMoveParams,
     mut world: World,
     mut history: History,
 ) -> (World, History) {
@@ -118,11 +143,19 @@ pub(super) struct PrevPos {
 
 pub(super) struct MouseReleaseParams {
     pub prev_pos: PrevPos,
-
     pub visible: bool,
     pub is_alt_held: bool,
     pub is_shift_held: bool,
     pub is_ctrl_held: bool,
+    pub close_box_or_poly: bool,
+}
+pub(super) struct MouseHeldLeftParams {
+    pub prev_pos: PrevPos,
+    pub is_alt_held: bool,
+    pub is_shift_held: bool,
+    pub is_ctrl_held: bool,
+    pub distance: f32,
+    pub elapsed_millis_since_press: u128,
 }
 
 pub(super) fn on_mouse_released_right(
@@ -162,27 +195,47 @@ pub(super) fn on_mouse_released_right(
             }
             Ordering::Greater => {
                 prev_pos.prev_pos.push(mp);
-                let poly = Polygon::from_vec(
-                    prev_pos
-                        .prev_pos
-                        .into_iter()
-                        .map(|p| p.into())
-                        .collect::<Vec<_>>(),
-                )
-                .unwrap();
-                prev_pos.prev_pos = vec![];
-                let annos = get_annos_mut(&mut world);
-                if let Some(annos) = annos {
-                    annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
-                    history.push(Record::new(world.data.clone(), ACTOR_NAME));
-                    prev_pos.prev_pos = vec![];
-                    world.request_redraw_annotations(BBOX_NAME, visible);
-                }
+                (world, history, prev_pos) =
+                    close_polygon(prev_pos, in_menu_selected_label, visible, world, history);
             }
             _ => (),
         }
     }
     (world, history, prev_pos)
+}
+
+pub(super) fn on_mouse_held_left(
+    mouse_pos: Option<PtF>,
+    mut params: MouseHeldLeftParams,
+    world: World,
+    history: History,
+) -> (World, History, PrevPos) {
+    if params.elapsed_millis_since_press > 100 {
+        const SENSITIVITY_FACTOR: f32 = 5.0;
+        let min_distance_start_end = (SENSITIVITY_FACTOR * params.distance).max(5.0);
+        if !(params.is_alt_held || params.is_ctrl_held || params.is_shift_held) {
+            let pp = &params.prev_pos.prev_pos;
+            if let (Some(mp), Some(last_pp), Some(first_pp)) = (mouse_pos, pp.last(), pp.first()) {
+                let last_dist = mp.dist_square(last_pp).sqrt();
+                let n_pp = pp.len();
+                if n_pp == 1 && last_dist > min_distance_start_end {
+                    params.prev_pos.prev_pos.push(mp);
+                } else if n_pp > 1
+                    && last_dist > min_distance_start_end
+                    && first_pp.dist_square(&mp).sqrt() > min_distance_start_end
+                {
+                    let ls = (pp[n_pp - 2], pp[n_pp - 1]);
+                    let dist_to_ls = domain::dist_lineseg_point(&ls, mp);
+                    if last_dist * 0.2 + dist_to_ls * 0.8 > params.distance {
+                        params.prev_pos.prev_pos.push(mp);
+                    }
+                }
+            } else if let Some(mp) = mouse_pos {
+                params.prev_pos.prev_pos.push(mp);
+            }
+        }
+    }
+    (world, history, params.prev_pos)
 }
 pub(super) fn on_mouse_released_left(
     mouse_pos: Option<PtF>,
@@ -198,183 +251,199 @@ pub(super) fn on_mouse_released_left(
         is_alt_held,
         is_shift_held,
         is_ctrl_held,
+        close_box_or_poly: close,
     } = params;
-    let in_menu_selected_label = current_cat_idx(&world);
-    if let Some(mp) = mouse_pos {
-        prev_pos.last_valid_click = Some(mp);
-    }
-    if is_alt_held && is_shift_held && !prev_pos.prev_pos.is_empty() {
-        // delete the whole thing
+
+    // mouse-held might have added 1 point but since one
+    // point is not a real drag, we don't accept this
+    if prev_pos.prev_pos.len() == 1 {
         prev_pos.prev_pos = vec![];
-        world.request_redraw_annotations(BBOX_NAME, are_annotations_visible);
-    } else if is_alt_held && !prev_pos.prev_pos.is_empty() {
-        // delete prev pos
-        prev_pos.prev_pos.pop();
-        if prev_pos.prev_pos.is_empty() {
-            world.request_redraw_annotations(BBOX_NAME, are_annotations_visible);
-        }
-    } else if is_ctrl_held || is_alt_held || is_shift_held {
-        // selection
-        let annos = get_annos_mut(&mut world);
-        if let Some(annos) = annos {
-            let idx = mouse_pos.and_then(|p| find_closest_boundary_idx(p, annos.elts()));
-            if let Some(i) = idx {
-                if is_shift_held {
-                    // If shift is held a new selection box will be spanned between the currently clicked
-                    // box and the selected box that has the maximum distance in terms of max-corner-dist.
-                    // All boxes that have overlap with this new selection box will be selected. If no box
-                    // is selected only the currently clicked box will be selected.
-                    annos.select(i);
-                    let newly_selected_bb = &annos.elts()[i];
-                    let sel_indxs = true_indices(annos.selected_mask());
-                    if let Some((p1, p2, _)) = sel_indxs
-                        .map(|i| (newly_selected_bb.max_squaredist(&annos.elts()[i])))
-                        .max_by_key(|(_, _, d)| *d)
-                    {
-                        let spanned_bb = BB::from_points(p1, p2);
-                        let to_be_selected_inds = annos
-                            .elts()
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, bb)| bb.has_overlap(&spanned_bb))
-                            .map(|(i, _)| i)
-                            .collect::<Vec<_>>();
-                        annos.select_multi(to_be_selected_inds.iter().copied());
-                    }
-                } else if is_alt_held {
-                    annos.deselect_all();
-                    annos.select(i);
-                    if let Some(selected) = in_menu_selected_label {
-                        annos.label_selected(selected);
-                    }
-                } else {
-                    // ctrl
-                    annos.toggle_selection(i);
-                }
-            }
-            world.request_redraw_annotations(BBOX_NAME, visible);
+    }
+    if close {
+        let in_menu_selected_label = current_cat_idx(&world);
+        if let Some(in_menu_selected_label) = in_menu_selected_label {
+            close_polygon(prev_pos, in_menu_selected_label, visible, world, history)
+        } else {
+            (world, history, prev_pos)
         }
     } else {
-        let shape_orig = world.data.shape();
-        let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
-        let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
-        let close_corner = mouse_pos.and_then(|mp| {
-            get_annos_if_some(&world)
-                .and_then(|a| find_close_vertex(mp, a.elts(), tolerance as i64))
-        });
-        if let Some((bb_idx, vertex_idx)) = close_corner {
-            // move an existing corner
+        let in_menu_selected_label = current_cat_idx(&world);
+        if let Some(mp) = mouse_pos {
+            prev_pos.last_valid_click = Some(mp);
+        }
+        if is_alt_held && is_shift_held && !prev_pos.prev_pos.is_empty() {
+            // delete the whole thing
+            prev_pos.prev_pos = vec![];
+            world.request_redraw_annotations(BBOX_NAME, are_annotations_visible);
+        } else if is_alt_held && !prev_pos.prev_pos.is_empty() {
+            // delete prev pos
+            prev_pos.prev_pos.pop();
+            if prev_pos.prev_pos.is_empty() {
+                world.request_redraw_annotations(BBOX_NAME, are_annotations_visible);
+            }
+        } else if is_ctrl_held || is_alt_held || is_shift_held {
+            // selection
             let annos = get_annos_mut(&mut world);
             if let Some(annos) = annos {
-                let geo = annos.remove(bb_idx);
-                match geo {
-                    GeoFig::BB(bb) => {
-                        let oppo_corner = bb.opposite_corner(vertex_idx);
-                        prev_pos.prev_pos.push(oppo_corner.into());
-                    }
-                    GeoFig::Poly(poly) => {
-                        let n_vertices = poly.points().len();
-                        prev_pos.prev_pos = vec![];
-                        prev_pos.prev_pos.reserve(n_vertices);
-                        for idx in (vertex_idx + 1)..(n_vertices) {
-                            prev_pos.prev_pos.push(poly.points()[idx].into());
+                let idx = mouse_pos.and_then(|p| find_closest_boundary_idx(p, annos.elts()));
+                if let Some(i) = idx {
+                    if is_shift_held {
+                        // If shift is held a new selection box will be spanned between the currently clicked
+                        // box and the selected box that has the maximum distance in terms of max-corner-dist.
+                        // All boxes that have overlap with this new selection box will be selected. If no box
+                        // is selected only the currently clicked box will be selected.
+                        annos.select(i);
+                        let newly_selected_bb = &annos.elts()[i];
+                        let sel_indxs = true_indices(annos.selected_mask());
+                        if let Some((p1, p2, _)) = sel_indxs
+                            .map(|i| (newly_selected_bb.max_squaredist(&annos.elts()[i])))
+                            .max_by_key(|(_, _, d)| *d)
+                        {
+                            let spanned_bb = BB::from_points(p1, p2);
+                            let to_be_selected_inds = annos
+                                .elts()
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, bb)| bb.has_overlap(&spanned_bb))
+                                .map(|(i, _)| i)
+                                .collect::<Vec<_>>();
+                            annos.select_multi(to_be_selected_inds.iter().copied());
                         }
-                        for idx in 0..vertex_idx {
-                            prev_pos.prev_pos.push(poly.points()[idx].into());
+                    } else if is_alt_held {
+                        annos.deselect_all();
+                        annos.select(i);
+                        if let Some(selected) = in_menu_selected_label {
+                            annos.label_selected(selected);
                         }
+                    } else {
+                        // ctrl
+                        annos.toggle_selection(i);
                     }
                 }
+                world.request_redraw_annotations(BBOX_NAME, visible);
             }
         } else {
-            match split_mode {
-                Some(SplitMode::None) => {
-                    // first click new bb
-                    if let Some(mp) = mouse_pos {
-                        prev_pos.prev_pos.push(mp);
+            let shape_orig = world.data.shape();
+            let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
+            let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2);
+            let close_corner = mouse_pos.and_then(|mp| {
+                get_annos_if_some(&world)
+                    .and_then(|a| find_close_vertex(mp, a.elts(), tolerance as i64))
+            });
+            if let Some((bb_idx, vertex_idx)) = close_corner {
+                // move an existing corner
+                let annos = get_annos_mut(&mut world);
+                if let Some(annos) = annos {
+                    let geo = annos.remove(bb_idx);
+                    match geo {
+                        GeoFig::BB(bb) => {
+                            let oppo_corner = bb.opposite_corner(vertex_idx);
+                            prev_pos.prev_pos.push(oppo_corner.into());
+                        }
+                        GeoFig::Poly(poly) => {
+                            let n_vertices = poly.points().len();
+                            prev_pos.prev_pos = vec![];
+                            prev_pos.prev_pos.reserve(n_vertices);
+                            for idx in (vertex_idx + 1)..(n_vertices) {
+                                prev_pos.prev_pos.push(poly.points()[idx].into());
+                            }
+                            for idx in 0..vertex_idx {
+                                prev_pos.prev_pos.push(poly.points()[idx].into());
+                            }
+                        }
                     }
                 }
-                _ => {
-                    // create boxes by splitting either horizontally or vertically
-                    if let Some(mp) = mouse_pos {
-                        let existing_bbs = || -> Box<dyn Iterator<Item = &BB>> {
-                            if let Some(annos) = get_annos(&world) {
-                                Box::new(annos.elts().iter().flat_map(|geo| match geo {
-                                    GeoFig::BB(bb) => Some(bb),
-                                    GeoFig::Poly(_) => None,
-                                }))
-                            } else {
-                                Box::new(empty())
-                            }
-                        };
-                        let new_bbs = if let Some(SplitMode::Horizontal) = split_mode {
-                            if let Some((i, bb)) = existing_bbs()
+            } else {
+                match split_mode {
+                    Some(SplitMode::None) => {
+                        // add point to box/polygon
+                        if let Some(mp) = mouse_pos {
+                            prev_pos.prev_pos.push(mp);
+                        }
+                    }
+                    _ => {
+                        // create boxes by splitting either horizontally or vertically
+                        if let Some(mp) = mouse_pos {
+                            let existing_bbs = || -> Box<dyn Iterator<Item = &BB>> {
+                                if let Some(annos) = get_annos(&world) {
+                                    Box::new(annos.elts().iter().flat_map(|geo| match geo {
+                                        GeoFig::BB(bb) => Some(bb),
+                                        GeoFig::Poly(_) => None,
+                                    }))
+                                } else {
+                                    Box::new(empty())
+                                }
+                            };
+                            let new_bbs = if let Some(SplitMode::Horizontal) = split_mode {
+                                if let Some((i, bb)) = existing_bbs()
+                                    .enumerate()
+                                    .find(|(_, bb)| bb.contains((mp.x, mp.y)))
+                                {
+                                    let (top, btm) = bb.split_horizontally(mp.y as u32);
+                                    vec![(Some(i), top, btm)]
+                                } else {
+                                    let new_bbs = existing_bbs()
+                                        .enumerate()
+                                        .filter(|(_, bb)| bb.covers_y(mp.y))
+                                        .map(|(i, bb)| {
+                                            let (top, btm) = bb.split_horizontally(mp.y as u32);
+                                            (Some(i), top, btm)
+                                        })
+                                        .collect::<Vec<_>>();
+                                    if new_bbs.is_empty() {
+                                        let (top, btm) = BB::from_shape(shape_orig)
+                                            .split_horizontally(mp.y as u32);
+                                        vec![(None, top, btm)]
+                                    } else {
+                                        new_bbs
+                                    }
+                                }
+                            // SplitMode::Vertical
+                            } else if let Some((i, bb)) = existing_bbs()
                                 .enumerate()
                                 .find(|(_, bb)| bb.contains((mp.x, mp.y)))
                             {
-                                let (top, btm) = bb.split_horizontally(mp.y as u32);
-                                vec![(Some(i), top, btm)]
+                                let (left, right) = bb.split_vertically(mp.x as u32);
+                                vec![(Some(i), left, right)]
                             } else {
                                 let new_bbs = existing_bbs()
                                     .enumerate()
-                                    .filter(|(_, bb)| bb.covers_y(mp.y))
+                                    .filter(|(_, bb)| bb.covers_x(mp.x))
                                     .map(|(i, bb)| {
-                                        let (top, btm) = bb.split_horizontally(mp.y as u32);
-                                        (Some(i), top, btm)
+                                        let (left, right) = bb.split_vertically(mp.x as u32);
+                                        (Some(i), left, right)
                                     })
                                     .collect::<Vec<_>>();
                                 if new_bbs.is_empty() {
-                                    let (top, btm) =
-                                        BB::from_shape(shape_orig).split_horizontally(mp.y as u32);
-                                    vec![(None, top, btm)]
+                                    let (left, right) =
+                                        BB::from_shape(shape_orig).split_vertically(mp.x as u32);
+                                    vec![(None, left, right)]
                                 } else {
                                     new_bbs
                                 }
-                            }
-                        // SplitMode::Vertical
-                        } else if let Some((i, bb)) = existing_bbs()
-                            .enumerate()
-                            .find(|(_, bb)| bb.contains((mp.x, mp.y)))
-                        {
-                            let (left, right) = bb.split_vertically(mp.x as u32);
-                            vec![(Some(i), left, right)]
-                        } else {
-                            let new_bbs = existing_bbs()
-                                .enumerate()
-                                .filter(|(_, bb)| bb.covers_x(mp.x))
-                                .map(|(i, bb)| {
-                                    let (left, right) = bb.split_vertically(mp.x as u32);
-                                    (Some(i), left, right)
-                                })
-                                .collect::<Vec<_>>();
-                            if new_bbs.is_empty() {
-                                let (left, right) =
-                                    BB::from_shape(shape_orig).split_vertically(mp.x as u32);
-                                vec![(None, left, right)]
-                            } else {
-                                new_bbs
-                            }
-                        };
-                        let annos = get_annos_mut(&mut world);
-                        if let Some(annos) = annos {
-                            let removers =
-                                new_bbs.iter().flat_map(|(i, _, _)| *i).collect::<Vec<_>>();
-                            annos.remove_multiple(&removers);
-                            if let Some(selected) = in_menu_selected_label {
-                                for (_, bb1, bb2) in new_bbs {
-                                    annos.add_bb(bb1, selected);
-                                    annos.add_bb(bb2, selected);
+                            };
+                            let annos = get_annos_mut(&mut world);
+                            if let Some(annos) = annos {
+                                let removers =
+                                    new_bbs.iter().flat_map(|(i, _, _)| *i).collect::<Vec<_>>();
+                                annos.remove_multiple(&removers);
+                                if let Some(selected) = in_menu_selected_label {
+                                    for (_, bb1, bb2) in new_bbs {
+                                        annos.add_bb(bb1, selected);
+                                        annos.add_bb(bb2, selected);
+                                    }
                                 }
+                                history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                                prev_pos.prev_pos = vec![];
+                                world.request_redraw_annotations(BBOX_NAME, visible);
                             }
-                            history.push(Record::new(world.data.clone(), ACTOR_NAME));
-                            prev_pos.prev_pos = vec![];
-                            world.request_redraw_annotations(BBOX_NAME, visible);
                         }
                     }
                 }
             }
         }
+        (world, history, prev_pos)
     }
-    (world, history, prev_pos)
 }
 
 pub(super) struct KeyReleasedParams {
@@ -612,7 +681,7 @@ fn test_mouse_held() {
     {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
-        let params = MouseHeldParams { mover: &mut mover };
+        let params = MouseMoveParams { mover: &mut mover };
         let (world, new_hist) =
             on_mouse_held_right(mouse_pos, params, world.clone(), history.clone());
         assert_eq!(get_annos(&world).unwrap().elts()[0], GeoFig::BB(bbs[0]));
@@ -621,7 +690,7 @@ fn test_mouse_held() {
     {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
-        let params = MouseHeldParams { mover: &mut mover };
+        let params = MouseMoveParams { mover: &mut mover };
         let annos = get_annos_mut(&mut world);
         annos.unwrap().select(0);
         let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());
@@ -646,6 +715,7 @@ fn test_mouse_release() {
             is_alt_held: false,
             is_shift_held: false,
             is_ctrl_held,
+            close_box_or_poly: false,
         }
     };
     {

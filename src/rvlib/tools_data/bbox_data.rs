@@ -30,6 +30,7 @@ pub struct Options {
     pub fill_alpha: u8,
     pub outline_alpha: u8,
     pub outline_thickness: u16,
+    pub drawing_distance: u8,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -43,6 +44,7 @@ impl Default for Options {
             fill_alpha: 30,
             outline_alpha: 255,
             outline_thickness: OUTLINE_THICKNESS_CONVERSION as u16,
+            drawing_distance: 6,
         }
     }
 }

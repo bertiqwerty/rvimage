@@ -15,12 +15,12 @@ use crate::{
     world::World,
     GeoFig, Polygon,
 };
-use std::{iter, mem};
+use std::{iter, mem, time::Instant};
 
 use super::on_events::{
-    export_if_triggered, import_coco_if_triggered, on_key_released, on_mouse_held_right,
-    on_mouse_released_left, on_mouse_released_right, KeyReleasedParams, MouseHeldParams,
-    MouseReleaseParams, PrevPos,
+    export_if_triggered, import_coco_if_triggered, on_key_released, on_mouse_held_left,
+    on_mouse_held_right, on_mouse_released_left, on_mouse_released_right, KeyReleasedParams,
+    MouseHeldLeftParams, MouseMoveParams, MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -150,6 +150,9 @@ fn check_autopaste(mut world: World, mut history: History, auto_paste: bool) -> 
 pub struct Bbox {
     prev_pos: PrevPos,
     mover: Mover,
+    start_press_time: Option<Instant>,
+    points_at_press: Option<usize>,
+    points_alter_held: Option<usize>,
 }
 
 impl Bbox {
@@ -159,15 +162,44 @@ impl Bbox {
         world: World,
         history: History,
     ) -> (World, History) {
-        self.mover.move_mouse_pressed(event.mouse_pos);
+        if event.pressed(KeyCode::MouseRight) {
+            self.mover.move_mouse_pressed(event.mouse_pos);
+        } else {
+            self.start_press_time = Some(Instant::now());
+            self.points_at_press = Some(self.prev_pos.prev_pos.len());
+        }
         (world, history)
     }
 
-    fn mouse_held(&mut self, event: &Events, world: World, history: History) -> (World, History) {
-        let params = MouseHeldParams {
+    fn mouse_held(
+        &mut self,
+        event: &Events,
+        mut world: World,
+        mut history: History,
+    ) -> (World, History) {
+        let params = MouseMoveParams {
             mover: &mut self.mover,
         };
-        on_mouse_held_right(event.mouse_pos, params, world, history)
+        if event.held(KeyCode::MouseRight) {
+            on_mouse_held_right(event.mouse_pos, params, world, history)
+        } else {
+            let options = get_options(&world);
+            let params = MouseHeldLeftParams {
+                prev_pos: self.prev_pos.clone(),
+                is_alt_held: event.held_alt(),
+                is_shift_held: event.held_shift(),
+                is_ctrl_held: event.held_ctrl(),
+                distance: options.map(|o| o.drawing_distance).unwrap_or(2) as f32,
+                elapsed_millis_since_press: self
+                    .start_press_time
+                    .map(|t| t.elapsed().as_millis())
+                    .unwrap_or(0),
+            };
+            (world, history, self.prev_pos) =
+                on_mouse_held_left(event.mouse_pos, params, world, history);
+            self.points_alter_held = Some(self.prev_pos.prev_pos.len());
+            (world, history)
+        }
     }
 
     fn mouse_released(
@@ -176,6 +208,7 @@ impl Bbox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
+        let close_box_or_poly = self.points_at_press.map(|x| x + 4) < self.points_alter_held;
         let are_boxes_visible = are_boxes_visible(&world);
         if event.released(KeyCode::MouseLeft) {
             let params = MouseReleaseParams {
@@ -184,6 +217,7 @@ impl Bbox {
                 is_alt_held: event.held_alt(),
                 is_shift_held: event.held_shift(),
                 is_ctrl_held: event.held_ctrl(),
+                close_box_or_poly,
             };
             (world, history, self.prev_pos) =
                 on_mouse_released_left(event.mouse_pos, params, world, history);
@@ -263,6 +297,9 @@ impl Manipulate for Bbox {
         Self {
             prev_pos: PrevPos::default(),
             mover: Mover::new(),
+            start_press_time: None,
+            points_alter_held: None,
+            points_at_press: None,
         }
     }
 
@@ -377,7 +414,9 @@ impl Manipulate for Bbox {
                 events,
                 [
                     (pressed, KeyCode::MouseRight, mouse_pressed),
+                    (pressed, KeyCode::MouseLeft, mouse_pressed),
                     (held, KeyCode::MouseRight, mouse_held),
+                    (held, KeyCode::MouseLeft, mouse_held),
                     (released, KeyCode::MouseLeft, mouse_released),
                     (released, KeyCode::MouseRight, mouse_released),
                     (released, KeyCode::Delete, key_released),

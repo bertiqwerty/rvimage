@@ -171,6 +171,16 @@ pub fn bbox_menu(
         data.options.outline_thickness =
             (outline_thickness_f * OUTLINE_THICKNESS_CONVERSION).round() as u16;
 
+        ui.separator();
+        if ui
+            .add(
+                egui::Slider::new(&mut data.options.drawing_distance, 1..=10)
+                    .text("drawing distance parameter"),
+            )
+            .changed()
+        {
+            data.options.core_options.is_redraw_annos_triggered = true;
+        }
         ui.horizontal(|ui| {
             ui.separator();
             ui.label("split mode");

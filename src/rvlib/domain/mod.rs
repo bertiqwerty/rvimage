@@ -3,13 +3,11 @@ mod core;
 mod polygon;
 
 pub use bb::BB;
-pub use core::{Annotate, Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
+pub use core::{dist_lineseg_point, Annotate, Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use tracing::warn;
-
-use self::core::dist_lineseg_point;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Line {
