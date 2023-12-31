@@ -1,5 +1,5 @@
 use crate::{
-    domain::{OutOfBoundsMode, PtF, Shape, BB},
+    domain::{BoxF, OutOfBoundsMode, PtF, ShapeI, TPtF},
     result::RvResult,
     GeoFig,
 };
@@ -10,10 +10,10 @@ use super::{bbox_splitmode::SplitMode, core::InstanceAnnotations};
 fn shift(
     mut geos: Vec<GeoFig>,
     selected_geo: &[bool],
-    x_shift: i32,
-    y_shift: i32,
-    shape_orig: Shape,
-    mut shift_bbs: impl FnMut(i32, i32, &[bool], Vec<BB>, Shape) -> Vec<BB>,
+    x_shift: f64,
+    y_shift: f64,
+    shape_orig: ShapeI,
+    mut shift_bbs: impl FnMut(f64, f64, &[bool], Vec<BoxF>, ShapeI) -> Vec<BoxF>,
 ) -> Vec<GeoFig> {
     // Bounding boxes have a split-functionality. Hence, they are treated separately.
     let mut bb_indices = vec![];
@@ -60,16 +60,16 @@ fn shift(
 pub type BboxAnnotations = InstanceAnnotations<GeoFig>;
 
 impl BboxAnnotations {
-    pub fn from_bbs(bbs: Vec<BB>, cat_id: usize) -> RvResult<BboxAnnotations> {
+    pub fn from_bbs(bbs: Vec<BoxF>, cat_id: usize) -> RvResult<BboxAnnotations> {
         let bbs_len = bbs.len();
         let elts = bbs.iter().map(|bb| GeoFig::BB(*bb)).collect();
         BboxAnnotations::new(elts, vec![cat_id; bbs_len], vec![false; bbs_len])
     }
     pub fn shift(
         self,
-        x_shift: i32,
-        y_shift: i32,
-        shape_orig: Shape,
+        x_shift: TPtF,
+        y_shift: TPtF,
+        shape_orig: ShapeI,
         split_mode: SplitMode,
     ) -> Self {
         let (elts, cat_idxs, selected_mask) = self.separate_data();
@@ -89,9 +89,9 @@ impl BboxAnnotations {
     }
     pub fn shift_min_bbs(
         self,
-        x_shift: i32,
-        y_shift: i32,
-        shape_orig: Shape,
+        x_shift: TPtF,
+        y_shift: TPtF,
+        shape_orig: ShapeI,
         split_mode: SplitMode,
     ) -> Self {
         let (elts, cat_idxs, selected_mask) = self.separate_data();
@@ -111,9 +111,9 @@ impl BboxAnnotations {
 
     pub fn shift_max_bbs(
         self,
-        x_shift: i32,
-        y_shift: i32,
-        shape_orig: Shape,
+        x_shift: TPtF,
+        y_shift: TPtF,
+        shape_orig: ShapeI,
         split_mode: SplitMode,
     ) -> Self {
         let (elts, cat_idxs, selected_mask) = self.separate_data();
@@ -131,7 +131,7 @@ impl BboxAnnotations {
             .expect("after shift the number of elements cannot change")
     }
 
-    pub fn add_bb(&mut self, bb: BB, cat_idx: usize) {
+    pub fn add_bb(&mut self, bb: BoxF, cat_idx: usize) {
         self.add_elt(GeoFig::BB(bb), cat_idx);
     }
 
@@ -139,7 +139,7 @@ impl BboxAnnotations {
         self,
         mpo_from: PtF,
         mpo_to: PtF,
-        orig_shape: Shape,
+        orig_shape: ShapeI,
         split_mode: SplitMode,
     ) -> (Self, bool) {
         let mut moved_somebody = false;
@@ -156,60 +156,61 @@ impl BboxAnnotations {
     }
 }
 #[cfg(test)]
-use {super::core::resize_bbs, crate::point_i};
+use {super::core::resize_bbs, crate::domain::BoxI};
 #[cfg(test)]
-fn make_test_bbs() -> Vec<BB> {
-    vec![
-        BB {
+fn make_test_bbs() -> Vec<BoxF> {
+    let boxes = [
+        BoxI {
             x: 0,
             y: 0,
             w: 10,
             h: 10,
         },
-        BB {
+        BoxI {
             x: 5,
             y: 5,
             w: 10,
             h: 10,
         },
-        BB {
+        BoxI {
             x: 9,
             y: 9,
             w: 10,
             h: 10,
         },
-    ]
+    ];
+    boxes.iter().map(|bb| (*bb).into()).collect()
 }
 #[test]
 fn test_bbs() {
     let bbs = make_test_bbs();
-    let shape_orig = Shape { w: 100, h: 100 };
+    let shape_orig = ShapeI { w: 100, h: 100 };
 
     // shift max
     let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
-        bb.shift_max(-1, 1, shape_orig)
+        bb.shift_max(-1.0, 1.0, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
     assert_eq!(
-        BB::from_points(point_i!(5, 5), point_i!(13, 15)),
+        BoxF::from_points((5, 5).into(), (13, 15).into()),
         resized[1]
     );
     assert_eq!(
-        BB::from_points(point_i!(9, 9), point_i!(17, 19)),
+        BoxF::from_points((9, 9).into(), (17, 19).into()),
         resized[2]
     );
 
     // shift min
     let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
-        bb.shift_min(-1, 1, shape_orig)
+        bb.shift_min(-1.0, 1.0, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
     assert_eq!(
-        BB::from_points(point_i!(4, 6), point_i!(14, 14)),
+        BoxF::from_points((4, 6).into(), (14, 14).into()),
         resized[1]
     );
     assert_eq!(
-        BB::from_points(point_i!(8, 10), point_i!(18, 18)),
+        BoxF::from_points((8, 10).into(), (18, 18).into()),
         resized[2]
     );
 }

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
-    domain::{Point, Shape, BB},
+    domain::{BoxF, Point, ShapeI, TPtF},
     file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
     rverr, ssh,
@@ -43,9 +43,9 @@ struct CocoAnnotation {
     id: u32,
     image_id: u32,
     category_id: u32,
-    bbox: [f32; 4],
-    segmentation: Option<Vec<Vec<f32>>>,
-    area: Option<f32>,
+    bbox: [TPtF; 4],
+    segmentation: Option<Vec<Vec<TPtF>>>,
+    area: Option<TPtF>,
 }
 
 fn colors_to_string(colors: &[[u8; 3]]) -> Option<String> {
@@ -95,7 +95,7 @@ impl CocoExportData {
         };
         let export_data = BboxExportData::from_bbox_data(bbox_specifics);
 
-        type AnnotationMapValue<'a> = (&'a String, &'a (Vec<GeoFig>, Vec<usize>, Shape));
+        type AnnotationMapValue<'a> = (&'a String, &'a (Vec<GeoFig>, Vec<usize>, ShapeI));
         let make_image_map = |(idx, (file_path, (_, _, shape))): (usize, AnnotationMapValue)| {
             Ok(CocoImage {
                 id: idx as u32,
@@ -123,7 +123,7 @@ impl CocoExportData {
 
         let mut box_id = 0;
         let make_anno_map =
-            |(image_idx, (bbs, cat_idxs, shape)): (usize, &(Vec<GeoFig>, Vec<usize>, Shape))| {
+            |(image_idx, (bbs, cat_idxs, shape)): (usize, &(Vec<GeoFig>, Vec<usize>, ShapeI))| {
                 bbs.iter()
                     .zip(cat_idxs.iter())
                     .map(|(geo, cat_idx): (&GeoFig, &usize)| {
@@ -132,19 +132,14 @@ impl CocoExportData {
                         let (imw, imh) = if export_data.is_export_absolute {
                             (1.0, 1.0)
                         } else {
-                            (shape.w as f32, shape.h as f32)
+                            (shape.w as TPtF, shape.h as TPtF)
                         };
                         let segmentation = geo.points_normalized(imw, imh);
                         let segmentation = segmentation
                             .iter()
                             .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))
                             .collect::<Vec<_>>();
-                        let bb_f = [
-                            bb.x as f32 / imw,
-                            bb.y as f32 / imh,
-                            bb.w as f32 / imw,
-                            bb.h as f32 / imh,
-                        ];
+                        let bb_f = [bb.x / imw, bb.y / imh, bb.w / imw, bb.h / imh];
                         box_id += 1;
                         CocoAnnotation {
                             id: box_id - 1,
@@ -152,7 +147,7 @@ impl CocoExportData {
                             category_id: export_data.cat_ids[*cat_idx],
                             bbox: bb_f,
                             segmentation: Some(vec![segmentation]),
-                            area: Some((bb.h * bb.w) as f32),
+                            area: Some(bb.h * bb.w),
                         }
                     })
                     .collect::<Vec<_>>()
@@ -200,7 +195,7 @@ impl CocoExportData {
             })
             .collect::<RvResult<HashMap<u32, (&str, u32, u32)>>>()?;
 
-        let mut annotations: HashMap<String, (Vec<GeoFig>, Vec<usize>, Shape)> = HashMap::new();
+        let mut annotations: HashMap<String, (Vec<GeoFig>, Vec<usize>, ShapeI)> = HashMap::new();
         for coco_anno in self.annotations {
             let (file_name, w, h) = id_image_map[&coco_anno.image_id];
 
@@ -208,15 +203,15 @@ impl CocoExportData {
             let (w_factor, h_factor) = if coords_absolute {
                 (1.0, 1.0)
             } else {
-                (w as f32, h as f32)
+                (w as f64, h as f64)
             };
             let bbox = [
-                (w_factor * coco_anno.bbox[0]).round() as u32,
-                (h_factor * coco_anno.bbox[1]).round() as u32,
-                (w_factor * coco_anno.bbox[2]).round() as u32,
-                (h_factor * coco_anno.bbox[3]).round() as u32,
+                (w_factor * coco_anno.bbox[0]),
+                (h_factor * coco_anno.bbox[1]),
+                (w_factor * coco_anno.bbox[2]),
+                (h_factor * coco_anno.bbox[3]),
             ];
-            let bb = BB::from_arr(&bbox);
+            let bb = BoxF::from_arr(&bbox);
             let geo = if let Some(segmentation) = coco_anno.segmentation {
                 if !segmentation.is_empty() {
                     if segmentation.len() > 1 {
@@ -230,8 +225,8 @@ impl CocoExportData {
                         (0..n_points)
                             .step_by(2)
                             .map(|idx| Point {
-                                x: (coco_data[idx] * w_factor).round() as u32,
-                                y: (coco_data[idx + 1] * h_factor).round() as u32,
+                                x: (coco_data[idx] * w_factor),
+                                y: (coco_data[idx + 1] * h_factor),
                             })
                             .collect(),
                     );
@@ -285,7 +280,7 @@ impl CocoExportData {
                 annos_of_image.0.push(geo);
                 annos_of_image.1.push(cat_idx);
             } else {
-                annotations.insert(k, (vec![geo], vec![cat_idx], Shape::new(w, h)));
+                annotations.insert(k, (vec![geo], vec![cat_idx], ShapeI::new(w, h)));
             }
         }
         BboxSpecificData::from_bbox_export_data(BboxExportData {
@@ -373,7 +368,7 @@ use {
     crate::{
         cfg::{get_cfg, SshCfg},
         defer_file_removal,
-        domain::make_test_bbs,
+        domain::{make_test_bbs, BoxI},
     },
     file_util::{ConnectionData, DEFAULT_TMPDIR},
     std::{fs, str::FromStr},
@@ -434,8 +429,10 @@ pub fn make_data(
     bbs.extend(bbs.clone());
     bbs.extend(bbs.clone());
 
-    let annos =
-        bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), Shape::new(10, 10));
+    let annos = bbox_data.get_annos_mut(
+        image_file.as_os_str().to_str().unwrap(),
+        ShapeI::new(10, 10),
+    );
     if let Some(a) = annos {
         for bb in bbs {
             a.add_bb(bb, 0);
@@ -482,7 +479,7 @@ const TEST_DATA_FOLDER: &str = "resources/test_data/";
 
 #[test]
 fn test_coco_import() -> RvResult<()> {
-    fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BB, &str)]) {
+    fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BoxI, &str)]) {
         let meta = MetaData {
             file_path: None,
             connection_data: ConnectionData::None,
@@ -503,33 +500,33 @@ fn test_coco_import() -> RvResult<()> {
             println!("");
             println!("{file_path:?}");
             println!("{annos:?}");
-            assert!(annos.unwrap().elts().contains(&GeoFig::BB(*bb)));
+            assert!(annos.unwrap().elts().contains(&GeoFig::BB((*bb).into())));
         }
     }
 
     let bb_im_ref_abs1 = [
         (
-            BB::from_arr(&[1, 1, 5, 5]),
+            BoxI::from_arr(&[1, 1, 5, 5]),
             "http://localhost:5000/%2Bnowhere.png",
         ),
         (
-            BB::from_arr(&[11, 11, 4, 7]),
+            BoxI::from_arr(&[11, 11, 4, 7]),
             "http://localhost:5000/%2Bnowhere.png",
         ),
         (
-            BB::from_arr(&[1, 1, 5, 5]),
+            BoxI::from_arr(&[1, 1, 5, 5]),
             "http://localhost:5000/%2Bnowhere2.png",
         ),
     ];
     let bb_im_ref_abs2 = [
-        (BB::from_arr(&[1, 1, 5, 5]), "nowhere.png"),
-        (BB::from_arr(&[11, 11, 4, 7]), "nowhere.png"),
-        (BB::from_arr(&[1, 1, 5, 5]), "nowhere2.png"),
+        (BoxI::from_arr(&[1, 1, 5, 5]), "nowhere.png"),
+        (BoxI::from_arr(&[11, 11, 4, 7]), "nowhere.png"),
+        (BoxI::from_arr(&[1, 1, 5, 5]), "nowhere2.png"),
     ];
     let bb_im_ref_relative = [
-        (BB::from_arr(&[10, 100, 50, 500]), "nowhere.png"),
-        (BB::from_arr(&[91, 870, 15, 150]), "nowhere.png"),
-        (BB::from_arr(&[10, 1, 50, 5]), "nowhere2.png"),
+        (BoxI::from_arr(&[10, 100, 50, 500]), "nowhere.png"),
+        (BoxI::from_arr(&[91, 870, 15, 150]), "nowhere.png"),
+        (BoxI::from_arr(&[10, 1, 50, 5]), "nowhere2.png"),
     ];
     test("catids_12", vec![1, 2], &bb_im_ref_abs1);
     test("catids_01", vec![0, 1], &bb_im_ref_abs2);

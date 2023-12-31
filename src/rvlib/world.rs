@@ -1,4 +1,4 @@
-use crate::domain::{Shape, BB};
+use crate::domain::{BoxF, ShapeI};
 use crate::drawme::{Annotation, UpdateImage};
 use crate::file_util::MetaData;
 use crate::tools::add_tools_initial_data;
@@ -111,8 +111,8 @@ impl DataRaw {
         self.im_background = f_i(mem::take(&mut self.im_background));
     }
 
-    pub fn shape(&self) -> Shape {
-        Shape::from_im(&self.im_background)
+    pub fn shape(&self) -> ShapeI {
+        ShapeI::from_im(&self.im_background)
     }
 
     pub fn bg_to_uncropped_view(&self) -> ViewImage {
@@ -137,11 +137,11 @@ pub struct World {
     pub update_view: UpdateView,
     pub data: DataRaw,
     // transforms coordinates from view to raw image
-    zoom_box: Option<BB>,
+    zoom_box: Option<BoxF>,
 }
 
 impl World {
-    pub fn new(ims_raw: DataRaw, zoom_box: Option<BB>) -> Self {
+    pub fn new(ims_raw: DataRaw, zoom_box: Option<BoxF>) -> Self {
         let im = ims_raw.bg_to_uncropped_view();
         let world = Self {
             data: ims_raw,
@@ -201,17 +201,17 @@ impl World {
         Self::new(DataRaw::new(im, meta_data, tools_data), None)
     }
 
-    pub fn shape_orig(&self) -> Shape {
+    pub fn shape_orig(&self) -> ShapeI {
         self.data.shape()
     }
 
-    pub fn set_zoom_box(&mut self, zoom_box: Option<BB>) {
+    pub fn set_zoom_box(&mut self, zoom_box: Option<BoxF>) {
         let mut set_zb = || {
             self.zoom_box = zoom_box;
             self.update_view = UpdateView::from_zoombox(zoom_box);
         };
         if let Some(zb) = zoom_box {
-            if zb.h > 1 && zb.w > 1 {
+            if zb.h > 1.0 && zb.w > 1.0 {
                 set_zb();
             }
         } else {
@@ -219,7 +219,7 @@ impl World {
         }
     }
 
-    pub fn zoom_box(&self) -> &Option<BB> {
+    pub fn zoom_box(&self) -> &Option<BoxF> {
         &self.zoom_box
     }
 }

@@ -11,10 +11,10 @@ use egui::{
 use image::{ImageBuffer, Rgb};
 use rvlib::{
     cfg::get_cfg_path,
-    domain::{PtF, PtI},
+    domain::{BoxF, PtF, TPtF},
     get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord,
     view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos,
-    UpdateImage, UpdateZoomBox, BB,
+    UpdateImage, UpdateZoomBox,
 };
 use tracing::{error, Level};
 use tracing_subscriber::{
@@ -214,8 +214,8 @@ fn map_mouse_events(
     events
 }
 
-fn vec2_2_shape(v: Vec2) -> rvlib::Shape {
-    rvlib::Shape::new(v.x as u32, v.y as u32)
+fn vec2_2_shape(v: Vec2) -> rvlib::ShapeI {
+    rvlib::ShapeI::new(v.x as u32, v.y as u32)
 }
 
 fn image_2_colorimage(im: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> ColorImage {
@@ -223,12 +223,12 @@ fn image_2_colorimage(im: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> ColorImage {
 }
 
 fn orig_pos_2_egui_rect(
-    p: PtI,
+    p: PtF,
     offset: Pos2,
-    shape_orig: rvlib::Shape,
-    shape_view: rvlib::Shape,
+    shape_orig: rvlib::ShapeI,
+    shape_view: rvlib::ShapeI,
     rect_size: Vec2,
-    zoom_box: &Option<BB>,
+    zoom_box: &Option<BoxF>,
 ) -> Pos2 {
     let p = if let Some(zb) = zoom_box {
         project_on_bb(p, zb)
@@ -237,8 +237,10 @@ fn orig_pos_2_egui_rect(
     };
     let p_view: PtF = orig_pos_2_view_pos(p, shape_orig, shape_view, zoom_box)
         .expect("After projection to zoombox it should be inside");
-    let p_egui_rect_x = offset.x + scale_coord(p_view.x, shape_view.w as f32, rect_size.x);
-    let p_egui_rect_y = offset.y + scale_coord(p_view.y, shape_view.h as f32, rect_size.y);
+    let p_egui_rect_x =
+        offset.x + scale_coord(p_view.x, shape_view.w.into(), rect_size.x as TPtF) as f32;
+    let p_egui_rect_y =
+        offset.y + scale_coord(p_view.y, shape_view.h.into(), rect_size.y as TPtF) as f32;
     Pos2::new(p_egui_rect_x, p_egui_rect_y)
 }
 
@@ -247,7 +249,7 @@ struct RvImageApp {
     event_loop: MainEventLoop,
     texture: Option<TextureHandle>,
     annos: Vec<Annotation>,
-    zoom_box: Option<BB>,
+    zoom_box: Option<BoxF>,
     im_orig: ImageU8,
     im_view: ImageU8,
     events: rvlib::Events,
@@ -263,14 +265,14 @@ impl RvImageApp {
         // for e.g. egui::PaintCallback.
         Self::default()
     }
-    fn shape_orig(&self) -> rvlib::Shape {
-        rvlib::Shape::from_im(&self.im_orig)
+    fn shape_orig(&self) -> rvlib::ShapeI {
+        rvlib::ShapeI::from_im(&self.im_orig)
     }
-    fn shape_view(&self) -> rvlib::Shape {
-        rvlib::Shape::from_im(&self.im_view)
+    fn shape_view(&self) -> rvlib::ShapeI {
+        rvlib::ShapeI::from_im(&self.im_view)
     }
 
-    fn orig_pos_2_egui_rect(&self, p: PtI, offset: Pos2, rect_size: Vec2) -> Pos2 {
+    fn orig_pos_2_egui_rect(&self, p: PtF, offset: Pos2, rect_size: Vec2) -> Pos2 {
         orig_pos_2_egui_rect(
             p,
             offset,
@@ -289,8 +291,8 @@ impl RvImageApp {
                 _ => None,
             })
             .flat_map(|anno| {
-                let size_from = self.shape_view().w as f32;
-                let size_to = image_rect.size().x;
+                let size_from = self.shape_view().w.into();
+                let size_to = image_rect.size().x as TPtF;
                 let thickness = scale_coord(anno.outline.thickness, size_from, size_to);
                 let selected_addon = if anno.is_selected == Some(true) {
                     2.0
@@ -298,7 +300,7 @@ impl RvImageApp {
                     0.0
                 };
                 let stroke = Stroke::new(
-                    thickness + selected_addon,
+                    (thickness + selected_addon) as f32,
                     rgb_2_clr(
                         Some(anno.outline.color),
                         (anno.intensity.clamp(0.0, 1.0) * 255.0) as u8,
@@ -315,11 +317,8 @@ impl RvImageApp {
                 } else {
                     let center = anno.line.mean();
                     if let Some(center) = center {
-                        let center = self.orig_pos_2_egui_rect(
-                            center.into(),
-                            image_rect.min,
-                            image_rect.size(),
-                        );
+                        let center =
+                            self.orig_pos_2_egui_rect(center, image_rect.min, image_rect.size());
                         Some(Shape::Circle(CircleShape::filled(
                             Pos2 {
                                 x: center.x,
@@ -353,7 +352,7 @@ impl RvImageApp {
                 match &anno.geofig {
                     GeoFig::BB(bb) => {
                         let stroke = Stroke::new(
-                            outline_thickness,
+                            outline_thickness as f32,
                             rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
                         );
                         let bb_min_rect =
@@ -369,7 +368,7 @@ impl RvImageApp {
                     }
                     GeoFig::Poly(poly) => {
                         let stroke = Stroke::new(
-                            outline_thickness,
+                            outline_thickness as f32,
                             rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
                         );
                         let poly = if let Some(zb) = self.zoom_box {
@@ -402,7 +401,7 @@ impl RvImageApp {
         let mouse_pos = image_response.hover_pos();
         let mouse_pos = mouse_pos.map(|mp| {
             let view_pos = view_pos_2_orig_pos(
-                ((mp.x - offset_x), (mp.y - offset_y)).into(),
+                ((mp.x - offset_x) as TPtF, (mp.y - offset_y) as TPtF).into(),
                 self.shape_view(),
                 vec2_2_shape(rect_size),
                 &None,

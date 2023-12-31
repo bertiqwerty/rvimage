@@ -14,7 +14,7 @@ macro_rules! implement_annotations_getters {
         pub fn get_annos_mut(
             &mut self,
             file_path: &str,
-            shape: Shape,
+            shape: ShapeI,
         ) -> Option<&mut $tool_data_type> {
             if !self.annotations_map.contains_key(file_path) {
                 self.annotations_map
@@ -30,13 +30,13 @@ macro_rules! implement_annotations_getters {
         }
         pub fn anno_iter_mut(
             &mut self,
-        ) -> impl Iterator<Item = (&String, &mut ($tool_data_type, Shape))> {
+        ) -> impl Iterator<Item = (&String, &mut ($tool_data_type, ShapeI))> {
             self.annotations_map.iter_mut()
         }
-        pub fn anno_iter(&self) -> impl Iterator<Item = (&String, &($tool_data_type, Shape))> {
+        pub fn anno_iter(&self) -> impl Iterator<Item = (&String, &($tool_data_type, ShapeI))> {
             self.annotations_map.iter()
         }
-        pub fn anno_intoiter(self) -> impl Iterator<Item = (String, ($tool_data_type, Shape))> {
+        pub fn anno_intoiter(self) -> impl Iterator<Item = (String, ($tool_data_type, ShapeI))> {
             self.annotations_map.into_iter()
         }
     };

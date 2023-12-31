@@ -31,7 +31,7 @@ const MISSING_DATA_MSG: &str = "brush data not available";
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
 annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
 
-const MAX_SELECT_DIST: f32 = 20.0;
+const MAX_SELECT_DIST: f64 = 20.0;
 
 fn get_data(world: &World) -> RvResult<&ToolsData> {
     tools_data::get(world, ACTOR_NAME, MISSING_DATA_MSG)
@@ -57,7 +57,7 @@ fn are_brushlines_visible(world: &World) -> bool {
     get_options(world).map(|o| o.core_options.visible) == Some(true)
 }
 
-fn find_closest_brushline(annos: &InstanceAnnotations<BrushLine>, p: PtF) -> Option<(usize, f32)> {
+fn find_closest_brushline(annos: &InstanceAnnotations<BrushLine>, p: PtF) -> Option<(usize, f64)> {
     annos
         .elts()
         .iter()
@@ -228,12 +228,12 @@ impl Brush {
                     if let Some(line) = annos.last_line_mut() {
                         let last_point = line.last_point();
                         let dist = if let Some(last_point) = last_point {
-                            last_point.dist_square(&mp.into())
+                            last_point.dist_square(&mp)
                         } else {
-                            100
+                            100.0
                         };
-                        if dist >= 1 {
-                            line.push(mp.into());
+                        if dist >= 1.0 {
+                            line.push(mp);
                         }
                     }
                     world.request_redraw_annotations(BRUSH_NAME, true)

@@ -160,7 +160,7 @@ pub struct ExportData {
     pub tools_data_map: ToolsDataMap,
     pub cfg: Cfg,
 }
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct ExportDataLegacy {
     pub opened_folder: Option<String>,
     pub bbox_data: Option<BboxExportData>,

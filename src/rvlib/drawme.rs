@@ -1,9 +1,13 @@
-use crate::{domain::BB, types::ViewImage, GeoFig, Line};
+use crate::{
+    domain::{BoxF, TPtF},
+    types::ViewImage,
+    GeoFig, Line,
+};
 use std::default::Default;
 
 #[derive(Clone, Debug)]
 pub struct Stroke {
-    pub thickness: f32,
+    pub thickness: TPtF,
     pub color: [u8; 3],
 }
 
@@ -31,7 +35,7 @@ pub struct BboxAnnotation {
 pub struct BrushAnnotation {
     pub line: Line,
     pub outline: Stroke,
-    pub intensity: f32,
+    pub intensity: TPtF,
     pub label: Option<String>,
     pub is_selected: Option<bool>,
 }
@@ -52,7 +56,7 @@ pub enum Update<T> {
 pub type UpdateImage = Update<ViewImage>;
 // permament annotations in the Vec, one temporary annotation in the Option
 pub type UpdateAnnos = Update<(Vec<Annotation>, Option<Annotation>)>;
-pub type UpdateZoomBox = Update<Option<BB>>;
+pub type UpdateZoomBox = Update<Option<BoxF>>;
 
 impl UpdateAnnos {
     pub fn clear() -> Self {
@@ -77,7 +81,7 @@ pub struct UpdateView {
 }
 
 impl UpdateView {
-    pub fn from_zoombox(zoom_box: Option<BB>) -> Self {
+    pub fn from_zoombox(zoom_box: Option<BoxF>) -> Self {
         UpdateView {
             image: UpdateImage::No,
             annos: UpdateAnnos::No,

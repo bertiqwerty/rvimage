@@ -3,7 +3,7 @@ use crate::history::Record;
 use crate::result::RvResult;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::{get_mut, get_specific_mut, CoreOptions, LabelInfo, ToolSpecifics};
-use crate::Shape;
+use crate::ShapeI;
 use crate::{domain::PtF, events::Events, history::History, world::World};
 
 pub(super) fn check_trigger_redraw(
@@ -124,7 +124,7 @@ where
     if let Some(clipboard) = &clipboard {
         let cb_bbs = clipboard.elts();
         if !cb_bbs.is_empty() {
-            let shape_orig = Shape::from_im(world.data.im_background());
+            let shape_orig = ShapeI::from_im(world.data.im_background());
             if let Some(a) = get_annos_mut(&mut world) {
                 a.extend(
                     cb_bbs.iter().cloned(),

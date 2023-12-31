@@ -1,5 +1,5 @@
 use crate::{
-    domain::BrushLine,
+    domain::{BrushLine, TPtF},
     drawme::{Annotation, BboxAnnotation, Stroke},
     result::{trace_ok, RvError, RvResult},
     rverr,
@@ -132,7 +132,7 @@ impl ToolSpecifics {
                                 fill_alpha: bb_data.options.fill_alpha,
                                 label: Some(labels[*cat_idx].clone()),
                                 outline: Stroke {
-                                    thickness: bb_data.options.outline_thickness as f32
+                                    thickness: bb_data.options.outline_thickness as TPtF
                                         / OUTLINE_THICKNESS_CONVERSION,
                                     color: colors[*cat_idx],
                                 },

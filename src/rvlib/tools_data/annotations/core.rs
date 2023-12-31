@@ -1,9 +1,9 @@
 use crate::{
-    domain::{Annotate, BB},
+    domain::{Annotate, BoxF},
     result::RvResult,
     rverr,
     util::true_indices,
-    Shape,
+    ShapeI,
 };
 use serde::{Deserialize, Serialize};
 use std::mem;
@@ -39,7 +39,7 @@ where
     pub fn separate_data(self) -> (Vec<T>, Vec<usize>, Vec<bool>) {
         (self.elts, self.cat_idxs, self.selected_mask)
     }
-    pub fn extend<IE, IC>(&mut self, elts: IE, cat_ids: IC, shape_image: Shape)
+    pub fn extend<IE, IC>(&mut self, elts: IE, cat_ids: IC, shape_image: ShapeI)
     where
         IE: Iterator<Item = T>,
         IC: Iterator<Item = usize>,
@@ -198,12 +198,12 @@ where
     }
 }
 pub fn resize_bbs_inds<F>(
-    mut bbs: Vec<BB>,
+    mut bbs: Vec<BoxF>,
     bb_inds: impl Iterator<Item = usize>,
     resize: F,
-) -> Vec<BB>
+) -> Vec<BoxF>
 where
-    F: Fn(BB) -> Option<BB>,
+    F: Fn(BoxF) -> Option<BoxF>,
 {
     for idx in bb_inds {
         if let Some(bb) = resize(bbs[idx]) {
@@ -212,9 +212,9 @@ where
     }
     bbs
 }
-pub fn resize_bbs<F>(bbs: Vec<BB>, selected_bbs: &[bool], resize: F) -> Vec<BB>
+pub fn resize_bbs<F>(bbs: Vec<BoxF>, selected_bbs: &[bool], resize: F) -> Vec<BoxF>
 where
-    F: Fn(BB) -> Option<BB>,
+    F: Fn(BoxF) -> Option<BoxF>,
 {
     let selected_idxs = true_indices(selected_bbs);
     resize_bbs_inds(bbs, selected_idxs, resize)

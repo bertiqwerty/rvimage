@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     cfg::ExportPath,
-    domain::Shape,
+    domain::ShapeI,
     file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
@@ -144,13 +144,13 @@ impl Default for BboxSpecificData {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct BboxExportData {
     pub labels: Vec<String>,
     pub colors: Vec<[u8; 3]>,
     pub cat_ids: Vec<u32>,
     // filename, bounding boxes, classes of the boxes, dimensions of the image
-    pub annotations: HashMap<String, (Vec<GeoFig>, Vec<usize>, Shape)>,
+    pub annotations: HashMap<String, (Vec<GeoFig>, Vec<usize>, ShapeI)>,
     pub coco_file: ExportPath,
     pub is_export_absolute: bool,
 }
