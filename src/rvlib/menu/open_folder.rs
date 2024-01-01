@@ -6,13 +6,14 @@ use crate::{
     result::{RvError, RvResult},
 };
 
-use super::picklist;
+use super::picklist::{self, PicklistResult};
 
 pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> RvResult<bool> {
     let resp = ui.button("open folder");
     if resp.clicked() {
         Ok(true)
     } else if open_folder_popup_open {
+        let mut cancel = false;
         let picked = match &ctrl.cfg.connection {
             Connection::Local => {
                 let sf = rfd::FileDialog::new()
@@ -24,18 +25,27 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                         .to_string(),
                 )
             }
-            Connection::Ssh => picklist::pick(
-                ui,
-                ctrl.cfg
-                    .ssh_cfg
-                    .remote_folder_paths
-                    .iter()
-                    .map(|s| s.as_str()),
-                500.0,
-                &resp,
-                "ssh-open-popup",
-            )
-            .map(|s| s.to_string()),
+            Connection::Ssh => {
+                let picklist_res = picklist::pick(
+                    ui,
+                    ctrl.cfg
+                        .ssh_cfg
+                        .remote_folder_paths
+                        .iter()
+                        .map(|s| s.as_str()),
+                    500.0,
+                    &resp,
+                    "ssh-open-popup",
+                );
+                match picklist_res {
+                    Some(PicklistResult::Picked(folder)) => Some(folder.to_string()),
+                    Some(PicklistResult::Cancel) => {
+                        cancel = true;
+                        None
+                    }
+                    _ => None,
+                }
+            }
             Connection::PyHttp => {
                 let address = ctrl
                     .cfg
@@ -60,6 +70,8 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
         };
         if let Some(new_folder) = picked {
             ctrl.open_folder(new_folder)?;
+            Ok(false)
+        } else if cancel {
             Ok(false)
         } else {
             Ok(true)

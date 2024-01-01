@@ -3,7 +3,13 @@ use crate::{
     control::{Control, Info, SortType},
     domain::Annotate,
     file_util::{self, RVPRJ_PREFIX},
-    menu::{self, cfg_menu::CfgMenu, open_folder, picklist, text_edit::text_edit_singleline},
+    menu::{
+        self,
+        cfg_menu::CfgMenu,
+        open_folder,
+        picklist::{self, PicklistResult},
+        text_edit::text_edit_singleline,
+    },
     paths_selector::PathsSelector,
     result::{to_rv, RvResult},
     tools::ToolState,
@@ -205,7 +211,7 @@ impl<'a> Widget for SavePopup<'a> {
                                     tracing::error!("could not save project due to {e:?}");
                                 }
                             }
-                            let resp_close = ui.button("close");
+                            let resp_close = ui.button("cancel");
                             if resp_close.clicked() || save_resp_clicked {
                                 ui.memory_mut(|m| m.close_popup());
                                 *self.show = false;
@@ -372,7 +378,7 @@ impl Menu {
                     }
                     if self.load_button_resp.popup_open {
                         let mut filename_for_import = None;
-                        let mut exports = || -> RvResult<()> {
+                        let mut list_projects = || -> RvResult<()> {
                             let files = file_util::files_in_folder(folder, RVPRJ_PREFIX, "json")
                                 .map_err(to_rv)?
                                 .filter_map(|p| {
@@ -381,14 +387,21 @@ impl Menu {
                                 .flatten()
                                 .collect::<Vec<_>>();
                             if !files.is_empty() {
-                                filename_for_import = picklist::pick(
+                                let picklist_res = picklist::pick(
                                     ui,
-                                    files.iter().map(|s| s.as_str()),
+                                    files.iter().map(|s|s.as_str()),
                                     200.0,
                                     load_btn_resp,
                                     "load-prj-popup",
-                                )
-                                .map(|s| s.to_string());
+                                );
+                                filename_for_import = match picklist_res {
+                                    Some(PicklistResult::Picked(s)) => Some(s),
+                                    Some(PicklistResult::Cancel) => {
+                                        self.load_button_resp.popup_open = false;
+                                        None
+                                    }
+                                    _ => None,
+                                }
                             } else {
                                 tracing::info!("no projects found that can be loaded")
                             }
@@ -400,7 +413,7 @@ impl Menu {
                                 self.load_button_resp.resp = None;
                                 self.load_button_resp.popup_open = false;
                             },
-                            exports(),
+                            list_projects(),
                             self
                         );
                         if let Some(filename) = filename_for_import {
