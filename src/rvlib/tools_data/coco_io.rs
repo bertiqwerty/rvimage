@@ -357,7 +357,6 @@ fn get_cocofilepath(meta_data: &MetaData, coco_file: &ExportPath) -> RvResult<Pa
     }
 }
 
-
 /// Serialize annotations in Coco format. Any orientations changes applied with the rotation tool
 /// are reverted, since the rotation tool does not change the image file. Hence, the Coco file contains the annotation
 /// relative to the image as it is found in memory ignoring any meta-data.
@@ -376,7 +375,7 @@ pub fn write_coco(
 }
 
 /// Import annotations in Coco format. Any orientations changes applied with the rotation tool
-/// to images that have annotations in the Coco file are applied to the annotations before importing. We expect, that 
+/// to images that have annotations in the Coco file are applied to the annotations before importing. We expect, that
 /// the Coco file contains the annotations relative to the image as it is found in memory ignoring any meta-data.
 pub fn read_coco(
     meta_data: &MetaData,
