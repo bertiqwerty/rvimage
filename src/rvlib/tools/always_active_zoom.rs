@@ -23,7 +23,7 @@ impl AlwaysActiveZoom {
         history: History,
     ) -> (World, History) {
         if events.held_ctrl() && events.pressed(KeyCode::MouseLeft) {
-            self.mover.move_mouse_pressed(events.mouse_pos);
+            self.mover.move_mouse_pressed(events.mouse_pos_on_view);
         }
         (world, history)
     }
@@ -35,7 +35,7 @@ impl AlwaysActiveZoom {
         history: History,
     ) -> (World, History) {
         if events.held_ctrl() && events.held(KeyCode::MouseLeft) {
-            (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos);
+            (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos_on_view);
             (world, history)
         } else {
             (world, history)

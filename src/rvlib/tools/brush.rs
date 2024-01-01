@@ -187,7 +187,7 @@ impl Brush {
             let options = get_options(&world);
             let cat_idx = get_specific(&world).map(|d| d.label_info.cat_idx_current);
             if let (Some(mp), Some(annos), Some(options), Some(cat_idx)) = (
-                events.mouse_pos,
+                events.mouse_pos_on_orig,
                 get_annos_mut(&mut world),
                 options,
                 cat_idx,
@@ -223,7 +223,7 @@ impl Brush {
     ) -> (World, History) {
         if !events.held_ctrl() {
             let erase = get_options(&world).map(|o| o.erase);
-            if let (Some(mp), Some(annos)) = (events.mouse_pos, get_annos_mut(&mut world)) {
+            if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 if erase != Some(true) {
                     if let Some(line) = annos.last_line_mut() {
                         let last_point = line.last_point();
@@ -250,7 +250,7 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if events.held_ctrl() {
-            if let (Some(mp), Some(annos)) = (events.mouse_pos, get_annos_mut(&mut world)) {
+            if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 let to_be_selected_line_idx = find_closest_brushline(annos, mp);
                 if let Some((idx, dist)) = to_be_selected_line_idx {
                     if dist < MAX_SELECT_DIST {

@@ -359,7 +359,7 @@ impl MainEventLoop {
 
         // show position and rgb value
         if let Some(idx) = self.ctrl.paths_navigator.file_label_selected_idx() {
-            let pixel_pos = e.mouse_pos.map(|mp| mp.into());
+            let pixel_pos = e.mouse_pos_on_orig.map(|mp| mp.into());
             let data_point = get_pixel_on_orig_str(&self.world, &pixel_pos);
             let shape = self.world.shape_orig();
             let file_label = self.ctrl.file_label(idx);

@@ -31,12 +31,17 @@ macro_rules! action {
 #[derive(Debug, Clone, Default)]
 pub struct Events {
     events: Vec<Event>,
-    pub mouse_pos: Option<PtF>,
+    pub mouse_pos_on_orig: Option<PtF>,
+    pub mouse_pos_on_view: Option<PtF>,
 }
 
 impl Events {
-    pub fn mousepos(mut self, mouse_pos: Option<PtF>) -> Self {
-        self.mouse_pos = mouse_pos;
+    pub fn mousepos_orig(mut self, mouse_pos: Option<PtF>) -> Self {
+        self.mouse_pos_on_orig = mouse_pos;
+        self
+    }
+    pub fn mousepos_view(mut self, mouse_pos: Option<PtF>) -> Self {
+        self.mouse_pos_on_view = mouse_pos;
         self
     }
     pub fn events(mut self, mut events: Vec<Event>) -> Self {

@@ -163,7 +163,7 @@ impl Bbox {
         history: History,
     ) -> (World, History) {
         if event.pressed(KeyCode::MouseRight) {
-            self.mover.move_mouse_pressed(event.mouse_pos);
+            self.mover.move_mouse_pressed(event.mouse_pos_on_orig);
         } else {
             self.start_press_time = Some(Instant::now());
             self.points_at_press = Some(self.prev_pos.prev_pos.len());
@@ -181,7 +181,7 @@ impl Bbox {
             mover: &mut self.mover,
         };
         if event.held(KeyCode::MouseRight) {
-            on_mouse_held_right(event.mouse_pos, params, world, history)
+            on_mouse_held_right(event.mouse_pos_on_orig, params, world, history)
         } else {
             let options = get_options(&world);
             let params = MouseHeldLeftParams {
@@ -196,7 +196,7 @@ impl Bbox {
                     .unwrap_or(0),
             };
             (world, history, self.prev_pos) =
-                on_mouse_held_left(event.mouse_pos, params, world, history);
+                on_mouse_held_left(event.mouse_pos_on_orig, params, world, history);
             self.points_alter_held = Some(self.prev_pos.prev_pos.len());
             (world, history)
         }
@@ -220,10 +220,10 @@ impl Bbox {
                 close_box_or_poly,
             };
             (world, history, self.prev_pos) =
-                on_mouse_released_left(event.mouse_pos, params, world, history);
+                on_mouse_released_left(event.mouse_pos_on_orig, params, world, history);
         } else if event.released(KeyCode::MouseRight) {
             (world, history, self.prev_pos) = on_mouse_released_right(
-                event.mouse_pos,
+                event.mouse_pos_on_orig,
                 self.prev_pos.clone(),
                 are_boxes_visible,
                 world,
@@ -287,7 +287,7 @@ impl Bbox {
             is_ctrl_held: events.held_ctrl(),
             released_key: map_released_key(events),
         };
-        (world, history) = on_key_released(world, history, events.mouse_pos, params);
+        (world, history) = on_key_released(world, history, events.mouse_pos_on_orig, params);
         (world, history)
     }
 }
@@ -365,7 +365,7 @@ impl Manipulate for Bbox {
 
             let in_menu_selected_label = current_cat_idx(&world);
             if let (Some(in_menu_selected_label), Some(mp)) =
-                (in_menu_selected_label, events.mouse_pos)
+                (in_menu_selected_label, events.mouse_pos_on_orig)
             {
                 if !self.prev_pos.prev_pos.is_empty() {
                     let geo = if self.prev_pos.prev_pos.len() == 1 {

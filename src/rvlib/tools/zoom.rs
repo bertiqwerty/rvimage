@@ -91,8 +91,8 @@ impl Zoom {
         history: History,
     ) -> (World, History) {
         if events.pressed(KeyCode::MouseRight) {
-            self.mover.move_mouse_pressed(events.mouse_pos);
-        } else if let Some(mp) = events.mouse_pos {
+            self.mover.move_mouse_pressed(events.mouse_pos_on_view);
+        } else if let Some(mp) = events.mouse_pos_on_orig {
             self.set_mouse_start_zoom(mp);
         }
         (world, history)
@@ -120,7 +120,7 @@ impl Zoom {
             self.unset_mouse_start_zoom();
             (world, history)
         } else if events.released(KeyCode::MouseLeft) {
-            world = self.mouse_released_left_btn(world, events.mouse_pos);
+            world = self.mouse_released_left_btn(world, events.mouse_pos_on_orig);
             (world, history)
         } else {
             (world, history)
@@ -134,9 +134,9 @@ impl Zoom {
         history: History,
     ) -> (World, History) {
         if events.held(KeyCode::MouseRight) || events.held_ctrl() {
-            (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos);
+            (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos_on_view);
         } else if events.held(KeyCode::MouseLeft) {
-            if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, events.mouse_pos) {
+            if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, events.mouse_pos_on_orig) {
                 // animation
                 let bb = BbF::from_points(mps, m);
                 let white = [255, 255, 255];
@@ -244,7 +244,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let world = World::from_real_im(im_orig, HashMap::new(), "".to_string());
     let history = History::default();
     let im_orig_old = world.data.clone();
-    let event = Events::default().mousepos(mouse_pos);
+    let event = Events::default().mousepos_orig(mouse_pos);
     let (res, _) = z.mouse_pressed(&event, world, history);
     assert_eq!(res.data, im_orig_old);
     assert_eq!(z.mouse_pressed_start_pos, mouse_pos.map(|mp| mp.into()));

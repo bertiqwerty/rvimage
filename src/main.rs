@@ -398,16 +398,22 @@ impl RvImageApp {
         let rect_size = image_response.rect.size();
         let offset_x = image_response.rect.min.x;
         let offset_y = image_response.rect.min.y;
-        let mouse_pos = image_response.hover_pos();
-        let mouse_pos = mouse_pos.map(|mp| {
-            let view_pos = view_pos_2_orig_pos(
-                ((mp.x - offset_x) as TPtF, (mp.y - offset_y) as TPtF).into(),
+        let mouse_pos_egui = image_response.hover_pos();
+        let mouse_pos_on_view = mouse_pos_egui.map(|mp_egui| {
+            view_pos_2_orig_pos(
+                (
+                    (mp_egui.x - offset_x) as TPtF,
+                    (mp_egui.y - offset_y) as TPtF,
+                )
+                    .into(),
                 self.shape_view(),
                 vec2_2_shape(rect_size),
                 &None,
-            );
+            )
+        });
+        let mouse_pos = mouse_pos_on_view.map(|mp_view| {
             view_pos_2_orig_pos(
-                view_pos,
+                mp_view,
                 self.shape_orig(),
                 self.shape_view(),
                 &self.zoom_box,
@@ -419,7 +425,8 @@ impl RvImageApp {
         rvlib::Events::default()
             .events(key_events)
             .events(mouse_events)
-            .mousepos(mouse_pos)
+            .mousepos_orig(mouse_pos)
+            .mousepos_view(mouse_pos_on_view)
     }
 
     fn add_image(&mut self, ui: &mut Ui) -> Option<Response> {
