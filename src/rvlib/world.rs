@@ -1,4 +1,4 @@
-use crate::domain::{BoxF, ShapeI};
+use crate::domain::{BbF, ShapeI};
 use crate::drawme::{Annotation, UpdateImage};
 use crate::file_util::MetaData;
 use crate::tools::add_tools_initial_data;
@@ -137,11 +137,11 @@ pub struct World {
     pub update_view: UpdateView,
     pub data: DataRaw,
     // transforms coordinates from view to raw image
-    zoom_box: Option<BoxF>,
+    zoom_box: Option<BbF>,
 }
 
 impl World {
-    pub fn new(ims_raw: DataRaw, zoom_box: Option<BoxF>) -> Self {
+    pub fn new(ims_raw: DataRaw, zoom_box: Option<BbF>) -> Self {
         let im = ims_raw.bg_to_uncropped_view();
         let world = Self {
             data: ims_raw,
@@ -205,7 +205,7 @@ impl World {
         self.data.shape()
     }
 
-    pub fn set_zoom_box(&mut self, zoom_box: Option<BoxF>) {
+    pub fn set_zoom_box(&mut self, zoom_box: Option<BbF>) {
         let mut set_zb = || {
             self.zoom_box = zoom_box;
             self.update_view = UpdateView::from_zoombox(zoom_box);
@@ -219,7 +219,7 @@ impl World {
         }
     }
 
-    pub fn zoom_box(&self) -> &Option<BoxF> {
+    pub fn zoom_box(&self) -> &Option<BbF> {
         &self.zoom_box
     }
 }

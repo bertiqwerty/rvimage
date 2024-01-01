@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    domain::{BoxF, OutOfBoundsMode, PtF, ShapeI, TPtF},
+    domain::{BbF, OutOfBoundsMode, PtF, ShapeI, TPtF},
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     history::History,
@@ -26,7 +26,7 @@ pub fn move_zoom_box(mut mover: Mover, mut world: World, mouse_pos: Option<PtF>)
     (mover, world)
 }
 
-fn make_zoom_on_release<P>(mp_start: P, mp_release: P) -> Option<BoxF>
+fn make_zoom_on_release<P>(mp_start: P, mp_release: P) -> Option<BbF>
 where
     P: Into<PtF>,
 {
@@ -40,7 +40,7 @@ where
     let w = x_max - x_min;
     let h = y_max - y_min;
     if w >= MIN_ZOOM && h >= MIN_ZOOM {
-        Some(BoxF {
+        Some(BbF {
             x: x_min,
             y: y_min,
             w,
@@ -55,8 +55,8 @@ fn follow_zoom_box(
     mp_from: PtF,
     mp_to: PtF,
     shape_orig: ShapeI,
-    zoom_box: Option<BoxF>,
-) -> Option<BoxF> {
+    zoom_box: Option<BbF>,
+) -> Option<BbF> {
     match zoom_box {
         // we move from mp_to to mp_from since we want the image to follow the mouse
         // instead for the zoom-box to follow the mouse
@@ -138,7 +138,7 @@ impl Zoom {
         } else if events.held(KeyCode::MouseLeft) {
             if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, events.mouse_pos) {
                 // animation
-                let bb = BoxF::from_points(mps, m);
+                let bb = BbF::from_points(mps, m);
                 let white = [255, 255, 255];
                 let anno = BboxAnnotation {
                     geofig: GeoFig::BB(bb),
@@ -198,12 +198,12 @@ use {
     std::collections::HashMap,
 };
 #[cfg(test)]
-fn mk_z(x: TPtF, y: TPtF, w: TPtF, h: TPtF) -> Option<BoxF> {
-    Some(BoxF { x, y, w, h })
+fn mk_z(x: TPtF, y: TPtF, w: TPtF, h: TPtF) -> Option<BbF> {
+    Some(BbF { x, y, w, h })
 }
 #[test]
 fn test_make_zoom() -> RvResult<()> {
-    fn test(mps: (TPtF, TPtF), mpr: (TPtF, TPtF), expected: Option<BoxF>) {
+    fn test(mps: (TPtF, TPtF), mpr: (TPtF, TPtF), expected: Option<BbF>) {
         assert_eq!(make_zoom_on_release(mps, mpr), expected);
     }
 
@@ -220,8 +220,8 @@ fn test_move_zoom() -> RvResult<()> {
     fn test(
         mpp: (usize, usize),
         mph: (usize, usize),
-        zoom_box: Option<BoxF>,
-        expected: Option<BoxF>,
+        zoom_box: Option<BbF>,
+        expected: Option<BbF>,
     ) {
         let mpp = (mpp.0 as TPtF, mpp.1 as TPtF).into();
         let mph = (mph.0 as TPtF, mph.1 as TPtF).into();
@@ -262,7 +262,7 @@ fn test_on_mouse_released() -> RvResult<()> {
     let world = z.mouse_released_left_btn(world, Some(point!(40.0, 80.0)));
     assert_eq!(
         *world.zoom_box(),
-        Some(BoxF {
+        Some(BbF {
             x: 30.0,
             y: 70.0,
             w: 10.0,

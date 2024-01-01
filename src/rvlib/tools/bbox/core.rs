@@ -1,6 +1,6 @@
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{BoxF, ShapeI, TPtF},
+    domain::{BbF, ShapeI, TPtF},
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     file_util,
@@ -369,7 +369,7 @@ impl Manipulate for Bbox {
             {
                 if !self.prev_pos.prev_pos.is_empty() {
                     let geo = if self.prev_pos.prev_pos.len() == 1 {
-                        GeoFig::BB(BoxF::from_points(mp, self.prev_pos.prev_pos[0]))
+                        GeoFig::BB(BbF::from_points(mp, self.prev_pos.prev_pos[0]))
                     } else {
                         GeoFig::Poly(
                             Polygon::from_vec(

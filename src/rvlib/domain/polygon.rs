@@ -1,7 +1,7 @@
 use crate::result::RvResult;
 use std::mem;
 
-use super::bb::BoxF;
+use super::bb::BbF;
 use super::core::{dist_lineseg_point, max_squaredist, TPtF};
 use super::{OutOfBoundsMode, Point, PtF, ShapeF, ShapeI};
 use serde::{Deserialize, Serialize};
@@ -40,11 +40,11 @@ fn intersect_x_axis_parallel(lineseg: &(PtF, PtF), y_value: TPtF) -> Option<PtF>
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct Polygon {
     points: Vec<PtF>, // should NEVER be empty, hence private!
-    enclosing_bb: BoxF,
+    enclosing_bb: BbF,
 }
 impl Polygon {
     pub fn shape_check(self, orig_im_shape: ShapeI, mode: OutOfBoundsMode<TPtF>) -> Option<Self> {
-        let shape_bb = BoxF::from_shape_int(orig_im_shape);
+        let shape_bb = BbF::from_shape_int(orig_im_shape);
         if shape_bb.contains_bb(self.enclosing_bb) {
             Some(self)
         } else {
@@ -61,7 +61,7 @@ impl Polygon {
                         w: <u32 as Into<TPtF>>::into(orig_im_shape.w).max(min_bb_shape.w),
                         h: <u32 as Into<TPtF>>::into(orig_im_shape.h).max(min_bb_shape.h),
                     };
-                    let bb = BoxF::from_shape(shape);
+                    let bb = BbF::from_shape(shape);
                     self.intersect(bb).ok()
                 }
             }
@@ -90,7 +90,7 @@ impl Polygon {
     pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtF> + 'a + Clone {
         self.points.iter().copied()
     }
-    pub fn has_overlap(&self, other: &BoxF) -> bool {
+    pub fn has_overlap(&self, other: &BbF) -> bool {
         self.enclosing_bb.has_overlap(other)
             && (other.contains_bb(self.enclosing_bb)
                 || other.points_iter().any(|p| self.contains(p)))
@@ -111,7 +111,7 @@ impl Polygon {
     /// Intersects the polygon with a bounding box for rendering and cut with the zoom box.
     /// Sutherland-Hodgman algorithm where the clipping polygon is a box.
     /// https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
-    pub fn intersect(self, bb: BoxF) -> RvResult<Self> {
+    pub fn intersect(self, bb: BbF) -> RvResult<Self> {
         let mut in_vertices = self.points;
         let mut out_vertices = vec![];
         let mut process_point = |select_coord: fn(&PtF) -> f64,
@@ -207,7 +207,7 @@ impl Polygon {
     pub fn is_contained_in_image(&self, shape: ShapeI) -> bool {
         self.enclosing_bb.is_contained_in_image(shape)
     }
-    pub fn enclosing_bb(&self) -> BoxF {
+    pub fn enclosing_bb(&self) -> BbF {
         self.enclosing_bb
     }
     pub fn points(&self) -> &Vec<PtF> {
@@ -215,15 +215,15 @@ impl Polygon {
     }
     /// We will need this as soon as we support polygons
     pub fn from_vec(points: Vec<PtF>) -> RvResult<Self> {
-        let enclosing_bb = BoxF::from_vec(&points)?;
+        let enclosing_bb = BbF::from_vec(&points)?;
         Ok(Self {
             points,
             enclosing_bb,
         })
     }
 }
-impl From<BoxF> for Polygon {
-    fn from(bb: BoxF) -> Self {
+impl From<BbF> for Polygon {
+    fn from(bb: BbF) -> Self {
         Polygon {
             points: bb.points_iter().collect(),
             enclosing_bb: bb,
@@ -248,14 +248,14 @@ fn test_intersect() {
 
 #[test]
 fn test_poly() {
-    let poly = Polygon::from(BoxF::from_arr(&[5.0, 5.0, 10.0, 10.0]));
+    let poly = Polygon::from(BbF::from_arr(&[5.0, 5.0, 10.0, 10.0]));
     assert!(!poly.contains(PtF::from((17.0, 7.0))));
     assert!(poly.contains(PtF::from((7.0, 7.0))));
-    let bb = BoxF::from_arr(&[2.0, 2.0, 33.0, 30.0]);
+    let bb = BbF::from_arr(&[2.0, 2.0, 33.0, 30.0]);
     assert!(poly.has_overlap(&bb));
-    let bb = BoxF::from_arr(&[6.0, 6.0, 7.0, 7.0]);
+    let bb = BbF::from_arr(&[6.0, 6.0, 7.0, 7.0]);
     assert!(poly.has_overlap(&bb));
-    let bb = BoxF::from_arr(&[6.0, 6.0, 15.0, 15.0]);
+    let bb = BbF::from_arr(&[6.0, 6.0, 15.0, 15.0]);
     assert!(poly.has_overlap(&bb));
 }
 #[test]
@@ -268,21 +268,21 @@ fn test_poly_triangle() {
 #[test]
 fn test_poly_intersect() {
     let poly = Polygon::from_vec(vec![(5, 5).into(), (15, 15).into(), (5, 15).into()]).unwrap();
-    let bb = BoxF::from(&[5.0, 7.0, 10.0, 2.0]);
+    let bb = BbF::from(&[5.0, 7.0, 10.0, 2.0]);
     let clipped_poly = poly.clone().intersect(bb).unwrap();
-    let encl_bb = BoxF::from(&[5.0, 7.0, 4.0, 2.0]);
+    let encl_bb = BbF::from(&[5.0, 7.0, 4.0, 2.0]);
     assert_eq!(clipped_poly.enclosing_bb(), encl_bb);
     assert_eq!(
         clipped_poly.points,
         vec![(7, 7).into(), (9, 9).into(), (5, 9).into(), (5, 7).into()]
     );
 
-    let bb = BoxF::from(&[5.0, 7.0, 2.0, 2.0]);
+    let bb = BbF::from(&[5.0, 7.0, 2.0, 2.0]);
     let clipped_poly = poly.intersect(bb);
     assert_eq!(clipped_poly.unwrap().enclosing_bb(), bb);
 
     let poly = Polygon::from_vec(vec![(5, 5).into(), (10, 10).into(), (5, 10).into()]).unwrap();
-    let clipped_poly = poly.clone().intersect(BoxF::from(&[2.0, 2.0, 20.0, 20.0]));
+    let clipped_poly = poly.clone().intersect(BbF::from(&[2.0, 2.0, 20.0, 20.0]));
     assert_eq!(clipped_poly, Ok(poly));
 }
 

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::{BoxF, CoordinateBox, OutOfBoundsMode, PtF, ShapeF, ShapeI, TPtF},
+    domain::{BbF, CoordinateBox, OutOfBoundsMode, PtF, ShapeF, ShapeI, TPtF},
     util::true_indices,
     GeoFig,
 };
@@ -9,12 +9,12 @@ use crate::{
 use super::core::{resize_bbs, resize_bbs_inds};
 
 fn resize_bbs_by_key(
-    bbs: Vec<BoxF>,
+    bbs: Vec<BbF>,
     selected_bbs: &[bool],
-    shiftee_key: impl Fn(&BoxF) -> TPtF,
-    candidate_key: impl Fn(&BoxF) -> TPtF,
-    resize: impl Fn(BoxF) -> Option<BoxF>,
-) -> Vec<BoxF> {
+    shiftee_key: impl Fn(&BbF) -> TPtF,
+    candidate_key: impl Fn(&BbF) -> TPtF,
+    resize: impl Fn(BbF) -> Option<BbF>,
+) -> Vec<BbF> {
     let indices = true_indices(selected_bbs);
     let opposite_shiftees = indices
         .flat_map(|shiftee_idx| {
@@ -47,9 +47,9 @@ impl SplitMode {
         x_shift: f64,
         y_shift: f64,
         selected_bbs: &[bool],
-        bbs: Vec<BoxF>,
+        bbs: Vec<BbF>,
         shape_orig: ShapeI,
-    ) -> Vec<BoxF> {
+    ) -> Vec<BbF> {
         let (x_shift, y_shift) = self.zero_direction(x_shift, y_shift);
         let bbs = match self {
             SplitMode::Horizontal => resize_bbs_by_key(
@@ -77,9 +77,9 @@ impl SplitMode {
         x_shift: TPtF,
         y_shift: TPtF,
         selected_bbs: &[bool],
-        bbs: Vec<BoxF>,
+        bbs: Vec<BbF>,
         shape_orig: ShapeI,
-    ) -> Vec<BoxF> {
+    ) -> Vec<BbF> {
         let (x_shift, y_shift) = self.zero_direction(x_shift, y_shift);
 
         let bbs = match self {
@@ -182,16 +182,16 @@ impl SplitMode {
 #[test]
 fn test() {
     let bbs = vec![
-        BoxF::from(&[0.0, 0.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 10.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 20.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 30.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 40.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 50.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 60.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 70.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 80.0, 10.0, 10.0]),
-        BoxF::from(&[0.0, 90.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 0.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 10.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 20.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 30.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 40.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 50.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 60.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 70.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 80.0, 10.0, 10.0]),
+        BbF::from(&[0.0, 90.0, 10.0, 10.0]),
     ];
     let trues = vec![3];
     let mut selected_bbs = vec![false; bbs.len()];

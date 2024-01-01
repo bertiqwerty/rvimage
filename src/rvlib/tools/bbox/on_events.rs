@@ -3,7 +3,7 @@ use std::{cmp::Ordering, iter::empty, mem};
 use crate::{
     cfg::ExportPath,
     domain::{
-        self, max_from_partial, min_from_partial, shape_unscaled, BoxF, OutOfBoundsMode, Point, PtF,
+        self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF, TPtF,
     },
     file_util::MetaData,
     history::Record,
@@ -34,7 +34,7 @@ fn closest_containing_boundary_idx(pos: PtF, geos: &[GeoFig]) -> Option<usize> {
 }
 
 /// returns index of the bounding box and the index of the closest close corner
-fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: f64) -> Option<(usize, usize)> {
+fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: TPtF) -> Option<(usize, usize)> {
     geos.iter()
         .enumerate()
         .map(|(bb_idx, bb)| {
@@ -44,7 +44,7 @@ fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: f64) -> Option<(
             };
             let (min_corner_idx, min_corner_dist) = iter
                 .map(|c| c.into())
-                .map(|c: (f64, f64)| (orig_pos.x - c.0).powi(2) + (orig_pos.y - c.1).powi(2))
+                .map(|c: (TPtF, TPtF)| (orig_pos.x - c.0).powi(2) + (orig_pos.y - c.1).powi(2))
                 .enumerate()
                 .min_by(min_from_partial)
                 .unwrap();
@@ -177,7 +177,7 @@ pub(super) fn on_mouse_released_right(
                     };
                     let annos = get_annos_mut(&mut world);
                     if let Some(annos) = annos {
-                        annos.add_bb(BoxF::from_points(mp, pp), in_menu_selected_label);
+                        annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label);
                         history.push(Record::new(world.data.clone(), ACTOR_NAME));
                         prev_pos.prev_pos = vec![];
                         world.request_redraw_annotations(BBOX_NAME, visible);
@@ -290,7 +290,7 @@ pub(super) fn on_mouse_released_left(
                             .map(|i| (newly_selected_bb.max_squaredist(&annos.elts()[i])))
                             .max_by(|(_, _, d1), (_, _, d2)| max_from_partial(d1, d2))
                         {
-                            let spanned_bb = BoxF::from_points(p1, p2);
+                            let spanned_bb = BbF::from_points(p1, p2);
                             let to_be_selected_inds = annos
                                 .elts()
                                 .iter()
@@ -354,7 +354,7 @@ pub(super) fn on_mouse_released_left(
                     _ => {
                         // create boxes by splitting either horizontally or vertically
                         if let Some(mp) = mouse_pos {
-                            let existing_bbs = || -> Box<dyn Iterator<Item = &BoxF>> {
+                            let existing_bbs = || -> Box<dyn Iterator<Item = &BbF>> {
                                 if let Some(annos) = get_annos(&world) {
                                     Box::new(annos.elts().iter().flat_map(|geo| match geo {
                                         GeoFig::BB(bb) => Some(bb),
@@ -381,7 +381,7 @@ pub(super) fn on_mouse_released_left(
                                         })
                                         .collect::<Vec<_>>();
                                     if new_bbs.is_empty() {
-                                        let (top, btm) = BoxF::from_shape_int(shape_orig)
+                                        let (top, btm) = BbF::from_shape_int(shape_orig)
                                             .split_horizontally(mp.y);
                                         vec![(None, top, btm)]
                                     } else {
@@ -406,7 +406,7 @@ pub(super) fn on_mouse_released_left(
                                     .collect::<Vec<_>>();
                                 if new_bbs.is_empty() {
                                     let (left, right) =
-                                        BoxF::from_shape_int(shape_orig).split_vertically(mp.x);
+                                        BbF::from_shape_int(shape_orig).split_vertically(mp.x);
                                     vec![(None, left, right)]
                                 } else {
                                     new_bbs
@@ -530,7 +530,7 @@ pub(super) fn on_key_released(
 use {
     super::core::get_specific,
     crate::{
-        domain::{make_test_bbs, make_test_geos, BoxI, ShapeI},
+        domain::{make_test_bbs, make_test_geos, BbI, ShapeI},
         point,
         tools_data::annotations::BboxAnnotations,
         types::ViewImage,
@@ -568,7 +568,7 @@ fn test_key_released() {
     };
     let annos = get_annos_mut(&mut world).unwrap();
     annos.add_bb(
-        BoxF {
+        BbF {
             x: 1.0,
             y: 1.0,
             h: 10.0,
@@ -789,10 +789,10 @@ fn test_mouse_release() {
             .label_info
             .cat_idx_current = 1;
         let annos = get_annos_mut(&mut world).unwrap();
-        annos.add_bb(BoxI::from_arr(&[20, 20, 20, 20]).into(), 0);
-        annos.add_bb(BoxI::from_arr(&[50, 50, 5, 5]).into(), 0);
-        annos.add_bb(BoxI::from_arr(&[20, 50, 3, 3]).into(), 1);
-        annos.add_bb(BoxI::from_arr(&[20, 55, 3, 3]).into(), 0);
+        annos.add_bb(BbI::from_arr(&[20, 20, 20, 20]).into(), 0);
+        annos.add_bb(BbI::from_arr(&[50, 50, 5, 5]).into(), 0);
+        annos.add_bb(BbI::from_arr(&[20, 50, 3, 3]).into(), 1);
+        annos.add_bb(BbI::from_arr(&[20, 55, 3, 3]).into(), 0);
 
         let (mut world, _, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());

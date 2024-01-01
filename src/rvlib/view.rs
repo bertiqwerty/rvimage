@@ -1,6 +1,6 @@
 use image::{GenericImageView, ImageBuffer, Rgb};
 
-use crate::domain::{pos_transform, BoxF, Calc, PtF, ShapeI, TPtF};
+use crate::domain::{pos_transform, BbF, Calc, PtF, ShapeI, TPtF};
 
 pub type ImageU8 = ImageBuffer<Rgb<u8>, Vec<u8>>;
 
@@ -21,7 +21,7 @@ pub fn view_pos_2_orig_pos(
     view_pos: PtF,
     shape_orig: ShapeI,
     shape_win: ShapeI,
-    zoom_box: &Option<BoxF>,
+    zoom_box: &Option<BbF>,
 ) -> PtF {
     pos_transform(view_pos, shape_orig, shape_win, zoom_box, coord_view_2_orig)
 }
@@ -34,7 +34,7 @@ pub fn orig_pos_2_view_pos(
     orig_pos: PtF,
     shape_orig: ShapeI,
     shape_win: ShapeI,
-    zoom_box: &Option<BoxF>,
+    zoom_box: &Option<BbF>,
 ) -> Option<PtF> {
     if let Some(zb) = zoom_box {
         if !zb.contains(orig_pos) {
@@ -49,7 +49,7 @@ pub fn orig_pos_2_view_pos(
         coord_orig_2_view,
     ))
 }
-pub fn orig_2_view(im_orig: &ImageU8, zoom_box: Option<BoxF>) -> ImageU8 {
+pub fn orig_2_view(im_orig: &ImageU8, zoom_box: Option<BbF>) -> ImageU8 {
     if let Some(zoom_box) = zoom_box {
         im_orig
             .view(
@@ -64,7 +64,7 @@ pub fn orig_2_view(im_orig: &ImageU8, zoom_box: Option<BoxF>) -> ImageU8 {
     }
 }
 
-pub fn project_on_bb(p: PtF, bb: &BoxF) -> PtF {
+pub fn project_on_bb(p: PtF, bb: &BbF) -> PtF {
     let x = p.x.max(bb.x).min(bb.x + bb.w - 1.0);
     let y = p.y.max(bb.y).min(bb.y + bb.h - 1.0);
     PtF { x, y }
@@ -72,7 +72,7 @@ pub fn project_on_bb(p: PtF, bb: &BoxF) -> PtF {
 
 #[test]
 fn test_project() {
-    let bb = BoxF::from_arr(&[5.0, 5.0, 10.0, 10.0]);
+    let bb = BbF::from_arr(&[5.0, 5.0, 10.0, 10.0]);
     assert_eq!(
         PtF { x: 5.0, y: 5.0 },
         project_on_bb((0.0, 0.0).into(), &bb)

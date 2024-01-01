@@ -11,7 +11,7 @@ use egui::{
 use image::{ImageBuffer, Rgb};
 use rvlib::{
     cfg::get_cfg_path,
-    domain::{BoxF, PtF, TPtF},
+    domain::{BbF, PtF, TPtF},
     get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord,
     view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos,
     UpdateImage, UpdateZoomBox,
@@ -228,7 +228,7 @@ fn orig_pos_2_egui_rect(
     shape_orig: rvlib::ShapeI,
     shape_view: rvlib::ShapeI,
     rect_size: Vec2,
-    zoom_box: &Option<BoxF>,
+    zoom_box: &Option<BbF>,
 ) -> Pos2 {
     let p = if let Some(zb) = zoom_box {
         project_on_bb(p, zb)
@@ -249,7 +249,7 @@ struct RvImageApp {
     event_loop: MainEventLoop,
     texture: Option<TextureHandle>,
     annos: Vec<Annotation>,
-    zoom_box: Option<BoxF>,
+    zoom_box: Option<BbF>,
     im_orig: ImageU8,
     im_view: ImageU8,
     events: rvlib::Events,

@@ -1,5 +1,5 @@
 use crate::{
-    domain::{BoxF, TPtF},
+    domain::{BbF, TPtF},
     types::ViewImage,
     GeoFig, Line,
 };
@@ -56,7 +56,7 @@ pub enum Update<T> {
 pub type UpdateImage = Update<ViewImage>;
 // permament annotations in the Vec, one temporary annotation in the Option
 pub type UpdateAnnos = Update<(Vec<Annotation>, Option<Annotation>)>;
-pub type UpdateZoomBox = Update<Option<BoxF>>;
+pub type UpdateZoomBox = Update<Option<BbF>>;
 
 impl UpdateAnnos {
     pub fn clear() -> Self {
@@ -81,7 +81,7 @@ pub struct UpdateView {
 }
 
 impl UpdateView {
-    pub fn from_zoombox(zoom_box: Option<BoxF>) -> Self {
+    pub fn from_zoombox(zoom_box: Option<BbF>) -> Self {
         UpdateView {
             image: UpdateImage::No,
             annos: UpdateAnnos::No,

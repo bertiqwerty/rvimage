@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
-    domain::{BoxF, Point, ShapeI, TPtF},
+    domain::{BbF, Point, ShapeI, TPtF},
     file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
     rverr, ssh,
@@ -211,7 +211,7 @@ impl CocoExportData {
                 (w_factor * coco_anno.bbox[2]),
                 (h_factor * coco_anno.bbox[3]),
             ];
-            let bb = BoxF::from_arr(&bbox);
+            let bb = BbF::from_arr(&bbox);
             let geo = if let Some(segmentation) = coco_anno.segmentation {
                 if !segmentation.is_empty() {
                     if segmentation.len() > 1 {
@@ -368,7 +368,7 @@ use {
     crate::{
         cfg::{get_cfg, SshCfg},
         defer_file_removal,
-        domain::{make_test_bbs, BoxI},
+        domain::{make_test_bbs, BbI},
     },
     file_util::{ConnectionData, DEFAULT_TMPDIR},
     std::{fs, str::FromStr},
@@ -479,7 +479,7 @@ const TEST_DATA_FOLDER: &str = "resources/test_data/";
 
 #[test]
 fn test_coco_import() -> RvResult<()> {
-    fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BoxI, &str)]) {
+    fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BbI, &str)]) {
         let meta = MetaData {
             file_path: None,
             connection_data: ConnectionData::None,
@@ -506,27 +506,27 @@ fn test_coco_import() -> RvResult<()> {
 
     let bb_im_ref_abs1 = [
         (
-            BoxI::from_arr(&[1, 1, 5, 5]),
+            BbI::from_arr(&[1, 1, 5, 5]),
             "http://localhost:5000/%2Bnowhere.png",
         ),
         (
-            BoxI::from_arr(&[11, 11, 4, 7]),
+            BbI::from_arr(&[11, 11, 4, 7]),
             "http://localhost:5000/%2Bnowhere.png",
         ),
         (
-            BoxI::from_arr(&[1, 1, 5, 5]),
+            BbI::from_arr(&[1, 1, 5, 5]),
             "http://localhost:5000/%2Bnowhere2.png",
         ),
     ];
     let bb_im_ref_abs2 = [
-        (BoxI::from_arr(&[1, 1, 5, 5]), "nowhere.png"),
-        (BoxI::from_arr(&[11, 11, 4, 7]), "nowhere.png"),
-        (BoxI::from_arr(&[1, 1, 5, 5]), "nowhere2.png"),
+        (BbI::from_arr(&[1, 1, 5, 5]), "nowhere.png"),
+        (BbI::from_arr(&[11, 11, 4, 7]), "nowhere.png"),
+        (BbI::from_arr(&[1, 1, 5, 5]), "nowhere2.png"),
     ];
     let bb_im_ref_relative = [
-        (BoxI::from_arr(&[10, 100, 50, 500]), "nowhere.png"),
-        (BoxI::from_arr(&[91, 870, 15, 150]), "nowhere.png"),
-        (BoxI::from_arr(&[10, 1, 50, 5]), "nowhere2.png"),
+        (BbI::from_arr(&[10, 100, 50, 500]), "nowhere.png"),
+        (BbI::from_arr(&[91, 870, 15, 150]), "nowhere.png"),
+        (BbI::from_arr(&[10, 1, 50, 5]), "nowhere2.png"),
     ];
     test("catids_12", vec![1, 2], &bb_im_ref_abs1);
     test("catids_01", vec![0, 1], &bb_im_ref_abs2);

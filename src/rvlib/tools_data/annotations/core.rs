@@ -1,5 +1,5 @@
 use crate::{
-    domain::{Annotate, BoxF},
+    domain::{Annotate, BbF},
     result::RvResult,
     rverr,
     util::true_indices,
@@ -198,12 +198,12 @@ where
     }
 }
 pub fn resize_bbs_inds<F>(
-    mut bbs: Vec<BoxF>,
+    mut bbs: Vec<BbF>,
     bb_inds: impl Iterator<Item = usize>,
     resize: F,
-) -> Vec<BoxF>
+) -> Vec<BbF>
 where
-    F: Fn(BoxF) -> Option<BoxF>,
+    F: Fn(BbF) -> Option<BbF>,
 {
     for idx in bb_inds {
         if let Some(bb) = resize(bbs[idx]) {
@@ -212,9 +212,9 @@ where
     }
     bbs
 }
-pub fn resize_bbs<F>(bbs: Vec<BoxF>, selected_bbs: &[bool], resize: F) -> Vec<BoxF>
+pub fn resize_bbs<F>(bbs: Vec<BbF>, selected_bbs: &[bool], resize: F) -> Vec<BbF>
 where
-    F: Fn(BoxF) -> Option<BoxF>,
+    F: Fn(BbF) -> Option<BbF>,
 {
     let selected_idxs = true_indices(selected_bbs);
     resize_bbs_inds(bbs, selected_idxs, resize)

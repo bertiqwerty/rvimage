@@ -14,24 +14,24 @@ use crate::{
     rverr, ShapeI,
 };
 
-pub type BoxI = Box<TPtI>;
-pub type BoxF = Box<TPtF>;
+pub type BbI = BB<TPtI>;
+pub type BbF = BB<TPtF>;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct Box<T> {
+pub struct BB<T> {
     pub x: T,
     pub y: T,
     pub w: T,
     pub h: T,
 }
 
-impl<T> Box<T>
+impl<T> BB<T>
 where
     T: Calc + CoordinateBox,
 {
     /// `[x, y, w, h]`
     pub fn from_arr(a: &[T; 4]) -> Self {
-        Box {
+        BB {
             x: a[0],
             y: a[1],
             w: a[2],
@@ -56,7 +56,7 @@ where
         let max_y = y_iter
             .max_by(max_from_partial)
             .ok_or_else(|| rverr!("empty polygon",))?;
-        Ok(Box::from_points(
+        Ok(BB::from_points(
             Point { x: min_x, y: min_y },
             Point { x: max_x, y: max_y },
         ))
@@ -71,17 +71,17 @@ where
     }
 
     pub fn split_horizontally(&self, y: T) -> (Self, Self) {
-        let top = Box::from_arr(&[self.x, self.y, self.w, y - self.y]);
-        let btm = Box::from_arr(&[self.x, y, self.w, self.y_max() - y]);
+        let top = BB::from_arr(&[self.x, self.y, self.w, y - self.y]);
+        let btm = BB::from_arr(&[self.x, y, self.w, self.y_max() - y]);
         (top, btm)
     }
     pub fn split_vertically(&self, x: T) -> (Self, Self) {
-        let left = Box::from_arr(&[self.x, self.y, x - self.x, self.h]);
-        let right = Box::from_arr(&[x, self.y, self.x_max() - x, self.h]);
+        let left = BB::from_arr(&[self.x, self.y, x - self.x, self.h]);
+        let right = BB::from_arr(&[x, self.y, self.x_max() - x, self.h]);
         (left, right)
     }
     pub fn from_shape_int(shape: ShapeI) -> Self {
-        Box {
+        BB {
             x: T::from(0),
             y: T::from(0),
             w: T::from(shape.w),
@@ -90,7 +90,7 @@ where
     }
 
     pub fn from_shape(shape: Shape<T>) -> Self {
-        Box {
+        BB {
             x: T::from(0),
             y: T::from(0),
             w: shape.w,
@@ -108,8 +108,8 @@ where
         self.x + self.w - T::size_addon()
     }
 
-    pub fn intersect(self, other: Box<T>) -> Box<T> {
-        Box::from_points(
+    pub fn intersect(self, other: BB<T>) -> BB<T> {
+        BB::from_points(
             Point {
                 x: self.x.max(other.x),
                 y: self.y.max(other.y),
@@ -121,7 +121,7 @@ where
         )
     }
 
-    pub fn intersect_or_self(&self, other: Option<Box<T>>) -> Box<T> {
+    pub fn intersect_or_self(&self, other: Option<BB<T>>) -> BB<T> {
         if let Some(other) = other {
             self.intersect(other)
         } else {
@@ -271,7 +271,7 @@ where
                     w: (w + x.min(T::zero())).max(min_bb_shape.w),
                     h: (h + y.min(T::zero())).max(min_bb_shape.h),
                 };
-                let mut bb_resized = bb.intersect(Box::from_shape_int(orig_im_shape));
+                let mut bb_resized = bb.intersect(BB::from_shape_int(orig_im_shape));
                 bb_resized.w = bb_resized.w.max(min_bb_shape.w);
                 bb_resized.h = bb_resized.h.max(min_bb_shape.h);
                 Some(bb_resized)
@@ -288,7 +288,7 @@ where
     }
 }
 
-impl BoxF {
+impl BbF {
     pub fn translate(
         self,
         x_shift: f64,
@@ -357,28 +357,28 @@ impl BoxF {
     }
 }
 
-impl From<BoxF> for BoxI {
-    fn from(box_f: BoxF) -> Self {
+impl From<BbF> for BbI {
+    fn from(box_f: BbF) -> Self {
         let p_min: PtI = box_f.min().into();
         let p_max: PtI = box_f.max().into();
         let x = p_min.x;
         let y = p_min.y;
         let x_max = p_max.x - TPtI::size_addon();
         let y_max = p_max.y - TPtI::size_addon();
-        BoxI::from_points((x, y).into(), (x_max, y_max).into())
+        BbI::from_points((x, y).into(), (x_max, y_max).into())
     }
 }
-impl From<BoxI> for BoxF {
-    fn from(box_int: BoxI) -> Self {
+impl From<BbI> for BbF {
+    fn from(box_int: BbI) -> Self {
         let x = box_int.min().x;
         let y = box_int.min().y;
         let x_max = box_int.max().x + TPtI::size_addon();
         let y_max = box_int.max().y + TPtI::size_addon();
-        BoxF::from_points((x, y).into(), (x_max, y_max).into())
+        BbF::from_points((x, y).into(), (x_max, y_max).into())
     }
 }
 
-impl<T> From<&[T; 4]> for Box<T>
+impl<T> From<&[T; 4]> for BB<T>
 where
     T: Calc + CoordinateBox,
 {
@@ -387,13 +387,13 @@ where
     }
 }
 
-impl Display for BoxI {
+impl Display for BbI {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bb_str = format!("[{}, {}, {} ,{}]", self.x, self.y, self.w, self.h);
         f.write_str(bb_str.as_str())
     }
 }
-impl FromStr for BoxI {
+impl FromStr for BbI {
     type Err = RvError;
     fn from_str(s: &str) -> RvResult<Self> {
         let err_parse = rverr!("could not parse '{}' into a bounding box", s);
@@ -404,6 +404,6 @@ impl FromStr for BoxI {
         let y = int_iter.next().ok_or_else(|| err_parse.clone())??;
         let w = int_iter.next().ok_or_else(|| err_parse.clone())??;
         let h = int_iter.next().ok_or(err_parse)??;
-        Ok(BoxI { x, y, w, h })
+        Ok(BbI { x, y, w, h })
     }
 }

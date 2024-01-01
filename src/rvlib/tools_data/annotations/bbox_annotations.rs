@@ -1,5 +1,5 @@
 use crate::{
-    domain::{BoxF, OutOfBoundsMode, PtF, ShapeI, TPtF},
+    domain::{BbF, OutOfBoundsMode, PtF, ShapeI, TPtF},
     result::RvResult,
     GeoFig,
 };
@@ -13,7 +13,7 @@ fn shift(
     x_shift: f64,
     y_shift: f64,
     shape_orig: ShapeI,
-    mut shift_bbs: impl FnMut(f64, f64, &[bool], Vec<BoxF>, ShapeI) -> Vec<BoxF>,
+    mut shift_bbs: impl FnMut(f64, f64, &[bool], Vec<BbF>, ShapeI) -> Vec<BbF>,
 ) -> Vec<GeoFig> {
     // Bounding boxes have a split-functionality. Hence, they are treated separately.
     let mut bb_indices = vec![];
@@ -60,7 +60,7 @@ fn shift(
 pub type BboxAnnotations = InstanceAnnotations<GeoFig>;
 
 impl BboxAnnotations {
-    pub fn from_bbs(bbs: Vec<BoxF>, cat_id: usize) -> RvResult<BboxAnnotations> {
+    pub fn from_bbs(bbs: Vec<BbF>, cat_id: usize) -> RvResult<BboxAnnotations> {
         let bbs_len = bbs.len();
         let elts = bbs.iter().map(|bb| GeoFig::BB(*bb)).collect();
         BboxAnnotations::new(elts, vec![cat_id; bbs_len], vec![false; bbs_len])
@@ -131,7 +131,7 @@ impl BboxAnnotations {
             .expect("after shift the number of elements cannot change")
     }
 
-    pub fn add_bb(&mut self, bb: BoxF, cat_idx: usize) {
+    pub fn add_bb(&mut self, bb: BbF, cat_idx: usize) {
         self.add_elt(GeoFig::BB(bb), cat_idx);
     }
 
@@ -158,21 +158,21 @@ impl BboxAnnotations {
 #[cfg(test)]
 use super::core::resize_bbs;
 #[cfg(test)]
-fn make_test_bbs() -> Vec<BoxF> {
+fn make_test_bbs() -> Vec<BbF> {
     vec![
-        BoxF {
+        BbF {
             x: 0.0,
             y: 0.0,
             w: 10.0,
             h: 10.0,
         },
-        BoxF {
+        BbF {
             x: 5.0,
             y: 5.0,
             w: 10.0,
             h: 10.0,
         },
-        BoxF {
+        BbF {
             x: 9.0,
             y: 9.0,
             w: 10.0,
@@ -190,16 +190,16 @@ fn test_bbs() {
         bb.shift_max(-1.0, 1.0, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BoxF::from(&[5.0, 5.0, 9.0, 11.0]), resized[1]);
-    assert_eq!(BoxF::from(&[9.0, 9.0, 9.0, 11.0]), resized[2]);
+    assert_eq!(BbF::from(&[5.0, 5.0, 9.0, 11.0]), resized[1]);
+    assert_eq!(BbF::from(&[9.0, 9.0, 9.0, 11.0]), resized[2]);
 
     // shift min
     let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
         bb.shift_min(-1.0, 1.0, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(BoxF::from(&[4.0, 6.0, 11.0, 9.0]), resized[1]);
-    assert_eq!(BoxF::from(&[8.0, 10.0, 11.0, 9.0]), resized[2]);
+    assert_eq!(BbF::from(&[4.0, 6.0, 11.0, 9.0]), resized[1]);
+    assert_eq!(BbF::from(&[8.0, 10.0, 11.0, 9.0]), resized[2]);
 }
 #[test]
 fn test_annos() {
