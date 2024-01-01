@@ -5,7 +5,7 @@ use tracing::{info, warn};
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
-    domain::Annotate,
+    domain::{Annotate, TPtF},
     file_util::path_to_str,
     result::{to_rv, RvResult},
     tools_data::{
@@ -14,7 +14,7 @@ use crate::{
         BrushToolData, CoreOptions, LabelInfo, ToolSpecifics, ToolsData,
         OUTLINE_THICKNESS_CONVERSION,
     },
-    Shape,
+    ShapeI,
 };
 
 use super::text_edit::text_edit_singleline;
@@ -22,7 +22,7 @@ use super::text_edit::text_edit_singleline;
 pub fn label_menu<'a, T>(
     ui: &mut Ui,
     label_info: &mut LabelInfo,
-    annotations_map: &mut HashMap<String, (InstanceAnnotations<T>, Shape)>,
+    annotations_map: &mut HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
     are_tools_active: &mut bool,
 ) -> RvResult<bool>
 where
@@ -160,7 +160,7 @@ pub fn bbox_menu(
         }
         data.options.outline_alpha = (transparency / 100.0 * 255.0).round() as u8;
         let mut outline_thickness_f =
-            data.options.outline_thickness as f32 / OUTLINE_THICKNESS_CONVERSION;
+            data.options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION;
         ui.separator();
         if ui
             .add(egui::Slider::new(&mut outline_thickness_f, 0.0..=10.0).text("outline thickness"))

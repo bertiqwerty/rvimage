@@ -29,7 +29,7 @@ mod detail {
 
     use crate::{
         cfg::Cfg,
-        domain::Shape,
+        domain::ShapeI,
         file_util::{self, make_prjcfg_path, ExportData, ExportDataLegacy, DEFAULT_PRJ_NAME},
         result::{to_rv, RvResult},
         rverr,
@@ -116,7 +116,7 @@ mod detail {
         tracing::info!("saved to {path:?}");
         Ok(path)
     }
-    pub(super) fn loading_image(shape: Shape, counter: u128) -> DynamicImage {
+    pub(super) fn loading_image(shape: ShapeI, counter: u128) -> DynamicImage {
         let radius = 7i32;
         let centers = [
             (shape.w - 70, shape.h - 20),
@@ -481,7 +481,7 @@ impl Control {
 use {
     crate::{
         defer_file_removal,
-        domain::{make_test_bbs, Shape},
+        domain::{make_test_bbs, ShapeI},
         file_util::{make_prjcfg_filename, DEFAULT_TMPDIR},
         tools::BBOX_NAME,
         tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
@@ -516,8 +516,10 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
     bbs.extend(bbs.clone());
     bbs.extend(bbs.clone());
 
-    let annos =
-        bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), Shape::new(10, 10));
+    let annos = bbox_data.get_annos_mut(
+        image_file.as_os_str().to_str().unwrap(),
+        ShapeI::new(10, 10),
+    );
     if let Some(a) = annos {
         for bb in bbs {
             a.add_bb(bb, 0);

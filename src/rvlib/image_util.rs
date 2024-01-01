@@ -8,7 +8,7 @@ use image::{
 use imageproc::definitions::Clamp;
 
 use crate::{
-    domain::Shape,
+    domain::ShapeI,
     file_util::PixelEffect,
     result::to_rv,
     rverr,
@@ -115,7 +115,7 @@ pub fn orig_to_0_255(
         fn_rgb32f,
     )
 }
-pub fn effect_per_pixel<F: PixelEffect>(shape: Shape, mut f: F) {
+pub fn effect_per_pixel<F: PixelEffect>(shape: ShapeI, mut f: F) {
     for y in 0..shape.h {
         for x in 0..shape.w {
             f(x, y);

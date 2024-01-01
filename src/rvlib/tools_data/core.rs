@@ -3,11 +3,15 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::{domain::Annotate, result::RvResult, rverr, Shape};
+use crate::{
+    domain::{Annotate, TPtF},
+    result::RvResult,
+    rverr, ShapeI,
+};
 
 use super::annotations::InstanceAnnotations;
 
-pub const OUTLINE_THICKNESS_CONVERSION: f32 = 10.0;
+pub const OUTLINE_THICKNESS_CONVERSION: TPtF = 10.0;
 
 const DEFAULT_LABEL: &str = "foreground";
 
@@ -16,7 +20,7 @@ fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
 }
 
-pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, Shape)>;
+pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, ShapeI)>;
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
     pub visible: bool,
@@ -175,7 +179,7 @@ impl LabelInfo {
     pub fn remove_catidx<'a, T>(
         &mut self,
         cat_idx: usize,
-        annotaions_map: &mut HashMap<String, (InstanceAnnotations<T>, Shape)>,
+        annotaions_map: &mut HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
     ) where
         T: Annotate + PartialEq + Default + 'a,
     {

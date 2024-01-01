@@ -2,22 +2,35 @@ use std::{fmt::Display, ops::Range, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use super::{core::max_squaredist, OutOfBoundsMode, PtF, PtI};
+use super::{
+    core::{
+        clamp_sub_zero, max_from_partial, max_squaredist, min_from_partial, CoordinateBox, Max,
+        Min, Shape,
+    },
+    Calc, OutOfBoundsMode, Point, PtF, PtI, TPtF, TPtI,
+};
 use crate::{
     result::{to_rv, RvError, RvResult},
-    rverr, Shape,
+    rverr, ShapeI,
 };
 
+pub type BbI = BB<TPtI>;
+pub type BbF = BB<TPtF>;
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub struct BB {
-    pub x: u32,
-    pub y: u32,
-    pub w: u32,
-    pub h: u32,
+pub struct BB<T> {
+    pub x: T,
+    pub y: T,
+    pub w: T,
+    pub h: T,
 }
-impl BB {
+
+impl<T> BB<T>
+where
+    T: Calc + CoordinateBox,
+{
     /// `[x, y, w, h]`
-    pub fn from_arr(a: &[u32; 4]) -> Self {
+    pub fn from_arr(a: &[T; 4]) -> Self {
         BB {
             x: a[0],
             y: a[1],
@@ -26,75 +39,89 @@ impl BB {
         }
     }
 
-    pub fn from_vec(points: &[PtI]) -> RvResult<Self> {
+    pub fn from_vec(points: &[Point<T>]) -> RvResult<Self> {
         let x_iter = points.iter().map(|p| p.x);
         let y_iter = points.iter().map(|p| p.y);
         let min_x = x_iter
             .clone()
-            .min()
+            .min_by(min_from_partial)
             .ok_or_else(|| rverr!("empty polygon",))?;
         let min_y = y_iter
             .clone()
-            .min()
+            .min_by(min_from_partial)
             .ok_or_else(|| rverr!("empty polygon",))?;
-        let max_x = x_iter.max().ok_or_else(|| rverr!("empty polygon",))?;
-        let max_y = y_iter.max().ok_or_else(|| rverr!("empty polygon",))?;
+        let max_x = x_iter
+            .max_by(max_from_partial)
+            .ok_or_else(|| rverr!("empty polygon",))?;
+        let max_y = y_iter
+            .max_by(max_from_partial)
+            .ok_or_else(|| rverr!("empty polygon",))?;
         Ok(BB::from_points(
-            (min_x, min_y).into(),
-            (max_x, max_y).into(),
+            Point { x: min_x, y: min_y },
+            Point { x: max_x, y: max_y },
         ))
     }
 
-    pub fn distance_to_boundary(&self, pos: PtF) -> f32 {
-        let dx = (self.x as f32 - pos.x).abs();
-        let dw = ((self.x + self.w) as f32 - pos.x).abs();
-        let dy = (self.y as f32 - pos.y).abs();
-        let dh = ((self.y + self.h) as f32 - pos.y).abs();
+    pub fn distance_to_boundary(&self, pos: Point<T>) -> T {
+        let dx = (self.x - pos.x).abs();
+        let dw = ((self.x + self.w) - pos.x).abs();
+        let dy = (self.y - pos.y).abs();
+        let dh = ((self.y + self.h) - pos.y).abs();
         dx.min(dw).min(dy).min(dh)
     }
 
-    pub fn split_horizontally(&self, y: u32) -> (Self, Self) {
+    pub fn split_horizontally(&self, y: T) -> (Self, Self) {
         let top = BB::from_arr(&[self.x, self.y, self.w, y - self.y]);
         let btm = BB::from_arr(&[self.x, y, self.w, self.y_max() - y]);
         (top, btm)
     }
-    pub fn split_vertically(&self, x: u32) -> (Self, Self) {
+    pub fn split_vertically(&self, x: T) -> (Self, Self) {
         let left = BB::from_arr(&[self.x, self.y, x - self.x, self.h]);
         let right = BB::from_arr(&[x, self.y, self.x_max() - x, self.h]);
         (left, right)
     }
-
-    pub fn from_shape(shape: Shape) -> Self {
+    pub fn from_shape_int(shape: ShapeI) -> Self {
         BB {
-            x: 0,
-            y: 0,
+            x: T::from(0),
+            y: T::from(0),
+            w: T::from(shape.w),
+            h: T::from(shape.h),
+        }
+    }
+
+    pub fn from_shape(shape: Shape<T>) -> Self {
+        BB {
+            x: T::from(0),
+            y: T::from(0),
             w: shape.w,
             h: shape.h,
         }
     }
 
-    pub fn y_max(&self) -> u32 {
+    pub fn y_max(&self) -> T {
         // y_max is still part of the box, hence -1
-        self.y + self.h - 1
+        self.y + self.h - T::size_addon()
     }
 
-    pub fn x_max(&self) -> u32 {
+    pub fn x_max(&self) -> T {
         // x_max is still part of the box, hence -1
-        self.x + self.w - 1
+        self.x + self.w - T::size_addon()
     }
 
-    pub fn intersect(self, other: BB) -> BB {
+    pub fn intersect(self, other: BB<T>) -> BB<T> {
         BB::from_points(
-            (self.x.max(other.x), self.y.max(other.y)).into(),
-            (
-                self.x_max().min(other.x_max()),
-                self.y_max().min(other.y_max()),
-            )
-                .into(),
+            Point {
+                x: self.x.max(other.x),
+                y: self.y.max(other.y),
+            },
+            Point {
+                x: self.x_max().min(other.x_max()),
+                y: self.y_max().min(other.y_max()),
+            },
         )
     }
 
-    pub fn intersect_or_self(&self, other: Option<BB>) -> BB {
+    pub fn intersect_or_self(&self, other: Option<BB<T>>) -> BB<T> {
         if let Some(other) = other {
             self.intersect(other)
         } else {
@@ -105,12 +132,12 @@ impl BB {
     /// Return points of greatest distance between self and other
     pub fn max_squaredist<'a>(
         &'a self,
-        other: impl Iterator<Item = PtI> + 'a + Clone,
-    ) -> (PtI, PtI, i64) {
+        other: impl Iterator<Item = Point<T>> + 'a + Clone,
+    ) -> (Point<T>, Point<T>, T) {
         max_squaredist(self.points_iter(), other)
     }
 
-    pub fn min_max(&self, axis: usize) -> (u32, u32) {
+    pub fn min_max(&self, axis: usize) -> (T, T) {
         if axis == 0 {
             (self.x, self.x + self.w)
         } else {
@@ -123,32 +150,35 @@ impl BB {
     /// v   ʌ
     /// 1 > 2
     #[allow(clippy::needless_lifetimes)]
-    pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
+    pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = Point<T>> + 'a + Clone {
         (0..4).map(|idx| self.corner(idx))
     }
 
-    pub fn corner(&self, idx: usize) -> PtI {
+    pub fn corner(&self, idx: usize) -> Point<T> {
         let (x, y, w, h) = (self.x, self.y, self.w, self.h);
         match idx {
-            0 => (x, y).into(),
-            1 => (x, y + h - 1).into(),
-            2 => (x + w - 1, y + h - 1).into(),
-            3 => (x + w - 1, y).into(),
+            0 => Point { x, y },
+            1 => Point {
+                x,
+                y: y + h - T::size_addon(),
+            },
+            2 => (x + w - T::size_addon(), y + h - T::size_addon()).into(),
+            3 => (x + w - T::size_addon(), y).into(),
             _ => panic!("bounding boxes only have 4, {idx} is out of bounds"),
         }
     }
-    pub fn opposite_corner(&self, idx: usize) -> PtI {
+    pub fn opposite_corner(&self, idx: usize) -> Point<T> {
         self.corner((idx + 2) % 4)
     }
 
-    pub fn shape(&self) -> Shape {
+    pub fn shape(&self) -> Shape<T> {
         Shape {
             w: self.w,
             h: self.h,
         }
     }
 
-    pub fn from_points(p1: PtI, p2: PtI) -> Self {
+    pub fn from_points(p1: Point<T>, p2: Point<T>) -> Self {
         let x_min = p1.x.min(p2.x);
         let y_min = p1.y.min(p2.y);
         let x_max = p1.x.max(p2.x);
@@ -156,100 +186,77 @@ impl BB {
         Self {
             x: x_min,
             y: y_min,
-            w: x_max - x_min + 1, // x_min and x_max are both contained in the bb
-            h: y_max - y_min + 1,
+            w: x_max - x_min + T::size_addon(), // x_min and x_max are both contained in the bb
+            h: y_max - y_min + T::size_addon(),
         }
     }
 
-    pub fn x_range(&self) -> Range<u32> {
+    pub fn x_range(&self) -> Range<T> {
         self.x..(self.x + self.w)
     }
 
-    pub fn y_range(&self) -> Range<u32> {
+    pub fn y_range(&self) -> Range<T> {
         self.y..(self.y + self.h)
     }
 
-    pub fn center_f(&self) -> (f32, f32) {
+    pub fn center_f(&self) -> (f64, f64) {
         (
-            self.w as f32 * 0.5 + self.x as f32,
-            self.h as f32 * 0.5 + self.y as f32,
+            self.w.into() * 0.5 + self.x.into(),
+            self.h.into() * 0.5 + self.y.into(),
         )
     }
 
-    pub fn center(&self) -> PtI {
-        (self.x + self.w / 2, self.y + self.h / 2).into()
+    pub fn min(&self) -> Point<T> {
+        Point {
+            x: self.x,
+            y: self.y,
+        }
     }
 
-    pub fn min_usize(&self) -> (usize, usize) {
-        (self.x as usize, self.y as usize)
+    pub fn max(&self) -> Point<T> {
+        Point {
+            x: self.x_max(),
+            y: self.y_max(),
+        }
     }
 
-    pub fn max_usize(&self) -> (usize, usize) {
-        ((self.x + self.w) as usize, (self.y + self.h) as usize)
+    pub fn covers_y(&self, y: T) -> bool {
+        self.y_max() >= y && self.y <= y
     }
-
-    pub fn min(&self) -> PtI {
-        (self.x, self.y).into()
-    }
-
-    pub fn max(&self) -> PtI {
-        (self.x + self.w, self.y + self.h).into()
-    }
-
-    pub fn follow_movement(
-        &self,
-        from: PtF,
-        to: PtF,
-        shape: Shape,
-        oob_mode: OutOfBoundsMode,
-    ) -> Option<Self> {
-        let x_shift: i32 = (to.x - from.x) as i32;
-        let y_shift: i32 = (to.y - from.y) as i32;
-        self.translate(x_shift, y_shift, shape, oob_mode)
-    }
-
-    pub fn covers_y(&self, y: f32) -> bool {
-        self.y_max() as f32 >= y && self.y as f32 <= y
-    }
-    pub fn covers_x(&self, x: f32) -> bool {
-        self.x_max() as f32 >= x && self.x as f32 <= x
+    pub fn covers_x(&self, x: T) -> bool {
+        self.x_max() >= x && self.x <= x
     }
 
     pub fn contains<P>(&self, p: P) -> bool
     where
-        P: Into<PtF>,
+        P: Into<Point<T>>,
     {
         let p = p.into();
         self.covers_x(p.x) && self.covers_y(p.y)
     }
 
-    pub fn contains_bb(&self, other: BB) -> bool {
+    pub fn contains_bb(&self, other: Self) -> bool {
         self.contains(other.min()) && self.contains(other.max())
     }
 
-    pub fn is_contained_in_image(&self, shape: Shape) -> bool {
-        self.x + self.w <= shape.w && self.y + self.h <= shape.h
+    pub fn is_contained_in_image(&self, shape: ShapeI) -> bool {
+        self.x + self.w <= shape.w.into() && self.y + self.h <= shape.h.into()
     }
 
     pub fn new_shape_checked(
-        x: i32,
-        y: i32,
-        w: i32,
-        h: i32,
-        orig_im_shape: Shape,
-        mode: OutOfBoundsMode,
+        x: T,
+        y: T,
+        w: T,
+        h: T,
+        orig_im_shape: ShapeI,
+        mode: OutOfBoundsMode<T>,
     ) -> Option<Self> {
         match mode {
             OutOfBoundsMode::Deny => {
-                if x < 0 || y < 0 || w < 1 || h < 1 {
+                if x < T::zero() || y < T::zero() || w < T::one() || h < T::one() {
                     None
                 } else {
-                    let bb = Self {
-                        x: x as u32,
-                        y: y as u32,
-                        w: w as u32,
-                        h: h as u32,
-                    };
+                    let bb = Self { x, y, w, h };
                     if bb.is_contained_in_image(orig_im_shape) {
                         Some(bb)
                     } else {
@@ -259,12 +266,12 @@ impl BB {
             }
             OutOfBoundsMode::Resize(min_bb_shape) => {
                 let bb = Self {
-                    x: x.min(orig_im_shape.w as i32 - min_bb_shape.w as i32).max(0) as u32,
-                    y: y.min(orig_im_shape.h as i32 - min_bb_shape.h as i32).max(0) as u32,
-                    w: ((w + x.min(0)) as u32).max(min_bb_shape.w),
-                    h: ((h + y.min(0)) as u32).max(min_bb_shape.h),
+                    x: x.min(clamp_sub_zero(orig_im_shape.w.into(), min_bb_shape.w)),
+                    y: y.min(clamp_sub_zero(orig_im_shape.h.into(), min_bb_shape.h)),
+                    w: (w + x.min(T::zero())).max(min_bb_shape.w),
+                    h: (h + y.min(T::zero())).max(min_bb_shape.h),
                 };
-                let mut bb_resized = bb.intersect(BB::from_shape(orig_im_shape));
+                let mut bb_resized = bb.intersect(BB::from_shape_int(orig_im_shape));
                 bb_resized.w = bb_resized.w.max(min_bb_shape.w);
                 bb_resized.h = bb_resized.h.max(min_bb_shape.h);
                 Some(bb_resized)
@@ -272,70 +279,7 @@ impl BB {
         }
     }
 
-    pub fn translate(
-        self,
-        x_shift: i32,
-        y_shift: i32,
-        shape: Shape,
-        oob_mode: OutOfBoundsMode,
-    ) -> Option<Self> {
-        let x = self.x as i32 + x_shift;
-        let y = self.y as i32 + y_shift;
-        Self::new_shape_checked(x, y, self.w as i32, self.h as i32, shape, oob_mode)
-    }
-
-    pub fn new_fit_to_image(x: i32, y: i32, w: i32, h: i32, shape: Shape) -> BB {
-        let clip = |var: i32, size_bx: i32, size_im: i32| {
-            if var < 0 {
-                let size_bx: i32 = size_bx + var;
-                (0, size_bx.min(size_im))
-            } else {
-                (var, (size_bx + var).min(size_im) - var)
-            }
-        };
-        let (x, w) = clip(x, w, shape.w as i32);
-        let (y, h) = clip(y, h, shape.h as i32);
-
-        BB::from_arr(&[x as u32, y as u32, w as u32, h as u32])
-    }
-
-    pub fn center_scale(&self, factor: f32, shape: Shape) -> Self {
-        let x = self.x as f32;
-        let y = self.y as f32;
-        let w = self.w as f32;
-        let h = self.h as f32;
-        let (cx, cy) = (w * 0.5 + x, h * 0.5 + y);
-        let topleft = (cx + factor * (x - cx), cy + factor * (y - cy));
-        let btmright = (cx + factor * (x + w - cx), cy + factor * (y + h - cy));
-        let (x_tl, y_tl) = topleft;
-        let (x_br, y_br) = btmright;
-        let w = (x_br - x_tl).round() as i32;
-        let h = (y_br - y_tl).round() as i32;
-        let x = x_tl.round() as i32;
-        let y = y_tl.round() as i32;
-
-        Self::new_fit_to_image(x, y, w, h, shape)
-    }
-
-    pub fn shift_max(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
-        let (w, h) = (self.w as i32 + x_shift, self.h as i32 + y_shift);
-        Self::new_shape_checked(
-            self.x as i32,
-            self.y as i32,
-            w,
-            h,
-            shape,
-            OutOfBoundsMode::Deny,
-        )
-    }
-
-    pub fn shift_min(&self, x_shift: i32, y_shift: i32, shape: Shape) -> Option<Self> {
-        let (x, y) = (self.x as i32 + x_shift, self.y as i32 + y_shift);
-        let (w, h) = (self.w as i32 - x_shift, self.h as i32 - y_shift);
-        Self::new_shape_checked(x, y, w, h, shape, OutOfBoundsMode::Deny)
-    }
-
-    pub fn has_overlap(&self, other: &BB) -> bool {
+    pub fn has_overlap(&self, other: &Self) -> bool {
         if self.points_iter().any(|c| other.contains(c)) {
             true
         } else {
@@ -344,13 +288,112 @@ impl BB {
     }
 }
 
-impl Display for BB {
+impl BbF {
+    pub fn translate(
+        self,
+        x_shift: f64,
+        y_shift: f64,
+        shape: ShapeI,
+        oob_mode: OutOfBoundsMode<f64>,
+    ) -> Option<Self> {
+        let x = self.x + x_shift;
+        let y = self.y + y_shift;
+        Self::new_shape_checked(x, y, self.w, self.h, shape, oob_mode)
+    }
+    pub fn follow_movement(
+        &self,
+        from: PtF,
+        to: PtF,
+        shape: ShapeI,
+        oob_mode: OutOfBoundsMode<f64>,
+    ) -> Option<Self> {
+        let x_shift = to.x - from.x;
+        let y_shift = to.y - from.y;
+        self.translate(x_shift, y_shift, shape, oob_mode)
+    }
+
+    pub fn new_fit_to_image(x: f64, y: f64, w: f64, h: f64, shape: ShapeI) -> Self {
+        let clip = |var: f64, size_bx: f64, size_im: f64| {
+            if var < 0.0 {
+                let size_bx = size_bx + var;
+                (0.0, size_bx.min(size_im))
+            } else {
+                (var, (size_bx + var).min(size_im) - var)
+            }
+        };
+        let (x, w) = clip(x, w, shape.w.into());
+        let (y, h) = clip(y, h, shape.h.into());
+
+        Self::from_arr(&[x, y, w, h])
+    }
+
+    pub fn center_scale(&self, factor: f64, shape: ShapeI) -> Self {
+        let x = self.x;
+        let y = self.y;
+        let w = self.w;
+        let h = self.h;
+        let (cx, cy) = (w * 0.5 + x, h * 0.5 + y);
+        let topleft = (cx + factor * (x - cx), cy + factor * (y - cy));
+        let btmright = (cx + factor * (x + w - cx), cy + factor * (y + h - cy));
+        let (x_tl, y_tl) = topleft;
+        let (x_br, y_br) = btmright;
+        let w = x_br - x_tl;
+        let h = y_br - y_tl;
+        let x = x_tl.round();
+        let y = y_tl.round();
+
+        Self::new_fit_to_image(x, y, w, h, shape)
+    }
+
+    pub fn shift_max(&self, x_shift: f64, y_shift: f64, shape: ShapeI) -> Option<Self> {
+        let (w, h) = (self.w + x_shift, self.h + y_shift);
+        Self::new_shape_checked(self.x, self.y, w, h, shape, OutOfBoundsMode::Deny)
+    }
+
+    pub fn shift_min(&self, x_shift: f64, y_shift: f64, shape: ShapeI) -> Option<Self> {
+        let (x, y) = (self.x + x_shift, self.y + y_shift);
+        let (w, h) = (self.w - x_shift, self.h - y_shift);
+        Self::new_shape_checked(x, y, w, h, shape, OutOfBoundsMode::Deny)
+    }
+}
+
+impl From<BbF> for BbI {
+    fn from(box_f: BbF) -> Self {
+        let p_min: PtI = box_f.min().into();
+        let p_max: PtI = box_f.max().into();
+        let x = p_min.x;
+        let y = p_min.y;
+        let x_max = p_max.x - TPtI::size_addon();
+        let y_max = p_max.y - TPtI::size_addon();
+        BbI::from_points((x, y).into(), (x_max, y_max).into())
+    }
+}
+impl From<BbI> for BbF {
+    fn from(box_int: BbI) -> Self {
+        let x = box_int.min().x;
+        let y = box_int.min().y;
+        let x_max = box_int.max().x + TPtI::size_addon();
+        let y_max = box_int.max().y + TPtI::size_addon();
+        BbF::from_points((x, y).into(), (x_max, y_max).into())
+    }
+}
+
+impl<T> From<&[T; 4]> for BB<T>
+where
+    T: Calc + CoordinateBox,
+{
+    fn from(a: &[T; 4]) -> Self {
+        Self::from_arr(a)
+    }
+}
+
+impl Display for BbI {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bb_str = format!("[{}, {}, {} ,{}]", self.x, self.y, self.w, self.h);
         f.write_str(bb_str.as_str())
     }
 }
-impl FromStr for BB {
+impl FromStr for BbI {
     type Err = RvError;
     fn from_str(s: &str) -> RvResult<Self> {
         let err_parse = rverr!("could not parse '{}' into a bounding box", s);
@@ -361,6 +404,6 @@ impl FromStr for BB {
         let y = int_iter.next().ok_or_else(|| err_parse.clone())??;
         let w = int_iter.next().ok_or_else(|| err_parse.clone())??;
         let h = int_iter.next().ok_or(err_parse)??;
-        Ok(BB { x, y, w, h })
+        Ok(BbI { x, y, w, h })
     }
 }

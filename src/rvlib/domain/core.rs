@@ -1,31 +1,195 @@
 use crate::{result::RvResult, rverr};
 use image::GenericImage;
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, Div, Mul, Sub};
+use std::{
+    cmp::Ordering,
+    ops::{Add, Div, Mul, Sub},
+};
+
+pub trait Abs {
+    fn abs(self) -> Self;
+}
+pub trait Min {
+    fn min(self, other: Self) -> Self;
+}
+pub trait Max {
+    fn max(self, other: Self) -> Self;
+}
+
+impl<T> Min for T
+where
+    T: Calc,
+{
+    fn min(self, other: Self) -> Self {
+        min(self, other)
+    }
+}
+impl<T> Max for T
+where
+    T: Calc,
+{
+    fn max(self, other: Self) -> Self {
+        max(self, other)
+    }
+}
+
+macro_rules! impl_trait {
+    ($trait_name:ident, $method:ident, $($T:ty),+) => {
+        $(impl $trait_name for $T {
+            fn $method(self) -> Self {
+                self.$method()
+            }
+        })+
+    };
+}
+impl Abs for TPtI {
+    fn abs(self) -> Self {
+        self
+    }
+}
+impl_trait!(Abs, abs, f32, f64, i32, i64);
+
+pub trait CoordinateBox {
+    fn size_addon() -> Self;
+    fn is_close_to(&self, other: Self) -> bool;
+}
+
+impl CoordinateBox for TPtI {
+    fn size_addon() -> Self {
+        TPtI::one()
+    }
+    fn is_close_to(&self, other: Self) -> bool {
+        *self == other
+    }
+}
+impl CoordinateBox for TPtF {
+    fn size_addon() -> Self {
+        TPtF::zero()
+    }
+    fn is_close_to(&self, other: Self) -> bool {
+        floats_close(*self, other)
+    }
+}
 
 pub trait Calc:
-    Mul<Output = Self> + Div<Output = Self> + Add<Output = Self> + Sub<Output = Self>
-where
-    Self: Sized,
+    Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + Sized
+    + PartialOrd
+    + Abs
+    + From<u32>
+    + Into<TPtF>
+    + Clone
+    + Copy
+{
+    fn one() -> Self {
+        Self::from(1)
+    }
+    fn zero() -> Self {
+        Self::from(0)
+    }
+}
+impl<T> Calc for T where
+    T: Add<Output = Self>
+        + Sub<Output = Self>
+        + Mul<Output = Self>
+        + Div<Output = Self>
+        + Sized
+        + PartialOrd
+        + Abs
+        + From<u32>
+        + Into<TPtF>
+        + Clone
+        + Copy
 {
 }
-impl Calc for i32 {}
-impl Calc for u32 {}
-impl Calc for f32 {}
+
+fn floats_close(x: TPtF, y: TPtF) -> bool {
+    (x - y).abs() < 1e-10
+}
+
+pub fn min_from_partial<T>(x1: &T, x2: &T) -> Ordering
+where
+    T: PartialOrd,
+{
+    match x1.partial_cmp(x2) {
+        Some(o) => o,
+        None => Ordering::Less,
+    }
+}
+pub fn max_from_partial<T>(x1: &T, x2: &T) -> Ordering
+where
+    T: PartialOrd,
+{
+    match x1.partial_cmp(x2) {
+        Some(o) => o,
+        None => Ordering::Greater,
+    }
+}
+
+pub fn min<T>(x1: T, x2: T) -> T
+where
+    T: PartialOrd,
+{
+    match min_from_partial(&x1, &x2) {
+        Ordering::Greater => x2,
+        _ => x1,
+    }
+}
+pub fn max<T>(x1: T, x2: T) -> T
+where
+    T: PartialOrd,
+{
+    match max_from_partial(&x1, &x2) {
+        Ordering::Less => x2,
+        _ => x1,
+    }
+}
 
 pub trait Annotate: Clone + Default + PartialEq {
-    fn is_contained_in_image(&self, shape: Shape) -> bool;
+    fn is_contained_in_image(&self, shape: ShapeI) -> bool;
+}
+
+pub type ShapeI = Shape<u32>;
+pub type ShapeF = Shape<f64>;
+
+impl From<ShapeI> for ShapeF {
+    fn from(value: ShapeI) -> Self {
+        Self {
+            w: value.w as f64,
+            h: value.h as f64,
+        }
+    }
+}
+impl From<ShapeF> for ShapeI {
+    fn from(value: ShapeF) -> Self {
+        Self {
+            w: value.w as u32,
+            h: value.h as u32,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Shape {
-    pub w: u32,
-    pub h: u32,
+pub struct Shape<T>
+where
+    T: Calc,
+{
+    pub w: T,
+    pub h: T,
 }
-impl Shape {
-    pub fn new(w: u32, h: u32) -> Self {
+impl<T> Shape<T>
+where
+    T: Calc,
+{
+    pub fn new(w: T, h: T) -> Self {
         Self { w, h }
     }
+}
+
+impl ShapeI {
     pub fn from_im<I>(im: &I) -> Self
     where
         I: GenericImage,
@@ -37,19 +201,22 @@ impl Shape {
     }
 }
 
-impl From<[usize; 2]> for Shape {
+impl From<[usize; 2]> for ShapeI {
     fn from(value: [usize; 2]) -> Self {
         Self::new(value[0] as u32, value[1] as u32)
     }
 }
 
 #[derive(Clone, Copy)]
-pub enum OutOfBoundsMode {
+pub enum OutOfBoundsMode<T>
+where
+    T: Calc,
+{
     Deny,
-    Resize(Shape), // minimal area the box needs to keep
+    Resize(Shape<T>), // minimal area the box needs to keep
 }
 
-pub fn dist_lineseg_point(ls: &(PtF, PtF), p: PtF) -> f32 {
+pub fn dist_lineseg_point(ls: &(PtF, PtF), p: PtF) -> f64 {
     let (p1, p2) = ls;
     let p1 = *p1;
     let p2 = *p2;
@@ -66,23 +233,26 @@ pub fn dist_lineseg_point(ls: &(PtF, PtF), p: PtF) -> f32 {
         (p - p1).len_square().min((p - p2).len_square()).sqrt()
     }
 }
-pub fn max_squaredist<'a, I1, I2>(points1: I1, points2: I2) -> (PtI, PtI, i64)
+pub fn max_squaredist<'a, T, I1, I2>(points1: I1, points2: I2) -> (Point<T>, Point<T>, T)
 where
-    I1: Iterator<Item = PtI> + 'a + Clone,
-    I2: Iterator<Item = PtI> + 'a + Clone,
+    T: Calc,
+    I1: Iterator<Item = Point<T>> + 'a + Clone,
+    I2: Iterator<Item = Point<T>> + 'a + Clone,
 {
     points1
         .map(|p1| {
             points2
                 .clone()
                 .map(|p2| {
-                    let d = (p2.x as i64 - p1.x as i64).pow(2) + (p2.y as i64 - p1.y as i64).pow(2);
+                    let dist_x = unsigned_dist(p2.x, p1.x);
+                    let dist_y = unsigned_dist(p2.y, p1.y);
+                    let d = dist_x * dist_x + dist_y * dist_y;
                     (p1, p2, d)
                 })
-                .max_by_key(|(_, _, d)| *d)
+                .max_by(|(_, _, d1), (_, _, d2)| max_from_partial(d1, d2))
                 .unwrap()
         })
-        .max_by_key(|(_, _, d)| *d)
+        .max_by(|(_, _, d1), (_, _, d2)| max_from_partial(d1, d2))
         .unwrap()
 }
 
@@ -99,16 +269,6 @@ macro_rules! point {
             panic!("cannot create point from negative coords, {}, {}", $x, $y);
         }
         crate::domain::PtF { x: $x, y: $y }
-    }};
-}
-#[cfg(test)]
-#[macro_export]
-macro_rules! point_i {
-    ($x:literal, $y:literal) => {{
-        if $x < 0 || $y < 0 {
-            panic!("cannot create point from negative coords, {}, {}", $x, $y);
-        }
-        crate::domain::PtI { x: $x, y: $y }
     }};
 }
 
@@ -128,8 +288,8 @@ macro_rules! impl_point_into {
         impl From<($T, $T)> for PtF {
             fn from((x, y): ($T, $T)) -> Self {
                 Self {
-                    x: x as f32,
-                    y: y as f32,
+                    x: x as f64,
+                    y: y as f64,
                 }
             }
         }
@@ -155,6 +315,16 @@ where
     }
 }
 
+pub fn clamp_sub_zero<T>(x1: T, x2: T) -> T
+where
+    T: Calc,
+{
+    if x1 < x2 {
+        T::zero()
+    } else {
+        x1 - x2
+    }
+}
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Point<T> {
     pub x: T,
@@ -163,7 +333,7 @@ pub struct Point<T> {
 
 impl<T> Point<T>
 where
-    T: Calc + Copy,
+    T: Calc,
 {
     pub fn len_square(&self) -> T {
         self.x * self.x + self.y * self.y
@@ -186,7 +356,7 @@ where
 
 impl<T> Mul<T> for Point<T>
 where
-    T: Calc + Copy,
+    T: Calc,
 {
     type Output = Self;
     fn mul(self, rhs: T) -> Self::Output {
@@ -198,7 +368,7 @@ where
 }
 impl<T> Mul for Point<T>
 where
-    T: Calc + Copy,
+    T: Calc,
 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
@@ -210,7 +380,7 @@ where
 }
 impl<T> Div<T> for Point<T>
 where
-    T: Calc + Copy,
+    T: Calc,
 {
     type Output = Self;
     fn div(self, rhs: T) -> Self::Output {
@@ -222,7 +392,7 @@ where
 }
 impl<T> Div for Point<T>
 where
-    T: Calc + Copy,
+    T: Calc,
 {
     type Output = Self;
     fn div(self, rhs: Self) -> Self::Output {
@@ -235,7 +405,7 @@ where
 
 impl<T> Sub for Point<T>
 where
-    T: Calc + Copy,
+    T: Calc,
 {
     type Output = Point<T>;
     fn sub(self, rhs: Self) -> Self::Output {
@@ -247,7 +417,7 @@ where
 }
 impl<T> Add for Point<T>
 where
-    T: Calc + Copy,
+    T: Calc,
 {
     type Output = Point<T>;
     fn add(self, rhs: Self) -> Self::Output {
@@ -277,10 +447,11 @@ where
         (p.x, p.y)
     }
 }
-impl_point_into!(i64);
 impl_point_into!(i32);
-pub type PtF = Point<f32>;
-pub type PtI = Point<u32>;
+pub type TPtF = f64;
+pub type TPtI = u32;
+pub type PtF = Point<TPtF>;
+pub type PtI = Point<TPtI>;
 
 impl PtI {
     pub fn from_signed(p: (i32, i32)) -> RvResult<Self> {
@@ -307,7 +478,7 @@ impl PtI {
 
 impl From<PtI> for PtF {
     fn from(p: PtI) -> Self {
-        ((p.x as f32), (p.y as f32)).into()
+        ((p.x as f64), (p.y as f64)).into()
     }
 }
 impl From<PtF> for PtI {
@@ -317,7 +488,7 @@ impl From<PtF> for PtI {
 }
 impl From<(u32, u32)> for PtF {
     fn from(x: (u32, u32)) -> Self {
-        ((x.0 as f32), (x.1 as f32)).into()
+        ((x.0 as f64), (x.1 as f64)).into()
     }
 }
 impl From<(f32, f32)> for PtI {

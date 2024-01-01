@@ -2,11 +2,11 @@ use super::{
     annotations::{BrushAnnotations, ClipboardData},
     core::{self, AnnotationsMap, LabelInfo},
 };
-use crate::implement_annotations_getters;
 use crate::{
     cfg::ExportPath,
-    domain::{BrushLine, Shape},
+    domain::{BrushLine, ShapeI},
 };
+use crate::{domain::TPtF, implement_annotations_getters};
 
 use serde::{Deserialize, Serialize};
 
@@ -14,8 +14,8 @@ pub type BrushAnnoMap = AnnotationsMap<BrushLine>;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub struct Options {
-    pub thickness: f32,
-    pub intensity: f32,
+    pub thickness: TPtF,
+    pub intensity: TPtF,
     pub erase: bool,
     pub is_selection_change_needed: bool,
     pub core_options: core::Options,

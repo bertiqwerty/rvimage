@@ -2,37 +2,40 @@ mod bb;
 mod core;
 mod polygon;
 
-pub use bb::BB;
-pub use core::{dist_lineseg_point, Annotate, Calc, OutOfBoundsMode, Point, PtF, PtI, Shape};
+pub use bb::{BbF, BbI};
+pub use core::{
+    dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc, CoordinateBox,
+    OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
+};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use tracing::warn;
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct Line {
-    pub points: Vec<PtI>,
+    pub points: Vec<PtF>,
 }
 
 impl Line {
-    pub fn push(&mut self, p: PtI) {
+    pub fn push(&mut self, p: PtF) {
         self.points.push(p);
     }
     pub fn new() -> Self {
         Self { points: vec![] }
     }
     #[allow(clippy::needless_lifetimes)]
-    pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtI> + 'a + Clone {
+    pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtF> + 'a + Clone {
         self.points.iter().copied()
     }
-    pub fn last_point(&self) -> Option<PtI> {
+    pub fn last_point(&self) -> Option<PtF> {
         self.points.last().copied()
     }
-    pub fn dist_to_point(&self, p: PtF) -> Option<f32> {
+    pub fn dist_to_point(&self, p: PtF) -> Option<f64> {
         match self.points.len().cmp(&1) {
             Ordering::Greater => (0..(self.points.len() - 1))
                 .map(|i| {
-                    let ls: (PtF, PtF) = (self.points[i].into(), self.points[i + 1].into());
+                    let ls: (PtF, PtF) = (self.points[i], self.points[i + 1]);
                     dist_lineseg_point(&ls, p)
                 })
                 .min_by(|x, y| match x.partial_cmp(y) {
@@ -46,14 +49,14 @@ impl Line {
             Ordering::Less => None,
         }
     }
-    pub fn max_dist_squared(&self) -> Option<u32> {
+    pub fn max_dist_squared(&self) -> Option<f64> {
         (0..self.points.len())
             .flat_map(|i| {
                 (0..self.points.len())
                     .map(|j| self.points[i].dist_square(&self.points[j]))
-                    .max()
+                    .max_by(max_from_partial)
             })
-            .max()
+            .max_by(max_from_partial)
     }
     pub fn mean(&self) -> Option<PtF> {
         let n_points = self.points.len() as u32;
@@ -63,8 +66,8 @@ impl Line {
             Some(
                 PtF::from(
                     self.points_iter()
-                        .fold(Point { x: 0, y: 0 }, |p1, p2| p1 + p2),
-                ) / n_points as f32,
+                        .fold(Point { x: 0.0, y: 0.0 }, |p1, p2| p1 + p2),
+                ) / n_points as f64,
             )
         }
     }
@@ -73,22 +76,22 @@ impl Line {
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]
 pub struct BrushLine {
     pub line: Line,
-    pub intensity: f32,
-    pub thickness: f32,
+    pub intensity: TPtF,
+    pub thickness: TPtF,
 }
 impl Eq for BrushLine {}
 
 impl Annotate for BrushLine {
-    fn is_contained_in_image(&self, shape: Shape) -> bool {
+    fn is_contained_in_image(&self, shape: ShapeI) -> bool {
         self.line
             .points_iter()
-            .all(|p| p.x < shape.w && p.y < shape.h)
+            .all(|p| p.x < shape.w as f64 && p.y < shape.h as f64)
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub enum GeoFig {
-    BB(BB),
+    BB(BbF),
     Poly(Polygon),
 }
 
@@ -98,17 +101,17 @@ impl GeoFig {
         P: Into<PtF>,
     {
         match self {
-            Self::BB(bb) => bb.contains(point),
+            Self::BB(bb) => bb.contains(point.into()),
             Self::Poly(poly) => poly.contains(point),
         }
     }
-    pub fn distance_to_boundary(&self, point: PtF) -> f32 {
+    pub fn distance_to_boundary(&self, point: PtF) -> f64 {
         match self {
             Self::BB(bb) => bb.distance_to_boundary(point),
             Self::Poly(poly) => poly.distance_to_boundary(point),
         }
     }
-    pub fn max_squaredist(&self, other: &Self) -> (PtI, PtI, i64) {
+    pub fn max_squaredist(&self, other: &Self) -> (PtF, PtF, f64) {
         match self {
             Self::BB(bb) => match other {
                 GeoFig::BB(bb_other) => bb.max_squaredist(bb_other.points_iter()),
@@ -120,19 +123,24 @@ impl GeoFig {
             },
         }
     }
-    pub fn has_overlap(&self, other: &BB) -> bool {
+    pub fn has_overlap(&self, other: &BbF) -> bool {
         match self {
             Self::BB(bb) => bb.has_overlap(other),
             Self::Poly(poly) => poly.has_overlap(other),
         }
     }
-    pub fn translate(self, p: Point<i32>, shape: Shape, oob_mode: OutOfBoundsMode) -> Option<Self> {
+    pub fn translate(
+        self,
+        p: Point<f64>,
+        shape: ShapeI,
+        oob_mode: OutOfBoundsMode<f64>,
+    ) -> Option<Self> {
         match self {
             Self::BB(bb) => bb.translate(p.x, p.y, shape, oob_mode).map(GeoFig::BB),
             Self::Poly(poly) => poly.translate(p.x, p.y, shape, oob_mode).map(GeoFig::Poly),
         }
     }
-    pub fn enclosing_bb(&self) -> BB {
+    pub fn enclosing_bb(&self) -> BbF {
         match self {
             Self::BB(bb) => *bb,
             Self::Poly(poly) => poly.enclosing_bb(),
@@ -142,11 +150,11 @@ impl GeoFig {
         self,
         from: PtF,
         to: PtF,
-        shape: Shape,
-        oob_mode: OutOfBoundsMode,
+        shape: ShapeI,
+        oob_mode: OutOfBoundsMode<f64>,
     ) -> Option<Self> {
-        let x_shift: i32 = (to.x - from.x) as i32;
-        let y_shift: i32 = (to.y - from.y) as i32;
+        let x_shift = (to.x - from.x) as TPtF;
+        let y_shift = (to.y - from.y) as TPtF;
         self.translate(
             Point {
                 x: x_shift,
@@ -157,14 +165,13 @@ impl GeoFig {
         )
     }
 
-    pub fn points_normalized(&self, w: f32, h: f32) -> Vec<PtF> {
-        fn convert(iter: impl Iterator<Item = PtI>, w: f32, h: f32) -> Vec<PtF> {
-            iter.map(<PtI as Into<PtF>>::into)
-                .map(|p| Point {
-                    x: p.x / w,
-                    y: p.y / h,
-                })
-                .collect()
+    pub fn points_normalized(&self, w: f64, h: f64) -> Vec<PtF> {
+        fn convert(iter: impl Iterator<Item = PtF>, w: f64, h: f64) -> Vec<PtF> {
+            iter.map(|p| Point {
+                x: p.x / w,
+                y: p.y / h,
+            })
+            .collect()
         }
         match self {
             GeoFig::BB(bb) => convert(bb.points_iter(), w, h),
@@ -174,11 +181,11 @@ impl GeoFig {
 }
 impl Default for GeoFig {
     fn default() -> Self {
-        Self::BB(BB::default())
+        Self::BB(BbF::default())
     }
 }
 impl Annotate for GeoFig {
-    fn is_contained_in_image(&self, shape: Shape) -> bool {
+    fn is_contained_in_image(&self, shape: ShapeI) -> bool {
         match self {
             Self::BB(bb) => bb.is_contained_in_image(shape),
             Self::Poly(poly) => poly.is_contained_in_image(shape),
@@ -186,11 +193,15 @@ impl Annotate for GeoFig {
     }
 }
 
-pub fn zoom_box_mouse_wheel(zoom_box: Option<BB>, shape_orig: Shape, y_delta: f32) -> Option<BB> {
+pub fn zoom_box_mouse_wheel(
+    zoom_box: Option<BbF>,
+    shape_orig: ShapeI,
+    y_delta: f64,
+) -> Option<BbF> {
     let current_zb = if let Some(zb) = zoom_box {
         zb
     } else {
-        BB::from_arr(&[0, 0, shape_orig.w, shape_orig.h])
+        BbI::from_arr(&[0, 0, shape_orig.w, shape_orig.h]).into()
     };
     let clip_val = 1.0;
     let y_delta_clipped = if y_delta > 0.0 {
@@ -204,63 +215,64 @@ pub fn zoom_box_mouse_wheel(zoom_box: Option<BB>, shape_orig: Shape, y_delta: f3
 }
 
 /// shape of the image that fits into the window
-pub fn shape_scaled(shape_unscaled: Shape, shape_win: Shape) -> (f32, f32) {
-    let w_ratio = shape_unscaled.w as f32 / shape_win.w as f32;
-    let h_ratio = shape_unscaled.h as f32 / shape_win.h as f32;
+pub fn shape_scaled(shape_unscaled: ShapeF, shape_win: ShapeI) -> (TPtF, TPtF) {
+    let w_ratio = shape_unscaled.w / shape_win.w as TPtF;
+    let h_ratio = shape_unscaled.h / shape_win.h as TPtF;
     let ratio = w_ratio.max(h_ratio);
-    let w_new = shape_unscaled.w as f32 / ratio;
-    let h_new = shape_unscaled.h as f32 / ratio;
+    let w_new = shape_unscaled.w as TPtF / ratio;
+    let h_new = shape_unscaled.h as TPtF / ratio;
     (w_new, h_new)
 }
 /// shape without scaling to window
-pub fn shape_unscaled(zoom_box: &Option<BB>, shape_orig: Shape) -> Shape {
-    zoom_box.map_or(shape_orig, |z| z.shape())
+pub fn shape_unscaled(zoom_box: &Option<BbF>, shape_orig: ShapeI) -> ShapeF {
+    zoom_box.map_or(shape_orig.into(), |z| z.shape())
 }
 pub fn pos_transform<F>(
     pos: PtF,
-    shape_orig: Shape,
-    shape_win: Shape,
-    zoom_box: &Option<BB>,
+    shape_orig: ShapeI,
+    shape_win: ShapeI,
+    zoom_box: &Option<BbF>,
     transform: F,
 ) -> PtF
 where
-    F: Fn(f32, f32, f32, f32) -> f32,
+    F: Fn(f64, f64, f64, f64) -> f64,
 {
     let unscaled = shape_unscaled(zoom_box, shape_orig);
     let (w_scaled, h_scaled) = shape_scaled(unscaled, shape_win);
 
     let (x_off, y_off) = match zoom_box {
         Some(c) => (c.x, c.y),
-        _ => (0, 0),
+        _ => (0.0, 0.0),
     };
 
     let (x, y) = pos.into();
-    let x_tf = transform(x, w_scaled, unscaled.w as f32, x_off as f32);
-    let y_tf = transform(y, h_scaled, unscaled.h as f32, y_off as f32);
+    let x_tf = transform(x, w_scaled, unscaled.w, x_off);
+    let y_tf = transform(y, h_scaled, unscaled.h, y_off);
     (x_tf, y_tf).into()
 }
 #[cfg(test)]
-pub fn make_test_bbs() -> Vec<BB> {
-    vec![
-        BB {
+pub fn make_test_bbs() -> Vec<BbF> {
+    let boxes = [
+        BbI {
             x: 0,
             y: 0,
             w: 10,
             h: 10,
         },
-        BB {
+        BbI {
             x: 5,
             y: 5,
             w: 10,
             h: 10,
         },
-        BB {
+        BbI {
             x: 9,
             y: 9,
             w: 10,
             h: 10,
         },
-    ]
+    ];
+    boxes.iter().map(|bb| (*bb).into()).collect()
 }
 #[cfg(test)]
 pub fn make_test_geos() -> Vec<GeoFig> {
@@ -276,18 +288,18 @@ fn test_polygon() {
     let poly = Polygon::from(bbs[2]);
     assert_eq!(poly.enclosing_bb(), bbs[2]);
     let corners = bbs[0].points_iter().collect::<Vec<_>>();
-    let ebb = BB::from_vec(&corners).unwrap();
+    let ebb = BbF::from_vec(&corners).unwrap();
     let poly = Polygon::from(ebb);
     assert_eq!(poly.enclosing_bb(), ebb);
 }
 
 #[test]
 fn test_zb() {
-    fn test(zb: Option<BB>, y_delta: f32, reference_coords: &[u32; 4]) {
+    fn test(zb: Option<BbF>, y_delta: f64, reference_coords: &[u32; 4]) {
         println!("y_delta {}", y_delta);
-        let shape = Shape::new(200, 100);
+        let shape = ShapeI::new(200, 100);
         let zb_new = zoom_box_mouse_wheel(zb, shape, y_delta);
-        assert_eq!(zb_new, Some(BB::from_arr(reference_coords)));
+        assert_eq!(zb_new, Some(BbI::from_arr(reference_coords).into()));
     }
     test(None, 1.0, &[10, 5, 180, 90]);
     test(None, -1.0, &[0, 0, 200, 100]);
@@ -295,7 +307,7 @@ fn test_zb() {
 
 #[test]
 fn test_bb() {
-    let bb = BB {
+    let bb = BbI {
         x: 10,
         y: 10,
         w: 10,
@@ -314,92 +326,102 @@ fn test_bb() {
     for (c, i) in bb.points_iter().zip(0..4) {
         assert_eq!(c, bb.corner(i));
     }
-    let shape = Shape::new(100, 100);
-    let bb1 = bb.translate(1, 1, shape, OutOfBoundsMode::Deny);
+    let shape = ShapeI::new(100, 100);
+    let bb = <BbI as Into<BbF>>::into(bb);
+    let bb1 = bb.translate(1.0, 1.0, shape, OutOfBoundsMode::Deny);
     assert_eq!(
         bb1,
-        Some(BB {
-            x: 11,
-            y: 11,
-            w: 10,
-            h: 10
-        })
+        Some(
+            BbI {
+                x: 11,
+                y: 11,
+                w: 10,
+                h: 10
+            }
+            .into()
+        )
     );
-    let shape = Shape::new(100, 100);
-    let bb1 = bb.shift_max(1, 1, shape);
+    let shape = ShapeI::new(100, 100);
+    let bb1 = bb.shift_max(1.0, 1.0, shape);
     assert_eq!(
         bb1,
-        Some(BB {
-            x: 10,
-            y: 10,
-            w: 11,
-            h: 11
-        })
+        Some(
+            BbI {
+                x: 10,
+                y: 10,
+                w: 11,
+                h: 11
+            }
+            .into()
+        )
     );
-    let bb1 = bb.shift_max(100, 1, shape);
+    let bb1 = bb.shift_max(100.0, 1.0, shape);
     assert_eq!(bb1, None);
-    let bb1 = bb.shift_max(-1, -2, shape);
+    let bb1 = bb.shift_max(-1.0, -2.0, shape);
     assert_eq!(
         bb1,
-        Some(BB {
-            x: 10,
-            y: 10,
-            w: 9,
-            h: 8
-        })
+        Some(
+            BbI {
+                x: 10,
+                y: 10,
+                w: 9,
+                h: 8
+            }
+            .into()
+        )
     );
-    let bb1 = bb.shift_max(-100, -200, shape);
+    let bb1 = bb.shift_max(-100.0, -200.0, shape);
     assert_eq!(bb1, None);
     let bb_moved = bb
         .follow_movement(
             (5, 5).into(),
             (6, 6).into(),
-            Shape::new(100, 100),
+            ShapeI::new(100, 100),
             OutOfBoundsMode::Deny,
         )
         .unwrap();
-    assert_eq!(bb_moved, BB::from_arr(&[11, 11, 10, 10]));
+    assert_eq!(bb_moved, BbI::from_arr(&[11, 11, 10, 10]).into());
 }
 
 #[test]
 fn test_has_overlap() {
-    let bb1 = BB::from_arr(&[5, 5, 10, 10]);
-    let bb2 = BB::from_arr(&[5, 5, 10, 10]);
+    let bb1 = BbI::from_arr(&[5, 5, 10, 10]);
+    let bb2 = BbI::from_arr(&[5, 5, 10, 10]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[0, 0, 10, 10]);
+    let bb2 = BbI::from_arr(&[0, 0, 10, 10]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[0, 0, 11, 11]);
+    let bb2 = BbI::from_arr(&[0, 0, 11, 11]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[2, 2, 5, 5]);
+    let bb2 = BbI::from_arr(&[2, 2, 5, 5]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[5, 5, 9, 9]);
+    let bb2 = BbI::from_arr(&[5, 5, 9, 9]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[7, 7, 12, 12]);
+    let bb2 = BbI::from_arr(&[7, 7, 12, 12]);
     assert!(bb1.has_overlap(&bb2) && bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[17, 17, 112, 112]);
+    let bb2 = BbI::from_arr(&[17, 17, 112, 112]);
     assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[17, 17, 112, 112]);
+    let bb2 = BbI::from_arr(&[17, 17, 112, 112]);
     assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[17, 3, 112, 112]);
+    let bb2 = BbI::from_arr(&[17, 3, 112, 112]);
     assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
-    let bb2 = BB::from_arr(&[3, 17, 112, 112]);
+    let bb2 = BbI::from_arr(&[3, 17, 112, 112]);
     assert!(!bb1.has_overlap(&bb2) && !bb2.has_overlap(&bb1));
 }
 
 #[test]
 fn test_max_corner_dist() {
-    let bb1 = BB::from_arr(&[5, 5, 11, 11]);
-    let bb2 = BB::from_arr(&[5, 5, 11, 11]);
+    let bb1 = BbI::from_arr(&[5, 5, 11, 11]);
+    let bb2 = BbI::from_arr(&[5, 5, 11, 11]);
     assert_eq!(
         bb1.max_squaredist(bb2.points_iter()),
         ((15, 5).into(), (5, 15).into(), 200)
     );
-    let bb2 = BB::from_arr(&[6, 5, 11, 11]);
+    let bb2 = BbI::from_arr(&[6, 5, 11, 11]);
     assert_eq!(
         bb1.max_squaredist(bb2.points_iter()),
         ((5, 15).into(), (16, 5).into(), 221)
     );
-    let bb2 = BB::from_arr(&[15, 15, 11, 11]);
+    let bb2 = BbI::from_arr(&[15, 15, 11, 11]);
     assert_eq!(
         bb1.max_squaredist(bb2.points_iter()),
         ((5, 5).into(), (25, 25).into(), 800)
@@ -408,16 +430,16 @@ fn test_max_corner_dist() {
 
 #[test]
 fn test_intersect() {
-    let bb = BB::from_arr(&[10, 15, 20, 10]);
+    let bb = BbI::from_arr(&[10, 15, 20, 10]);
     assert_eq!(bb.intersect(bb), bb);
     assert_eq!(
-        bb.intersect(BB::from_arr(&[5, 7, 10, 10])),
-        BB::from_arr(&[10, 15, 5, 2])
+        bb.intersect(BbI::from_arr(&[5, 7, 10, 10])),
+        BbI::from_arr(&[10, 15, 5, 2])
     );
     assert_eq!(bb.intersect_or_self(None), bb);
     assert_eq!(
-        bb.intersect_or_self(Some(BB::from_arr(&[5, 7, 10, 10]))),
-        BB::from_arr(&[10, 15, 5, 2])
+        bb.intersect_or_self(Some(BbI::from_arr(&[5, 7, 10, 10]))),
+        BbI::from_arr(&[10, 15, 5, 2])
     );
 }
 
@@ -427,4 +449,14 @@ fn test_into() {
     assert_eq!(pt, PtI { x: 10, y: 20 });
     let pt: PtF = (10i32, 20i32).into();
     assert_eq!(pt, PtF { x: 10.0, y: 20.0 });
+    {
+        let box_int = BbI::from_arr(&[1, 2, 5, 6]);
+        let box_f: BbF = box_int.into();
+        assert_eq!(box_int, box_f.into());
+    }
+    {
+        let box_f = BbF::from_arr(&[23.0, 2.0, 15., 31.]);
+        let box_int: BbI = box_f.into();
+        assert_eq!(box_int, box_f.into())
+    }
 }

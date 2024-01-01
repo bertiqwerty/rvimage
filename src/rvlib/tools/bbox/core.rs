@@ -1,6 +1,6 @@
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{Shape, BB},
+    domain::{BbF, ShapeI, TPtF},
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     file_util,
@@ -57,7 +57,7 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
     if let Some(clipboard) = &clipboard {
         let cb_bbs = clipboard.elts();
         if !cb_bbs.is_empty() {
-            let shape_orig = Shape::from_im(world.data.im_background());
+            let shape_orig = ShapeI::from_im(world.data.im_background());
             if let Some(a) = get_annos_mut(&mut world) {
                 a.extend(
                     cb_bbs.iter().cloned(),
@@ -189,7 +189,7 @@ impl Bbox {
                 is_alt_held: event.held_alt(),
                 is_shift_held: event.held_shift(),
                 is_ctrl_held: event.held_ctrl(),
-                distance: options.map(|o| o.drawing_distance).unwrap_or(2) as f32,
+                distance: options.map(|o| o.drawing_distance).unwrap_or(2) as f64,
                 elapsed_millis_since_press: self
                     .start_press_time
                     .map(|t| t.elapsed().as_millis())
@@ -247,29 +247,29 @@ impl Bbox {
         let annos = get_annos_mut(&mut world);
         if let (Some(annos), Some(split_mode)) = (annos, split_mode) {
             if events.held(KeyCode::Up) && events.held_ctrl() {
-                *annos = mem::take(annos).shift_min_bbs(0, -1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_min_bbs(0.0, -1.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Down) && events.held_ctrl() {
-                *annos = mem::take(annos).shift_min_bbs(0, 1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_min_bbs(0.0, 1.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Right) && events.held_ctrl() {
-                *annos = mem::take(annos).shift_min_bbs(1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_min_bbs(1.0, 0.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Left) && events.held_ctrl() {
-                *annos = mem::take(annos).shift_min_bbs(-1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_min_bbs(-1.0, 0.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Up) && events.held_alt() {
-                *annos = mem::take(annos).shift(0, -1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift(0.0, -1.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Down) && events.held_alt() {
-                *annos = mem::take(annos).shift(0, 1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift(0.0, 1.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Right) && events.held_alt() {
-                *annos = mem::take(annos).shift(1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift(1.0, 0.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Left) && events.held_alt() {
-                *annos = mem::take(annos).shift(-1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift(-1.0, 0.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Up) {
-                *annos = mem::take(annos).shift_max_bbs(0, -1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_max_bbs(0.0, -1.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Down) {
-                *annos = mem::take(annos).shift_max_bbs(0, 1, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_max_bbs(0.0, 1.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Right) {
-                *annos = mem::take(annos).shift_max_bbs(1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_max_bbs(1.0, 0.0, shape_orig, split_mode);
             } else if events.held(KeyCode::Left) {
-                *annos = mem::take(annos).shift_max_bbs(-1, 0, shape_orig, split_mode);
+                *annos = mem::take(annos).shift_max_bbs(-1.0, 0.0, shape_orig, split_mode);
             }
         }
         let are_boxes_visible = are_boxes_visible(&world);
@@ -369,7 +369,7 @@ impl Manipulate for Bbox {
             {
                 if !self.prev_pos.prev_pos.is_empty() {
                     let geo = if self.prev_pos.prev_pos.len() == 1 {
-                        GeoFig::BB(BB::from_points(mp.into(), self.prev_pos.prev_pos[0].into()))
+                        GeoFig::BB(BbF::from_points(mp, self.prev_pos.prev_pos[0]))
                     } else {
                         GeoFig::Poly(
                             Polygon::from_vec(
@@ -377,7 +377,7 @@ impl Manipulate for Bbox {
                                     .prev_pos
                                     .iter()
                                     .chain(iter::once(&mp))
-                                    .map(|p| (*p).into())
+                                    .copied()
                                     .collect::<Vec<_>>(),
                             )
                             .unwrap(),
@@ -396,7 +396,7 @@ impl Manipulate for Bbox {
                             fill_alpha: options.fill_alpha,
                             outline: Stroke {
                                 color,
-                                thickness: options.outline_thickness as f32 / 4.0,
+                                thickness: options.outline_thickness as TPtF / 4.0,
                             },
                             outline_alpha: options.outline_alpha,
                             is_selected: None,
