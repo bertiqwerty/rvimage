@@ -448,7 +448,6 @@ where
         (p.x, p.y)
     }
 }
-impl_point_into!(i64);
 impl_point_into!(i32);
 pub type TPtF = f64;
 pub type TPtI = u32;
