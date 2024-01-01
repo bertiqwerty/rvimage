@@ -13,7 +13,8 @@ pub(super) fn check_trigger_redraw(
 ) -> World {
     let data_mut = get_mut(&mut world, name, "could not access data");
     let core_options = get_specific_mut(f_tool_access.clone(), data_mut).cloned();
-    if core_options.map(|o| o.is_redraw_annos_triggered) == Some(true) {
+    let is_redraw_triggered = core_options.map(|o| o.is_redraw_annos_triggered);
+    if is_redraw_triggered == Some(true) {
         world.request_redraw_annotations(name, core_options.map(|o| o.visible) == Some(true));
         let data_mut = get_mut(&mut world, name, "could not access data");
         let core_options_mut = get_specific_mut(f_tool_access, data_mut);
@@ -73,9 +74,9 @@ pub fn check_recolorboxes(
         if let Some(label_info) = get_label_info_mut(&mut world) {
             label_info.new_random_colors();
         }
+        let are_boxes_visible = true;
+        world.request_redraw_annotations(actor, are_boxes_visible);
     }
-    let are_boxes_visible = true;
-    world.request_redraw_annotations(actor, are_boxes_visible);
     world
 }
 pub(super) fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> LabelInfo {

@@ -82,10 +82,10 @@ where
 
 fn hide_menu(ui: &mut Ui, mut core_options: CoreOptions) -> CoreOptions {
     let mut hide = !core_options.visible;
-    if ui.checkbox(&mut hide, "hide").clicked() {
+    if ui.checkbox(&mut hide, "hide").changed() {
         core_options.is_redraw_annos_triggered = true;
+        core_options.visible = !hide;
     }
-    core_options.visible = !hide;
     core_options
 }
 
