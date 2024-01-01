@@ -268,23 +268,21 @@ fn test_poly_triangle() {
 #[test]
 fn test_poly_intersect() {
     let poly = Polygon::from_vec(vec![(5, 5).into(), (15, 15).into(), (5, 15).into()]).unwrap();
-    let bb = BoxF::from_arr(&[5.0, 7.0, 10.0, 2.0]);
+    let bb = BoxF::from(&[5.0, 7.0, 10.0, 2.0]);
     let clipped_poly = poly.clone().intersect(bb).unwrap();
-    let encl_bb = BoxF::from_arr(&[5.0, 7.0, 4.0, 2.0]);
+    let encl_bb = BoxF::from(&[5.0, 7.0, 4.0, 2.0]);
     assert_eq!(clipped_poly.enclosing_bb(), encl_bb);
     assert_eq!(
         clipped_poly.points,
-        vec![(7, 7).into(), (8, 8).into(), (5, 8).into(), (5, 7).into()]
+        vec![(7, 7).into(), (9, 9).into(), (5, 9).into(), (5, 7).into()]
     );
 
-    let bb = BoxF::from_arr(&[5.0, 7.0, 2.0, 2.0]);
+    let bb = BoxF::from(&[5.0, 7.0, 2.0, 2.0]);
     let clipped_poly = poly.intersect(bb);
     assert_eq!(clipped_poly.unwrap().enclosing_bb(), bb);
 
     let poly = Polygon::from_vec(vec![(5, 5).into(), (10, 10).into(), (5, 10).into()]).unwrap();
-    let clipped_poly = poly
-        .clone()
-        .intersect(BoxF::from_arr(&[2.0, 2.0, 20.0, 20.0]));
+    let clipped_poly = poly.clone().intersect(BoxF::from(&[2.0, 2.0, 20.0, 20.0]));
     assert_eq!(clipped_poly, Ok(poly));
 }
 

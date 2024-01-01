@@ -5,7 +5,7 @@ mod polygon;
 pub use bb::{BoxF, BoxI};
 pub use core::{
     dist_lineseg_point, floats_close, max_from_partial, min_from_partial, Annotate, Calc,
-    OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
+    CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
@@ -449,4 +449,14 @@ fn test_into() {
     assert_eq!(pt, PtI { x: 10, y: 20 });
     let pt: PtF = (10i32, 20i32).into();
     assert_eq!(pt, PtF { x: 10.0, y: 20.0 });
+    {
+        let box_int = BoxI::from_arr(&[1, 2, 5, 6]);
+        let box_f: BoxF = box_int.into();
+        assert_eq!(box_int, box_f.into());
+    }
+    {
+        let box_f = BoxF::from_arr(&[23.0, 2.0, 15., 31.]);
+        let box_int: BoxI = box_f.into();
+        assert_eq!(box_int, box_f.into())
+    }
 }

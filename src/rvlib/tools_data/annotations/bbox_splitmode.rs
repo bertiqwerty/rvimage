@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::{floats_close, BoxF, OutOfBoundsMode, PtF, ShapeF, ShapeI, TPtF},
+    domain::{floats_close, BoxF, CoordinateBox, OutOfBoundsMode, PtF, ShapeF, ShapeI, TPtF},
     util::true_indices,
     GeoFig,
 };
@@ -11,8 +11,8 @@ use super::core::{resize_bbs, resize_bbs_inds};
 fn resize_bbs_by_key(
     bbs: Vec<BoxF>,
     selected_bbs: &[bool],
-    shiftee_key: impl Fn(&BoxF) -> f64,
-    candidate_key: impl Fn(&BoxF) -> f64,
+    shiftee_key: impl Fn(&BoxF) -> TPtF,
+    candidate_key: impl Fn(&BoxF) -> TPtF,
     resize: impl Fn(BoxF) -> Option<BoxF>,
 ) -> Vec<BoxF> {
     let indices = true_indices(selected_bbs);
@@ -20,7 +20,7 @@ fn resize_bbs_by_key(
         .flat_map(|shiftee_idx| {
             bbs.iter()
                 .enumerate()
-                .filter(|(_, t)| candidate_key(t) == shiftee_key(&bbs[shiftee_idx]))
+                .filter(|(_, t)| candidate_key(t).is_close(shiftee_key(&bbs[shiftee_idx])))
                 .map(|(i, _)| i)
                 .collect::<Vec<_>>()
         })
@@ -56,14 +56,14 @@ impl SplitMode {
                 bbs,
                 selected_bbs,
                 |bb| bb.y,
-                |bb| bb.y_max() + TPtF::from(1),
+                |bb| bb.y_max() + TPtF::size_addon(),
                 |bb| bb.shift_max(x_shift, y_shift, shape_orig),
             ),
             SplitMode::Vertical => resize_bbs_by_key(
                 bbs,
                 selected_bbs,
                 |bb| bb.x,
-                |bb| bb.x_max() + TPtF::from(1),
+                |bb| bb.x_max() + TPtF::size_addon(),
                 |bb| bb.shift_max(x_shift, y_shift, shape_orig),
             ),
             SplitMode::None => bbs,
@@ -86,14 +86,14 @@ impl SplitMode {
             SplitMode::Horizontal => resize_bbs_by_key(
                 bbs,
                 selected_bbs,
-                |bb| bb.y_max() + TPtF::from(1),
+                |bb| bb.y_max() + TPtF::size_addon(),
                 |bb| bb.y,
                 |bb| bb.shift_min(x_shift, y_shift, shape_orig),
             ),
             SplitMode::Vertical => resize_bbs_by_key(
                 bbs,
                 selected_bbs,
-                |bb| bb.x_max() + TPtF::from(1),
+                |bb| bb.x_max() + TPtF::size_addon(),
                 |bb| bb.x,
                 |bb| bb.shift_min(x_shift, y_shift, shape_orig),
             ),
@@ -179,21 +179,19 @@ impl SplitMode {
         }
     }
 }
-#[cfg(test)]
-use crate::domain::BoxI;
 #[test]
 fn test() {
     let bbs = vec![
-        BoxI::from_arr(&[0, 0, 10, 10]).into(),
-        BoxI::from_arr(&[0, 10, 10, 10]).into(),
-        BoxI::from_arr(&[0, 20, 10, 10]).into(),
-        BoxI::from_arr(&[0, 30, 10, 10]).into(),
-        BoxI::from_arr(&[0, 40, 10, 10]).into(),
-        BoxI::from_arr(&[0, 50, 10, 10]).into(),
-        BoxI::from_arr(&[0, 60, 10, 10]).into(),
-        BoxI::from_arr(&[0, 70, 10, 10]).into(),
-        BoxI::from_arr(&[0, 80, 10, 10]).into(),
-        BoxI::from_arr(&[0, 90, 10, 10]).into(),
+        BoxF::from(&[0.0, 0.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 10.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 20.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 30.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 40.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 50.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 60.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 70.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 80.0, 10.0, 10.0]),
+        BoxF::from(&[0.0, 90.0, 10.0, 10.0]),
     ];
     let trues = vec![3];
     let mut selected_bbs = vec![false; bbs.len()];
@@ -212,16 +210,19 @@ fn test() {
     .enumerate()
     {
         if selected_bbs[i] {
+            // self is selected
             assert_eq!(bb_maxs.y, bb.y);
             assert_eq!(bb_maxs.y_max(), bb.y_max() + TPtF::from(1));
             assert_eq!(bb_mins.y, bb.y + TPtF::from(1));
             assert_eq!(bb_mins.y_max(), bb.y_max());
         } else if i < selected_bbs.len() - 1 && selected_bbs[i + 1] {
+            // successor of self is selected
             assert_eq!(bb_maxs.y, bb.y);
             assert_eq!(bb_maxs.y_max(), bb.y_max());
             assert_eq!(bb_mins.y, bb.y);
             assert_eq!(bb_mins.y_max(), bb.y_max() + TPtF::from(1));
         } else if i > 0 && selected_bbs[i - 1] {
+            // predecessor of self is selected
             assert_eq!(bb_mins.y, bb.y);
             assert_eq!(bb_mins.y_max(), bb.y_max());
             assert_eq!(bb_maxs.y, bb.y + TPtF::from(1));

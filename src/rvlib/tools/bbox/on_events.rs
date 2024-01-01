@@ -24,7 +24,7 @@ use super::core::{
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
 
-fn find_closest_boundary_idx(pos: PtF, geos: &[GeoFig]) -> Option<usize> {
+fn closest_containing_boundary_idx(pos: PtF, geos: &[GeoFig]) -> Option<usize> {
     geos.iter()
         .enumerate()
         .filter(|(_, geo)| geo.contains(pos))
@@ -276,7 +276,7 @@ pub(super) fn on_mouse_released_left(
             // selection
             let annos = get_annos_mut(&mut world);
             if let Some(annos) = annos {
-                let idx = mouse_pos.and_then(|p| find_closest_boundary_idx(p, annos.elts()));
+                let idx = mouse_pos.and_then(|p| closest_containing_boundary_idx(p, annos.elts()));
                 if let Some(i) = idx {
                     if is_shift_held {
                         // If shift is held a new selection box will be spanned between the currently clicked
@@ -847,14 +847,36 @@ fn test_mouse_release() {
 #[test]
 fn test_find_idx() {
     let bbs = make_test_geos();
-    assert_eq!(find_closest_boundary_idx((0.0, 20.0).into(), &bbs), None);
-    assert_eq!(find_closest_boundary_idx((0.0, 0.0).into(), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((3.0, 8.0).into(), &bbs), Some(0));
-    assert_eq!(find_closest_boundary_idx((7.0, 14.0).into(), &bbs), Some(1));
-    assert_eq!(find_closest_boundary_idx((7.0, 15.0).into(), &bbs), None);
-    assert_eq!(find_closest_boundary_idx((8.0, 8.0).into(), &bbs), Some(0));
     assert_eq!(
-        find_closest_boundary_idx((10.0, 12.0).into(), &bbs),
+        closest_containing_boundary_idx((0.0, 20.0).into(), &bbs),
+        None
+    );
+    assert_eq!(
+        closest_containing_boundary_idx((0.0, 0.0).into(), &bbs),
+        Some(0)
+    );
+    assert_eq!(
+        closest_containing_boundary_idx((3.0, 8.0).into(), &bbs),
+        Some(0)
+    );
+    assert_eq!(
+        closest_containing_boundary_idx((7.0, 14.0).into(), &bbs),
+        Some(1)
+    );
+    assert_eq!(
+        closest_containing_boundary_idx((7.0, 15.0).into(), &bbs),
+        Some(1)
+    );
+    assert_eq!(
+        closest_containing_boundary_idx((7.0, 15.1).into(), &bbs),
+        None
+    );
+    assert_eq!(
+        closest_containing_boundary_idx((8.0, 8.0).into(), &bbs),
+        Some(0)
+    );
+    assert_eq!(
+        closest_containing_boundary_idx((10.0, 12.0).into(), &bbs),
         Some(2)
     );
 }

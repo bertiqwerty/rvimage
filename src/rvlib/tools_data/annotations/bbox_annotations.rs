@@ -156,30 +156,29 @@ impl BboxAnnotations {
     }
 }
 #[cfg(test)]
-use {super::core::resize_bbs, crate::domain::BoxI};
+use super::core::resize_bbs;
 #[cfg(test)]
 fn make_test_bbs() -> Vec<BoxF> {
-    let boxes = [
-        BoxI {
-            x: 0,
-            y: 0,
-            w: 10,
-            h: 10,
+    vec![
+        BoxF {
+            x: 0.0,
+            y: 0.0,
+            w: 10.0,
+            h: 10.0,
         },
-        BoxI {
-            x: 5,
-            y: 5,
-            w: 10,
-            h: 10,
+        BoxF {
+            x: 5.0,
+            y: 5.0,
+            w: 10.0,
+            h: 10.0,
         },
-        BoxI {
-            x: 9,
-            y: 9,
-            w: 10,
-            h: 10,
+        BoxF {
+            x: 9.0,
+            y: 9.0,
+            w: 10.0,
+            h: 10.0,
         },
-    ];
-    boxes.iter().map(|bb| (*bb).into()).collect()
+    ]
 }
 #[test]
 fn test_bbs() {
@@ -191,28 +190,16 @@ fn test_bbs() {
         bb.shift_max(-1.0, 1.0, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(
-        BoxF::from_points((5, 5).into(), (13, 15).into()),
-        resized[1]
-    );
-    assert_eq!(
-        BoxF::from_points((9, 9).into(), (17, 19).into()),
-        resized[2]
-    );
+    assert_eq!(BoxF::from(&[5.0, 5.0, 9.0, 11.0]), resized[1]);
+    assert_eq!(BoxF::from(&[9.0, 9.0, 9.0, 11.0]), resized[2]);
 
     // shift min
     let resized = resize_bbs(bbs.clone(), &[false, true, true], |bb| {
         bb.shift_min(-1.0, 1.0, shape_orig)
     });
     assert_eq!(resized[0], bbs[0]);
-    assert_eq!(
-        BoxF::from_points((4, 6).into(), (14, 14).into()),
-        resized[1]
-    );
-    assert_eq!(
-        BoxF::from_points((8, 10).into(), (18, 18).into()),
-        resized[2]
-    );
+    assert_eq!(BoxF::from(&[4.0, 6.0, 11.0, 9.0]), resized[1]);
+    assert_eq!(BoxF::from(&[8.0, 10.0, 11.0, 9.0]), resized[2]);
 }
 #[test]
 fn test_annos() {

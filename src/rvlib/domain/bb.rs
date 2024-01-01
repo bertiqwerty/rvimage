@@ -3,8 +3,11 @@ use std::{fmt::Display, ops::Range, str::FromStr};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    core::{clamp_sub_zero, max_from_partial, max_squaredist, min_from_partial, Max, Min, Shape},
-    Calc, OutOfBoundsMode, Point, PtF, TPtF, TPtI,
+    core::{
+        clamp_sub_zero, max_from_partial, max_squaredist, min_from_partial, CoordinateBox, Max,
+        Min, Shape,
+    },
+    Calc, OutOfBoundsMode, Point, PtF, PtI, TPtF, TPtI,
 };
 use crate::{
     result::{to_rv, RvError, RvResult},
@@ -24,7 +27,7 @@ pub struct Box<T> {
 
 impl<T> Box<T>
 where
-    T: Calc,
+    T: Calc + CoordinateBox,
 {
     /// `[x, y, w, h]`
     pub fn from_arr(a: &[T; 4]) -> Self {
@@ -97,12 +100,12 @@ where
 
     pub fn y_max(&self) -> T {
         // y_max is still part of the box, hence -1
-        self.y + self.h - T::one()
+        self.y + self.h - T::size_addon()
     }
 
     pub fn x_max(&self) -> T {
         // x_max is still part of the box, hence -1
-        self.x + self.w - T::one()
+        self.x + self.w - T::size_addon()
     }
 
     pub fn intersect(self, other: Box<T>) -> Box<T> {
@@ -157,10 +160,10 @@ where
             0 => Point { x, y },
             1 => Point {
                 x,
-                y: y + h - T::one(),
+                y: y + h - T::size_addon(),
             },
-            2 => (x + w - T::one(), y + h - T::one()).into(),
-            3 => (x + w - T::one(), y).into(),
+            2 => (x + w - T::size_addon(), y + h - T::size_addon()).into(),
+            3 => (x + w - T::size_addon(), y).into(),
             _ => panic!("bounding boxes only have 4, {idx} is out of bounds"),
         }
     }
@@ -183,8 +186,8 @@ where
         Self {
             x: x_min,
             y: y_min,
-            w: x_max - x_min + T::one(), // x_min and x_max are both contained in the bb
-            h: y_max - y_min + T::one(),
+            w: x_max - x_min + T::size_addon(), // x_min and x_max are both contained in the bb
+            h: y_max - y_min + T::size_addon(),
         }
     }
 
@@ -212,8 +215,8 @@ where
 
     pub fn max(&self) -> Point<T> {
         Point {
-            x: self.x + self.w,
-            y: self.y + self.h,
+            x: self.x_max(),
+            y: self.y_max(),
         }
     }
 
@@ -306,7 +309,6 @@ impl BoxF {
     ) -> Option<Self> {
         let x_shift = to.x - from.x;
         let y_shift = to.y - from.y;
-        println!("{x_shift} - {y_shift}");
         self.translate(x_shift, y_shift, shape, oob_mode)
     }
 
@@ -356,13 +358,32 @@ impl BoxF {
 }
 
 impl From<BoxF> for BoxI {
-    fn from(value: BoxF) -> Self {
-        BoxI::from_points(value.min().into(), value.max().into())
+    fn from(box_f: BoxF) -> Self {
+        let p_min: PtI = box_f.min().into();
+        let p_max: PtI = box_f.max().into();
+        let x = p_min.x;
+        let y = p_min.y;
+        let x_max = p_max.x - TPtI::size_addon();
+        let y_max = p_max.y - TPtI::size_addon();
+        BoxI::from_points((x, y).into(), (x_max, y_max).into())
     }
 }
 impl From<BoxI> for BoxF {
-    fn from(value: BoxI) -> Self {
-        BoxF::from_points(value.min().into(), value.max().into())
+    fn from(box_int: BoxI) -> Self {
+        let x = box_int.min().x;
+        let y = box_int.min().y;
+        let x_max = box_int.max().x + TPtI::size_addon();
+        let y_max = box_int.max().y + TPtI::size_addon();
+        BoxF::from_points((x, y).into(), (x_max, y_max).into())
+    }
+}
+
+impl<T> From<&[T; 4]> for Box<T>
+where
+    T: Calc + CoordinateBox,
+{
+    fn from(a: &[T; 4]) -> Self {
+        Self::from_arr(a)
     }
 }
 

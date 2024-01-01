@@ -49,6 +49,28 @@ impl Abs for TPtI {
 }
 impl_trait!(Abs, abs, f32, f64, i32, i64);
 
+pub trait CoordinateBox {
+    fn size_addon() -> Self;
+    fn is_close(self, other: Self) -> bool;
+}
+
+impl CoordinateBox for TPtI {
+    fn size_addon() -> Self {
+        TPtI::one()
+    }
+    fn is_close(self, other: Self) -> bool {
+        self == other
+    }
+}
+impl CoordinateBox for TPtF {
+    fn size_addon() -> Self {
+        TPtF::zero()
+    }
+    fn is_close(self, other: Self) -> bool {
+        floats_close(self, other)
+    }
+}
+
 pub trait Calc:
     Add<Output = Self>
     + Sub<Output = Self>
