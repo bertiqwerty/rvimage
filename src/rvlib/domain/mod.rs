@@ -4,8 +4,8 @@ mod polygon;
 
 pub use bb::{BbF, BbI};
 pub use core::{
-    dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc,
-    CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
+    dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc, CoordinateBox,
+    OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};

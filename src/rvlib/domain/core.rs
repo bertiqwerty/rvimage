@@ -106,7 +106,6 @@ impl<T> Calc for T where
 {
 }
 
-
 fn floats_close(x: TPtF, y: TPtF) -> bool {
     (x - y).abs() < 1e-10
 }

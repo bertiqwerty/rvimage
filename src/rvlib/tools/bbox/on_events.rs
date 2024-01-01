@@ -3,7 +3,8 @@ use std::{cmp::Ordering, iter::empty, mem};
 use crate::{
     cfg::ExportPath,
     domain::{
-        self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF, TPtF,
+        self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF,
+        TPtF,
     },
     file_util::MetaData,
     history::Record,
@@ -40,13 +41,12 @@ fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: TPtF) -> Option<
         .map(|(bb_idx, bb)| {
             let iter: Box<dyn Iterator<Item = PtF>> = match bb {
                 GeoFig::BB(bb) => Box::new(bb.points_iter()),
-                GeoFig::Poly(bb) => Box::new(bb.points_iter()),
+                GeoFig::Poly(poly) => Box::new(poly.points_iter()),
             };
             let (min_corner_idx, min_corner_dist) = iter
-                .map(|c| c.into())
-                .map(|c: (TPtF, TPtF)| (orig_pos.x - c.0).powi(2) + (orig_pos.y - c.1).powi(2))
+                .map(|c| (orig_pos.x - c.x).powi(2) + (orig_pos.y - c.y).powi(2))
                 .enumerate()
-                .min_by(min_from_partial)
+                .min_by(|(_, x1), (_, x2)| min_from_partial(x1, x2))
                 .unwrap();
             (bb_idx, min_corner_idx, min_corner_dist)
         })
