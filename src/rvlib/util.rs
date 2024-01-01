@@ -60,7 +60,7 @@ pub fn version_label() -> String {
             if is_dirty { " DIRTY" } else { "" }
         )
     } else {
-        format!("Version {VERSION} - no git, version from Cargo.toml")
+        format!("Version {VERSION}")
     }
 }
 #[test]
