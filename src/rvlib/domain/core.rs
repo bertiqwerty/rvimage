@@ -51,23 +51,23 @@ impl_trait!(Abs, abs, f32, f64, i32, i64);
 
 pub trait CoordinateBox {
     fn size_addon() -> Self;
-    fn is_close(self, other: Self) -> bool;
+    fn is_close_to(&self, other: Self) -> bool;
 }
 
 impl CoordinateBox for TPtI {
     fn size_addon() -> Self {
         TPtI::one()
     }
-    fn is_close(self, other: Self) -> bool {
-        self == other
+    fn is_close_to(&self, other: Self) -> bool {
+        *self == other
     }
 }
 impl CoordinateBox for TPtF {
     fn size_addon() -> Self {
         TPtF::zero()
     }
-    fn is_close(self, other: Self) -> bool {
-        floats_close(self, other)
+    fn is_close_to(&self, other: Self) -> bool {
+        floats_close(*self, other)
     }
 }
 
@@ -106,11 +106,8 @@ impl<T> Calc for T where
 {
 }
 
-pub trait AccessDataType {
-    type DType;
-}
 
-pub fn floats_close(x: TPtF, y: TPtF) -> bool {
+fn floats_close(x: TPtF, y: TPtF) -> bool {
     (x - y).abs() < 1e-10
 }
 

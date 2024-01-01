@@ -4,7 +4,7 @@ mod polygon;
 
 pub use bb::{BoxF, BoxI};
 pub use core::{
-    dist_lineseg_point, floats_close, max_from_partial, min_from_partial, Annotate, Calc,
+    dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc,
     CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
 pub use polygon::Polygon;

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::{floats_close, BoxF, CoordinateBox, OutOfBoundsMode, PtF, ShapeF, ShapeI, TPtF},
+    domain::{BoxF, CoordinateBox, OutOfBoundsMode, PtF, ShapeF, ShapeI, TPtF},
     util::true_indices,
     GeoFig,
 };
@@ -20,7 +20,7 @@ fn resize_bbs_by_key(
         .flat_map(|shiftee_idx| {
             bbs.iter()
                 .enumerate()
-                .filter(|(_, t)| candidate_key(t).is_close(shiftee_key(&bbs[shiftee_idx])))
+                .filter(|(_, t)| candidate_key(t).is_close_to(shiftee_key(&bbs[shiftee_idx])))
                 .map(|(i, _)| i)
                 .collect::<Vec<_>>()
         })
@@ -128,13 +128,13 @@ impl SplitMode {
                 let min_shape = ShapeF::new(1.0, 30.0);
                 let oob_mode = OutOfBoundsMode::Resize(min_shape);
                 let y_shift = mpo_to.y - mpo_from.y;
-                let (has_moved, bb) = if y_shift > 0.0 && floats_close(bb.y, 0.0) {
+                let (has_moved, bb) = if y_shift > 0.0 && bb.y.is_close_to(0.0) {
                     if let Some(bb_shifted) = bb.shift_max(0.0, y_shift, orig_shape) {
                         (true, bb_shifted)
                     } else {
                         (false, *bb)
                     }
-                } else if y_shift < 0.0 && floats_close(bb.y + bb.h, orig_shape.h.into()) {
+                } else if y_shift < 0.0 && (bb.y + bb.h).is_close_to(orig_shape.h.into()) {
                     if let Some(bb_shifted) = bb.shift_min(0.0, y_shift, orig_shape) {
                         (true, bb_shifted)
                     } else {
@@ -154,13 +154,13 @@ impl SplitMode {
                 let min_shape = ShapeF::new(30.0, 1.0);
                 let oob_mode = OutOfBoundsMode::Resize(min_shape);
                 let x_shift = mpo_to.x - mpo_from.x;
-                let (has_moved, bb) = if x_shift as i32 > 0 && floats_close(bb.x, 0.0) {
+                let (has_moved, bb) = if x_shift > 0.0 && bb.x.is_close_to(0.0) {
                     if let Some(bb_shifted) = bb.shift_max(x_shift, 0.0, orig_shape) {
                         (true, bb_shifted)
                     } else {
                         (false, *bb)
                     }
-                } else if (x_shift as i32) < 0 && floats_close(bb.x + bb.w, orig_shape.h.into()) {
+                } else if x_shift < 0.0 && (bb.x + bb.w).is_close_to(orig_shape.h.into()) {
                     if let Some(bb_shifted) = bb.shift_min(x_shift, 0.0, orig_shape) {
                         (true, bb_shifted)
                     } else {
