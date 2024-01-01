@@ -21,6 +21,14 @@ impl NRotations {
             Self::Three => Self::Zero,
         }
     }
+    pub fn to_num(self) -> u8 {
+        match self {
+            Self::Zero => 0,
+            Self::One => 1,
+            Self::Two => 2,
+            Self::Three => 3,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]

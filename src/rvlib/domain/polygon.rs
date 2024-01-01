@@ -221,6 +221,19 @@ impl Polygon {
             enclosing_bb,
         })
     }
+    pub fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
+        if n == 0 {
+            self
+        } else {
+            Self::from_vec(
+                self.points
+                    .into_iter()
+                    .map(|p| p.rot90_with_image_ntimes(shape, n))
+                    .collect::<Vec<_>>(),
+            )
+            .expect("somehow an empty polgon has been created")
+        }
+    }
 }
 impl From<BbF> for Polygon {
     fn from(bb: BbF) -> Self {

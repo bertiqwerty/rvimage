@@ -12,7 +12,7 @@ use crate::{
         core::{label_change_key, on_selection_keys, Mover, ReleasedKey},
         BBOX_NAME,
     },
-    tools_data::{self, annotations::SplitMode, BboxSpecificData},
+    tools_data::{self, annotations::SplitMode, BboxSpecificData, Rot90ToolData},
     util::true_indices,
     GeoFig, Polygon,
     {history::History, world::World},
@@ -58,9 +58,10 @@ fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: TPtF) -> Option<
 pub(super) fn import_coco_if_triggered(
     meta_data: &MetaData,
     coco_file: Option<&ExportPath>,
+    rot90_data: Option<&Rot90ToolData>,
 ) -> Option<BboxSpecificData> {
     if let Some(coco_file) = coco_file {
-        match tools_data::coco_io::read_coco(meta_data, coco_file) {
+        match tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data) {
             Ok(bbox_data) => Some(bbox_data),
             Err(e) => {
                 tracing::error!("could not import coco due to {e:?}");
@@ -72,9 +73,13 @@ pub(super) fn import_coco_if_triggered(
     }
 }
 
-pub(super) fn export_if_triggered(meta_data: &MetaData, bbox_data: &BboxSpecificData) {
+pub(super) fn export_if_triggered(
+    meta_data: &MetaData,
+    bbox_data: &BboxSpecificData,
+    rot90_data: Option<&Rot90ToolData>,
+) {
     if bbox_data.options.core_options.is_export_triggered {
-        match tools_data::write_coco(meta_data, bbox_data.clone()) {
+        match tools_data::write_coco(meta_data, bbox_data.clone(), rot90_data) {
             Ok(p) => tracing::info!("export to {p:?} successful"),
             Err(e) => tracing::error!("export failed due to {e:?}"),
         }

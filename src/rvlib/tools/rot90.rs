@@ -9,7 +9,7 @@ use crate::{
 
 use super::Manipulate;
 
-const ACTOR_NAME: &str = "Rot90";
+pub const ACTOR_NAME: &str = "Rot90";
 annotations_accessor_mut!(ACTOR_NAME, rot90_mut, "Rotation 90 didn't work", NRotations);
 annotations_accessor!(ACTOR_NAME, rot90, "Rotation 90 didn't work", NRotations);
 
@@ -34,11 +34,11 @@ impl Rot90 {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
+        world = World::new(rot90(&world.data, NRotations::One), *world.zoom_box());
         if let Some(anno) = get_annos_mut(&mut world) {
             *anno = anno.increase();
         }
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
-        world = World::new(rot90(&world.data, NRotations::One), *world.zoom_box());
         (world, history)
     }
 }

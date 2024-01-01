@@ -17,7 +17,7 @@ use crate::{
     GeoFig, Polygon,
 };
 
-use super::{core::new_random_colors, BboxExportData, BboxSpecificData};
+use super::{core::new_random_colors, BboxExportData, BboxSpecificData, Rot90ToolData};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CocoInfo {
@@ -72,6 +72,14 @@ fn string_to_colors(s: &str) -> RvResult<Vec<[u8; 3]>> {
         })
         .collect::<RvResult<Vec<[u8; 3]>>>()
 }
+
+fn get_n_rotations(rotation_data: Option<&Rot90ToolData>, file_path: &str) -> u8 {
+    rotation_data
+        .and_then(|d| d.get_annos(file_path))
+        .map(|n_rot| n_rot.to_num())
+        .unwrap_or(0)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct CocoExportData {
     info: CocoInfo,
@@ -80,7 +88,10 @@ struct CocoExportData {
     categories: Vec<CocoBboxCategory>,
 }
 impl CocoExportData {
-    fn from_bboxdata(bbox_specifics: BboxSpecificData) -> RvResult<Self> {
+    fn from_bboxdata(
+        bbox_specifics: BboxSpecificData,
+        rotation_data: Option<&Rot90ToolData>,
+    ) -> RvResult<Self> {
         let color_str = if let Some(s) = colors_to_string(bbox_specifics.label_info.colors()) {
             format!(", {s}")
         } else {
@@ -122,39 +133,44 @@ impl CocoExportData {
             .collect::<Vec<_>>();
 
         let mut box_id = 0;
-        let make_anno_map =
-            |(image_idx, (bbs, cat_idxs, shape)): (usize, &(Vec<GeoFig>, Vec<usize>, ShapeI))| {
-                bbs.iter()
-                    .zip(cat_idxs.iter())
-                    .map(|(geo, cat_idx): (&GeoFig, &usize)| {
-                        let bb = geo.enclosing_bb();
+        type AnnoType<'a> = (usize, (&'a String, &'a (Vec<GeoFig>, Vec<usize>, ShapeI)));
+        let make_anno_map = |(image_idx, (file_path, (bbs, cat_idxs, shape))): AnnoType| {
+            bbs.iter()
+                .zip(cat_idxs.iter())
+                .map(|(geo, cat_idx): (&GeoFig, &usize)| {
+                    let n_rotations = get_n_rotations(rotation_data, file_path);
+                    // to store data corresponding to the image on the disk, we need to invert the
+                    // applied rotations
+                    let n_rots_inverted = (4 - n_rotations) % 4;
+                    let geo = geo.clone().rot90_with_image_ntimes(shape, n_rots_inverted);
 
-                        let (imw, imh) = if export_data.is_export_absolute {
-                            (1.0, 1.0)
-                        } else {
-                            (shape.w as TPtF, shape.h as TPtF)
-                        };
-                        let segmentation = geo.points_normalized(imw, imh);
-                        let segmentation = segmentation
-                            .iter()
-                            .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))
-                            .collect::<Vec<_>>();
-                        let bb_f = [bb.x / imw, bb.y / imh, bb.w / imw, bb.h / imh];
-                        box_id += 1;
-                        CocoAnnotation {
-                            id: box_id - 1,
-                            image_id: image_idx as u32,
-                            category_id: export_data.cat_ids[*cat_idx],
-                            bbox: bb_f,
-                            segmentation: Some(vec![segmentation]),
-                            area: Some(bb.h * bb.w),
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            };
+                    let bb = geo.enclosing_bb();
+                    let (imw, imh) = if export_data.is_export_absolute {
+                        (1.0, 1.0)
+                    } else {
+                        (shape.w as TPtF, shape.h as TPtF)
+                    };
+                    let segmentation = geo.points_normalized(imw, imh);
+                    let segmentation = segmentation
+                        .iter()
+                        .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))
+                        .collect::<Vec<_>>();
+                    let bb_f = [bb.x / imw, bb.y / imh, bb.w / imw, bb.h / imh];
+                    box_id += 1;
+                    CocoAnnotation {
+                        id: box_id - 1,
+                        image_id: image_idx as u32,
+                        category_id: export_data.cat_ids[*cat_idx],
+                        bbox: bb_f,
+                        segmentation: Some(vec![segmentation]),
+                        area: Some(bb.h * bb.w),
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
         let annotations = export_data
             .annotations
-            .values()
+            .iter()
             .enumerate()
             .flat_map(make_anno_map)
             .collect::<Vec<_>>();
@@ -167,7 +183,11 @@ impl CocoExportData {
         })
     }
 
-    fn convert_to_bboxdata(self, coco_file: ExportPath) -> RvResult<BboxSpecificData> {
+    fn convert_to_bboxdata(
+        self,
+        coco_file: ExportPath,
+        rotation_data: Option<&Rot90ToolData>,
+    ) -> RvResult<BboxSpecificData> {
         let cat_ids: Vec<u32> = self.categories.iter().map(|coco_cat| coco_cat.id).collect();
         let labels: Vec<String> = self
             .categories
@@ -197,13 +217,13 @@ impl CocoExportData {
 
         let mut annotations: HashMap<String, (Vec<GeoFig>, Vec<usize>, ShapeI)> = HashMap::new();
         for coco_anno in self.annotations {
-            let (file_name, w, h) = id_image_map[&coco_anno.image_id];
+            let (file_path, w_coco, h_coco) = id_image_map[&coco_anno.image_id];
 
             let coords_absolute = coco_anno.bbox.iter().any(|x| *x > 1.0);
             let (w_factor, h_factor) = if coords_absolute {
                 (1.0, 1.0)
             } else {
-                (w as f64, h as f64)
+                (w_coco as f64, h_coco as f64)
             };
             let bbox = [
                 (w_factor * coco_anno.bbox[0]),
@@ -211,7 +231,7 @@ impl CocoExportData {
                 (w_factor * coco_anno.bbox[2]),
                 (h_factor * coco_anno.bbox[3]),
             ];
-            let bb = BbF::from_arr(&bbox);
+            let bb = BbF::from(&bbox);
             let geo = if let Some(segmentation) = coco_anno.segmentation {
                 if !segmentation.is_empty() {
                     if segmentation.len() > 1 {
@@ -261,6 +281,14 @@ impl CocoExportData {
                 GeoFig::BB(bb)
             };
 
+            // The annotations in the coco files created by RV Image are stored
+            // ignoring any orientation meta-data. Hence, if the image has been loaded
+            // and rotated with RV Image we correct the rotation.
+            let n_rotations = get_n_rotations(rotation_data, file_path);
+            let shape_coco = ShapeI::new(w_coco, h_coco);
+            let shape_rotated = shape_coco.rot90_with_image_ntimes(n_rotations);
+            let geo = geo.rot90_with_image_ntimes(&shape_rotated, n_rotations);
+
             let cat_idx = cat_ids
                 .iter()
                 .position(|cat_id| *cat_id == coco_anno.category_id)
@@ -271,16 +299,16 @@ impl CocoExportData {
                         cat_ids
                     )
                 })?;
-            let k = if file_name.starts_with("http") {
-                file_util::url_encode(file_name)
+            let k = if file_path.starts_with("http") {
+                file_util::url_encode(file_path)
             } else {
-                file_name.to_string()
+                file_path.to_string()
             };
             if let Some(annos_of_image) = annotations.get_mut(&k) {
                 annos_of_image.0.push(geo);
                 annos_of_image.1.push(cat_idx);
             } else {
-                annotations.insert(k, (vec![geo], vec![cat_idx], ShapeI::new(w, h)));
+                annotations.insert(k, (vec![geo], vec![cat_idx], ShapeI::new(w_coco, h_coco)));
             }
         }
         BboxSpecificData::from_bbox_export_data(BboxExportData {
@@ -328,24 +356,40 @@ fn get_cocofilepath(meta_data: &MetaData, coco_file: &ExportPath) -> RvResult<Pa
         Ok(coco_file.path.clone())
     }
 }
-pub fn write_coco(meta_data: &MetaData, bbox_specifics: BboxSpecificData) -> RvResult<PathBuf> {
+
+
+/// Serialize annotations in Coco format. Any orientations changes applied with the rotation tool
+/// are reverted, since the rotation tool does not change the image file. Hence, the Coco file contains the annotation
+/// relative to the image as it is found in memory ignoring any meta-data.
+pub fn write_coco(
+    meta_data: &MetaData,
+    bbox_specifics: BboxSpecificData,
+    rotation_data: Option<&Rot90ToolData>,
+) -> RvResult<PathBuf> {
     let coco_out_path = get_cocofilepath(meta_data, &bbox_specifics.coco_file)?;
     let conn = bbox_specifics.coco_file.conn.clone();
-    let coco_data = CocoExportData::from_bboxdata(bbox_specifics)?;
+    let coco_data = CocoExportData::from_bboxdata(bbox_specifics, rotation_data)?;
     let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
     conn.write(&data_str, &coco_out_path, meta_data.ssh_cfg.as_ref())?;
     tracing::info!("exported coco labels to {coco_out_path:?}");
     Ok(coco_out_path)
 }
 
-pub fn read_coco(meta_data: &MetaData, coco_file: &ExportPath) -> RvResult<BboxSpecificData> {
+/// Import annotations in Coco format. Any orientations changes applied with the rotation tool
+/// to images that have annotations in the Coco file are applied to the annotations before importing. We expect, that 
+/// the Coco file contains the annotations relative to the image as it is found in memory ignoring any meta-data.
+pub fn read_coco(
+    meta_data: &MetaData,
+    coco_file: &ExportPath,
+    rotation_data: Option<&Rot90ToolData>,
+) -> RvResult<BboxSpecificData> {
     let coco_inpath = get_cocofilepath(meta_data, coco_file)?;
     match &coco_file.conn {
         ExportPathConnection::Local => {
             let s = file_util::read_to_string(&coco_inpath)?;
             let read_data: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
             tracing::info!("imported coco file from {coco_inpath:?}");
-            read_data.convert_to_bboxdata(coco_file.clone())
+            read_data.convert_to_bboxdata(coco_file.clone(), rotation_data)
         }
         ExportPathConnection::Ssh => {
             if let Some(ssh_cfg) = &meta_data.ssh_cfg {
@@ -355,7 +399,7 @@ pub fn read_coco(meta_data: &MetaData, coco_file: &ExportPath) -> RvResult<BboxS
 
                 let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
                 tracing::info!("imported coco file from {coco_inpath:?}");
-                read.convert_to_bboxdata(coco_file.clone())
+                read.convert_to_bboxdata(coco_file.clone(), rotation_data)
             } else {
                 Err(rverr!("cannot read coco from ssh, ssh-cfg missing.",))
             }
@@ -376,11 +420,12 @@ use {
 
 #[cfg(test)]
 pub fn make_data(
-    extension: &str,
     image_file: &Path,
     opened_folder: Option<&Path>,
     export_absolute: bool,
-) -> (BboxSpecificData, MetaData, PathBuf) {
+    n_boxes: Option<usize>,
+) -> (BboxSpecificData, MetaData, PathBuf, ShapeI) {
+    let shape = ShapeI::new(20, 10);
     let opened_folder = if let Some(of) = opened_folder {
         of.to_str().unwrap().to_string()
     } else {
@@ -397,7 +442,7 @@ pub fn make_data(
         }
     }
 
-    let test_export_path = DEFAULT_TMPDIR.join(format!("{}.{}", opened_folder, extension));
+    let test_export_path = DEFAULT_TMPDIR.join(format!("{}.json", opened_folder));
     let mut meta = MetaData::from_filepath(
         test_export_path
             .with_extension("egal")
@@ -428,24 +473,24 @@ pub fn make_data(
     bbs.extend(bbs.clone());
     bbs.extend(bbs.clone());
     bbs.extend(bbs.clone());
+    if let Some(n) = n_boxes {
+        bbs = bbs[0..n].to_vec();
+    }
 
-    let annos = bbox_data.get_annos_mut(
-        image_file.as_os_str().to_str().unwrap(),
-        ShapeI::new(10, 10),
-    );
+    let annos = bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), shape);
     if let Some(a) = annos {
         for bb in bbs {
             a.add_bb(bb, 0);
         }
     }
-    (bbox_data, meta, test_export_path)
+    (bbox_data, meta, test_export_path, shape)
 }
 
 #[test]
 fn test_coco_export() -> RvResult<()> {
     fn test(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) -> RvResult<()> {
-        let (bbox_data, meta, _) = make_data("json", &file_path, opened_folder, export_absolute);
-        let coco_file = write_coco(&meta, bbox_data.clone())?;
+        let (bbox_data, meta, _, _) = make_data(&file_path, opened_folder, export_absolute, None);
+        let coco_file = write_coco(&meta, bbox_data.clone(), None)?;
         defer_file_removal!(&coco_file);
         let read = read_coco(
             &meta,
@@ -453,6 +498,7 @@ fn test_coco_export() -> RvResult<()> {
                 path: coco_file.clone(),
                 conn: ExportPathConnection::Local,
             },
+            None,
         )?;
         assert_eq!(bbox_data.label_info.cat_ids(), read.label_info.cat_ids());
         assert_eq!(bbox_data.label_info.labels(), read.label_info.labels());
@@ -489,7 +535,7 @@ fn test_coco_import() -> RvResult<()> {
             is_loading_screen_active: None,
             is_file_list_empty: None,
         };
-        let read = read_coco(&meta, &ExportPath::default()).unwrap();
+        let read = read_coco(&meta, &ExportPath::default(), None).unwrap();
         assert_eq!(read.label_info.cat_ids(), &cat_ids);
         assert_eq!(
             read.label_info.labels(),
@@ -540,4 +586,35 @@ fn color_vs_str() {
     let s = colors_to_string(&colors);
     let colors_back = string_to_colors(&s.unwrap()).unwrap();
     assert_eq!(colors, colors_back);
+}
+
+#[test]
+fn test_rotation_export_import() {
+    let (bbox_specifics, meta_data, coco_file, shape) = make_data(
+        Path::new("some_path.png"),
+        Some(Path::new("afolder")),
+        false,
+        None,
+    );
+    defer_file_removal!(&coco_file);
+    let mut rotation_data = Rot90ToolData::default();
+    let annos = rotation_data.get_annos_mut("some_path.png", shape);
+    if let Some(annos) = annos {
+        *annos = annos.increase();
+    }
+    let out_path = write_coco(&meta_data, bbox_specifics.clone(), Some(&rotation_data)).unwrap();
+    println!("write to {out_path:?}");
+    let out_path = ExportPath {
+        path: out_path,
+        conn: ExportPathConnection::Local,
+    };
+    let read = read_coco(&meta_data, &out_path, Some(&rotation_data)).unwrap();
+    for k in read.annotations_map.keys() {
+        let (read_anno, _) = &read.annotations_map[k];
+        let (ref_anno, _) = &bbox_specifics.annotations_map[k];
+        for (read_elt, ref_elt) in read_anno.elts().iter().zip(ref_anno.elts().iter()) {
+            assert_eq!(read_elt, ref_elt);
+        }
+    }
+    assert_eq!(read.annotations_map, bbox_specifics.annotations_map);
 }

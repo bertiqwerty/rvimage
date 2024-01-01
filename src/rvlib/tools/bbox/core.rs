@@ -9,9 +9,11 @@ use crate::{
     result::{trace_ok, RvResult},
     tools::{
         core::{check_recolorboxes, check_trigger_redraw, map_released_key, Mover},
-        Manipulate, BBOX_NAME,
+        rot90, Manipulate, BBOX_NAME,
     },
-    tools_data::{self, annotations::BboxAnnotations, bbox_data, bbox_mut, ToolsData},
+    tools_data::{
+        self, annotations::BboxAnnotations, bbox_data, bbox_mut, Rot90ToolData, ToolsData,
+    },
     world::World,
     GeoFig, Polygon,
 };
@@ -104,11 +106,18 @@ fn check_annoremove(mut world: World) -> World {
     world
 }
 
+fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
+    tools_data::get(world, rot90::ACTOR_NAME, "no rotation_data_found")
+        .and_then(|d| d.specifics.rot90())
+        .ok()
+}
+
 fn check_cocoexport(mut world: World) -> World {
     // export label file if demanded
     let bbox_data = get_specific(&world);
     if let Some(bbox_data) = bbox_data {
-        export_if_triggered(&world.data.meta_data, bbox_data);
+        let rot90_data = get_rot90_data(&world);
+        export_if_triggered(&world.data.meta_data, bbox_data, rot90_data);
         if let Some(o) = get_options_mut(&mut world) {
             o.core_options.is_export_triggered = false;
         }
@@ -120,6 +129,7 @@ fn check_cocoimport(mut world: World) -> World {
     // import coco if demanded
     let options = get_options(&world);
     if let Some(options) = options {
+        let rot90_data = get_rot90_data(&world);
         if let Some(imported_data) = import_coco_if_triggered(
             &world.data.meta_data,
             if options.is_coco_import_triggered {
@@ -127,6 +137,7 @@ fn check_cocoimport(mut world: World) -> World {
             } else {
                 None
             },
+            rot90_data,
         ) {
             let are_boxes_visible = imported_data.options.core_options.visible;
             if let Some(data_mut) = get_specific_mut(&mut world) {

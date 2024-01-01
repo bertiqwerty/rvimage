@@ -11,18 +11,35 @@ mod core;
 #[macro_export]
 macro_rules! implement_annotations_getters {
     ($tool_data_type:ident) => {
+        pub fn get_annos_with_shape_mut(
+            &mut self,
+            file_path: &str,
+            shape: ShapeI,
+        ) -> Option<(&mut $tool_data_type, Option<&mut ShapeI>)> {
+            let is_shape_none = if !self.annotations_map.contains_key(file_path) {
+                self.annotations_map
+                    .insert(file_path.to_string(), ($tool_data_type::default(), shape));
+                true
+            } else {
+                false
+            };
+            self.annotations_map
+                .get_mut(file_path)
+                .map(|(annos, shape)| {
+                    if is_shape_none {
+                        (annos, None)
+                    } else {
+                        (annos, Some(shape))
+                    }
+                })
+        }
         pub fn get_annos_mut(
             &mut self,
             file_path: &str,
             shape: ShapeI,
         ) -> Option<&mut $tool_data_type> {
-            if !self.annotations_map.contains_key(file_path) {
-                self.annotations_map
-                    .insert(file_path.to_string(), ($tool_data_type::default(), shape));
-            }
-            self.annotations_map
-                .get_mut(file_path)
-                .map(|(annos, _)| annos)
+            self.get_annos_with_shape_mut(file_path, shape)
+                .map(|(annos, _shape)| annos)
         }
         pub fn get_annos(&self, file_path: &str) -> Option<&$tool_data_type> {
             let annos = self.annotations_map.get(file_path);

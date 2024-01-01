@@ -3,7 +3,7 @@ use image::GenericImage;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, Div, Mul, Neg, Sub},
 };
 
 pub trait Abs {
@@ -187,6 +187,16 @@ where
     pub fn new(w: T, h: T) -> Self {
         Self { w, h }
     }
+    pub fn rot90_with_image_ntimes(&self, n: u8) -> Self {
+        if n % 2 == 0 {
+            *self
+        } else {
+            Self {
+                w: self.h,
+                h: self.w,
+            }
+        }
+    }
 }
 
 impl ShapeI {
@@ -352,6 +362,72 @@ where
     pub fn dot(&self, rhs: &Self) -> T {
         self.x * rhs.x + self.y * rhs.y
     }
+
+    /// the zero is in the bottom left of the image, y points upwards
+    fn to_math_coord_sys(self, h: u32) -> Self {
+        Self {
+            x: self.x,
+            y: T::from(h) - self.y,
+        }
+    }
+
+    /// origin is the origin of the image coordinate system relative to the math coord system.
+    fn to_image_coord_sys(self, origin: Point<T>) -> Self
+    where
+        T: Neg<Output = T>,
+    {
+        Self {
+            x: self.x - origin.x,
+            y: -(self.y - origin.y),
+        }
+    }
+
+    fn rot90_in_math(&self) -> Self
+    where
+        T: Neg<Output = T>,
+    {
+        Self {
+            x: -self.y,
+            y: self.x,
+        }
+    }
+
+    /// Mathematically positively oriented, counter clockwise, like Rot90 tool, different from image crate
+    pub fn rot90_with_image(&self, shape: &ShapeI) -> Self
+    where
+        T: Neg<Output = T>,
+    {
+        let p_in_math = self.to_math_coord_sys(shape.h);
+        let p_rotated = p_in_math.rot90_in_math();
+        let top_right_corner_in_math = Self {
+            x: T::from(shape.w),
+            y: T::from(shape.h),
+        };
+        let origin = top_right_corner_in_math.rot90_in_math();
+        p_rotated.to_image_coord_sys(origin)
+    }
+    pub fn rot90_with_image_ntimes(&self, shape: &ShapeI, n: u8) -> Self
+    where
+        T: Neg<Output = T>,
+    {
+        if n > 0 {
+            let mut p = self.rot90_with_image(shape);
+            for i in 1..n {
+                let shape = shape.rot90_with_image_ntimes(i);
+                p = p.rot90_with_image(&shape);
+            }
+            p
+        } else {
+            *self
+        }
+    }
+
+    pub fn is_close_to(&self, other: Self) -> bool
+    where
+        T: CoordinateBox,
+    {
+        self.x.is_close_to(other.x) && self.y.is_close_to(other.y)
+    }
 }
 
 impl<T> Mul<T> for Point<T>
@@ -506,4 +582,15 @@ impl From<PtI> for (usize, usize) {
     fn from(p: PtI) -> Self {
         (p.x as usize, p.y as usize)
     }
+}
+
+#[test]
+fn test_rot() {
+    let shape = &Shape::new(5, 3);
+    let p = PtF { x: 2.0, y: 1.0 };
+    let p_rot_1 = p.rot90_with_image(shape);
+    assert!(p_rot_1.is_close_to(PtF { x: 1.0, y: 3.0 }));
+    assert!(p
+        .rot90_with_image_ntimes(shape, 2)
+        .is_close_to(p_rot_1.rot90_with_image(shape)));
 }

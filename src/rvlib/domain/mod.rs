@@ -111,6 +111,12 @@ impl GeoFig {
             Self::Poly(poly) => poly.distance_to_boundary(point),
         }
     }
+    pub fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
+        match self {
+            Self::BB(bb) => Self::BB(bb.rot90_with_image_ntimes(shape, n)),
+            Self::Poly(poly) => Self::Poly(poly.rot90_with_image_ntimes(shape, n)),
+        }
+    }
     pub fn max_squaredist(&self, other: &Self) -> (PtF, PtF, f64) {
         match self {
             Self::BB(bb) => match other {

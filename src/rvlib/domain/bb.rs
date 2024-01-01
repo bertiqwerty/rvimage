@@ -1,4 +1,8 @@
-use std::{fmt::Display, ops::Range, str::FromStr};
+use std::{
+    fmt::Display,
+    ops::{Neg, Range},
+    str::FromStr,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -286,6 +290,15 @@ where
             other.points_iter().any(|c| self.contains(c))
         }
     }
+
+    pub fn rot90_with_image_ntimes(&self, shape: &ShapeI, n: u8) -> Self
+    where
+        T: Neg<Output = T>,
+    {
+        let p_min = self.min().rot90_with_image_ntimes(shape, n);
+        let p_max = self.max().rot90_with_image_ntimes(shape, n);
+        Self::from_points(p_min, p_max)
+    }
 }
 
 impl BbF {
@@ -406,4 +419,35 @@ impl FromStr for BbI {
         let h = int_iter.next().ok_or(err_parse)??;
         Ok(BbI { x, y, w, h })
     }
+}
+
+#[test]
+fn test_rot() {
+    let shape = &Shape::new(150, 123);
+    let p_min = PtF { x: 1.0, y: 3.5 };
+    let p_max = PtF { x: 6.0, y: 15.5 };
+    let bb = BB::from_points(p_min, p_max);
+    for n in 0..6 {
+        let b_rotated = BB::from_points(
+            p_min.rot90_with_image_ntimes(shape, n),
+            p_max.rot90_with_image_ntimes(shape, n),
+        );
+        assert_eq!(b_rotated, bb.rot90_with_image_ntimes(shape, n));
+    }
+    let shape = &Shape::new(5, 10);
+    let p_min = PtF { x: 1.0, y: 2.0 };
+    let p_max = PtF { x: 2.0, y: 4.0 };
+    let bb = BB::from_points(p_min, p_max);
+    let p_min = PtF { x: 2.0, y: 3.0 };
+    let p_max = PtF { x: 4.0, y: 4.0 };
+    let bb_ref_1 = BB::from_points(p_min, p_max);
+    assert_eq!(bb.rot90_with_image_ntimes(shape, 1), bb_ref_1);
+    let p_min = PtF { x: 3.0, y: 6.0 };
+    let p_max = PtF { x: 4.0, y: 8.0 };
+    let bb_ref_2 = BB::from_points(p_min, p_max);
+    assert_eq!(bb.rot90_with_image_ntimes(shape, 2), bb_ref_2);
+    let p_min = PtF { x: 6.0, y: 1.0 };
+    let p_max = PtF { x: 8.0, y: 2.0 };
+    let bb_ref_3 = BB::from_points(p_min, p_max);
+    assert_eq!(bb.rot90_with_image_ntimes(shape, 3), bb_ref_3);
 }
