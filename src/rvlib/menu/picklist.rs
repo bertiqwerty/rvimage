@@ -49,9 +49,9 @@ where
     let idx = show_list_popup(ui, elt_iter.clone(), popup_id, min_width, response);
 
     match idx {
-        Some(ListPopupResult::ElementIndex(idx)) => {
-            elt_iter.nth(idx).map(|elt| (PicklistResult::Picked(elt.to_string())))
-        }
+        Some(ListPopupResult::ElementIndex(idx)) => elt_iter
+            .nth(idx)
+            .map(|elt| (PicklistResult::Picked(elt.to_string()))),
         Some(ListPopupResult::Cancel) => Some(PicklistResult::Cancel),
         _ => None,
     }

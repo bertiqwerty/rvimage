@@ -592,5 +592,5 @@ fn test_rot() {
     assert!(p_rot_1.is_close_to(PtF { x: 1.0, y: 3.0 }));
     assert!(p
         .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(shape)));
+        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
 }

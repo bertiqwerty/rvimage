@@ -389,7 +389,7 @@ impl Menu {
                             if !files.is_empty() {
                                 let picklist_res = picklist::pick(
                                     ui,
-                                    files.iter().map(|s|s.as_str()),
+                                    files.iter().map(|s| s.as_str()),
                                     200.0,
                                     load_btn_resp,
                                     "load-prj-popup",
