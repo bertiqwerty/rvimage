@@ -34,7 +34,6 @@ pub(super) fn check_trigger_history_update(
     let data_mut = get_mut(&mut world, name, "could not access data");
     let core_options = get_specific_mut(f_tool_access.clone(), data_mut).cloned();
     let is_history_update_triggered = core_options.map(|o| o.is_history_update_triggered);
-    println!("{:?}", is_history_update_triggered);
     if is_history_update_triggered == Some(true) {
         let data_mut = get_mut(&mut world, name, "could not access data");
         let core_options_mut = get_specific_mut(f_tool_access, data_mut);
