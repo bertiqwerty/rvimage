@@ -1,7 +1,7 @@
 use crate::{
     domain::{BbF, TPtF},
     types::ViewImage,
-    GeoFig, Line,
+    BrushLine, GeoFig,
 };
 use std::default::Default;
 
@@ -33,9 +33,8 @@ pub struct BboxAnnotation {
 
 #[derive(Clone, Debug)]
 pub struct BrushAnnotation {
-    pub line: Line,
-    pub outline: Stroke,
-    pub intensity: TPtF,
+    pub brush_line: BrushLine,
+    pub color: [u8; 3],
     pub label: Option<String>,
     pub is_selected: Option<bool>,
 }

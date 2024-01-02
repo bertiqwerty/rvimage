@@ -1,5 +1,5 @@
 use crate::{
-    domain::{BrushLine, TPtF},
+    domain::TPtF,
     drawme::{Annotation, BboxAnnotation, Stroke},
     result::{trace_ok, RvError, RvResult},
     rverr,
@@ -125,9 +125,9 @@ impl ToolSpecifics {
                         .iter()
                         .zip(cats.iter())
                         .zip(selected_bbs.iter())
-                        .map(|((bb, cat_idx), is_selected)| {
+                        .map(|((geo, cat_idx), is_selected)| {
                             Annotation::Bbox(BboxAnnotation {
-                                geofig: bb.clone(),
+                                geofig: geo.clone(),
                                 fill_color: Some(colors[*cat_idx]),
                                 fill_alpha: bb_data.options.fill_alpha,
                                 label: Some(labels[*cat_idx].clone()),
@@ -156,30 +156,14 @@ impl ToolSpecifics {
                         .iter()
                         .zip(cats.iter())
                         .zip(selected_mask.iter())
-                        .map(
-                            |(
-                                (
-                                    BrushLine {
-                                        line,
-                                        intensity,
-                                        thickness,
-                                    },
-                                    cat_idx,
-                                ),
-                                is_selected,
-                            )| {
-                                Annotation::Brush(BrushAnnotation {
-                                    line: line.clone(),
-                                    outline: Stroke {
-                                        thickness: *thickness,
-                                        color: colors[*cat_idx],
-                                    },
-                                    intensity: *intensity,
-                                    label: None,
-                                    is_selected: Some(*is_selected),
-                                })
-                            },
-                        )
+                        .map(|((brush_line, cat_idx), is_selected)| {
+                            Annotation::Brush(BrushAnnotation {
+                                brush_line: brush_line.clone(),
+                                color: colors[*cat_idx],
+                                label: None,
+                                is_selected: Some(*is_selected),
+                            })
+                        })
                         .collect::<Vec<Annotation>>();
                     UpdateAnnos::Yes((annos, None))
                 } else {

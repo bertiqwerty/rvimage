@@ -293,7 +293,7 @@ impl RvImageApp {
             .flat_map(|anno| {
                 let size_from = self.shape_view().w.into();
                 let size_to = image_rect.size().x as TPtF;
-                let thickness = scale_coord(anno.outline.thickness, size_from, size_to);
+                let thickness = scale_coord(anno.brush_line.thickness, size_from, size_to);
                 let selected_addon = if anno.is_selected == Some(true) {
                     2.0
                 } else {
@@ -302,12 +302,12 @@ impl RvImageApp {
                 let stroke = Stroke::new(
                     (thickness + selected_addon) as f32,
                     rgb_2_clr(
-                        Some(anno.outline.color),
-                        (anno.intensity.clamp(0.0, 1.0) * 255.0) as u8,
+                        Some(anno.color),
+                        (anno.brush_line.intensity.clamp(0.0, 1.0) * 255.0) as u8,
                     ),
                 );
                 let egui_rect_points = anno
-                    .line
+                    .brush_line.line
                     .points_iter()
                     .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
                     .collect::<Vec<_>>();
@@ -315,7 +315,7 @@ impl RvImageApp {
                 if egui_rect_points.len() > 3 {
                     Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
                 } else {
-                    let center = anno.line.mean();
+                    let center = anno.brush_line.line.mean();
                     if let Some(center) = center {
                         let center =
                             self.orig_pos_2_egui_rect(center, image_rect.min, image_rect.size());
