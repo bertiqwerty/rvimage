@@ -220,7 +220,7 @@ impl Brush {
                         } else {
                             100.0
                         };
-                        if dist >= 1.0 {
+                        if dist >= 3.0 {
                             line.push(mp);
                         }
                     }

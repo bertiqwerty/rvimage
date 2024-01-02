@@ -91,10 +91,35 @@ where
     Shape(ShapeI),
 }
 
+pub fn color_with_intensity<CLR>(mut color: CLR, intensity: f64) -> CLR
+where
+    CLR: Pixel<Subpixel = u8>,
+{
+    let channels = color.channels_mut();
+    for channel in channels {
+        *channel = (*channel as f64 * intensity) as u8;
+    }
+    color
+}
+
+pub fn bresenham_iter<'a>(
+    points: impl Iterator<Item = PtF> + 'a + Clone,
+) -> impl Iterator<Item = (i32, i32)> + 'a {
+    let p1_iter = points.clone();
+    let mut p2_iter = points;
+    p2_iter.next();
+    p1_iter
+        .zip(p2_iter)
+        .flat_map(|(p1, p2)| {
+            BresenhamLineIter::new((p1.x as f32, p1.y as f32), (p2.x as f32, p2.y as f32))
+        })
+
+}
+
 pub fn render_brushlines<'a, CLR>(
     brush_lines: impl Iterator<Item = &'a BrushLine>,
     image_or_shape: RenderTargetOrShape<CLR>,
-    mut color: CLR,
+    color: CLR,
 ) -> ImageBuffer<CLR, Vec<u8>>
 where
     CLR: Pixel<Subpixel = u8>,
@@ -104,19 +129,9 @@ where
         RenderTargetOrShape::Shape(shape) => ImageBuffer::<CLR, Vec<u8>>::new(shape.w, shape.h),
     };
     for brush_line in brush_lines {
-        let p1_iter = brush_line.line.points_iter();
-        let mut p2_iter = brush_line.line.points_iter();
-        let channels = color.channels_mut();
-        for channel in channels {
-            *channel = (*channel as f64 * brush_line.intensity) as u8;
-        }
-        p2_iter.next();
-        for (p1, p2) in p1_iter.zip(p2_iter) {
-            let lineseg_iter =
-                BresenhamLineIter::new((p1.x as f32, p1.y as f32), (p2.x as f32, p2.y as f32));
-            for center in lineseg_iter {
-                draw_filled_circle_mut(&mut im, center, brush_line.thickness as i32 / 2, color);
-            }
+        let color = color_with_intensity(color, brush_line.intensity);
+        for center in bresenham_iter(brush_line.line.points_iter()) {
+            draw_filled_circle_mut(&mut im, center, brush_line.thickness as i32 / 2, color);
         }
     }
     im

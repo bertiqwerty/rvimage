@@ -22,7 +22,9 @@ mod util;
 mod view;
 pub mod world;
 pub use cfg::get_darkmode;
-pub use domain::{BbI, GeoFig, Line, BrushLine, Polygon, ShapeI};
+pub use domain::{
+    bresenham_iter, color_with_intensity, BbI, BrushLine, GeoFig, Line, Polygon, ShapeI,
+};
 pub use drawme::{
     Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateAnnos, UpdateImage, UpdateView,
     UpdateZoomBox,

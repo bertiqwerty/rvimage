@@ -8,7 +8,9 @@ pub use core::{
     dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc, CoordinateBox,
     OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
-pub use line::{render_brushlines, BrushLine, Line, RenderTargetOrShape};
+pub use line::{
+    bresenham_iter, color_with_intensity, render_brushlines, BrushLine, Line, RenderTargetOrShape,
+};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
 

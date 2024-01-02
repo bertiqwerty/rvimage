@@ -252,7 +252,7 @@ pub fn brush_menu(
 
     data.options.core_options = hide_menu(ui, data.options.core_options);
     if ui
-        .add(egui::Slider::new(&mut data.options.thickness, 0.0..=50.0).text("thickness"))
+        .add(egui::Slider::new(&mut data.options.thickness, 0.0..=250.0).text("thickness"))
         .changed()
     {
         data.options.is_selection_change_needed = true;

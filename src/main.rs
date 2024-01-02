@@ -11,6 +11,7 @@ use egui::{
 use image::{ImageBuffer, Rgb};
 use rvlib::{
     cfg::get_cfg_path,
+    color_with_intensity,
     domain::{BbF, PtF, TPtF},
     get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord,
     view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos,
@@ -294,26 +295,42 @@ impl RvImageApp {
                 let size_from = self.shape_view().w.into();
                 let size_to = image_rect.size().x as TPtF;
                 let thickness = scale_coord(anno.brush_line.thickness, size_from, size_to);
+                let min_instensity = 0.3;
+                let max_instensity = 1.0;
+                let intensity_span = max_instensity - min_instensity;
+                let viz_intensity = anno.brush_line.intensity * intensity_span + min_instensity;
                 let selected_addon = if anno.is_selected == Some(true) {
                     2.0
                 } else {
                     0.0
                 };
-                let stroke = Stroke::new(
-                    (thickness + selected_addon) as f32,
-                    rgb_2_clr(
-                        Some(anno.color),
-                        (anno.brush_line.intensity.clamp(0.0, 1.0) * 255.0) as u8,
-                    ),
+                let color = rgb_2_clr(
+                    Some(color_with_intensity(Rgb(anno.color), viz_intensity).0),
+                    255,
                 );
+
                 let egui_rect_points = anno
-                    .brush_line.line
+                    .brush_line
+                    .line
                     .points_iter()
-                    .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
+                    .map(|p| self.orig_pos_2_egui_rect(p.into(), image_rect.min, image_rect.size()))
                     .collect::<Vec<_>>();
 
+                let stroke = Stroke::new(thickness as f32 + selected_addon, color);
                 if egui_rect_points.len() > 3 {
-                    Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
+                    let start_circle = egui_rect_points
+                        .first()
+                        .map(|p| CircleShape::filled(*p, thickness as f32 * 0.5, color))
+                        .unwrap();
+                    let end_circle = egui_rect_points
+                        .last()
+                        .map(|p| CircleShape::filled(*p, thickness as f32 * 0.5, color))
+                        .unwrap();
+                    Some(Shape::Vec(vec![
+                        Shape::Circle(start_circle),
+                        Shape::Path(PathShape::line(egui_rect_points, stroke)),
+                        Shape::Circle(end_circle),
+                    ]))
                 } else {
                     let center = anno.brush_line.line.mean();
                     if let Some(center) = center {
@@ -324,8 +341,8 @@ impl RvImageApp {
                                 x: center.x,
                                 y: center.y,
                             },
-                            stroke.width * 0.5,
-                            stroke.color,
+                            thickness as f32 * 0.5 + selected_addon,
+                            color,
                         )))
                     } else {
                         None
