@@ -313,41 +313,31 @@ impl RvImageApp {
                     .brush_line
                     .line
                     .points_iter()
-                    .map(|p| self.orig_pos_2_egui_rect(p.into(), image_rect.min, image_rect.size()))
+                    .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
                     .collect::<Vec<_>>();
 
                 let stroke = Stroke::new(thickness as f32 + selected_addon, color);
-                if egui_rect_points.len() > 3 {
-                    let start_circle = egui_rect_points
-                        .first()
-                        .map(|p| CircleShape::filled(*p, thickness as f32 * 0.5, color))
-                        .unwrap();
-                    let end_circle = egui_rect_points
-                        .last()
-                        .map(|p| CircleShape::filled(*p, thickness as f32 * 0.5, color))
-                        .unwrap();
-                    Some(Shape::Vec(vec![
-                        Shape::Circle(start_circle),
-                        Shape::Path(PathShape::line(egui_rect_points, stroke)),
-                        Shape::Circle(end_circle),
-                    ]))
+                let start_circle = egui_rect_points
+                    .first()
+                    .map(|p| Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color)));
+                let end_circle = egui_rect_points
+                    .last()
+                    .map(|p| Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color)));
+                let end_circle = if egui_rect_points.len() > 1 {
+                    end_circle
                 } else {
-                    let center = anno.brush_line.line.mean();
-                    if let Some(center) = center {
-                        let center =
-                            self.orig_pos_2_egui_rect(center, image_rect.min, image_rect.size());
-                        Some(Shape::Circle(CircleShape::filled(
-                            Pos2 {
-                                x: center.x,
-                                y: center.y,
-                            },
-                            thickness as f32 * 0.5 + selected_addon,
-                            color,
-                        )))
-                    } else {
-                        None
-                    }
-                }
+                    None
+                };
+                let line = if egui_rect_points.len() > 2 {
+                    Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
+                } else {
+                    None
+                };
+                let shape_vec = [start_circle, line, end_circle]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>();
+                Some(Shape::Vec(shape_vec))
             });
         let bbox_annos = self
             .annos

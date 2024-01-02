@@ -108,12 +108,9 @@ pub fn bresenham_iter<'a>(
     let p1_iter = points.clone();
     let mut p2_iter = points;
     p2_iter.next();
-    p1_iter
-        .zip(p2_iter)
-        .flat_map(|(p1, p2)| {
-            BresenhamLineIter::new((p1.x as f32, p1.y as f32), (p2.x as f32, p2.y as f32))
-        })
-
+    p1_iter.zip(p2_iter).flat_map(|(p1, p2)| {
+        BresenhamLineIter::new((p1.x as f32, p1.y as f32), (p2.x as f32, p2.y as f32))
+    })
 }
 
 pub fn render_brushlines<'a, CLR>(
