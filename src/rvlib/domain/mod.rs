@@ -1,5 +1,6 @@
 mod bb;
 mod core;
+mod line;
 mod polygon;
 
 pub use bb::{BbF, BbI};
@@ -7,87 +8,9 @@ pub use core::{
     dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc, CoordinateBox,
     OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
+pub use line::{render_brushlines, BrushLine, Line, RenderTargetOrShape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use tracing::warn;
-
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
-pub struct Line {
-    pub points: Vec<PtF>,
-}
-
-impl Line {
-    pub fn push(&mut self, p: PtF) {
-        self.points.push(p);
-    }
-    pub fn new() -> Self {
-        Self { points: vec![] }
-    }
-    #[allow(clippy::needless_lifetimes)]
-    pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtF> + 'a + Clone {
-        self.points.iter().copied()
-    }
-    pub fn last_point(&self) -> Option<PtF> {
-        self.points.last().copied()
-    }
-    pub fn dist_to_point(&self, p: PtF) -> Option<f64> {
-        match self.points.len().cmp(&1) {
-            Ordering::Greater => (0..(self.points.len() - 1))
-                .map(|i| {
-                    let ls: (PtF, PtF) = (self.points[i], self.points[i + 1]);
-                    dist_lineseg_point(&ls, p)
-                })
-                .min_by(|x, y| match x.partial_cmp(y) {
-                    Some(o) => o,
-                    None => {
-                        warn!("NaN appeared in distance to line computation.");
-                        std::cmp::Ordering::Greater
-                    }
-                }),
-            Ordering::Equal => Some(p.dist_square(&PtF::from(self.points[0])).sqrt()),
-            Ordering::Less => None,
-        }
-    }
-    pub fn max_dist_squared(&self) -> Option<f64> {
-        (0..self.points.len())
-            .flat_map(|i| {
-                (0..self.points.len())
-                    .map(|j| self.points[i].dist_square(&self.points[j]))
-                    .max_by(max_from_partial)
-            })
-            .max_by(max_from_partial)
-    }
-    pub fn mean(&self) -> Option<PtF> {
-        let n_points = self.points.len() as u32;
-        if n_points == 0 {
-            None
-        } else {
-            Some(
-                PtF::from(
-                    self.points_iter()
-                        .fold(Point { x: 0.0, y: 0.0 }, |p1, p2| p1 + p2),
-                ) / n_points as f64,
-            )
-        }
-    }
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]
-pub struct BrushLine {
-    pub line: Line,
-    pub intensity: TPtF,
-    pub thickness: TPtF,
-}
-impl Eq for BrushLine {}
-
-impl Annotate for BrushLine {
-    fn is_contained_in_image(&self, shape: ShapeI) -> bool {
-        self.line
-            .points_iter()
-            .all(|p| p.x < shape.w as f64 && p.y < shape.h as f64)
-    }
-}
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub enum GeoFig {

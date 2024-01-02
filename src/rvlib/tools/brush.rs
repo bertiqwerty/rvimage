@@ -1,12 +1,11 @@
 use std::{cmp::Ordering, io::Cursor, mem, path::Path, thread};
 
-use image::{codecs::png, EncodableLayout, ImageBuffer, ImageEncoder, Luma};
-use imageproc::drawing::{draw_filled_circle_mut, BresenhamLineIter};
+use image::{codecs::png, EncodableLayout, ImageEncoder, Luma};
 use tracing::{error, info};
 
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{BrushLine, PtF},
+    domain::{render_brushlines, BrushLine, PtF, RenderTargetOrShape},
     events::{Events, KeyCode},
     file_util::osstr_to_str,
     history::{History, Record},
@@ -104,32 +103,18 @@ fn check_export(mut world: World) -> World {
                     for label in label_info.labels() {
                         let (annos, shape) = annos;
                         if !annos.elts().is_empty() {
-                            let mut im = ImageBuffer::<Luma<u8>, Vec<u8>>::new(shape.w, shape.h);
-                            for brushline in annos
+                            let brush_lines = annos
                                 .elts()
                                 .iter()
                                 .zip(annos.cat_idxs().iter())
                                 .filter(|(_, cat_idx)| &label_info.labels()[**cat_idx] == label)
-                                .map(|(bl, _)| bl)
-                            {
-                                let p1_iter = brushline.line.points_iter();
-                                let mut p2_iter = brushline.line.points_iter();
-                                p2_iter.next();
-                                for (p1, p2) in p1_iter.zip(p2_iter) {
-                                    let lineseg_iter = BresenhamLineIter::new(
-                                        (p1.x as f32, p1.y as f32),
-                                        (p2.x as f32, p2.y as f32),
-                                    );
-                                    for center in lineseg_iter {
-                                        draw_filled_circle_mut(
-                                            &mut im,
-                                            center,
-                                            brushline.thickness as i32 / 2,
-                                            Luma([(brushline.intensity * 255.0) as u8]),
-                                        );
-                                    }
-                                }
-                            }
+                                .map(|(bl, _)| bl);
+                            let render_shape = RenderTargetOrShape::Shape(*shape);
+                            let im = render_brushlines::<Luma<u8>>(
+                                brush_lines,
+                                render_shape,
+                                Luma([255]),
+                            );
                             let filepath = Path::new(&filename);
                             let outfilename = format!(
                                 "{}_{label}.png",

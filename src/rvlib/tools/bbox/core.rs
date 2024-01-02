@@ -8,7 +8,10 @@ use crate::{
     make_tool_transform,
     result::{trace_ok, RvResult},
     tools::{
-        core::{check_recolorboxes, check_trigger_redraw, map_released_key, Mover, check_trigger_history_update, deselect_all},
+        core::{
+            check_recolorboxes, check_trigger_history_update, check_trigger_redraw, deselect_all,
+            map_released_key, Mover,
+        },
         rot90, Manipulate, BBOX_NAME,
     },
     tools_data::{
