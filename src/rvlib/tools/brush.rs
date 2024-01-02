@@ -254,7 +254,9 @@ impl Brush {
                     }
                 }
             }
-        } else {
+        } else if !(events.held_alt() || events.held_shift()) {
+            // neither shift nor alt nor ctrl were held => a brushline has been finished
+            // or a brush line has been deleted.
             history.push(Record::new(world.data.clone(), ACTOR_NAME));
         }
         (world, history)
@@ -287,7 +289,6 @@ impl Brush {
                 world.request_redraw_annotations(BRUSH_NAME, are_brushlines_visible(&world));
             }
             ReleasedKey::E => {
-                // Hide all boxes (selected or not)
                 if let Some(options_mut) = get_options_mut(&mut world) {
                     if options_mut.erase {
                         info!("stop erase via shortcut");

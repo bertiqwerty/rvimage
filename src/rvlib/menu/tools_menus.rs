@@ -19,6 +19,7 @@ use crate::{
 
 use super::text_edit::text_edit_singleline;
 
+/// Returns true in case labels have changed
 pub fn label_menu<'a, T>(
     ui: &mut Ui,
     label_info: &mut LabelInfo,
@@ -30,7 +31,7 @@ where
 {
     let mut new_idx = label_info.cat_idx_current;
     let mut new_label = None;
-    let mut trigger_redraw = false;
+    let mut have_labels_changed = false;
 
     let label_field = text_edit_singleline(ui, &mut label_info.new_label, are_tools_active);
     if label_field.lost_focus() {
@@ -40,13 +41,13 @@ where
     if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
         info!("replaced default '{default_label}' label by '{new_label}'");
         *default_label = new_label.clone();
-        trigger_redraw = true;
+        have_labels_changed = true;
     } else if let Some(new_label) = new_label {
         if let Err(e) = label_info.push(new_label, None, None) {
             warn!("{e:?}");
             return Ok(false);
         }
-        trigger_redraw = true;
+        have_labels_changed = true;
         new_idx = label_info.len() - 1;
     }
     let mut to_be_removed = None;
@@ -72,14 +73,14 @@ where
         for (annos, _) in annotations_map.values_mut() {
             annos.label_selected(new_idx);
         }
-        trigger_redraw = true;
+        have_labels_changed = true;
         label_info.cat_idx_current = new_idx;
     }
     if let Some(tbr) = to_be_removed {
-        trigger_redraw = true;
+        have_labels_changed = true;
         label_info.remove_catidx(tbr, annotations_map)
     }
-    Ok(trigger_redraw)
+    Ok(have_labels_changed)
 }
 
 fn hide_menu(ui: &mut Ui, mut core_options: CoreOptions) -> CoreOptions {
