@@ -15,8 +15,10 @@ use crate::{
         rot90, Manipulate, BBOX_NAME,
     },
     tools_data::{
-        self, annotations::BboxAnnotations, bbox_data, bbox_mut, Rot90ToolData, ToolsData,
+        self, annotations::BboxAnnotations, bbox_data, bbox_mut, vis_from_lfoption, LabelInfo,
+        Rot90ToolData, ToolsData,
     },
+    util::Visibility,
     world::World,
     GeoFig, Polygon,
 };
@@ -53,6 +55,9 @@ pub(super) fn get_specific_mut(world: &mut World) -> Option<&mut bbox_data::Bbox
 pub(super) fn get_options_mut(world: &mut World) -> Option<&mut bbox_data::Options> {
     get_specific_mut(world).map(|d| &mut d.options)
 }
+pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
+    get_specific(world).map(|d| &d.label_info)
+}
 pub(super) fn are_boxes_visible(world: &World) -> bool {
     get_options(world).map(|o| o.core_options.visible) != Some(false)
 }
@@ -75,7 +80,8 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
     if let (Some(_), Some(specific_mut)) = (clipboard, get_specific_mut(&mut world)) {
         let are_boxes_visible = true;
         specific_mut.options.core_options.visible = are_boxes_visible;
-        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+        world.request_redraw_annotations(BBOX_NAME, vis);
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
     }
 
@@ -104,7 +110,8 @@ fn check_annoremove(mut world: World) -> World {
             data.options.is_anno_rm_triggered = false;
             data.options.core_options.visible = are_boxes_visible;
         }
-        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+        world.request_redraw_annotations(BBOX_NAME, vis);
     }
     world
 }
@@ -147,7 +154,8 @@ fn check_cocoimport(mut world: World) -> World {
                 *data_mut = imported_data;
                 data_mut.options.is_coco_import_triggered = false;
             }
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+            let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+            world.request_redraw_annotations(BBOX_NAME, vis);
         }
     }
     world
@@ -182,7 +190,7 @@ impl Bbox {
             self.start_press_time = Some(Instant::now());
             self.points_at_press = Some(self.prev_pos.prev_pos.len());
             if !(event.held_alt() || event.held_ctrl() || event.held_shift()) {
-                world = deselect_all(world, BBOX_NAME, get_annos_mut);
+                world = deselect_all(world, BBOX_NAME, get_annos_mut, get_label_info);
             }
         }
         (world, history)
@@ -290,7 +298,8 @@ impl Bbox {
             }
         }
         let are_boxes_visible = are_boxes_visible(&world);
-        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+        world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)
     }
 
@@ -326,8 +335,8 @@ impl Manipulate for Bbox {
             data.menu_active = true;
         }
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
-        let are_boxes_visible = true;
-        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+        let vis = vis_from_lfoption(get_label_info(&world), true);
+        world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)
     }
 
@@ -336,8 +345,7 @@ impl Manipulate for Bbox {
         if let Some(td) = world.data.tools_data_map.get_mut(BBOX_NAME) {
             td.menu_active = false;
         }
-        let are_boxes_visible = false;
-        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+        world.request_redraw_annotations(BBOX_NAME, Visibility::None);
         (world, history)
     }
 
@@ -349,7 +357,8 @@ impl Manipulate for Bbox {
                 anno.deselect_all();
             }
             (world, history) = check_autopaste(world, history, options.auto_paste);
-            world.request_redraw_annotations(BBOX_NAME, options.core_options.visible);
+            let vis = vis_from_lfoption(get_label_info(&world), options.core_options.visible);
+            world.request_redraw_annotations(BBOX_NAME, vis);
         }
         (world, history)
     }
@@ -379,7 +388,7 @@ impl Manipulate for Bbox {
         let options = get_options(&world);
 
         if let Some(options) = options {
-            world = check_trigger_redraw(world, BBOX_NAME, |d| {
+            world = check_trigger_redraw(world, BBOX_NAME, get_label_info, |d| {
                 bbox_mut(d).map(|d| &mut d.options.core_options)
             });
 
@@ -422,7 +431,8 @@ impl Manipulate for Bbox {
                             is_selected: None,
                         };
                         let are_boxes_visible = are_boxes_visible(&world);
-                        world.request_redraw_annotations(BBOX_NAME, are_boxes_visible);
+                        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+                        world.request_redraw_annotations(BBOX_NAME, vis);
                         world.request_redraw_tmp_anno(Annotation::Bbox(anno));
                     }
                 }

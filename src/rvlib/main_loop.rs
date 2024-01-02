@@ -10,6 +10,7 @@ use crate::history::History;
 use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
 use crate::result::RvResult;
 use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
+use crate::util::Visibility;
 use crate::world::World;
 use crate::{apply_tool_method_mut, httpserver, image_util, UpdateView};
 use egui::Context;
@@ -325,7 +326,7 @@ impl MainEventLoop {
             self.world = World::new(ims_raw, zoom_box);
             if let Some(active_tool_name) = find_active_tool(&self.tools) {
                 self.world
-                    .request_redraw_annotations(active_tool_name, true);
+                    .request_redraw_annotations(active_tool_name, Visibility::All);
             }
             if file_label_idx.is_some() {
                 self.ctrl.paths_navigator.select_label_idx(file_label_idx);

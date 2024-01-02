@@ -6,7 +6,9 @@ use tracing::info;
 use crate::{
     domain::{Annotate, TPtF},
     result::RvResult,
-    rverr, ShapeI,
+    rverr,
+    util::Visibility,
+    ShapeI,
 };
 
 use super::annotations::InstanceAnnotations;
@@ -89,6 +91,26 @@ pub fn new_random_colors(n: usize) -> Vec<[u8; 3]> {
     colors
 }
 
+fn get_visibility(visible: bool, show_only_current: bool, cat_idx_current: usize) -> Visibility {
+    if visible && show_only_current {
+        Visibility::Only(cat_idx_current)
+    } else if visible {
+        Visibility::All
+    } else {
+        Visibility::None
+    }
+}
+
+pub fn vis_from_lfoption(label_info: Option<&LabelInfo>, visible: bool) -> Visibility {
+    if let Some(label_info) = label_info {
+        label_info.visibility(visible)
+    } else if visible {
+        Visibility::All
+    } else {
+        Visibility::None
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct LabelInfo {
     pub new_label: String,
@@ -96,8 +118,12 @@ pub struct LabelInfo {
     colors: Vec<[u8; 3]>,
     cat_ids: Vec<u32>,
     pub cat_idx_current: usize,
+    pub show_only_current: bool,
 }
 impl LabelInfo {
+    pub fn visibility(&self, visible: bool) -> Visibility {
+        get_visibility(visible, self.show_only_current, self.cat_idx_current)
+    }
     pub fn new_random_colors(&mut self) {
         info!("new random colors for annotations");
         self.colors = new_random_colors(self.colors.len());
@@ -183,6 +209,7 @@ impl LabelInfo {
             colors: vec![],
             cat_ids: vec![],
             cat_idx_current: 0,
+            show_only_current: false,
         }
     }
     pub fn remove_catidx<'a, T>(
@@ -217,6 +244,7 @@ impl Default for LabelInfo {
             colors,
             cat_ids,
             cat_idx_current: 0,
+            show_only_current: false,
         }
     }
 }

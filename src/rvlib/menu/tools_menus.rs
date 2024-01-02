@@ -19,19 +19,25 @@ use crate::{
 
 use super::text_edit::text_edit_singleline;
 
-/// Returns true in case labels have changed
+#[derive(Default)]
+pub struct LabelMenuResult {
+    pub label_change: bool,
+    pub show_only_change: bool,
+}
+
 pub fn label_menu<'a, T>(
     ui: &mut Ui,
     label_info: &mut LabelInfo,
     annotations_map: &mut HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
     are_tools_active: &mut bool,
-) -> RvResult<bool>
+) -> LabelMenuResult
 where
-    T: Annotate + PartialEq + std::default::Default + 'a,
+    T: Annotate + 'a,
 {
     let mut new_idx = label_info.cat_idx_current;
     let mut new_label = None;
-    let mut have_labels_changed = false;
+    let mut label_change = false;
+    let mut show_only_change = false;
 
     let label_field = text_edit_singleline(ui, &mut label_info.new_label, are_tools_active);
     if label_field.lost_focus() {
@@ -41,23 +47,33 @@ where
     if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
         info!("replaced default '{default_label}' label by '{new_label}'");
         *default_label = new_label.clone();
-        have_labels_changed = true;
+        label_change = true;
     } else if let Some(new_label) = new_label {
         if let Err(e) = label_info.push(new_label, None, None) {
             warn!("{e:?}");
-            return Ok(false);
+            return LabelMenuResult::default();
         }
-        have_labels_changed = true;
+        label_change = true;
         new_idx = label_info.len() - 1;
     }
     let mut to_be_removed = None;
+    let mut show_only_current = label_info.show_only_current;
     for (label_idx, label) in label_info.labels().iter().enumerate() {
         let checked = label_idx == label_info.cat_idx_current;
         ui.horizontal_top(|ui| {
             if ui.button("x").clicked() {
                 to_be_removed = Some(label_idx);
             }
+            let label = if show_only_current && checked {
+                egui::RichText::new(label).strong().italics()
+            } else {
+                egui::RichText::new(label)
+            };
             if ui.selectable_label(checked, label).clicked() {
+                if checked {
+                    show_only_current = !label_info.show_only_current;
+                    show_only_change = true;
+                }
                 new_idx = label_idx;
             }
             let rgb = label_info.colors()[label_idx];
@@ -69,18 +85,25 @@ where
             );
         });
     }
+    label_info.show_only_current = show_only_current;
     if new_idx != label_info.cat_idx_current {
         for (annos, _) in annotations_map.values_mut() {
             annos.label_selected(new_idx);
         }
-        have_labels_changed = true;
+        label_change = true;
         label_info.cat_idx_current = new_idx;
     }
     if let Some(tbr) = to_be_removed {
-        have_labels_changed = true;
+        label_change = true;
         label_info.remove_catidx(tbr, annotations_map)
     }
-    Ok(have_labels_changed)
+    if label_change {
+        label_info.show_only_current = false;
+    }
+    LabelMenuResult {
+        label_change,
+        show_only_change,
+    }
 }
 
 fn hide_menu(ui: &mut Ui, mut core_options: CoreOptions) -> CoreOptions {
@@ -131,14 +154,20 @@ pub fn bbox_menu(
     mut data: BboxSpecificData,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    let label_added = label_menu(
+    let LabelMenuResult {
+        label_change,
+        show_only_change,
+    } = label_menu(
         ui,
         &mut data.label_info,
         &mut data.annotations_map,
         are_tools_active,
-    )?;
-    if label_added {
+    );
+    if label_change {
         data.options.core_options = data.options.core_options.trigger_redraw_and_hist();
+    }
+    if show_only_change {
+        data.options.core_options.is_redraw_annos_triggered = true;
     }
     ui.separator();
 
@@ -241,14 +270,20 @@ pub fn brush_menu(
     mut data: BrushToolData,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    let label_added = label_menu(
+    let LabelMenuResult {
+        label_change,
+        show_only_change,
+    } = label_menu(
         ui,
         &mut data.label_info,
         &mut data.annotations_map,
         are_tools_active,
-    )?;
-    if label_added {
+    );
+    if label_change {
         data.options.core_options = data.options.core_options.trigger_redraw_and_hist();
+    }
+    if show_only_change {
+        data.options.core_options.is_redraw_annos_triggered = true;
     }
 
     data.options.core_options = hide_menu(ui, data.options.core_options);

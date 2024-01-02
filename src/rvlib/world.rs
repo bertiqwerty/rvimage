@@ -4,6 +4,7 @@ use crate::file_util::MetaData;
 use crate::tools::add_tools_initial_data;
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
+use crate::util::Visibility;
 use crate::{image_util, UpdateAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
 use std::collections::HashMap;
@@ -156,17 +157,24 @@ impl World {
         add_tools_initial_data(world)
     }
 
-    pub fn request_redraw_annotations(&mut self, tool_name: &str, are_annotations_visible: bool) {
-        if are_annotations_visible {
-            if let (Some(file_path), Some(td)) = (
-                &self.data.meta_data.file_path,
-                self.data.tools_data_map.get(tool_name),
-            ) {
-                self.update_view.annos = td.specifics.to_annotations_view(file_path);
+    pub fn request_redraw_annotations(&mut self, tool_name: &str, visibility: Visibility) {
+        match (
+            visibility,
+            &self.data.meta_data.file_path,
+            self.data.tools_data_map.get(tool_name),
+        ) {
+            (Visibility::All, Some(file_path), Some(td)) => {
+                self.update_view.annos = td.specifics.to_annotations_view(file_path, None);
             }
-        } else {
-            // we override existing annotations
-            self.update_view.annos = UpdateAnnos::clear();
+
+            (Visibility::Only(idx), Some(file_path), Some(td)) => {
+                self.update_view.annos = td.specifics.to_annotations_view(file_path, Some(idx));
+            }
+
+            (Visibility::None, _, _) => {
+                self.update_view.annos = UpdateAnnos::clear();
+            }
+            _ => (),
         }
     }
 

@@ -12,15 +12,17 @@ use crate::{
         core::{label_change_key, on_selection_keys, Mover, ReleasedKey},
         BBOX_NAME,
     },
-    tools_data::{self, annotations::SplitMode, BboxSpecificData, Rot90ToolData},
+    tools_data::{
+        self, annotations::SplitMode, vis_from_lfoption, BboxSpecificData, Rot90ToolData,
+    },
     util::true_indices,
     GeoFig, Polygon,
     {history::History, world::World},
 };
 
 use super::core::{
-    are_boxes_visible, current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_options,
-    get_options_mut, get_specific_mut, ACTOR_NAME,
+    are_boxes_visible, current_cat_idx, get_annos, get_annos_if_some, get_annos_mut,
+    get_label_info, get_options, get_options_mut, get_specific_mut, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
@@ -100,7 +102,8 @@ fn close_polygon(
         annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
         prev_pos.prev_pos = vec![];
-        world.request_redraw_annotations(BBOX_NAME, visible);
+        let vis = vis_from_lfoption(get_label_info(&world), visible);
+        world.request_redraw_annotations(BBOX_NAME, vis);
     }
     (world, history, prev_pos)
 }
@@ -130,7 +133,8 @@ pub(super) fn on_mouse_held_right(
         history.push(Record::new(world.data.clone(), ACTOR_NAME));
     }
     let visible = are_boxes_visible(&world);
-    world.request_redraw_annotations(BBOX_NAME, visible);
+    let vis = vis_from_lfoption(get_label_info(&world), visible);
+    world.request_redraw_annotations(BBOX_NAME, vis);
     (world, history)
 }
 
@@ -185,7 +189,8 @@ pub(super) fn on_mouse_released_right(
                         annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label);
                         history.push(Record::new(world.data.clone(), ACTOR_NAME));
                         prev_pos.prev_pos = vec![];
-                        world.request_redraw_annotations(BBOX_NAME, visible);
+                        let vis = vis_from_lfoption(get_label_info(&world), visible);
+                        world.request_redraw_annotations(BBOX_NAME, vis);
                     }
                 }
             }
@@ -270,12 +275,14 @@ pub(super) fn on_mouse_released_left(
         if is_alt_held && is_shift_held && !prev_pos.prev_pos.is_empty() {
             // delete the whole thing
             prev_pos.prev_pos = vec![];
-            world.request_redraw_annotations(BBOX_NAME, are_annotations_visible);
+            let vis = vis_from_lfoption(get_label_info(&world), are_annotations_visible);
+            world.request_redraw_annotations(BBOX_NAME, vis);
         } else if is_alt_held && !prev_pos.prev_pos.is_empty() {
             // delete prev pos
             prev_pos.prev_pos.pop();
             if prev_pos.prev_pos.is_empty() {
-                world.request_redraw_annotations(BBOX_NAME, are_annotations_visible);
+                let vis = vis_from_lfoption(get_label_info(&world), are_annotations_visible);
+                world.request_redraw_annotations(BBOX_NAME, vis);
             }
         } else if is_ctrl_held || is_alt_held || is_shift_held {
             // selection
@@ -316,7 +323,8 @@ pub(super) fn on_mouse_released_left(
                         annos.toggle_selection(i);
                     }
                 }
-                world.request_redraw_annotations(BBOX_NAME, visible);
+                let vis = vis_from_lfoption(get_label_info(&world), visible);
+                world.request_redraw_annotations(BBOX_NAME, vis);
             }
         } else {
             let shape_orig = world.data.shape();
@@ -430,7 +438,8 @@ pub(super) fn on_mouse_released_left(
                                 }
                                 history.push(Record::new(world.data.clone(), ACTOR_NAME));
                                 prev_pos.prev_pos = vec![];
-                                world.request_redraw_annotations(BBOX_NAME, visible);
+                                let vis = vis_from_lfoption(get_label_info(&world), visible);
+                                world.request_redraw_annotations(BBOX_NAME, vis);
                             }
                         }
                     }
@@ -452,8 +461,14 @@ pub(super) fn on_key_released(
     mouse_pos: Option<PtF>,
     params: KeyReleasedParams,
 ) -> (World, History) {
+    let mut trigger_redraw = false;
     if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
-        *label_info = label_change_key(params.released_key, mem::take(label_info));
+        (*label_info, trigger_redraw) =
+            label_change_key(params.released_key, mem::take(label_info));
+    }
+    if trigger_redraw {
+        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible(&world));
+        world.request_redraw_annotations(BBOX_NAME, vis);
     }
     (world, history) = on_selection_keys(
         world,
@@ -463,6 +478,7 @@ pub(super) fn on_key_released(
         BBOX_NAME,
         get_annos_mut,
         |world| get_specific_mut(world).map(|d| &mut d.clipboard),
+        get_label_info,
     );
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {
@@ -470,7 +486,8 @@ pub(super) fn on_key_released(
             if let Some(options_mut) = get_options_mut(&mut world) {
                 options_mut.core_options.visible = !options_mut.core_options.visible;
             }
-            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+            let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible(&world));
+            world.request_redraw_annotations(BBOX_NAME, vis);
         }
         ReleasedKey::V if !params.is_ctrl_held => {
             if let Some(options_mut) = get_options_mut(&mut world) {
@@ -516,7 +533,11 @@ pub(super) fn on_key_released(
                             );
                             annos.deselect_all();
                             annos.select_last_n(translated_bbs.len());
-                            world.request_redraw_annotations(BBOX_NAME, are_boxes_visible(&world));
+                            let vis = vis_from_lfoption(
+                                get_label_info(&world),
+                                are_boxes_visible(&world),
+                            );
+                            world.request_redraw_annotations(BBOX_NAME, vis);
                             history.push(Record::new(world.data.clone(), ACTOR_NAME));
                         }
                     }

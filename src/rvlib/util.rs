@@ -3,10 +3,7 @@ use regex::Regex;
 use std::cmp::Ordering;
 
 #[allow(clippy::needless_lifetimes)]
-fn xor_mask<'a>(
-    mask: &'a [bool],
-    other: bool,
-) -> impl Iterator<Item = usize> + Clone + 'a {
+fn xor_mask<'a>(mask: &'a [bool], other: bool) -> impl Iterator<Item = usize> + Clone + 'a {
     let res = mask
         .iter()
         .enumerate()
@@ -62,6 +59,12 @@ pub fn version_label() -> String {
     } else {
         format!("Version {VERSION}")
     }
+}
+pub enum Visibility {
+    All,
+    None,
+    // contains index of label that is to be shown exclusively
+    Only(usize),
 }
 #[test]
 fn test_natural_sort() {

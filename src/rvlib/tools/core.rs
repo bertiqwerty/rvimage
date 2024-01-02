@@ -2,20 +2,27 @@ use crate::domain::Annotate;
 use crate::history::Record;
 use crate::result::RvResult;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
-use crate::tools_data::{get_mut, get_specific_mut, CoreOptions, LabelInfo, ToolSpecifics};
+use crate::tools_data::{
+    get_mut, get_specific_mut, vis_from_lfoption, CoreOptions, LabelInfo, ToolSpecifics,
+};
 use crate::ShapeI;
 use crate::{domain::PtF, events::Events, history::History, world::World};
 
 pub(super) fn check_trigger_redraw(
     mut world: World,
     name: &'static str,
+    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
     f_tool_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut CoreOptions> + Clone,
 ) -> World {
     let data_mut = get_mut(&mut world, name, "could not access data");
     let core_options = get_specific_mut(f_tool_access.clone(), data_mut).cloned();
     let is_redraw_triggered = core_options.map(|o| o.is_redraw_annos_triggered);
     if is_redraw_triggered == Some(true) {
-        world.request_redraw_annotations(name, core_options.map(|o| o.visible) == Some(true));
+        let visibility = vis_from_lfoption(
+            get_label_info(&world),
+            core_options.map(|o| o.visible) == Some(true),
+        );
+        world.request_redraw_annotations(name, visibility);
         let data_mut = get_mut(&mut world, name, "could not access data");
         let core_options_mut = get_specific_mut(f_tool_access, data_mut);
         if let Some(core_options_mut) = core_options_mut {
@@ -67,7 +74,15 @@ macro_rules! released_key {
 macro_rules! set_cat_current {
     ($num:expr, $label_info:expr) => {
         if $num < $label_info.cat_ids().len() + 1 {
-            $label_info.cat_idx_current = $num - 1;
+            if $label_info.cat_idx_current == $num - 1 {
+                $label_info.show_only_current = !$label_info.show_only_current;
+            } else {
+                $label_info.cat_idx_current = $num - 1;
+                $label_info.show_only_current = false;
+            }
+            true
+        } else {
+            false
         }
     };
 }
@@ -94,49 +109,50 @@ pub fn check_recolorboxes(
         if let Some(label_info) = get_label_info_mut(&mut world) {
             label_info.new_random_colors();
         }
-        let are_boxes_visible = true;
-        world.request_redraw_annotations(actor, are_boxes_visible);
+        let visibility = vis_from_lfoption(get_label_info_mut(&mut world).map(|x| &*x), true);
+        world.request_redraw_annotations(actor, visibility);
     }
     world
 }
-pub(super) fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> LabelInfo {
-    match key {
+pub(super) fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> (LabelInfo, bool) {
+    let label_change = match key {
         ReleasedKey::Key1 => {
-            set_cat_current!(1, label_info);
+            set_cat_current!(1, label_info)
         }
         ReleasedKey::Key2 => {
-            set_cat_current!(2, label_info);
+            set_cat_current!(2, label_info)
         }
         ReleasedKey::Key3 => {
-            set_cat_current!(3, label_info);
+            set_cat_current!(3, label_info)
         }
         ReleasedKey::Key4 => {
-            set_cat_current!(4, label_info);
+            set_cat_current!(4, label_info)
         }
         ReleasedKey::Key5 => {
-            set_cat_current!(5, label_info);
+            set_cat_current!(5, label_info)
         }
         ReleasedKey::Key6 => {
-            set_cat_current!(6, label_info);
+            set_cat_current!(6, label_info)
         }
         ReleasedKey::Key7 => {
-            set_cat_current!(7, label_info);
+            set_cat_current!(7, label_info)
         }
         ReleasedKey::Key8 => {
-            set_cat_current!(8, label_info);
+            set_cat_current!(8, label_info)
         }
         ReleasedKey::Key9 => {
-            set_cat_current!(9, label_info);
+            set_cat_current!(9, label_info)
         }
-        _ => (),
-    }
-    label_info
+        _ => false,
+    };
+    (label_info, label_change)
 }
 pub(super) fn paste<T>(
     mut world: World,
     mut history: History,
     actor: &'static str,
-    mut get_annos_mut: impl FnMut(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
     clipboard: Option<ClipboardData<T>>,
 ) -> (World, History)
 where
@@ -155,8 +171,8 @@ where
             }
         }
     }
-    let are_boxes_visible = true;
-    world.request_redraw_annotations(actor, are_boxes_visible);
+    let visibility = vis_from_lfoption(get_label_info(&mut world), true);
+    world.request_redraw_annotations(actor, visibility);
     history.push(Record::new(world.data.clone(), actor));
 
     (world, history)
@@ -165,43 +181,46 @@ where
 pub fn deselect_all<T>(
     mut world: World,
     actor: &'static str,
-    mut get_annos_mut: impl FnMut(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> World
 where
     T: Annotate,
 {
-    let visible = true;
     // Deselect all
     if let Some(a) = get_annos_mut(&mut world) {
         a.deselect_all()
     };
-    world.request_redraw_annotations(actor, visible);
+    let vis = vis_from_lfoption(get_label_info(&world), true);
+    world.request_redraw_annotations(actor, vis);
     world
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn on_selection_keys<T>(
     mut world: World,
     mut history: History,
     key: ReleasedKey,
     is_ctrl_held: bool,
     actor: &'static str,
-    mut get_annos_mut: impl FnMut(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    mut get_clipboard_mut: impl FnMut(&mut World) -> Option<&mut Option<ClipboardData<T>>>,
+    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    get_clipboard_mut: impl Fn(&mut World) -> Option<&mut Option<ClipboardData<T>>>,
+    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> (World, History)
 where
     T: Annotate,
 {
-    let visible = true;
     match key {
         ReleasedKey::A if is_ctrl_held => {
             // Select all
             if let Some(a) = get_annos_mut(&mut world) {
                 a.select_all()
             };
-            world.request_redraw_annotations(actor, visible);
+            let vis = vis_from_lfoption(get_label_info(&world), true);
+            world.request_redraw_annotations(actor, vis);
         }
         ReleasedKey::D if is_ctrl_held => {
-            world = deselect_all(world, actor, get_annos_mut);
+            world = deselect_all(world, actor, get_annos_mut, get_label_info);
         }
         ReleasedKey::C if is_ctrl_held => {
             // Copy to clipboard
@@ -212,12 +231,19 @@ where
             {
                 *clipboard_mut = Some(clipboard_data);
             }
-
-            world.request_redraw_annotations(actor, visible);
+            let vis = vis_from_lfoption(get_label_info(&world), true);
+            world.request_redraw_annotations(actor, vis);
         }
         ReleasedKey::V if is_ctrl_held => {
             let clipboard_data = get_clipboard_mut(&mut world).cloned().flatten();
-            (world, history) = paste(world, history, actor, get_annos_mut, clipboard_data);
+            (world, history) = paste(
+                world,
+                history,
+                actor,
+                get_annos_mut,
+                get_label_info,
+                clipboard_data,
+            );
         }
         ReleasedKey::Delete | ReleasedKey::Back => {
             // Remove selected
@@ -225,7 +251,8 @@ where
             if let Some(annos) = annos {
                 if !annos.selected_mask().is_empty() {
                     annos.remove_selected();
-                    world.request_redraw_annotations(actor, visible);
+                    let vis = vis_from_lfoption(get_label_info(&world), true);
+                    world.request_redraw_annotations(actor, vis);
                     history.push(Record::new(world.data.clone(), actor));
                 }
             }

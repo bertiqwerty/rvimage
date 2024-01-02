@@ -7,7 +7,7 @@ use crate::{
     BrushAnnotation, UpdateAnnos,
 };
 
-pub use self::core::{LabelInfo, OUTLINE_THICKNESS_CONVERSION};
+pub use self::core::{vis_from_lfoption, LabelInfo, OUTLINE_THICKNESS_CONVERSION};
 pub use self::{
     bbox_data::BboxExportData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
     coco_io::write_coco, rot90_data::Rot90ToolData,
@@ -111,7 +111,7 @@ impl ToolSpecifics {
         }
     }
 
-    pub fn to_annotations_view(&self, file_path: &str) -> UpdateAnnos {
+    pub fn to_annotations_view(&self, file_path: &str, only_cat_idx: Option<usize>) -> UpdateAnnos {
         match self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
@@ -125,6 +125,13 @@ impl ToolSpecifics {
                         .iter()
                         .zip(cats.iter())
                         .zip(selected_bbs.iter())
+                        .filter(|((_, cat_idx), _)| {
+                            if let Some(only_cat_idx) = only_cat_idx {
+                                **cat_idx == only_cat_idx
+                            } else {
+                                true
+                            }
+                        })
                         .map(|((geo, cat_idx), is_selected)| {
                             Annotation::Bbox(BboxAnnotation {
                                 geofig: geo.clone(),
@@ -156,6 +163,13 @@ impl ToolSpecifics {
                         .iter()
                         .zip(cats.iter())
                         .zip(selected_mask.iter())
+                        .filter(|((_, cat_idx), _)| {
+                            if let Some(only_cat_idx) = only_cat_idx {
+                                **cat_idx == only_cat_idx
+                            } else {
+                                true
+                            }
+                        })
                         .map(|((brush_line, cat_idx), is_selected)| {
                             Annotation::Brush(BrushAnnotation {
                                 brush_line: brush_line.clone(),
