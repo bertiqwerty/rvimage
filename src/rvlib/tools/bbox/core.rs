@@ -8,7 +8,7 @@ use crate::{
     make_tool_transform,
     result::{trace_ok, RvResult},
     tools::{
-        core::{check_recolorboxes, check_trigger_redraw, map_released_key, Mover, check_trigger_history_update},
+        core::{check_recolorboxes, check_trigger_redraw, map_released_key, Mover, check_trigger_history_update, deselect_all},
         rot90, Manipulate, BBOX_NAME,
     },
     tools_data::{
@@ -170,7 +170,7 @@ impl Bbox {
     fn mouse_pressed(
         &mut self,
         event: &Events,
-        world: World,
+        mut world: World,
         history: History,
     ) -> (World, History) {
         if event.pressed(KeyCode::MouseRight) {
@@ -178,6 +178,9 @@ impl Bbox {
         } else {
             self.start_press_time = Some(Instant::now());
             self.points_at_press = Some(self.prev_pos.prev_pos.len());
+            if !(event.held_alt() || event.held_ctrl() || event.held_shift()) {
+                world = deselect_all(world, BBOX_NAME, get_annos_mut);
+            }
         }
         (world, history)
     }

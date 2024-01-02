@@ -162,6 +162,23 @@ where
     (world, history)
 }
 
+pub fn deselect_all<T>(
+    mut world: World,
+    actor: &'static str,
+    mut get_annos_mut: impl FnMut(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+) -> World
+where
+    T: Annotate,
+{
+    let visible = true;
+    // Deselect all
+    if let Some(a) = get_annos_mut(&mut world) {
+        a.deselect_all()
+    };
+    world.request_redraw_annotations(actor, visible);
+    world
+}
+
 pub(super) fn on_selection_keys<T>(
     mut world: World,
     mut history: History,
@@ -172,7 +189,7 @@ pub(super) fn on_selection_keys<T>(
     mut get_clipboard_mut: impl FnMut(&mut World) -> Option<&mut Option<ClipboardData<T>>>,
 ) -> (World, History)
 where
-    T: Annotate + PartialEq + Default + Clone,
+    T: Annotate,
 {
     let visible = true;
     match key {
@@ -184,11 +201,7 @@ where
             world.request_redraw_annotations(actor, visible);
         }
         ReleasedKey::D if is_ctrl_held => {
-            // Deselect all
-            if let Some(a) = get_annos_mut(&mut world) {
-                a.deselect_all()
-            };
-            world.request_redraw_annotations(actor, visible);
+            world = deselect_all(world, actor, get_annos_mut);
         }
         ReleasedKey::C if is_ctrl_held => {
             // Copy to clipboard

@@ -12,7 +12,7 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     result::{trace_ok, RvResult},
-    tools::core::{check_recolorboxes, check_trigger_redraw, check_trigger_history_update},
+    tools::core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
     tools_data::{self, annotations::InstanceAnnotations, brush_data, ToolsData},
     tools_data::{annotations::BrushAnnotations, brush_mut},
     world::World,
@@ -20,7 +20,7 @@ use crate::{
 };
 
 use super::{
-    core::{label_change_key, map_released_key, on_selection_keys, ReleasedKey},
+    core::{deselect_all, label_change_key, map_released_key, on_selection_keys, ReleasedKey},
     Manipulate, BRUSH_NAME,
 };
 
@@ -31,7 +31,7 @@ const MISSING_DATA_MSG: &str = "brush data not available";
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
 annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
 
-const MAX_SELECT_DIST: f64 = 20.0;
+const MAX_SELECT_DIST: f64 = 50.0;
 
 fn get_data(world: &World) -> RvResult<&ToolsData> {
     tools_data::get(world, ACTOR_NAME, MISSING_DATA_MSG)
@@ -183,6 +183,9 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
+        if !(events.held_alt() || events.held_ctrl() || events.held_shift()) {
+            world = deselect_all(world, BRUSH_NAME, get_annos_mut);
+        }
         if !events.held_ctrl() {
             let options = get_options(&world);
             let cat_idx = get_specific(&world).map(|d| d.label_info.cat_idx_current);
@@ -253,13 +256,16 @@ impl Brush {
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 let to_be_selected_line_idx = find_closest_brushline(annos, mp);
                 if let Some((idx, dist)) = to_be_selected_line_idx {
-                    if dist < MAX_SELECT_DIST {
+                    let thickness = annos.elts()[idx].thickness;
+                    if dist < MAX_SELECT_DIST + thickness {
                         if annos.selected_mask()[idx] {
                             annos.deselect(idx);
                         } else {
                             annos.select(idx);
                         }
                         world.request_redraw_annotations(BRUSH_NAME, true)
+                    } else {
+                        world = deselect_all(world, BRUSH_NAME, get_annos_mut);
                     }
                 }
             }
