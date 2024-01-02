@@ -40,11 +40,13 @@ where
     if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
         info!("replaced default '{default_label}' label by '{new_label}'");
         *default_label = new_label.clone();
+        trigger_redraw = true;
     } else if let Some(new_label) = new_label {
         if let Err(e) = label_info.push(new_label, None, None) {
             warn!("{e:?}");
             return Ok(false);
         }
+        trigger_redraw = true;
         new_idx = label_info.len() - 1;
     }
     let mut to_be_removed = None;
@@ -128,12 +130,15 @@ pub fn bbox_menu(
     mut data: BboxSpecificData,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    data.options.core_options.is_redraw_annos_triggered = label_menu(
+    let label_added = label_menu(
         ui,
         &mut data.label_info,
         &mut data.annotations_map,
         are_tools_active,
     )?;
+    if label_added {
+        data.options.core_options = data.options.core_options.trigger_redraw_and_hist();
+    }
     ui.separator();
 
     data.options.core_options = hide_menu(ui, data.options.core_options);
@@ -235,12 +240,16 @@ pub fn brush_menu(
     mut data: BrushToolData,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    data.options.core_options.is_redraw_annos_triggered = label_menu(
+    let label_added = label_menu(
         ui,
         &mut data.label_info,
         &mut data.annotations_map,
         are_tools_active,
     )?;
+    if label_added {
+        data.options.core_options = data.options.core_options.trigger_redraw_and_hist();
+    }
+
     data.options.core_options = hide_menu(ui, data.options.core_options);
     if ui
         .add(egui::Slider::new(&mut data.options.thickness, 0.0..=50.0).text("thickness"))

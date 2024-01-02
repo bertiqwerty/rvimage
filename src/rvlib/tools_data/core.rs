@@ -27,6 +27,7 @@ pub struct Options {
     pub is_colorchange_triggered: bool,
     pub is_redraw_annos_triggered: bool,
     pub is_export_triggered: bool,
+    pub is_history_update_triggered: bool,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -35,7 +36,15 @@ impl Default for Options {
             is_colorchange_triggered: false,
             is_redraw_annos_triggered: false,
             is_export_triggered: false,
+            is_history_update_triggered: false,
         }
+    }
+}
+impl Options {
+    pub fn trigger_redraw_and_hist(mut self) -> Self {
+        self.is_history_update_triggered = true;
+        self.is_redraw_annos_triggered = true;
+        self
     }
 }
 

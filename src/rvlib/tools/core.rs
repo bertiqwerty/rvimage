@@ -25,6 +25,27 @@ pub(super) fn check_trigger_redraw(
     world
 }
 
+pub(super) fn check_trigger_history_update(
+    mut world: World,
+    mut history: History,
+    name: &'static str,
+    f_tool_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut CoreOptions> + Clone,
+) -> (World, History) {
+    let data_mut = get_mut(&mut world, name, "could not access data");
+    let core_options = get_specific_mut(f_tool_access.clone(), data_mut).cloned();
+    let is_history_update_triggered = core_options.map(|o| o.is_history_update_triggered);
+    println!("{:?}", is_history_update_triggered);
+    if is_history_update_triggered == Some(true) {
+        let data_mut = get_mut(&mut world, name, "could not access data");
+        let core_options_mut = get_specific_mut(f_tool_access, data_mut);
+        if let Some(core_options_mut) = core_options_mut {
+            core_options_mut.is_history_update_triggered = false;
+        }
+        history.push(Record::new(world.data.clone(), name));
+    }
+    (world, history)
+}
+
 macro_rules! released_key {
     ($($key:ident),*) => {
         #[derive(Debug, Clone, Copy)]

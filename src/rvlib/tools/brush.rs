@@ -12,7 +12,7 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     result::{trace_ok, RvResult},
-    tools::core::{check_recolorboxes, check_trigger_redraw},
+    tools::core::{check_recolorboxes, check_trigger_redraw, check_trigger_history_update},
     tools_data::{self, annotations::InstanceAnnotations, brush_data, ToolsData},
     tools_data::{annotations::BrushAnnotations, brush_mut},
     world::World,
@@ -351,10 +351,13 @@ impl Manipulate for Brush {
     fn events_tf(
         &mut self,
         mut world: World,
-        history: History,
+        mut history: History,
         events: &Events,
     ) -> (World, History) {
         world = check_trigger_redraw(world, BRUSH_NAME, |d| {
+            brush_mut(d).map(|d| &mut d.options.core_options)
+        });
+        (world, history) = check_trigger_history_update(world, history, BRUSH_NAME, |d| {
             brush_mut(d).map(|d| &mut d.options.core_options)
         });
         world = check_recolorboxes(

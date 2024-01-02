@@ -8,7 +8,7 @@ use crate::{
     make_tool_transform,
     result::{trace_ok, RvResult},
     tools::{
-        core::{check_recolorboxes, check_trigger_redraw, map_released_key, Mover},
+        core::{check_recolorboxes, check_trigger_redraw, map_released_key, Mover, check_trigger_history_update},
         rot90, Manipulate, BBOX_NAME,
     },
     tools_data::{
@@ -361,6 +361,9 @@ impl Manipulate for Bbox {
             |world| get_specific_mut(world).map(|d| &mut d.label_info),
         );
 
+        (world, history) = check_trigger_history_update(world, history, BBOX_NAME, |d| {
+            bbox_mut(d).map(|d| &mut d.options.core_options)
+        });
         world = check_annoremove(world);
 
         world = check_cocoexport(world);
