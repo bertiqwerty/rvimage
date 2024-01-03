@@ -206,7 +206,7 @@ pub(super) fn on_mouse_held_left(
     world: World,
     history: History,
 ) -> (World, History, PrevPos) {
-    if params.elapsed_millis_since_press > 100 {
+    if params.elapsed_millis_since_press > 300 {
         const SENSITIVITY_FACTOR: f64 = 5.0;
         let min_distance_start_end = (SENSITIVITY_FACTOR * params.distance).max(5.0);
         if !(params.is_alt_held || params.is_ctrl_held || params.is_shift_held) {
