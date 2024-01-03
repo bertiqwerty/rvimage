@@ -109,7 +109,9 @@ impl ToolState {
         info!("activate {}", self.name);
         self.is_active = true;
         world = apply_tool_method_mut!(self, on_activate, world);
-        history.push(Record::new(world.clone(), self.name));
+        if !self.is_always_active() {
+            history.push(Record::new(world.clone(), self.name));
+        }
         (world, history)
     }
     pub fn file_changed(&mut self, mut world: World, mut history: History) -> (World, History) {

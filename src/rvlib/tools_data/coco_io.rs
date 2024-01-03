@@ -448,6 +448,7 @@ pub fn make_data(
             .to_str()
             .unwrap()
             .to_string(),
+            0
     );
     meta.opened_folder = Some(opened_folder);
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
@@ -527,6 +528,7 @@ fn test_coco_import() -> RvResult<()> {
     fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BbI, &str)]) {
         let meta = MetaData {
             file_path: None,
+            file_selected_idx: None,
             connection_data: ConnectionData::None,
             ssh_cfg: None,
             opened_folder: Some(filename.to_string()),

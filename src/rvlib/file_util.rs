@@ -98,6 +98,7 @@ pub enum ConnectionData {
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct MetaData {
     pub file_path: Option<String>,
+    pub file_selected_idx: Option<usize>,
     pub connection_data: ConnectionData,
     pub ssh_cfg: Option<SshCfg>,
     pub opened_folder: Option<String>,
@@ -106,9 +107,10 @@ pub struct MetaData {
     pub is_file_list_empty: Option<bool>,
 }
 impl MetaData {
-    pub fn from_filepath(file_path: String) -> Self {
+    pub fn from_filepath(file_path: String, file_selected_idx: usize) -> Self {
         MetaData {
             file_path: Some(file_path),
+            file_selected_idx: Some(file_selected_idx),
             connection_data: ConnectionData::None,
             ssh_cfg: None,
             opened_folder: None,

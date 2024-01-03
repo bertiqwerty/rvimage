@@ -204,8 +204,16 @@ impl World {
     }
 
     /// real image in contrast to the loading image
-    pub fn from_real_im(im: DynamicImage, tools_data: ToolsDataMap, file_path: String) -> Self {
-        let meta_data = MetaData::from_filepath(file_path);
+    pub fn from_real_im(
+        im: DynamicImage,
+        tools_data: ToolsDataMap,
+        file_path: Option<String>,
+        file_selected_idx: Option<usize>,
+    ) -> Self {
+        let meta_data = match (file_path, file_selected_idx) {
+            (Some(fp), Some(fsidx)) => MetaData::from_filepath(fp, fsidx),
+            _ => MetaData::default(),
+        };
         Self::new(DataRaw::new(im, meta_data, tools_data), None)
     }
 

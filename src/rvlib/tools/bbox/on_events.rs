@@ -552,7 +552,12 @@ use {
 #[cfg(test)]
 fn test_data() -> (Option<PtF>, World, History) {
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
-    let mut world = World::from_real_im(im_test, HashMap::new(), "superimage.png".to_string());
+    let mut world = World::from_real_im(
+        im_test,
+        HashMap::new(),
+        Some("superimage.png".to_string()),
+        None,
+    );
     world.data.meta_data.is_loading_screen_active = Some(false);
     get_specific_mut(&mut world)
         .unwrap()

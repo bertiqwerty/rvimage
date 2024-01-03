@@ -99,7 +99,8 @@ fn empty_world() -> World {
     World::from_real_im(
         DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
         HashMap::new(),
-        "".to_string(),
+        None,
+        None,
     )
 }
 

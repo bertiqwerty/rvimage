@@ -388,6 +388,7 @@ impl Control {
         let is_file_list_empty = Some(file_path.is_none());
         MetaData {
             file_path,
+            file_selected_idx,
             connection_data,
             ssh_cfg,
             opened_folder: open_folder,
@@ -397,16 +398,13 @@ impl Control {
         }
     }
 
-    fn make_folder_label(&self) -> Option<String> {
-        self.paths_navigator.folder_label().map(|s| s.to_string())
-    }
     pub fn redo(&mut self, history: &mut History) -> Option<(World, Option<usize>)> {
         self.flags.undo_redo_load = true;
-        history.next_world(&self.make_folder_label())
+        history.next_world(&self.opened_folder)
     }
     pub fn undo(&mut self, history: &mut History) -> Option<(World, Option<usize>)> {
         self.flags.undo_redo_load = true;
-        history.prev_world(&self.make_folder_label())
+        history.prev_world(&self.opened_folder)
     }
 
     pub fn load_new_image_if_triggered(
@@ -420,17 +418,17 @@ impl Control {
         {
             // load new image
             if let Some(selected) = &menu_file_selected {
-                let folder_label = self.make_folder_label();
                 let file_path = menu_file_selected
                     .and_then(|fs| Some(self.paths_navigator.file_path(fs)?.to_string()));
                 let im_read = self.read_image(*selected, self.flags.reload_cached_images)?;
-                let read_image_and_idx = match (file_path, im_read) {
-                    (Some(fp), Some(ri)) => {
+                let read_image_and_idx = match (file_path, menu_file_selected, im_read) {
+                    (Some(fp), Some(fidx), Some(ri)) => {
                         info!("loading {} from {}", ri.info, fp);
+                        self.file_selected_idx = menu_file_selected;
                         self.file_info_selected = Some(ri.info);
                         let ims_raw = DataRaw::new(
                             ri.im,
-                            MetaData::from_filepath(fp),
+                            MetaData::from_filepath(fp, fidx),
                             world.data.tools_data_map.clone(),
                         );
                         let zoom_box = if ims_raw.shape() == world.data.shape() {
@@ -444,11 +442,10 @@ impl Control {
                                 world: world.clone(),
                                 actor: LOAD_ACTOR_NAME,
                                 file_label_idx: self.file_selected_idx,
-                                folder_label,
+                                opened_folder: self.opened_folder.clone(),
                             });
                         }
                         self.flags.undo_redo_load = false;
-                        self.file_selected_idx = menu_file_selected;
                         self.flags.is_loading_screen_active = false;
                         (new_world, self.file_selected_idx)
                     }
