@@ -11,6 +11,7 @@ use crate::{
     tools_data::{
         annotations::{InstanceAnnotations, SplitMode},
         bbox_data::BboxSpecificData,
+        brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         BrushToolData, CoreOptions, LabelInfo, ToolSpecifics, ToolsData,
         OUTLINE_THICKNESS_CONVERSION,
     },
@@ -288,13 +289,19 @@ pub fn brush_menu(
 
     data.options.core_options = hide_menu(ui, data.options.core_options);
     if ui
-        .add(egui::Slider::new(&mut data.options.thickness, 0.0..=250.0).text("thickness"))
+        .add(
+            egui::Slider::new(&mut data.options.thickness, MIN_THICKNESS..=MAX_THICKNESS)
+                .text("thickness"),
+        )
         .changed()
     {
         data.options.is_selection_change_needed = true;
     }
     if ui
-        .add(egui::Slider::new(&mut data.options.intensity, 0.0..=1.0).text("intensity"))
+        .add(
+            egui::Slider::new(&mut data.options.intensity, MIN_INTENSITY..=MAX_INTENSITY)
+                .text("intensity"),
+        )
         .changed()
     {
         data.options.is_selection_change_needed = true;

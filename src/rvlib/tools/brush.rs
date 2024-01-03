@@ -13,7 +13,11 @@ use crate::{
     result::{trace_ok, RvResult},
     tools::core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
     tools_data::{self, annotations::InstanceAnnotations, brush_data, LabelInfo, ToolsData},
-    tools_data::{annotations::BrushAnnotations, brush_mut, vis_from_lfoption},
+    tools_data::{
+        annotations::BrushAnnotations,
+        brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
+        brush_mut, vis_from_lfoption,
+    },
     tools_data_accessors,
     util::Visibility,
     world::World,
@@ -21,7 +25,10 @@ use crate::{
 };
 
 use super::{
-    core::{deselect_all, label_change_key, map_released_key, on_selection_keys, ReleasedKey},
+    core::{
+        deselect_all, label_change_key, map_held_key, map_released_key, on_selection_keys, HeldKey,
+        ReleasedKey,
+    },
     Manipulate, BRUSH_NAME,
 };
 
@@ -60,17 +67,22 @@ fn find_closest_brushline(annos: &InstanceAnnotations<BrushLine>, p: PtF) -> Opt
 fn check_selected_intensity_thickness(mut world: World) -> World {
     let options = get_options(&world);
     let annos = get_annos_mut(&mut world);
+    let mut any_selected = false;
     if let (Some(annos), Some(options)) = (annos, options) {
         if options.is_selection_change_needed {
             for brushline in annos.selected_elts_iter_mut() {
                 brushline.intensity = options.intensity;
                 brushline.thickness = options.thickness;
+                any_selected = true;
             }
         }
     }
     let options_mut = get_options_mut(&mut world);
     if let Some(options_mut) = options_mut {
         options_mut.is_selection_change_needed = false;
+        if any_selected {
+            options_mut.core_options.is_redraw_annos_triggered = true;
+        }
     }
     world
 }
@@ -252,6 +264,45 @@ impl Brush {
         }
         (world, history)
     }
+    fn key_held(
+        &mut self,
+        events: &Events,
+        mut world: World,
+        history: History,
+    ) -> (World, History) {
+        let held_key = map_held_key(events);
+        let intensity_step = MAX_INTENSITY / 20.0;
+        let thickness_step = MAX_THICKNESS / 20.0;
+        let round_2 = |x: TPtF| (x * 100.0).round() / 100.0;
+        match held_key {
+            HeldKey::I if events.held_alt() => {
+                if let Some(o) = get_options_mut(&mut world) {
+                    o.intensity = round_2(MIN_INTENSITY.max(o.intensity - intensity_step));
+                    o.is_selection_change_needed = true;
+                }
+            }
+            HeldKey::I => {
+                if let Some(o) = get_options_mut(&mut world) {
+                    o.intensity = round_2(MAX_INTENSITY.min(o.intensity + intensity_step));
+                    o.is_selection_change_needed = true;
+                }
+            }
+            HeldKey::T if events.held_alt() => {
+                if let Some(o) = get_options_mut(&mut world) {
+                    o.thickness = round_2(MIN_THICKNESS.max(o.thickness - thickness_step));
+                    o.is_selection_change_needed = true;
+                }
+            }
+            HeldKey::T => {
+                if let Some(o) = get_options_mut(&mut world) {
+                    o.thickness = round_2(MAX_THICKNESS.min(o.thickness + thickness_step));
+                    o.is_selection_change_needed = true;
+                }
+            }
+            _ => (),
+        }
+        (world, history)
+    }
     fn key_released(
         &mut self,
         events: &Events,
@@ -372,6 +423,8 @@ impl Manipulate for Brush {
                 (released, KeyCode::D, key_released),
                 (released, KeyCode::E, key_released),
                 (released, KeyCode::H, key_released),
+                (held, KeyCode::I, key_held),
+                (held, KeyCode::T, key_held),
                 (released, KeyCode::V, key_released),
                 (released, KeyCode::Key1, key_released),
                 (released, KeyCode::Key2, key_released),

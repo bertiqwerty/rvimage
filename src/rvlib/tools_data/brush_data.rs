@@ -12,6 +12,11 @@ use serde::{Deserialize, Serialize};
 
 pub type BrushAnnoMap = AnnotationsMap<BrushLine>;
 
+pub const MAX_THICKNESS: f64 = 300.0;
+pub const MIN_THICKNESS: f64 = 1.0;
+pub const MAX_INTENSITY: f64 = 1.0;
+pub const MIN_INTENSITY: f64 = 0.01;
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub struct Options {
     pub thickness: TPtF,

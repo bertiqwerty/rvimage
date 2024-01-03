@@ -52,25 +52,57 @@ pub(super) fn check_trigger_history_update(
     (world, history)
 }
 
-macro_rules! released_key {
-    ($($key:ident),*) => {
+macro_rules! event_2_actionenum {
+    ($name:ident, $func:ident, $map_func:ident, $($key:ident),*) => {
         #[derive(Debug, Clone, Copy)]
-        pub(super) enum ReleasedKey {
+        pub(super) enum $name {
             None,
             $($key,)*
         }
-        pub(super) fn map_released_key(event: &Events) -> ReleasedKey {
+        pub(super) fn $map_func(event: &Events) -> $name {
             if false {
-                ReleasedKey::None
-            } $(else if event.released($crate::KeyCode::$key) {
-                ReleasedKey::$key
+                $name::None
+            } $(else if event.$func($crate::KeyCode::$key) {
+                $name::$key
             })*
             else {
-                ReleasedKey::None
+                $name::None
             }
         }
     };
 }
+
+event_2_actionenum!(
+    ReleasedKey,
+    released,
+    map_released_key,
+    A,
+    D,
+    E,
+    H,
+    C,
+    I,
+    T,
+    V,
+    L,
+    Key0,
+    Key1,
+    Key2,
+    Key3,
+    Key4,
+    Key5,
+    Key6,
+    Key7,
+    Key8,
+    Key9,
+    Delete,
+    Back,
+    Left,
+    Right,
+    Up,
+    Down
+);
+event_2_actionenum!(HeldKey, held, map_held_key, I, T);
 macro_rules! set_cat_current {
     ($num:expr, $label_info:expr) => {
         if $num < $label_info.cat_ids().len() + 1 {
@@ -86,11 +118,6 @@ macro_rules! set_cat_current {
         }
     };
 }
-
-released_key!(
-    A, D, E, H, C, V, L, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Delete, Back,
-    Left, Right, Up, Down
-);
 
 pub fn check_recolorboxes(
     mut world: World,
