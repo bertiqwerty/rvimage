@@ -412,7 +412,7 @@ impl Control {
     pub fn load_new_image_if_triggered(
         &mut self,
         world: &World,
-        history:  &mut History,
+        history: &mut History,
     ) -> RvResult<Option<(World, Option<usize>)>> {
         let menu_file_selected = self.paths_navigator.file_label_selected_idx();
         let world_idx_pair = if self.file_selected_idx != menu_file_selected
@@ -458,11 +458,17 @@ impl Control {
                         self.file_selected_idx = menu_file_selected;
                         self.flags.is_loading_screen_active = true;
                         (
-                            World::new(DataRaw::new(
-                                detail::loading_image(shape, self.loading_screen_animation_counter),
-                                MetaData::default(),
-                                world.data.tools_data_map.clone(),
-                            ), None),
+                            World::new(
+                                DataRaw::new(
+                                    detail::loading_image(
+                                        shape,
+                                        self.loading_screen_animation_counter,
+                                    ),
+                                    MetaData::default(),
+                                    world.data.tools_data_map.clone(),
+                                ),
+                                None,
+                            ),
                             self.file_selected_idx,
                         )
                     }

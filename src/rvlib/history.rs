@@ -98,17 +98,11 @@ impl History {
         }
     }
 
-    pub fn prev_world(
-        &mut self,
-        folder_label: &Option<String>,
-    ) -> Option<(World, Option<usize>)> {
+    pub fn prev_world(&mut self, folder_label: &Option<String>) -> Option<(World, Option<usize>)> {
         self.change_world(|idx| idx - 1, |idx| idx > 0, folder_label)
     }
 
-    pub fn next_world(
-        &mut self,
-        folder_label: &Option<String>,
-    ) -> Option<(World, Option<usize>)> {
+    pub fn next_world(&mut self, folder_label: &Option<String>) -> Option<(World, Option<usize>)> {
         let n_recs = self.records.len();
         self.change_world(|idx| idx + 1, |idx| idx < n_recs - 1, folder_label)
     }
