@@ -28,7 +28,7 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            thickness: 5.0,
+            thickness: 15.0,
             intensity: 0.5,
             erase: false,
             is_selection_change_needed: false,
