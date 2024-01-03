@@ -2794,6 +2794,7 @@ version = "0.3.1"
 dependencies = [
  "azure_storage",
  "azure_storage_blobs",
+ "backtrace",
  "conv",
  "dirs",
  "edit",

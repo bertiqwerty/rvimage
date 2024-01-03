@@ -1,8 +1,9 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use std::{io, time::Instant};
+use std::{cell::RefCell, io, panic, time::Instant};
 
+use backtrace::Backtrace;
 use egui::{
     epaint::{CircleShape, PathShape, RectShape},
     Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
@@ -508,6 +509,10 @@ impl eframe::App for RvImageApp {
     }
 }
 
+thread_local! {
+    static BACKTRACE: RefCell<Option<Backtrace>> = RefCell::new(None);
+}
+
 fn main() {
     let cfg_path = get_cfg_path().expect("we need a cfg path");
     let log_folder = cfg_path
@@ -519,6 +524,7 @@ fn main() {
     let file_appender = Layer::new()
         .with_writer(file_appender.with_max_level(Level::INFO))
         .with_line_number(true)
+        .compact()
         .with_file(true);
 
     let stdout = Layer::new()
@@ -529,27 +535,38 @@ fn main() {
         .with(file_appender)
         .with(stdout)
         .init();
+    std::panic::set_hook(Box::new(|_| {
+        let trace = Backtrace::new();
+        BACKTRACE.with(move |b| b.borrow_mut().replace(trace));
+    }));
 
-    let native_options = eframe::NativeOptions::default();
-    if let Err(e) = eframe::run_native(
-        "RV Image",
-        native_options,
-        Box::new(|cc| {
-            if let Some(dm) = get_darkmode() {
-                let viz = if dm {
-                    Visuals::dark()
-                } else {
-                    Visuals::light()
-                };
-                let style = Style {
-                    visuals: viz,
-                    ..Style::default()
-                };
-                cc.egui_ctx.set_style(style);
-            }
-            Box::new(RvImageApp::new(cc))
-        }),
-    ) {
-        error!("{e:?}");
+    if let Err(e) = panic::catch_unwind(|| {
+        let native_options = eframe::NativeOptions::default();
+        if let Err(e) = eframe::run_native(
+            "RV Image",
+            native_options,
+            Box::new(|cc| {
+                if let Some(dm) = get_darkmode() {
+                    let viz = if dm {
+                        Visuals::dark()
+                    } else {
+                        Visuals::light()
+                    };
+                    let style = Style {
+                        visuals: viz,
+                        ..Style::default()
+                    };
+                    cc.egui_ctx.set_style(style);
+                }
+                Box::new(RvImageApp::new(cc))
+            }),
+        ) {
+            error!("{e:?}");
+        }
+    }) {
+        let panic_s = e.downcast_ref::<&str>();
+        tracing::error!("{:?}", panic_s);
+        let b = BACKTRACE.with(|b| b.borrow_mut().take()).unwrap();
+        tracing::error!("{:?}", b);
     }
 }
