@@ -54,7 +54,7 @@ impl History {
     }
 
     pub fn push(&mut self, record: Record) {
-        info!("add to history");
+        info!("{} added to history", record.actor);
         self.clear_on_folder_change(&record.folder_label);
         match self.current_idx {
             None => {

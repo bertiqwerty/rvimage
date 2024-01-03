@@ -6,7 +6,7 @@ use crate::domain::PtI;
 use crate::drawme::ImageInfo;
 use crate::events::{Events, KeyCode};
 use crate::file_util::make_prjcfg_filename;
-use crate::history::History;
+use crate::history::{History, Record};
 use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
 use crate::result::RvResult;
 use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
@@ -210,6 +210,7 @@ impl MainEventLoop {
                         (self.world, self.history) =
                             t.activate(mem::take(&mut self.world), mem::take(&mut self.history));
                         info!("activate {}", t.name);
+                        self.history.push(Record::new(self.world.clone(), t.name));
                     } else {
                         let meta_data = self.ctrl.meta_data(
                             self.ctrl.file_selected_idx,
