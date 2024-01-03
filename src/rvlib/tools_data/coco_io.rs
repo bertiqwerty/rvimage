@@ -448,7 +448,7 @@ pub fn make_data(
             .to_str()
             .unwrap()
             .to_string(),
-            0
+        0,
     );
     meta.opened_folder = Some(opened_folder);
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
