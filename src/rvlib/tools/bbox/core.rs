@@ -18,6 +18,7 @@ use crate::{
         self, annotations::BboxAnnotations, bbox_data, bbox_mut, vis_from_lfoption, LabelInfo,
         Rot90ToolData, ToolsData,
     },
+    tools_data_accessors,
     util::Visibility,
     world::World,
     GeoFig, Polygon,
@@ -34,42 +35,14 @@ const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
 const MISSING_DATA_MSG: &str = "bbox tools data not available";
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
-
-pub(super) fn get_data(world: &World) -> RvResult<&ToolsData> {
-    tools_data::get(world, ACTOR_NAME, MISSING_DATA_MSG)
-}
-
-pub(super) fn get_specific(world: &World) -> Option<&bbox_data::BboxSpecificData> {
-    tools_data::get_specific(tools_data::bbox, get_data(world))
-}
-pub(super) fn get_options(world: &World) -> Option<bbox_data::Options> {
-    get_specific(world).map(|d| d.options)
-}
-
-pub(super) fn get_data_mut(world: &mut World) -> RvResult<&mut ToolsData> {
-    tools_data::get_mut(world, ACTOR_NAME, MISSING_DATA_MSG)
-}
-pub(super) fn get_specific_mut(world: &mut World) -> Option<&mut bbox_data::BboxSpecificData> {
-    tools_data::get_specific_mut(tools_data::bbox_mut, get_data_mut(world))
-}
-pub(super) fn get_options_mut(world: &mut World) -> Option<&mut bbox_data::Options> {
-    get_specific_mut(world).map(|d| &mut d.options)
-}
-pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
-    get_specific(world).map(|d| &d.label_info)
-}
-pub(super) fn get_visible(world: &World) -> Visibility {
-    let visible = get_options(world).map(|o| o.core_options.visible) == Some(true);
-    vis_from_lfoption(get_label_info(world), visible)
-}
-fn set_visible(world: &mut World) {
-    let options_mut = get_options_mut(world);
-    if let Some(options_mut) = options_mut {
-        options_mut.core_options.visible = true;
-    }
-    let vis = get_visible(world);
-    world.request_redraw_annotations(BBOX_NAME, vis);
-}
+tools_data_accessors!(
+    ACTOR_NAME,
+    MISSING_DATA_MSG,
+    bbox_data,
+    BboxSpecificData,
+    bbox,
+    bbox_mut
+);
 
 pub(super) fn paste(mut world: World, mut history: History) -> (World, History) {
     let clipboard = get_specific(&world).and_then(|d| d.clipboard.clone());

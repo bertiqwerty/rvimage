@@ -14,6 +14,7 @@ use crate::{
     tools::core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
     tools_data::{self, annotations::InstanceAnnotations, brush_data, LabelInfo, ToolsData},
     tools_data::{annotations::BrushAnnotations, brush_mut, vis_from_lfoption},
+    tools_data_accessors,
     util::Visibility,
     world::World,
     Line,
@@ -27,49 +28,18 @@ use super::{
 pub const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
 const MISSING_DATA_MSG: &str = "brush data not available";
-
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
 annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
+tools_data_accessors!(
+    ACTOR_NAME,
+    MISSING_DATA_MSG,
+    brush_data,
+    BrushToolData,
+    brush,
+    brush_mut
+);
 
 const MAX_SELECT_DIST: f64 = 50.0;
-
-fn get_data(world: &World) -> RvResult<&ToolsData> {
-    tools_data::get(world, ACTOR_NAME, MISSING_DATA_MSG)
-}
-
-fn get_specific(world: &World) -> Option<&brush_data::BrushToolData> {
-    tools_data::get_specific(tools_data::brush, get_data(world))
-}
-fn get_options(world: &World) -> Option<brush_data::Options> {
-    get_specific(world).map(|d| d.options)
-}
-
-fn get_data_mut(world: &mut World) -> RvResult<&mut ToolsData> {
-    tools_data::get_mut(world, ACTOR_NAME, MISSING_DATA_MSG)
-}
-fn get_specific_mut(world: &mut World) -> Option<&mut brush_data::BrushToolData> {
-    tools_data::get_specific_mut(tools_data::brush_mut, get_data_mut(world))
-}
-fn get_options_mut(world: &mut World) -> Option<&mut brush_data::Options> {
-    get_specific_mut(world).map(|d| &mut d.options)
-}
-
-fn get_label_info(world: &World) -> Option<&LabelInfo> {
-    get_specific(world).map(|d| &d.label_info)
-}
-
-fn get_visibile(world: &World) -> Visibility {
-    let visible = get_options(world).map(|o| o.core_options.visible) == Some(true);
-    vis_from_lfoption(get_label_info(world), visible)
-}
-fn set_visible(world: &mut World) {
-    let options_mut = get_options_mut(world);
-    if let Some(options_mut) = options_mut {
-        options_mut.core_options.visible = true;
-    }
-    let vis = get_visibile(world);
-    world.request_redraw_annotations(BRUSH_NAME, vis)
-}
 
 fn find_closest_brushline(annos: &InstanceAnnotations<BrushLine>, p: PtF) -> Option<(usize, f64)> {
     annos
@@ -309,7 +279,7 @@ impl Brush {
                 if let Some(options_mut) = get_options_mut(&mut world) {
                     options_mut.core_options.visible = !options_mut.core_options.visible;
                 }
-                let vis = get_visibile(&world);
+                let vis = get_visible(&world);
                 world.request_redraw_annotations(BRUSH_NAME, vis);
             }
             ReleasedKey::E => {

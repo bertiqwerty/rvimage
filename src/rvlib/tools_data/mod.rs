@@ -82,6 +82,49 @@ pub fn get_specific_mut<T>(
     trace_ok(data.map(|d| &mut d.specifics).and_then(f_data_access))
 }
 
+#[macro_export]
+macro_rules! tools_data_accessors {
+    ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
+        pub(super) fn get_data(world: &World) -> RvResult<&ToolsData> {
+            tools_data::get(world, $actor_name, $missing_data_msg)
+        }
+
+        pub(super) fn get_specific(world: &World) -> Option<&$data_module::$data_type> {
+            tools_data::get_specific(tools_data::$data_func, get_data(world))
+        }
+        pub(super) fn get_options(world: &World) -> Option<$data_module::Options> {
+            get_specific(world).map(|d| d.options)
+        }
+
+        pub(super) fn get_data_mut(world: &mut World) -> RvResult<&mut ToolsData> {
+            tools_data::get_mut(world, $actor_name, $missing_data_msg)
+        }
+        pub(super) fn get_specific_mut(world: &mut World) -> Option<&mut $data_module::$data_type> {
+            tools_data::get_specific_mut(tools_data::$data_func_mut, get_data_mut(world))
+        }
+        pub(super) fn get_options_mut(world: &mut World) -> Option<&mut $data_module::Options> {
+            get_specific_mut(world).map(|d| &mut d.options)
+        }
+
+        pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
+            get_specific(world).map(|d| &d.label_info)
+        }
+
+        pub(super) fn get_visible(world: &World) -> Visibility {
+            let visible = get_options(world).map(|o| o.core_options.visible) == Some(true);
+            vis_from_lfoption(get_label_info(world), visible)
+        }
+        pub(super) fn set_visible(world: &mut World) {
+            let options_mut = get_options_mut(world);
+            if let Some(options_mut) = options_mut {
+                options_mut.core_options.visible = true;
+            }
+            let vis = get_visible(world);
+            world.request_redraw_annotations($actor_name, vis)
+        }
+    };
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum ToolSpecifics {
