@@ -249,11 +249,6 @@ pub(super) fn on_mouse_released_left(
         close_box_or_poly: close,
     } = params;
 
-    // mouse-held might have added 1 point but since one
-    // point is not a real drag, we don't accept this
-    if prev_pos.prev_pos.len() == 1 {
-        prev_pos.prev_pos = vec![];
-    }
     if close {
         let in_menu_selected_label = current_cat_idx(&world);
         if let Some(in_menu_selected_label) = in_menu_selected_label {
