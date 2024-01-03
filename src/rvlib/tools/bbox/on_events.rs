@@ -556,7 +556,7 @@ fn test_data() -> (Option<PtF>, World, History) {
         im_test,
         HashMap::new(),
         Some("superimage.png".to_string()),
-        None,
+        Some(0),
     );
     world.data.meta_data.is_loading_screen_active = Some(false);
     get_specific_mut(&mut world)
