@@ -108,7 +108,7 @@ impl ToolSelectMenu {
             recently_activated_tool: None,
         }
     }
-    pub fn recently_activated_tool(&self) -> Option<usize> {
+    pub fn recently_clicked_tool(&self) -> Option<usize> {
         self.recently_activated_tool
     }
     pub fn ui(

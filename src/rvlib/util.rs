@@ -60,6 +60,8 @@ pub fn version_label() -> String {
         format!("Version {VERSION}")
     }
 }
+
+#[derive(Clone, Copy, Debug)]
 pub enum Visibility {
     All,
     None,

@@ -6,7 +6,7 @@ mod rot90;
 mod zoom;
 
 use crate::{
-    history::History,
+    history::{History, Record},
     tools_data::{BboxSpecificData, BrushToolData},
     world::World,
 };
@@ -18,6 +18,7 @@ pub use bbox::Bbox;
 pub use brush::Brush;
 pub use rot90::Rot90;
 use std::fmt::Debug;
+use tracing::info;
 pub use zoom::Zoom;
 pub const BBOX_NAME: &str = bbox::ACTOR_NAME;
 pub const BRUSH_NAME: &str = brush::ACTOR_NAME;
@@ -105,22 +106,25 @@ pub struct ToolState {
 }
 impl ToolState {
     pub fn activate(&mut self, mut world: World, mut history: History) -> (World, History) {
+        info!("activate {}", self.name);
         self.is_active = true;
-        (world, history) = apply_tool_method_mut!(self, on_activate, world, history);
+        world = apply_tool_method_mut!(self, on_activate, world);
+        history.push(Record::new(world.clone(), self.name));
         (world, history)
     }
     pub fn file_changed(&mut self, mut world: World, mut history: History) -> (World, History) {
         (world, history) = apply_tool_method_mut!(self, on_filechange, world, history);
         (world, history)
     }
-    pub fn deactivate(&mut self, mut world: World, mut history: History) -> (World, History) {
+    pub fn deactivate(&mut self, mut world: World) -> World {
         if self.is_active {
-            (world, history) = apply_tool_method_mut!(self, on_deactivate, world, history);
+            info!("deactivate {}", self.name);
+            world = apply_tool_method_mut!(self, on_deactivate, world);
         }
         if !self.is_always_active {
             self.is_active = false;
         }
-        (world, history)
+        world
     }
     pub fn is_active(&self) -> bool {
         self.is_active

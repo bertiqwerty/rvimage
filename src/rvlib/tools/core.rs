@@ -267,11 +267,11 @@ pub trait Manipulate {
     where
         Self: Sized;
 
-    fn on_activate(&mut self, world: World, history: History) -> (World, History) {
-        (world, history)
+    fn on_activate(&mut self, world: World) -> World {
+        world
     }
-    fn on_deactivate(&mut self, world: World, history: History) -> (World, History) {
-        (world, history)
+    fn on_deactivate(&mut self, world: World) -> World {
+        world
     }
     fn on_filechange(&mut self, world: World, history: History) -> (World, History) {
         (world, history)

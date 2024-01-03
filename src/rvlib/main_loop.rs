@@ -117,7 +117,7 @@ pub struct MainEventLoop {
     ctrl: Control,
     history: History,
     tools: Vec<ToolState>,
-    recently_activated_tool_idx: Option<usize>,
+    recently_clicked_tool_idx: Option<usize>,
     rx_from_http: Option<Receiver<RvResult<String>>>,
     http_addr: String,
     loop_counter: u128,
@@ -163,7 +163,7 @@ impl Default for MainEventLoop {
             tools_select_menu: ToolSelectMenu::default(),
             menu: Menu::default(),
             history: History::default(),
-            recently_activated_tool_idx: None,
+            recently_clicked_tool_idx: None,
             rx_from_http,
             loop_counter: 0,
         }
@@ -179,8 +179,7 @@ impl MainEventLoop {
         );
         if project_loaded {
             for t in &mut self.tools {
-                (self.world, self.history) =
-                    t.deactivate(mem::take(&mut self.world), mem::take(&mut self.history));
+                self.world = t.deactivate(mem::take(&mut self.world));
             }
         }
         egui::SidePanel::right("my_panel")
@@ -197,61 +196,58 @@ impl MainEventLoop {
             .inner?;
 
         // tool activation
-        if self.recently_activated_tool_idx.is_none() {
-            self.recently_activated_tool_idx = self.tools_select_menu.recently_activated_tool();
+        if self.recently_clicked_tool_idx.is_none() {
+            self.recently_clicked_tool_idx = self.tools_select_menu.recently_clicked_tool();
         }
         if let (Some(idx_active), Some(_)) = (
-            self.recently_activated_tool_idx,
+            self.recently_clicked_tool_idx,
             &self.world.data.meta_data.file_path,
         ) {
             if !self.ctrl.flags().is_loading_screen_active {
+                // first deactivate, then activate
                 for (i, t) in self.tools.iter_mut().enumerate() {
-                    if i == idx_active {
-                        (self.world, self.history) =
-                            t.activate(mem::take(&mut self.world), mem::take(&mut self.history));
-                        info!("activate {}", t.name);
-                        self.history.push(Record::new(self.world.clone(), t.name));
-                    } else {
+                    if i != idx_active && t.is_active() && !t.is_always_active() {
                         let meta_data = self.ctrl.meta_data(
                             self.ctrl.file_selected_idx,
                             Some(self.ctrl.flags().is_loading_screen_active),
                         );
                         self.world.data.meta_data = meta_data;
-                        (self.world, self.history) =
-                            t.deactivate(mem::take(&mut self.world), mem::take(&mut self.history));
+                        self.world = t.deactivate(mem::take(&mut self.world));
                     }
                 }
-                self.recently_activated_tool_idx = None;
+                for (i, t) in self.tools.iter_mut().enumerate() {
+                    if i == idx_active {
+                        (self.world, self.history) =
+                            t.activate(mem::take(&mut self.world), mem::take(&mut self.history));
+                    }
+                }
+                self.recently_clicked_tool_idx = None;
             }
         }
 
         if e.held_alt() && e.pressed(KeyCode::Q) {
             info!("deactivate all tools");
+            let was_any_tool_active = self.tools.iter().any(|t| t.is_active() && !t.is_always_active());
             for t in self.tools.iter_mut() {
-                let meta_data = self.ctrl.meta_data(
-                    self.ctrl.file_selected_idx,
-                    Some(self.ctrl.flags().is_loading_screen_active),
-                );
-                self.world.data.meta_data = meta_data;
-                (self.world, self.history) =
-                    t.deactivate(mem::take(&mut self.world), mem::take(&mut self.history));
+                if !t.is_always_active() && t.is_active() {
+                    let meta_data = self.ctrl.meta_data(
+                        self.ctrl.file_selected_idx,
+                        Some(self.ctrl.flags().is_loading_screen_active),
+                    );
+                    self.world.data.meta_data = meta_data;
+                    self.world = t.deactivate(mem::take(&mut self.world));
+                }
+            }
+            if was_any_tool_active {
+                self.history.push(Record::new(
+                    self.world.clone(),
+                    "deactivation of all tools",
+                ));
             }
         }
         // tool activation keyboard shortcuts
-        activate_tool_event!(
-            B,
-            BBOX_NAME,
-            e,
-            self.recently_activated_tool_idx,
-            self.tools
-        );
-        activate_tool_event!(
-            Z,
-            ZOOM_NAME,
-            e,
-            self.recently_activated_tool_idx,
-            self.tools
-        );
+        activate_tool_event!(B, BBOX_NAME, e, self.recently_clicked_tool_idx, self.tools);
+        activate_tool_event!(Z, ZOOM_NAME, e, self.recently_clicked_tool_idx, self.tools);
 
         if e.held_ctrl() && e.pressed(KeyCode::S) {
             if let Err(e) = self.ctrl.save(&self.world.data.tools_data_map) {

@@ -316,19 +316,19 @@ impl Manipulate for Brush {
         set_visible(&mut world);
         (world, history)
     }
-    fn on_activate(&mut self, mut world: World, history: History) -> (World, History) {
+    fn on_activate(&mut self, mut world: World) -> World {
         if let Some(data) = trace_ok(get_data_mut(&mut world)) {
             data.menu_active = true;
         }
         set_visible(&mut world);
-        (world, history)
+        world
     }
-    fn on_deactivate(&mut self, mut world: World, history: History) -> (World, History) {
+    fn on_deactivate(&mut self, mut world: World) -> World {
         if let Some(td) = world.data.tools_data_map.get_mut(BRUSH_NAME) {
             td.menu_active = false;
         }
         world.request_redraw_annotations(BRUSH_NAME, Visibility::None);
-        (world, history)
+        world
     }
 
     fn events_tf(
