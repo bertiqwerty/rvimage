@@ -271,31 +271,41 @@ impl Brush {
         history: History,
     ) -> (World, History) {
         let held_key = map_held_key(events);
-        let intensity_step = MAX_INTENSITY / 20.0;
-        let thickness_step = MAX_THICKNESS / 20.0;
-        let round_2 = |x: TPtF| (x * 100.0).round() / 100.0;
+        const INTENSITY_STEP: f64 = MAX_INTENSITY / 20.0;
+        const THICKNESS_STEP: f64 = MAX_THICKNESS / 20.0;
+        let snap_to_step = |x: TPtF, step: TPtF| {
+            if x < 2.0 * step {
+                (x.div_euclid(step)) * step
+            } else {
+                x
+            }
+        };
         match held_key {
             HeldKey::I if events.held_alt() => {
                 if let Some(o) = get_options_mut(&mut world) {
-                    o.intensity = round_2(MIN_INTENSITY.max(o.intensity - intensity_step));
+                    o.intensity = MIN_INTENSITY
+                        .max(snap_to_step(o.intensity - INTENSITY_STEP, INTENSITY_STEP));
                     o.is_selection_change_needed = true;
                 }
             }
             HeldKey::I => {
                 if let Some(o) = get_options_mut(&mut world) {
-                    o.intensity = round_2(MAX_INTENSITY.min(o.intensity + intensity_step));
+                    o.intensity = MAX_INTENSITY
+                        .min(snap_to_step(o.intensity + INTENSITY_STEP, INTENSITY_STEP));
                     o.is_selection_change_needed = true;
                 }
             }
             HeldKey::T if events.held_alt() => {
                 if let Some(o) = get_options_mut(&mut world) {
-                    o.thickness = round_2(MIN_THICKNESS.max(o.thickness - thickness_step));
+                    o.thickness = MIN_THICKNESS
+                        .max(snap_to_step(o.thickness - THICKNESS_STEP, THICKNESS_STEP));
                     o.is_selection_change_needed = true;
                 }
             }
             HeldKey::T => {
                 if let Some(o) = get_options_mut(&mut world) {
-                    o.thickness = round_2(MAX_THICKNESS.min(o.thickness + thickness_step));
+                    o.thickness = MAX_THICKNESS
+                        .min(snap_to_step(o.thickness + THICKNESS_STEP, THICKNESS_STEP));
                     o.is_selection_change_needed = true;
                 }
             }
