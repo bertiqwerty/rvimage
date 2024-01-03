@@ -130,7 +130,7 @@ There two main ways to draw a polygon or a box:
 
 | event                                                                                | action                                                                                   |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| drag and release left mouse                                                                      | draw polygon                                                                             |
+| drag and release left mouse                                                          | draw polygon                                                                             |
 | first left click                                                                     | start drawing mode                                                                       |
 | $n$-th left click with $n>1$                                                         | add polygon vertex                                                                       |
 | right click                                                                          | finish drawing box or polygon                                                            |
@@ -165,6 +165,8 @@ There two main ways to draw a polygon or a box:
 | <kbd>Ctrl</kbd> + <kbd>C</kbd>/<kbd>V</kbd>/<kbd>A</kbd>/<kbd>H</kbd>/<kbd>D</kbd> | see bounding box tool                                           |
 | <kbd>Delete</kbd>                                                                  | delete selected strokes                                         |
 | change label                                                                       | labels of selected strokes are changed                          |
+| <kbd>T</kbd>/<kbd>I</kbd>                                                          | increase thickness/intensity                                    |
+| <kbd>Alt</kbd> + <kbd>T</kbd>/<kbd>I</kbd>                                         | decrease thickness/intensity                                    |
 
 
 ---
