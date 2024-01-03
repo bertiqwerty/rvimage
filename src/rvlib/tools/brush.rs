@@ -5,7 +5,7 @@ use tracing::{error, info};
 
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{render_brushlines, BrushLine, PtF, RenderTargetOrShape},
+    domain::{render_brushlines, BrushLine, PtF, RenderTargetOrShape, TPtF},
     events::{Events, KeyCode},
     file_util::osstr_to_str,
     history::{History, Record},
@@ -17,7 +17,7 @@ use crate::{
     tools_data_accessors,
     util::Visibility,
     world::World,
-    Line,
+    Line, ShapeI,
 };
 
 use super::{
@@ -39,7 +39,9 @@ tools_data_accessors!(
     brush_mut
 );
 
-const MAX_SELECT_DIST: f64 = 50.0;
+fn max_select_dist(shape: ShapeI, thickness: TPtF) -> TPtF {
+    (TPtF::from(shape.w.pow(2) + shape.h.pow(2)).sqrt() / 100.0).max(50.0) + thickness
+}
 
 fn find_closest_brushline(annos: &InstanceAnnotations<BrushLine>, p: PtF) -> Option<(usize, f64)> {
     annos
@@ -160,6 +162,7 @@ impl Brush {
             let options = get_options(&world);
             let label_info = get_label_info(&world);
             let cat_idx = label_info.map(|li| li.cat_idx_current);
+            let shape_orig = world.shape_orig();
             if let (Some(mp), Some(annos), Some(options), Some(cat_idx)) = (
                 events.mouse_pos_on_orig,
                 get_annos_mut(&mut world),
@@ -170,7 +173,8 @@ impl Brush {
                 if erase {
                     let to_be_removed_line_idx = find_closest_brushline(annos, mp);
                     if let Some((idx, dist)) = to_be_removed_line_idx {
-                        if dist < MAX_SELECT_DIST {
+                        let thickness = annos.elts()[idx].thickness;
+                        if dist < max_select_dist(shape_orig, thickness) {
                             annos.remove(idx);
                         }
                     }
@@ -224,11 +228,12 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if events.held_ctrl() {
+            let shape_orig = world.shape_orig();
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 let to_be_selected_line_idx = find_closest_brushline(annos, mp);
                 if let Some((idx, dist)) = to_be_selected_line_idx {
                     let thickness = annos.elts()[idx].thickness;
-                    if dist < MAX_SELECT_DIST + thickness {
+                    if dist < max_select_dist(shape_orig, thickness) {
                         if annos.selected_mask()[idx] {
                             annos.deselect(idx);
                         } else {
