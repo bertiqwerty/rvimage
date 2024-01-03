@@ -317,11 +317,10 @@ impl Manipulate for Brush {
         (world, history)
     }
     fn on_activate(&mut self, mut world: World, history: History) -> (World, History) {
-        let vis = vis_from_lfoption(get_label_info(&world), true);
         if let Some(data) = trace_ok(get_data_mut(&mut world)) {
             data.menu_active = true;
-            world.request_redraw_annotations(BRUSH_NAME, vis);
         }
+        set_visible(&mut world);
         (world, history)
     }
     fn on_deactivate(&mut self, mut world: World, history: History) -> (World, History) {
