@@ -313,45 +313,48 @@ impl RvImageApp {
                 let max_instensity = 1.0;
                 let intensity_span = max_instensity - min_instensity;
                 let viz_intensity = anno.brush_line.intensity * intensity_span + min_instensity;
-                let selected_addon = if anno.is_selected == Some(true) {
-                    2.0
-                } else {
-                    0.0
-                };
                 let color = rgb_2_clr(
                     Some(color_with_intensity(Rgb(anno.color), viz_intensity).0),
                     255,
                 );
 
-                let egui_rect_points = anno
-                    .brush_line
-                    .line
-                    .points_iter()
-                    .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
-                    .collect::<Vec<_>>();
-
-                let stroke = Stroke::new(thickness as f32 + selected_addon, color);
-                let start_circle = egui_rect_points
-                    .first()
-                    .map(|p| Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color)));
-                let end_circle = egui_rect_points
-                    .last()
-                    .map(|p| Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color)));
-                let end_circle = if egui_rect_points.len() > 1 {
-                    end_circle
-                } else {
-                    None
+                let make_shape_vec = |thickness, color| {
+                    let egui_rect_points = anno
+                        .brush_line
+                        .line
+                        .points_iter()
+                        .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
+                        .collect::<Vec<_>>();
+                    let stroke = Stroke::new(thickness as f32, color);
+                    let start_circle = egui_rect_points.first().map(|p| {
+                        Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color))
+                    });
+                    let end_circle = egui_rect_points.last().map(|p| {
+                        Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color))
+                    });
+                    let end_circle = if egui_rect_points.len() > 1 {
+                        end_circle
+                    } else {
+                        None
+                    };
+                    let line = if egui_rect_points.len() > 2 {
+                        Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
+                    } else {
+                        None
+                    };
+                    [start_circle, line, end_circle]
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>()
                 };
-                let line = if egui_rect_points.len() > 2 {
-                    Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
+                let mut shape_vec = make_shape_vec(thickness, color);
+                let mut selected_shape_vec = if anno.is_selected == Some(true) {
+                    make_shape_vec(thickness + 5.0, rgb_2_clr(Some([0, 0, 0]), 255))
                 } else {
-                    None
+                    vec![]
                 };
-                let shape_vec = [start_circle, line, end_circle]
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<_>>();
-                Some(Shape::Vec(shape_vec))
+                selected_shape_vec.append(&mut shape_vec);
+                Some(Shape::Vec(selected_shape_vec))
             });
         let bbox_annos = self
             .annos
