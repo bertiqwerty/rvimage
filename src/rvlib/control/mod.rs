@@ -400,23 +400,22 @@ impl Control {
     fn make_folder_label(&self) -> Option<String> {
         self.paths_navigator.folder_label().map(|s| s.to_string())
     }
-    pub fn redo(&mut self, history: &mut History) -> Option<(DataRaw, Option<usize>)> {
+    pub fn redo(&mut self, history: &mut History) -> Option<(World, Option<usize>)> {
         self.flags.undo_redo_load = true;
         history.next_world(&self.make_folder_label())
     }
-    pub fn undo(&mut self, history: &mut History) -> Option<(DataRaw, Option<usize>)> {
+    pub fn undo(&mut self, history: &mut History) -> Option<(World, Option<usize>)> {
         self.flags.undo_redo_load = true;
         history.prev_world(&self.make_folder_label())
     }
 
     pub fn load_new_image_if_triggered(
         &mut self,
-        world: &mut World,
-        history: &mut History,
-    ) -> RvResult<Option<(DataRaw, Option<usize>)>> {
+        world: &World,
+        history:  &mut History,
+    ) -> RvResult<Option<(World, Option<usize>)>> {
         let menu_file_selected = self.paths_navigator.file_label_selected_idx();
-
-        let ims_raw_idx_pair = if self.file_selected_idx != menu_file_selected
+        let world_idx_pair = if self.file_selected_idx != menu_file_selected
             || self.flags.is_loading_screen_active
         {
             // load new image
@@ -427,15 +426,22 @@ impl Control {
                 let im_read = self.read_image(*selected, self.flags.reload_cached_images)?;
                 let read_image_and_idx = match (file_path, im_read) {
                     (Some(fp), Some(ri)) => {
+                        info!("loading {} from {}", ri.info, fp);
                         self.file_info_selected = Some(ri.info);
                         let ims_raw = DataRaw::new(
                             ri.im,
                             MetaData::from_filepath(fp),
                             world.data.tools_data_map.clone(),
                         );
+                        let zoom_box = if ims_raw.shape() == world.data.shape() {
+                            *world.zoom_box()
+                        } else {
+                            None
+                        };
+                        let new_world = World::new(ims_raw, zoom_box);
                         if !self.flags.undo_redo_load {
                             history.push(Record {
-                                data: ims_raw.clone(),
+                                world: world.clone(),
                                 actor: LOAD_ACTOR_NAME,
                                 file_label_idx: self.file_selected_idx,
                                 folder_label,
@@ -444,19 +450,19 @@ impl Control {
                         self.flags.undo_redo_load = false;
                         self.file_selected_idx = menu_file_selected;
                         self.flags.is_loading_screen_active = false;
-                        (ims_raw, self.file_selected_idx)
+                        (new_world, self.file_selected_idx)
                     }
                     _ => {
-                        thread::sleep(Duration::from_millis(20));
+                        thread::sleep(Duration::from_millis(2));
                         let shape = world.shape_orig();
                         self.file_selected_idx = menu_file_selected;
                         self.flags.is_loading_screen_active = true;
                         (
-                            DataRaw::new(
+                            World::new(DataRaw::new(
                                 detail::loading_image(shape, self.loading_screen_animation_counter),
                                 MetaData::default(),
                                 world.data.tools_data_map.clone(),
-                            ),
+                            ), None),
                             self.file_selected_idx,
                         )
                     }
@@ -473,7 +479,7 @@ impl Control {
         if self.loading_screen_animation_counter == u128::MAX {
             self.loading_screen_animation_counter = 0;
         }
-        Ok(ims_raw_idx_pair)
+        Ok(world_idx_pair)
     }
 }
 

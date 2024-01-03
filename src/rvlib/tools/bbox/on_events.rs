@@ -100,7 +100,7 @@ fn close_polygon(
     let annos = get_annos_mut(&mut world);
     if let Some(annos) = annos {
         annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
-        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        history.push(Record::new(world.clone(), ACTOR_NAME));
         prev_pos.prev_pos = vec![];
         let vis = vis_from_lfoption(get_label_info(&world), visible);
         world.request_redraw_annotations(BBOX_NAME, vis);
@@ -130,7 +130,7 @@ pub(super) fn on_mouse_held_right(
     };
     params.mover.move_mouse_held(move_boxes, mouse_pos);
     if add_to_history {
-        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        history.push(Record::new(world.clone(), ACTOR_NAME));
     }
     let visible = are_boxes_visible(&world);
     let vis = vis_from_lfoption(get_label_info(&world), visible);
@@ -187,7 +187,7 @@ pub(super) fn on_mouse_released_right(
                     let annos = get_annos_mut(&mut world);
                     if let Some(annos) = annos {
                         annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label);
-                        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                        history.push(Record::new(world.clone(), ACTOR_NAME));
                         prev_pos.prev_pos = vec![];
                         let vis = vis_from_lfoption(get_label_info(&world), visible);
                         world.request_redraw_annotations(BBOX_NAME, vis);
@@ -436,7 +436,7 @@ pub(super) fn on_mouse_released_left(
                                         annos.add_bb(bb2, selected);
                                     }
                                 }
-                                history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                                history.push(Record::new(world.clone(), ACTOR_NAME));
                                 prev_pos.prev_pos = vec![];
                                 let vis = vis_from_lfoption(get_label_info(&world), visible);
                                 world.request_redraw_annotations(BBOX_NAME, vis);
@@ -538,14 +538,14 @@ pub(super) fn on_key_released(
                                 are_boxes_visible(&world),
                             );
                             world.request_redraw_annotations(BBOX_NAME, vis);
-                            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+                            history.push(Record::new(world.clone(), ACTOR_NAME));
                         }
                     }
                 }
             }
         }
         ReleasedKey::Up | ReleasedKey::Down | ReleasedKey::Left | ReleasedKey::Right => {
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+            history.push(Record::new(world.clone(), ACTOR_NAME));
         }
         _ => (),
     }

@@ -47,7 +47,7 @@ pub(super) fn check_trigger_history_update(
         if let Some(core_options_mut) = core_options_mut {
             core_options_mut.is_history_update_triggered = false;
         }
-        history.push(Record::new(world.data.clone(), name));
+        history.push(Record::new(world.clone(), name));
     }
     (world, history)
 }
@@ -173,7 +173,7 @@ where
     }
     let visibility = vis_from_lfoption(get_label_info(&mut world), true);
     world.request_redraw_annotations(actor, visibility);
-    history.push(Record::new(world.data.clone(), actor));
+    history.push(Record::new(world.clone(), actor));
 
     (world, history)
 }
@@ -253,7 +253,7 @@ where
                     annos.remove_selected();
                     let vis = vis_from_lfoption(get_label_info(&world), true);
                     world.request_redraw_annotations(actor, vis);
-                    history.push(Record::new(world.data.clone(), actor));
+                    history.push(Record::new(world.clone(), actor));
                 }
             }
         }

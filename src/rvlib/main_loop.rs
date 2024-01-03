@@ -298,7 +298,7 @@ impl MainEventLoop {
         }
 
         // load new image if requested by a menu click or by the http server
-        let ims_raw_idx_pair = if e.held_ctrl() && e.pressed(KeyCode::Z) {
+        let world_idx_pair = if e.held_ctrl() && e.pressed(KeyCode::Z) {
             info!("undo");
             self.ctrl.undo(&mut self.history)
         } else if e.held_ctrl() && e.pressed(KeyCode::Y) {
@@ -307,7 +307,7 @@ impl MainEventLoop {
         } else {
             match self
                 .ctrl
-                .load_new_image_if_triggered(&mut self.world, &mut self.history)
+                .load_new_image_if_triggered(&self.world, &mut self.history)
             {
                 Ok(iip) => iip,
                 Err(e) => {
@@ -317,13 +317,8 @@ impl MainEventLoop {
             }
         };
 
-        if let Some((ims_raw, file_label_idx)) = ims_raw_idx_pair {
-            let zoom_box = if ims_raw.shape() == self.world.data.shape() {
-                *self.world.zoom_box()
-            } else {
-                None
-            };
-            self.world = World::new(ims_raw, zoom_box);
+        if let Some((world, file_label_idx)) = world_idx_pair {
+            self.world = world;
             if let Some(active_tool_name) = find_active_tool(&self.tools) {
                 self.world
                     .request_redraw_annotations(active_tool_name, Visibility::All);

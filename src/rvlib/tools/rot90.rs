@@ -38,7 +38,7 @@ impl Rot90 {
         if let Some(anno) = get_annos_mut(&mut world) {
             *anno = anno.increase();
         }
-        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        history.push(Record::new(world.clone(), ACTOR_NAME));
         (world, history)
     }
 }

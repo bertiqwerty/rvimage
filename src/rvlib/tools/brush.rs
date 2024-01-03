@@ -268,7 +268,7 @@ impl Brush {
         } else if !(events.held_alt() || events.held_shift()) {
             // neither shift nor alt nor ctrl were held => a brushline has been finished
             // or a brush line has been deleted.
-            history.push(Record::new(world.data.clone(), ACTOR_NAME));
+            history.push(Record::new(world.clone(), ACTOR_NAME));
         }
         (world, history)
     }

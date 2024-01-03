@@ -82,7 +82,7 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
         specific_mut.options.core_options.visible = are_boxes_visible;
         let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
         world.request_redraw_annotations(BBOX_NAME, vis);
-        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        history.push(Record::new(world.clone(), ACTOR_NAME));
     }
 
     (world, history)
@@ -255,7 +255,7 @@ impl Bbox {
                 history,
             );
         } else {
-            history.push(Record::new(world.data.clone(), ACTOR_NAME))
+            history.push(Record::new(world.clone(), ACTOR_NAME))
         }
         (world, history)
     }
@@ -334,7 +334,7 @@ impl Manipulate for Bbox {
         if let Some(data) = trace_ok(get_data_mut(&mut world)) {
             data.menu_active = true;
         }
-        history.push(Record::new(world.data.clone(), ACTOR_NAME));
+        history.push(Record::new(world.clone(), ACTOR_NAME));
         let vis = vis_from_lfoption(get_label_info(&world), true);
         world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)
