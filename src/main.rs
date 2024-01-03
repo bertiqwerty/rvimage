@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use std::{cell::RefCell, io, panic, time::Instant};
+use std::{cell::RefCell, io, iter, panic, time::Instant};
 
 use backtrace::Backtrace;
 use egui::{
@@ -289,7 +289,19 @@ impl RvImageApp {
             .annos
             .iter()
             .flat_map(|anno| match anno {
-                Annotation::Brush(brush) => Some(brush),
+                Annotation::Brush(brush) => {
+                    // hide out of zoombox brushlines
+                    if brush
+                        .brush_line
+                        .line
+                        .points_iter()
+                        .any(|p| self.zoom_box.map(|zb| zb.contains(p)) != Some(false))
+                    {
+                        Some(brush)
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             })
             .flat_map(|anno| {
@@ -310,50 +322,54 @@ impl RvImageApp {
                     255,
                 );
 
-                if anno
+                let egui_rect_points = anno
                     .brush_line
                     .line
                     .points_iter()
-                    .any(|p| self.zoom_box.map(|zb| zb.contains(p)) != Some(false))
-                {
-                    let egui_rect_points = anno
-                        .brush_line
-                        .line
-                        .points_iter()
-                        .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
-                        .collect::<Vec<_>>();
+                    .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
+                    .collect::<Vec<_>>();
 
-                    let stroke = Stroke::new(thickness as f32 + selected_addon, color);
-                    let start_circle = egui_rect_points.first().map(|p| {
-                        Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color))
-                    });
-                    let end_circle = egui_rect_points.last().map(|p| {
-                        Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color))
-                    });
-                    let end_circle = if egui_rect_points.len() > 1 {
-                        end_circle
-                    } else {
-                        None
-                    };
-                    let line = if egui_rect_points.len() > 2 {
-                        Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
-                    } else {
-                        None
-                    };
-                    let shape_vec = [start_circle, line, end_circle]
-                        .into_iter()
-                        .flatten()
-                        .collect::<Vec<_>>();
-                    Some(Shape::Vec(shape_vec))
+                let stroke = Stroke::new(thickness as f32 + selected_addon, color);
+                let start_circle = egui_rect_points
+                    .first()
+                    .map(|p| Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color)));
+                let end_circle = egui_rect_points
+                    .last()
+                    .map(|p| Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color)));
+                let end_circle = if egui_rect_points.len() > 1 {
+                    end_circle
                 } else {
                     None
-                }
+                };
+                let line = if egui_rect_points.len() > 2 {
+                    Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
+                } else {
+                    None
+                };
+                let shape_vec = [start_circle, line, end_circle]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>();
+                Some(Shape::Vec(shape_vec))
             });
         let bbox_annos = self
             .annos
             .iter()
             .flat_map(|anno| match anno {
-                Annotation::Bbox(bbox) => Some(bbox),
+                Annotation::Bbox(bbox) => {
+                    // hide out of zoombox geos
+                    if self.zoom_box.map(|zb| {
+                        (0..3)
+                            .map(|corner_idx| bbox.geofig.enclosing_bb().corner(corner_idx))
+                            .chain(iter::once(bbox.geofig.enclosing_bb().center_f().into()))
+                            .any(|p| zb.contains(p))
+                    }) != Some(false)
+                    {
+                        Some(bbox)
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             })
             .map(|anno| {
