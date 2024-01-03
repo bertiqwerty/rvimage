@@ -58,16 +58,17 @@ fn get_label_info(world: &World) -> Option<&LabelInfo> {
     get_specific(world).map(|d| &d.label_info)
 }
 
-fn brushlines_visibility(world: &World) -> Visibility {
+fn get_visibile(world: &World) -> Visibility {
     let visible = get_options(world).map(|o| o.core_options.visible) == Some(true);
     vis_from_lfoption(get_label_info(world), visible)
 }
-fn set_visible(world: &mut World) -> Visibility {
+fn set_visible(world: &mut World) {
     let options_mut = get_options_mut(world);
     if let Some(options_mut) = options_mut {
         options_mut.core_options.visible = true;
     }
-    brushlines_visibility(&world)
+    let vis = get_visibile(world);
+    world.request_redraw_annotations(BRUSH_NAME, vis)
 }
 
 fn find_closest_brushline(annos: &InstanceAnnotations<BrushLine>, p: PtF) -> Option<(usize, f64)> {
@@ -186,7 +187,7 @@ impl Brush {
             world = deselect_all(world, BRUSH_NAME, get_annos_mut, get_label_info);
         }
         if !events.held_ctrl() {
-            let vis = set_visible(&mut world);
+            set_visible(&mut world);
             let options = get_options(&world);
             let label_info = get_label_info(&world);
             let cat_idx = label_info.map(|li| li.cat_idx_current);
@@ -202,7 +203,6 @@ impl Brush {
                     if let Some((idx, dist)) = to_be_removed_line_idx {
                         if dist < MAX_SELECT_DIST {
                             annos.remove(idx);
-                            world.request_redraw_annotations(BRUSH_NAME, vis)
                         }
                     }
                 } else {
@@ -227,7 +227,7 @@ impl Brush {
     ) -> (World, History) {
         if !events.held_ctrl() {
             let erase = get_options(&world).map(|o| o.erase);
-            let vis = set_visible(&mut world);
+            set_visible(&mut world);
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 if erase != Some(true) {
                     if let Some(line) = annos.last_line_mut() {
@@ -241,7 +241,6 @@ impl Brush {
                             line.push(mp);
                         }
                     }
-                    world.request_redraw_annotations(BRUSH_NAME, vis)
                 }
             }
         }
@@ -255,7 +254,7 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if events.held_ctrl() {
-            let vis = set_visible(&mut world);
+            set_visible(&mut world);
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 let to_be_selected_line_idx = find_closest_brushline(annos, mp);
                 if let Some((idx, dist)) = to_be_selected_line_idx {
@@ -266,7 +265,6 @@ impl Brush {
                         } else {
                             annos.select(idx);
                         }
-                        world.request_redraw_annotations(BRUSH_NAME, vis)
                     } else {
                         world = deselect_all(world, BRUSH_NAME, get_annos_mut, get_label_info);
                     }
@@ -311,7 +309,7 @@ impl Brush {
                 if let Some(options_mut) = get_options_mut(&mut world) {
                     options_mut.core_options.visible = !options_mut.core_options.visible;
                 }
-                let vis = brushlines_visibility(&world);
+                let vis = get_visibile(&world);
                 world.request_redraw_annotations(BRUSH_NAME, vis);
             }
             ReleasedKey::E => {
@@ -345,8 +343,7 @@ impl Manipulate for Brush {
                 anno.deselect_all();
             }
         }
-        let vis = set_visible(&mut world);
-        world.request_redraw_annotations(BRUSH_NAME, vis);
+        set_visible(&mut world);
         (world, history)
     }
     fn on_activate(&mut self, mut world: World, history: History) -> (World, History) {

@@ -58,16 +58,17 @@ pub(super) fn get_options_mut(world: &mut World) -> Option<&mut bbox_data::Optio
 pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
     get_specific(world).map(|d| &d.label_info)
 }
-pub(super) fn bbox_visibility(world: &World) -> Visibility {
+pub(super) fn get_visible(world: &World) -> Visibility {
     let visible = get_options(world).map(|o| o.core_options.visible) == Some(true);
     vis_from_lfoption(get_label_info(world), visible)
 }
-fn set_visible(world: &mut World) -> Visibility {
+fn set_visible(world: &mut World) {
     let options_mut = get_options_mut(world);
     if let Some(options_mut) = options_mut {
         options_mut.core_options.visible = true;
     }
-    bbox_visibility(&world)
+    let vis = get_visible(world);
+    world.request_redraw_annotations(BBOX_NAME, vis);
 }
 
 pub(super) fn paste(mut world: World, mut history: History) -> (World, History) {
@@ -84,10 +85,7 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
                 )
             }
         }
-    }
-    if let Some(_) = clipboard {
-        let vis = set_visible(&mut world);
-        world.request_redraw_annotations(BBOX_NAME, vis);
+        set_visible(&mut world);
         history.push(Record::new(world.clone(), ACTOR_NAME));
     }
 
@@ -114,8 +112,7 @@ fn check_annoremove(mut world: World) -> World {
             data.retain_fileannos_in_folder(opened_folder);
             data.options.is_anno_rm_triggered = false;
         }
-        let vis = set_visible(&mut world);
-        world.request_redraw_annotations(BBOX_NAME, vis);
+        set_visible(&mut world);
     }
     world
 }
@@ -157,8 +154,7 @@ fn check_cocoimport(mut world: World) -> World {
                 *data_mut = imported_data;
                 data_mut.options.is_coco_import_triggered = false;
             }
-            let vis = set_visible(&mut world);
-            world.request_redraw_annotations(BBOX_NAME, vis);
+            set_visible(&mut world);
         }
     }
     world
@@ -237,7 +233,7 @@ impl Bbox {
         mut history: History,
     ) -> (World, History) {
         let close_box_or_poly = self.points_at_press.map(|x| x + 4) < self.points_alter_held;
-        let are_boxes_visible = bbox_visibility(&world);
+        let are_boxes_visible = get_visible(&world);
         if event.released(KeyCode::MouseLeft) {
             let params = MouseReleaseParams {
                 prev_pos: self.prev_pos.clone(),
@@ -300,7 +296,7 @@ impl Bbox {
                 *annos = mem::take(annos).shift_max_bbs(-1.0, 0.0, shape_orig, split_mode);
             }
         }
-        let vis = bbox_visibility(&world);
+        let vis = get_visible(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)
     }
@@ -337,8 +333,7 @@ impl Manipulate for Bbox {
             data.menu_active = true;
         }
         history.push(Record::new(world.clone(), ACTOR_NAME));
-        let vis = set_visible(&mut world);
-        world.request_redraw_annotations(BBOX_NAME, vis);
+        set_visible(&mut world);
         (world, history)
     }
 
@@ -359,7 +354,7 @@ impl Manipulate for Bbox {
                 anno.deselect_all();
             }
             (world, history) = check_autopaste(world, history, options.auto_paste);
-            let vis = bbox_visibility(&world);
+            let vis = get_visible(&world);
             world.request_redraw_annotations(BBOX_NAME, vis);
         }
         (world, history)
@@ -432,7 +427,7 @@ impl Manipulate for Bbox {
                             outline_alpha: options.outline_alpha,
                             is_selected: None,
                         };
-                        let vis = bbox_visibility(&world);
+                        let vis = get_visible(&world);
                         world.request_redraw_annotations(BBOX_NAME, vis);
                         world.request_redraw_tmp_anno(Annotation::Bbox(anno));
                     }
