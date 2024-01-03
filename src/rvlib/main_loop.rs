@@ -227,7 +227,10 @@ impl MainEventLoop {
 
         if e.held_alt() && e.pressed(KeyCode::Q) {
             info!("deactivate all tools");
-            let was_any_tool_active = self.tools.iter().any(|t| t.is_active() && !t.is_always_active());
+            let was_any_tool_active = self
+                .tools
+                .iter()
+                .any(|t| t.is_active() && !t.is_always_active());
             for t in self.tools.iter_mut() {
                 if !t.is_always_active() && t.is_active() {
                     let meta_data = self.ctrl.meta_data(
@@ -239,10 +242,8 @@ impl MainEventLoop {
                 }
             }
             if was_any_tool_active {
-                self.history.push(Record::new(
-                    self.world.clone(),
-                    "deactivation of all tools",
-                ));
+                self.history
+                    .push(Record::new(self.world.clone(), "deactivation of all tools"));
             }
         }
         // tool activation keyboard shortcuts
