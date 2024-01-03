@@ -13,16 +13,16 @@ use crate::{
         BBOX_NAME,
     },
     tools_data::{
-        self, annotations::SplitMode, vis_from_lfoption, BboxSpecificData, Rot90ToolData,
+        self, annotations::SplitMode, BboxSpecificData, Rot90ToolData,
     },
-    util::true_indices,
+    util::{true_indices, Visibility},
     GeoFig, Polygon,
     {history::History, world::World},
 };
 
 use super::core::{
-    are_boxes_visible, current_cat_idx, get_annos, get_annos_if_some, get_annos_mut,
-    get_label_info, get_options, get_options_mut, get_specific_mut, ACTOR_NAME,
+    bbox_visibility, current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_label_info,
+    get_options, get_options_mut, get_specific_mut, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
@@ -91,7 +91,7 @@ pub(super) fn export_if_triggered(
 fn close_polygon(
     mut prev_pos: PrevPos,
     in_menu_selected_label: usize,
-    visible: bool,
+    visible: Visibility,
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
@@ -102,8 +102,7 @@ fn close_polygon(
         annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
         history.push(Record::new(world.clone(), ACTOR_NAME));
         prev_pos.prev_pos = vec![];
-        let vis = vis_from_lfoption(get_label_info(&world), visible);
-        world.request_redraw_annotations(BBOX_NAME, vis);
+        world.request_redraw_annotations(BBOX_NAME, visible);
     }
     (world, history, prev_pos)
 }
@@ -132,8 +131,7 @@ pub(super) fn on_mouse_held_right(
     if add_to_history {
         history.push(Record::new(world.clone(), ACTOR_NAME));
     }
-    let visible = are_boxes_visible(&world);
-    let vis = vis_from_lfoption(get_label_info(&world), visible);
+    let vis = bbox_visibility(&world);
     world.request_redraw_annotations(BBOX_NAME, vis);
     (world, history)
 }
@@ -146,7 +144,7 @@ pub(super) struct PrevPos {
 
 pub(super) struct MouseReleaseParams {
     pub prev_pos: PrevPos,
-    pub visible: bool,
+    pub visible: Visibility,
     pub is_alt_held: bool,
     pub is_shift_held: bool,
     pub is_ctrl_held: bool,
@@ -164,7 +162,7 @@ pub(super) struct MouseHeldLeftParams {
 pub(super) fn on_mouse_released_right(
     mouse_pos: Option<PtF>,
     mut prev_pos: PrevPos,
-    visible: bool,
+    visible: Visibility,
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
@@ -189,8 +187,7 @@ pub(super) fn on_mouse_released_right(
                         annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label);
                         history.push(Record::new(world.clone(), ACTOR_NAME));
                         prev_pos.prev_pos = vec![];
-                        let vis = vis_from_lfoption(get_label_info(&world), visible);
-                        world.request_redraw_annotations(BBOX_NAME, vis);
+                        world.request_redraw_annotations(BBOX_NAME, visible);
                     }
                 }
             }
@@ -245,7 +242,6 @@ pub(super) fn on_mouse_released_left(
     mut history: History,
 ) -> (World, History, PrevPos) {
     let split_mode = get_options(&world).map(|o| o.split_mode);
-    let are_annotations_visible = are_boxes_visible(&world);
     let MouseReleaseParams {
         mut prev_pos,
         visible,
@@ -275,13 +271,13 @@ pub(super) fn on_mouse_released_left(
         if is_alt_held && is_shift_held && !prev_pos.prev_pos.is_empty() {
             // delete the whole thing
             prev_pos.prev_pos = vec![];
-            let vis = vis_from_lfoption(get_label_info(&world), are_annotations_visible);
+            let vis = bbox_visibility(&world);
             world.request_redraw_annotations(BBOX_NAME, vis);
         } else if is_alt_held && !prev_pos.prev_pos.is_empty() {
             // delete prev pos
             prev_pos.prev_pos.pop();
             if prev_pos.prev_pos.is_empty() {
-                let vis = vis_from_lfoption(get_label_info(&world), are_annotations_visible);
+                let vis = bbox_visibility(&world);
                 world.request_redraw_annotations(BBOX_NAME, vis);
             }
         } else if is_ctrl_held || is_alt_held || is_shift_held {
@@ -323,8 +319,7 @@ pub(super) fn on_mouse_released_left(
                         annos.toggle_selection(i);
                     }
                 }
-                let vis = vis_from_lfoption(get_label_info(&world), visible);
-                world.request_redraw_annotations(BBOX_NAME, vis);
+                world.request_redraw_annotations(BBOX_NAME, visible);
             }
         } else {
             let shape_orig = world.data.shape();
@@ -438,8 +433,7 @@ pub(super) fn on_mouse_released_left(
                                 }
                                 history.push(Record::new(world.clone(), ACTOR_NAME));
                                 prev_pos.prev_pos = vec![];
-                                let vis = vis_from_lfoption(get_label_info(&world), visible);
-                                world.request_redraw_annotations(BBOX_NAME, vis);
+                                world.request_redraw_annotations(BBOX_NAME, visible);
                             }
                         }
                     }
@@ -467,7 +461,7 @@ pub(super) fn on_key_released(
             label_change_key(params.released_key, mem::take(label_info));
     }
     if trigger_redraw {
-        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible(&world));
+        let vis = bbox_visibility(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
     }
     (world, history) = on_selection_keys(
@@ -486,7 +480,7 @@ pub(super) fn on_key_released(
             if let Some(options_mut) = get_options_mut(&mut world) {
                 options_mut.core_options.visible = !options_mut.core_options.visible;
             }
-            let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible(&world));
+            let vis = bbox_visibility(&world);
             world.request_redraw_annotations(BBOX_NAME, vis);
         }
         ReleasedKey::V if !params.is_ctrl_held => {
@@ -533,10 +527,7 @@ pub(super) fn on_key_released(
                             );
                             annos.deselect_all();
                             annos.select_last_n(translated_bbs.len());
-                            let vis = vis_from_lfoption(
-                                get_label_info(&world),
-                                are_boxes_visible(&world),
-                            );
+                            let vis = bbox_visibility(&world);
                             world.request_redraw_annotations(BBOX_NAME, vis);
                             history.push(Record::new(world.clone(), ACTOR_NAME));
                         }
@@ -731,7 +722,7 @@ fn test_mouse_release() {
                 prev_pos,
                 last_valid_click: if is_pp_empty { None } else { last },
             },
-            visible: true,
+            visible: Visibility::All,
             is_alt_held: false,
             is_shift_held: false,
             is_ctrl_held,

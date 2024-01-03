@@ -58,8 +58,16 @@ pub(super) fn get_options_mut(world: &mut World) -> Option<&mut bbox_data::Optio
 pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
     get_specific(world).map(|d| &d.label_info)
 }
-pub(super) fn are_boxes_visible(world: &World) -> bool {
-    get_options(world).map(|o| o.core_options.visible) != Some(false)
+pub(super) fn bbox_visibility(world: &World) -> Visibility {
+    let visible = get_options(world).map(|o| o.core_options.visible) == Some(true);
+    vis_from_lfoption(get_label_info(world), visible)
+}
+fn set_visible(world: &mut World) -> Visibility {
+    let options_mut = get_options_mut(world);
+    if let Some(options_mut) = options_mut {
+        options_mut.core_options.visible = true;
+    }
+    bbox_visibility(&world)
 }
 
 pub(super) fn paste(mut world: World, mut history: History) -> (World, History) {
@@ -77,10 +85,8 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
             }
         }
     }
-    if let (Some(_), Some(specific_mut)) = (clipboard, get_specific_mut(&mut world)) {
-        let are_boxes_visible = true;
-        specific_mut.options.core_options.visible = are_boxes_visible;
-        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+    if let Some(_) = clipboard {
+        let vis = set_visible(&mut world);
         world.request_redraw_annotations(BBOX_NAME, vis);
         history.push(Record::new(world.clone(), ACTOR_NAME));
     }
@@ -103,14 +109,12 @@ fn check_annoremove(mut world: World) -> World {
             .map(|of| file_util::url_encode(of));
 
         // we show annotations after recoloring
-        let are_boxes_visible = true;
         let data = get_specific_mut(&mut world);
         if let (Some(data), Some(opened_folder)) = (data, &opened_folder) {
             data.retain_fileannos_in_folder(opened_folder);
             data.options.is_anno_rm_triggered = false;
-            data.options.core_options.visible = are_boxes_visible;
         }
-        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+        let vis = set_visible(&mut world);
         world.request_redraw_annotations(BBOX_NAME, vis);
     }
     world
@@ -149,12 +153,11 @@ fn check_cocoimport(mut world: World) -> World {
             },
             rot90_data,
         ) {
-            let are_boxes_visible = imported_data.options.core_options.visible;
             if let Some(data_mut) = get_specific_mut(&mut world) {
                 *data_mut = imported_data;
                 data_mut.options.is_coco_import_triggered = false;
             }
-            let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+            let vis = set_visible(&mut world);
             world.request_redraw_annotations(BBOX_NAME, vis);
         }
     }
@@ -234,7 +237,7 @@ impl Bbox {
         mut history: History,
     ) -> (World, History) {
         let close_box_or_poly = self.points_at_press.map(|x| x + 4) < self.points_alter_held;
-        let are_boxes_visible = are_boxes_visible(&world);
+        let are_boxes_visible = bbox_visibility(&world);
         if event.released(KeyCode::MouseLeft) {
             let params = MouseReleaseParams {
                 prev_pos: self.prev_pos.clone(),
@@ -297,8 +300,7 @@ impl Bbox {
                 *annos = mem::take(annos).shift_max_bbs(-1.0, 0.0, shape_orig, split_mode);
             }
         }
-        let are_boxes_visible = are_boxes_visible(&world);
-        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+        let vis = bbox_visibility(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)
     }
@@ -335,7 +337,7 @@ impl Manipulate for Bbox {
             data.menu_active = true;
         }
         history.push(Record::new(world.clone(), ACTOR_NAME));
-        let vis = vis_from_lfoption(get_label_info(&world), true);
+        let vis = set_visible(&mut world);
         world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)
     }
@@ -357,7 +359,7 @@ impl Manipulate for Bbox {
                 anno.deselect_all();
             }
             (world, history) = check_autopaste(world, history, options.auto_paste);
-            let vis = vis_from_lfoption(get_label_info(&world), options.core_options.visible);
+            let vis = bbox_visibility(&world);
             world.request_redraw_annotations(BBOX_NAME, vis);
         }
         (world, history)
@@ -430,8 +432,7 @@ impl Manipulate for Bbox {
                             outline_alpha: options.outline_alpha,
                             is_selected: None,
                         };
-                        let are_boxes_visible = are_boxes_visible(&world);
-                        let vis = vis_from_lfoption(get_label_info(&world), are_boxes_visible);
+                        let vis = bbox_visibility(&world);
                         world.request_redraw_annotations(BBOX_NAME, vis);
                         world.request_redraw_tmp_anno(Annotation::Bbox(anno));
                     }
