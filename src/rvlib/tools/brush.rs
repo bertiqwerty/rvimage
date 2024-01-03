@@ -157,7 +157,6 @@ impl Brush {
             world = deselect_all(world, BRUSH_NAME, get_annos_mut, get_label_info);
         }
         if !events.held_ctrl() {
-            set_visible(&mut world);
             let options = get_options(&world);
             let label_info = get_label_info(&world);
             let cat_idx = label_info.map(|li| li.cat_idx_current);
@@ -186,6 +185,7 @@ impl Brush {
                     );
                 }
             }
+            set_visible(&mut world);
         }
         (world, history)
     }
@@ -197,7 +197,6 @@ impl Brush {
     ) -> (World, History) {
         if !events.held_ctrl() {
             let erase = get_options(&world).map(|o| o.erase);
-            set_visible(&mut world);
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 if erase != Some(true) {
                     if let Some(line) = annos.last_line_mut() {
@@ -213,6 +212,7 @@ impl Brush {
                     }
                 }
             }
+            set_visible(&mut world);
         }
         (world, history)
     }
@@ -224,7 +224,6 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         if events.held_ctrl() {
-            set_visible(&mut world);
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 let to_be_selected_line_idx = find_closest_brushline(annos, mp);
                 if let Some((idx, dist)) = to_be_selected_line_idx {
@@ -240,6 +239,7 @@ impl Brush {
                     }
                 }
             }
+            set_visible(&mut world);
         } else if !(events.held_alt() || events.held_shift()) {
             // neither shift nor alt nor ctrl were held => a brushline has been finished
             // or a brush line has been deleted.
@@ -254,15 +254,6 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         let released_key = map_released_key(events);
-        let mut trigger_redraw = false;
-        if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
-            (*label_info, trigger_redraw) = label_change_key(released_key, mem::take(label_info));
-        }
-        if trigger_redraw {
-            let visible = get_options(&world).map(|o| o.core_options.visible) == Some(true);
-            let vis = vis_from_lfoption(get_label_info(&world), visible);
-            world.request_redraw_annotations(BRUSH_NAME, vis);
-        }
         (world, history) = on_selection_keys(
             world,
             history,
@@ -273,6 +264,15 @@ impl Brush {
             |world| get_specific_mut(world).map(|d| &mut d.clipboard),
             get_label_info,
         );
+        let mut trigger_redraw = false;
+        if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
+            (*label_info, trigger_redraw) = label_change_key(released_key, mem::take(label_info));
+        }
+        if trigger_redraw {
+            let visible = get_options(&world).map(|o| o.core_options.visible) == Some(true);
+            let vis = vis_from_lfoption(get_label_info(&world), visible);
+            world.request_redraw_annotations(BRUSH_NAME, vis);
+        }
         match released_key {
             ReleasedKey::H if events.held_ctrl() => {
                 // Hide all boxes (selected or not)
