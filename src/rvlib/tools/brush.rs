@@ -328,6 +328,7 @@ impl Brush {
             BRUSH_NAME,
             get_annos_mut,
             |world| get_specific_mut(world).map(|d| &mut d.clipboard),
+            |world| get_options(world).map(|o| o.core_options),
             get_label_info,
         );
         let mut trigger_redraw = false;

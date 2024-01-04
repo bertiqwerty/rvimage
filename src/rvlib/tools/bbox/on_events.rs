@@ -465,6 +465,7 @@ pub(super) fn on_key_released(
         BBOX_NAME,
         get_annos_mut,
         |world| get_specific_mut(world).map(|d| &mut d.clipboard),
+        |world| get_options(world).map(|o| o.core_options),
         get_label_info,
     );
     match params.released_key {

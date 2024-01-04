@@ -232,6 +232,7 @@ pub(super) fn on_selection_keys<T>(
     actor: &'static str,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
     get_clipboard_mut: impl Fn(&mut World) -> Option<&mut Option<ClipboardData<T>>>,
+    get_options: impl Fn(&World) -> Option<CoreOptions>,
     get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> (World, History)
 where
@@ -239,12 +240,33 @@ where
 {
     match key {
         ReleasedKey::A if is_ctrl_held => {
-            // Select all
-            if let Some(a) = get_annos_mut(&mut world) {
-                a.select_all()
-            };
-            let vis = vis_from_lfoption(get_label_info(&world), true);
-            world.request_redraw_annotations(actor, vis);
+            // Select all visible
+            let options = get_options(&world);
+            let current_active_idx = get_label_info(&world).and_then(|li| {
+                if li.show_only_current {
+                    Some(li.cat_idx_current)
+                } else {
+                    None
+                }
+            });
+            if options.map(|o| o.visible) == Some(true) {
+                if let (Some(current_active), Some(a)) =
+                    (current_active_idx, get_annos_mut(&mut world))
+                {
+                    let relevant_indices = a
+                        .cat_idxs()
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, cat_idx)| **cat_idx == current_active)
+                        .map(|(i, _)| i)
+                        .collect::<Vec<_>>();
+                    a.select_multi(relevant_indices.into_iter());
+                } else if let Some(a) = get_annos_mut(&mut world) {
+                    a.select_all()
+                };
+                let vis = vis_from_lfoption(get_label_info(&world), true);
+                world.request_redraw_annotations(actor, vis);
+            }
         }
         ReleasedKey::D if is_ctrl_held => {
             world = deselect_all(world, actor, get_annos_mut, get_label_info);
