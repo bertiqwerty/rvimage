@@ -1,4 +1,4 @@
-use egui::{Align, Pos2, Rect, Ui, RichText};
+use egui::{Align, Pos2, Rect, RichText, Ui};
 
 use crate::paths_selector::PathsSelector;
 
