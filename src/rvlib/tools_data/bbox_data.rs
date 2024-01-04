@@ -20,10 +20,14 @@ use crate::{
 pub type BboxAnnoMap = AnnotationsMap<GeoFig>;
 
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
-pub struct Options {
+pub struct Options { 
+    #[serde(skip)]
     pub core_options: core::Options,
+    #[serde(skip)]
     pub auto_paste: bool,
+    #[serde(skip)]
     pub is_anno_rm_triggered: bool,
+    #[serde(skip)]
     pub is_coco_import_triggered: bool,
     pub split_mode: SplitMode,
     pub export_absolute: bool,

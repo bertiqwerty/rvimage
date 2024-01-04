@@ -23,7 +23,7 @@ fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
 }
 
 pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, ShapeI)>;
-#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Options {
     pub visible: bool,
     pub is_colorchange_triggered: bool,
