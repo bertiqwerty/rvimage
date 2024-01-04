@@ -1,9 +1,9 @@
-use egui::{Response, Ui};
+use egui::{FontSelection, Response, TextBuffer, TextEdit, Ui, Widget};
 
-pub fn text_edit(
-    text: &mut String,
+pub fn text_edit<S: TextBuffer>(
+    text: &mut S,
     are_tools_active: &mut bool,
-    mut f_text_edit: impl FnMut(&mut String) -> Response,
+    mut f_text_edit: impl FnMut(&mut S) -> Response,
 ) -> Response {
     let txt_field = f_text_edit(text);
     *are_tools_active = if txt_field.gained_focus() {
@@ -15,10 +15,14 @@ pub fn text_edit(
     };
     txt_field
 }
-pub fn text_edit_singleline(
+pub fn text_edit_singleline<S: TextBuffer>(
     ui: &mut Ui,
-    text: &mut String,
+    text: &mut S,
     are_tools_active: &mut bool,
 ) -> Response {
-    text_edit(text, are_tools_active, |text| ui.text_edit_singleline(text))
+    text_edit(text, are_tools_active, |text| {
+        TextEdit::singleline(text)
+            .font(FontSelection::Style(egui::TextStyle::Monospace))
+            .ui(ui)
+    })
 }

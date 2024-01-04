@@ -75,10 +75,12 @@ fn setup_custom_fonts(ctx: &egui::Context) {
     // Install my own font (maybe supporting non-latin characters).
     // .ttf and .otf files supported.
     fonts.font_data.insert(
+        "roboto_mono".to_owned(),
+        egui::FontData::from_static(include_bytes!("../resources/Roboto/RobotoMono-Regular.ttf")),
+    );
+    fonts.font_data.insert(
         "roboto".to_owned(),
-        egui::FontData::from_static(include_bytes!(
-            "../resources/Roboto/RobotoMono-Regular.ttf"
-        )),
+        egui::FontData::from_static(include_bytes!("../resources/Roboto/Roboto-Regular.ttf")),
     );
 
     // Put my font first (highest priority) for proportional text:
@@ -93,7 +95,7 @@ fn setup_custom_fonts(ctx: &egui::Context) {
         .families
         .entry(egui::FontFamily::Monospace)
         .or_default()
-        .push("roboto".to_owned());
+        .insert(1, "roboto_mono".to_owned());
 
     // Tell egui to use these fonts:
     ctx.set_fonts(fonts);
@@ -544,10 +546,13 @@ impl eframe::App for RvImageApp {
                     format!("{}", it_per_s.round())
                 };
                 if let Some(info) = update_view.image_info {
-                    ui.label(format!(
-                        "{}  |  {}  |  {}  |  {} it/s",
-                        info.filename, info.shape_info, info.pixel_value, it_str
-                    ));
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{}  |  {}  |  {}  |  {} it/s",
+                            info.filename, info.shape_info, info.pixel_value, it_str
+                        ))
+                        .monospace(),
+                    );
                     let image_response = self.add_image(ui);
                     if let Some(ir) = image_response {
                         self.events = self.collect_events(ui, &ir);

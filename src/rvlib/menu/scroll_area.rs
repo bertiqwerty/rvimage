@@ -1,4 +1,4 @@
-use egui::{Align, Pos2, Rect, Ui};
+use egui::{Align, Pos2, Rect, Ui, RichText};
 
 use crate::paths_selector::PathsSelector;
 
@@ -12,7 +12,7 @@ pub fn scroll_area(
 ) -> f32 {
     let scroll_height = ui.available_height() - 120.0;
     let n_rows = paths_selector.len_filtered();
-    let text_style = egui::TextStyle::Body;
+    let text_style = egui::TextStyle::Monospace;
     let row_height = ui.text_style_height(&text_style);
     let spacing_y = ui.spacing().item_spacing.y;
     let area_offset = ui.cursor();
@@ -33,12 +33,13 @@ pub fn scroll_area(
         let file_label = paths_selector
             .filtered_idx_file_label_pairs(filtered_label_idx)
             .1;
+        let file_label = RichText::new(file_label).monospace();
         let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
             let path = paths_selector.file_selected_path(filtered_label_idx);
             if let Some(path) = path {
                 let sl_ = ui.selectable_label(true, file_label);
                 let sl_ = if let Some(fis) = file_info_selected {
-                    sl_.on_hover_text(format!("{path}\n{fis}"))
+                    sl_.on_hover_text(RichText::new(format!("{path}\n{fis}")).monospace())
                 } else {
                     sl_.on_hover_text(path)
                 };

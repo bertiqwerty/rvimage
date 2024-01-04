@@ -66,9 +66,9 @@ where
                 to_be_removed = Some(label_idx);
             }
             let label = if show_only_current && checked {
-                egui::RichText::new(label).strong().italics()
+                egui::RichText::new(label).monospace().strong().italics()
             } else {
-                egui::RichText::new(label)
+                egui::RichText::new(label).monospace()
             };
             if ui.selectable_label(checked, label).clicked() {
                 if checked {
