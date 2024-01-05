@@ -73,8 +73,10 @@ ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
 server_address = 'http://localhost:8000/'
 
 [azure_blob_cfg]
-# With a connection string you can view the images inside a blob storage
-connection_string = ''
+# With a connection string you can view the images inside a blob storage.
+# The connection_string_path should point to file that only contains the 
+# connection string.
+connection_string_path = ''
 container_name = ''
 # The prefix is also called folder in the Microsoft Azure Storage Explorer.
 # Currently, you cannot choose this interactively.

@@ -121,7 +121,7 @@ impl SshCfg {
 #[cfg(feature = "azure_blob")]
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfg {
-    pub connection_string: String,
+    pub connection_string_path: String,
     pub container_name: String,
     pub prefix: String,
 }

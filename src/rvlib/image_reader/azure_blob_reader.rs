@@ -1,4 +1,4 @@
-use std::vec;
+use std::{fs, vec};
 
 use crate::{
     cache::ReadImageToCache,
@@ -19,7 +19,7 @@ lazy_static! {
 
 #[derive(Clone)]
 pub struct AzureConnectionData {
-    pub connection_string: String,
+    pub connection_string_path: String,
     pub container_name: String,
 }
 
@@ -62,7 +62,8 @@ pub struct ReadImageFromAzureBlob {
 impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
     fn new(conn_data: AzureConnectionData) -> RvResult<Self> {
         let connection_string =
-            ConnectionString::new(&conn_data.connection_string).map_err(to_rv)?;
+            fs::read_to_string(&conn_data.connection_string_path).map_err(to_rv)?;
+        let connection_string = ConnectionString::new(&connection_string).map_err(to_rv)?;
         let blob_service_client = BlobServiceClient::new(
             connection_string.account_name.unwrap(),
             connection_string.storage_credentials().map_err(to_rv)?,

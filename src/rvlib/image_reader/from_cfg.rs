@@ -97,7 +97,7 @@ impl ReaderFromCfg {
                         .azure_blob_cfg
                         .as_ref()
                         .ok_or_else(|| rverr!("no azure cfg found",))?;
-                    let connection_string = azure_cfg.connection_string.clone();
+                    let connection_string_path = azure_cfg.connection_string_path.clone();
                     let container_name = azure_cfg.container_name.clone();
 
                     Box::new(Loader::<
@@ -107,7 +107,7 @@ impl ReaderFromCfg {
                         FileCacheArgs {
                             cfg_args: cache_args,
                             reader_args: AzureConnectionData {
-                                connection_string,
+                                connection_string_path,
                                 container_name,
                             },
                             tmpdir,
