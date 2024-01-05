@@ -158,12 +158,17 @@ pub fn filename_to_prjname(filename: &str) -> RvResult<&str> {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct ExportData {
     pub version: Option<String>,
+    pub tools_data_map: ToolsDataMap,
+}
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+pub struct SaveData {
+    pub version: Option<String>,
     pub opened_folder: Option<String>,
     pub tools_data_map: ToolsDataMap,
     pub cfg: Cfg,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-pub struct ExportDataLegacy {
+pub struct SaveDataLegacy {
     pub opened_folder: Option<String>,
     pub bbox_data: Option<BboxExportData>,
     #[serde(skip_deserializing)]

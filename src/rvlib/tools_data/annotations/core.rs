@@ -36,6 +36,7 @@ where
             })
         }
     }
+
     pub fn separate_data(self) -> (Vec<T>, Vec<usize>, Vec<bool>) {
         (self.elts, self.cat_idxs, self.selected_mask)
     }
@@ -59,6 +60,9 @@ where
         &self.cat_idxs
     }
 
+    pub fn cat_idxs_iter_mut(&mut self) -> impl Iterator<Item = &mut usize> {
+        self.cat_idxs.iter_mut()
+    }
     pub fn elts_iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.elts.iter_mut()
     }

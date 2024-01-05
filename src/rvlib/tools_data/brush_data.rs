@@ -45,6 +45,7 @@ pub struct BrushToolData {
     pub annotations_map: BrushAnnoMap,
     pub options: Options,
     pub label_info: LabelInfo,
+    #[serde(skip)]
     pub clipboard: Option<ClipboardData<BrushLine>>,
     pub export_folder: ExportPath,
 }

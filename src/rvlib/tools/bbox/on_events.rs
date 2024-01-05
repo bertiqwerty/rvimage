@@ -671,15 +671,25 @@ fn test_key_released() {
     let flags = get_options(&world).unwrap();
     assert!(!flags.core_options.visible);
 
-    // delete all selected boxes with ctrl+Delete
+    // don't delete any box since they are hidden boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
     let (world, history) = on_key_released(world, history, None, params);
     assert!(!get_annos(&world).unwrap().selected_mask().is_empty());
     let params = make_params(ReleasedKey::A, true);
     let (world, history) = on_key_released(world, history, None, params);
     let params = make_params(ReleasedKey::Delete, true);
+    let (world, history) = on_key_released(world, history, None, params);
+    assert!(!get_annos(&world).unwrap().selected_mask().is_empty());
+    
+    // un-hide all boxes with ctrl+H
+    let params = make_params(ReleasedKey::H, true);
+    let (world, history) = on_key_released(world, history, None, params);
+    let flags = get_options(&world).unwrap();
+    assert!(flags.core_options.visible);
+    // and now delete them
+    let params = make_params(ReleasedKey::Delete, true);
     let (world, _) = on_key_released(world, history, None, params);
-    assert!(get_annos(&world).unwrap().selected_mask().is_empty());
+    assert!(!get_annos(&world).unwrap().selected_mask().is_empty());
 }
 
 #[test]

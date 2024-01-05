@@ -111,6 +111,31 @@ pub fn vis_from_lfoption(label_info: Option<&LabelInfo>, visible: bool) -> Visib
     }
 }
 
+pub fn merge<T>(
+    annos1: AnnotationsMap<T>,
+    li1: LabelInfo,
+    annos2: AnnotationsMap<T>,
+    li2: LabelInfo,
+) -> (AnnotationsMap<T>, LabelInfo)
+where
+    T: Annotate,
+{
+    let (li, idx_map) = li1.merge(li2);
+    let mut annotations_map = annos1;
+    annotations_map.extend(annos2.into_iter().map(|(k, (v, s))| {
+        let mut v = v;
+        for cat_idx in v.cat_idxs_iter_mut() {
+            *cat_idx = idx_map[*cat_idx];
+        }
+        (k, (v, s))
+    }));
+    (annotations_map, li)
+}
+
+fn cat_id_offset(cat_ids: &[u32]) -> u32 {
+    *cat_ids.iter().max().unwrap_or(&0)
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct LabelInfo {
     pub new_label: String,
@@ -121,6 +146,25 @@ pub struct LabelInfo {
     pub show_only_current: bool,
 }
 impl LabelInfo {
+    /// Merges two LabelInfos. Returns the merged LabelInfo and a vector that maps
+    /// the indices of the second LabelInfo to the indices of the merged LabelInfo.
+    pub fn merge(mut self, other: Self) -> (Self, Vec<usize>) {
+        let cat_ids_offset = cat_id_offset(&self.cat_ids);
+        let mut idx_map = vec![];
+        for (other_label, other_cat_id) in other.labels.into_iter().zip(other.cat_ids.into_iter()) {
+            let self_cat_idx = self.labels.iter().position(|scidx| scidx == &other_label);
+            if let Some(scidx) = self_cat_idx {
+                idx_map.push(scidx);
+            } else {
+                self.labels.push(other_label);
+                self.colors.push(new_color(&self.colors));
+                self.cat_ids.push(other_cat_id + cat_ids_offset);
+                idx_map.push(self.labels.len() - 1);
+            }
+        }
+        (self, idx_map)
+    }
+
     pub fn visibility(&self, visible: bool) -> Visibility {
         get_visibility(visible, self.show_only_current, self.cat_idx_current)
     }
@@ -265,4 +309,66 @@ fn test_argmax() {
         [255, 255, 255u8],
     ];
     assert_eq!(argmax_clr_dist(&picklist, &legacylist), [0, 0, 1]);
+}
+
+#[test]
+fn test_labelinfo_merge() {
+    let li1 = LabelInfo::default();
+    let mut li2 = LabelInfo::default();
+    li2.new_random_colors();
+    let (mut li_merged, _) = li1.clone().merge(li2);
+    assert_eq!(li1, li_merged);
+    li_merged
+        .push("new_label".into(), Some([0, 0, 1]), None)
+        .unwrap();
+    let (li_merged, _) = li_merged.merge(li1);
+    let li_reference = LabelInfo {
+        new_label: "foreground".to_string(),
+        labels: vec!["foreground".to_string(), "new_label".to_string()],
+        colors: vec![[255, 255, 255], [0, 0, 1]],
+        cat_ids: vec![1, 2],
+        cat_idx_current: 0,
+        show_only_current: false,
+    };
+    assert_eq!(li_merged, li_reference);
+    assert_eq!(li_merged.clone().merge(li_merged.clone()).0, li_reference);
+    let li = LabelInfo {
+        new_label: "foreground".to_string(),
+        labels: vec!["somelabel".to_string(), "new_label".to_string()],
+        colors: vec![[255, 255, 255], [0, 1, 1]],
+        cat_ids: vec![1, 2],
+        cat_idx_current: 0,
+        show_only_current: false,
+    };
+    let li_merged_ = li_merged.clone().merge(li.clone());
+    let li_reference = (
+        LabelInfo {
+            new_label: "foreground".to_string(),
+            labels: vec![
+                "foreground".to_string(),
+                "new_label".to_string(),
+                "somelabel".to_string(),
+            ],
+            colors: vec![[255, 255, 255], [0, 0, 1], li_merged_.0.colors[2]],
+            cat_ids: vec![1, 2, 3],
+            cat_idx_current: 0,
+            show_only_current: false,
+        },
+        vec![2, 1],
+    );
+    assert_eq!(li_merged_, li_reference);
+    let li_merged = li.merge(li_merged);
+    let li_reference = LabelInfo {
+        new_label: "foreground".to_string(),
+        labels: vec![
+            "somelabel".to_string(),
+            "new_label".to_string(),
+            "foreground".to_string(),
+        ],
+        colors: vec![[255, 255, 255], [0, 1, 1], li_merged.0.colors[2]],
+        cat_ids: vec![1, 2, 3],
+        cat_idx_current: 0,
+        show_only_current: false,
+    };
+    assert_eq!(li_merged.0, li_reference);
 }

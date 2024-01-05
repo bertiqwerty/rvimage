@@ -56,6 +56,7 @@ impl Default for Options {
 pub struct BboxSpecificData {
     pub label_info: LabelInfo,
     pub annotations_map: BboxAnnoMap,
+    #[serde(skip)]
     pub clipboard: Option<ClipboardData<GeoFig>>,
     pub options: Options,
     pub coco_file: ExportPath,
