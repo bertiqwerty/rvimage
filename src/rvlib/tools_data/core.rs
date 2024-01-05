@@ -111,7 +111,7 @@ pub fn vis_from_lfoption(label_info: Option<&LabelInfo>, visible: bool) -> Visib
     }
 }
 
-pub fn _merge<T>(
+pub fn merge<T>(
     annos1: AnnotationsMap<T>,
     li1: LabelInfo,
     annos2: AnnotationsMap<T>,
@@ -443,7 +443,7 @@ fn test_merge_annos() {
             ShapeI::new(100, 100),
         ),
     );
-    let (merged_map, merged_li) = _merge(annos_map1, li1, annos_map2, li2.clone());
+    let (merged_map, merged_li) = merge(annos_map1, li1, annos_map2, li2.clone());
     let merged_li_ref = LabelInfo {
         new_label: "x".to_string(),
         labels: vec![

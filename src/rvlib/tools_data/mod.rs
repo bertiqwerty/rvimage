@@ -19,7 +19,7 @@ pub mod brush_data;
 pub mod coco_io;
 mod core;
 pub mod rot90_data;
-pub use core::{AnnotationsMap, Options as CoreOptions};
+pub use core::{merge, AnnotationsMap, Options as CoreOptions};
 
 macro_rules! variant_access {
     ($variant:ident, $func_name:ident, $self:ty, $return_type:ty) => {

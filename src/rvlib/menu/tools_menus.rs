@@ -10,7 +10,7 @@ use crate::{
     result::{to_rv, RvResult},
     tools_data::{
         annotations::{InstanceAnnotations, SplitMode},
-        bbox_data::BboxSpecificData,
+        bbox_data::{BboxSpecificData, ImportMode},
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         BrushToolData, CoreOptions, LabelInfo, ToolSpecifics, ToolsData,
         OUTLINE_THICKNESS_CONVERSION,
@@ -123,6 +123,7 @@ fn export_file_menu(
     are_tools_active: &mut bool,
     is_export_triggered: &mut bool,
     is_import_triggered: Option<&mut bool>,
+    import_mode: Option<&mut ImportMode>,
 ) -> RvResult<()> {
     let mut file_txt = path_to_str(&export_path.path)?.to_string();
     ui.horizontal(|ui| {
@@ -139,10 +140,17 @@ fn export_file_menu(
             tracing::info!("export triggered");
             *is_export_triggered = true;
         }
-        if let Some(is_import_triggered) = is_import_triggered {
+        if let (Some(is_import_triggered), Some(import_mode)) = (is_import_triggered, import_mode) {
             if ui.button("import").clicked() {
                 tracing::info!("import triggered");
                 *is_import_triggered = true;
+            }
+            let mut checked = *import_mode == ImportMode::Merge;
+            ui.checkbox(&mut checked, "merge import");
+            if checked {
+                *import_mode = ImportMode::Merge;
+            } else {
+                *import_mode = ImportMode::Replace;
             }
         }
     });
@@ -241,7 +249,8 @@ pub fn bbox_menu(
             &mut data.coco_file,
             are_tools_active,
             &mut data.options.core_options.is_export_triggered,
-            Some(&mut data.options.is_coco_import_triggered),
+            Some(&mut data.options.is_import_triggered),
+            Some(&mut data.options.import_mode),
         );
 
         ui.separator();
@@ -322,6 +331,7 @@ pub fn brush_menu(
         &mut data.export_folder,
         are_tools_active,
         &mut data.options.core_options.is_export_triggered,
+        None,
         None,
     )?;
     if ui.button("close").clicked() {

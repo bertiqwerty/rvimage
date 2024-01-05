@@ -19,6 +19,13 @@ use crate::{
 /// filename -> (annotations per file, file dimensions)
 pub type BboxAnnoMap = AnnotationsMap<GeoFig>;
 
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImportMode {
+    Merge,
+    #[default]
+    Replace,
+}
+
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
     #[serde(skip)]
@@ -28,7 +35,9 @@ pub struct Options {
     #[serde(skip)]
     pub is_anno_rm_triggered: bool,
     #[serde(skip)]
-    pub is_coco_import_triggered: bool,
+    pub is_import_triggered: bool,
+    #[serde(skip)]
+    pub import_mode: ImportMode,
     pub split_mode: SplitMode,
     pub export_absolute: bool,
     pub fill_alpha: u8,
@@ -42,7 +51,8 @@ impl Default for Options {
             core_options: core::Options::default(),
             auto_paste: false,
             is_anno_rm_triggered: false,
-            is_coco_import_triggered: false,
+            is_import_triggered: false,
+            import_mode: ImportMode::default(),
             split_mode: SplitMode::default(),
             export_absolute: false,
             fill_alpha: 30,

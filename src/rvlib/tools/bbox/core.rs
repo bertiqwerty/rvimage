@@ -15,8 +15,10 @@ use crate::{
         rot90, Manipulate, BBOX_NAME,
     },
     tools_data::{
-        self, annotations::BboxAnnotations, bbox_data, bbox_mut, vis_from_lfoption, LabelInfo,
-        Rot90ToolData, ToolsData,
+        self,
+        annotations::BboxAnnotations,
+        bbox_data::{self, ImportMode},
+        bbox_mut, merge, vis_from_lfoption, LabelInfo, Rot90ToolData, ToolsData,
     },
     tools_data_accessors,
     util::Visibility,
@@ -116,7 +118,7 @@ fn check_cocoimport(mut world: World) -> World {
         let rot90_data = get_rot90_data(&world);
         if let Some(imported_data) = import_coco_if_triggered(
             &world.data.meta_data,
-            if options.is_coco_import_triggered {
+            if options.is_import_triggered {
                 get_specific(&world).map(|o| &o.coco_file)
             } else {
                 None
@@ -124,8 +126,24 @@ fn check_cocoimport(mut world: World) -> World {
             rot90_data,
         ) {
             if let Some(data_mut) = get_specific_mut(&mut world) {
-                *data_mut = imported_data;
-                data_mut.options.is_coco_import_triggered = false;
+                if options.is_import_triggered {
+                    match options.import_mode {
+                        ImportMode::Replace => {
+                            data_mut.annotations_map = imported_data.annotations_map;
+                        }
+                        ImportMode::Merge => {
+                            let (annotations_map, label_info) = merge(
+                                mem::take(&mut data_mut.annotations_map),
+                                mem::take(&mut data_mut.label_info),
+                                imported_data.annotations_map,
+                                imported_data.label_info,
+                            );
+                            data_mut.annotations_map = annotations_map;
+                            data_mut.label_info = label_info;
+                        }
+                    }
+                    data_mut.options.is_import_triggered = false;
+                }
             }
             set_visible(&mut world);
         }
