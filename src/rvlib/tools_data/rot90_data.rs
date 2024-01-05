@@ -29,6 +29,13 @@ impl NRotations {
             Self::Three => 3,
         }
     }
+    pub fn max(self, other: Self) -> Self {
+        if self.to_num() >= other.to_num() {
+            self
+        } else {
+            other
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
@@ -38,4 +45,15 @@ pub struct Rot90ToolData {
 }
 impl Rot90ToolData {
     implement_annotations_getters!(NRotations);
+    pub fn merge(mut self, other: Self) -> Self {
+        for (filename, (nrot_other, shape)) in other.annotations_map {
+            let nrot = if let Some((nrot_self, _)) = self.annotations_map.get(&filename) {
+                nrot_self.max(nrot_other)
+            } else {
+                nrot_other
+            };
+            self.annotations_map.insert(filename, (nrot, shape));
+        }
+        self
+    }
 }

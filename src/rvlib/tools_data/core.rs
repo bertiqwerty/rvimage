@@ -111,7 +111,7 @@ pub fn vis_from_lfoption(label_info: Option<&LabelInfo>, visible: bool) -> Visib
     }
 }
 
-pub fn merge<T>(
+pub fn _merge<T>(
     annos1: AnnotationsMap<T>,
     li1: LabelInfo,
     annos2: AnnotationsMap<T>,
@@ -122,18 +122,27 @@ where
 {
     let (li, idx_map) = li1.merge(li2);
     let mut annotations_map = annos1;
-    annotations_map.extend(annos2.into_iter().map(|(k, (v, s))| {
-        let mut v = v;
-        for cat_idx in v.cat_idxs_iter_mut() {
-            *cat_idx = idx_map[*cat_idx];
-        }
-        (k, (v, s))
-    }));
-    (annotations_map, li)
-}
 
-fn cat_id_offset(cat_ids: &[u32]) -> u32 {
-    *cat_ids.iter().max().unwrap_or(&0)
+    for (k, (v2, s)) in annos2.into_iter() {
+        if let Some((v1, _)) = annotations_map.get_mut(&k) {
+            let (elts, cat_idxs, _) = v2.separate_data();
+            v1.extend(
+                elts.into_iter(),
+                cat_idxs.into_iter().map(|old_idx| idx_map[old_idx]),
+                s,
+            );
+            v1.deselect_all();
+        } else {
+            let (elts, cat_idxs, _) = v2.separate_data();
+            let cat_idxs = cat_idxs
+                .into_iter()
+                .map(|old_idx| idx_map[old_idx])
+                .collect::<Vec<_>>();
+            let v2 = InstanceAnnotations::new_relaxed(elts, cat_idxs);
+            annotations_map.insert(k, (v2, s));
+        }
+    }
+    (annotations_map, li)
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
@@ -149,16 +158,15 @@ impl LabelInfo {
     /// Merges two LabelInfos. Returns the merged LabelInfo and a vector that maps
     /// the indices of the second LabelInfo to the indices of the merged LabelInfo.
     pub fn merge(mut self, other: Self) -> (Self, Vec<usize>) {
-        let cat_ids_offset = cat_id_offset(&self.cat_ids);
         let mut idx_map = vec![];
-        for (other_label, other_cat_id) in other.labels.into_iter().zip(other.cat_ids.into_iter()) {
-            let self_cat_idx = self.labels.iter().position(|scidx| scidx == &other_label);
+        for other_label in other.labels.into_iter() {
+            let self_cat_idx = self.labels.iter().position(|slab| slab == &other_label);
             if let Some(scidx) = self_cat_idx {
                 idx_map.push(scidx);
             } else {
                 self.labels.push(other_label);
                 self.colors.push(new_color(&self.colors));
-                self.cat_ids.push(other_cat_id + cat_ids_offset);
+                self.cat_ids.push(self.labels.len() as u32);
                 idx_map.push(self.labels.len() - 1);
             }
         }
@@ -292,7 +300,11 @@ impl Default for LabelInfo {
         }
     }
 }
-
+#[cfg(test)]
+use crate::{
+    domain::{BrushLine, Line},
+    tools_data::brush_data,
+};
 #[test]
 fn test_argmax() {
     let picklist = [
@@ -356,6 +368,7 @@ fn test_labelinfo_merge() {
         },
         vec![2, 1],
     );
+    assert_ne!([255, 255, 255], li_merged_.0.colors[2]);
     assert_eq!(li_merged_, li_reference);
     let li_merged = li.merge(li_merged);
     let li_reference = LabelInfo {
@@ -371,4 +384,101 @@ fn test_labelinfo_merge() {
         show_only_current: false,
     };
     assert_eq!(li_merged.0, li_reference);
+}
+
+#[test]
+fn test_merge_annos() {
+    let li1 = LabelInfo {
+        new_label: "x".to_string(),
+        labels: vec!["somelabel".to_string(), "x".to_string()],
+        colors: vec![[255, 255, 255], [0, 1, 1]],
+        cat_ids: vec![1, 2],
+        cat_idx_current: 0,
+        show_only_current: false,
+    };
+    let li2 = LabelInfo {
+        new_label: "x".to_string(),
+        labels: vec![
+            "somelabel".to_string(),
+            "new_label".to_string(),
+            "x".to_string(),
+        ],
+        colors: vec![[255, 255, 255], [0, 1, 2], [1, 1, 1]],
+        cat_ids: vec![1, 2, 3],
+        cat_idx_current: 0,
+        show_only_current: false,
+    };
+    let mut annos_map1: super::brush_data::BrushAnnoMap = AnnotationsMap::new();
+
+    let anno1 = BrushLine {
+        line: Line::new(),
+        thickness: 1.0,
+        intensity: 1.0,
+    };
+    annos_map1.insert(
+        "file1".to_string(),
+        (
+            InstanceAnnotations::new(vec![anno1.clone()], vec![1], vec![true]).unwrap(),
+            ShapeI::new(100, 100),
+        ),
+    );
+    let mut annos_map2: brush_data::BrushAnnoMap = AnnotationsMap::new();
+    let anno2 = BrushLine {
+        line: Line::new(),
+        thickness: 2.0,
+        intensity: 2.0,
+    };
+
+    annos_map2.insert(
+        "file1".to_string(),
+        (
+            InstanceAnnotations::new(vec![anno2.clone()], vec![1], vec![true]).unwrap(),
+            ShapeI::new(100, 100),
+        ),
+    );
+    annos_map2.insert(
+        "file2".to_string(),
+        (
+            InstanceAnnotations::new(vec![anno2.clone()], vec![1], vec![true]).unwrap(),
+            ShapeI::new(100, 100),
+        ),
+    );
+    let (merged_map, merged_li) = _merge(annos_map1, li1, annos_map2, li2.clone());
+    let merged_li_ref = LabelInfo {
+        new_label: "x".to_string(),
+        labels: vec![
+            "somelabel".to_string(),
+            "x".to_string(),
+            "new_label".to_string(),
+        ],
+        colors: vec![[255, 255, 255], [0, 1, 1], merged_li.colors[2]],
+        cat_ids: vec![1, 2, 3],
+        cat_idx_current: 0,
+        show_only_current: false,
+    };
+
+    assert_eq!(merged_li, merged_li_ref);
+    let map_ref = [
+        (
+            "file1".to_string(),
+            (
+                InstanceAnnotations::new(vec![anno1, anno2.clone()], vec![1, 2], vec![false, false])
+                    .unwrap(),
+                ShapeI::new(100, 100),
+            ),
+        ),
+        (
+            "file2".to_string(),
+            (
+                InstanceAnnotations::new(vec![anno2], vec![2], vec![false]).unwrap(),
+                ShapeI::new(100, 100),
+            ),
+        ),
+    ]
+    .into_iter()
+    .collect::<AnnotationsMap<BrushLine>>();
+    for (k, (v, s)) in merged_map.iter() {
+        assert_eq!(map_ref[k].0, *v);
+        assert_eq!(map_ref[k].1, *s);
+    }
 }

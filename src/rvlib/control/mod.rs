@@ -42,20 +42,6 @@ mod detail {
         world::ToolsDataMap,
     };
 
-    // pub(super) fn import(export_folder: &str, file_name: &str, tools_data_map: Option<ToolsDataMap>) -> RvResult<ToolsDataMap> {
-    //     let file_path = Path::new(export_folder).join(file_name);
-    //     let s = file_util::read_to_string(file_path)?;
-    //     let imported_data = serde_json::from_str::<ExportData>(s.as_str()).map_err(to_rv)?;
-    //     if let (Some(tdm_existing), Some(tdm_imported)) = (tools_data_map, imported_data.tools_data_map) {
-    //         for (k, v) in tdm_existing.iter() {
-                
-    //         }
-
-    //     }
-        
-    //     Some(export_data.tools_data_map)
-    // }
-
     pub(super) fn load(
         export_folder: &str,
         file_name: &str,
@@ -145,10 +131,7 @@ mod detail {
         write(tools_data_map, make_data, &path)?;
         Ok(path)
     }
-    pub fn export(
-        tools_data_map: &ToolsDataMap,
-        export_path: &Path,
-    ) -> RvResult<()> {
+    pub fn export(tools_data_map: &ToolsDataMap, export_path: &Path) -> RvResult<()> {
         let make_data = |tdm: &ToolsDataMap| ExportData {
             version: Some(version_label()),
             tools_data_map: tdm.clone(),
@@ -295,7 +278,6 @@ impl Control {
         detail::save(opened_folder, tools_data_map, export_folder, &self.cfg)
     }
     pub fn export(&self, tools_data_map: &ToolsDataMap, export_path: &Path) -> RvResult<()> {
-        let opened_folder = self.opened_folder();
         info!("exporting {} to {export_path:?}", self.cfg.current_prj_name);
         detail::export(tools_data_map, export_path)
     }

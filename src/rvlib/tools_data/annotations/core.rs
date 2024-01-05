@@ -36,18 +36,27 @@ where
             })
         }
     }
+    pub fn new_relaxed(elts: Vec<T>, cat_idxs: Vec<usize>) -> Self {
+        let mut res = Self::default();
+        for (elt, cat_idx) in elts.into_iter().zip(cat_idxs.into_iter()) {
+            if !res.elts.contains(&elt) {
+                res.add_elt(elt, cat_idx)
+            }
+        }
+        res
+    }
 
     pub fn separate_data(self) -> (Vec<T>, Vec<usize>, Vec<bool>) {
         (self.elts, self.cat_idxs, self.selected_mask)
     }
-    pub fn extend<IE, IC>(&mut self, elts: IE, cat_ids: IC, shape_image: ShapeI)
+    pub fn extend<IE, IC>(&mut self, elts: IE, cat_idxs: IC, shape_image: ShapeI)
     where
         IE: Iterator<Item = T>,
         IC: Iterator<Item = usize>,
     {
-        for (elt, cat_id) in elts.zip(cat_ids) {
+        for (elt, cat_idx) in elts.zip(cat_idxs) {
             if elt.is_contained_in_image(shape_image) && !self.elts.contains(&elt) {
-                self.add_elt(elt, cat_id)
+                self.add_elt(elt, cat_idx)
             }
         }
     }
