@@ -98,7 +98,7 @@ mod detail {
             .collect::<ToolsDataMap>();
         let data = make_data(&tools_data_map);
         let data_str = serde_json::to_string(&data).map_err(to_rv)?;
-        file_util::write(&export_path, data_str)?;
+        file_util::write(export_path, data_str)?;
         Ok(())
     }
 

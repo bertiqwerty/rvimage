@@ -462,8 +462,12 @@ fn test_merge_annos() {
         (
             "file1".to_string(),
             (
-                InstanceAnnotations::new(vec![anno1, anno2.clone()], vec![1, 2], vec![false, false])
-                    .unwrap(),
+                InstanceAnnotations::new(
+                    vec![anno1, anno2.clone()],
+                    vec![1, 2],
+                    vec![false, false],
+                )
+                .unwrap(),
                 ShapeI::new(100, 100),
             ),
         ),

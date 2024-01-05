@@ -680,7 +680,7 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::Delete, true);
     let (world, history) = on_key_released(world, history, None, params);
     assert!(!get_annos(&world).unwrap().selected_mask().is_empty());
-    
+
     // un-hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
     let (world, history) = on_key_released(world, history, None, params);
