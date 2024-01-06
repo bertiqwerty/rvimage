@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     cfg::ExportPath,
-    domain::ShapeI,
+    domain::{Circle, ShapeI},
     file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
@@ -70,6 +70,8 @@ pub struct BboxSpecificData {
     pub clipboard: Option<ClipboardData<GeoFig>>,
     pub options: Options,
     pub coco_file: ExportPath,
+    #[serde(skip)]
+    pub highlight_circles: Vec<Circle>,
 }
 
 impl BboxSpecificData {
@@ -99,6 +101,7 @@ impl BboxSpecificData {
                 ..Default::default()
             },
             coco_file: input_data.coco_file,
+            highlight_circles: vec![],
         };
         out_data.set_annotations_map(
             input_data
@@ -132,6 +135,7 @@ impl BboxSpecificData {
                 ..Default::default()
             },
             coco_file: ExportPath::default(),
+            highlight_circles: vec![],
         }
     }
 

@@ -125,6 +125,15 @@ where
         )
     }
 
+    pub fn points(&self) -> [Point<T>; 4] {
+        [
+            self.corner(0),
+            self.corner(1),
+            self.corner(2),
+            self.corner(3),
+        ]
+    }
+
     pub fn intersect_or_self(&self, other: Option<BB<T>>) -> BB<T> {
         if let Some(other) = other {
             self.intersect(other)

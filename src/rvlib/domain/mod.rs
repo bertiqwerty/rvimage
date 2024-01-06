@@ -5,7 +5,7 @@ mod polygon;
 
 pub use bb::{BbF, BbI};
 pub use core::{
-    dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc, CoordinateBox,
+    dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc, Circle, CoordinateBox,
     OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
 pub use line::{
@@ -30,7 +30,7 @@ impl GeoFig {
             Self::Poly(poly) => poly.contains(point),
         }
     }
-    pub fn distance_to_boundary(&self, point: PtF) -> f64 {
+    pub fn distance_to_boundary(&self, point: PtF) -> TPtF {
         match self {
             Self::BB(bb) => bb.distance_to_boundary(point),
             Self::Poly(poly) => poly.distance_to_boundary(point),
@@ -42,7 +42,7 @@ impl GeoFig {
             Self::Poly(poly) => Self::Poly(poly.rot90_with_image_ntimes(shape, n)),
         }
     }
-    pub fn max_squaredist(&self, other: &Self) -> (PtF, PtF, f64) {
+    pub fn max_squaredist(&self, other: &Self) -> (PtF, PtF, TPtF) {
         match self {
             Self::BB(bb) => match other {
                 GeoFig::BB(bb_other) => bb.max_squaredist(bb_other.points_iter()),
@@ -75,6 +75,12 @@ impl GeoFig {
         match self {
             Self::BB(bb) => *bb,
             Self::Poly(poly) => poly.enclosing_bb(),
+        }
+    }
+    pub fn point(&self, idx: usize) -> PtF {
+        match &self {
+            GeoFig::BB(bb) => bb.corner(idx),
+            GeoFig::Poly(p) => p.points()[idx],
         }
     }
     pub fn follow_movement(

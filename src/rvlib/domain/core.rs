@@ -584,6 +584,12 @@ impl From<PtI> for (usize, usize) {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Circle {
+    pub center: PtF,
+    pub radius: TPtF,
+}
+
 #[test]
 fn test_rot() {
     let shape = &Shape::new(5, 3);

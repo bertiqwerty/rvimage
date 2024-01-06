@@ -4,7 +4,7 @@ use crate::{
     cfg::ExportPath,
     domain::{
         self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF,
-        TPtF,
+        ShapeF, TPtF,
     },
     file_util::MetaData,
     history::Record,
@@ -34,8 +34,15 @@ fn closest_containing_boundary_idx(pos: PtF, geos: &[GeoFig]) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
+pub(super) fn move_corner_tol(unscaled: ShapeF) -> TPtF {
+    (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2.0)
+}
 /// returns index of the bounding box and the index of the closest close corner
-fn find_close_vertex(orig_pos: PtF, geos: &[GeoFig], tolerance: TPtF) -> Option<(usize, usize)> {
+pub(super) fn find_close_vertex(
+    orig_pos: PtF,
+    geos: &[GeoFig],
+    tolerance: TPtF,
+) -> Option<(usize, usize)> {
     geos.iter()
         .enumerate()
         .map(|(bb_idx, bb)| {
@@ -321,9 +328,9 @@ pub(super) fn on_mouse_released_left(
         } else {
             let shape_orig = world.data.shape();
             let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
-            let tolerance = (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2.0);
             let close_corner = mouse_pos.and_then(|mp| {
-                get_annos_if_some(&world).and_then(|a| find_close_vertex(mp, a.elts(), tolerance))
+                get_annos_if_some(&world)
+                    .and_then(|a| find_close_vertex(mp, a.elts(), move_corner_tol(unscaled)))
             });
             if let Some((bb_idx, vertex_idx)) = close_corner {
                 // move an existing corner

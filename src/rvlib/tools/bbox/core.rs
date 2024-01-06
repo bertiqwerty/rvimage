@@ -1,6 +1,6 @@
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{BbF, ShapeI, TPtF},
+    domain::{shape_unscaled, BbF, Circle, ShapeI, TPtF},
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     file_util,
@@ -19,6 +19,7 @@ use crate::{
         annotations::BboxAnnotations,
         bbox_data::{self, ImportMode},
         bbox_mut, merge, vis_from_lfoption, LabelInfo, Rot90ToolData, ToolsData,
+        OUTLINE_THICKNESS_CONVERSION,
     },
     tools_data_accessors,
     util::Visibility,
@@ -28,9 +29,10 @@ use crate::{
 use std::{iter, mem, time::Instant};
 
 use super::on_events::{
-    export_if_triggered, import_coco_if_triggered, on_key_released, on_mouse_held_left,
-    on_mouse_held_right, on_mouse_released_left, on_mouse_released_right, KeyReleasedParams,
-    MouseHeldLeftParams, MouseMoveParams, MouseReleaseParams, PrevPos,
+    export_if_triggered, find_close_vertex, import_coco_if_triggered, move_corner_tol,
+    on_key_released, on_mouse_held_left, on_mouse_held_right, on_mouse_released_left,
+    on_mouse_released_right, KeyReleasedParams, MouseHeldLeftParams, MouseMoveParams,
+    MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -166,7 +168,8 @@ pub struct Bbox {
     mover: Mover,
     start_press_time: Option<Instant>,
     points_at_press: Option<usize>,
-    points_alter_held: Option<usize>,
+    points_after_held: Option<usize>,
+    last_close_circle_check: Option<Instant>,
 }
 
 impl Bbox {
@@ -214,7 +217,7 @@ impl Bbox {
             };
             (world, history, self.prev_pos) =
                 on_mouse_held_left(event.mouse_pos_on_orig, params, world, history);
-            self.points_alter_held = Some(self.prev_pos.prev_pos.len());
+            self.points_after_held = Some(self.prev_pos.prev_pos.len());
             (world, history)
         }
     }
@@ -225,7 +228,7 @@ impl Bbox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        let close_box_or_poly = self.points_at_press.map(|x| x + 4) < self.points_alter_held;
+        let close_box_or_poly = self.points_at_press.map(|x| x + 4) < self.points_after_held;
         let are_boxes_visible = get_visible(&world);
         if event.released(KeyCode::MouseLeft) {
             let params = MouseReleaseParams {
@@ -315,8 +318,9 @@ impl Manipulate for Bbox {
             prev_pos: PrevPos::default(),
             mover: Mover::new(),
             start_press_time: None,
-            points_alter_held: None,
+            points_after_held: None,
             points_at_press: None,
+            last_close_circle_check: None,
         }
     }
 
@@ -376,6 +380,43 @@ impl Manipulate for Bbox {
 
         let options = get_options(&world);
 
+        if let (Some(mp), Some(last_check)) =
+            (events.mouse_pos_on_orig, self.last_close_circle_check)
+        {
+            if last_check.elapsed().as_millis() > 2 {
+                let geos = get_annos_if_some(&world).map(|a| a.elts());
+                if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
+                    let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
+                    let tolerance = move_corner_tol(unscaled);
+                    find_close_vertex(mp, geos, tolerance)
+                }) {
+                    let annos = get_annos(&world);
+                    let corner_point = annos.map(|a| &a.elts()[bb_idx]).map(|a| a.point(c_idx));
+                    let data = get_specific_mut(&mut world);
+                    if let (Some(data), Some(corner_point), Some(options)) =
+                        (data, corner_point, options)
+                    {
+                        data.highlight_circles = vec![Circle {
+                            center: corner_point,
+                            radius: options.outline_thickness as TPtF
+                                / OUTLINE_THICKNESS_CONVERSION
+                                * 5.0,
+                        }];
+                        set_visible(&mut world);
+                    }
+                } else {
+                    let data = get_specific_mut(&mut world);
+                    if let Some(data) = data {
+                        data.highlight_circles = vec![];
+                        set_visible(&mut world);
+                    }
+                }
+                self.last_close_circle_check = Some(Instant::now());
+            }
+        } else {
+            self.last_close_circle_check = Some(Instant::now());
+        }
+
         if let Some(options) = options {
             world = check_trigger_redraw(world, BBOX_NAME, get_label_info, |d| {
                 bbox_mut(d).map(|d| &mut d.options.core_options)
@@ -418,6 +459,7 @@ impl Manipulate for Bbox {
                             },
                             outline_alpha: options.outline_alpha,
                             is_selected: None,
+                            highlight_circles: vec![],
                         };
                         let vis = get_visible(&world);
                         world.request_redraw_annotations(BBOX_NAME, vis);

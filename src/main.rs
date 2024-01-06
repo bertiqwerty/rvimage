@@ -422,6 +422,15 @@ impl RvImageApp {
                     (anno.fill_alpha, anno.outline.thickness)
                 };
                 let fill_rgb = rgb_2_clr(anno.fill_color, fill_alpha);
+                let mut draw_vec = anno
+                    .highlight_circles
+                    .iter()
+                    .map(|c| {
+                        let p =
+                            self.orig_pos_2_egui_rect(c.center, image_rect.min, image_rect.size());
+                        Shape::Circle(CircleShape::filled(p, c.radius as f32, Color32::WHITE))
+                    })
+                    .collect::<Vec<_>>();
                 match &anno.geofig {
                     GeoFig::BB(bb) => {
                         let stroke = Stroke::new(
@@ -432,12 +441,12 @@ impl RvImageApp {
                             self.orig_pos_2_egui_rect(bb.min(), image_rect.min, image_rect.size());
                         let bb_max_rect =
                             self.orig_pos_2_egui_rect(bb.max(), image_rect.min, image_rect.size());
-                        Shape::Rect(RectShape::new(
+                        draw_vec.push(Shape::Rect(RectShape::new(
                             Rect::from_min_max(bb_min_rect, bb_max_rect),
                             Rounding::ZERO,
                             fill_rgb,
                             stroke,
-                        ))
+                        )));
                     }
                     GeoFig::Poly(poly) => {
                         let stroke = Stroke::new(
@@ -459,10 +468,13 @@ impl RvImageApp {
                                 self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size())
                             })
                             .collect::<Vec<_>>();
-
-                        Shape::Path(PathShape::closed_line(egui_rect_points, stroke))
+                        draw_vec.push(Shape::Path(PathShape::closed_line(
+                            egui_rect_points,
+                            stroke,
+                        )));
                     }
                 }
+                Shape::Vec(draw_vec)
             });
         let shapes = brush_annos.chain(bbox_annos).collect::<Vec<Shape>>();
         ui.painter().add(Shape::Vec(shapes));

@@ -1,5 +1,5 @@
 use crate::{
-    domain::{BbF, TPtF},
+    domain::{BbF, Circle, TPtF},
     types::ViewImage,
     BrushLine, GeoFig,
 };
@@ -29,6 +29,7 @@ pub struct BboxAnnotation {
     pub outline_alpha: u8,
     pub label: Option<String>,
     pub is_selected: Option<bool>,
+    pub highlight_circles: Vec<Circle>,
 }
 
 #[derive(Clone, Debug)]

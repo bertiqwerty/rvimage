@@ -148,6 +148,7 @@ impl Zoom {
                     outline_alpha: 255,
                     label: None,
                     is_selected: None,
+                    highlight_circles: vec![],
                 };
                 world.request_redraw_tmp_anno(Annotation::Bbox(anno));
             }

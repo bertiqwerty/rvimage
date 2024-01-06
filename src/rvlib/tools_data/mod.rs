@@ -158,13 +158,12 @@ impl ToolSpecifics {
         match self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
-                    let bbs = annos.elts();
+                    let geos = annos.elts();
                     let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_mask();
                     let labels = bb_data.label_info.labels();
                     let colors = bb_data.label_info.colors();
-
-                    let bbs_colored = bbs
+                    let bbs_colored = geos
                         .iter()
                         .zip(cats.iter())
                         .zip(selected_bbs.iter())
@@ -188,6 +187,7 @@ impl ToolSpecifics {
                                 },
                                 outline_alpha: bb_data.options.outline_alpha,
                                 is_selected: Some(*is_selected),
+                                highlight_circles: bb_data.highlight_circles.clone(),
                             })
                         })
                         .collect::<Vec<Annotation>>();
