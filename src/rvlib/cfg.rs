@@ -39,6 +39,15 @@ pub fn get_cfg_path() -> RvResult<PathBuf> {
         .join("rv_cfg.toml"))
 }
 
+pub fn get_log_folder() -> RvResult<PathBuf> {
+    get_cfg_path().and_then(|cfg_path| {
+        Ok(cfg_path
+            .parent()
+            .ok_or_else(|| RvError::new("the cfg file needs a parent"))?
+            .join("logs"))
+    })
+}
+
 pub fn get_cfg() -> RvResult<Cfg> {
     let cfg_toml_path = get_cfg_path()?;
     if cfg_toml_path.exists() {

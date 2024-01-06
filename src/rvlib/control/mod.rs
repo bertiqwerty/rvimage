@@ -1,22 +1,26 @@
-use std::fmt::Debug;
-use std::path::PathBuf;
-use std::thread;
-use std::time::Duration;
-
-use crate::cfg::{self, Connection};
-use crate::file_util::{ConnectionData, MetaData, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
+use crate::cfg::{self, get_log_folder, Connection};
+use crate::file_util::{
+    osstr_to_str, ConnectionData, MetaData, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
+};
 use crate::history::{History, Record};
-use crate::result::RvError;
+use crate::result::{trace_ok, RvError};
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
     types::AsyncResultImage,
 };
+use std::fmt::Debug;
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::Duration;
 mod filter;
 pub mod paths_navigator;
 use crate::image_reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;
 use tracing::info;
+use walkdir::WalkDir;
 
 mod detail {
     use std::path::Path;
@@ -178,6 +182,7 @@ pub struct Control {
     pub file_info_selected: Option<String>,
     flags: ControlFlags,
     pub loading_screen_animation_counter: u128,
+    pub log_export_path: Option<PathBuf>,
 }
 
 impl Control {
@@ -292,6 +297,38 @@ impl Control {
                 .apply(Box::new(move || ReaderFromCfg::from_cfg(cfg)))?,
         );
         Ok(())
+    }
+
+    pub fn export_logs(&self, dst: &Path) {
+        if let Ok(log_folder) = get_log_folder() {
+            tracing::info!("exporting logs from {log_folder:?} to {dst:?}");
+            let elf = log_folder.clone();
+            let dst = dst.to_path_buf();
+            thread::spawn(move || {
+                // zip log folder
+                let mut zip = zip::ZipWriter::new(fs::File::create(&dst).unwrap());
+
+                let walkdir = WalkDir::new(elf);
+                let iter_log = walkdir.into_iter();
+                for entry in iter_log {
+                    if let Some(entry) = trace_ok(entry) {
+                        let path = entry.path();
+                        if path.is_file() {
+                            let file_name = osstr_to_str(path.file_name());
+                            trace_ok(file_name).and_then(|file_name| {
+                                trace_ok(
+                                    zip.start_file(file_name, zip::write::FileOptions::default()),
+                                );
+                                trace_ok(fs::read(path))
+                                    .and_then(|buf| trace_ok(zip.write_all(&buf)))
+                            });
+                        }
+                    }
+                }
+            });
+        } else {
+            tracing::error!("could not get log folder");
+        }
     }
 
     pub fn open_folder(&mut self, new_folder: String) -> RvResult<()> {
@@ -501,7 +538,7 @@ use {
         tools::BBOX_NAME,
         tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
     },
-    std::{collections::HashMap, fs, path::Path, str::FromStr},
+    std::{collections::HashMap, str::FromStr},
 };
 #[cfg(test)]
 pub fn make_data(image_file: &Path) -> ToolsDataMap {

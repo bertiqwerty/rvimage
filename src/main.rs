@@ -11,7 +11,7 @@ use egui::{
 };
 use image::{ImageBuffer, Rgb};
 use rvlib::{
-    cfg::get_cfg_path,
+    cfg::get_log_folder,
     color_with_intensity,
     domain::{BbF, PtF, TPtF},
     get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord,
@@ -582,11 +582,7 @@ thread_local! {
 }
 
 fn main() {
-    let cfg_path = get_cfg_path().expect("we need a cfg path");
-    let log_folder = cfg_path
-        .parent()
-        .expect("the cfg file needs a parent")
-        .join("logs");
+    let log_folder = get_log_folder().expect("no log folder");
     let file_appender = tracing_appender::rolling::daily(log_folder, "log");
     let (file_appender, _guard_file) = tracing_appender::non_blocking(file_appender);
     let file_appender = Layer::new()

@@ -189,6 +189,12 @@ impl MainEventLoop {
                 self.world = t.deactivate(mem::take(&mut self.world));
             }
         }
+        if let Some(elf) = &self.ctrl.log_export_path {
+            self.ctrl.export_logs(elf);
+        }
+        if self.ctrl.log_export_path.is_some() {
+            self.ctrl.log_export_path = None;
+        }
         if e.held_ctrl() && e.pressed(KeyCode::S) {
             let prj_path = self.ctrl.cfg.current_prj_path().to_path_buf();
             if let Err(e) = self.ctrl.save(prj_path, &self.world.data.tools_data_map) {

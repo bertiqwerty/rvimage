@@ -29,7 +29,10 @@ impl Error for RvError {}
 /// RV Image's result type with [`RvError`](RvError) as error type.
 pub type RvResult<U> = Result<U, RvError>;
 
-pub fn trace_ok<T>(x: RvResult<T>) -> Option<T> {
+pub fn trace_ok<T, E>(x: Result<T, E>) -> Option<T>
+where
+    E: Debug,
+{
     match x {
         Ok(x) => Some(x),
         Err(e) => {

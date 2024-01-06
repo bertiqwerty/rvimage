@@ -12,7 +12,7 @@ use crate::{
     world::ToolsDataMap,
 };
 use egui::{Area, Context, Frame, Id, Order, Response, Ui, Widget};
-use std::mem;
+use std::{mem, path::PathBuf};
 
 use super::tools_menus::{bbox_menu, brush_menu};
 
@@ -152,27 +152,32 @@ struct Stats {
     n_files_annotated_info: Option<String>,
 }
 
-struct About<'a> {
+struct Help<'a> {
     id: Id,
-    show_about: &'a mut bool,
+    show_help: &'a mut bool,
+    export_logs: &'a mut Option<PathBuf>,
 }
-impl<'a> About<'a> {
-    pub fn new(id: Id, show_about: &'a mut bool) -> Self {
-        Self { id, show_about }
+impl<'a> Help<'a> {
+    pub fn new(id: Id, show_help: &'a mut bool, export_logs: &'a mut Option<PathBuf>) -> Self {
+        Self {
+            id,
+            show_help,
+            export_logs,
+        }
     }
 }
-impl<'a> Widget for About<'a> {
+impl<'a> Widget for Help<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let about_btn = ui.button("about");
-        if about_btn.clicked() {
-            *self.show_about = true;
+        let help_btn = ui.button("help");
+        if help_btn.clicked() {
+            *self.show_help = true;
         }
-        if *self.show_about {
+        if *self.show_help {
             ui.memory_mut(|m| m.open_popup(self.id));
             if ui.memory(|m| m.is_popup_open(self.id)) {
                 let area = Area::new(self.id)
                     .order(Order::Foreground)
-                    .default_pos(about_btn.rect.left_bottom());
+                    .default_pos(help_btn.rect.left_bottom());
                 area.show(ui.ctx(), |ui| {
                     Frame::popup(ui.style()).show(ui, |ui| {
                         ui.label("RV Image\n");
@@ -180,16 +185,26 @@ impl<'a> Widget for About<'a> {
                         let version_label = version_label();
                         ui.label(version_label);
                         ui.hyperlink_to("docs, license, and code", CODE);
+                        if ui.button("export logs").clicked() {
+                            let log_export_dst = rfd::FileDialog::new()
+                                .add_filter("zip", &["zip"])
+                                .set_file_name("logs.zip")
+                                .save_file();
+
+                            *self.export_logs = log_export_dst;
+                            ui.memory_mut(|m| m.close_popup());
+                            *self.show_help = false;
+                        }
                         let resp_close = ui.button("close");
                         if resp_close.clicked() {
                             ui.memory_mut(|m| m.close_popup());
-                            *self.show_about = false;
+                            *self.show_help = false;
                         }
                     });
                 });
             }
         }
-        about_btn
+        help_btn
     }
 }
 
@@ -297,7 +312,11 @@ impl Menu {
                 );
                 ui.add(cfg_gui);
                 let about_popup_id = ui.make_persistent_id("about-popup");
-                ui.add(About::new(about_popup_id, &mut self.show_about));
+                ui.add(Help::new(
+                    about_popup_id,
+                    &mut self.show_about,
+                    &mut ctrl.log_export_path,
+                ));
             });
         });
         let mut projected_loaded = false;
