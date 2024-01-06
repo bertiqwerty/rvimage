@@ -1,11 +1,9 @@
-use egui::{Area, Color32, Frame, Id, Order, Response, TextEdit, Ui, Visuals, Widget};
+use egui::{Area, Color32, Frame, Id, Order, Response, RichText, TextEdit, Ui, Visuals, Widget};
 
 use crate::{
     cfg::{self, Cache, Cfg, Connection, SshCfg},
-    menu::{
-        self,
-        text_edit::{self, text_edit_singleline},
-    },
+    file_util::get_prj_name,
+    menu::{self, text_edit},
 };
 
 fn is_valid_ssh_cfg(s: &str) -> bool {
@@ -83,12 +81,9 @@ impl<'a> Widget for CfgMenu<'a> {
                             }
                         });
                         ui.horizontal(|ui| {
+                            let name = get_prj_name(self.cfg.current_prj_path(), None);
                             ui.label("Project name");
-                            text_edit_singleline(
-                                ui,
-                                &mut self.cfg.current_prj_name,
-                                self.are_tools_active,
-                            );
+                            ui.label(RichText::from(name).text_style(egui::TextStyle::Monospace));
                         });
                         ui.separator();
                         ui.horizontal(|ui| {

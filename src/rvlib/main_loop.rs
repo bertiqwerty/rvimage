@@ -5,7 +5,7 @@ use crate::control::{Control, Info};
 use crate::domain::PtI;
 use crate::drawme::ImageInfo;
 use crate::events::{Events, KeyCode};
-use crate::file_util::make_prjcfg_filename;
+use crate::file_util::DEFAULT_PRJ_PATH;
 use crate::history::{History, Record};
 use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
 use crate::result::RvResult;
@@ -131,18 +131,24 @@ impl Default for MainEventLoop {
             cfg::get_default_cfg()
         }));
         {
+            let pp = ctrl.cfg.current_prj_path().to_path_buf();
             // load last project
-            let prj_name = ctrl.cfg.current_prj_name.clone();
-            match ctrl.load(&make_prjcfg_filename(&prj_name)) {
+            match ctrl.load(pp) {
                 Ok(td) => {
-                    info!("loaded last project {}", ctrl.cfg.current_prj_name);
+                    info!("loaded last project {:?}", ctrl.cfg.current_prj_path());
                     world.data.tools_data_map = td;
                 }
                 Err(e) => {
-                    info!("could not read last opened project {prj_name} which is fine if a project has never been saved due to {e:?} ");
+                    if DEFAULT_PRJ_PATH.as_os_str() != ctrl.cfg.current_prj_path().as_os_str() {
+                        info!(
+                            "could not read last opened project {:?} due to {e:?} ",
+                            ctrl.cfg.current_prj_path()
+                        );
+                    }
                 }
-            };
+            }
         }
+
         let mut tools = make_tool_vec();
         for t in &mut tools {
             if t.is_active() {
@@ -181,6 +187,13 @@ impl MainEventLoop {
         if project_loaded {
             for t in &mut self.tools {
                 self.world = t.deactivate(mem::take(&mut self.world));
+            }
+        }
+        if e.held_ctrl() && e.pressed(KeyCode::S) {
+            let prj_path = self.ctrl.cfg.current_prj_path().to_path_buf();
+            if let Err(e) = self.ctrl.save(prj_path, &self.world.data.tools_data_map) {
+                self.menu
+                    .show_info(Info::Error(format!("could not save project due to {e:?}")));
             }
         }
         egui::SidePanel::right("my_panel")
@@ -251,12 +264,6 @@ impl MainEventLoop {
         activate_tool_event!(B, BBOX_NAME, e, self.recently_clicked_tool_idx, self.tools);
         activate_tool_event!(Z, ZOOM_NAME, e, self.recently_clicked_tool_idx, self.tools);
 
-        if e.held_ctrl() && e.pressed(KeyCode::S) {
-            if let Err(e) = self.ctrl.save(&self.world.data.tools_data_map) {
-                self.menu
-                    .show_info(Info::Error(format!("could not save project due to {e:?}")));
-            }
-        }
         if e.held_ctrl() && e.pressed(KeyCode::M) {
             self.menu.toggle();
         }

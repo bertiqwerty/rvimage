@@ -30,14 +30,16 @@ lazy_static! {
         _ => std::env::temp_dir().join("rvimage"),
     };
 }
+lazy_static! {
+    pub static ref DEFAULT_PRJ_PATH: PathBuf =
+        DEFAULT_HOMEDIR.join(DEFAULT_PRJ_NAME).join("default.rvi");
+}
 
 fn calculate_hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
     s.finish()
 }
-
-pub const RVPRJ_PREFIX: &str = "rvprj_";
 
 pub fn read_to_string<P>(p: P) -> RvResult<String>
 where
@@ -124,35 +126,6 @@ impl MetaData {
 pub const DEFAULT_PRJ_NAME: &str = "default";
 pub fn is_prjname_set(prj_name: &str) -> bool {
     prj_name != DEFAULT_PRJ_NAME
-}
-
-pub fn make_prjcfg_filename(prj_name: &str) -> String {
-    if prj_name.starts_with(RVPRJ_PREFIX) {
-        format!("{prj_name}.json")
-    } else {
-        format!("{RVPRJ_PREFIX}{prj_name}.json")
-    }
-}
-pub fn make_prjcfg_path(export_folder: &Path, prj_name: &str) -> PathBuf {
-    let prj_name = match get_last_part_of_path(prj_name) {
-        Some(prj_name_) => prj_name_.last_folder,
-        None => prj_name,
-    };
-    Path::new(export_folder).join(make_prjcfg_filename(prj_name))
-}
-pub fn filename_to_prjname(filename: &str) -> RvResult<&str> {
-    let file_name = osstr_to_str(Path::new(filename).file_stem()).map_err(to_rv)?;
-    if file_name.starts_with(RVPRJ_PREFIX) {
-        file_name.strip_prefix(RVPRJ_PREFIX).ok_or_else(|| {
-            rverr!(
-                "could not strip prefix '{}' from '{}'",
-                RVPRJ_PREFIX,
-                file_name
-            )
-        })
-    } else {
-        Ok(file_name)
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
@@ -332,6 +305,15 @@ pub fn get_last_part_of_path(path: &str) -> Option<LastPartOfPath> {
     } else {
         get_last_part_of_path_by_sep(path, '\\')
     }
+}
+
+pub fn get_prj_name<'a>(prj_path: &'a Path, opened_folder: Option<&'a str>) -> &'a str {
+    let default_prjname = if let Some(of) = opened_folder {
+        of
+    } else {
+        DEFAULT_PRJ_NAME
+    };
+    osstr_to_str(prj_path.file_stem()).unwrap_or(default_prjname)
 }
 
 pub fn local_file_info<P>(p: P) -> String

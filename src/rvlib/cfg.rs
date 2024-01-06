@@ -1,6 +1,6 @@
 use crate::{
     cache::FileCacheCfgArgs,
-    file_util::{self, DEFAULT_HOMEDIR, DEFAULT_TMPDIR},
+    file_util::{self, DEFAULT_HOMEDIR, DEFAULT_TMPDIR, DEFAULT_PRJ_PATH},
     result::{to_rv, RvError, RvResult},
     rverr, ssh,
 };
@@ -15,7 +15,7 @@ use tracing::{error, warn};
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
     cache = "FileCache"  # "NoCache" or "FileCache" 
-    current_prj_name = "default"
+    current_prj_path = "default.rvi"
     [file_cache_args]
     n_prev_images = 2
     n_next_images = 8
@@ -172,13 +172,13 @@ pub enum Style {
     Light,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct Cfg {
     pub connection: Connection,
     pub cache: Cache,
     http_address: Option<String>,
     tmpdir: Option<String>,
-    pub current_prj_name: String,
+    current_prj_path: Option<PathBuf>,
     pub file_cache_args: Option<FileCacheCfgArgs>,
     pub ssh_cfg: SshCfg,
     pub export_folder: Option<String>,
@@ -213,6 +213,17 @@ impl Cfg {
             Some(http_addr) => http_addr,
             None => "127.0.0.1:5432",
         }
+    }
+
+    pub fn current_prj_path(&self) -> &Path {
+        if let Some(pp) = &self.current_prj_path {
+            pp
+        } else {
+            &DEFAULT_PRJ_PATH
+        }
+    }
+    pub fn set_current_prj_path(&mut self, pp: PathBuf) {
+        self.current_prj_path = Some(pp);
     }
 }
 

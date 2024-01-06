@@ -15,7 +15,7 @@ fn get_ctrl() -> Control {
 
 fn prj_load(file: &str) -> ToolsDataMap {
     let mut ctrl = get_ctrl();
-    ctrl.load(file).unwrap()
+    ctrl.load(get_test_folder().join(file)).unwrap()
 }
 
 #[test]

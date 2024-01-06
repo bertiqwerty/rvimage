@@ -2,16 +2,10 @@ use crate::{
     cfg::{self, Cfg},
     control::{Control, Info, SortType},
     domain::Annotate,
-    file_util::{self, RVPRJ_PREFIX},
-    menu::{
-        self,
-        cfg_menu::CfgMenu,
-        open_folder,
-        picklist::{self, PicklistResult},
-        text_edit::text_edit_singleline,
-    },
+    file_util::get_prj_name,
+    menu::{self, cfg_menu::CfgMenu, open_folder, text_edit::text_edit_singleline},
     paths_selector::PathsSelector,
-    result::{to_rv, RvResult},
+    result::RvResult,
     tools::ToolState,
     tools_data::{AnnotationsMap, ToolSpecifics},
     util::version_label,
@@ -158,73 +152,6 @@ struct Stats {
     n_files_annotated_info: Option<String>,
 }
 
-struct SavePopup<'a> {
-    id: Id,
-    show: &'a mut bool,
-    ctrl: &'a mut Control,
-    tools_data_map: &'a mut ToolsDataMap,
-    are_tools_active: &'a mut bool,
-}
-impl<'a> SavePopup<'a> {
-    fn new(
-        id: Id,
-        show: &'a mut bool,
-        ctrl: &'a mut Control,
-        tools_data_map: &'a mut ToolsDataMap,
-        are_tools_active: &'a mut bool,
-    ) -> Self {
-        Self {
-            id,
-            show,
-            ctrl,
-            tools_data_map,
-            are_tools_active,
-        }
-    }
-}
-impl<'a> Widget for SavePopup<'a> {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let save_btn = ui.button("save project");
-        if save_btn.clicked() {
-            *self.show = true;
-        }
-        if *self.show {
-            ui.memory_mut(|m| m.open_popup(self.id));
-            if ui.memory(|m| m.is_popup_open(self.id)) {
-                let area = Area::new(self.id)
-                    .order(Order::Foreground)
-                    .default_pos(save_btn.rect.left_bottom());
-                area.show(ui.ctx(), |ui| {
-                    Frame::popup(ui.style()).show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label("project name");
-                            text_edit_singleline(
-                                ui,
-                                &mut self.ctrl.cfg.current_prj_name,
-                                self.are_tools_active,
-                            );
-                        });
-                        ui.horizontal(|ui| {
-                            let save_resp_clicked = ui.button("save").clicked();
-                            if save_resp_clicked {
-                                if let Err(e) = self.ctrl.save(self.tools_data_map) {
-                                    tracing::error!("could not save project due to {e:?}");
-                                }
-                            }
-                            let resp_close = ui.button("cancel");
-                            if resp_close.clicked() || save_resp_clicked {
-                                ui.memory_mut(|m| m.close_popup());
-                                *self.show = false;
-                            }
-                        });
-                    });
-                });
-            }
-        }
-        save_btn
-    }
-}
-
 struct About<'a> {
     id: Id,
     show_about: &'a mut bool,
@@ -275,7 +202,6 @@ pub struct Menu {
     scroll_offset: f32,
     open_folder_popup_open: bool,
     load_button_resp: PopupBtnResp,
-    show_save: bool,
     stats: Stats,
     filename_sort_type: SortType,
     show_about: bool,
@@ -294,7 +220,6 @@ impl Menu {
             scroll_offset: 0.0,
             open_folder_popup_open: false,
             load_button_resp: PopupBtnResp::default(),
-            show_save: false,
             stats: Stats::default(),
             filename_sort_type: SortType::default(),
             show_about: false,
@@ -349,14 +274,20 @@ impl Menu {
 
                 self.load_button_resp.resp = Some(ui.button("load project"));
 
-                let save_popup_id = ui.make_persistent_id("save-popup");
-                ui.add(SavePopup::new(
-                    save_popup_id,
-                    &mut self.show_save,
-                    ctrl,
-                    tools_data_map,
-                    &mut self.are_tools_active,
-                ));
+                let filename =
+                    get_prj_name(ctrl.cfg.current_prj_path(), ctrl.opened_folder_label());
+
+                if ui.button("save project").clicked() {
+                    let prj_path = rfd::FileDialog::new()
+                        .add_filter("project files", &["rvi"])
+                        .set_file_name(filename)
+                        .save_file();
+
+                    if let Some(prj_path) = prj_path {
+                        handle_error!(ctrl.save(prj_path, tools_data_map), self);
+                    }
+                }
+
                 let popup_id = ui.make_persistent_id("cfg-popup");
                 let cfg_gui = CfgMenu::new(
                     popup_id,
@@ -371,63 +302,25 @@ impl Menu {
         });
         let mut projected_loaded = false;
         egui::SidePanel::left("left-main-menu").show(ctx, |ui| {
-            if let Ok(folder) = ctrl.cfg.export_folder() {
-                if let Some(load_btn_resp) = &self.load_button_resp.resp {
-                    if load_btn_resp.clicked() {
-                        self.load_button_resp.popup_open = true;
-                    }
-                    if self.load_button_resp.popup_open {
-                        let mut filename_for_import = None;
-                        let mut list_projects = || -> RvResult<()> {
-                            let files = file_util::files_in_folder(folder, RVPRJ_PREFIX, "json")
-                                .map_err(to_rv)?
-                                .filter_map(|p| {
-                                    p.file_name().map(|p| p.to_str().map(|p| p.to_string()))
-                                })
-                                .flatten()
-                                .collect::<Vec<_>>();
-                            if !files.is_empty() {
-                                let picklist_res = picklist::pick(
-                                    ui,
-                                    files.iter().map(|s| s.as_str()),
-                                    200.0,
-                                    load_btn_resp,
-                                    "load-prj-popup",
-                                );
-                                filename_for_import = match picklist_res {
-                                    Some(PicklistResult::Picked(s)) => Some(s),
-                                    Some(PicklistResult::Cancel) => {
-                                        self.load_button_resp.popup_open = false;
-                                        None
-                                    }
-                                    _ => None,
-                                }
-                            } else {
-                                tracing::info!("no projects found that can be loaded")
-                            }
-                            Ok(())
-                        };
+            if let Some(load_btn_resp) = &self.load_button_resp.resp {
+                if load_btn_resp.clicked() {
+                    self.load_button_resp.popup_open = true;
+                }
+                if self.load_button_resp.popup_open {
+                    let prj_path = rfd::FileDialog::new()
+                        .add_filter("project files", &["json", "rvi"])
+                        .pick_file();
+                    if let Some(prj_path) = prj_path {
                         handle_error!(
-                            |_| {},
-                            || {
-                                self.load_button_resp.resp = None;
-                                self.load_button_resp.popup_open = false;
+                            |tdm| {
+                                *tools_data_map = tdm;
+                                projected_loaded = true;
                             },
-                            list_projects(),
+                            ctrl.load(prj_path),
                             self
                         );
-                        if let Some(filename) = filename_for_import {
-                            handle_error!(
-                                |tdm| {
-                                    *tools_data_map = tdm;
-                                    projected_loaded = true;
-                                },
-                                ctrl.load(&filename),
-                                self
-                            );
-                            self.load_button_resp.resp = None;
-                            self.load_button_resp.popup_open = false;
-                        }
+                        self.load_button_resp.resp = None;
+                        self.load_button_resp.popup_open = false;
                     }
                 }
             }
