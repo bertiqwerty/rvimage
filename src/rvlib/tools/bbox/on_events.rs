@@ -93,14 +93,18 @@ fn close_polygon(
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
-    let poly = Polygon::from_vec(prev_pos.prev_pos.into_iter().collect::<Vec<_>>()).unwrap();
-    prev_pos.prev_pos = vec![];
-    let annos = get_annos_mut(&mut world);
-    if let Some(annos) = annos {
-        annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
-        history.push(Record::new(world.clone(), ACTOR_NAME));
+    if prev_pos.prev_pos.len() > 2 {
+        let poly = Polygon::from_vec(prev_pos.prev_pos.into_iter().collect::<Vec<_>>()).unwrap();
         prev_pos.prev_pos = vec![];
-        world.request_redraw_annotations(BBOX_NAME, visible);
+        let annos = get_annos_mut(&mut world);
+        if let Some(annos) = annos {
+            annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
+            history.push(Record::new(world.clone(), ACTOR_NAME));
+            prev_pos.prev_pos = vec![];
+            world.request_redraw_annotations(BBOX_NAME, visible);
+        }
+    } else {
+        tracing::error!("polygon needs at least 3 points");
     }
     (world, history, prev_pos)
 }
