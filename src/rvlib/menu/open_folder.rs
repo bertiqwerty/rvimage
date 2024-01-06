@@ -9,7 +9,7 @@ use crate::{
 use super::picklist::{self, PicklistResult};
 
 pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> RvResult<bool> {
-    let resp = ui.button("open folder");
+    let resp = ui.button("Open Folder");
     if resp.clicked() {
         Ok(true)
     } else if open_folder_popup_open {

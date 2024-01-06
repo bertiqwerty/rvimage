@@ -32,7 +32,7 @@ impl<'a> CfgMenu<'a> {
 }
 impl<'a> Widget for CfgMenu<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let edit_cfg_btn_resp = ui.button("settings");
+        let edit_cfg_btn_resp = ui.button("Settings");
         if edit_cfg_btn_resp.clicked() {
             ui.memory_mut(|m| m.toggle_popup(self.id));
         }
@@ -50,7 +50,7 @@ impl<'a> Widget for CfgMenu<'a> {
                 .show(ui.ctx(), |ui| {
                     Frame::popup(ui.style()).show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            if ui.button("open in editor").clicked() {
+                            if ui.button("Open in Editor").clicked() {
                                 match cfg::get_cfg_path() {
                                     Ok(p) => {
                                         if let Err(e) = edit::edit_file(p) {
@@ -76,30 +76,30 @@ impl<'a> Widget for CfgMenu<'a> {
                             if ui.button("OK").clicked() {
                                 close = Close::Yes(true);
                             }
-                            if ui.button("cancel").clicked() {
+                            if ui.button("Cancel").clicked() {
                                 close = Close::Yes(false);
                             }
                         });
                         ui.horizontal(|ui| {
                             let name = get_prj_name(self.cfg.current_prj_path(), None);
-                            ui.label("Project name");
+                            ui.label("Project Name");
                             ui.label(RichText::from(name).text_style(egui::TextStyle::Monospace));
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
-                            ui.label("STYLE");
+                            ui.label("Style");
                             if ui.visuals().dark_mode {
-                                if ui.button("light").clicked() {
+                                if ui.button("Light").clicked() {
                                     self.cfg.darkmode = Some(false);
                                     ui.ctx().set_visuals(Visuals::light());
                                 }
-                            } else if ui.button("dark").clicked() {
+                            } else if ui.button("Dark").clicked() {
                                 self.cfg.darkmode = Some(true);
                                 ui.ctx().set_visuals(Visuals::dark());
                             }
                         });
                         ui.separator();
-                        ui.label("CONNECTION");
+                        ui.label("Connection");
                         ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");
                         ui.radio_value(&mut self.cfg.connection, Connection::Ssh, "Ssh");
                         ui.radio_value(
@@ -116,11 +116,11 @@ impl<'a> Widget for CfgMenu<'a> {
                         ui.separator();
                         ui.horizontal(|ui| {
                             ui.label("CACHE");
-                            ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File cache");
-                            ui.radio_value(&mut self.cfg.cache, Cache::NoCache, "No cache");
+                            ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File Cache");
+                            ui.radio_value(&mut self.cfg.cache, Cache::NoCache, "No Cache");
                         });
                         ui.separator();
-                        ui.label("SSH CONNECTION PARAMETERS");
+                        ui.label("SSH Connection Parameters");
                         let multiline = |txt: &mut String| {
                             let clr = if is_valid_ssh_cfg(txt) {
                                 Color32::LIGHT_BLUE
@@ -139,7 +139,7 @@ impl<'a> Widget for CfgMenu<'a> {
                             if ui.button("OK").clicked() {
                                 close = Close::Yes(true);
                             }
-                            if ui.button("cancel").clicked() {
+                            if ui.button("Cancel").clicked() {
                                 close = Close::Yes(false);
                             }
                         })

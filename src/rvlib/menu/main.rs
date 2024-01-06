@@ -11,7 +11,7 @@ use crate::{
     util::version_label,
     world::ToolsDataMap,
 };
-use egui::{Area, Context, Frame, Id, Order, Response, Ui, Widget};
+use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
 use std::{mem, path::PathBuf};
 
 use super::tools_menus::{bbox_menu, brush_menu};
@@ -49,7 +49,7 @@ fn show_popup(
             msg
         };
         ui.label(format!("{icon} {shortened_msg}"));
-        new_msg = if ui.button("close").clicked() {
+        new_msg = if ui.button("Close").clicked() {
             Info::None
         } else {
             info_message
@@ -168,7 +168,7 @@ impl<'a> Help<'a> {
 }
 impl<'a> Widget for Help<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let help_btn = ui.button("help");
+        let help_btn = ui.button("Help");
         if help_btn.clicked() {
             *self.show_help = true;
         }
@@ -184,8 +184,8 @@ impl<'a> Widget for Help<'a> {
                         const CODE: &str = env!("CARGO_PKG_REPOSITORY");
                         let version_label = version_label();
                         ui.label(version_label);
-                        ui.hyperlink_to("docs, license, and code", CODE);
-                        if ui.button("export logs").clicked() {
+                        ui.hyperlink_to("Docs, License, and Code", CODE);
+                        if ui.button("Export Logs").clicked() {
                             let log_export_dst = rfd::FileDialog::new()
                                 .add_filter("zip", &["zip"])
                                 .set_file_name("logs.zip")
@@ -195,7 +195,7 @@ impl<'a> Widget for Help<'a> {
                             ui.memory_mut(|m| m.close_popup());
                             *self.show_help = false;
                         }
-                        let resp_close = ui.button("close");
+                        let resp_close = ui.button("Close");
                         if resp_close.clicked() {
                             ui.memory_mut(|m| m.close_popup());
                             *self.show_help = false;
@@ -287,12 +287,12 @@ impl Menu {
                     self
                 );
 
-                self.load_button_resp.resp = Some(ui.button("load project"));
+                self.load_button_resp.resp = Some(ui.button("Load Project"));
 
                 let filename =
                     get_prj_name(ctrl.cfg.current_prj_path(), ctrl.opened_folder_label());
 
-                if ui.button("save project").clicked() {
+                if ui.button("Save Project").clicked() {
                     let prj_path = rfd::FileDialog::new()
                         .add_filter("project files", &["rvi"])
                         .set_file_name(filename)
@@ -338,9 +338,9 @@ impl Menu {
                             ctrl.load(prj_path),
                             self
                         );
-                        self.load_button_resp.resp = None;
-                        self.load_button_resp.popup_open = false;
                     }
+                    self.load_button_resp.resp = None;
+                    self.load_button_resp.popup_open = false;
                 }
             }
             let mut connected = false;
@@ -352,9 +352,12 @@ impl Menu {
                 self
             );
             if connected {
-                ui.label(ctrl.opened_folder_label().unwrap_or(""));
+                ui.label(
+                    RichText::from(ctrl.opened_folder_label().unwrap_or(""))
+                        .text_style(egui::TextStyle::Monospace),
+                );
             } else {
-                ui.label("connecting...");
+                ui.label(RichText::from("Connecting...").text_style(egui::TextStyle::Monospace));
             }
 
             let filter_txt_field =
@@ -416,14 +419,14 @@ impl Menu {
                 .radio_value(
                     &mut self.filename_sort_type,
                     SortType::Natural,
-                    "natural sorting",
+                    "Natural Sorting",
                 )
                 .clicked();
             let clicked_alp = ui
                 .radio_value(
                     &mut self.filename_sort_type,
                     SortType::Alphabetical,
-                    "alphabetical sorting",
+                    "Alphabetical Sorting",
                 )
                 .clicked();
             if clicked_nat || clicked_alp {
@@ -473,7 +476,7 @@ impl Menu {
                 if self.stats.n_files_annotated_info.is_none() {
                     self.stats.n_files_annotated_info = get_annotation_info(ps);
                 }
-                if ui.button("re-compute stats").clicked() {
+                if ui.button("Re-compute Stats").clicked() {
                     self.stats.n_files_filtered_info = get_file_info(ps);
                     self.stats.n_files_annotated_info = get_annotation_info(ps);
                 }
