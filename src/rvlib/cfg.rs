@@ -1,6 +1,6 @@
 use crate::{
     cache::FileCacheCfgArgs,
-    file_util::{self, DEFAULT_HOMEDIR, DEFAULT_TMPDIR, DEFAULT_PRJ_PATH},
+    file_util::{self, DEFAULT_HOMEDIR, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR},
     result::{to_rv, RvError, RvResult},
     rverr, ssh,
 };

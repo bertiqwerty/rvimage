@@ -146,10 +146,8 @@ fn check_cocoimport(mut world: World) -> World {
                 }
             }
             set_visible(&mut world);
-        } else {
-            if let Some(data_mut) = get_specific_mut(&mut world) {
-                data_mut.options.is_import_triggered = false;
-            }
+        } else if let Some(data_mut) = get_specific_mut(&mut world) {
+            data_mut.options.is_import_triggered = false;
         }
     }
     world

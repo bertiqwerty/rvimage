@@ -105,7 +105,7 @@ mod detail {
             cfg: cfg.clone(),
         };
         tracing::info!("saved to {file_path:?}");
-        write(tools_data_map, make_data, &file_path)?;
+        write(tools_data_map, make_data, file_path)?;
         Ok(())
     }
 
@@ -239,7 +239,6 @@ impl Control {
     }
 
     pub fn save(&mut self, prj_path: PathBuf, tools_data_map: &ToolsDataMap) -> RvResult<()> {
-
         let path = if let Some(of) = self.opened_folder() {
             if DEFAULT_PRJ_PATH.as_os_str() == prj_path.as_os_str() {
                 PathBuf::from(of).join(DEFAULT_PRJ_NAME)
@@ -249,7 +248,7 @@ impl Control {
         } else {
             prj_path.clone()
         };
-        
+
         self.cfg.set_current_prj_path(path.clone());
 
         detail::save(self.opened_folder(), tools_data_map, &path, &self.cfg)?;
