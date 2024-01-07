@@ -1,9 +1,8 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use std::{cell::RefCell, io, iter, panic, time::Instant};
+use std::{iter, panic, time::Instant};
 
-use backtrace::Backtrace;
 use egui::{
     epaint::{CircleShape, PathShape, RectShape},
     Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
@@ -11,18 +10,13 @@ use egui::{
 };
 use image::{ImageBuffer, Rgb};
 use rvlib::{
-    cfg::get_log_folder,
     color_with_intensity,
     domain::{BbF, PtF, TPtF},
-    get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord,
+    get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, tracing_setup,
     view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos,
     UpdateImage, UpdateZoomBox,
 };
-use tracing::{error, Level};
-use tracing_subscriber::{
-    fmt::{writer::MakeWriterExt, Layer},
-    prelude::*,
-};
+use tracing::error;
 
 fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
     match egui_key {
@@ -589,33 +583,8 @@ impl eframe::App for RvImageApp {
     }
 }
 
-thread_local! {
-    static BACKTRACE: RefCell<Option<Backtrace>> = RefCell::new(None);
-}
-
 fn main() {
-    let log_folder = get_log_folder().expect("no log folder");
-    let file_appender = tracing_appender::rolling::daily(log_folder, "log");
-    let (file_appender, _guard_file) = tracing_appender::non_blocking(file_appender);
-    let file_appender = Layer::new()
-        .with_writer(file_appender.with_max_level(Level::INFO))
-        .with_line_number(true)
-        .compact()
-        .with_file(true);
-
-    let stdout = Layer::new()
-        .with_writer(io::stdout.with_max_level(Level::INFO))
-        .with_file(true)
-        .with_line_number(true);
-    tracing_subscriber::registry()
-        .with(file_appender)
-        .with(stdout)
-        .init();
-    std::panic::set_hook(Box::new(|_| {
-        let trace = Backtrace::new();
-        BACKTRACE.with(move |b| b.borrow_mut().replace(trace));
-    }));
-
+    tracing_setup::tracing_setup();
     if let Err(e) = panic::catch_unwind(|| {
         let native_options = eframe::NativeOptions::default();
         if let Err(e) = eframe::run_native(
@@ -642,7 +611,9 @@ fn main() {
     }) {
         let panic_s = e.downcast_ref::<&str>();
         tracing::error!("{:?}", panic_s);
-        let b = BACKTRACE.with(|b| b.borrow_mut().take()).unwrap();
+        let b = tracing_setup::BACKTRACE
+            .with(|b| b.borrow_mut().take())
+            .unwrap();
         tracing::error!("{:?}", b);
     }
 }

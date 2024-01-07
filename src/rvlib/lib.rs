@@ -17,6 +17,7 @@ mod ssh;
 mod threadpool;
 pub mod tools;
 mod tools_data;
+pub mod tracing_setup;
 mod types;
 mod util;
 mod view;
