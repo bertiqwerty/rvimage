@@ -8,7 +8,7 @@ use crate::events::{Events, KeyCode};
 use crate::file_util::DEFAULT_PRJ_PATH;
 use crate::history::{History, Record};
 use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
-use crate::result::{RvResult, trace_ok};
+use crate::result::{trace_ok, RvResult};
 use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
 use crate::util::Visibility;
 use crate::world::World;
@@ -157,8 +157,8 @@ impl Default for MainEventLoop {
             rx_from_http,
             loop_counter: 0,
         };
-        
-        let file_path = std::env::args().nth(1).map(|s| PathBuf::from(s));
+
+        let file_path = std::env::args().nth(1).map(PathBuf::from);
         trace_ok(self_.load_prj(file_path));
         self_
     }
