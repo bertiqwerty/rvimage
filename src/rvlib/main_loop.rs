@@ -8,7 +8,7 @@ use crate::events::{Events, KeyCode};
 use crate::file_util::DEFAULT_PRJ_PATH;
 use crate::history::{History, Record};
 use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
-use crate::result::RvResult;
+use crate::result::{RvResult, trace_ok};
 use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
 use crate::util::Visibility;
 use crate::world::World;
@@ -20,6 +20,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::mem;
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use tracing::{error, info, warn};
 
@@ -126,28 +127,10 @@ pub struct MainEventLoop {
 impl Default for MainEventLoop {
     fn default() -> Self {
         let mut world = empty_world();
-        let mut ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
+        let ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
             warn!("could not read cfg due to {e:?}, returning default");
             cfg::get_default_cfg()
         }));
-        {
-            let pp = ctrl.cfg.current_prj_path().to_path_buf();
-            // load last project
-            match ctrl.load(pp) {
-                Ok(td) => {
-                    info!("loaded last project {:?}", ctrl.cfg.current_prj_path());
-                    world.data.tools_data_map = td;
-                }
-                Err(e) => {
-                    if DEFAULT_PRJ_PATH.as_os_str() != ctrl.cfg.current_prj_path().as_os_str() {
-                        info!(
-                            "could not read last opened project {:?} due to {e:?} ",
-                            ctrl.cfg.current_prj_path()
-                        );
-                    }
-                }
-            }
-        }
 
         let mut tools = make_tool_vec();
         for t in &mut tools {
@@ -162,7 +145,7 @@ impl Default for MainEventLoop {
         } else {
             None
         };
-        Self {
+        let mut self_ = Self {
             world,
             ctrl,
             tools,
@@ -173,7 +156,11 @@ impl Default for MainEventLoop {
             recently_clicked_tool_idx: None,
             rx_from_http,
             loop_counter: 0,
-        }
+        };
+        
+        let file_path = std::env::args().nth(1).map(|s| PathBuf::from(s));
+        trace_ok(self_.load_prj(file_path));
+        self_
     }
 }
 impl MainEventLoop {
@@ -397,5 +384,30 @@ impl MainEventLoop {
         self.loop_counter += 1;
 
         Ok(mem::take(&mut self.world.update_view))
+    }
+    pub fn load_prj(&mut self, file_path: Option<PathBuf>) -> RvResult<()> {
+        if let Some(file_path) = file_path {
+            info!("loaded project {file_path:?}");
+            self.world.data.tools_data_map = self.ctrl.load(file_path)?;
+        } else {
+            let pp = self.ctrl.cfg.current_prj_path().to_path_buf();
+            // load last project
+            match self.ctrl.load(pp) {
+                Ok(td) => {
+                    info!("loaded last project {:?}", self.ctrl.cfg.current_prj_path());
+                    self.world.data.tools_data_map = td;
+                }
+                Err(e) => {
+                    if DEFAULT_PRJ_PATH.as_os_str() != self.ctrl.cfg.current_prj_path().as_os_str()
+                    {
+                        info!(
+                            "could not read last opened project {:?} due to {e:?} ",
+                            self.ctrl.cfg.current_prj_path()
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
