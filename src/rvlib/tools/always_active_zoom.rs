@@ -51,7 +51,7 @@ impl AlwaysActiveZoom {
         if events.held_ctrl() {
             let zb = if events.released(KeyCode::Key0) {
                 None
-            } else if events.released(KeyCode::Plus) {
+            } else if events.released(KeyCode::PlusEquals) {
                 zoom_box_mouse_wheel(*world.zoom_box(), world.shape_orig(), 1.0)
             } else if events.released(KeyCode::Minus) {
                 zoom_box_mouse_wheel(*world.zoom_box(), world.shape_orig(), -1.0)
@@ -79,7 +79,7 @@ impl Manipulate for AlwaysActiveZoom {
                 (pressed, KeyCode::MouseLeft, mouse_pressed),
                 (held, KeyCode::MouseLeft, mouse_held),
                 (released, KeyCode::Key0, key_released),
-                (released, KeyCode::Plus, key_released), // Plus is equals
+                (released, KeyCode::PlusEquals, key_released), // Plus is equals
                 (released, KeyCode::Minus, key_released)
             ]
         )
