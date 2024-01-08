@@ -46,7 +46,7 @@ fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
         egui::Key::Num7 => Some(rvlib::KeyCode::Key7),
         egui::Key::Num8 => Some(rvlib::KeyCode::Key8),
         egui::Key::Num9 => Some(rvlib::KeyCode::Key9),
-        egui::Key::PlusEquals => Some(rvlib::KeyCode::PlusEquals),
+        egui::Key::Plus => Some(rvlib::KeyCode::Plus),
         egui::Key::Minus => Some(rvlib::KeyCode::Minus),
         egui::Key::Delete => Some(rvlib::KeyCode::Delete),
         egui::Key::Backspace => Some(rvlib::KeyCode::Back),
@@ -146,6 +146,7 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
                 pressed,
                 repeat,
                 modifiers,
+                physical_key: _,
             } = e
             {
                 if let Some(k) = map_key(*key) {

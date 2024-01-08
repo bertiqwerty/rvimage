@@ -84,7 +84,7 @@ pub enum KeyCode {
     Key7,
     Key8,
     Key9,
-    PlusEquals,
+    Plus,
     Minus,
     Delete,
     Back,
