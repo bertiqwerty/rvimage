@@ -3,7 +3,7 @@ use egui::Ui;
 use crate::{
     cfg::Connection,
     control::Control,
-    result::{RvError, RvResult},
+    result::{trace_ok, RvError, RvResult},
 };
 
 use super::picklist::{self, PicklistResult};
@@ -16,14 +16,17 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
         let mut cancel = false;
         let picked = match &ctrl.cfg.connection {
             Connection::Local => {
-                let sf = rfd::FileDialog::new()
-                    .pick_folder()
-                    .ok_or_else(|| RvError::new("Could not pick folder."))?;
-                Some(
-                    sf.to_str()
-                        .ok_or_else(|| RvError::new("could not transfer path to unicode string"))?
-                        .to_string(),
-                )
+                let sf = rfd::FileDialog::new().pick_folder();
+                if sf.is_none() {
+                    cancel = true;
+                }
+                sf.as_ref()
+                    .and_then(|sf| {
+                        trace_ok(sf.to_str().ok_or_else(|| {
+                            RvError::new("could not transfer path to unicode string")
+                        }))
+                    })
+                    .map(|sf| sf.to_string())
             }
             Connection::Ssh => {
                 let picklist_res = picklist::pick(
