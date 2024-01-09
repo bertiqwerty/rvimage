@@ -26,10 +26,7 @@ use crate::{
     world::World,
     GeoFig, Polygon,
 };
-use std::{
-    iter, mem, thread,
-    time::{Duration, Instant},
-};
+use std::{iter, mem, time::Instant};
 
 use super::on_events::{
     export_if_triggered, find_close_vertex, import_coco_if_triggered, move_corner_tol,
@@ -521,7 +518,11 @@ impl Manipulate for Bbox {
 }
 
 #[cfg(test)]
-use {super::on_events::test_data, crate::Event};
+use {
+    super::on_events::test_data,
+    crate::Event,
+    std::{thread, time::Duration},
+};
 #[test]
 fn test_bbox_ctrl_h() {
     let (_, mut world, mut history) = test_data();
