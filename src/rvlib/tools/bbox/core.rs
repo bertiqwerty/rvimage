@@ -26,7 +26,10 @@ use crate::{
     world::World,
     GeoFig, Polygon,
 };
-use std::{iter, mem, time::Instant};
+use std::{
+    iter, mem, thread,
+    time::{Duration, Instant},
+};
 
 use super::on_events::{
     export_if_triggered, find_close_vertex, import_coco_if_triggered, move_corner_tol,
@@ -515,4 +518,29 @@ impl Manipulate for Bbox {
         }
         (world, history)
     }
+}
+
+#[cfg(test)]
+use {super::on_events::test_data, crate::Event};
+#[test]
+fn test_bbox_ctrl_h() {
+    let (_, mut world, mut history) = test_data();
+    let mut bbox = Bbox::new();
+    bbox.last_close_circle_check = Some(Instant::now());
+    thread::sleep(Duration::from_millis(3));
+    assert_eq!(get_visible(&world), Visibility::All);
+    let events = Events::default()
+        .events(vec![
+            Event::Held(KeyCode::Ctrl),
+            Event::Released(KeyCode::H),
+        ])
+        .mousepos_orig(Some((1.0, 1.0).into()));
+    (world, history) = bbox.events_tf(world, history, &events);
+    thread::sleep(Duration::from_millis(3));
+    (world, _) = bbox.events_tf(
+        world,
+        history,
+        &Events::default().mousepos_orig(Some((1.0, 1.0).into())),
+    );
+    assert_eq!(get_visible(&world), Visibility::None);
 }

@@ -61,7 +61,7 @@ pub fn version_label() -> String {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Visibility {
     All,
     None,
