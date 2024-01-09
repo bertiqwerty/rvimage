@@ -146,8 +146,8 @@ fn check_cocoimport(mut world: World) -> World {
                     }
                     data_mut.options.is_import_triggered = false;
                 }
+                set_visible(&mut world);
             }
-            set_visible(&mut world);
         } else if let Some(data_mut) = get_specific_mut(&mut world) {
             data_mut.options.is_import_triggered = false;
         }
@@ -402,13 +402,19 @@ impl Manipulate for Bbox {
                                 / OUTLINE_THICKNESS_CONVERSION
                                 * 5.0,
                         }];
-                        set_visible(&mut world);
                     }
                 } else {
                     let data = get_specific_mut(&mut world);
+                    let n_circles = data
+                        .as_ref()
+                        .map(|d| d.highlight_circles.len())
+                        .unwrap_or(0);
                     if let Some(data) = data {
                         data.highlight_circles = vec![];
-                        set_visible(&mut world);
+                    }
+                    if n_circles > 0 {
+                        let vis = get_visible(&world);
+                        world.request_redraw_annotations(BBOX_NAME, vis);
                     }
                 }
                 self.last_close_circle_check = Some(Instant::now());

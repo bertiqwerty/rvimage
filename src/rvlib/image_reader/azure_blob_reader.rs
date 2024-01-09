@@ -63,6 +63,22 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
     fn new(conn_data: AzureConnectionData) -> RvResult<Self> {
         let connection_string =
             fs::read_to_string(&conn_data.connection_string_path).map_err(to_rv)?;
+        let line_with_cs = connection_string
+            .lines()
+            .find(|line| !line.starts_with('#') && line.contains("connection_string"));
+        let connection_string = if let Some(line_with_cs) = line_with_cs {
+            line_with_cs
+                .split_once('=')
+                .map(|(_, cs)| cs.trim().to_string())
+                .ok_or(rverr!(
+                    "cannot parse connection string from line {:?}",
+                    line_with_cs
+                ))?
+        } else {
+            connection_string
+        };
+        println!("connection_string: {:?}", connection_string);
+
         let connection_string = ConnectionString::new(&connection_string).map_err(to_rv)?;
         let blob_service_client = BlobServiceClient::new(
             connection_string.account_name.unwrap(),

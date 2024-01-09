@@ -29,7 +29,9 @@ const CFG_DEFAULT: &str = r#"
     "#;
 
 pub fn get_default_cfg() -> Cfg {
-    toml::from_str(CFG_DEFAULT).expect("default config broken")
+    let mut cfg: Cfg = toml::from_str(CFG_DEFAULT).expect("default config broken");
+    cfg.current_prj_path = Some(DEFAULT_PRJ_PATH.to_path_buf());
+    cfg
 }
 
 pub fn get_cfg_path() -> RvResult<PathBuf> {
@@ -52,7 +54,14 @@ pub fn get_cfg() -> RvResult<Cfg> {
     let cfg_toml_path = get_cfg_path()?;
     if cfg_toml_path.exists() {
         let toml_str = file_util::read_to_string(cfg_toml_path)?;
-        toml::from_str(&toml_str).map_err(to_rv)
+        match toml::from_str(&toml_str).map_err(|e| rverr!("could not parse cfg due to {:?}", e)) {
+            Ok(cfg) => Ok(cfg),
+            Err(e) => {
+                error!("could not parse cfg due to {e:?}.");
+                error!("using default cfg");
+                Ok(get_default_cfg())
+            }
+        }
     } else {
         Ok(get_default_cfg())
     }
