@@ -20,15 +20,19 @@ use crate::{
 
 use super::core::{
     current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_label_info, get_options,
-    get_options_mut, get_specific_mut, get_visible, ACTOR_NAME,
+    get_options_mut, get_specific, get_specific_mut, get_visible, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
 
-fn closest_containing_boundary_idx(pos: PtF, geos: &[GeoFig]) -> Option<usize> {
+fn closest_containing_boundary_idx(
+    pos: PtF,
+    geos: &[GeoFig],
+    predicate: impl Fn(usize) -> bool,
+) -> Option<usize> {
     geos.iter()
         .enumerate()
-        .filter(|(_, geo)| geo.contains(pos))
+        .filter(|(i, geo)| geo.contains(pos) && predicate(*i))
         .map(|(i, geo)| (i, geo.distance_to_boundary(pos)))
         .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
         .map(|(i, _)| i)
@@ -286,9 +290,15 @@ pub(super) fn on_mouse_released_left(
             }
         } else if is_ctrl_held || is_alt_held || is_shift_held {
             // selection
+            let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
+            let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
             let annos = get_annos_mut(&mut world);
             if let Some(annos) = annos {
-                let idx = mouse_pos.and_then(|p| closest_containing_boundary_idx(p, annos.elts()));
+                let idx = mouse_pos.and_then(|p| {
+                    closest_containing_boundary_idx(p, annos.elts(), |idx| {
+                        annos.is_of_current_label(idx, idx_current, show_only_current)
+                    })
+                });
                 if let Some(i) = idx {
                     if is_shift_held {
                         // If shift is held a new selection box will be spanned between the currently clicked
@@ -550,7 +560,6 @@ pub(super) fn on_key_released(
 
 #[cfg(test)]
 use {
-    super::core::get_specific,
     crate::{
         domain::{make_test_bbs, make_test_geos, BbI, ShapeI},
         point,
@@ -885,35 +894,35 @@ fn test_mouse_release() {
 fn test_find_idx() {
     let bbs = make_test_geos();
     assert_eq!(
-        closest_containing_boundary_idx((0.0, 20.0).into(), &bbs),
+        closest_containing_boundary_idx((0.0, 20.0).into(), &bbs, |_| true),
         None
     );
     assert_eq!(
-        closest_containing_boundary_idx((0.0, 0.0).into(), &bbs),
+        closest_containing_boundary_idx((0.0, 0.0).into(), &bbs, |_| true),
         Some(0)
     );
     assert_eq!(
-        closest_containing_boundary_idx((3.0, 8.0).into(), &bbs),
+        closest_containing_boundary_idx((3.0, 8.0).into(), &bbs, |_| true),
         Some(0)
     );
     assert_eq!(
-        closest_containing_boundary_idx((7.0, 14.0).into(), &bbs),
+        closest_containing_boundary_idx((7.0, 14.0).into(), &bbs, |_| true),
         Some(1)
     );
     assert_eq!(
-        closest_containing_boundary_idx((7.0, 15.0).into(), &bbs),
+        closest_containing_boundary_idx((7.0, 15.0).into(), &bbs, |_| true),
         Some(1)
     );
     assert_eq!(
-        closest_containing_boundary_idx((7.0, 15.1).into(), &bbs),
+        closest_containing_boundary_idx((7.0, 15.1).into(), &bbs, |_| true),
         None
     );
     assert_eq!(
-        closest_containing_boundary_idx((8.0, 8.0).into(), &bbs),
+        closest_containing_boundary_idx((8.0, 8.0).into(), &bbs, |_| true),
         Some(0)
     );
     assert_eq!(
-        closest_containing_boundary_idx((10.0, 12.0).into(), &bbs),
+        closest_containing_boundary_idx((10.0, 12.0).into(), &bbs, |_| true),
         Some(2)
     );
 }

@@ -46,6 +46,27 @@ where
         res
     }
 
+    pub fn is_of_current_label(
+        &self,
+        elt_idx: usize,
+        cat_idx_current: Option<usize>,
+        show_only_current: Option<bool>,
+    ) -> bool {
+        if let (Some(show_only_current), Some(idx_current)) = (show_only_current, cat_idx_current) {
+            if show_only_current {
+                return self.cat_idxs()[elt_idx] == idx_current;
+            }
+        }
+        true
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (&T, usize, bool)> {
+        self.elts
+            .iter()
+            .zip(self.cat_idxs.iter())
+            .zip(self.selected_mask.iter())
+            .map(|((elt, cat_idx), is_selected)| (elt, *cat_idx, *is_selected))
+    }
+
     pub fn separate_data(self) -> (Vec<T>, Vec<usize>, Vec<bool>) {
         (self.elts, self.cat_idxs, self.selected_mask)
     }

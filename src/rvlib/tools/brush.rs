@@ -12,7 +12,7 @@ use crate::{
     make_tool_transform,
     result::{trace_ok, RvResult},
     tools::core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
-    tools_data::{self, annotations::InstanceAnnotations, brush_data, LabelInfo, ToolsData},
+    tools_data::{self, brush_data, LabelInfo, ToolsData},
     tools_data::{
         annotations::BrushAnnotations,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
@@ -50,13 +50,17 @@ fn max_select_dist(shape: ShapeI, thickness: TPtF) -> TPtF {
     (TPtF::from(shape.w.pow(2) + shape.h.pow(2)).sqrt() / 100.0).max(50.0) + thickness
 }
 
-fn find_closest_brushline(annos: &InstanceAnnotations<BrushLine>, p: PtF) -> Option<(usize, f64)> {
+fn find_closest_brushline(
+    annos: &BrushAnnotations,
+    p: PtF,
+    predicate: impl Fn(usize) -> bool,
+) -> Option<(usize, f64)> {
     annos
         .elts()
         .iter()
         .enumerate()
         .map(|(i, line)| (i, line.line.dist_to_point(p)))
-        .filter(|(_, dist)| dist.is_some())
+        .filter(|(i, dist)| dist.is_some() && predicate(*i))
         .map(|(i, dist)| (i, dist.unwrap()))
         .min_by(|(_, x), (_, y)| match x.partial_cmp(y) {
             Some(o) => o,
@@ -175,6 +179,8 @@ impl Brush {
             let label_info = get_label_info(&world);
             let cat_idx = label_info.map(|li| li.cat_idx_current);
             let shape_orig = world.shape_orig();
+            let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
+            let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
             if let (Some(mp), Some(annos), Some(options), Some(cat_idx)) = (
                 events.mouse_pos_on_orig,
                 get_annos_mut(&mut world),
@@ -183,7 +189,9 @@ impl Brush {
             ) {
                 let erase = options.erase;
                 if erase {
-                    let to_be_removed_line_idx = find_closest_brushline(annos, mp);
+                    let to_be_removed_line_idx = find_closest_brushline(annos, mp, |idx| {
+                        annos.is_of_current_label(idx, idx_current, show_only_current)
+                    });
                     if let Some((idx, dist)) = to_be_removed_line_idx {
                         let thickness = annos.elts()[idx].thickness;
                         if dist < max_select_dist(shape_orig, thickness) {
@@ -241,8 +249,12 @@ impl Brush {
     ) -> (World, History) {
         if events.held_ctrl() {
             let shape_orig = world.shape_orig();
+            let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
+            let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
-                let to_be_selected_line_idx = find_closest_brushline(annos, mp);
+                let to_be_selected_line_idx = find_closest_brushline(annos, mp, |idx| {
+                    annos.is_of_current_label(idx, idx_current, show_only_current)
+                });
                 if let Some((idx, dist)) = to_be_selected_line_idx {
                     let thickness = annos.elts()[idx].thickness;
                     if dist < max_select_dist(shape_orig, thickness) {
