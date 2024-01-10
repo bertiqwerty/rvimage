@@ -402,6 +402,8 @@ impl Manipulate for Bbox {
                                 / OUTLINE_THICKNESS_CONVERSION
                                 * 5.0,
                         }];
+                        let vis = get_visible(&world);
+                        world.request_redraw_annotations(BBOX_NAME, vis);
                     }
                 } else {
                     let data = get_specific_mut(&mut world);
