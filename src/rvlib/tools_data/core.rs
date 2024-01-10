@@ -103,7 +103,6 @@ fn get_visibility(visible: bool, show_only_current: bool, cat_idx_current: usize
     }
 }
 
-
 pub fn vis_from_lfoption(label_info: Option<&LabelInfo>, visible: bool) -> Visibility {
     if let Some(label_info) = label_info {
         label_info.visibility(visible)
