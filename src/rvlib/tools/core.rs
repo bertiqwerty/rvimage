@@ -1,3 +1,5 @@
+use tracing::info;
+
 use crate::domain::Annotate;
 use crate::history::Record;
 use crate::result::RvResult;
@@ -119,6 +121,29 @@ macro_rules! set_cat_current {
     };
 }
 
+pub fn check_erase_mode(
+    released_key: ReleasedKey,
+    get_options_mut: impl Fn(&mut World) -> Option<&mut CoreOptions>,
+    set_visible: impl Fn(&mut World),
+    mut world: World,
+) -> World {
+    match released_key {
+        ReleasedKey::E => {
+            if let Some(core_options) = get_options_mut(&mut world) {
+                if core_options.erase {
+                    info!("stop erase via shortcut");
+                } else {
+                    info!("start erase via shortcut");
+                }
+                core_options.visible = true;
+                core_options.erase = !core_options.erase;
+            }
+            set_visible(&mut world);
+        }
+        _ => (),
+    }
+    world
+}
 pub fn check_recolorboxes(
     mut world: World,
     actor: &'static str,

@@ -22,8 +22,6 @@ pub struct Options {
     pub thickness: TPtF,
     pub intensity: TPtF,
     #[serde(skip)]
-    pub erase: bool,
-    #[serde(skip)]
     pub is_selection_change_needed: bool,
     #[serde(skip)]
     pub core_options: core::Options,
@@ -33,7 +31,6 @@ impl Default for Options {
         Self {
             thickness: 15.0,
             intensity: 0.5,
-            erase: false,
             is_selection_change_needed: false,
             core_options: core::Options::default(),
         }

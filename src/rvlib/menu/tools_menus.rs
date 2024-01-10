@@ -157,6 +157,16 @@ fn export_file_menu(
     Ok(())
 }
 
+fn toggle_erase(ui: &mut Ui, mut options: CoreOptions) -> CoreOptions {
+    if ui.checkbox(&mut options.erase, "erase").clicked() {
+        if options.erase {
+            info!("start erasing");
+        } else {
+            info!("stop erasing");
+        }
+    }
+    options
+}
 pub fn bbox_menu(
     ui: &mut Ui,
     mut window_open: bool,
@@ -180,6 +190,7 @@ pub fn bbox_menu(
     }
     ui.separator();
 
+    data.options.core_options = toggle_erase(ui, data.options.core_options);
     data.options.core_options = hide_menu(ui, data.options.core_options);
 
     ui.checkbox(&mut data.options.auto_paste, "auto paste");
@@ -296,6 +307,7 @@ pub fn brush_menu(
         data.options.core_options.is_redraw_annos_triggered = true;
     }
 
+    data.options.core_options = toggle_erase(ui, data.options.core_options);
     data.options.core_options = hide_menu(ui, data.options.core_options);
     if ui
         .add(
@@ -314,13 +326,6 @@ pub fn brush_menu(
         .changed()
     {
         data.options.is_selection_change_needed = true;
-    }
-    if ui.checkbox(&mut data.options.erase, "erase").clicked() {
-        if data.options.erase {
-            info!("start erasing");
-        } else {
-            info!("stop erasing");
-        }
     }
     if ui.button("new random colors").clicked() {
         data.options.core_options.is_colorchange_triggered = true;

@@ -128,24 +128,26 @@ pub(super) fn on_mouse_held_right(
     mut world: World,
     mut history: History,
 ) -> (World, History) {
-    let orig_shape = world.data.shape();
-    let mut add_to_history = false;
-    let move_boxes = |mpo_from, mpo_to| {
-        let split_mode = get_options(&world).map(|o| o.split_mode);
-        let annos = get_annos_mut(&mut world);
-        if let (Some(annos), Some(split_mode)) = (annos, split_mode) {
-            let tmp =
-                mem::take(annos).selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
-            (*annos, add_to_history) = tmp;
+    if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
+        let orig_shape = world.data.shape();
+        let mut add_to_history = false;
+        let move_boxes = |mpo_from, mpo_to| {
+            let split_mode = get_options(&world).map(|o| o.split_mode);
+            let annos = get_annos_mut(&mut world);
+            if let (Some(annos), Some(split_mode)) = (annos, split_mode) {
+                let tmp = mem::take(annos)
+                    .selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
+                (*annos, add_to_history) = tmp;
+            }
+            Some(())
+        };
+        params.mover.move_mouse_held(move_boxes, mouse_pos);
+        if add_to_history {
+            history.push(Record::new(world.clone(), ACTOR_NAME));
         }
-        Some(())
-    };
-    params.mover.move_mouse_held(move_boxes, mouse_pos);
-    if add_to_history {
-        history.push(Record::new(world.clone(), ACTOR_NAME));
+        let vis = get_visible(&world);
+        world.request_redraw_annotations(BBOX_NAME, vis);
     }
-    let vis = get_visible(&world);
-    world.request_redraw_annotations(BBOX_NAME, vis);
     (world, history)
 }
 
@@ -179,37 +181,39 @@ pub(super) fn on_mouse_released_right(
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
-    let split_mode = get_options(&world).map(|o| o.split_mode);
-    let lc_orig = prev_pos.last_valid_click;
-    let in_menu_selected_label = current_cat_idx(&world);
-    if let (Some(mp), Some(last_click), Some(split_mode), Some(in_menu_selected_label)) =
-        (mouse_pos, lc_orig, split_mode, in_menu_selected_label)
-    {
-        match prev_pos.prev_pos.len().cmp(&1) {
-            Ordering::Equal => {
-                // second click new bb
-                let pp = prev_pos.prev_pos[0];
-                if (mp.x - pp.x).abs() > 1.0 && (mp.y - pp.y).abs() > 1.0 {
-                    let mp = match split_mode {
-                        SplitMode::Horizontal => (last_click.x, mp.y).into(),
-                        SplitMode::Vertical => (mp.x, last_click.y).into(),
-                        SplitMode::None => mp,
-                    };
-                    let annos = get_annos_mut(&mut world);
-                    if let Some(annos) = annos {
-                        annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label);
-                        history.push(Record::new(world.clone(), ACTOR_NAME));
-                        prev_pos.prev_pos = vec![];
-                        world.request_redraw_annotations(BBOX_NAME, visible);
+    if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
+        let split_mode = get_options(&world).map(|o| o.split_mode);
+        let lc_orig = prev_pos.last_valid_click;
+        let in_menu_selected_label = current_cat_idx(&world);
+        if let (Some(mp), Some(last_click), Some(split_mode), Some(in_menu_selected_label)) =
+            (mouse_pos, lc_orig, split_mode, in_menu_selected_label)
+        {
+            match prev_pos.prev_pos.len().cmp(&1) {
+                Ordering::Equal => {
+                    // second click new bb
+                    let pp = prev_pos.prev_pos[0];
+                    if (mp.x - pp.x).abs() > 1.0 && (mp.y - pp.y).abs() > 1.0 {
+                        let mp = match split_mode {
+                            SplitMode::Horizontal => (last_click.x, mp.y).into(),
+                            SplitMode::Vertical => (mp.x, last_click.y).into(),
+                            SplitMode::None => mp,
+                        };
+                        let annos = get_annos_mut(&mut world);
+                        if let Some(annos) = annos {
+                            annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label);
+                            history.push(Record::new(world.clone(), ACTOR_NAME));
+                            prev_pos.prev_pos = vec![];
+                            world.request_redraw_annotations(BBOX_NAME, visible);
+                        }
                     }
                 }
+                Ordering::Greater => {
+                    prev_pos.prev_pos.push(mp);
+                    (world, history, prev_pos) =
+                        close_polygon(prev_pos, in_menu_selected_label, visible, world, history);
+                }
+                _ => (),
             }
-            Ordering::Greater => {
-                prev_pos.prev_pos.push(mp);
-                (world, history, prev_pos) =
-                    close_polygon(prev_pos, in_menu_selected_label, visible, world, history);
-            }
-            _ => (),
         }
     }
     (world, history, prev_pos)
@@ -221,7 +225,9 @@ pub(super) fn on_mouse_held_left(
     world: World,
     history: History,
 ) -> (World, History, PrevPos) {
-    if params.elapsed_millis_since_press > 200 {
+    if params.elapsed_millis_since_press > 200
+        && get_options(&world).map(|o| o.core_options.erase) != Some(true)
+    {
         const SENSITIVITY_FACTOR: f64 = 5.0;
         let min_distance_start_end = (SENSITIVITY_FACTOR * params.distance).max(5.0);
         if !(params.is_alt_held || params.is_ctrl_held || params.is_shift_held) {
@@ -263,8 +269,25 @@ pub(super) fn on_mouse_released_left(
         is_ctrl_held,
         close_box_or_poly: close,
     } = params;
-
-    if close {
+    let erase = get_options(&world).map(|o| o.core_options.erase);
+    let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
+    let cat_idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
+    if erase == Some(true) {
+        let annos = get_annos_mut(&mut world);
+        if let Some(annos) = annos {
+            let idx = mouse_pos.and_then(|p| {
+                closest_containing_boundary_idx(p, annos.elts(), |idx| {
+                    annos.is_of_current_label(idx, cat_idx_current, show_only_current)
+                })
+            });
+            if let Some(i) = idx {
+                annos.remove(i);
+                history.push(Record::new(world.clone(), ACTOR_NAME));
+                world.request_redraw_annotations(BBOX_NAME, visible);
+            }
+        }
+        (world, history, prev_pos)
+    } else if close {
         let in_menu_selected_label = current_cat_idx(&world);
         if let Some(in_menu_selected_label) = in_menu_selected_label {
             close_polygon(prev_pos, in_menu_selected_label, visible, world, history)

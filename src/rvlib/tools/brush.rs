@@ -26,8 +26,8 @@ use crate::{
 
 use super::{
     core::{
-        deselect_all, label_change_key, map_held_key, map_released_key, on_selection_keys, HeldKey,
-        ReleasedKey,
+        check_erase_mode, deselect_all, label_change_key, map_held_key, map_released_key,
+        on_selection_keys, HeldKey, ReleasedKey,
     },
     Manipulate, BRUSH_NAME,
 };
@@ -187,7 +187,7 @@ impl Brush {
                 options,
                 cat_idx,
             ) {
-                let erase = options.erase;
+                let erase = options.core_options.erase;
                 if erase {
                     let to_be_removed_line_idx = find_closest_brushline(annos, mp, |idx| {
                         annos.is_of_current_label(idx, idx_current, show_only_current)
@@ -220,7 +220,7 @@ impl Brush {
         history: History,
     ) -> (World, History) {
         if !events.held_ctrl() {
-            let erase = get_options(&world).map(|o| o.erase);
+            let erase = get_options(&world).map(|o| o.core_options.erase);
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
                 if erase != Some(true) {
                     if let Some(line) = annos.last_line_mut() {
@@ -361,20 +361,14 @@ impl Brush {
                 let vis = get_visible(&world);
                 world.request_redraw_annotations(BRUSH_NAME, vis);
             }
-            ReleasedKey::E => {
-                if let Some(options_mut) = get_options_mut(&mut world) {
-                    if options_mut.erase {
-                        info!("stop erase via shortcut");
-                    } else {
-                        info!("start erase via shortcut");
-                    }
-                    options_mut.core_options.visible = true;
-                    options_mut.erase = !options_mut.erase;
-                }
-                set_visible(&mut world);
-            }
             _ => (),
         }
+        world = check_erase_mode(
+            released_key,
+            |w| get_options_mut(w).map(|o| &mut o.core_options),
+            set_visible,
+            world,
+        );
         (world, history)
     }
 }

@@ -30,6 +30,7 @@ pub struct Options {
     pub is_redraw_annos_triggered: bool,
     pub is_export_triggered: bool,
     pub is_history_update_triggered: bool,
+    pub erase: bool,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -39,6 +40,7 @@ impl Default for Options {
             is_redraw_annos_triggered: false,
             is_export_triggered: false,
             is_history_update_triggered: false,
+            erase: false,
         }
     }
 }
@@ -100,6 +102,7 @@ fn get_visibility(visible: bool, show_only_current: bool, cat_idx_current: usize
         Visibility::None
     }
 }
+
 
 pub fn vis_from_lfoption(label_info: Option<&LabelInfo>, visible: bool) -> Visibility {
     if let Some(label_info) = label_info {

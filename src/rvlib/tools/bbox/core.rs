@@ -9,8 +9,8 @@ use crate::{
     result::{trace_ok, RvResult},
     tools::{
         core::{
-            check_recolorboxes, check_trigger_history_update, check_trigger_redraw, deselect_all,
-            map_released_key, Mover,
+            check_erase_mode, check_recolorboxes, check_trigger_history_update,
+            check_trigger_redraw, deselect_all, map_released_key, Mover,
         },
         rot90, Manipulate, BBOX_NAME,
     },
@@ -179,13 +179,15 @@ impl Bbox {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if event.pressed(KeyCode::MouseRight) {
-            self.mover.move_mouse_pressed(event.mouse_pos_on_orig);
-        } else {
-            self.start_press_time = Some(Instant::now());
-            self.points_at_press = Some(self.prev_pos.prev_pos.len());
-            if !(event.held_alt() || event.held_ctrl() || event.held_shift()) {
-                world = deselect_all(world, BBOX_NAME, get_annos_mut, get_label_info);
+        if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
+            if event.pressed(KeyCode::MouseRight) {
+                self.mover.move_mouse_pressed(event.mouse_pos_on_orig);
+            } else {
+                self.start_press_time = Some(Instant::now());
+                self.points_at_press = Some(self.prev_pos.prev_pos.len());
+                if !(event.held_alt() || event.held_ctrl() || event.held_shift()) {
+                    world = deselect_all(world, BBOX_NAME, get_annos_mut, get_label_info);
+                }
             }
         }
         (world, history)
@@ -307,6 +309,12 @@ impl Bbox {
             is_ctrl_held: events.held_ctrl(),
             released_key: map_released_key(events),
         };
+        world = check_erase_mode(
+            params.released_key,
+            |w| get_options_mut(w).map(|o| &mut o.core_options),
+            set_visible,
+            world,
+        );
         (world, history) = on_key_released(world, history, events.mouse_pos_on_orig, params);
         (world, history)
     }
@@ -492,6 +500,7 @@ impl Manipulate for Bbox {
                     (released, KeyCode::H, key_released),
                     (released, KeyCode::A, key_released),
                     (released, KeyCode::D, key_released),
+                    (released, KeyCode::E, key_released),
                     (released, KeyCode::C, key_released),
                     (released, KeyCode::V, key_released),
                     (released, KeyCode::L, key_released),
