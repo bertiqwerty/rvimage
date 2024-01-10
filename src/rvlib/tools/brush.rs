@@ -359,8 +359,7 @@ impl Brush {
                     options_mut.core_options.visible = true;
                     options_mut.erase = !options_mut.erase;
                 }
-                let vis = vis_from_lfoption(get_label_info(&world), true);
-                world.request_redraw_annotations(BRUSH_NAME, vis);
+                set_visible(&mut world);
             }
             _ => (),
         }
