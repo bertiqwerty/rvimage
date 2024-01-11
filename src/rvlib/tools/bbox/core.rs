@@ -408,7 +408,7 @@ impl Manipulate for Bbox {
                             center: corner_point,
                             radius: options.outline_thickness as TPtF
                                 / OUTLINE_THICKNESS_CONVERSION
-                                * 5.0,
+                                * 2.5,
                         }];
                         let vis = get_visible(&world);
                         world.request_redraw_annotations(BBOX_NAME, vis);
