@@ -18,7 +18,7 @@ use crate::{
     ShapeI,
 };
 
-use super::text_edit::text_edit_singleline;
+use super::ui_util::{slider, text_edit_singleline};
 
 #[derive(Default)]
 pub struct LabelMenuResult {
@@ -199,17 +199,19 @@ pub fn bbox_menu(
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
         let mut transparency: f32 = data.options.fill_alpha as f32 / 255.0 * 100.0;
         ui.label("transparency");
-        if ui
-            .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("fill"))
-            .changed()
-        {
+        if slider(ui, are_tools_active, &mut transparency, 0.0..=100.0, "fill").changed() {
             data.options.core_options.is_redraw_annos_triggered = true;
         }
         data.options.fill_alpha = (transparency / 100.0 * 255.0).round() as u8;
         let mut transparency = data.options.outline_alpha as f32 / 255.0 * 100.0;
-        if ui
-            .add(egui::Slider::new(&mut transparency, 0.0..=100.0).text("outline"))
-            .changed()
+        if slider(
+            ui,
+            are_tools_active,
+            &mut transparency,
+            0.0..=100.0,
+            "outline",
+        )
+        .changed()
         {
             data.options.core_options.is_redraw_annos_triggered = true;
         }
@@ -217,9 +219,14 @@ pub fn bbox_menu(
         let mut outline_thickness_f =
             data.options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION;
         ui.separator();
-        if ui
-            .add(egui::Slider::new(&mut outline_thickness_f, 0.0..=10.0).text("outline thickness"))
-            .changed()
+        if slider(
+            ui,
+            are_tools_active,
+            &mut outline_thickness_f,
+            0.0..=10.0,
+            "outline thickness",
+        )
+        .changed()
         {
             data.options.core_options.is_redraw_annos_triggered = true;
         }
@@ -227,12 +234,14 @@ pub fn bbox_menu(
             (outline_thickness_f * OUTLINE_THICKNESS_CONVERSION).round() as u16;
 
         ui.separator();
-        if ui
-            .add(
-                egui::Slider::new(&mut data.options.drawing_distance, 1..=50)
-                    .text("drawing distance parameter"),
-            )
-            .changed()
+        if slider(
+            ui,
+            are_tools_active,
+            &mut data.options.drawing_distance,
+            1..=50,
+            "drawing distance parameter",
+        )
+        .changed()
         {
             data.options.core_options.is_redraw_annos_triggered = true;
         }
@@ -309,21 +318,25 @@ pub fn brush_menu(
 
     data.options.core_options = toggle_erase(ui, data.options.core_options);
     data.options.core_options = hide_menu(ui, data.options.core_options);
-    if ui
-        .add(
-            egui::Slider::new(&mut data.options.thickness, MIN_THICKNESS..=MAX_THICKNESS)
-                .text("thickness"),
-        )
-        .changed()
+    if slider(
+        ui,
+        are_tools_active,
+        &mut data.options.thickness,
+        MIN_THICKNESS..=MAX_THICKNESS,
+        "thickness",
+    )
+    .changed()
     {
         data.options.is_selection_change_needed = true;
     }
-    if ui
-        .add(
-            egui::Slider::new(&mut data.options.intensity, MIN_INTENSITY..=MAX_INTENSITY)
-                .text("intensity"),
-        )
-        .changed()
+    if slider(
+        ui,
+        are_tools_active,
+        &mut data.options.intensity,
+        MIN_INTENSITY..=MAX_INTENSITY,
+        "intensity",
+    )
+    .changed()
     {
         data.options.is_selection_change_needed = true;
     }

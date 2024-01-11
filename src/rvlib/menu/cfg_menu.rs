@@ -3,7 +3,7 @@ use egui::{Area, Color32, Frame, Id, Order, Response, RichText, TextEdit, Ui, Vi
 use crate::{
     cfg::{self, Cache, Cfg, Connection, SshCfg},
     file_util::get_prj_name,
-    menu::{self, text_edit},
+    menu::{self, ui_util},
 };
 
 fn is_valid_ssh_cfg(s: &str) -> bool {
@@ -134,7 +134,7 @@ impl<'a> Widget for CfgMenu<'a> {
                                     .text_color(clr),
                             )
                         };
-                        text_edit::text_edit(self.ssh_cfg_str, self.are_tools_active, multiline);
+                        ui_util::text_edit_with_deactivated_tools(self.ssh_cfg_str, self.are_tools_active, multiline);
                         ui.horizontal(|ui| {
                             if ui.button("OK").clicked() {
                                 close = Close::Yes(true);

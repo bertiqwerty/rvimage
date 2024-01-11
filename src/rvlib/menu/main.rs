@@ -3,7 +3,7 @@ use crate::{
     control::{Control, Info, SortType},
     domain::Annotate,
     file_util::get_prj_name,
-    menu::{self, cfg_menu::CfgMenu, open_folder, text_edit::text_edit_singleline},
+    menu::{self, cfg_menu::CfgMenu, open_folder, ui_util::text_edit_singleline},
     paths_selector::PathsSelector,
     result::RvResult,
     tools::ToolState,
