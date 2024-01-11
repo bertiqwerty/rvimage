@@ -19,10 +19,10 @@ use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::time::Instant;
-use std::{fs, mem};
+use std::{fs, mem, thread};
 use tracing::{error, info, warn};
 
 const START_WIDTH: u32 = 640;
@@ -391,22 +391,24 @@ impl MainEventLoop {
             if self.autosave_timer.elapsed().as_secs() > AUTOSAVE_INTERVAL_S {
                 self.autosave_timer = Instant::now();
 
-                let make_filepath = |n| {
+                let homefolder = self.ctrl.cfg.home_folder().map(PathBuf::from);
+                let make_filepath = move |n| {
                     trace_ok(
-                        self.ctrl
-                            .cfg
-                            .home_folder()
+                        homefolder
                             .clone()
-                            .map(|p| Path::new(p).join(format!("autosave_{n}.json", n = n))),
+                            .map(|hf| hf.join(format!("autosave_{n}.json", n = n))),
                     )
                 };
-                for i in 1..(n_autosaves) {
-                    if let (Some(from), Some(to)) = (make_filepath(i), make_filepath(i - 1)) {
-                        if from.exists() {
-                            trace_ok(fs::copy(from, to));
+                let mf_th = make_filepath.clone();
+                thread::spawn(move || {
+                    for i in 1..(n_autosaves) {
+                        if let (Some(from), Some(to)) = (mf_th(i), mf_th(i - 1)) {
+                            if from.exists() {
+                                trace_ok(fs::copy(from, to));
+                            }
                         }
                     }
-                }
+                });
                 let prj_path = make_filepath(n_autosaves - 1);
                 if let Some(prj_path) = prj_path {
                     if trace_ok(

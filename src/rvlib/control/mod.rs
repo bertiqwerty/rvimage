@@ -262,16 +262,25 @@ impl Control {
         if set_cur_prj {
             self.cfg.set_current_prj_path(path.clone());
         }
-
-        detail::save(self.opened_folder(), tools_data_map, &path, &self.cfg)?;
-
-        if set_cur_prj {
-            // update prj name in cfg
-            let mut cfg_global = cfg::get_cfg()?;
-            cfg_global.set_current_prj_path(path);
-            cfg::write_cfg(&cfg_global)?;
-        }
-
+        let opened_folder = self.opened_folder().cloned();
+        let tdm = tools_data_map.clone();
+        let cfg = self.cfg.clone();
+        thread::spawn(move || {
+            trace_ok(detail::save(
+                opened_folder.as_ref(),
+                &tdm,
+                path.as_path(),
+                &cfg,
+            ));
+            if set_cur_prj {
+                // update prj name in cfg
+                let cfg_global = trace_ok(cfg::get_cfg());
+                if let Some(mut cfg_global) = cfg_global {
+                    cfg_global.set_current_prj_path(path);
+                    trace_ok(cfg::write_cfg(&cfg_global));
+                }
+            }
+        });
         Ok(())
     }
 
