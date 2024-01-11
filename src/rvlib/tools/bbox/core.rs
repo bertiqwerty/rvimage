@@ -468,12 +468,12 @@ impl Manipulate for Bbox {
                             geofig: geo,
                             label,
                             fill_color: Some(color),
-                            fill_alpha: options.fill_alpha,
+                            fill_alpha: 0,
                             outline: Stroke {
                                 color,
                                 thickness: options.outline_thickness as TPtF / 4.0,
                             },
-                            outline_alpha: 0,
+                            outline_alpha: options.outline_alpha,
                             is_selected: None,
                             highlight_circles: vec![],
                         };
