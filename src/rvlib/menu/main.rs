@@ -299,7 +299,7 @@ impl Menu {
                         .save_file();
 
                     if let Some(prj_path) = prj_path {
-                        handle_error!(ctrl.save(prj_path, tools_data_map), self);
+                        handle_error!(ctrl.save(prj_path, tools_data_map, true), self);
                     }
                 }
 

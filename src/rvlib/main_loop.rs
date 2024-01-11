@@ -28,6 +28,8 @@ use tracing::{error, info, warn};
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 
+const AUTOSAVE_INTERVAL_S: u64 = 120;
+
 fn cfg_static_ref() -> &'static Cfg {
     lazy_static! {
         static ref CFG: Cfg = cfg::get_cfg().expect("config broken");
@@ -185,7 +187,10 @@ impl MainEventLoop {
         }
         if e.held_ctrl() && e.pressed(KeyCode::S) {
             let prj_path = self.ctrl.cfg.current_prj_path().to_path_buf();
-            if let Err(e) = self.ctrl.save(prj_path, &self.world.data.tools_data_map) {
+            if let Err(e) = self
+                .ctrl
+                .save(prj_path, &self.world.data.tools_data_map, true)
+            {
                 self.menu
                     .show_info(Info::Error(format!("could not save project due to {e:?}")));
             }
@@ -383,13 +388,15 @@ impl MainEventLoop {
         }
 
         if let Some(n_autosaves) = self.ctrl.cfg.n_autosaves {
-            if self.autosave_timer.elapsed().as_secs() > 180 {
+            if self.autosave_timer.elapsed().as_secs() > AUTOSAVE_INTERVAL_S {
                 self.autosave_timer = Instant::now();
+
                 let make_filepath = |n| {
                     trace_ok(
                         self.ctrl
                             .cfg
                             .home_folder()
+                            .clone()
                             .map(|p| Path::new(p).join(format!("autosave_{n}.json", n = n))),
                     )
                 };
@@ -400,9 +407,13 @@ impl MainEventLoop {
                         }
                     }
                 }
-                let prj_path = make_filepath(n_autosaves);
+                let prj_path = make_filepath(n_autosaves - 1);
                 if let Some(prj_path) = prj_path {
-                    if trace_ok(self.ctrl.save(prj_path, &self.world.data.tools_data_map)).is_some()
+                    if trace_ok(
+                        self.ctrl
+                            .save(prj_path, &self.world.data.tools_data_map, false),
+                    )
+                    .is_some()
                     {
                         info!("autosaved");
                     }

@@ -98,11 +98,11 @@ impl<'a> Widget for CfgMenu<'a> {
                                 ui.ctx().set_visuals(Visuals::dark());
                             }
                         });
+                        ui.separator();
                         ui.horizontal(|ui| {
                             let mut autosave = self.cfg.n_autosaves.unwrap_or(0);
-                            ui.add(
-                                egui::Slider::new(&mut autosave, 0..=3).text("number of autosaves"),
-                            );
+                            ui.label("Autosave versions");
+                            ui.add(egui::Slider::new(&mut autosave, 0..=10));
                             if autosave > 0 {
                                 self.cfg.n_autosaves = Some(autosave);
                             } else {

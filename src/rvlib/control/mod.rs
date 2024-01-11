@@ -243,7 +243,12 @@ impl Control {
         }
     }
 
-    pub fn save(&mut self, prj_path: PathBuf, tools_data_map: &ToolsDataMap) -> RvResult<()> {
+    pub fn save(
+        &mut self,
+        prj_path: PathBuf,
+        tools_data_map: &ToolsDataMap,
+        set_cur_prj: bool,
+    ) -> RvResult<()> {
         let path = if let Some(of) = self.opened_folder() {
             if DEFAULT_PRJ_PATH.as_os_str() == prj_path.as_os_str() {
                 PathBuf::from(of).join(DEFAULT_PRJ_NAME)
@@ -254,14 +259,18 @@ impl Control {
             prj_path.clone()
         };
 
-        self.cfg.set_current_prj_path(path.clone());
+        if set_cur_prj {
+            self.cfg.set_current_prj_path(path.clone());
+        }
 
         detail::save(self.opened_folder(), tools_data_map, &path, &self.cfg)?;
 
-        // update prj name in cfg
-        let mut cfg_global = cfg::get_cfg()?;
-        cfg_global.set_current_prj_path(path);
-        cfg::write_cfg(&cfg_global)?;
+        if set_cur_prj {
+            // update prj name in cfg
+            let mut cfg_global = cfg::get_cfg()?;
+            cfg_global.set_current_prj_path(path);
+            cfg::write_cfg(&cfg_global)?;
+        }
 
         Ok(())
     }
