@@ -100,7 +100,9 @@ impl<'a> Widget for CfgMenu<'a> {
                         });
                         ui.horizontal(|ui| {
                             let mut autosave = self.cfg.n_autosaves.unwrap_or(0);
-                            ui.add(egui::Slider::new(&mut autosave, 0..=3).text("number of autosaves"));
+                            ui.add(
+                                egui::Slider::new(&mut autosave, 0..=3).text("number of autosaves"),
+                            );
                             if autosave > 0 {
                                 self.cfg.n_autosaves = Some(autosave);
                             } else {
