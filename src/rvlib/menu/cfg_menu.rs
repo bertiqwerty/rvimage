@@ -134,7 +134,11 @@ impl<'a> Widget for CfgMenu<'a> {
                                     .text_color(clr),
                             )
                         };
-                        ui_util::text_edit_with_deactivated_tools(self.ssh_cfg_str, self.are_tools_active, multiline);
+                        ui_util::text_edit_with_deactivated_tools(
+                            self.ssh_cfg_str,
+                            self.are_tools_active,
+                            multiline,
+                        );
                         ui.horizontal(|ui| {
                             if ui.button("OK").clicked() {
                                 close = Close::Yes(true);
