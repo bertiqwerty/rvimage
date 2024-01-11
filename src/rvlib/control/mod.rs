@@ -427,7 +427,7 @@ impl Control {
         };
         let export_folder = self
             .cfg_of_opened_folder()
-            .map(|cfg| cfg.export_folder().map(|ef| ef.to_string()).unwrap());
+            .map(|cfg| cfg.home_folder().map(|ef| ef.to_string()).unwrap());
         let is_file_list_empty = Some(file_path.is_none());
         MetaData {
             file_path,

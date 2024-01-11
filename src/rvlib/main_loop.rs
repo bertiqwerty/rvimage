@@ -19,9 +19,10 @@ use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::mem;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
+use std::time::Instant;
+use std::{fs, mem};
 use tracing::{error, info, warn};
 
 const START_WIDTH: u32 = 640;
@@ -122,7 +123,7 @@ pub struct MainEventLoop {
     recently_clicked_tool_idx: Option<usize>,
     rx_from_http: Option<Receiver<RvResult<String>>>,
     http_addr: String,
-    loop_counter: u128,
+    autosave_timer: Instant,
 }
 impl Default for MainEventLoop {
     fn default() -> Self {
@@ -155,7 +156,7 @@ impl Default for MainEventLoop {
             history: History::default(),
             recently_clicked_tool_idx: None,
             rx_from_http,
-            loop_counter: 0,
+            autosave_timer: Instant::now(),
         };
 
         let file_path = std::env::args().nth(1).map(PathBuf::from);
@@ -381,7 +382,33 @@ impl MainEventLoop {
             self.world.update_view.image_info = Some(s);
         }
 
-        self.loop_counter += 1;
+        if let Some(n_autosaves) = self.ctrl.cfg.n_autosaves {
+            if self.autosave_timer.elapsed().as_secs() > 180 {
+                self.autosave_timer = Instant::now();
+                let make_filepath = |n| {
+                    trace_ok(
+                        self.ctrl
+                            .cfg
+                            .home_folder()
+                            .map(|p| Path::new(p).join(format!("autosave_{n}.json", n = n))),
+                    )
+                };
+                for i in 1..(n_autosaves) {
+                    if let (Some(from), Some(to)) = (make_filepath(i), make_filepath(i - 1)) {
+                        if from.exists() {
+                            trace_ok(fs::copy(from, to));
+                        }
+                    }
+                }
+                let prj_path = make_filepath(n_autosaves);
+                if let Some(prj_path) = prj_path {
+                    if trace_ok(self.ctrl.save(prj_path, &self.world.data.tools_data_map)).is_some()
+                    {
+                        info!("autosaved");
+                    }
+                }
+            }
+        }
 
         Ok(mem::take(&mut self.world.update_view))
     }

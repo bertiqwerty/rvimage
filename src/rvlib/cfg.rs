@@ -16,6 +16,7 @@ const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
     cache = "FileCache"  # "NoCache" or "FileCache" 
     current_prj_path = "default.rvi"
+    n_autosaves = 2
     [file_cache_args]
     n_prev_images = 2
     n_next_images = 8
@@ -199,16 +200,17 @@ pub struct Cfg {
     current_prj_path: Option<PathBuf>,
     pub file_cache_args: Option<FileCacheCfgArgs>,
     pub ssh_cfg: SshCfg,
-    pub export_folder: Option<String>,
+    pub home_folder: Option<String>,
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
     pub darkmode: Option<bool>,
+    pub n_autosaves: Option<u8>,
     #[cfg(feature = "azure_blob")]
     pub azure_blob_cfg: Option<AzureBlobCfg>,
 }
 
 impl Cfg {
-    pub fn export_folder(&self) -> RvResult<&str> {
-        let ef = self.export_folder.as_deref();
+    pub fn home_folder(&self) -> RvResult<&str> {
+        let ef = self.home_folder.as_deref();
         match ef {
             None => DEFAULT_HOMEDIR
                 .to_str()

@@ -98,6 +98,15 @@ impl<'a> Widget for CfgMenu<'a> {
                                 ui.ctx().set_visuals(Visuals::dark());
                             }
                         });
+                        ui.horizontal(|ui| {
+                            let mut autosave = self.cfg.n_autosaves.unwrap_or(0);
+                            ui.add(egui::Slider::new(&mut autosave, 0..=3).text("number of autosaves"));
+                            if autosave > 0 {
+                                self.cfg.n_autosaves = Some(autosave);
+                            } else {
+                                self.cfg.n_autosaves = None;
+                            }
+                        });
                         ui.separator();
                         ui.label("Connection");
                         ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");
@@ -115,7 +124,7 @@ impl<'a> Widget for CfgMenu<'a> {
                         );
                         ui.separator();
                         ui.horizontal(|ui| {
-                            ui.label("CACHE");
+                            ui.label("Cache");
                             ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File Cache");
                             ui.radio_value(&mut self.cfg.cache, Cache::NoCache, "No Cache");
                         });
