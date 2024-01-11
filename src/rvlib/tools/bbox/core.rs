@@ -473,7 +473,7 @@ impl Manipulate for Bbox {
                                 color,
                                 thickness: options.outline_thickness as TPtF / 4.0,
                             },
-                            outline_alpha: options.outline_alpha,
+                            outline_alpha: 0,
                             is_selected: None,
                             highlight_circles: vec![],
                         };
