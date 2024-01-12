@@ -3,6 +3,7 @@ use std::{
     fmt::Debug,
     iter,
     path::{Path, PathBuf},
+    thread::{self, JoinHandle},
 };
 
 use serde::{Deserialize, Serialize};
@@ -81,7 +82,7 @@ fn get_n_rotations(rotation_data: Option<&Rot90ToolData>, file_path: &str) -> u8
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct CocoExportData {
+pub struct CocoExportData {
     info: CocoInfo,
     images: Vec<CocoImage>,
     annotations: Vec<CocoAnnotation>,
@@ -175,12 +176,13 @@ impl CocoExportData {
             .flat_map(make_anno_map)
             .collect::<Vec<_>>();
 
-        Ok(CocoExportData {
+        let coco_data = CocoExportData {
             info,
             images,
             annotations,
             categories,
-        })
+        };
+        Ok(coco_data)
     }
 
     fn convert_to_bboxdata(
@@ -364,14 +366,24 @@ pub fn write_coco(
     meta_data: &MetaData,
     bbox_specifics: BboxSpecificData,
     rotation_data: Option<&Rot90ToolData>,
-) -> RvResult<PathBuf> {
-    let coco_out_path = get_cocofilepath(meta_data, &bbox_specifics.coco_file)?;
-    let conn = bbox_specifics.coco_file.conn.clone();
-    let coco_data = CocoExportData::from_bboxdata(bbox_specifics, rotation_data)?;
-    let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
-    conn.write(&data_str, &coco_out_path, meta_data.ssh_cfg.as_ref())?;
-    tracing::info!("exported coco labels to {coco_out_path:?}");
-    Ok(coco_out_path)
+) -> RvResult<(PathBuf, JoinHandle<RvResult<()>>)> {
+    let meta_data = meta_data.clone();
+    let coco_out_path = get_cocofilepath(&meta_data, &bbox_specifics.coco_file)?;
+    let coco_out_path_for_thr = coco_out_path.clone();
+    let rotation_data = rotation_data.cloned();
+    let handle = thread::spawn(move || {
+        let conn = bbox_specifics.coco_file.conn.clone();
+        let coco_data = CocoExportData::from_bboxdata(bbox_specifics, rotation_data.as_ref())?;
+        let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
+        conn.write(
+            &data_str,
+            &coco_out_path_for_thr,
+            meta_data.ssh_cfg.as_ref(),
+        )?;
+        tracing::info!("exported coco labels to {coco_out_path_for_thr:?}");
+        Ok(())
+    });
+    Ok((coco_out_path, handle))
 }
 
 /// Import annotations in Coco format. Any orientations changes applied with the rotation tool
@@ -486,11 +498,33 @@ pub fn make_data(
     (bbox_data, meta, test_export_path, shape)
 }
 
+#[cfg(test)]
+fn is_image_duplicate_free(coco_data: &CocoExportData) -> bool {
+    let mut image_ids = coco_data.images.iter().map(|i| i.id).collect::<Vec<_>>();
+    image_ids.sort();
+    let len_prev = image_ids.len();
+    image_ids.dedup();
+    image_ids.len() == len_prev
+}
+
+#[cfg(test)]
+fn no_image_dups<P>(coco_file: P)
+where
+    P: AsRef<Path> + Debug,
+{
+    let s = file_util::read_to_string(&coco_file).unwrap();
+    println!("{s}");
+    let read_raw: CocoExportData = serde_json::from_str(s.as_str()).unwrap();
+
+    assert!(is_image_duplicate_free(&read_raw));
+}
+
 #[test]
 fn test_coco_export() -> RvResult<()> {
     fn test(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) -> RvResult<()> {
         let (bbox_data, meta, _, _) = make_data(&file_path, opened_folder, export_absolute, None);
-        let coco_file = write_coco(&meta, bbox_data.clone(), None)?;
+        let (coco_file, handle) = write_coco(&meta, bbox_data.clone(), None)?;
+        handle.join().unwrap().unwrap();
         defer_file_removal!(&coco_file);
         let read = read_coco(
             &meta,
@@ -505,13 +539,12 @@ fn test_coco_export() -> RvResult<()> {
         for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
             assert_eq!(bbd_anno, read_anno);
         }
+        no_image_dups(&coco_file);
+
         Ok(())
     }
     let tmpdir = get_cfg()?.tmpdir().unwrap().to_string();
     let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
-    if !tmpdir.exists() {
-        // fs::create_dir_all(&tmpdir).unwrap();
-    }
     let file_path = tmpdir.join("test_image.png");
     test(&file_path, None, true)?;
     let folder = Path::new("http://localhost:8000/some_path");
@@ -522,6 +555,28 @@ fn test_coco_export() -> RvResult<()> {
 
 #[cfg(test)]
 const TEST_DATA_FOLDER: &str = "resources/test_data/";
+
+#[test]
+fn test_coco_import_export() {
+    let meta = MetaData {
+        file_path: None,
+        file_selected_idx: None,
+        connection_data: ConnectionData::None,
+        ssh_cfg: None,
+        opened_folder: Some("ohm_somefolder".to_string()),
+        export_folder: Some(TEST_DATA_FOLDER.to_string()),
+        is_loading_screen_active: None,
+        is_file_list_empty: None,
+    };
+    let export_path = ExportPath {
+        path: PathBuf::from_str(&format!("{TEST_DATA_FOLDER}catids_12_coco_imwolab.json")).unwrap(),
+        conn: ExportPathConnection::Local,
+    };
+    let read = read_coco(&meta, &export_path, None).unwrap();
+    let (_, handle) = write_coco(&meta, read.clone(), None).unwrap();
+    handle.join().unwrap().unwrap();
+    no_image_dups(&read.coco_file.path);
+}
 
 #[test]
 fn test_coco_import() -> RvResult<()> {
@@ -603,7 +658,9 @@ fn test_rotation_export_import() {
     if let Some(annos) = annos {
         *annos = annos.increase();
     }
-    let out_path = write_coco(&meta_data, bbox_specifics.clone(), Some(&rotation_data)).unwrap();
+    let (out_path, handle) =
+        write_coco(&meta_data, bbox_specifics.clone(), Some(&rotation_data)).unwrap();
+    handle.join().unwrap().unwrap();
     println!("write to {out_path:?}");
     let out_path = ExportPath {
         path: out_path,

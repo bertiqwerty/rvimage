@@ -573,8 +573,9 @@ fn test_coco_import_label_info() {
     let mut bbox = Bbox::new();
     let events = Events::default();
     (world, _) = bbox.events_tf(world, history, &events);
-    let data = get_specific_mut(&mut world).unwrap();
+    let data = get_specific(&world).unwrap();
     let label_info_after = data.label_info.clone();
     assert_eq!(label_info_before.labels(), &["foreground", "label"]);
     assert_eq!(label_info_after.labels(), &["first label", "second label"]);
+    assert!(!data.options.is_import_triggered);
 }

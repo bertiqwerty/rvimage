@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use ssh2::Session;
+use ssh2::{Session, Channel};
 
 use crate::{
     cfg::SshCfg,
@@ -38,6 +38,14 @@ pub fn file_info(path: &str, sess: &Session) -> RvResult<String> {
     command(cmd.as_str(), sess)
 }
 
+fn close(mut remote_file: Channel) -> RvResult<()> {
+    remote_file.send_eof().map_err(to_rv)?;
+    remote_file.wait_eof().map_err(to_rv)?;
+    remote_file.close().map_err(to_rv)?;
+    remote_file.wait_close().map_err(to_rv)?;
+    Ok(())
+}
+
 pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>> {
     let (mut remote_file, _) = sess
         .scp_recv(Path::new(remote_src_file_path))
@@ -45,16 +53,14 @@ pub fn download(remote_src_file_path: &str, sess: &Session) -> RvResult<Vec<u8>>
     {
         let mut content = vec![];
         remote_file.read_to_end(&mut content).map_err(to_rv)?;
-        remote_file.send_eof().map_err(to_rv)?;
-        remote_file.wait_eof().map_err(to_rv)?;
-        remote_file.close().map_err(to_rv)?;
-        remote_file.wait_close().map_err(to_rv)?;
+        close(remote_file)?;
         Ok(content)
     }
     .map_err(|e: RvError| rverr!("could not download {} due to {e:?}", remote_src_file_path))
 }
 
 pub fn write_bytes(content_bytes: &[u8], remote_dst_path: &Path, sess: &Session) -> RvResult<()> {
+    let n_bytes = content_bytes.len();
     let mut remote_file = sess
         .scp_send(
             Path::new(remote_dst_path),
@@ -63,9 +69,13 @@ pub fn write_bytes(content_bytes: &[u8], remote_dst_path: &Path, sess: &Session)
             None,
         )
         .map_err(to_rv)?;
-    remote_file
-        .write(content_bytes)
-        .map_err(|e| rverr!("could not write to {remote_dst_path:?} due to {e:?}",))?;
+    let mut total_bytes_written = 0;
+    while total_bytes_written < n_bytes {
+        total_bytes_written += remote_file
+            .write(&content_bytes[total_bytes_written..])
+            .map_err(|e| rverr!("could not write to {remote_dst_path:?} due to {e:?}",))?;
+    }
+    close(remote_file)?;
     Ok(())
 }
 
