@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use ssh2::{Session, Channel};
+use ssh2::{Channel, Session};
 
 use crate::{
     cfg::SshCfg,
