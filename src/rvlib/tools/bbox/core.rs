@@ -532,8 +532,8 @@ impl Manipulate for Bbox {
 #[cfg(test)]
 use {
     super::on_events::test_data,
-    crate::Event,
     crate::cfg::{ExportPath, ExportPathConnection},
+    crate::Event,
     std::{path::PathBuf, thread, time::Duration},
 };
 #[test]
