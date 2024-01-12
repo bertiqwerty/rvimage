@@ -132,6 +132,7 @@ fn check_cocoimport(mut world: World) -> World {
                     match options.import_mode {
                         ImportMode::Replace => {
                             data_mut.annotations_map = imported_data.annotations_map;
+                            data_mut.label_info = imported_data.label_info;
                         }
                         ImportMode::Merge => {
                             let (annotations_map, label_info) = merge(
@@ -532,7 +533,8 @@ impl Manipulate for Bbox {
 use {
     super::on_events::test_data,
     crate::Event,
-    std::{thread, time::Duration},
+    crate::cfg::{ExportPath, ExportPathConnection},
+    std::{path::PathBuf, thread, time::Duration},
 };
 #[test]
 fn test_bbox_ctrl_h() {
@@ -555,4 +557,24 @@ fn test_bbox_ctrl_h() {
         &Events::default().mousepos_orig(Some((1.0, 1.0).into())),
     );
     assert_eq!(get_visible(&world), Visibility::None);
+}
+
+#[test]
+fn test_coco_import_label_info() {
+    const TEST_DATA_FOLDER: &str = "resources/test_data/";
+    let (_, mut world, history) = test_data();
+    let data = get_specific_mut(&mut world).unwrap();
+    data.coco_file = ExportPath {
+        path: PathBuf::from(format!("{}catids_12_coco.json", TEST_DATA_FOLDER)),
+        conn: ExportPathConnection::Local,
+    };
+    let label_info_before = data.label_info.clone();
+    data.options.is_import_triggered = true;
+    let mut bbox = Bbox::new();
+    let events = Events::default();
+    (world, _) = bbox.events_tf(world, history, &events);
+    let data = get_specific_mut(&mut world).unwrap();
+    let label_info_after = data.label_info.clone();
+    assert_eq!(label_info_before.labels(), &["foreground", "label"]);
+    assert_eq!(label_info_after.labels(), &["first label", "second label"]);
 }
