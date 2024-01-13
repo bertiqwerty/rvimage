@@ -129,12 +129,19 @@ pub struct MainEventLoop {
 }
 impl Default for MainEventLoop {
     fn default() -> Self {
-        let mut world = empty_world();
-        let ctrl = Control::new(cfg::get_cfg().unwrap_or_else(|e| {
+        let cfg = cfg::get_cfg().unwrap_or_else(|e| {
             warn!("could not read cfg due to {e:?}, returning default");
             cfg::get_default_cfg()
-        }));
+        });
+        let file_path = std::env::args().nth(1).map(PathBuf::from);
+        Self::new(cfg, file_path)
+    }
+}
+impl MainEventLoop {
+    pub fn new(cfg: Cfg, file_path: Option<PathBuf>) -> Self {
+        let ctrl = Control::new(cfg);
 
+        let mut world = empty_world();
         let mut tools = make_tool_vec();
         for t in &mut tools {
             if t.is_active() {
@@ -161,12 +168,9 @@ impl Default for MainEventLoop {
             autosave_timer: Instant::now(),
         };
 
-        let file_path = std::env::args().nth(1).map(PathBuf::from);
         trace_ok(self_.load_prj(file_path));
         self_
     }
-}
-impl MainEventLoop {
     pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
         let project_loaded = self.menu.ui(
             ctx,

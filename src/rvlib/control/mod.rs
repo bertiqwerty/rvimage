@@ -13,7 +13,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 mod filter;
 pub mod paths_navigator;
@@ -248,7 +248,7 @@ impl Control {
         prj_path: PathBuf,
         tools_data_map: &ToolsDataMap,
         set_cur_prj: bool,
-    ) -> RvResult<()> {
+    ) -> RvResult<JoinHandle<()>> {
         let path = if let Some(of) = self.opened_folder() {
             if DEFAULT_PRJ_PATH.as_os_str() == prj_path.as_os_str() {
                 PathBuf::from(of).join(DEFAULT_PRJ_NAME)
@@ -265,7 +265,7 @@ impl Control {
         let opened_folder = self.opened_folder().cloned();
         let tdm = tools_data_map.clone();
         let cfg = self.cfg.clone();
-        thread::spawn(move || {
+        let handle = thread::spawn(move || {
             trace_ok(detail::save(
                 opened_folder.as_ref(),
                 &tdm,
@@ -281,7 +281,7 @@ impl Control {
                 }
             }
         });
-        Ok(())
+        Ok(handle)
     }
 
     pub fn new(cfg: Cfg) -> Self {

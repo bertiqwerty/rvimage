@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, thread, time::Duration};
 
-use rvlib::{tracing_setup::tracing_setup, Event, Events, KeyCode, MainEventLoop};
+use rvlib::{tracing_setup::tracing_setup, Event, Events, KeyCode, MainEventLoop, cfg};
 
 fn get_test_folder() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
@@ -8,7 +8,8 @@ fn get_test_folder() -> PathBuf {
 #[test]
 fn test_main() {
     tracing_setup();
-    let mut main_loop = MainEventLoop::default();
+    let cfg = cfg::get_default_cfg();
+    let mut main_loop = MainEventLoop::new(cfg, None);
     let events = Events::default();
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, &ctx).unwrap();
@@ -33,6 +34,7 @@ fn test_main() {
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, &ctx).unwrap();
     });
+    thread::sleep(Duration::from_millis(10));
     let file_info_after = fs::metadata(test_file.as_path())
         .unwrap()
         .modified()
