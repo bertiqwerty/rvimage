@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, thread, time::Duration};
 
-use rvlib::{tracing_setup::tracing_setup, Event, Events, KeyCode, MainEventLoop, cfg};
+use rvlib::{cfg, tracing_setup::tracing_setup, Event, Events, KeyCode, MainEventLoop};
 
 fn get_test_folder() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
