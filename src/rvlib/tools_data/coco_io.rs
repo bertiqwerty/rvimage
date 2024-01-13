@@ -568,10 +568,15 @@ fn test_coco_import_export() {
         is_loading_screen_active: None,
         is_file_list_empty: None,
     };
+    let test_file_src = format!("{TEST_DATA_FOLDER}catids_12_coco_imwolab.json");
+    let test_file = "tmp_coco.json";
+    defer_file_removal!(&test_file);
+    fs::copy(test_file_src, test_file).unwrap();
     let export_path = ExportPath {
-        path: PathBuf::from_str(&format!("{TEST_DATA_FOLDER}catids_12_coco_imwolab.json")).unwrap(),
+        path: PathBuf::from_str(test_file).unwrap(),
         conn: ExportPathConnection::Local,
     };
+
     let read = read_coco(&meta, &export_path, None).unwrap();
     let (_, handle) = write_coco(&meta, read.clone(), None).unwrap();
     handle.join().unwrap().unwrap();
