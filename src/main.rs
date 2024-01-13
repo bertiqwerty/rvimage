@@ -12,7 +12,7 @@ use image::{ImageBuffer, Rgb};
 use rvlib::{
     color_with_intensity,
     domain::{BbF, PtF, TPtF},
-    get_darkmode, orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, tracing_setup,
+    orig_2_view, orig_pos_2_view_pos, project_on_bb, read_darkmode, scale_coord, tracing_setup,
     view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos,
     UpdateImage, UpdateZoomBox,
 };
@@ -592,7 +592,7 @@ fn main() {
             "RV Image",
             native_options,
             Box::new(|cc| {
-                if let Some(dm) = get_darkmode() {
+                if let Some(dm) = read_darkmode() {
                     let viz = if dm {
                         Visuals::dark()
                     } else {

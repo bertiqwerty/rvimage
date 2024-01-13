@@ -22,7 +22,7 @@ mod types;
 mod util;
 mod view;
 pub mod world;
-pub use cfg::get_darkmode;
+pub use cfg::read_darkmode;
 pub use domain::{
     bresenham_iter, color_with_intensity, BbI, BrushLine, GeoFig, Line, Polygon, ShapeI,
 };

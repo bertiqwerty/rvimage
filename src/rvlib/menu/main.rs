@@ -59,7 +59,7 @@ fn show_popup(
 }
 
 pub(super) fn get_cfg() -> (Cfg, Info) {
-    match cfg::get_cfg() {
+    match cfg::read_cfg() {
         Ok(cfg) => (cfg, Info::None),
         Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{e:?}"))),
     }

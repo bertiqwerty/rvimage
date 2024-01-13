@@ -1,6 +1,8 @@
 use std::{fs, path::PathBuf, thread, time::Duration};
 
-use rvlib::{cfg, tracing_setup::tracing_setup, Event, Events, KeyCode, MainEventLoop};
+use rvlib::{
+    cfg, defer_file_removal, tracing_setup::tracing_setup, Event, Events, KeyCode, MainEventLoop,
+};
 
 fn get_test_folder() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
@@ -9,12 +11,15 @@ fn get_test_folder() -> PathBuf {
 fn test_main() {
     tracing_setup();
     let cfg = cfg::get_default_cfg();
-    let mut main_loop = MainEventLoop::new(cfg, None);
+    let test_file_src = get_test_folder().join("rvprj_v3-3_test_dummy.rvi");
+    let test_file = get_test_folder().join("tmp-test.rvi");
+    fs::copy(&test_file_src, &test_file).unwrap();
+    defer_file_removal!(&test_file);
+    let mut main_loop = MainEventLoop::new(cfg, Some(test_file.clone()));
     let events = Events::default();
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, &ctx).unwrap();
     });
-    let test_file = get_test_folder().join("rvprj_v3-3_test_dummy.rvi");
     main_loop.load_prj(Some(test_file.clone())).unwrap();
     let file_info_before = fs::metadata(test_file.as_path())
         .unwrap()

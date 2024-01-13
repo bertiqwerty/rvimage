@@ -217,9 +217,7 @@ impl Control {
         self.cfg = read_cfg;
 
         // update prj name in cfg
-        let mut cfg_global = cfg::get_cfg()?;
-        cfg_global.set_current_prj_path(file_path);
-        cfg::write_cfg(&cfg_global)?;
+        self.cfg.set_current_prj_path(file_path);
 
         Ok(tools_data_map)
     }
@@ -274,7 +272,7 @@ impl Control {
             ));
             if set_cur_prj {
                 // update prj name in cfg
-                let cfg_global = trace_ok(cfg::get_cfg());
+                let cfg_global = trace_ok(cfg::read_cfg());
                 if let Some(mut cfg_global) = cfg_global {
                     cfg_global.set_current_prj_path(path);
                     trace_ok(cfg::write_cfg(&cfg_global));

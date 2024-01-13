@@ -421,7 +421,7 @@ pub fn read_coco(
 #[cfg(test)]
 use {
     crate::{
-        cfg::{get_cfg, SshCfg},
+        cfg::{read_cfg, SshCfg},
         defer_file_removal,
         domain::{make_test_bbs, BbI},
     },
@@ -543,7 +543,7 @@ fn test_coco_export() -> RvResult<()> {
 
         Ok(())
     }
-    let tmpdir = get_cfg()?.tmpdir().unwrap().to_string();
+    let tmpdir = read_cfg()?.tmpdir().unwrap().to_string();
     let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
     let file_path = tmpdir.join("test_image.png");
     test(&file_path, None, true)?;

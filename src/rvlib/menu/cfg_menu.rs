@@ -65,7 +65,7 @@ impl<'a> Widget for CfgMenu<'a> {
                                         tracing::error!("could not open config file. {e:?}");
                                     }
                                 }
-                                if let Ok(cfg) = cfg::get_cfg() {
+                                if let Ok(cfg) = cfg::read_cfg() {
                                     *self.cfg = cfg;
                                     *self.ssh_cfg_str =
                                         toml::to_string_pretty(&self.cfg.ssh_cfg).unwrap();
@@ -151,7 +151,7 @@ impl<'a> Widget for CfgMenu<'a> {
                             multiline,
                         );
                         ui.horizontal(|ui| {
-                            if ui.button("OK").clicked() {
+                            if ui.button("Save").clicked() {
                                 close = Close::Yes(true);
                             }
                             if ui.button("Cancel").clicked() {

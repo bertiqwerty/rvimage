@@ -220,7 +220,7 @@ use {
 
 #[test]
 fn test_file_cache() -> RvResult<()> {
-    let cfg = cfg::get_cfg()?;
+    let cfg = cfg::read_cfg()?;
     let tmpdir_path = Path::new(cfg.tmpdir()?);
     fs::create_dir_all(tmpdir_path).map_err(to_rv)?;
     defer_folder_removal!(&tmpdir_path);

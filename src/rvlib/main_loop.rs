@@ -32,7 +32,7 @@ const AUTOSAVE_INTERVAL_S: u64 = 120;
 
 fn cfg_static_ref() -> &'static Cfg {
     lazy_static! {
-        static ref CFG: Cfg = cfg::get_cfg().expect("config broken");
+        static ref CFG: Cfg = cfg::read_cfg().expect("config broken");
     }
     &CFG
 }
@@ -129,7 +129,7 @@ pub struct MainEventLoop {
 }
 impl Default for MainEventLoop {
     fn default() -> Self {
-        let cfg = cfg::get_cfg().unwrap_or_else(|e| {
+        let cfg = cfg::read_cfg().unwrap_or_else(|e| {
             warn!("could not read cfg due to {e:?}, returning default");
             cfg::get_default_cfg()
         });
@@ -138,7 +138,7 @@ impl Default for MainEventLoop {
     }
 }
 impl MainEventLoop {
-    pub fn new(cfg: Cfg, file_path: Option<PathBuf>) -> Self {
+    pub fn new(cfg: Cfg, prj_file_path: Option<PathBuf>) -> Self {
         let ctrl = Control::new(cfg);
 
         let mut world = empty_world();
@@ -168,7 +168,7 @@ impl MainEventLoop {
             autosave_timer: Instant::now(),
         };
 
-        trace_ok(self_.load_prj(file_path));
+        trace_ok(self_.load_prj(prj_file_path));
         self_
     }
     pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
@@ -438,14 +438,17 @@ impl MainEventLoop {
             // load last project
             match self.ctrl.load(pp) {
                 Ok(td) => {
-                    info!("loaded last project {:?}", self.ctrl.cfg.current_prj_path());
+                    info!(
+                        "loaded last saved project {:?}",
+                        self.ctrl.cfg.current_prj_path()
+                    );
                     self.world.data.tools_data_map = td;
                 }
                 Err(e) => {
                     if DEFAULT_PRJ_PATH.as_os_str() != self.ctrl.cfg.current_prj_path().as_os_str()
                     {
                         info!(
-                            "could not read last opened project {:?} due to {e:?} ",
+                            "could not read last saved project {:?} due to {e:?} ",
                             self.ctrl.cfg.current_prj_path()
                         );
                     }

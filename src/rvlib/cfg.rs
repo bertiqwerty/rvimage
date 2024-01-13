@@ -10,7 +10,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{error, warn};
+use tracing::{error, info};
 
 const CFG_DEFAULT: &str = r#"
     connection = "Local" # "Local" or "Ssh"
@@ -51,7 +51,7 @@ pub fn get_log_folder() -> RvResult<PathBuf> {
     })
 }
 
-pub fn get_cfg() -> RvResult<Cfg> {
+pub fn read_cfg() -> RvResult<Cfg> {
     let cfg_toml_path = get_cfg_path()?;
     if cfg_toml_path.exists() {
         let toml_str = file_util::read_to_string(cfg_toml_path)?;
@@ -79,34 +79,15 @@ pub fn write_cfg(cfg: &Cfg) -> RvResult<()> {
 
 pub fn write_cfg_str(cfg_str: &str) -> RvResult<()> {
     let cfg_toml_path = get_cfg_path()?;
-    file_util::write(cfg_toml_path, cfg_str)?;
+    file_util::write(cfg_toml_path.clone(), cfg_str)?;
+    info!("wrote cfg to {cfg_toml_path:?}");
     Ok(())
 }
 
-pub fn get_darkmode() -> Option<bool> {
-    get_cfg().ok().and_then(|cfg| cfg.darkmode)
+pub fn read_darkmode() -> Option<bool> {
+    read_cfg().ok().and_then(|cfg| cfg.darkmode)
 }
 
-pub fn remove_tmpdir() {
-    match get_cfg() {
-        Ok(cfg) => {
-            match cfg.tmpdir() {
-                Ok(td) => match fs::remove_dir_all(Path::new(td)) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        warn!("couldn't remove tmpdir {e:?}")
-                    }
-                },
-                Err(e) => {
-                    warn!("couldn't remove tmpdir {e:?}")
-                }
-            };
-        }
-        Err(e) => {
-            error!("could not load cfg {e:?}");
-        }
-    };
-}
 #[derive(Deserialize, Serialize, Debug, Eq, PartialEq, Clone, Copy, Default)]
 pub enum Connection {
     Ssh,
@@ -249,7 +230,7 @@ impl Cfg {
 
 #[test]
 fn test_toml() -> RvResult<()> {
-    let cfg: Cfg = get_cfg()?;
+    let cfg: Cfg = read_cfg()?;
     println!("{:?}", cfg);
     Ok(())
 }
