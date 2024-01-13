@@ -1,4 +1,5 @@
 mod always_active_zoom;
+mod attributes;
 mod bbox;
 mod brush;
 mod core;
@@ -7,13 +8,14 @@ mod zoom;
 
 use crate::{
     history::{History, Record},
-    tools_data::{BboxSpecificData, BrushToolData},
+    tools_data::{BboxSpecificData, BrushToolData, AttributesToolData},
     world::World,
 };
 
 pub use self::core::Manipulate;
 use crate::tools_data::Rot90ToolData;
 pub use always_active_zoom::AlwaysActiveZoom;
+pub use attributes::Attributes;
 pub use bbox::Bbox;
 pub use brush::Brush;
 pub use rot90::Rot90;
@@ -25,6 +27,7 @@ pub const BRUSH_NAME: &str = brush::ACTOR_NAME;
 pub const ZOOM_NAME: &str = "Zoom";
 pub const ROT90_NAME: &str = "Rot90";
 pub const ALWAYS_ACTIVE_ZOOM: &str = "AlwaysActiveZoom";
+pub const ATTRIBUTES_NAME: &str = "Attributes";
 
 macro_rules! make_tools {
 ($(($tool:ident, $label:expr, $name:expr, $active:expr, $always_active:expr, $data_default:expr)),+) => {
@@ -81,7 +84,8 @@ make_tools!(
         BboxSpecificData::default()
     ),
     (Zoom, "🔍", ZOOM_NAME, false, false, ()),
-    (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true, ())
+    (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true, ()),
+    (Attributes, "A", ATTRIBUTES_NAME, false, false, AttributesToolData::default())
 );
 
 #[macro_export]
@@ -93,6 +97,7 @@ macro_rules! apply_tool_method_mut {
             ToolWrapper::Bbox(z) => z.$f($($args,)*),
             ToolWrapper::Zoom(z) => z.$f($($args,)*),
             ToolWrapper::AlwaysActiveZoom(z) => z.$f($($args,)*),
+            ToolWrapper::Attributes(z) => z.$f($($args,)*),
         }
     };
 }

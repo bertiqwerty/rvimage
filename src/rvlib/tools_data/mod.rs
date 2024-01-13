@@ -9,11 +9,12 @@ use crate::{
 
 pub use self::core::{vis_from_lfoption, LabelInfo, OUTLINE_THICKNESS_CONVERSION};
 pub use self::{
-    bbox_data::BboxExportData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
-    coco_io::write_coco, rot90_data::Rot90ToolData,
+    attributes_data::AttributesToolData, bbox_data::BboxExportData, bbox_data::BboxSpecificData,
+    brush_data::BrushToolData, coco_io::write_coco, rot90_data::Rot90ToolData,
 };
 use serde::{Deserialize, Serialize};
 pub mod annotations;
+pub mod attributes_data;
 pub mod bbox_data;
 pub mod brush_data;
 pub mod coco_io;
@@ -133,14 +134,22 @@ pub enum ToolSpecifics {
     Rot90(Rot90ToolData),
     Zoom(()),
     AlwaysActiveZoom(()),
+    Attributes(AttributesToolData),
 }
 impl ToolSpecifics {
     variant_access!(Bbox, bbox, &Self, &BboxSpecificData);
     variant_access!(Brush, brush, &Self, &BrushToolData);
     variant_access!(Rot90, rot90, &Self, &Rot90ToolData);
+    variant_access!(Attributes, attributes, &Self, &AttributesToolData);
     variant_access!(Bbox, bbox_mut, &mut Self, &mut BboxSpecificData);
     variant_access!(Brush, brush_mut, &mut Self, &mut BrushToolData);
     variant_access!(Rot90, rot90_mut, &mut Self, &mut Rot90ToolData);
+    variant_access!(
+        Attributes,
+        attributes_mut,
+        &mut Self,
+        &mut AttributesToolData
+    );
 
     pub fn apply<T>(
         &self,
