@@ -108,7 +108,6 @@ impl Manipulate for Attributes {
         if update_current_attr_map == Some(true) {
             let current_from_menu_clone =
                 get_specific(&world).and_then(|d| d.current_attr_map.clone());
-            println!("current_from_menu_clone: {:?}", current_from_menu_clone);
             if let (Some(mut cfm), Some(anno)) =
                 (current_from_menu_clone, get_annos_mut(&mut world))
             {
