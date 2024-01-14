@@ -89,14 +89,18 @@ pub fn get_specific_mut<T>(
 macro_rules! tools_data_accessors {
     ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
         #[allow(unused)]
-        pub(super) fn get_data(world: &World) -> $crate::result::RvResult<&$crate::tools_data::ToolsData> {
+        pub(super) fn get_data(
+            world: &World,
+        ) -> $crate::result::RvResult<&$crate::tools_data::ToolsData> {
             tools_data::get(world, $actor_name, $missing_data_msg)
         }
         #[allow(unused)]
         pub(super) fn get_specific(world: &World) -> Option<&$data_module::$data_type> {
             tools_data::get_specific(tools_data::$data_func, get_data(world))
         }
-        pub(super) fn get_data_mut(world: &mut World) -> $crate::result::RvResult<&mut $crate::tools_data::ToolsData> {
+        pub(super) fn get_data_mut(
+            world: &mut World,
+        ) -> $crate::result::RvResult<&mut $crate::tools_data::ToolsData> {
             tools_data::get_mut(world, $actor_name, $missing_data_msg)
         }
         pub(super) fn get_specific_mut(world: &mut World) -> Option<&mut $data_module::$data_type> {

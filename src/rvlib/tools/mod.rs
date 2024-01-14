@@ -8,7 +8,7 @@ mod zoom;
 
 use crate::{
     history::{History, Record},
-    tools_data::{BboxSpecificData, BrushToolData, AttributesToolData},
+    tools_data::{AttributesToolData, BboxSpecificData, BrushToolData},
     world::World,
 };
 
@@ -85,7 +85,14 @@ make_tools!(
     ),
     (Zoom, "🔍", ZOOM_NAME, false, false, ()),
     (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true, ()),
-    (Attributes, "A", ATTRIBUTES_NAME, false, false, AttributesToolData::default())
+    (
+        Attributes,
+        "A",
+        ATTRIBUTES_NAME,
+        false,
+        false,
+        AttributesToolData::default()
+    )
 );
 
 #[macro_export]

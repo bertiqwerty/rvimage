@@ -1,10 +1,4 @@
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    mem,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{collections::HashMap, fmt::Display, mem, path::PathBuf, str::FromStr};
 
 use egui::Ui;
 use tracing::{info, warn};
@@ -13,10 +7,10 @@ use crate::{
     cfg::{ExportPath, ExportPathConnection},
     domain::{Annotate, TPtF, TPtI},
     file_util::path_to_str,
-    result::{to_rv, trace_ok, RvResult},
+    result::{to_rv, RvResult},
     tools_data::{
         annotations::{InstanceAnnotations, SplitMode},
-        attributes_data::{set_attrmap_val, AttrVal},
+        attributes_data::AttrVal,
         bbox_data::{BboxSpecificData, ImportMode},
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         AttributesToolData, BrushToolData, CoreOptions, LabelInfo, ToolSpecifics, ToolsData,
@@ -396,7 +390,8 @@ fn process_number<T>(
     are_tools_active: &mut bool,
     label: &str,
     buffer: &mut String,
-) where
+) -> bool
+where
     T: Display + FromStr,
 {
     let new_val = text_edit_singleline(ui, buffer, are_tools_active).on_hover_text(label);
@@ -410,119 +405,121 @@ fn process_number<T>(
             }
         }
     }
+    new_val.lost_focus()
 }
 pub fn attributes_menu(
     ui: &mut Ui,
     mut window_open: bool,
     mut data: AttributesToolData,
     are_tools_active: &mut bool,
-    file_path: Option<&Path>,
-    shape: ShapeI,
 ) -> RvResult<ToolsData> {
-    if let Some(file_path_str) = file_path.and_then(|fp| trace_ok(path_to_str(fp))) {
-        const FLOAT_LABEL: &str = "Float";
-        const INT_LABEL: &str = "Int";
-        const TEXT_LABEL: &str = "Text";
-        const BOOL_LABEL: &str = "Bool";
-        text_edit_singleline(ui, &mut data.new_attr, are_tools_active);
-        ui.horizontal(|ui| {
-            egui::ComboBox::from_label("")
-                .selected_text(format!(
-                    "{:?}",
-                    match data.new_attr_type {
-                        AttrVal::Float(_) => FLOAT_LABEL,
-                        AttrVal::Int(_) => INT_LABEL,
-                        AttrVal::Str(_) => TEXT_LABEL,
-                        AttrVal::Bool(_) => BOOL_LABEL,
-                    }
-                ))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(
-                        &mut data.new_attr_type,
-                        AttrVal::Float(TPtF::default()),
-                        FLOAT_LABEL,
-                    );
-                    ui.selectable_value(
-                        &mut data.new_attr_type,
-                        AttrVal::Int(TPtI::default()),
-                        INT_LABEL,
-                    );
-                    ui.selectable_value(
-                        &mut data.new_attr_type,
-                        AttrVal::Str(String::new()),
-                        TEXT_LABEL,
-                    );
-                    ui.selectable_value(&mut data.new_attr_type, AttrVal::Bool(false), BOOL_LABEL);
-                });
-            if ui.button("Add").clicked() {
-                if data.attr_names().contains(&data.new_attr) {
-                    warn!("attribute {:?} already exists", data.new_attr);
+    const FLOAT_LABEL: &str = "Float";
+    const INT_LABEL: &str = "Int";
+    const TEXT_LABEL: &str = "Text";
+    const BOOL_LABEL: &str = "Bool";
+    text_edit_singleline(ui, &mut data.new_attr, are_tools_active);
+    ui.horizontal(|ui| {
+        egui::ComboBox::from_label("")
+            .selected_text(format!(
+                "{:?}",
+                match data.new_attr_type {
+                    AttrVal::Float(_) => FLOAT_LABEL,
+                    AttrVal::Int(_) => INT_LABEL,
+                    AttrVal::Str(_) => TEXT_LABEL,
+                    AttrVal::Bool(_) => BOOL_LABEL,
                 }
-                data.push(data.new_attr.clone(), data.new_attr_type.clone());
-                let attr_map_tmp = data
-                    .get_annos_mut(file_path_str, shape)
-                    .map(|a| mem::take(a));
-                if let Some(mut attr_map_tmp) = attr_map_tmp {
-                    set_attrmap_val(&mut attr_map_tmp, &data.new_attr, &data.new_attr_type);
-                    if let Some(attr_map) = data.get_annos_mut(file_path_str, shape) {
-                        *attr_map = attr_map_tmp;
-                    }
-                }
+            ))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(
+                    &mut data.new_attr_type,
+                    AttrVal::Float(TPtF::default()),
+                    FLOAT_LABEL,
+                );
+                ui.selectable_value(
+                    &mut data.new_attr_type,
+                    AttrVal::Int(TPtI::default()),
+                    INT_LABEL,
+                );
+                ui.selectable_value(
+                    &mut data.new_attr_type,
+                    AttrVal::Str(String::new()),
+                    TEXT_LABEL,
+                );
+                ui.selectable_value(&mut data.new_attr_type, AttrVal::Bool(false), BOOL_LABEL);
+            });
+        if ui.button("Add").clicked() {
+            if data.attr_names().contains(&data.new_attr) {
+                warn!("attribute {:?} already exists", data.new_attr);
             }
-        });
-        egui::Grid::new("attributes_grid")
-            .num_columns(3)
-            .show(ui, |ui| {
-                ui.end_row();
-                let n_rows = data.attr_names().len();
-                let to_be_removed = removable_rows(ui, n_rows, |ui, idx| {
-                    let attr_name = data.attr_names()[idx].clone();
-                    let mut new_attr_buffer = mem::take(data.attr_buffer_mut(idx));
-                    ui.label(&attr_name);
-                    let attr_map = data.get_annos_mut(file_path_str, shape);
-                    if let Some(attr_map) = attr_map {
-                        match attr_map.get_mut(&attr_name) {
-                            Some(AttrVal::Bool(b)) => {
-                                ui.checkbox(b, "");
-                            }
-                            Some(AttrVal::Float(x)) => {
-                                process_number(
-                                    x,
-                                    ui,
-                                    are_tools_active,
-                                    FLOAT_LABEL,
-                                    &mut new_attr_buffer,
-                                );
-                            }
-                            Some(AttrVal::Int(x)) => {
-                                process_number(
-                                    x,
-                                    ui,
-                                    are_tools_active,
-                                    INT_LABEL,
-                                    &mut new_attr_buffer,
-                                );
-                            }
-                            Some(AttrVal::Str(s)) => {
-                                text_edit_singleline(ui, s, are_tools_active)
-                                    .on_hover_text(TEXT_LABEL);
-                            }
-                            None => {
-                                warn!("attr_map does not contain {attr_name}");
+            data.push(data.new_attr.clone(), data.new_attr_type.clone());
+            data.options.populate_new_attr = true;
+            data.options.update_current_attr_map = true;
+        }
+    });
+    egui::Grid::new("attributes_grid")
+        .num_columns(4)
+        .show(ui, |ui| {
+            ui.end_row();
+            let n_rows = data.attr_names().len();
+            let to_be_removed = removable_rows(ui, n_rows, |ui, idx| {
+                let attr_name = data.attr_names()[idx].clone();
+                let mut new_attr_buffer = mem::take(data.attr_buffer_mut(idx));
+                ui.label(&attr_name);
+                let attr_map = &mut data.current_attr_map;
+                if let Some(attr_map) = attr_map {
+                    match attr_map.get_mut(&attr_name) {
+                        Some(AttrVal::Bool(b)) => {
+                            if ui.checkbox(b, "").changed() {
+                                data.options.update_current_attr_map = true;
                             }
                         }
+                        Some(AttrVal::Float(x)) => {
+                            let lost_focus = process_number(
+                                x,
+                                ui,
+                                are_tools_active,
+                                FLOAT_LABEL,
+                                &mut new_attr_buffer,
+                            );
+                            if lost_focus || ui.button("OK").clicked() {
+                                data.options.update_current_attr_map = true;
+                            }
+                        }
+                        Some(AttrVal::Int(x)) => {
+                            let lost_focus = process_number(
+                                x,
+                                ui,
+                                are_tools_active,
+                                INT_LABEL,
+                                &mut new_attr_buffer,
+                            );
+                            if lost_focus || ui.button("OK").clicked() {
+                                data.options.update_current_attr_map = true;
+                            }
+                        }
+                        Some(AttrVal::Str(s)) => {
+                            let lost_focus = text_edit_singleline(ui, s, are_tools_active)
+                                .on_hover_text(TEXT_LABEL)
+                                .lost_focus();
+                            if lost_focus || ui.button("OK").clicked() {
+                                data.options.update_current_attr_map = true;
+                            }
+                        }
+                        None => {
+                            warn!("attr_map does not contain {attr_name}");
+                        }
                     }
-                    *data.attr_buffer_mut(idx) = new_attr_buffer;
-                    ui.end_row();
-                });
-                if let Some(tbr) = to_be_removed {
-                    data.remove_attr(tbr);
                 }
+                *data.attr_buffer_mut(idx) = new_attr_buffer;
+                ui.end_row();
             });
+            if let Some(tbr) = to_be_removed {
+                data.remove_attr(tbr);
+            }
+        });
 
-        if ui.button("Close").clicked() {
-            window_open = false;
-        }
+    if ui.button("Close").clicked() {
+        window_open = false;
     }
     Ok(ToolsData {
         specifics: ToolSpecifics::Attributes(data),

@@ -19,7 +19,7 @@ use image::{ImageBuffer, Rgb};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::path::{PathBuf, Path};
+use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::time::Instant;
 use std::{fs, mem, thread};
@@ -202,13 +202,10 @@ impl MainEventLoop {
         egui::SidePanel::right("my_panel")
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
-                    let shape = self.world.shape_orig();
                     self.tools_select_menu.ui(
                         ui,
                         &mut self.tools,
                         &mut self.world.data.tools_data_map,
-                        self.world.data.meta_data.file_path.as_ref().map(|p| Path::new(p)),
-                        shape,
                     )
                 })
                 .inner

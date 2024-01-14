@@ -39,7 +39,11 @@ pub type AttrMap = HashMap<String, AttrVal>;
 pub fn set_attrmap_val(attr_map: &mut AttrMap, attr_name: &str, attr_val: &AttrVal) {
     attr_map.insert(attr_name.to_string(), attr_val.clone());
 }
-
+#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
+pub struct Options {
+    pub populate_new_attr: bool,
+    pub update_current_attr_map: bool,
+}
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct AttributesToolData {
     attr_names: Vec<String>,
@@ -49,6 +53,8 @@ pub struct AttributesToolData {
     new_attr_buffers: Vec<String>,
     // maps the filename to the number of rotations
     pub annotations_map: HashMap<String, (AttrMap, ShapeI)>,
+    pub options: Options,
+    pub current_attr_map: Option<AttrMap>,
 }
 impl AttributesToolData {
     implement_annotations_getters!(AttrMap);
@@ -56,9 +62,7 @@ impl AttributesToolData {
         for (filename, (attrmap_other, _)) in other.annotations_map {
             if let Some((attr_map_self, _)) = self.annotations_map.get_mut(&filename) {
                 for (attr_name, attr_val) in attrmap_other {
-                    if !attr_map_self.contains_key(&attr_name) {
-                        attr_map_self.insert(attr_name, attr_val);
-                    }
+                    attr_map_self.entry(attr_name).or_insert(attr_val);
                 }
             }
         }
