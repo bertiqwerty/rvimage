@@ -518,6 +518,16 @@ pub fn attributes_menu(
             }
         });
 
+    export_file_menu(
+        ui,
+        "export attributes as json",
+        &mut data.export_path,
+        are_tools_active,
+        &mut data.options.is_export_triggered,
+        None,
+        None,
+    )?;
+
     if ui.button("Close").clicked() {
         window_open = false;
     }

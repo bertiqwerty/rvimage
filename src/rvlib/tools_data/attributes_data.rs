@@ -5,8 +5,11 @@ use std::{
 };
 
 use crate::{
+    cfg::ExportPath,
     domain::{TPtF, TPtI},
-    implement_annotations_getters, ShapeI,
+    implement_annotations_getters,
+    result::{to_rv, RvResult},
+    ShapeI,
 };
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
@@ -43,6 +46,7 @@ pub fn set_attrmap_val(attr_map: &mut AttrMap, attr_name: &str, attr_val: &AttrV
 pub struct Options {
     pub populate_new_attr: bool,
     pub update_current_attr_map: bool,
+    pub is_export_triggered: bool,
 }
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct AttributesToolData {
@@ -52,9 +56,10 @@ pub struct AttributesToolData {
     pub new_attr_type: AttrVal,
     new_attr_buffers: Vec<String>,
     // maps the filename to the number of rotations
-    pub annotations_map: HashMap<String, (AttrMap, ShapeI)>,
+    annotations_map: HashMap<String, (AttrMap, ShapeI)>,
     pub options: Options,
     pub current_attr_map: Option<AttrMap>,
+    pub export_path: ExportPath,
 }
 impl AttributesToolData {
     implement_annotations_getters!(AttrMap);
@@ -88,5 +93,8 @@ impl AttributesToolData {
     }
     pub fn attr_buffer_mut(&mut self, idx: usize) -> &mut String {
         &mut self.new_attr_buffers[idx]
+    }
+    pub fn serialize_annotations(&self) -> RvResult<String> {
+        serde_json::to_string(&self.annotations_map).map_err(to_rv)
     }
 }

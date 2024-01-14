@@ -1,3 +1,5 @@
+use tracing::info;
+
 use super::Manipulate;
 use crate::{
     annotations_accessor, annotations_accessor_mut,
@@ -117,6 +119,27 @@ impl Manipulate for Attributes {
                 get_specific_mut(&mut world).map(|d| &mut d.options.update_current_attr_map)
             {
                 *update_current_attr_map = false;
+            }
+        }
+        let is_export_triggered = get_specific(&world).map(|d| d.options.is_export_triggered);
+        if is_export_triggered == Some(true) {
+            let ssh_cfg = world.data.meta_data.ssh_cfg.clone();
+            let annos_str = get_specific(&world).and_then(|d| trace_ok(d.serialize_annotations()));
+            if let (Some(annos_str), Some(data)) = (annos_str, get_specific(&world)) {
+                if trace_ok(data.export_path.conn.write(
+                    &annos_str,
+                    &data.export_path.path,
+                    ssh_cfg.as_ref(),
+                ))
+                .is_some()
+                {
+                    info!("exported annotations to {:?}", data.export_path.path);
+                }
+            }
+            if let Some(is_export_triggered) =
+                get_specific_mut(&mut world).map(|d| &mut d.options.is_export_triggered)
+            {
+                *is_export_triggered = false;
             }
         }
         make_tool_transform!(self, world, history, event, [])
