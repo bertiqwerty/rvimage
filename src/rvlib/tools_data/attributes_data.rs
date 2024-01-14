@@ -20,6 +20,29 @@ pub enum AttrVal {
     Bool(bool),
 }
 
+impl AttrVal {
+    pub fn corresponds_to_str(&self, attr_val: &str) -> RvResult<bool> {
+        Ok(match self {
+            AttrVal::Bool(b) => {
+                let attr_val = attr_val.parse::<bool>().map_err(to_rv)?;
+                b == &attr_val
+            }
+            AttrVal::Float(x) => {
+                let attr_val = attr_val.parse::<TPtF>().map_err(to_rv)?;
+                x == &attr_val
+            }
+            AttrVal::Int(x) => {
+                let attr_val = attr_val.parse::<TPtI>().map_err(to_rv)?;
+                x == &attr_val
+            }
+            AttrVal::Str(s) => {
+                let attr_val = attr_val.parse::<String>().map_err(to_rv)?;
+                s == &attr_val
+            }
+        })
+    }
+}
+
 impl Display for AttrVal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

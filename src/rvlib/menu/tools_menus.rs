@@ -518,6 +518,7 @@ pub fn attributes_menu(
             }
         });
 
+    ui.separator();
     export_file_menu(
         ui,
         "export attributes as json",
@@ -528,9 +529,11 @@ pub fn attributes_menu(
         None,
     )?;
 
+    ui.separator();
     if ui.button("Close").clicked() {
         window_open = false;
     }
+    
     Ok(ToolsData {
         specifics: ToolSpecifics::Attributes(data),
         menu_active: window_open,

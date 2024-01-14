@@ -4,7 +4,9 @@ use exmex::prelude::*;
 use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
 
 use crate::domain::Annotate;
-use crate::result::{RvError, RvResult};
+use crate::result::{trace_ok, RvError, RvResult};
+use crate::rverr;
+use crate::tools::ATTRIBUTES_NAME;
 use crate::tools_data::annotations::InstanceAnnotations;
 use crate::tools_data::LabelInfo;
 use crate::world::ToolsDataMap;
@@ -41,6 +43,7 @@ where
 pub enum FilterPredicate {
     FilterStr(String),
     Label(Box<FilterPredicate>),
+    Attribute(Box<FilterPredicate>),
     Nolabel,
     Anylabel,
     And(Box<FilterPredicate>, Box<FilterPredicate>),
@@ -56,6 +59,7 @@ impl FilterPredicate {
         tdm: Option<&ToolsDataMap>,
         active_tool_name: Option<&str>,
     ) -> RvResult<bool> {
+        println!("filtering by : {:?}", self);
         Ok(match &self {
             FilterPredicate::FilterStr(s) => {
                 if path.is_empty() {
@@ -63,6 +67,32 @@ impl FilterPredicate {
                 } else {
                     path.contains(s.trim())
                 }
+            }
+            FilterPredicate::Attribute(attr_str) => {
+                let attr_str = match &(**attr_str) {
+                    FilterPredicate::FilterStr(s) => s,
+                    _ => Err(RvError::new("Label must be a string"))?,
+                };
+                let attr_tuple = attr_str.split_once(':').ok_or(rverr!(
+                    "Attribute must be of the form <attr_name>:<attr_val>, found {}",
+                    attr_str
+                ))?;
+                let (attr_name, attr_val_str) = attr_tuple;
+                let mut found = false;
+                if let Some(tdm) = tdm {
+                    if let Some(data) = tdm.get(ATTRIBUTES_NAME) {
+                        if let Some(attr_val) =
+                            trace_ok(data.specifics.attributes()).and_then(|d| {
+                                d.get_annos(path)
+                                    .and_then(|annos| annos.get(attr_name.trim()))
+                            })
+                        {
+                            found = attr_val.corresponds_to_str(attr_val_str.trim())?;
+                        }
+                    }
+                }
+
+                found
             }
             FilterPredicate::Label(label) => {
                 let label = match &(**label) {
@@ -157,6 +187,9 @@ ops_factory!(
     Operator::make_unary("label", |a: FilterPredicate| FilterPredicate::Label(
         Box::new(a)
     )),
+    Operator::make_unary("attr", |a: FilterPredicate| FilterPredicate::Attribute(
+        Box::new(a)
+    )),
     Operator::make_constant("nolabel", FilterPredicate::Nolabel),
     Operator::make_constant("anylabel", FilterPredicate::Anylabel)
 );
@@ -169,11 +202,12 @@ impl MatchLiteral for PathMatcher {
         if trimmed.starts_with("label")
             || trimmed.starts_with("nolabel")
             || trimmed.starts_with("anylabel")
+            || trimmed.starts_with("attr")
         {
             None
         } else {
             exmex::lazy_static::lazy_static! {
-                static ref RE_VAR_NAME_EXACT: exmex::regex::Regex = exmex::regex::Regex::new(r"^[a-zA-z0-9\\/\-]+").unwrap();
+                static ref RE_VAR_NAME_EXACT: exmex::regex::Regex = exmex::regex::Regex::new(r"^[a-zA-z0-9\\/\-:]+").unwrap();
             }
             RE_VAR_NAME_EXACT.find(text).map(|m| m.as_str())
         }

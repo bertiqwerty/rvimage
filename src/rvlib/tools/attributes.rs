@@ -50,6 +50,9 @@ impl Manipulate for Attributes {
         if let Some(data) = trace_ok(data) {
             data.menu_active = true;
         }
+        if let Some(td) = world.data.tools_data_map.get_mut(ACTOR_NAME) {
+            td.menu_active = false;
+        }
         world
     }
     fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
