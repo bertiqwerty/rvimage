@@ -10,11 +10,12 @@ use crate::{
     tools_data::{AnnotationsMap, ToolSpecifics},
     util::version_label,
     world::ToolsDataMap,
+    ShapeI,
 };
 use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
-use std::{mem, path::PathBuf};
+use std::{mem, path::{PathBuf, Path}};
 
-use super::tools_menus::{bbox_menu, brush_menu};
+use super::tools_menus::{attributes_menu, bbox_menu, brush_menu};
 
 pub fn n_annotated_images<T>(annotations_map: &AnnotationsMap<T>, paths: &[&str]) -> usize
 where
@@ -110,6 +111,8 @@ impl ToolSelectMenu {
         ui: &mut Ui,
         tools: &mut [ToolState],
         tools_menu_map: &mut ToolsDataMap,
+        file_path: Option<&Path>,
+        shape: ShapeI,
     ) -> RvResult<()> {
         ui.horizontal_top(|ui| {
             self.recently_activated_tool = tools
@@ -127,6 +130,14 @@ impl ToolSelectMenu {
                 ToolSpecifics::Brush(x) => {
                     brush_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
                 }
+                ToolSpecifics::Attributes(x) => attributes_menu(
+                    ui,
+                    v.menu_active,
+                    mem::take(x),
+                    &mut self.are_tools_active,
+                    file_path,
+                    shape,
+                ),
                 _ => Ok(mem::take(v)),
             };
             *v = tmp?;

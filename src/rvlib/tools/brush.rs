@@ -10,15 +10,15 @@ use crate::{
     file_util::osstr_to_str,
     history::{History, Record},
     make_tool_transform,
-    result::{trace_ok, RvResult},
+    result::trace_ok,
     tools::core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
-    tools_data::{self, brush_data, LabelInfo, ToolsData},
+    tools_data::{self, brush_data, LabelInfo},
     tools_data::{
         annotations::BrushAnnotations,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         brush_mut, vis_from_lfoption,
     },
-    tools_data_accessors,
+    tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
     world::World,
     Line, ShapeI,
@@ -38,6 +38,14 @@ const MISSING_DATA_MSG: &str = "brush data not available";
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
 annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
 tools_data_accessors!(
+    ACTOR_NAME,
+    MISSING_DATA_MSG,
+    brush_data,
+    BrushToolData,
+    brush,
+    brush_mut
+);
+tools_data_accessors_objects!(
     ACTOR_NAME,
     MISSING_DATA_MSG,
     brush_data,

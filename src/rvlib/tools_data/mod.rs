@@ -47,6 +47,8 @@ variant_access_free!(Bbox, bbox, 'a, &'a ToolSpecifics, &'a BboxSpecificData);
 variant_access_free!(Bbox, bbox_mut, 'a, &'a mut ToolSpecifics, &'a mut BboxSpecificData);
 variant_access_free!(Brush, brush, 'a, &'a ToolSpecifics, &'a BrushToolData);
 variant_access_free!(Brush, brush_mut, 'a, &'a mut ToolSpecifics, &'a mut BrushToolData);
+variant_access_free!(Attributes, attributes, 'a, &'a ToolSpecifics, &'a AttributesToolData);
+variant_access_free!(Attributes, attributes_mut, 'a, &'a mut ToolSpecifics, &'a mut AttributesToolData);
 
 pub(super) fn get<'a>(
     world: &'a World,
@@ -86,22 +88,27 @@ pub fn get_specific_mut<T>(
 #[macro_export]
 macro_rules! tools_data_accessors {
     ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
-        pub(super) fn get_data(world: &World) -> RvResult<&ToolsData> {
+        #[allow(unused)]
+        pub(super) fn get_data(world: &World) -> $crate::result::RvResult<&$crate::tools_data::ToolsData> {
             tools_data::get(world, $actor_name, $missing_data_msg)
         }
-
+        #[allow(unused)]
         pub(super) fn get_specific(world: &World) -> Option<&$data_module::$data_type> {
             tools_data::get_specific(tools_data::$data_func, get_data(world))
         }
-        pub(super) fn get_options(world: &World) -> Option<$data_module::Options> {
-            get_specific(world).map(|d| d.options)
-        }
-
-        pub(super) fn get_data_mut(world: &mut World) -> RvResult<&mut ToolsData> {
+        pub(super) fn get_data_mut(world: &mut World) -> $crate::result::RvResult<&mut $crate::tools_data::ToolsData> {
             tools_data::get_mut(world, $actor_name, $missing_data_msg)
         }
         pub(super) fn get_specific_mut(world: &mut World) -> Option<&mut $data_module::$data_type> {
             tools_data::get_specific_mut(tools_data::$data_func_mut, get_data_mut(world))
+        }
+    };
+}
+#[macro_export]
+macro_rules! tools_data_accessors_objects {
+    ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
+        pub(super) fn get_options(world: &World) -> Option<$data_module::Options> {
+            get_specific(world).map(|d| d.options)
         }
         pub(super) fn get_options_mut(world: &mut World) -> Option<&mut $data_module::Options> {
             get_specific_mut(world).map(|d| &mut d.options)

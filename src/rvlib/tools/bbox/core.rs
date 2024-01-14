@@ -6,7 +6,7 @@ use crate::{
     file_util,
     history::{History, Record},
     make_tool_transform,
-    result::{trace_ok, RvResult},
+    result::trace_ok,
     tools::{
         core::{
             check_erase_mode, check_recolorboxes, check_trigger_history_update,
@@ -18,10 +18,9 @@ use crate::{
         self,
         annotations::BboxAnnotations,
         bbox_data::{self, ImportMode},
-        bbox_mut, merge, vis_from_lfoption, LabelInfo, Rot90ToolData, ToolsData,
-        OUTLINE_THICKNESS_CONVERSION,
+        bbox_mut, merge, vis_from_lfoption, LabelInfo, Rot90ToolData, OUTLINE_THICKNESS_CONVERSION,
     },
-    tools_data_accessors,
+    tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
     world::World,
     GeoFig, Polygon,
@@ -40,6 +39,14 @@ const MISSING_DATA_MSG: &str = "bbox tools data not available";
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 tools_data_accessors!(
+    ACTOR_NAME,
+    MISSING_DATA_MSG,
+    bbox_data,
+    BboxSpecificData,
+    bbox,
+    bbox_mut
+);
+tools_data_accessors_objects!(
     ACTOR_NAME,
     MISSING_DATA_MSG,
     bbox_data,
