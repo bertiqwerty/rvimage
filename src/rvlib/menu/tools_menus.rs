@@ -205,6 +205,10 @@ pub fn bbox_menu(
 
     let mut export_file_menu_result = Ok(());
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
+        ui.checkbox(
+            &mut data.options.core_options.track_changes,
+            "track changes",
+        );
         let mut transparency: f32 = data.options.fill_alpha as f32 / 255.0 * 100.0;
         ui.label("transparency");
         if slider(ui, are_tools_active, &mut transparency, 0.0..=100.0, "fill").changed() {
@@ -459,7 +463,6 @@ pub fn attributes_menu(
     egui::Grid::new("attributes_grid")
         .num_columns(4)
         .show(ui, |ui| {
-            ui.end_row();
             let n_rows = data.attr_names().len();
             let to_be_removed = removable_rows(ui, n_rows, |ui, idx| {
                 let attr_name = data.attr_names()[idx].clone();
@@ -533,7 +536,7 @@ pub fn attributes_menu(
     if ui.button("Close").clicked() {
         window_open = false;
     }
-    
+
     Ok(ToolsData {
         specifics: ToolSpecifics::Attributes(data),
         menu_active: window_open,

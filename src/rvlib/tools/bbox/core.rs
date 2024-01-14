@@ -28,10 +28,10 @@ use crate::{
 use std::{iter, mem, time::Instant};
 
 use super::on_events::{
-    export_if_triggered, find_close_vertex, import_coco_if_triggered, move_corner_tol,
-    on_key_released, on_mouse_held_left, on_mouse_held_right, on_mouse_released_left,
-    on_mouse_released_right, KeyReleasedParams, MouseHeldLeftParams, MouseMoveParams,
-    MouseReleaseParams, PrevPos,
+    change_annos, export_if_triggered, find_close_vertex, import_coco_if_triggered,
+    move_corner_tol, on_key_released, on_mouse_held_left, on_mouse_held_right,
+    on_mouse_released_left, on_mouse_released_right, KeyReleasedParams, MouseHeldLeftParams,
+    MouseMoveParams, MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -61,13 +61,14 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
         let cb_bbs = clipboard.elts();
         if !cb_bbs.is_empty() {
             let shape_orig = ShapeI::from_im(world.data.im_background());
-            if let Some(a) = get_annos_mut(&mut world) {
+            let paste_annos = |a: &mut BboxAnnotations| {
                 a.extend(
                     cb_bbs.iter().cloned(),
                     clipboard.cat_idxs().iter().copied(),
                     shape_orig,
                 )
-            }
+            };
+            change_annos(&mut world, paste_annos);
         }
         set_visible(&mut world);
         history.push(Record::new(world.clone(), ACTOR_NAME));
@@ -274,34 +275,36 @@ impl Bbox {
         // up, down, left, right
         let shape_orig = world.data.shape();
         let split_mode = get_options(&world).map(|o| o.split_mode);
-        let annos = get_annos_mut(&mut world);
-        if let (Some(annos), Some(split_mode)) = (annos, split_mode) {
-            if events.held(KeyCode::Up) && events.held_ctrl() {
-                *annos = mem::take(annos).shift_min_bbs(0.0, -1.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Down) && events.held_ctrl() {
-                *annos = mem::take(annos).shift_min_bbs(0.0, 1.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Right) && events.held_ctrl() {
-                *annos = mem::take(annos).shift_min_bbs(1.0, 0.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Left) && events.held_ctrl() {
-                *annos = mem::take(annos).shift_min_bbs(-1.0, 0.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Up) && events.held_alt() {
-                *annos = mem::take(annos).shift(0.0, -1.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Down) && events.held_alt() {
-                *annos = mem::take(annos).shift(0.0, 1.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Right) && events.held_alt() {
-                *annos = mem::take(annos).shift(1.0, 0.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Left) && events.held_alt() {
-                *annos = mem::take(annos).shift(-1.0, 0.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Up) {
-                *annos = mem::take(annos).shift_max_bbs(0.0, -1.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Down) {
-                *annos = mem::take(annos).shift_max_bbs(0.0, 1.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Right) {
-                *annos = mem::take(annos).shift_max_bbs(1.0, 0.0, shape_orig, split_mode);
-            } else if events.held(KeyCode::Left) {
-                *annos = mem::take(annos).shift_max_bbs(-1.0, 0.0, shape_orig, split_mode);
+        let shift_annos = |annos: &mut BboxAnnotations| {
+            if let Some(split_mode) = split_mode {
+                if events.held(KeyCode::Up) && events.held_ctrl() {
+                    *annos = mem::take(annos).shift_min_bbs(0.0, -1.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Down) && events.held_ctrl() {
+                    *annos = mem::take(annos).shift_min_bbs(0.0, 1.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Right) && events.held_ctrl() {
+                    *annos = mem::take(annos).shift_min_bbs(1.0, 0.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Left) && events.held_ctrl() {
+                    *annos = mem::take(annos).shift_min_bbs(-1.0, 0.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Up) && events.held_alt() {
+                    *annos = mem::take(annos).shift(0.0, -1.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Down) && events.held_alt() {
+                    *annos = mem::take(annos).shift(0.0, 1.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Right) && events.held_alt() {
+                    *annos = mem::take(annos).shift(1.0, 0.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Left) && events.held_alt() {
+                    *annos = mem::take(annos).shift(-1.0, 0.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Up) {
+                    *annos = mem::take(annos).shift_max_bbs(0.0, -1.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Down) {
+                    *annos = mem::take(annos).shift_max_bbs(0.0, 1.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Right) {
+                    *annos = mem::take(annos).shift_max_bbs(1.0, 0.0, shape_orig, split_mode);
+                } else if events.held(KeyCode::Left) {
+                    *annos = mem::take(annos).shift_max_bbs(-1.0, 0.0, shape_orig, split_mode);
+                }
             }
-        }
+        };
+        change_annos(&mut world, shift_annos);
         let vis = get_visible(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)

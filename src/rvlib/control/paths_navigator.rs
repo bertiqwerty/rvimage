@@ -1,5 +1,9 @@
 use super::{filter::FilterExpr, SortType};
-use crate::{paths_selector::PathsSelector, result::{RvResult, trace_ok}, world::ToolsDataMap};
+use crate::{
+    paths_selector::PathsSelector,
+    result::{trace_ok, RvResult},
+    world::ToolsDataMap,
+};
 use exmex::prelude::*;
 
 fn next(file_selected_idx: usize, files_len: usize) -> usize {
@@ -148,8 +152,7 @@ impl PathsNavigator {
     ) -> RvResult<()> {
         if let Some(filter_pred) = trace_ok(FilterExpr::parse(s).and_then(|expr| expr.eval(&[]))) {
             let filter_pred_wrapper = |path: &str| {
-                trace_ok(filter_pred
-                    .apply(path, Some(tools_data_map), active_tool_name))
+                trace_ok(filter_pred.apply(path, Some(tools_data_map), active_tool_name))
                     .unwrap_or(true)
             };
             self.filter_by_pred(filter_pred_wrapper)?;

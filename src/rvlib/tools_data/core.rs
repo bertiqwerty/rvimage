@@ -30,6 +30,7 @@ pub struct Options {
     pub is_redraw_annos_triggered: bool,
     pub is_export_triggered: bool,
     pub is_history_update_triggered: bool,
+    pub track_changes: bool,
     pub erase: bool,
 }
 impl Default for Options {
@@ -40,6 +41,7 @@ impl Default for Options {
             is_redraw_annos_triggered: false,
             is_export_triggered: false,
             is_history_update_triggered: false,
+            track_changes: false,
             erase: false,
         }
     }

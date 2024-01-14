@@ -48,10 +48,7 @@ impl Manipulate for Attributes {
     fn on_deactivate(&mut self, mut world: World) -> World {
         let data = get_data_mut(&mut world);
         if let Some(data) = trace_ok(data) {
-            data.menu_active = true;
-        }
-        if let Some(td) = world.data.tools_data_map.get_mut(ACTOR_NAME) {
-            td.menu_active = false;
+            data.menu_active = false;
         }
         world
     }
@@ -91,10 +88,17 @@ impl Manipulate for Attributes {
     ) -> (World, History) {
         let populate_new_attr = get_specific(&world).map(|d| d.options.populate_new_attr);
         if populate_new_attr == Some(true) {
+            info!("populating new attr");
             let attr_map_tmp = get_annos_mut(&mut world).map(mem::take);
             let data = get_specific_mut(&mut world);
+
             if let (Some(mut attr_map_tmp), Some(data)) = (attr_map_tmp, data) {
-                set_attrmap_val(&mut attr_map_tmp, &data.new_attr, &data.new_attr_type);
+                let new_attr = data.new_attr.clone();
+                let new_attr_type = data.new_attr_type.clone();
+                for (_, (val_map, _)) in data.anno_iter_mut() {
+                    set_attrmap_val(val_map, &new_attr, &new_attr_type);
+                }
+                set_attrmap_val(&mut attr_map_tmp, &new_attr, &new_attr_type);
                 if let Some(a) = get_annos_mut(&mut world) {
                     *a = attr_map_tmp.clone();
                 }
@@ -111,6 +115,7 @@ impl Manipulate for Attributes {
         let update_current_attr_map =
             get_specific(&world).map(|d| d.options.update_current_attr_map);
         if update_current_attr_map == Some(true) {
+            info!("update attr");
             let current_from_menu_clone =
                 get_specific(&world).and_then(|d| d.current_attr_map.clone());
             if let (Some(mut cfm), Some(anno)) =
