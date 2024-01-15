@@ -1,7 +1,6 @@
 use std::{cmp::Ordering, iter::empty, mem};
 
-use log::warn;
-use tracing::info;
+use lazy_static::lazy_static;
 
 use crate::{
     cfg::ExportPath,
@@ -11,21 +10,17 @@ use crate::{
     },
     file_util::MetaData,
     history::Record,
-    result::trace_ok,
     tools::{
-        attributes,
-        core::{label_change_key, on_selection_keys, Mover, ReleasedKey},
-        Manipulate, BBOX_NAME,
+        core::{
+            change_annos, label_change_key, make_track_changes_str, on_selection_keys, Mover,
+            ReleasedKey,
+        },
+        BBOX_NAME,
     },
     tools_data::annotations::BboxAnnotations,
-    tools_data::{
-        self,
-        annotations::SplitMode,
-        attributes_data::{self, AttrVal},
-        BboxSpecificData, Rot90ToolData,
-    },
+    tools_data::{self, annotations::SplitMode, BboxSpecificData, Rot90ToolData},
     util::{true_indices, Visibility},
-    Events, GeoFig, Polygon,
+    GeoFig, Polygon,
     {history::History, world::World},
 };
 
@@ -36,77 +31,20 @@ use super::core::{
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
 
-const TRACK_CHANGE_STR: &str = "BBOX_TRACK_CHANGE";
-
-pub(super) fn change_annos(world: &mut World, f_change: impl FnOnce(&mut BboxAnnotations)) {
-    if let Some(annos) = get_annos_mut(world) {
-        f_change(annos);
-    }
-    if get_options(world).map(|o| o.core_options.track_changes) == Some(true) {
-        let mut old_attr_name = String::new();
-        let mut old_attr_type = AttrVal::Bool(false);
-        let track_change_str = TRACK_CHANGE_STR.to_string();
-        if let Ok(attr_data) =
-            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
-        {
-            let populate_new_attr = attr_data
-                .specifics
-                .attributes()
-                .map(|a| a.attr_names().contains(&track_change_str))
-                != Ok(true);
-
-            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
-                let attr_options = attributes_data::Options {
-                    is_export_triggered: false,
-                    populate_new_attr,
-                    update_current_attr_map: false,
-                };
-                old_attr_name = d.new_attr.clone();
-                old_attr_type = d.new_attr_type.clone();
-                d.new_attr = TRACK_CHANGE_STR.to_string();
-                d.new_attr_type = AttrVal::Bool(false);
-                d.options = attr_options;
-            }));
-        }
-        (*world, _) = attributes::Attributes {}.events_tf(
-            mem::take(world),
-            History::default(),
-            &Events::default(),
-        );
-        if let Ok(attr_data) =
-            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
-        {
-            let attr_options = attributes_data::Options {
-                is_export_triggered: false,
-                populate_new_attr: false,
-                update_current_attr_map: true,
-            };
-            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
-                d.options = attr_options;
-                if let Some(attr_map) = &mut d.current_attr_map {
-                    attr_map.insert(track_change_str, AttrVal::Bool(true));
-
-                    info!("inserted");
-                } else {
-                    warn!("no attrmap found");
-                }
-            }));
-        }
-        (*world, _) = attributes::Attributes {}.events_tf(
-            mem::take(world),
-            History::default(),
-            &Events::default(),
-        );
-        if let Ok(attr_data) =
-            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
-        {
-            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
-                d.new_attr = old_attr_name;
-                d.new_attr_type = old_attr_type;
-            }));
-        }
-    }
+pub(super) fn change_annos_bbox(world: &mut World, change: impl FnOnce(&mut BboxAnnotations)) {
+    lazy_static! {
+        static ref TRACK_CHANGE_STR: String = make_track_changes_str(ACTOR_NAME);
+    };
+    let track_changes = get_options(world).map(|o| o.core_options.track_changes) == Some(true);
+    change_annos(
+        world,
+        TRACK_CHANGE_STR.as_str(),
+        track_changes,
+        change,
+        get_annos_mut,
+    );
 }
+
 fn closest_containing_boundary_idx(
     pos: PtF,
     geos: &[GeoFig],
@@ -192,7 +130,7 @@ fn close_polygon(
         let add_annos = |annos: &mut BboxAnnotations| {
             annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
         };
-        change_annos(&mut world, add_annos);
+        change_annos_bbox(&mut world, add_annos);
         history.push(Record::new(world.clone(), ACTOR_NAME));
         prev_pos.prev_pos = vec![];
         world.request_redraw_annotations(BBOX_NAME, visible);
@@ -283,7 +221,7 @@ pub(super) fn on_mouse_released_right(
                         let add_annos = |annos: &mut BboxAnnotations| {
                             annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label);
                         };
-                        change_annos(&mut world, add_annos);
+                        change_annos_bbox(&mut world, add_annos);
                         history.push(Record::new(world.clone(), ACTOR_NAME));
                         prev_pos.prev_pos = vec![];
                         world.request_redraw_annotations(BBOX_NAME, visible);
@@ -367,7 +305,7 @@ pub(super) fn on_mouse_released_left(
                     annos.remove(i);
                 }
             };
-            change_annos(&mut world, remove_anno);
+            change_annos_bbox(&mut world, remove_anno);
             if idx.is_some() {
                 history.push(Record::new(world.clone(), ACTOR_NAME));
                 world.request_redraw_annotations(BBOX_NAME, visible);
@@ -555,7 +493,7 @@ pub(super) fn on_mouse_released_left(
                                     }
                                 }
                             };
-                            change_annos(&mut world, split_annos);
+                            change_annos_bbox(&mut world, split_annos);
                             history.push(Record::new(world.clone(), ACTOR_NAME));
                             prev_pos.prev_pos = vec![];
                             world.request_redraw_annotations(BBOX_NAME, visible);
@@ -654,7 +592,7 @@ pub(super) fn on_key_released(
                         }
                     }
                 };
-                change_annos(&mut world, add_anno);
+                change_annos_bbox(&mut world, add_anno);
                 let vis = get_visible(&world);
                 world.request_redraw_annotations(BBOX_NAME, vis);
                 history.push(Record::new(world.clone(), ACTOR_NAME));

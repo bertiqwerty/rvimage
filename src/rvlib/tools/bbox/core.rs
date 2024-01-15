@@ -28,7 +28,7 @@ use crate::{
 use std::{iter, mem, time::Instant};
 
 use super::on_events::{
-    change_annos, export_if_triggered, find_close_vertex, import_coco_if_triggered,
+    change_annos_bbox, export_if_triggered, find_close_vertex, import_coco_if_triggered,
     move_corner_tol, on_key_released, on_mouse_held_left, on_mouse_held_right,
     on_mouse_released_left, on_mouse_released_right, KeyReleasedParams, MouseHeldLeftParams,
     MouseMoveParams, MouseReleaseParams, PrevPos,
@@ -68,7 +68,7 @@ pub(super) fn paste(mut world: World, mut history: History) -> (World, History) 
                     shape_orig,
                 )
             };
-            change_annos(&mut world, paste_annos);
+            change_annos_bbox(&mut world, paste_annos);
         }
         set_visible(&mut world);
         history.push(Record::new(world.clone(), ACTOR_NAME));
@@ -304,7 +304,7 @@ impl Bbox {
                 }
             }
         };
-        change_annos(&mut world, shift_annos);
+        change_annos_bbox(&mut world, shift_annos);
         let vis = get_visible(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)

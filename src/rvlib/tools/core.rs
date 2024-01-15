@@ -1,15 +1,95 @@
-use tracing::info;
+use tracing::{info, warn};
 
+use super::attributes;
 use crate::domain::Annotate;
 use crate::history::Record;
-use crate::result::RvResult;
+use crate::result::{trace_ok, RvResult};
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
+use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{
-    get_mut, get_specific_mut, vis_from_lfoption, CoreOptions, LabelInfo, ToolSpecifics,
+    self, get_mut, get_specific_mut, vis_from_lfoption, CoreOptions, LabelInfo, ToolSpecifics,
 };
 use crate::ShapeI;
 use crate::{domain::PtF, events::Events, history::History, world::World};
+use std::mem;
 
+pub(super) fn make_track_changes_str(actor: &'static str) -> String {
+    format!("{actor}_TRACK_CHANGE")
+}
+
+pub(super) fn change_annos<T>(
+    world: &mut World,
+    track_change_str: &str,
+    track_changes: bool,
+    f_change: impl FnOnce(&mut InstanceAnnotations<T>),
+    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+) {
+    if let Some(annos) = get_annos_mut(world) {
+        f_change(annos);
+    }
+    if track_changes {
+        let mut old_attr_name = String::new();
+        let mut old_attr_type = AttrVal::Bool(false);
+        let track_change_str = track_change_str.to_string();
+        if let Ok(attr_data) =
+            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
+        {
+            let populate_new_attr = attr_data
+                .specifics
+                .attributes()
+                .map(|a| a.attr_names().contains(&track_change_str))
+                != Ok(true);
+
+            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
+                let attr_options = attributes_data::Options {
+                    is_export_triggered: false,
+                    populate_new_attr,
+                    update_current_attr_map: false,
+                };
+                old_attr_name = d.new_attr.clone();
+                old_attr_type = d.new_attr_type.clone();
+                d.new_attr = track_change_str.to_string();
+                d.new_attr_type = AttrVal::Bool(false);
+                d.options = attr_options;
+            }));
+        }
+        (*world, _) = attributes::Attributes {}.events_tf(
+            mem::take(world),
+            History::default(),
+            &Events::default(),
+        );
+        if let Ok(attr_data) =
+            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
+        {
+            let attr_options = attributes_data::Options {
+                is_export_triggered: false,
+                populate_new_attr: false,
+                update_current_attr_map: true,
+            };
+            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
+                d.options = attr_options;
+                if let Some(attr_map) = &mut d.current_attr_map {
+                    attr_map.insert(track_change_str, AttrVal::Bool(true));
+                } else {
+                    warn!("no attrmap found");
+                }
+            }));
+        }
+        (*world, _) = attributes::Attributes {}.events_tf(
+            mem::take(world),
+            History::default(),
+            &Events::default(),
+        );
+        if let Ok(attr_data) =
+            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
+        {
+            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
+                d.new_attr = old_attr_name;
+                d.new_attr_type = old_attr_type;
+            }));
+        }
+    }
+}
 pub(super) fn check_trigger_redraw(
     mut world: World,
     name: &'static str,
@@ -317,15 +397,24 @@ where
         }
         ReleasedKey::Delete | ReleasedKey::Back => {
             // Remove selected
-            let annos = get_annos_mut(&mut world);
-            if let Some(annos) = annos {
+
+            let track_changes = get_options(&world).map(|o| o.track_changes) == Some(true);
+            let del_annos = |annos: &mut InstanceAnnotations<T>| {
                 if !annos.selected_mask().is_empty() {
                     annos.remove_selected();
-                    let vis = vis_from_lfoption(get_label_info(&world), true);
-                    world.request_redraw_annotations(actor, vis);
-                    history.push(Record::new(world.clone(), actor));
                 }
-            }
+            };
+            let track_change_str = make_track_changes_str(actor);
+            change_annos(
+                &mut world,
+                track_change_str.as_str(),
+                track_changes,
+                del_annos,
+                get_annos_mut,
+            );
+            let vis = vis_from_lfoption(get_label_info(&world), true);
+            world.request_redraw_annotations(actor, vis);
+            history.push(Record::new(world.clone(), actor));
         }
         _ => (),
     }
