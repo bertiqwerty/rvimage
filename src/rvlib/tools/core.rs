@@ -45,7 +45,7 @@ pub(super) fn change_annos<T>(
                     is_export_triggered: false,
                     is_addition_triggered: populate_new_attr,
                     is_update_triggered: false,
-                    removal_idx: None
+                    removal_idx: None,
                 };
                 old_attr_name = d.new_attr.clone();
                 old_attr_type = d.new_attr_type.clone();

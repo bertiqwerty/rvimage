@@ -112,8 +112,7 @@ impl Manipulate for Attributes {
                 *populate_new_attr = false;
             }
         }
-        let is_update_triggered =
-            get_specific(&world).map(|d| d.options.is_update_triggered);
+        let is_update_triggered = get_specific(&world).map(|d| d.options.is_update_triggered);
         if is_update_triggered == Some(true) {
             info!("update attr");
             let current_from_menu_clone =

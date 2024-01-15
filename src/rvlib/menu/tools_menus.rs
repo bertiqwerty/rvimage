@@ -21,6 +21,25 @@ use crate::{
 
 use super::ui_util::{slider, text_edit_singleline};
 
+fn removable_rows(
+    ui: &mut Ui,
+    n_rows: usize,
+    mut make_row: impl FnMut(&mut Ui, usize),
+) -> Option<usize> {
+    let mut to_be_removed = None;
+    for idx in 0..n_rows {
+        if ui
+            .button("x")
+            .on_hover_text("double click😈")
+            .double_clicked()
+        {
+            to_be_removed = Some(idx);
+        }
+        make_row(ui, idx)
+    }
+    to_be_removed
+}
+
 fn new_label_text(
     ui: &mut Ui,
     new_label: &mut String,
@@ -65,14 +84,13 @@ where
         label_change = true;
         new_idx = label_info.len() - 1;
     }
-    let mut to_be_removed = None;
     let mut show_only_current = label_info.show_only_current;
-    for (label_idx, label) in label_info.labels().iter().enumerate() {
-        let checked = label_idx == label_info.cat_idx_current;
-        ui.horizontal_top(|ui| {
-            if ui.button("x").clicked() {
-                to_be_removed = Some(label_idx);
-            }
+    let mut to_be_removed = None;
+    let n_rows = label_info.labels().len();
+    egui::Grid::new("label_grid").num_columns(3).show(ui, |ui| {
+        to_be_removed = removable_rows(ui, n_rows, |ui, label_idx| {
+            let label = &label_info.labels()[label_idx];
+            let checked = label_idx == label_info.cat_idx_current;
             let label = if show_only_current && checked {
                 egui::RichText::new(label).monospace().strong().italics()
             } else {
@@ -92,8 +110,9 @@ where
                     .strong()
                     .color(egui::Color32::from_rgb(rgb[0], rgb[1], rgb[2])),
             );
+            ui.end_row();
         });
-    }
+    });
     label_info.show_only_current = show_only_current;
     if new_idx != label_info.cat_idx_current {
         for (annos, _) in annotations_map.values_mut() {
@@ -371,21 +390,6 @@ pub fn brush_menu(
         specifics: ToolSpecifics::Brush(data),
         menu_active: window_open,
     })
-}
-
-fn removable_rows(
-    ui: &mut Ui,
-    n_rows: usize,
-    mut make_row: impl FnMut(&mut Ui, usize),
-) -> Option<usize> {
-    let mut to_be_removed = None;
-    for idx in 0..n_rows {
-        if ui.button("x").on_hover_text("double click😈").double_clicked() {
-            to_be_removed = Some(idx);
-        }
-        make_row(ui, idx)
-    }
-    to_be_removed
 }
 
 fn process_number<T>(
