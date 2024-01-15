@@ -43,8 +43,9 @@ pub(super) fn change_annos<T>(
             trace_ok(attr_data.specifics.attributes_mut().map(|d| {
                 let attr_options = attributes_data::Options {
                     is_export_triggered: false,
-                    populate_new_attr,
-                    update_current_attr_map: false,
+                    is_addition_triggered: populate_new_attr,
+                    is_update_triggered: false,
+                    removal_idx: None
                 };
                 old_attr_name = d.new_attr.clone();
                 old_attr_type = d.new_attr_type.clone();
@@ -63,8 +64,9 @@ pub(super) fn change_annos<T>(
         {
             let attr_options = attributes_data::Options {
                 is_export_triggered: false,
-                populate_new_attr: false,
-                update_current_attr_map: true,
+                is_addition_triggered: false,
+                is_update_triggered: true,
+                removal_idx: None,
             };
             trace_ok(attr_data.specifics.attributes_mut().map(|d| {
                 d.options = attr_options;

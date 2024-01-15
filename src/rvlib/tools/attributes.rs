@@ -86,9 +86,8 @@ impl Manipulate for Attributes {
         history: History,
         _event: &Events,
     ) -> (World, History) {
-        let populate_new_attr = get_specific(&world).map(|d| d.options.populate_new_attr);
-        if populate_new_attr == Some(true) {
-            info!("populating new attr");
+        let is_addition_triggered = get_specific(&world).map(|d| d.options.is_addition_triggered);
+        if is_addition_triggered == Some(true) {
             let attr_map_tmp = get_annos_mut(&mut world).map(mem::take);
             let data = get_specific_mut(&mut world);
 
@@ -104,17 +103,18 @@ impl Manipulate for Attributes {
                 }
                 if let Some(data) = get_specific_mut(&mut world) {
                     data.current_attr_map = Some(attr_map_tmp);
+                    data.push(new_attr, new_attr_type);
                 }
             }
             if let Some(populate_new_attr) =
-                get_specific_mut(&mut world).map(|d| &mut d.options.populate_new_attr)
+                get_specific_mut(&mut world).map(|d| &mut d.options.is_addition_triggered)
             {
                 *populate_new_attr = false;
             }
         }
-        let update_current_attr_map =
-            get_specific(&world).map(|d| d.options.update_current_attr_map);
-        if update_current_attr_map == Some(true) {
+        let is_update_triggered =
+            get_specific(&world).map(|d| d.options.is_update_triggered);
+        if is_update_triggered == Some(true) {
             info!("update attr");
             let current_from_menu_clone =
                 get_specific(&world).and_then(|d| d.current_attr_map.clone());
@@ -124,9 +124,20 @@ impl Manipulate for Attributes {
                 *anno = mem::take(&mut cfm);
             }
             if let Some(update_current_attr_map) =
-                get_specific_mut(&mut world).map(|d| &mut d.options.update_current_attr_map)
+                get_specific_mut(&mut world).map(|d| &mut d.options.is_update_triggered)
             {
                 *update_current_attr_map = false;
+            }
+        }
+        if let Some(removal_idx) = get_specific(&world).map(|d| d.options.removal_idx) {
+            let data = get_specific_mut(&mut world);
+            if let (Some(data), Some(removal_idx)) = (data, removal_idx) {
+                data.remove_attr(removal_idx);
+            }
+            if let Some(removal_idx) =
+                get_specific_mut(&mut world).map(|d| &mut d.options.removal_idx)
+            {
+                *removal_idx = None;
             }
         }
         let is_export_triggered = get_specific(&world).map(|d| d.options.is_export_triggered);

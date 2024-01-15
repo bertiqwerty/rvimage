@@ -380,7 +380,7 @@ fn removable_rows(
 ) -> Option<usize> {
     let mut to_be_removed = None;
     for idx in 0..n_rows {
-        if ui.button("x").clicked() {
+        if ui.button("x").on_hover_text("double click😈").double_clicked() {
             to_be_removed = Some(idx);
         }
         make_row(ui, idx)
@@ -455,9 +455,8 @@ pub fn attributes_menu(
             if data.attr_names().contains(&data.new_attr) {
                 warn!("attribute {:?} already exists", data.new_attr);
             }
-            data.push(data.new_attr.clone(), data.new_attr_type.clone());
-            data.options.populate_new_attr = true;
-            data.options.update_current_attr_map = true;
+            data.options.is_addition_triggered = true;
+            data.options.is_update_triggered = true;
         }
     });
     egui::Grid::new("attributes_grid")
@@ -473,7 +472,7 @@ pub fn attributes_menu(
                     match attr_map.get_mut(&attr_name) {
                         Some(AttrVal::Bool(b)) => {
                             if ui.checkbox(b, "").changed() {
-                                data.options.update_current_attr_map = true;
+                                data.options.is_update_triggered = true;
                             }
                         }
                         Some(AttrVal::Float(x)) => {
@@ -485,7 +484,7 @@ pub fn attributes_menu(
                                 &mut new_attr_buffer,
                             );
                             if lost_focus || ui.button("OK").clicked() {
-                                data.options.update_current_attr_map = true;
+                                data.options.is_update_triggered = true;
                             }
                         }
                         Some(AttrVal::Int(x)) => {
@@ -497,7 +496,7 @@ pub fn attributes_menu(
                                 &mut new_attr_buffer,
                             );
                             if lost_focus || ui.button("OK").clicked() {
-                                data.options.update_current_attr_map = true;
+                                data.options.is_update_triggered = true;
                             }
                         }
                         Some(AttrVal::Str(s)) => {
@@ -505,7 +504,7 @@ pub fn attributes_menu(
                                 .on_hover_text(TEXT_LABEL)
                                 .lost_focus();
                             if lost_focus || ui.button("OK").clicked() {
-                                data.options.update_current_attr_map = true;
+                                data.options.is_update_triggered = true;
                             }
                         }
                         None => {
@@ -517,7 +516,7 @@ pub fn attributes_menu(
                 ui.end_row();
             });
             if let Some(tbr) = to_be_removed {
-                data.remove_attr(tbr);
+                data.options.removal_idx = Some(tbr);
             }
         });
 

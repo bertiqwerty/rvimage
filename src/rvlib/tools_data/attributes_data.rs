@@ -67,9 +67,10 @@ pub fn set_attrmap_val(attr_map: &mut AttrMap, attr_name: &str, attr_val: &AttrV
 }
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct Options {
-    pub populate_new_attr: bool,
-    pub update_current_attr_map: bool,
+    pub is_addition_triggered: bool,
+    pub is_update_triggered: bool,
     pub is_export_triggered: bool,
+    pub removal_idx: Option<usize>,
 }
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct AttributesToolData {
@@ -104,6 +105,9 @@ impl AttributesToolData {
         }
     }
     pub fn remove_attr(&mut self, idx: usize) {
+        for (_, (attr_map, _)) in self.annotations_map.iter_mut() {
+            attr_map.remove(&self.attr_names[idx]);
+        }
         self.attr_names.remove(idx);
         self.attr_types.remove(idx);
         self.new_attr_buffers.remove(idx);

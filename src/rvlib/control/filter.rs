@@ -59,7 +59,6 @@ impl FilterPredicate {
         tdm: Option<&ToolsDataMap>,
         active_tool_name: Option<&str>,
     ) -> RvResult<bool> {
-        println!("filtering by : {:?}", self);
         Ok(match &self {
             FilterPredicate::FilterStr(s) => {
                 if path.is_empty() {
