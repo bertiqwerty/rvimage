@@ -259,6 +259,12 @@ impl Control {
 
         if set_cur_prj {
             self.cfg.set_current_prj_path(path.clone());
+            // update prj name in cfg
+            let cfg_global = trace_ok(cfg::read_cfg());
+            if let Some(mut cfg_global) = cfg_global {
+                cfg_global.set_current_prj_path(path.clone());
+                trace_ok(cfg::write_cfg(&cfg_global));
+            }
         }
         let opened_folder = self.opened_folder().cloned();
         let tdm = tools_data_map.clone();
@@ -270,14 +276,6 @@ impl Control {
                 path.as_path(),
                 &cfg,
             ));
-            if set_cur_prj {
-                // update prj name in cfg
-                let cfg_global = trace_ok(cfg::read_cfg());
-                if let Some(mut cfg_global) = cfg_global {
-                    cfg_global.set_current_prj_path(path);
-                    trace_ok(cfg::write_cfg(&cfg_global));
-                }
-            }
         });
         Ok(handle)
     }
