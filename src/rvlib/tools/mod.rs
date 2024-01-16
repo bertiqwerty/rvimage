@@ -83,8 +83,6 @@ make_tools!(
         false,
         BboxSpecificData::default()
     ),
-    (Zoom, "🔍", ZOOM_NAME, false, false, ()),
-    (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true, ()),
     (
         Attributes,
         "A",
@@ -92,7 +90,9 @@ make_tools!(
         false,
         false,
         AttributesToolData::default()
-    )
+    ),
+    (Zoom, "🔍", ZOOM_NAME, false, false, ()),
+    (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true, ())
 );
 
 #[macro_export]
