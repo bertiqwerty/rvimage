@@ -218,6 +218,8 @@ impl Control {
 
         // update prj name in cfg
         self.cfg.set_current_prj_path(file_path);
+        // save cfg of loaded project
+        trace_ok(cfg::write_cfg(&self.cfg));
 
         Ok(tools_data_map)
     }

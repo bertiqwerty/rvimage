@@ -51,6 +51,11 @@ impl<'a> Widget for CfgMenu<'a> {
                     Frame::popup(ui.style()).show(ui, |ui| {
                         ui.horizontal(|ui| {
                             if ui.button("Open in Editor").clicked() {
+                                // to show the current config in an external editor, we need to save it first
+                                if let Err(e) = cfg::write_cfg(self.cfg) {
+                                    tracing::error!("could not write config,\n{e:#?}");
+                                    tracing::error!("{:?}", self.cfg);
+                                }
                                 match cfg::get_cfg_path() {
                                     Ok(p) => {
                                         if let Err(e) = edit::edit_file(p) {
