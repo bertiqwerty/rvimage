@@ -1,6 +1,6 @@
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{shape_unscaled, BbF, Circle, ShapeI, TPtF},
+    domain::{shape_unscaled, BbF, Circle, ShapeI, TPtF, PtF},
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     file_util,
@@ -171,6 +171,54 @@ fn check_autopaste(mut world: World, mut history: History, auto_paste: bool) -> 
     (world, history)
 }
 
+fn show_grab_ball(
+    mp: Option<PtF>,
+    prev_pos: &PrevPos,
+    world: &mut World,
+    last_proximal_circle_check: Option<Instant>,
+    options: Option<&bbox_data::Options>,
+) -> Option<Instant> {
+    if let (Some(mp), Some(last_check)) = (mp, last_proximal_circle_check) {
+        if last_check.elapsed().as_millis() > 2 {
+            let geos = get_annos_if_some(&world).map(|a| a.elts());
+            if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
+                let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
+                let tolerance = move_corner_tol(unscaled);
+                find_close_vertex(mp, geos, tolerance)
+            }) {
+                let annos = get_annos(&world);
+                let corner_point = annos.map(|a| &a.elts()[bb_idx]).map(|a| a.point(c_idx));
+                let data = get_specific_mut(world);
+                if let (Some(data), Some(corner_point), Some(options)) =
+                    (data, corner_point, options)
+                {
+                    data.highlight_circles = vec![Circle {
+                        center: corner_point,
+                        radius: options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION
+                            * 2.5,
+                    }];
+                    let vis = get_visible(&world);
+                    world.request_redraw_annotations(BBOX_NAME, vis);
+                }
+            } else {
+                let data = get_specific_mut(world);
+                let n_circles = data
+                    .as_ref()
+                    .map(|d| d.highlight_circles.len())
+                    .unwrap_or(0);
+                if let Some(data) = data {
+                    data.highlight_circles = vec![];
+                }
+                if n_circles > 0 {
+                    let vis = get_visible(&world);
+                    world.request_redraw_annotations(BBOX_NAME, vis);
+                }
+            }
+        }
+    }
+    Some(Instant::now())
+}
+
 #[derive(Clone, Debug)]
 pub struct Bbox {
     prev_pos: PrevPos,
@@ -178,7 +226,7 @@ pub struct Bbox {
     start_press_time: Option<Instant>,
     points_at_press: Option<usize>,
     points_after_held: Option<usize>,
-    last_close_circle_check: Option<Instant>,
+    last_proximal_circle_check: Option<Instant>,
 }
 
 impl Bbox {
@@ -339,7 +387,7 @@ impl Manipulate for Bbox {
             start_press_time: None,
             points_after_held: None,
             points_at_press: None,
-            last_close_circle_check: None,
+            last_proximal_circle_check: None,
         }
     }
 
@@ -399,51 +447,13 @@ impl Manipulate for Bbox {
 
         let options = get_options(&world);
 
-        if let (Some(mp), Some(last_check)) =
-            (events.mouse_pos_on_orig, self.last_close_circle_check)
-        {
-            if last_check.elapsed().as_millis() > 2 {
-                let geos = get_annos_if_some(&world).map(|a| a.elts());
-                if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
-                    let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
-                    let tolerance = move_corner_tol(unscaled);
-                    find_close_vertex(mp, geos, tolerance)
-                }) {
-                    let annos = get_annos(&world);
-                    let corner_point = annos.map(|a| &a.elts()[bb_idx]).map(|a| a.point(c_idx));
-                    let data = get_specific_mut(&mut world);
-                    if let (Some(data), Some(corner_point), Some(options)) =
-                        (data, corner_point, options)
-                    {
-                        data.highlight_circles = vec![Circle {
-                            center: corner_point,
-                            radius: options.outline_thickness as TPtF
-                                / OUTLINE_THICKNESS_CONVERSION
-                                * 2.5,
-                        }];
-                        let vis = get_visible(&world);
-                        world.request_redraw_annotations(BBOX_NAME, vis);
-                    }
-                } else {
-                    let data = get_specific_mut(&mut world);
-                    let n_circles = data
-                        .as_ref()
-                        .map(|d| d.highlight_circles.len())
-                        .unwrap_or(0);
-                    if let Some(data) = data {
-                        data.highlight_circles = vec![];
-                    }
-                    if n_circles > 0 {
-                        let vis = get_visible(&world);
-                        world.request_redraw_annotations(BBOX_NAME, vis);
-                    }
-                }
-                self.last_close_circle_check = Some(Instant::now());
-            }
-        } else {
-            self.last_close_circle_check = Some(Instant::now());
-        }
-
+        self.last_proximal_circle_check = show_grab_ball(
+            events.mouse_pos_on_orig,
+            &self.prev_pos,
+            &mut world,
+            self.last_proximal_circle_check,
+            options.as_ref(),
+        );
         if let Some(options) = options {
             world = check_trigger_redraw(world, BBOX_NAME, get_label_info, |d| {
                 bbox_mut(d).map(|d| &mut d.options.core_options)
@@ -550,7 +560,7 @@ use {
 fn test_bbox_ctrl_h() {
     let (_, mut world, mut history) = test_data();
     let mut bbox = Bbox::new();
-    bbox.last_close_circle_check = Some(Instant::now());
+    bbox.last_proximal_circle_check = Some(Instant::now());
     thread::sleep(Duration::from_millis(3));
     assert_eq!(get_visible(&world), Visibility::All);
     let events = Events::default()
