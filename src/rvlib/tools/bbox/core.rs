@@ -494,47 +494,47 @@ impl Manipulate for Bbox {
                     }
                 }
             }
-            (world, history) = make_tool_transform!(
-                self,
-                world,
-                history,
-                events,
-                [
-                    (pressed, KeyCode::MouseRight, mouse_pressed),
-                    (pressed, KeyCode::MouseLeft, mouse_pressed),
-                    (held, KeyCode::MouseRight, mouse_held),
-                    (held, KeyCode::MouseLeft, mouse_held),
-                    (released, KeyCode::MouseLeft, mouse_released),
-                    (released, KeyCode::MouseRight, mouse_released),
-                    (released, KeyCode::Delete, key_released),
-                    (released, KeyCode::Back, key_released),
-                    (released, KeyCode::H, key_released),
-                    (released, KeyCode::A, key_released),
-                    (released, KeyCode::D, key_released),
-                    (released, KeyCode::E, key_released),
-                    (released, KeyCode::C, key_released),
-                    (released, KeyCode::V, key_released),
-                    (released, KeyCode::L, key_released),
-                    (released, KeyCode::Down, key_released),
-                    (released, KeyCode::Up, key_released),
-                    (released, KeyCode::Left, key_released),
-                    (released, KeyCode::Right, key_released),
-                    (released, KeyCode::Key1, key_released),
-                    (released, KeyCode::Key2, key_released),
-                    (released, KeyCode::Key3, key_released),
-                    (released, KeyCode::Key4, key_released),
-                    (released, KeyCode::Key5, key_released),
-                    (released, KeyCode::Key6, key_released),
-                    (released, KeyCode::Key7, key_released),
-                    (released, KeyCode::Key8, key_released),
-                    (released, KeyCode::Key9, key_released),
-                    (held, KeyCode::Down, key_held),
-                    (held, KeyCode::Up, key_held),
-                    (held, KeyCode::Left, key_held),
-                    (held, KeyCode::Right, key_held)
-                ]
-            );
         }
+        (world, history) = make_tool_transform!(
+            self,
+            world,
+            history,
+            events,
+            [
+                (pressed, KeyCode::MouseRight, mouse_pressed),
+                (pressed, KeyCode::MouseLeft, mouse_pressed),
+                (held, KeyCode::MouseRight, mouse_held),
+                (held, KeyCode::MouseLeft, mouse_held),
+                (released, KeyCode::MouseLeft, mouse_released),
+                (released, KeyCode::MouseRight, mouse_released),
+                (released, KeyCode::Delete, key_released),
+                (released, KeyCode::Back, key_released),
+                (released, KeyCode::H, key_released),
+                (released, KeyCode::A, key_released),
+                (released, KeyCode::D, key_released),
+                (released, KeyCode::E, key_released),
+                (released, KeyCode::C, key_released),
+                (released, KeyCode::V, key_released),
+                (released, KeyCode::L, key_released),
+                (released, KeyCode::Down, key_released),
+                (released, KeyCode::Up, key_released),
+                (released, KeyCode::Left, key_released),
+                (released, KeyCode::Right, key_released),
+                (released, KeyCode::Key1, key_released),
+                (released, KeyCode::Key2, key_released),
+                (released, KeyCode::Key3, key_released),
+                (released, KeyCode::Key4, key_released),
+                (released, KeyCode::Key5, key_released),
+                (released, KeyCode::Key6, key_released),
+                (released, KeyCode::Key7, key_released),
+                (released, KeyCode::Key8, key_released),
+                (released, KeyCode::Key9, key_released),
+                (held, KeyCode::Down, key_held),
+                (held, KeyCode::Up, key_held),
+                (held, KeyCode::Left, key_held),
+                (held, KeyCode::Right, key_held)
+            ]
+        );
         (world, history)
     }
 }
