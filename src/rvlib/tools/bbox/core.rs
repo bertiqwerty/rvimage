@@ -1,6 +1,6 @@
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{shape_unscaled, BbF, Circle, ShapeI, TPtF, PtF},
+    domain::{shape_unscaled, BbF, Circle, PtF, ShapeI, TPtF},
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     file_util,

@@ -83,8 +83,14 @@ pub(super) fn find_close_vertex(
                 .unwrap();
             (bb_idx, min_corner_idx, min_corner_dist)
         })
-        .filter(|(_, _, c_dist)| {println!("dist {c_dist}"); c_dist <= &tolerance})
-        .min_by(|(_, _, c_dist_1), (_, _, c_dist_2)|{println!("after filter {c_dist_1}, {c_dist_2}"); min_from_partial(c_dist_1, c_dist_2)})
+        .filter(|(_, _, c_dist)| {
+            println!("dist {c_dist}");
+            c_dist <= &tolerance
+        })
+        .min_by(|(_, _, c_dist_1), (_, _, c_dist_2)| {
+            println!("after filter {c_dist_1}, {c_dist_2}");
+            min_from_partial(c_dist_1, c_dist_2)
+        })
         .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
