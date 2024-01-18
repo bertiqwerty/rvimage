@@ -171,7 +171,7 @@ impl Polygon {
         Self::from_vec(in_vertices.into_iter().collect())
     }
     #[allow(clippy::needless_lifetimes)]
-    fn lineseg_iter<'a>(&'a self) -> impl Iterator<Item = (PtF, PtF)> + 'a {
+    pub fn lineseg_iter<'a>(&'a self) -> impl Iterator<Item = (PtF, PtF)> + 'a {
         self.points.iter().enumerate().map(|(i, p1)| {
             let p2 = if i < self.points.len() - 1 {
                 self.points[i + 1]

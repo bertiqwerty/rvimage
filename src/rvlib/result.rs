@@ -25,7 +25,11 @@ impl Display for RvError {
     }
 }
 impl Error for RvError {}
-
+impl From<&str> for RvError {
+    fn from(value: &str) -> Self {
+        RvError::new(value)
+    }
+}
 /// RV Image's result type with [`RvError`](RvError) as error type.
 pub type RvResult<U> = Result<U, RvError>;
 

@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, iter::empty, mem};
+use std::{cmp::Ordering, iter, iter::empty, mem};
 
 use lazy_static::lazy_static;
 
@@ -10,6 +10,7 @@ use crate::{
     },
     file_util::MetaData,
     history::Record,
+    result::RvResult,
     tools::{
         core::{
             change_annos, label_change_key, make_track_changes_str, on_selection_keys, Mover,
@@ -61,14 +62,19 @@ fn closest_containing_boundary_idx(
 pub(super) fn move_corner_tol(unscaled: ShapeF) -> TPtF {
     (unscaled.w * unscaled.h / CORNER_TOL_DENOMINATOR).max(2.0)
 }
+pub(super) fn closest_corner(pos: PtF, corners: impl Iterator<Item = PtF>) -> (usize, TPtF) {
+    corners
+        .map(|c| (pos.x - c.x).powi(2) + (pos.y - c.y).powi(2))
+        .enumerate()
+        .min_by(|(_, x1), (_, x2)| min_from_partial(x1, x2))
+        .unwrap()
+}
 /// returns index of the bounding box and the index of the closest close corner
 pub(super) fn find_close_vertex(
     orig_pos: PtF,
     geos: &[GeoFig],
     tolerance: TPtF,
 ) -> Option<(usize, usize)> {
-    println!("fcw");
-    println!("{}", geos.len());
     geos.iter()
         .enumerate()
         .map(|(bb_idx, bb)| {
@@ -76,21 +82,11 @@ pub(super) fn find_close_vertex(
                 GeoFig::BB(bb) => Box::new(bb.points_iter()),
                 GeoFig::Poly(poly) => Box::new(poly.points_iter()),
             };
-            let (min_corner_idx, min_corner_dist) = iter
-                .map(|c| (orig_pos.x - c.x).powi(2) + (orig_pos.y - c.y).powi(2))
-                .enumerate()
-                .min_by(|(_, x1), (_, x2)| min_from_partial(x1, x2))
-                .unwrap();
+            let (min_corner_idx, min_corner_dist) = closest_corner(orig_pos, iter);
             (bb_idx, min_corner_idx, min_corner_dist)
         })
-        .filter(|(_, _, c_dist)| {
-            println!("dist {c_dist}");
-            c_dist <= &tolerance
-        })
-        .min_by(|(_, _, c_dist_1), (_, _, c_dist_2)| {
-            println!("after filter {c_dist_1}, {c_dist_2}");
-            min_from_partial(c_dist_1, c_dist_2)
-        })
+        .filter(|(_, _, c_dist)| c_dist <= &tolerance)
+        .min_by(|(_, _, c_dist_1), (_, _, c_dist_2)| min_from_partial(c_dist_1, c_dist_2))
         .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
@@ -125,6 +121,31 @@ pub(super) fn export_if_triggered(
     }
 }
 
+fn longer_path(close_point_idx: usize, points: Vec<PtF>) -> RvResult<Vec<PtF>> {
+    if let Some(mp) = points.last().cloned() {
+        let forward_distance = points[close_point_idx..]
+            .iter()
+            .zip(points[close_point_idx + 1..].iter())
+            .map(|(p1, p2)| p1.dist_square(p2).sqrt())
+            .sum::<TPtF>();
+        let backward_distance = points[..=close_point_idx]
+            .iter()
+            .zip(points[1..=close_point_idx].iter())
+            .map(|(p1, p2)| p1.dist_square(p2).sqrt())
+            .sum::<TPtF>()
+            + mp.dist_square(&points[0]).sqrt();
+        if forward_distance > backward_distance {
+            Ok(points[close_point_idx..].to_vec())
+        } else {
+            Ok(iter::once(mp)
+                .chain(points[..close_point_idx].iter().cloned())
+                .collect::<Vec<_>>())
+        }
+    } else {
+        Err("points must not be empty".into())
+    }
+}
+
 fn close_polygon(
     mut prev_pos: PrevPos,
     in_menu_selected_label: usize,
@@ -133,7 +154,21 @@ fn close_polygon(
     mut history: History,
 ) -> (World, History, PrevPos) {
     if prev_pos.prev_pos.len() > 2 {
-        let poly = Polygon::from_vec(prev_pos.prev_pos.into_iter().collect::<Vec<_>>()).unwrap();
+        let (c_idx, c_dist) = closest_corner(
+            prev_pos.prev_pos.last().cloned().unwrap(),
+            prev_pos
+                .prev_pos
+                .iter()
+                .take(prev_pos.prev_pos.len() - 1)
+                .cloned(),
+        );
+        let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
+        let tolerance = move_corner_tol(unscaled);
+        let poly = if c_dist < tolerance {
+            Polygon::from_vec(longer_path(c_idx, prev_pos.prev_pos).unwrap()).unwrap()
+        } else {
+            Polygon::from_vec(prev_pos.prev_pos.into_iter().collect::<Vec<_>>()).unwrap()
+        };
         prev_pos.prev_pos = vec![];
         let add_annos = |annos: &mut BboxAnnotations| {
             annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);

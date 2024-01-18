@@ -177,7 +177,7 @@ fn test_launch() -> RvResult<()> {
     assert!(!handle.is_finished());
     println!("...done");
 
-    let send_request = |req| {
+    let send_request = |req| -> RvResult<()> {
         let mut stream = TcpStream::connect(address).map_err(to_rv)?;
         stream.write(req).map_err(to_rv)?;
         stream.flush().map_err(to_rv)?;

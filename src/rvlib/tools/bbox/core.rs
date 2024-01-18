@@ -28,10 +28,10 @@ use crate::{
 use std::{iter, mem, time::Instant};
 
 use super::on_events::{
-    change_annos_bbox, export_if_triggered, find_close_vertex, import_coco_if_triggered,
-    move_corner_tol, on_key_released, on_mouse_held_left, on_mouse_held_right,
-    on_mouse_released_left, on_mouse_released_right, KeyReleasedParams, MouseHeldLeftParams,
-    MouseMoveParams, MouseReleaseParams, PrevPos,
+    change_annos_bbox, closest_corner, export_if_triggered, find_close_vertex,
+    import_coco_if_triggered, move_corner_tol, on_key_released, on_mouse_held_left,
+    on_mouse_held_right, on_mouse_released_left, on_mouse_released_right, KeyReleasedParams,
+    MouseHeldLeftParams, MouseMoveParams, MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -178,40 +178,68 @@ fn show_grab_ball(
     last_proximal_circle_check: Option<Instant>,
     options: Option<&bbox_data::Options>,
 ) -> Option<Instant> {
-    if let (Some(mp), Some(last_check)) = (mp, last_proximal_circle_check) {
-        if last_check.elapsed().as_millis() > 2 {
-            let geos = get_annos_if_some(&world).map(|a| a.elts());
-            if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
+    if last_proximal_circle_check.map(|lc| lc.elapsed().as_millis()) > Some(2) {
+        if let Some(mp) = mp {
+            if !prev_pos.prev_pos.is_empty() {
+                let (c_idx, c_dist) = closest_corner(mp, prev_pos.prev_pos.iter().cloned());
                 let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
                 let tolerance = move_corner_tol(unscaled);
-                find_close_vertex(mp, geos, tolerance)
-            }) {
-                let annos = get_annos(&world);
-                let corner_point = annos.map(|a| &a.elts()[bb_idx]).map(|a| a.point(c_idx));
-                let data = get_specific_mut(world);
-                if let (Some(data), Some(corner_point), Some(options)) =
-                    (data, corner_point, options)
-                {
-                    data.highlight_circles = vec![Circle {
-                        center: corner_point,
-                        radius: options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION
-                            * 2.5,
-                    }];
-                    let vis = get_visible(&world);
+                if c_dist < tolerance {
+                    let center = prev_pos.prev_pos[c_idx];
+                    let data = get_specific_mut(world);
+                    if let (Some(data), Some(options)) = (data, options) {
+                        data.highlight_circles = vec![Circle {
+                            center,
+                            radius: options.outline_thickness as TPtF
+                                / OUTLINE_THICKNESS_CONVERSION
+                                * 3.5,
+                        }];
+                        let vis = get_visible(world);
+                        world.request_redraw_annotations(BBOX_NAME, vis);
+                    }
+                } else {
+                    let data = get_specific_mut(world);
+                    if let Some(data) = data {
+                        data.highlight_circles = vec![];
+                    }
+                    let vis = get_visible(world);
                     world.request_redraw_annotations(BBOX_NAME, vis);
                 }
             } else {
-                let data = get_specific_mut(world);
-                let n_circles = data
-                    .as_ref()
-                    .map(|d| d.highlight_circles.len())
-                    .unwrap_or(0);
-                if let Some(data) = data {
-                    data.highlight_circles = vec![];
-                }
-                if n_circles > 0 {
-                    let vis = get_visible(&world);
-                    world.request_redraw_annotations(BBOX_NAME, vis);
+                let geos = get_annos_if_some(world).map(|a| a.elts());
+                if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
+                    let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
+                    let tolerance = move_corner_tol(unscaled);
+                    find_close_vertex(mp, geos, tolerance)
+                }) {
+                    let annos = get_annos(world);
+                    let corner_point = annos.map(|a| &a.elts()[bb_idx]).map(|a| a.point(c_idx));
+                    let data = get_specific_mut(world);
+                    if let (Some(data), Some(corner_point), Some(options)) =
+                        (data, corner_point, options)
+                    {
+                        data.highlight_circles = vec![Circle {
+                            center: corner_point,
+                            radius: options.outline_thickness as TPtF
+                                / OUTLINE_THICKNESS_CONVERSION
+                                * 2.5,
+                        }];
+                        let vis = get_visible(world);
+                        world.request_redraw_annotations(BBOX_NAME, vis);
+                    }
+                } else {
+                    let data = get_specific_mut(world);
+                    let n_circles = data
+                        .as_ref()
+                        .map(|d| d.highlight_circles.len())
+                        .unwrap_or(0);
+                    if let Some(data) = data {
+                        data.highlight_circles = vec![];
+                    }
+                    if n_circles > 0 {
+                        let vis = get_visible(world);
+                        world.request_redraw_annotations(BBOX_NAME, vis);
+                    }
                 }
             }
         }
@@ -480,9 +508,10 @@ impl Manipulate for Bbox {
                         )
                     };
                     // animation
+                    let circles = get_specific(&world).map(|d| d.highlight_circles.clone());
                     let label_info = get_specific(&world).map(|d| &d.label_info);
 
-                    if let Some(label_info) = label_info {
+                    if let (Some(circles), Some(label_info)) = (circles, label_info) {
                         let label = Some(label_info.labels()[in_menu_selected_label].clone());
                         let color = label_info.colors()[in_menu_selected_label];
                         let anno = BboxAnnotation {
@@ -496,7 +525,7 @@ impl Manipulate for Bbox {
                             },
                             outline_alpha: options.outline_alpha,
                             is_selected: None,
-                            highlight_circles: vec![],
+                            highlight_circles: circles,
                         };
                         let vis = get_visible(&world);
                         world.request_redraw_annotations(BBOX_NAME, vis);
