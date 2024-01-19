@@ -10,7 +10,7 @@ use crate::{
     },
     file_util::MetaData,
     history::Record,
-    result::RvResult,
+    result::{trace_ok, RvResult},
     tools::{
         core::{
             change_annos, label_change_key, make_track_changes_str, on_selection_keys, Mover,
@@ -121,25 +121,43 @@ pub(super) fn export_if_triggered(
     }
 }
 
-fn longer_path(close_point_idx: usize, points: Vec<PtF>) -> RvResult<Vec<PtF>> {
+fn shorter_path(
+    close_point_idx: usize,
+    move_corner_idx: usize,
+    points: Vec<PtF>,
+) -> RvResult<Vec<PtF>> {
     if let Some(mp) = points.last().cloned() {
-        let forward_distance = points[close_point_idx..]
-            .iter()
-            .zip(points[close_point_idx + 1..].iter())
-            .map(|(p1, p2)| p1.dist_square(p2).sqrt())
-            .sum::<TPtF>();
-        let backward_distance = points[..=close_point_idx]
-            .iter()
-            .zip(points[1..=close_point_idx].iter())
-            .map(|(p1, p2)| p1.dist_square(p2).sqrt())
-            .sum::<TPtF>()
-            + mp.dist_square(&points[0]).sqrt();
-        if forward_distance > backward_distance {
-            Ok(points[close_point_idx..].to_vec())
+        if close_point_idx < move_corner_idx && move_corner_idx < points.len() {
+            let path_forward = points[move_corner_idx..]
+                .iter()
+                .chain(points[close_point_idx..move_corner_idx].iter());
+            let path_backward = points[move_corner_idx..]
+                .iter()
+                .rev()
+                .chain(points[..close_point_idx].iter());
+
+            let path_to_closest = points[..close_point_idx + 1].iter();
+            let path_from_closest = points[close_point_idx..].iter();
+            let length_to_closest = path_to_closest
+                .clone()
+                .zip(path_to_closest.clone().skip(1))
+                .map(|(p1, p2)| p1.dist_square(p2).sqrt())
+                .sum::<TPtF>();
+            let length_from_closest = path_from_closest
+                .clone()
+                .zip(path_from_closest.clone().skip(1))
+                .map(|(p1, p2)| p1.dist_square(p2).sqrt())
+                .sum::<TPtF>()
+                + mp.dist_square(&points[0]).sqrt();
+            if length_from_closest > length_to_closest {
+                Ok(path_forward.cloned().collect::<Vec<_>>())
+            } else {
+                Ok(iter::once(mp)
+                    .chain(path_backward.cloned())
+                    .collect::<Vec<_>>())
+            }
         } else {
-            Ok(iter::once(mp)
-                .chain(points[..close_point_idx].iter().cloned())
-                .collect::<Vec<_>>())
+            Ok(points)
         }
     } else {
         Err("points must not be empty".into())
@@ -152,10 +170,10 @@ fn close_polygon(
     visible: Visibility,
     mut world: World,
     mut history: History,
-) -> (World, History, PrevPos) {
+) -> Option<(World, History, PrevPos)> {
     if prev_pos.prev_pos.len() > 2 {
         let (c_idx, c_dist) = closest_corner(
-            prev_pos.prev_pos.last().cloned().unwrap(),
+            prev_pos.prev_pos.last().cloned()?,
             prev_pos
                 .prev_pos
                 .iter()
@@ -165,9 +183,21 @@ fn close_polygon(
         let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
         let tolerance = move_corner_tol(unscaled);
         let poly = if c_dist < tolerance {
-            Polygon::from_vec(longer_path(c_idx, prev_pos.prev_pos).unwrap()).unwrap()
+            if let Some(mc_idx) = prev_pos.move_corner_idx {
+                trace_ok(Polygon::from_vec(trace_ok(shorter_path(
+                    c_idx,
+                    mc_idx,
+                    prev_pos.prev_pos,
+                ))?))?
+            } else {
+                trace_ok(Polygon::from_vec(
+                    prev_pos.prev_pos.into_iter().collect::<Vec<_>>(),
+                ))?
+            }
         } else {
-            Polygon::from_vec(prev_pos.prev_pos.into_iter().collect::<Vec<_>>()).unwrap()
+            trace_ok(Polygon::from_vec(
+                prev_pos.prev_pos.into_iter().collect::<Vec<_>>(),
+            ))?
         };
         prev_pos.prev_pos = vec![];
         let add_annos = |annos: &mut BboxAnnotations| {
@@ -180,7 +210,7 @@ fn close_polygon(
     } else {
         tracing::error!("polygon needs at least 3 points");
     }
-    (world, history, prev_pos)
+    Some((world, history, prev_pos))
 }
 pub(super) struct MouseMoveParams<'a> {
     pub mover: &'a mut Mover,
@@ -218,6 +248,7 @@ pub(super) fn on_mouse_held_right(
 pub(super) struct PrevPos {
     pub prev_pos: Vec<PtF>,
     pub last_valid_click: Option<PtF>,
+    pub move_corner_idx: Option<usize>,
 }
 
 pub(super) struct MouseReleaseParams {
@@ -273,7 +304,8 @@ pub(super) fn on_mouse_released_right(
                 Ordering::Greater => {
                     prev_pos.prev_pos.push(mp);
                     (world, history, prev_pos) =
-                        close_polygon(prev_pos, in_menu_selected_label, visible, world, history);
+                        close_polygon(prev_pos, in_menu_selected_label, visible, world, history)
+                            .unwrap();
                 }
                 _ => (),
             }
@@ -358,7 +390,7 @@ pub(super) fn on_mouse_released_left(
     } else if close {
         let in_menu_selected_label = current_cat_idx(&world);
         if let Some(in_menu_selected_label) = in_menu_selected_label {
-            close_polygon(prev_pos, in_menu_selected_label, visible, world, history)
+            close_polygon(prev_pos, in_menu_selected_label, visible, world, history).unwrap()
         } else {
             (world, history, prev_pos)
         }
@@ -455,6 +487,7 @@ pub(super) fn on_mouse_released_left(
                             }
                         }
                     }
+                    prev_pos.move_corner_idx = Some(prev_pos.prev_pos.len() - 1);
                 }
             } else {
                 match split_mode {
@@ -840,6 +873,7 @@ fn test_mouse_release() {
             prev_pos: PrevPos {
                 prev_pos,
                 last_valid_click: if is_pp_empty { None } else { last },
+                move_corner_idx: None,
             },
             visible: Visibility::All,
             is_alt_held: false,
