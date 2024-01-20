@@ -9,7 +9,7 @@ use crate::{
     domain::{TPtF, TPtI},
     implement_annotations_getters,
     result::{to_rv, RvResult},
-    ShapeI,
+    rverr, ShapeI,
 };
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
@@ -62,6 +62,8 @@ impl Default for AttrVal {
 // { attribute name: attribute value }
 pub type AttrMap = HashMap<String, AttrVal>;
 
+pub type AttrAnnotationsMap = HashMap<String, (AttrMap, ShapeI)>;
+
 pub fn set_attrmap_val(attr_map: &mut AttrMap, attr_name: &str, attr_val: &AttrVal) {
     attr_map.insert(attr_name.to_string(), attr_val.clone());
 }
@@ -80,7 +82,7 @@ pub struct AttributesToolData {
     pub new_attr_type: AttrVal,
     new_attr_buffers: Vec<String>,
     // maps the filename to the number of rotations
-    annotations_map: HashMap<String, (AttrMap, ShapeI)>,
+    annotations_map: AttrAnnotationsMap,
     pub options: Options,
     pub current_attr_map: Option<AttrMap>,
     pub export_path: ExportPath,
@@ -123,5 +125,16 @@ impl AttributesToolData {
     }
     pub fn serialize_annotations(&self) -> RvResult<String> {
         serde_json::to_string(&self.annotations_map).map_err(to_rv)
+    }
+    pub fn set_annotations_map(&mut self, map: AttrAnnotationsMap) -> RvResult<()> {
+        for (_, (attr_map, _)) in map.iter() {
+            for attr_name in attr_map.keys() {
+                if !self.attr_names.contains(attr_name) {
+                    return Err(rverr!("attribute name {attr_name} not found in attr_names"));
+                }
+            }
+        }
+        self.annotations_map = map;
+        Ok(())
     }
 }

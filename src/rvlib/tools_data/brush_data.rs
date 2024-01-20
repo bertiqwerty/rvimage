@@ -3,8 +3,7 @@ use super::{
     core::{self, AnnotationsMap, LabelInfo},
 };
 use crate::{
-    cfg::ExportPath,
-    domain::{BrushLine, ShapeI},
+    cfg::ExportPath, domain::{BrushLine, ShapeI}, result::RvResult, rverr
 };
 use crate::{domain::TPtF, implement_annotations_getters};
 
@@ -48,5 +47,19 @@ pub struct BrushToolData {
 }
 impl BrushToolData {
     implement_annotations_getters!(BrushAnnotations);
+    pub fn set_annotations_map(&mut self, map: BrushAnnoMap) -> RvResult<()> {
+        for (_, (annos, _)) in map.iter() {
+            for cat_idx in annos.cat_idxs() {
+                let len = self.label_info.len();
+                if *cat_idx >= len {
+                    return Err(rverr!(
+                        "cat idx {cat_idx} does not have a label, out of bounds, {len}"
+                    ));
+                }
+            }
+        }
+        self.annotations_map = map;
+        Ok(())
+    }
 }
 impl Eq for BrushToolData {}
