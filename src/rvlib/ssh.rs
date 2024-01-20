@@ -73,7 +73,7 @@ pub fn write_bytes(content_bytes: &[u8], remote_dst_path: &Path, sess: &Session)
     while total_bytes_written < n_bytes {
         total_bytes_written += remote_file
             .write(&content_bytes[total_bytes_written..])
-            .map_err(|e| rverr!("could not write to {remote_dst_path:?} due to {e:?}",))?;
+            .map_err(|e| rverr!("could not write to {remote_dst_path:?} due to {e:?}"))?;
     }
     close(remote_file)?;
     Ok(())

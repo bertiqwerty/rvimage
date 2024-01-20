@@ -96,7 +96,7 @@ impl ReaderFromCfg {
                     let azure_cfg = cfg
                         .azure_blob_cfg
                         .as_ref()
-                        .ok_or_else(|| rverr!("no azure cfg found",))?;
+                        .ok_or_else(|| rverr!("no azure cfg found"))?;
                     let connection_string_path = azure_cfg.connection_string_path.clone();
                     let container_name = azure_cfg.container_name.clone();
 

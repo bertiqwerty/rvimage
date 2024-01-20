@@ -56,6 +56,9 @@ where
 /// ```
 #[macro_export]
 macro_rules! rverr {
+    ($s:literal) => {
+        $crate::result::RvError::new(format!($s).as_str())
+    };
     ($s:literal, $( $exps:expr ),*) => {
         $crate::result::RvError::new(format!($s, $($exps,)*).as_str())
     }

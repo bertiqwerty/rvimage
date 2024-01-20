@@ -51,6 +51,6 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
             .collect())
     }
     fn file_info(&self, _: &str) -> RvResult<String> {
-        Err(rverr!("http reader cannot read file info",))
+        Err(rverr!("http reader cannot read file info"))
     }
 }

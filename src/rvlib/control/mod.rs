@@ -4,6 +4,7 @@ use crate::file_util::{
 };
 use crate::history::{History, Record};
 use crate::result::{trace_ok, RvError};
+use crate::rverr;
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, result::RvResult, threadpool::ThreadPool,
@@ -209,6 +210,7 @@ impl Control {
         }
         Ok(())
     }
+
     pub fn load(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
         let (tools_data_map, to_be_opened_folder, read_cfg) = detail::load(&file_path)?;
         if let Some(of) = to_be_opened_folder {

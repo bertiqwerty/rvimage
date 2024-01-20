@@ -49,17 +49,17 @@ where
         let min_x = x_iter
             .clone()
             .min_by(min_from_partial)
-            .ok_or_else(|| rverr!("empty polygon",))?;
+            .ok_or_else(|| rverr!("empty polygon"))?;
         let min_y = y_iter
             .clone()
             .min_by(min_from_partial)
-            .ok_or_else(|| rverr!("empty polygon",))?;
+            .ok_or_else(|| rverr!("empty polygon"))?;
         let max_x = x_iter
             .max_by(max_from_partial)
-            .ok_or_else(|| rverr!("empty polygon",))?;
+            .ok_or_else(|| rverr!("empty polygon"))?;
         let max_y = y_iter
             .max_by(max_from_partial)
-            .ok_or_else(|| rverr!("empty polygon",))?;
+            .ok_or_else(|| rverr!("empty polygon"))?;
         Ok(BB::from_points(
             Point { x: min_x, y: min_y },
             Point { x: max_x, y: max_y },

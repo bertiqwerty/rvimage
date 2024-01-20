@@ -99,6 +99,6 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
     }
 
     fn file_info(&self, _: &str) -> RvResult<String> {
-        Err(rverr!("cannot read file info from azure blob",))
+        Err(rverr!("cannot read file info from azure blob"))
     }
 }

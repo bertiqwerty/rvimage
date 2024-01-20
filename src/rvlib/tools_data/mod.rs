@@ -170,7 +170,7 @@ impl ToolSpecifics {
         match self {
             Self::Bbox(bbox_data) => f_bbox(bbox_data),
             Self::Brush(brush_data) => f_brush(brush_data),
-            _ => Err(rverr!("only brush tool and bbox tool can be used in apply",)),
+            _ => Err(rverr!("only brush tool and bbox tool can be used in apply")),
         }
     }
 

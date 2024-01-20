@@ -241,7 +241,7 @@ impl World {
 }
 impl Debug for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\nims_raw {:?}", &self.data,)
+        write!(f, "\nims_raw {:?}", &self.data)
     }
 }
 

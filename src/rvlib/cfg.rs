@@ -154,7 +154,7 @@ impl ExportPathConnection {
                 file_util::write(dst_path, data)?;
                 Ok(())
             }
-            (ExportPathConnection::Ssh, None) => Err(rverr!("cannot save to ssh. config missing",)),
+            (ExportPathConnection::Ssh, None) => Err(rverr!("cannot save to ssh. config missing")),
         }
     }
     pub fn write(&self, data_str: &str, dst_path: &Path, ssh_cfg: Option<&SshCfg>) -> RvResult<()> {

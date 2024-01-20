@@ -412,7 +412,7 @@ pub fn read_coco(
                 tracing::info!("imported coco file from {coco_inpath:?}");
                 read.convert_to_bboxdata(coco_file.clone(), rotation_data)
             } else {
-                Err(rverr!("cannot read coco from ssh, ssh-cfg missing.",))
+                Err(rverr!("cannot read coco from ssh, ssh-cfg missing."))
             }
         }
     }
