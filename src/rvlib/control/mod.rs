@@ -222,8 +222,8 @@ impl Control {
         folder_dst: &str,
     ) -> RvResult<ToolsDataMap> {
         let folder_src_to_dst = |path: String| -> String {
-            let new_path = Path::new(&path.replace("\\", "/"))
-                .strip_prefix(&folder_src.replace("\\", "/"))
+            let new_path = Path::new(&path.replace('\\', "/"))
+                .strip_prefix(&folder_src.replace('\\', "/"))
                 .ok()
                 .and_then(|sub_path| {
                     Path::new(folder_dst)

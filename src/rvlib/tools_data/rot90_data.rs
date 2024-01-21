@@ -58,7 +58,7 @@ impl Rot90ToolData {
         }
         self
     }
-    pub fn set_annotations_map(&mut self, map: Rot90AnnotationsMap) -> () {
+    pub fn set_annotations_map(&mut self, map: Rot90AnnotationsMap) {
         self.annotations_map = map;
     }
 }

@@ -3,7 +3,10 @@ use super::{
     core::{self, AnnotationsMap, LabelInfo},
 };
 use crate::{
-    cfg::ExportPath, domain::{BrushLine, ShapeI}, result::RvResult, rverr
+    cfg::ExportPath,
+    domain::{BrushLine, ShapeI},
+    result::RvResult,
+    rverr,
 };
 use crate::{domain::TPtF, implement_annotations_getters};
 
