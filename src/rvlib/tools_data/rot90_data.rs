@@ -38,10 +38,12 @@ impl NRotations {
     }
 }
 
+pub type Rot90AnnotationsMap = HashMap<String, (NRotations, ShapeI)>;
+
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
 pub struct Rot90ToolData {
     // maps the filename to the number of rotations
-    annotations_map: HashMap<String, (NRotations, ShapeI)>,
+    annotations_map: Rot90AnnotationsMap,
 }
 impl Rot90ToolData {
     implement_annotations_getters!(NRotations);
@@ -55,5 +57,8 @@ impl Rot90ToolData {
             self.annotations_map.insert(filename, (nrot, shape));
         }
         self
+    }
+    pub fn set_annotations_map(&mut self, map: Rot90AnnotationsMap) -> () {
+        self.annotations_map = map;
     }
 }

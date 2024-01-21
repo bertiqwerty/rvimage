@@ -4,9 +4,9 @@ use crate::file_util::{
 };
 use crate::history::{History, Record};
 use crate::result::{trace_ok, RvError};
-use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME};
+use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME};
 use crate::tools_data::bbox_data::BboxSpecificData;
-use crate::tools_data::{AttributesToolData, BrushToolData};
+use crate::tools_data::{AttributesToolData, BrushToolData, Rot90ToolData};
 use crate::tools_data::{ToolSpecifics, ToolsData};
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
@@ -218,14 +218,19 @@ impl Control {
     pub fn import(
         &mut self,
         mut prj_file_path: PathBuf,
-        folder_src: &Path,
-        folder_dst: &Path,
+        folder_src: &str,
+        folder_dst: &str,
     ) -> RvResult<ToolsDataMap> {
-        let folder_src_to_dst = |path| -> String {
-            let new_path = Path::new(&path)
-                .strip_prefix(&folder_src)
+        let folder_src_to_dst = |path: String| -> String {
+            let new_path = Path::new(&path.replace("\\", "/"))
+                .strip_prefix(&folder_src.replace("\\", "/"))
                 .ok()
-                .and_then(|sub_path| folder_dst.join(sub_path).to_str().map(|p| p.to_string()));
+                .and_then(|sub_path| {
+                    Path::new(folder_dst)
+                        .join(sub_path)
+                        .to_str()
+                        .map(|p| p.to_string())
+                });
             new_path.unwrap_or(path)
         };
 
@@ -308,6 +313,18 @@ impl Control {
                 );
                 mem::take(d)
             });
+        let rot90: Option<Rot90ToolData> = tools_data_map
+            .get_mut(ROT90_NAME)
+            .and_then(|tdm| trace_ok(tdm.specifics.rot90_mut()))
+            .map(|d| {
+                d.set_annotations_map(
+                    d.clone()
+                        .anno_intoiter()
+                        .map(|(k, v)| (folder_src_to_dst(k), v))
+                        .collect(),
+                );
+                mem::take(d)
+            });
         if let Some(mut bbox) = bbox {
             let coco_file_str = bbox.coco_file.path.to_str().map(|s| s.to_string());
             if let Some(coco_file_str) = coco_file_str {
@@ -328,6 +345,12 @@ impl Control {
             tools_data_map.insert(
                 ATTRIBUTES_NAME.to_string(),
                 ToolsData::new(ToolSpecifics::Attributes(attributes)),
+            );
+        }
+        if let Some(rot90) = rot90 {
+            tools_data_map.insert(
+                ROT90_NAME.to_string(),
+                ToolsData::new(ToolSpecifics::Rot90(rot90)),
             );
         }
 
