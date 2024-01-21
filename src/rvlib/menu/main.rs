@@ -13,7 +13,10 @@ use crate::{
     world::ToolsDataMap,
 };
 use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
-use std::{mem, path::PathBuf};
+use std::{
+    mem,
+    path::{Path, PathBuf},
+};
 
 use super::tools_menus::{attributes_menu, bbox_menu, brush_menu};
 
@@ -296,6 +299,14 @@ impl<'a> Widget for Help<'a> {
     }
 }
 
+fn dialog_in_prjfolder(prj_path: &Path, dialog: rfd::FileDialog) -> rfd::FileDialog {
+    if let Some(folder) = prj_path.parent() {
+        dialog.set_directory(folder)
+    } else {
+        dialog
+    }
+}
+
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
@@ -383,10 +394,12 @@ impl Menu {
                     get_prj_name(ctrl.cfg.current_prj_path(), ctrl.opened_folder_label());
 
                 if ui.button("Save Project").clicked() {
-                    let prj_path = rfd::FileDialog::new()
-                        .add_filter("project files", &["rvi"])
-                        .set_file_name(filename)
-                        .save_file();
+                    let prj_path = dialog_in_prjfolder(
+                        ctrl.cfg.current_prj_path(),
+                        rfd::FileDialog::new(),
+                    )
+                    .set_file_name(filename)
+                    .save_file();
 
                     if let Some(prj_path) = prj_path {
                         handle_error!(ctrl.save(prj_path, tools_data_map, true), self);
@@ -422,9 +435,11 @@ impl Menu {
             if let Some(load_btn_resp) = &self.load_button_resp.resp {
                 if self.import_prj_state.is_import_triggered {
                     self.import_prj_state.is_import_triggered = false;
-                    let import_prj_path = rfd::FileDialog::new()
-                        .add_filter("project files", &["json", "rvi"])
-                        .pick_file();
+                    let import_prj_path = dialog_in_prjfolder(
+                        ctrl.cfg.current_prj_path(),
+                        rfd::FileDialog::new().add_filter("project files", &["json", "rvi"]),
+                    )
+                    .pick_file();
                     if let Some(import_prj_path) = import_prj_path {
                         handle_error!(
                             |tdm| {
