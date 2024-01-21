@@ -185,6 +185,8 @@ pub struct Cfg {
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
     pub darkmode: Option<bool>,
     pub n_autosaves: Option<u8>,
+    pub import_old_path: Option<String>,
+    pub import_new_path: Option<String>,
     #[cfg(feature = "azure_blob")]
     pub azure_blob_cfg: Option<AzureBlobCfg>,
 }

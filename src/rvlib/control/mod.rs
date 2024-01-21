@@ -241,6 +241,8 @@ impl Control {
             self.open_folder(dst)?;
         }
 
+        let current_prj_path = self.cfg.current_prj_path().to_path_buf();
+
         // map paths in cfg
         if let Some(azure_cfg) = &mut read_cfg.azure_blob_cfg {
             azure_cfg.connection_string_path =
@@ -249,22 +251,28 @@ impl Control {
         read_cfg.ssh_cfg.ssh_identity_file_path =
             folder_src_to_dst(read_cfg.ssh_cfg.ssh_identity_file_path);
         self.cfg = read_cfg;
+        self.cfg.import_old_path = Some(folder_src.to_string());
+        self.cfg.import_new_path = Some(folder_dst.to_string());
 
-        // update prj name in cfg
-        let username =
-            env::var("USER").unwrap_or_else(|_| env::var("USERNAME").unwrap_or_default());
-        let username = if username.is_empty() {
-            username
+        // update prj path in cfg
+        if current_prj_path.to_str() == DEFAULT_PRJ_PATH.to_str() {
+            let username =
+                env::var("USER").unwrap_or_else(|_| env::var("USERNAME").unwrap_or_default());
+            let username = if username.is_empty() {
+                username
+            } else {
+                format!("_{username}")
+            };
+            let file_name = prj_file_path.file_stem().and_then(|stem| {
+                stem.to_str()
+                    .map(|s| format!("{s}_imported{}.rvi", username))
+            });
+            prj_file_path = file_name
+                .and_then(|filename| prj_file_path.parent().map(|p| p.join(filename)))
+                .unwrap_or(prj_file_path);
         } else {
-            format!("_{username}")
-        };
-        let file_name = prj_file_path.file_stem().and_then(|stem| {
-            stem.to_str()
-                .map(|s| format!("{s}_imported{}.rvi", username))
-        });
-        prj_file_path = file_name
-            .and_then(|filename| prj_file_path.parent().map(|p| p.join(filename)))
-            .unwrap_or(prj_file_path);
+            prj_file_path = current_prj_path;
+        }
         self.cfg.set_current_prj_path(prj_file_path);
         // save cfg of imported project
         trace_ok(cfg::write_cfg(&self.cfg));

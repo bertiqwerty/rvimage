@@ -6,6 +6,7 @@ use crate::{
     menu::{self, cfg_menu::CfgMenu, open_folder, ui_util::text_edit_singleline},
     paths_selector::PathsSelector,
     result::RvResult,
+    rverr,
     tools::ToolState,
     tools_data::{AnnotationsMap, ToolSpecifics},
     util::version_label,
@@ -159,20 +160,28 @@ struct Stats {
 struct ImportPrjState {
     show: bool,
     is_import_triggered: bool,
-    old_path: String,
-    new_path: String,
 }
 struct ImportPrj<'a> {
     id: Id,
     state: &'a mut ImportPrjState,
     are_tools_active: &'a mut bool,
+    old_path: &'a mut Option<String>,
+    new_path: &'a mut Option<String>,
 }
 impl<'a> ImportPrj<'a> {
-    pub fn new(id: Id, state: &'a mut ImportPrjState, are_tools_active: &'a mut bool) -> Self {
+    pub fn new(
+        id: Id,
+        state: &'a mut ImportPrjState,
+        are_tools_active: &'a mut bool,
+        old_path: &'a mut Option<String>,
+        new_path: &'a mut Option<String>,
+    ) -> Self {
         Self {
             id,
             state,
             are_tools_active,
+            old_path,
+            new_path,
         }
     }
 }
@@ -191,20 +200,26 @@ impl<'a> Widget for ImportPrj<'a> {
                 area.show(ui.ctx(), |ui| {
                     Frame::popup(ui.style()).show(ui, |ui| {
                         ui.label("Map base path from");
-                        text_edit_singleline(ui, &mut self.state.old_path, self.are_tools_active);
+                        if self.old_path.is_none() {
+                            *self.old_path = Some("".to_string());
+                        }
+                        if let Some(old_path) = self.old_path.as_mut() {
+                            text_edit_singleline(ui, old_path, self.are_tools_active);
+                        }
                         ui.label("to");
                         ui.horizontal(|ui| {
-                            text_edit_singleline(
-                                ui,
-                                &mut self.state.new_path,
-                                self.are_tools_active,
-                            );
+                            if self.new_path.is_none() {
+                                *self.new_path = Some("".to_string());
+                            }
+                            if let Some(new_path) = self.new_path.as_mut() {
+                                text_edit_singleline(ui, new_path, self.are_tools_active);
+                            }
                             if ui.button("Select").clicked() {
                                 let src_path = rfd::FileDialog::new().pick_folder();
                                 if let Some(src_path) =
                                     src_path.and_then(|p| p.to_str().map(|s| s.to_string()))
                                 {
-                                    self.state.new_path = src_path;
+                                    *self.new_path = Some(src_path);
                                 }
                             }
                         });
@@ -382,6 +397,8 @@ impl Menu {
                     import_prj_id,
                     &mut self.import_prj_state,
                     &mut self.are_tools_active,
+                    &mut ctrl.cfg.import_old_path,
+                    &mut ctrl.cfg.import_new_path,
                 ));
 
                 let popup_id = ui.make_persistent_id("cfg-popup");
@@ -414,11 +431,17 @@ impl Menu {
                                 *tools_data_map = tdm;
                                 projected_loaded = true;
                             },
-                            ctrl.import(
-                                import_prj_path,
-                                self.import_prj_state.old_path.as_str(),
-                                self.import_prj_state.new_path.as_str()
-                            ),
+                            if let (Some(old_path), Some(new_path)) =
+                                (&ctrl.cfg.import_old_path, &ctrl.cfg.import_new_path)
+                            {
+                                ctrl.import(
+                                    import_prj_path,
+                                    old_path.clone().as_str(),
+                                    new_path.clone().as_str(),
+                                )
+                            } else {
+                                Err(rverr!("old and new path must be set"))
+                            },
                             self
                         );
                     }
