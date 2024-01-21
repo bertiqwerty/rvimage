@@ -394,12 +394,11 @@ impl Menu {
                     get_prj_name(ctrl.cfg.current_prj_path(), ctrl.opened_folder_label());
 
                 if ui.button("Save Project").clicked() {
-                    let prj_path = dialog_in_prjfolder(
-                        ctrl.cfg.current_prj_path(),
-                        rfd::FileDialog::new(),
-                    )
-                    .set_file_name(filename)
-                    .save_file();
+                    let prj_path =
+                        dialog_in_prjfolder(ctrl.cfg.current_prj_path(), rfd::FileDialog::new())
+                            .add_filter("project files", &["json", "rvi"])
+                            .set_file_name(filename)
+                            .save_file();
 
                     if let Some(prj_path) = prj_path {
                         handle_error!(ctrl.save(prj_path, tools_data_map, true), self);
