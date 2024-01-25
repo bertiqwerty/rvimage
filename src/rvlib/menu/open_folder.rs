@@ -64,7 +64,10 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                     "pyhttp-open-popup",
                 );
                 match picklist_res {
-                    Some(PicklistResult::Picked(folder)) => Some(folder.to_string()),
+                    Some(PicklistResult::Picked(folder)) => Some({
+                        let n_slashes = folder.chars().rev().take_while(|c| *c == '/').count();
+                        folder[0..folder.len() - n_slashes].to_string()
+                    }),
                     Some(PicklistResult::Cancel) => {
                         cancel = true;
                         None
