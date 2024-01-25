@@ -166,6 +166,11 @@ fn check_cocoimport(mut world: World) -> World {
 
 fn check_autopaste(mut world: World, mut history: History, auto_paste: bool) -> (World, History) {
     if world.data.meta_data.is_loading_screen_active == Some(false) && auto_paste {
+        let annos = get_annos_mut(&mut world);
+        if let Some(annos) = annos {
+            let all = (0..annos.elts().len()).collect::<Vec<_>>();
+            annos.remove_multiple(&all);
+        }
         (world, history) = paste(world, history);
     }
     (world, history)
