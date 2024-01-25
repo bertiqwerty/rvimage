@@ -50,14 +50,27 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                 }
             }
             Connection::PyHttp => {
-                let address = ctrl
-                    .cfg
-                    .py_http_reader_cfg
-                    .as_ref()
-                    .ok_or_else(|| RvError::new("no http reader cfg given in cfg"))?
-                    .server_address
-                    .clone();
-                Some(address)
+                let picklist_res = picklist::pick(
+                    ui,
+                    ctrl.cfg
+                        .py_http_reader_cfg
+                        .as_ref()
+                        .ok_or_else(|| RvError::new("no http reader cfg given in cfg"))?
+                        .server_addresses
+                        .iter()
+                        .map(|s| s.as_str()),
+                    500.0,
+                    &resp,
+                    "pyhttp-open-popup",
+                );
+                match picklist_res {
+                    Some(PicklistResult::Picked(folder)) => Some(folder.to_string()),
+                    Some(PicklistResult::Cancel) => {
+                        cancel = true;
+                        None
+                    }
+                    _ => None,
+                }
             }
             #[cfg(feature = "azure_blob")]
             Connection::AzureBlob => {

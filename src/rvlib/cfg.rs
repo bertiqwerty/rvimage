@@ -128,7 +128,7 @@ pub struct AzureBlobCfg {
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct PyHttpReaderCfg {
-    pub server_address: String,
+    pub server_addresses: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
