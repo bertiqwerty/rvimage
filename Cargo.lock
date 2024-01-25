@@ -2910,7 +2910,7 @@ dependencies = [
 
 [[package]]
 name = "rvimage"
-version = "0.3.5"
+version = "0.3.6"
 dependencies = [
  "azure_storage",
  "azure_storage_blobs",
