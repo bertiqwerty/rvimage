@@ -309,7 +309,7 @@ pub fn bbox_menu(
             data.options.core_options.is_colorchange_triggered = true;
         }
         if ui.button("clear out of folder annotations").clicked() {
-            data.options.is_anno_rm_triggered = true;
+            data.options.is_anno_outoffolder_rm_triggered = true;
         }
     });
     export_file_menu_result?;

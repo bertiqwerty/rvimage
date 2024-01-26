@@ -281,6 +281,14 @@ impl LabelInfo {
                 self.cat_idx_current -= 1;
             }
             for (anno, _) in annotaions_map.values_mut() {
+                let indices_for_rm = anno
+                    .cat_idxs()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, geo_cat_idx)| **geo_cat_idx == cat_idx)
+                    .map(|(idx, _)| idx)
+                    .collect::<Vec<_>>();
+                anno.remove_multiple(&indices_for_rm);
                 anno.reduce_cat_idxs(cat_idx);
             }
         }

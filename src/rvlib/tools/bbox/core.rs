@@ -82,7 +82,7 @@ pub(super) fn current_cat_idx(world: &World) -> Option<usize> {
 }
 
 fn check_annoremove(mut world: World) -> World {
-    let is_anno_rm_triggered = get_options(&world).map(|o| o.is_anno_rm_triggered);
+    let is_anno_rm_triggered = get_options(&world).map(|o| o.is_anno_outoffolder_rm_triggered);
     if is_anno_rm_triggered == Some(true) {
         let opened_folder = world
             .data
@@ -95,7 +95,7 @@ fn check_annoremove(mut world: World) -> World {
         let data = get_specific_mut(&mut world);
         if let (Some(data), Some(opened_folder)) = (data, &opened_folder) {
             data.retain_fileannos_in_folder(opened_folder);
-            data.options.is_anno_rm_triggered = false;
+            data.options.is_anno_outoffolder_rm_triggered = false;
         }
         set_visible(&mut world);
     }

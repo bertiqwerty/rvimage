@@ -33,7 +33,7 @@ pub struct Options {
     #[serde(skip)]
     pub auto_paste: bool,
     #[serde(skip)]
-    pub is_anno_rm_triggered: bool,
+    pub is_anno_outoffolder_rm_triggered: bool,
     #[serde(skip)]
     pub is_import_triggered: bool,
     #[serde(skip)]
@@ -50,7 +50,7 @@ impl Default for Options {
         Self {
             core_options: core::Options::default(),
             auto_paste: false,
-            is_anno_rm_triggered: false,
+            is_anno_outoffolder_rm_triggered: false,
             is_import_triggered: false,
             import_mode: ImportMode::default(),
             split_mode: SplitMode::default(),
