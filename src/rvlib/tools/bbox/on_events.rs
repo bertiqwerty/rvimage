@@ -70,24 +70,22 @@ pub(super) fn closest_corner(pos: PtF, corners: impl Iterator<Item = PtF>) -> (u
         .unwrap()
 }
 /// returns index of the bounding box and the index of the closest close corner
-pub(super) fn find_close_vertex(
+pub(super) fn find_close_vertex<'a>(
     orig_pos: PtF,
-    geos: &[GeoFig],
+    geos: impl Iterator<Item = (usize, &'a GeoFig)>,
     tolerance: TPtF,
 ) -> Option<(usize, usize)> {
-    geos.iter()
-        .enumerate()
-        .map(|(bb_idx, bb)| {
-            let iter: Box<dyn Iterator<Item = PtF>> = match bb {
-                GeoFig::BB(bb) => Box::new(bb.points_iter()),
-                GeoFig::Poly(poly) => Box::new(poly.points_iter()),
-            };
-            let (min_corner_idx, min_corner_dist) = closest_corner(orig_pos, iter);
-            (bb_idx, min_corner_idx, min_corner_dist)
-        })
-        .filter(|(_, _, c_dist)| c_dist <= &tolerance)
-        .min_by(|(_, _, c_dist_1), (_, _, c_dist_2)| min_from_partial(c_dist_1, c_dist_2))
-        .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
+    geos.map(|(bb_idx, bb)| {
+        let iter: Box<dyn Iterator<Item = PtF>> = match bb {
+            GeoFig::BB(bb) => Box::new(bb.points_iter()),
+            GeoFig::Poly(poly) => Box::new(poly.points_iter()),
+        };
+        let (min_corner_idx, min_corner_dist) = closest_corner(orig_pos, iter);
+        (bb_idx, min_corner_idx, min_corner_dist)
+    })
+    .filter(|(_, _, c_dist)| c_dist <= &tolerance)
+    .min_by(|(_, _, c_dist_1), (_, _, c_dist_2)| min_from_partial(c_dist_1, c_dist_2))
+    .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
 pub(super) fn import_coco_if_triggered(
@@ -440,7 +438,13 @@ pub(super) fn on_mouse_released_left(
                                 .elts()
                                 .iter()
                                 .enumerate()
-                                .filter(|(_, bb)| bb.has_overlap(&spanned_bb))
+                                .filter(|(elt_idx, bb)| {
+                                    annos.is_of_current_label(
+                                        *elt_idx,
+                                        cat_idx_current,
+                                        show_only_current,
+                                    ) && bb.has_overlap(&spanned_bb)
+                                })
                                 .map(|(i, _)| i)
                                 .collect::<Vec<_>>();
                             annos.select_multi(to_be_selected_inds.iter().copied());
@@ -462,32 +466,35 @@ pub(super) fn on_mouse_released_left(
             let shape_orig = world.data.shape();
             let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
             let close_corner = mouse_pos.and_then(|mp| {
-                get_annos_if_some(&world)
-                    .and_then(|a| find_close_vertex(mp, a.elts(), move_corner_tol(unscaled)))
+                get_annos_if_some(&world).and_then(|a| {
+                    find_close_vertex(mp, a.elts().iter().enumerate(), move_corner_tol(unscaled))
+                })
             });
             if let Some((bb_idx, vertex_idx)) = close_corner {
                 // move an existing corner
                 let annos = get_annos_mut(&mut world);
                 if let Some(annos) = annos {
-                    let geo = annos.remove(bb_idx);
-                    match geo {
-                        GeoFig::BB(bb) => {
-                            let oppo_corner = bb.opposite_corner(vertex_idx);
-                            prev_pos.prev_pos.push(oppo_corner);
-                        }
-                        GeoFig::Poly(poly) => {
-                            let n_vertices = poly.points().len();
-                            prev_pos.prev_pos = vec![];
-                            prev_pos.prev_pos.reserve(n_vertices);
-                            for idx in (vertex_idx + 1)..(n_vertices) {
-                                prev_pos.prev_pos.push(poly.points()[idx]);
+                    if annos.is_of_current_label(bb_idx, cat_idx_current, show_only_current) {
+                        let geo = annos.remove(bb_idx);
+                        match geo {
+                            GeoFig::BB(bb) => {
+                                let oppo_corner = bb.opposite_corner(vertex_idx);
+                                prev_pos.prev_pos.push(oppo_corner);
                             }
-                            for idx in 0..vertex_idx {
-                                prev_pos.prev_pos.push(poly.points()[idx]);
+                            GeoFig::Poly(poly) => {
+                                let n_vertices = poly.points().len();
+                                prev_pos.prev_pos = vec![];
+                                prev_pos.prev_pos.reserve(n_vertices);
+                                for idx in (vertex_idx + 1)..(n_vertices) {
+                                    prev_pos.prev_pos.push(poly.points()[idx]);
+                                }
+                                for idx in 0..vertex_idx {
+                                    prev_pos.prev_pos.push(poly.points()[idx]);
+                                }
                             }
                         }
+                        prev_pos.move_corner_idx = Some(prev_pos.prev_pos.len() - 1);
                     }
-                    prev_pos.move_corner_idx = Some(prev_pos.prev_pos.len() - 1);
                 }
             } else {
                 match split_mode {

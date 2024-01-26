@@ -211,7 +211,16 @@ fn show_grab_ball(
                     world.request_redraw_annotations(BBOX_NAME, vis);
                 }
             } else {
-                let geos = get_annos_if_some(world).map(|a| a.elts());
+                let label_info = get_label_info(world);
+                let geos = get_annos_if_some(world).map(|a| {
+                    (0..a.elts().len())
+                        .filter(|elt_idx| {
+                            let cur = label_info.map(|li| li.cat_idx_current);
+                            let show_only_current = label_info.map(|li| li.show_only_current);
+                            a.is_of_current_label(*elt_idx, cur, show_only_current)
+                        })
+                        .map(|elt_idx| (elt_idx, &a.elts()[elt_idx]))
+                });
                 if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
                     let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
                     let tolerance = move_corner_tol(unscaled);
