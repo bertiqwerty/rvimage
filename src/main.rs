@@ -585,7 +585,7 @@ impl eframe::App for RvImageApp {
 }
 
 fn main() {
-    tracing_setup::tracing_setup();
+    let _guard_flush_to_logfile = tracing_setup::tracing_setup();
     if let Err(e) = panic::catch_unwind(|| {
         let native_options = eframe::NativeOptions::default();
         if let Err(e) = eframe::run_native(
