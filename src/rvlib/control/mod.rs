@@ -16,7 +16,7 @@ use crate::{
 use std::fmt::Debug;
 use std::io::Write;
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use std::{env, fs};
@@ -222,8 +222,9 @@ impl Control {
         folder_dst: &str,
     ) -> RvResult<ToolsDataMap> {
         let folder_src_to_dst = |path: String| -> String {
-            let new_path = Path::new(&path.replace('\\', "/"))
-                .strip_prefix(&folder_src.replace('\\', "/"))
+            let other_platform_path = if MAIN_SEPARATOR == '\\' { '/' } else { '\\' };
+            let new_path = Path::new(&path.replace(other_platform_path, MAIN_SEPARATOR_STR))
+                .strip_prefix(&folder_src.replace(other_platform_path, MAIN_SEPARATOR_STR))
                 .ok()
                 .and_then(|sub_path| {
                     Path::new(folder_dst)
