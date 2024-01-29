@@ -383,9 +383,18 @@ fn last_folder_part() {
     );
 }
 
+#[cfg(target_family = "windows")]
 #[test]
 fn test_stem() {
     assert_eq!(to_stem_str(Path::new("a/b/c.png")).unwrap(), "c");
     assert_eq!(to_stem_str(Path::new("c:\\c.png")).unwrap(), "c");
     assert_eq!(to_stem_str(Path::new("c:\\")).unwrap(), "");
+}
+#[cfg(target_family = "unix")]
+#[test]
+fn test_stem() {
+    assert_eq!(to_stem_str(Path::new("a/b/c.png")).unwrap(), "c");
+    assert_eq!(to_stem_str(Path::new("c:\\c.png")).unwrap(), "c:\\c");
+    assert_eq!(to_stem_str(Path::new("/c.png")).unwrap(), "c");
+    assert_eq!(to_stem_str(Path::new("/")).unwrap(), "");
 }
