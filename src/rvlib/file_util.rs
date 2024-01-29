@@ -60,12 +60,12 @@ pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
         .join(&fname)
         .to_str()
         .map(|s| s.to_string())
-        .ok_or_else(|| rverr!("could not transform {:?} to &str", fname))
+        .ok_or_else(|| rverr!("filename_in_tmpdir could not transform {:?} to &str", fname))
 }
 
 pub fn path_to_str(p: &Path) -> RvResult<&str> {
     osstr_to_str(Some(p.as_os_str()))
-        .map_err(|e| rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+        .map_err(|e| rverr!("path_to_str could not transform '{:?}' due to '{:?}'", p, e))
 }
 
 pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
@@ -80,13 +80,18 @@ pub fn osstr_to_str(p: Option<&OsStr>) -> io::Result<&str> {
 }
 
 pub fn to_stem_str(p: &Path) -> RvResult<&str> {
-    osstr_to_str(p.file_stem())
-        .map_err(|e| rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+    let stem = p.file_stem();
+    if stem.is_none() {
+        Ok("")
+    } else {
+        osstr_to_str(stem)
+            .map_err(|e| rverr!("to_stem_str could not transform '{:?}' due to '{:?}'", p, e))
+    }
 }
 
 pub fn to_name_str(p: &Path) -> RvResult<&str> {
     osstr_to_str(p.file_name())
-        .map_err(|e| rverr!("could not transform '{:?}' due to '{:?}'", p, e))
+        .map_err(|e| rverr!("to_name_str could not transform '{:?}' due to '{:?}'", p, e))
 }
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 pub enum ConnectionData {
@@ -376,4 +381,11 @@ fn last_folder_part() {
         get_last_part_of_path("'aa dfh//bdafl////aks jc/////'").map(|lp| lp.name()),
         Some("'aks jc'".to_string())
     );
+}
+
+#[test]
+fn test_stem() {
+    assert_eq!(to_stem_str(Path::new("a/b/c.png")).unwrap(), "c");
+    assert_eq!(to_stem_str(Path::new("c:\\c.png")).unwrap(), "c");
+    assert_eq!(to_stem_str(Path::new("c:\\")).unwrap(), "");
 }
