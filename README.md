@@ -70,7 +70,7 @@ ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
 [py_http_reader_cfg]
 # The server is expected to be started via `python -m http.server` in some folder.
 # The content of this folder is than accessible.  
-server_address = 'http://localhost:8000/'
+server_addresses = ['http://localhost:8000/']
 
 [azure_blob_cfg]
 # With a connection string you can view the images inside a blob storage.
