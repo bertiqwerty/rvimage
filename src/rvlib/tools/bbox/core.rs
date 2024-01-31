@@ -81,7 +81,7 @@ pub(super) fn current_cat_idx(world: &World) -> Option<usize> {
     get_specific(world).map(|d| d.label_info.cat_idx_current)
 }
 
-fn check_annoremove(mut world: World) -> World {
+fn check_anno_outoffolder_remove(mut world: World) -> World {
     let is_anno_rm_triggered = get_options(&world).map(|o| o.is_anno_outoffolder_rm_triggered);
     if is_anno_rm_triggered == Some(true) {
         let opened_folder = world
@@ -481,7 +481,7 @@ impl Manipulate for Bbox {
         (world, history) = check_trigger_history_update(world, history, BBOX_NAME, |d| {
             bbox_mut(d).map(|d| &mut d.options.core_options)
         });
-        world = check_annoremove(world);
+        world = check_anno_outoffolder_remove(world);
 
         world = check_cocoexport(world);
 
