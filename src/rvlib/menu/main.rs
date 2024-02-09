@@ -98,12 +98,16 @@ macro_rules! handle_error {
 pub struct ToolSelectMenu {
     are_tools_active: bool, // can deactivate all tools, overrides activated_tool
     recently_activated_tool: Option<usize>,
+    label_propagation_buffer: String,
+    label_deletion_buffer: String,
 }
 impl ToolSelectMenu {
     fn new() -> Self {
         Self {
             are_tools_active: true,
             recently_activated_tool: None,
+            label_propagation_buffer: "".to_string(),
+            label_deletion_buffer: "".to_string(),
         }
     }
     pub fn recently_clicked_tool(&self) -> Option<usize> {
@@ -125,9 +129,14 @@ impl ToolSelectMenu {
         });
         for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
             let tmp = match &mut v.specifics {
-                ToolSpecifics::Bbox(x) => {
-                    bbox_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
-                }
+                ToolSpecifics::Bbox(x) => bbox_menu(
+                    ui,
+                    v.menu_active,
+                    mem::take(x),
+                    &mut self.label_propagation_buffer,
+                    &mut self.label_deletion_buffer,
+                    &mut self.are_tools_active,
+                ),
                 ToolSpecifics::Brush(x) => {
                     brush_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
                 }

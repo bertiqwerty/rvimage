@@ -32,6 +32,8 @@ pub struct Options {
     pub is_history_update_triggered: bool,
     pub track_changes: bool,
     pub erase: bool,
+    pub label_propagation: Option<usize>,
+    pub label_deletion: Option<usize>,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -43,6 +45,8 @@ impl Default for Options {
             is_history_update_triggered: false,
             track_changes: false,
             erase: false,
+            label_propagation: None,
+            label_deletion: None,
         }
     }
 }

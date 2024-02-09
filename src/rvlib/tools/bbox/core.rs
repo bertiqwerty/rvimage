@@ -121,6 +121,14 @@ fn check_cocoexport(mut world: World) -> World {
     world
 }
 
+fn check_propagate_or_delete(mut world: World) -> World {
+    let options = get_options_mut(&mut world);
+    if let Some(n_prop) = options.and_then(|o| o.core_options.label_propagation) {}
+    let options = get_options_mut(&mut world);
+    if let Some(n_del) = options.and_then(|o| o.core_options.label_deletion) {}
+    world
+}
+
 fn check_cocoimport(mut world: World) -> World {
     // import coco if demanded
     let options = get_options(&world);

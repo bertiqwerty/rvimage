@@ -194,10 +194,27 @@ fn toggle_erase(ui: &mut Ui, mut options: CoreOptions) -> CoreOptions {
     }
     options
 }
+fn triggerable_number(
+    ui: &mut Ui,
+    buffer: &mut String,
+    are_tools_active: &mut bool,
+    input: &mut Option<usize>,
+    name: &str,
+) {
+    ui.horizontal(|ui| {
+        text_edit_singleline(ui, buffer, are_tools_active);
+
+        if ui.button(name).clicked() {
+            *input = buffer.parse::<usize>().ok();
+        }
+    });
+}
 pub fn bbox_menu(
     ui: &mut Ui,
     mut window_open: bool,
     mut data: BboxSpecificData,
+    label_propagation_buffer: &mut String,
+    label_deletion_buffer: &mut String,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
     let LabelMenuResult {
@@ -224,6 +241,20 @@ pub fn bbox_menu(
 
     let mut export_file_menu_result = Ok(());
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
+        triggerable_number(
+            ui,
+            label_propagation_buffer,
+            are_tools_active,
+            &mut data.options.core_options.label_propagation,
+            "label propagation",
+        );
+        triggerable_number(
+            ui,
+            label_deletion_buffer,
+            are_tools_active,
+            &mut data.options.core_options.label_deletion,
+            "label deletion",
+        );
         ui.checkbox(
             &mut data.options.core_options.track_changes,
             "track changes",
