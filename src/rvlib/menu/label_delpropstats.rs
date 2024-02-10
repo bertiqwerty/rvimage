@@ -128,67 +128,70 @@ pub fn labels_and_sorting(
             stats.n_files_annotated_info = get_annotation_info(ps);
         }
         if let Some(active_tool_name) = active_tool_name {
-            egui::Grid::new("bbox-label-prop-del-grid")
-                .num_columns(2)
-                .show(ui, |ui| {
-                    let n_prop: Option<usize> = button_triggerable_number(
-                        ui,
-                        &mut text_buffers.label_propagation_buffer,
-                        are_tools_active,
-                        "propagate labels",
-                        "number of following images to propagate label to",
-                    );
-                    ui.end_row();
-                    let n_del: Option<usize> = button_triggerable_number(
-                        ui,
-                        &mut text_buffers.label_deletion_buffer,
-                        are_tools_active,
-                        "delete labels",
-                        "number of following images to delete label from",
-                    );
+            egui::CollapsingHeader::new("Danger Zone").show(ui, |ui| {
+                egui::Grid::new("bbox-label-prop-del-grid")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        let n_prop: Option<usize> = button_triggerable_number(
+                            ui,
+                            &mut text_buffers.label_propagation_buffer,
+                            are_tools_active,
+                            "propagate labels",
+                            "number of following images to propagate label to",
+                        );
+                        ui.end_row();
+                        let n_del: Option<usize> = button_triggerable_number(
+                            ui,
+                            &mut text_buffers.label_deletion_buffer,
+                            are_tools_active,
+                            "delete labels",
+                            "number of following images to delete label from",
+                        );
 
-                    if let Some(selected_file_idx) = ctrl.paths_navigator.file_label_selected_idx()
-                    {
-                        if let Some(n_prop) = n_prop {
-                            let end = (selected_file_idx + n_prop).min(ps.len_filtered());
-                            let range = selected_file_idx..end;
-                            let paths = &ps.filtered_file_paths()[range];
-                            if paths.len() > 0 {
-                                info!("propagating {} labels from {}", paths.len(), paths[0]);
-                                if let Some(data) = tools_data_map.get_mut(active_tool_name) {
-                                    let _ = data.specifics.apply_mut(
-                                        |d| {
-                                            propagate_instance_annotations(
-                                                &mut d.annotations_map,
-                                                paths,
-                                            )
-                                        },
-                                        |d| {
-                                            propagate_instance_annotations(
-                                                &mut d.annotations_map,
-                                                paths,
-                                            )
-                                        },
-                                    );
+                        if let Some(selected_file_idx) =
+                            ctrl.paths_navigator.file_label_selected_idx()
+                        {
+                            if let Some(n_prop) = n_prop {
+                                let end = (selected_file_idx + n_prop).min(ps.len_filtered());
+                                let range = selected_file_idx..end;
+                                let paths = &ps.filtered_file_paths()[range];
+                                if paths.len() > 0 {
+                                    info!("propagating {} labels from {}", paths.len(), paths[0]);
+                                    if let Some(data) = tools_data_map.get_mut(active_tool_name) {
+                                        let _ = data.specifics.apply_mut(
+                                            |d| {
+                                                propagate_instance_annotations(
+                                                    &mut d.annotations_map,
+                                                    paths,
+                                                )
+                                            },
+                                            |d| {
+                                                propagate_instance_annotations(
+                                                    &mut d.annotations_map,
+                                                    paths,
+                                                )
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                            if let Some(n_del) = n_del {
+                                let end = (selected_file_idx + n_del).min(ps.len_filtered());
+                                let range = selected_file_idx..end;
+                                let paths = &ps.filtered_file_paths()[range];
+                                if paths.len() > 0 {
+                                    info!("deleting {} labels from {}", paths.len(), paths[0]);
+                                    if let Some(data) = tools_data_map.get_mut(active_tool_name) {
+                                        let _ = data.specifics.apply_mut(
+                                            |d| delete_annotations(&mut d.annotations_map, paths),
+                                            |d| delete_annotations(&mut d.annotations_map, paths),
+                                        );
+                                    }
                                 }
                             }
                         }
-                        if let Some(n_del) = n_del {
-                            let end = (selected_file_idx + n_del).min(ps.len_filtered());
-                            let range = selected_file_idx..end;
-                            let paths = &ps.filtered_file_paths()[range];
-                            if paths.len() > 0 {
-                                info!("deleting {} labels from {}", paths.len(), paths[0]);
-                                if let Some(data) = tools_data_map.get_mut(active_tool_name) {
-                                    let _ = data.specifics.apply_mut(
-                                        |d| delete_annotations(&mut d.annotations_map, paths),
-                                        |d| delete_annotations(&mut d.annotations_map, paths),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                });
+                    });
+            });
         }
     } else {
         stats.n_files_filtered_info = None;
