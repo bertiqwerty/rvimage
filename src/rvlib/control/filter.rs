@@ -3,7 +3,7 @@ use std::str::FromStr;
 use exmex::prelude::*;
 use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
 
-use crate::domain::Annotate;
+use crate::domain::InstanceAnnotate;
 use crate::result::{trace_ok, RvError, RvResult};
 use crate::rverr;
 use crate::tools::ATTRIBUTES_NAME;
@@ -17,7 +17,7 @@ fn contains_label<T>(
     annos: Option<&InstanceAnnotations<T>>,
 ) -> bool
 where
-    T: Annotate + PartialEq + Clone + Default,
+    T: InstanceAnnotate + PartialEq + Clone + Default,
 {
     if let Some(annos) = annos {
         annos
@@ -30,7 +30,7 @@ where
 }
 fn has_any_label<T>(annos: Option<&InstanceAnnotations<T>>) -> bool
 where
-    T: Annotate + PartialEq + Clone + Default,
+    T: InstanceAnnotate + PartialEq + Clone + Default,
 {
     if let Some(annos) = annos {
         !annos.elts().is_empty()

@@ -1,5 +1,5 @@
 use crate::{
-    domain::{Annotate, BbF},
+    domain::{InstanceAnnotate, BbF},
     result::RvResult,
     rverr,
     util::true_indices,
@@ -18,7 +18,7 @@ impl<T> Eq for InstanceAnnotations<T> where T: PartialEq + Eq {}
 
 impl<T> InstanceAnnotations<T>
 where
-    T: Annotate + PartialEq + Default,
+    T: InstanceAnnotate + PartialEq + Default,
 {
     pub fn new(elts: Vec<T>, cat_idxs: Vec<usize>, selected_mask: Vec<bool>) -> RvResult<Self> {
         if elts.len() != cat_idxs.len() || elts.len() != selected_mask.len() {
@@ -208,7 +208,7 @@ pub struct ClipboardData<T> {
 
 impl<T> ClipboardData<T>
 where
-    T: Annotate + PartialEq + Default + Clone,
+    T: InstanceAnnotate + PartialEq + Default + Clone,
 {
     pub fn from_annotations(annos: &InstanceAnnotations<T>) -> Self {
         let selected_inds = true_indices(annos.selected_mask());

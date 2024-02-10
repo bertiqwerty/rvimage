@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use tracing::warn;
 
-use super::core::{dist_lineseg_point, max_from_partial, Annotate, Point, PtF, ShapeI, TPtF};
+use super::core::{dist_lineseg_point, max_from_partial, InstanceAnnotate, Point, PtF, ShapeI, TPtF};
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]
 pub struct BrushLine {
@@ -14,7 +14,7 @@ pub struct BrushLine {
 }
 impl Eq for BrushLine {}
 
-impl Annotate for BrushLine {
+impl InstanceAnnotate for BrushLine {
     fn is_contained_in_image(&self, shape: ShapeI) -> bool {
         self.line
             .points_iter()

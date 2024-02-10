@@ -2,7 +2,7 @@ use egui::{Align, Pos2, Rect, RichText, Ui};
 
 use crate::paths_selector::PathsSelector;
 
-pub fn scroll_area(
+pub fn scroll_area_file_selector(
     ui: &mut Ui,
     selected_filtered_label_idx: &mut Option<usize>,
     paths_selector: &PathsSelector,
@@ -10,7 +10,7 @@ pub fn scroll_area(
     scroll_to_selected_label: bool,
     scroll_offset: f32,
 ) -> f32 {
-    let scroll_height = ui.available_height() - 120.0;
+    let scroll_height = ui.available_height() - 200.0;
     let n_rows = paths_selector.len_filtered();
     let text_style = egui::TextStyle::Monospace;
     let row_height = ui.text_style_height(&text_style);

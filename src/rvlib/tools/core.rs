@@ -1,7 +1,7 @@
 use tracing::{info, warn};
 
 use super::attributes;
-use crate::domain::Annotate;
+use crate::domain::InstanceAnnotate;
 use crate::history::Record;
 use crate::result::{trace_ok, RvResult};
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
@@ -286,7 +286,7 @@ pub(super) fn paste<T>(
     clipboard: Option<ClipboardData<T>>,
 ) -> (World, History)
 where
-    T: Annotate + Default + PartialEq + Clone,
+    T: InstanceAnnotate + Default + PartialEq + Clone,
 {
     if let Some(clipboard) = &clipboard {
         let cb_bbs = clipboard.elts();
@@ -315,7 +315,7 @@ pub fn deselect_all<T>(
     get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> World
 where
-    T: Annotate,
+    T: InstanceAnnotate,
 {
     // Deselect all
     if let Some(a) = get_annos_mut(&mut world) {
@@ -339,7 +339,7 @@ pub(super) fn on_selection_keys<T>(
     get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> (World, History)
 where
-    T: Annotate,
+    T: InstanceAnnotate,
 {
     match key {
         ReleasedKey::A if is_ctrl_held => {

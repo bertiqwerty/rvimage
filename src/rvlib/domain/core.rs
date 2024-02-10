@@ -148,7 +148,7 @@ where
     }
 }
 
-pub trait Annotate: Clone + Default + PartialEq {
+pub trait InstanceAnnotate: Clone + Default + PartialEq {
     fn is_contained_in_image(&self, shape: ShapeI) -> bool;
 }
 

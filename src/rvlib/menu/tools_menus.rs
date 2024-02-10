@@ -1,22 +1,17 @@
-use std::{collections::HashMap, fmt::Display, mem, path::PathBuf, str::FromStr};
+use std::{collections::HashMap,  mem, path::PathBuf, str::FromStr};
 
 use egui::Ui;
 use tracing::{info, warn};
 
 use crate::{
-    cfg::{ExportPath, ExportPathConnection},
-    domain::{Annotate, TPtF, TPtI},
-    file_util::path_to_str,
-    result::{to_rv, RvResult},
-    tools_data::{
+    cfg::{ExportPath, ExportPathConnection}, domain::{InstanceAnnotate, TPtF, TPtI}, file_util::path_to_str, menu::ui_util::process_number, result::{to_rv, RvResult}, tools_data::{
         annotations::{InstanceAnnotations, SplitMode},
         attributes_data::AttrVal,
         bbox_data::{BboxSpecificData, ImportMode},
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         AttributesToolData, BrushToolData, CoreOptions, LabelInfo, ToolSpecifics, ToolsData,
         OUTLINE_THICKNESS_CONVERSION,
-    },
-    ShapeI,
+    }, ShapeI
 };
 
 use super::ui_util::{slider, text_edit_singleline};
@@ -65,7 +60,7 @@ pub fn label_menu<'a, T>(
     are_tools_active: &mut bool,
 ) -> LabelMenuResult
 where
-    T: Annotate + 'a,
+    T: InstanceAnnotate + 'a,
 {
     let mut new_idx = label_info.cat_idx_current;
     let mut label_change = false;
@@ -194,27 +189,10 @@ fn toggle_erase(ui: &mut Ui, mut options: CoreOptions) -> CoreOptions {
     }
     options
 }
-fn triggerable_number(
-    ui: &mut Ui,
-    buffer: &mut String,
-    are_tools_active: &mut bool,
-    input: &mut Option<usize>,
-    name: &str,
-) {
-    ui.horizontal(|ui| {
-        text_edit_singleline(ui, buffer, are_tools_active);
-
-        if ui.button(name).clicked() {
-            *input = buffer.parse::<usize>().ok();
-        }
-    });
-}
 pub fn bbox_menu(
     ui: &mut Ui,
     mut window_open: bool,
     mut data: BboxSpecificData,
-    label_propagation_buffer: &mut String,
-    label_deletion_buffer: &mut String,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
     let LabelMenuResult {
@@ -241,20 +219,6 @@ pub fn bbox_menu(
 
     let mut export_file_menu_result = Ok(());
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
-        triggerable_number(
-            ui,
-            label_propagation_buffer,
-            are_tools_active,
-            &mut data.options.core_options.label_propagation,
-            "label propagation",
-        );
-        triggerable_number(
-            ui,
-            label_deletion_buffer,
-            are_tools_active,
-            &mut data.options.core_options.label_deletion,
-            "label deletion",
-        );
         ui.checkbox(
             &mut data.options.core_options.track_changes,
             "track changes",
@@ -423,29 +387,6 @@ pub fn brush_menu(
     })
 }
 
-fn process_number<T>(
-    x: &mut T,
-    ui: &mut Ui,
-    are_tools_active: &mut bool,
-    label: &str,
-    buffer: &mut String,
-) -> bool
-where
-    T: Display + FromStr,
-{
-    let new_val = text_edit_singleline(ui, buffer, are_tools_active).on_hover_text(label);
-    if new_val.changed() {
-        match buffer.parse::<T>() {
-            Ok(val) => {
-                *x = val;
-            }
-            Err(_) => {
-                warn!("could not parse {buffer} as number");
-            }
-        }
-    }
-    new_val.lost_focus()
-}
 pub fn attributes_menu(
     ui: &mut Ui,
     mut window_open: bool,
@@ -511,25 +452,29 @@ pub fn attributes_menu(
                             }
                         }
                         Some(AttrVal::Float(x)) => {
-                            let lost_focus = process_number(
-                                x,
+                            let (lost_focus, new_val) = process_number(
                                 ui,
                                 are_tools_active,
                                 FLOAT_LABEL,
                                 &mut new_attr_buffer,
                             );
+                            if let Some(new_val) = new_val {
+                                *x = new_val;
+                            }
                             if lost_focus || ui.button("OK").clicked() {
                                 data.options.is_update_triggered = true;
                             }
                         }
                         Some(AttrVal::Int(x)) => {
-                            let lost_focus = process_number(
-                                x,
+                            let (lost_focus, new_val) = process_number(
                                 ui,
                                 are_tools_active,
                                 INT_LABEL,
                                 &mut new_attr_buffer,
                             );
+                            if let Some(new_val) = new_val {
+                                *x = new_val;
+                            }
                             if lost_focus || ui.button("OK").clicked() {
                                 data.options.is_update_triggered = true;
                             }

@@ -162,6 +162,17 @@ impl ToolSpecifics {
         &mut AttributesToolData
     );
 
+    pub fn apply_mut<T>(
+        &mut self,
+        mut f_bbox: impl FnMut(&mut BboxSpecificData) -> RvResult<T>,
+        mut f_brush: impl FnMut(&mut BrushToolData) -> RvResult<T>,
+    ) -> RvResult<T> {
+        match self {
+            Self::Bbox(bbox_data) => f_bbox(bbox_data),
+            Self::Brush(brush_data) => f_brush(brush_data),
+            _ => Err(rverr!("only brush tool and bbox tool can be used in apply")),
+        }
+    }
     pub fn apply<T>(
         &self,
         mut f_bbox: impl FnMut(&BboxSpecificData) -> RvResult<T>,

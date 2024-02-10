@@ -5,7 +5,7 @@ mod polygon;
 
 pub use bb::{BbF, BbI};
 pub use core::{
-    dist_lineseg_point, max_from_partial, min_from_partial, Annotate, Calc, Circle, CoordinateBox,
+    dist_lineseg_point, max_from_partial, min_from_partial, InstanceAnnotate, Calc, Circle, CoordinateBox,
     OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
 pub use line::{
@@ -121,7 +121,7 @@ impl Default for GeoFig {
         Self::BB(BbF::default())
     }
 }
-impl Annotate for GeoFig {
+impl InstanceAnnotate for GeoFig {
     fn is_contained_in_image(&self, shape: ShapeI) -> bool {
         match self {
             Self::BB(bb) => bb.is_contained_in_image(shape),

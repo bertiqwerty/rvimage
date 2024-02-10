@@ -9,7 +9,7 @@ fn get_test_folder() -> PathBuf {
 }
 #[test]
 fn test_main() {
-    tracing_setup();
+    let _ = tracing_setup();
     let cfg = cfg::get_default_cfg();
     let test_file_src = get_test_folder().join("rvprj_v3-3_test_dummy.rvi");
     let test_file = get_test_folder().join("tmp-test.rvi");

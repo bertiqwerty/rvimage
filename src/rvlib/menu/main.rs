@@ -1,14 +1,15 @@
 use crate::{
     cfg::{self, Cfg},
     control::{Control, Info, SortType},
-    domain::Annotate,
     file_util::get_prj_name,
-    menu::{self, cfg_menu::CfgMenu, open_folder, ui_util::text_edit_singleline},
-    paths_selector::PathsSelector,
+    menu::{
+        self, cfg_menu::CfgMenu, label_delpropstats::labels_and_sorting, open_folder,
+        ui_util::text_edit_singleline,
+    },
     result::RvResult,
     rverr,
     tools::ToolState,
-    tools_data::{AnnotationsMap, ToolSpecifics},
+    tools_data::ToolSpecifics,
     util::version_label,
     world::ToolsDataMap,
 };
@@ -18,23 +19,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::tools_menus::{attributes_menu, bbox_menu, brush_menu};
+use super::{
+    label_delpropstats::Stats,
+    tools_menus::{attributes_menu, bbox_menu, brush_menu},
+};
 
-pub fn n_annotated_images<T>(annotations_map: &AnnotationsMap<T>, paths: &[&str]) -> usize
-where
-    T: Annotate,
-{
-    paths
-        .iter()
-        .filter(|p| {
-            if let Some((anno, _)) = annotations_map.get(**p) {
-                !anno.elts().is_empty()
-            } else {
-                false
-            }
-        })
-        .count()
-}
 fn show_popup(
     ui: &mut Ui,
     msg: &str,
@@ -98,16 +87,12 @@ macro_rules! handle_error {
 pub struct ToolSelectMenu {
     are_tools_active: bool, // can deactivate all tools, overrides activated_tool
     recently_activated_tool: Option<usize>,
-    label_propagation_buffer: String,
-    label_deletion_buffer: String,
 }
 impl ToolSelectMenu {
     fn new() -> Self {
         Self {
             are_tools_active: true,
             recently_activated_tool: None,
-            label_propagation_buffer: "".to_string(),
-            label_deletion_buffer: "".to_string(),
         }
     }
     pub fn recently_clicked_tool(&self) -> Option<usize> {
@@ -129,14 +114,9 @@ impl ToolSelectMenu {
         });
         for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
             let tmp = match &mut v.specifics {
-                ToolSpecifics::Bbox(x) => bbox_menu(
-                    ui,
-                    v.menu_active,
-                    mem::take(x),
-                    &mut self.label_propagation_buffer,
-                    &mut self.label_deletion_buffer,
-                    &mut self.are_tools_active,
-                ),
+                ToolSpecifics::Bbox(x) => {
+                    bbox_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
+                }
                 ToolSpecifics::Brush(x) => {
                     brush_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
                 }
@@ -160,12 +140,6 @@ impl Default for ToolSelectMenu {
 struct PopupBtnResp {
     pub resp: Option<Response>,
     pub popup_open: bool,
-}
-
-#[derive(Default)]
-struct Stats {
-    n_files_filtered_info: Option<String>,
-    n_files_annotated_info: Option<String>,
 }
 
 #[derive(Default)]
@@ -316,12 +290,17 @@ fn dialog_in_prjfolder(prj_path: &Path, dialog: rfd::FileDialog) -> rfd::FileDia
     }
 }
 
+pub struct TextBuffers {
+    pub filter_string: String,
+    pub label_propagation_buffer: String,
+    pub label_deletion_buffer: String,
+    pub editable_ssh_cfg_str: String,
+}
+
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
-    filter_string: String,
     are_tools_active: bool,
-    editable_ssh_cfg_str: String,
     scroll_offset: f32,
     open_folder_popup_open: bool,
     load_button_resp: PopupBtnResp,
@@ -329,18 +308,23 @@ pub struct Menu {
     filename_sort_type: SortType,
     show_about: bool,
     import_prj_state: ImportPrjState,
+    text_buffers: TextBuffers,
 }
 
 impl Menu {
     fn new() -> Self {
         let (cfg, _) = get_cfg();
         let ssh_cfg_str = toml::to_string_pretty(&cfg.ssh_cfg).unwrap();
+        let text_buffers = TextBuffers {
+            filter_string: "".to_string(),
+            label_propagation_buffer: "".to_string(),
+            label_deletion_buffer: "".to_string(),
+            editable_ssh_cfg_str: ssh_cfg_str,
+        };
         Self {
             window_open: true,
             info_message: Info::None,
-            filter_string: "".to_string(),
             are_tools_active: true,
-            editable_ssh_cfg_str: ssh_cfg_str,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
             load_button_resp: PopupBtnResp::default(),
@@ -348,6 +332,7 @@ impl Menu {
             filename_sort_type: SortType::default(),
             show_about: false,
             import_prj_state: ImportPrjState::default(),
+            text_buffers,
         }
     }
     pub fn sort_type(&self) -> SortType {
@@ -426,7 +411,7 @@ impl Menu {
                 let cfg_gui = CfgMenu::new(
                     popup_id,
                     &mut ctrl.cfg,
-                    &mut self.editable_ssh_cfg_str,
+                    &mut self.text_buffers.editable_ssh_cfg_str,
                     &mut self.are_tools_active,
                 );
                 ui.add(cfg_gui);
@@ -507,13 +492,16 @@ impl Menu {
                 ui.label(RichText::from("Connecting...").text_style(egui::TextStyle::Monospace));
             }
 
-            let filter_txt_field =
-                text_edit_singleline(ui, &mut self.filter_string, &mut self.are_tools_active);
+            let filter_txt_field = text_edit_singleline(
+                ui,
+                &mut self.text_buffers.filter_string,
+                &mut self.are_tools_active,
+            );
 
             if filter_txt_field.changed() {
                 handle_error!(
                     ctrl.paths_navigator.filter(
-                        &self.filter_string,
+                        &self.text_buffers.filter_string,
                         tools_data_map,
                         active_tool_name
                     ),
@@ -546,7 +534,7 @@ impl Menu {
             let scroll_to_selected = ctrl.paths_navigator.scroll_to_selected_label();
             let mut filtered_label_selected_idx = ctrl.paths_navigator.file_label_selected_idx();
             if let Some(ps) = &ctrl.paths_navigator.paths_selector() {
-                self.scroll_offset = menu::scroll_area::scroll_area(
+                self.scroll_offset = menu::scroll_area::scroll_area_file_selector(
                     ui,
                     &mut filtered_label_selected_idx,
                     ps,
@@ -562,75 +550,19 @@ impl Menu {
             }
 
             ui.separator();
-            let clicked_nat = ui
-                .radio_value(
+            handle_error!(
+                labels_and_sorting(
+                    ui,
                     &mut self.filename_sort_type,
-                    SortType::Natural,
-                    "Natural Sorting",
-                )
-                .clicked();
-            let clicked_alp = ui
-                .radio_value(
-                    &mut self.filename_sort_type,
-                    SortType::Alphabetical,
-                    "Alphabetical Sorting",
-                )
-                .clicked();
-            if clicked_nat || clicked_alp {
-                handle_error!(
-                    |_| {},
-                    ctrl.sort(
-                        self.filename_sort_type,
-                        &self.filter_string,
-                        tools_data_map,
-                        active_tool_name
-                    ),
-                    self
-                );
-                handle_error!(|_| {}, ctrl.reload(self.filename_sort_type), self);
-            }
-            if let Some(info) = &self.stats.n_files_filtered_info {
-                ui.label(info);
-            }
-            if let Some(info) = &self.stats.n_files_annotated_info {
-                ui.label(info);
-            }
-            let get_file_info = |ps: &PathsSelector| {
-                let n_files_filtered = ps.len_filtered();
-                Some(format!("{n_files_filtered} files"))
-            };
-            let get_annotation_info = |ps: &PathsSelector| {
-                if let Some(active_tool_name) = active_tool_name {
-                    if let Some(data) = tools_data_map.get(active_tool_name) {
-                        let paths = &ps.filtered_file_paths();
-                        let n = data.specifics.apply(
-                            |d| Ok(n_annotated_images(&d.annotations_map, paths)),
-                            |d| Ok(n_annotated_images(&d.annotations_map, paths)),
-                        );
-                        n.ok()
-                            .map(|n| format!("{n} files with {active_tool_name} annotations"))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            };
-            if let Some(ps) = ctrl.paths_navigator.paths_selector() {
-                if self.stats.n_files_filtered_info.is_none() {
-                    self.stats.n_files_filtered_info = get_file_info(ps);
-                }
-                if self.stats.n_files_annotated_info.is_none() {
-                    self.stats.n_files_annotated_info = get_annotation_info(ps);
-                }
-                if ui.button("Re-compute Stats").clicked() {
-                    self.stats.n_files_filtered_info = get_file_info(ps);
-                    self.stats.n_files_annotated_info = get_annotation_info(ps);
-                }
-            } else {
-                self.stats.n_files_filtered_info = None;
-                self.stats.n_files_annotated_info = None;
-            }
+                    ctrl,
+                    tools_data_map,
+                    &mut self.text_buffers,
+                    active_tool_name,
+                    &mut self.are_tools_active,
+                    &mut self.stats,
+                ),
+                self
+            );
         });
         projected_loaded
     }

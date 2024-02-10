@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{
-    domain::{Annotate, TPtF},
+    domain::{InstanceAnnotate, TPtF},
     result::RvResult,
     rverr,
     util::Visibility,
@@ -126,7 +126,7 @@ pub fn merge<T>(
     li2: LabelInfo,
 ) -> (AnnotationsMap<T>, LabelInfo)
 where
-    T: Annotate,
+    T: InstanceAnnotate,
 {
     let (li, idx_map) = li1.merge(li2);
     let mut annotations_map = annos1;
@@ -277,7 +277,7 @@ impl LabelInfo {
         cat_idx: usize,
         annotaions_map: &mut HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
     ) where
-        T: Annotate + PartialEq + Default + 'a,
+        T: InstanceAnnotate + PartialEq + Default + 'a,
     {
         if self.len() > 1 {
             self.remove(cat_idx);
