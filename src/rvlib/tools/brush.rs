@@ -175,9 +175,7 @@ fn check_export(mut world: World) -> World {
 }
 
 #[derive(Clone, Debug)]
-pub struct Brush {
-    current_line: Option<BrushLine>,
-}
+pub struct Brush {}
 
 impl Brush {
     fn mouse_pressed(
@@ -207,12 +205,18 @@ impl Brush {
                             annos.remove(idx);
                         }
                     }
-                } else {
-                    self.current_line = Some(BrushLine {
-                        line: Line::new(),
-                        intensity: options.intensity,
-                        thickness: options.thickness,
-                    });
+                } else if let (Some(d), Some(cat_idx)) = (get_specific_mut(&mut world), idx_current)
+                {
+                    let mut line = Line::new();
+                    line.push(mp);
+                    d.tmp_line = Some((
+                        BrushLine {
+                            line,
+                            intensity: options.intensity,
+                            thickness: options.thickness,
+                        },
+                        cat_idx,
+                    ));
                 }
             }
             set_visible(&mut world);
@@ -229,7 +233,9 @@ impl Brush {
             let erase = get_options(&world).map(|o| o.core_options.erase);
             if let Some(mp) = events.mouse_pos_on_orig {
                 if erase != Some(true) {
-                    if let Some(line) = self.current_line.as_mut() {
+                    if let Some((line, _)) =
+                        get_specific_mut(&mut world).and_then(|d| d.tmp_line.as_mut())
+                    {
                         let last_point = line.line.last_point();
                         let dist = if let Some(last_point) = last_point {
                             last_point.dist_square(&mp)
@@ -280,16 +286,20 @@ impl Brush {
             let erase = get_options(&world).map(|o| o.core_options.erase);
             let cat_idx = get_specific(&world).map(|o| o.label_info.cat_idx_current);
             if erase != Some(true) {
-                if let (Some(annos), Some(line), Some(cat_idx)) = (
-                    get_annos_mut(&mut world),
-                    self.current_line.as_ref(),
-                    cat_idx,
-                ) {
-                    let canvas = Canvas::new(line);
+                let shape_orig = world.shape_orig();
+                let line = get_specific(&world).and_then(|d| d.tmp_line.clone());
+                if let (Some(annos), Some((line, _)), Some(cat_idx)) =
+                    (get_annos_mut(&mut world), line, cat_idx)
+                {
+                    let canvas = Canvas::new(&line, shape_orig);
                     if let Ok(canvas) = canvas {
                         annos.add_elt(canvas, cat_idx);
                     }
                 }
+                if let Some(d) = get_specific_mut(&mut world) {
+                    d.tmp_line = None;
+                }
+                set_visible(&mut world);
             }
             history.push(Record::new(world.clone(), ACTOR_NAME));
         }
@@ -394,7 +404,7 @@ impl Brush {
 
 impl Manipulate for Brush {
     fn new() -> Self {
-        Self { current_line: None }
+        Self {}
     }
 
     fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {

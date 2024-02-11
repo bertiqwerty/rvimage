@@ -59,6 +59,7 @@ where
         })
         .count()
 }
+#[allow(clippy::too_many_arguments)]
 pub fn labels_and_sorting(
     ui: &mut Ui,
     filename_sort_type: &mut SortType,

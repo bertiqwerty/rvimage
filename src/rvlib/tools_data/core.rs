@@ -404,6 +404,7 @@ fn test_labelinfo_merge() {
 
 #[test]
 fn test_merge_annos() {
+    let orig_shape = ShapeI::new(100, 100);
     let li1 = LabelInfo {
         new_label: "x".to_string(),
         labels: vec!["somelabel".to_string(), "x".to_string()],
@@ -426,39 +427,45 @@ fn test_merge_annos() {
     };
     let mut annos_map1: super::brush_data::BrushAnnoMap = AnnotationsMap::new();
 
-    let anno1 = Canvas::new(&BrushLine {
-        line: Line::new(),
-        thickness: 1.0,
-        intensity: 1.0,
-    })
+    let anno1 = Canvas::new(
+        &BrushLine {
+            line: Line::new(),
+            thickness: 1.0,
+            intensity: 1.0,
+        },
+        orig_shape,
+    )
     .unwrap();
     annos_map1.insert(
         "file1".to_string(),
         (
             InstanceAnnotations::new(vec![anno1.clone()], vec![1], vec![true]).unwrap(),
-            ShapeI::new(100, 100),
+            orig_shape,
         ),
     );
     let mut annos_map2: brush_data::BrushAnnoMap = AnnotationsMap::new();
-    let anno2 = Canvas::new(&BrushLine {
-        line: Line::new(),
-        thickness: 2.0,
-        intensity: 2.0,
-    })
+    let anno2 = Canvas::new(
+        &BrushLine {
+            line: Line::new(),
+            thickness: 2.0,
+            intensity: 2.0,
+        },
+        orig_shape,
+    )
     .unwrap();
 
     annos_map2.insert(
         "file1".to_string(),
         (
             InstanceAnnotations::new(vec![anno2.clone()], vec![1], vec![true]).unwrap(),
-            ShapeI::new(100, 100),
+            orig_shape,
         ),
     );
     annos_map2.insert(
         "file2".to_string(),
         (
             InstanceAnnotations::new(vec![anno2.clone()], vec![1], vec![true]).unwrap(),
-            ShapeI::new(100, 100),
+            orig_shape,
         ),
     );
     let (merged_map, merged_li) = merge(annos_map1, li1, annos_map2, li2.clone());
@@ -486,14 +493,14 @@ fn test_merge_annos() {
                     vec![false, false],
                 )
                 .unwrap(),
-                ShapeI::new(100, 100),
+                orig_shape,
             ),
         ),
         (
             "file2".to_string(),
             (
                 InstanceAnnotations::new(vec![anno2], vec![2], vec![false]).unwrap(),
-                ShapeI::new(100, 100),
+                orig_shape,
             ),
         ),
     ]

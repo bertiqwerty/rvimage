@@ -4,7 +4,7 @@ mod core;
 mod line;
 mod polygon;
 pub use bb::{BbF, BbI};
-pub use canvas::{canvases_to_image, Canvas};
+pub use canvas::{access_mask_abs, access_mask_rel, canvases_to_image, Canvas};
 pub use core::{
     color_with_intensity, dist_lineseg_point, max_from_partial, min_from_partial, Calc, Circle,
     CoordinateBox, InstanceAnnotate, OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,

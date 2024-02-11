@@ -1,5 +1,5 @@
 use crate::{
-    domain::{InstanceAnnotate, BbF},
+    domain::{BbF, InstanceAnnotate},
     result::RvResult,
     rverr,
     util::true_indices,

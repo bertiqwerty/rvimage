@@ -11,9 +11,9 @@ use egui::{
 use image::{ImageBuffer, Rgb};
 use rvlib::{
     color_with_intensity,
-    domain::{BbF, PtF, TPtF},
+    domain::{access_mask_abs, BbF, PtF, PtI, TPtF},
     orig_2_view, orig_pos_2_view_pos, project_on_bb, read_darkmode, scale_coord, tracing_setup,
-    view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, UpdateAnnos,
+    view_pos_2_orig_pos, Annotation, GeoFig, ImageU8, KeyCode, MainEventLoop, ShapeI, UpdateAnnos,
     UpdateImage, UpdateZoomBox,
 };
 use tracing::error;
@@ -317,7 +317,7 @@ impl RvImageApp {
         )
     }
     fn draw_annos(&mut self, ui: &mut Ui, image_rect: &Rect) {
-        let mut text_images = vec![];
+        let mut canvases = vec![];
         let brush_annos = self
             .annos
             .iter()
@@ -332,20 +332,10 @@ impl RvImageApp {
                 let max_instensity = 1.0;
                 let intensity_span = max_instensity - min_instensity;
                 let viz_intensity = anno.canvas.intensity * intensity_span + min_instensity;
-                let color = rgb_2_clr(
-                    Some(color_with_intensity(Rgb(anno.color), viz_intensity).0),
-                    255,
-                );
+                let color_rgb = color_with_intensity(Rgb(anno.color), viz_intensity);
+                let color_egui = rgb_2_clr(Some(color_rgb.0), 255);
 
-                let size = [anno.canvas.bb.w as usize, anno.canvas.bb.h as usize];
-                let mut im = ColorImage::new(size, Color32::from_white_alpha(0));
-                for (p, m) in im.pixels.iter_mut().zip(anno.canvas.mask.iter()) {
-                    if m > &0 {
-                        *p = color;
-                    }
-                }
-                let pos = [anno.canvas.bb.x as usize, anno.canvas.bb.y as usize];
-                text_images.push((im, pos));
+                canvases.push((anno.canvas.clone(), color_rgb));
 
                 if let Some(tmp_line) = &anno.tmp_line {
                     let make_shape_vec = |thickness, color| {
@@ -379,7 +369,7 @@ impl RvImageApp {
                             .collect::<Vec<_>>()
                     };
                     let thickness = scale_coord(tmp_line.thickness, size_from, size_to);
-                    let mut shape_vec = make_shape_vec(thickness, color);
+                    let mut shape_vec = make_shape_vec(thickness, color_egui);
                     let mut selected_shape_vec = if anno.is_selected == Some(true) {
                         make_shape_vec(thickness + 5.0, rgb_2_clr(Some([0, 0, 0]), 255))
                     } else {
@@ -477,10 +467,39 @@ impl RvImageApp {
             });
         let shapes = brush_annos.chain(bbox_annos).collect::<Vec<Shape>>();
         // update texture with brush canvas
+        let shape_orig = self.shape_orig();
         if let Some(texture) = self.texture.as_mut() {
-            for (im, pos) in text_images {
-                texture.set_partial(pos, im, TextureOptions::NEAREST);
+            self.im_view = orig_2_view(&self.im_orig, self.zoom_box);
+            for (canvas, color) in canvases {
+                for y in canvas.bb.y_range() {
+                    for x in canvas.bb.x_range() {
+                        let p = PtI { x, y };
+                        let is_fg = access_mask_abs(&canvas.mask, canvas.bb, p) > 0;
+                        if is_fg {
+                            orig_pos_2_view_pos(
+                                p.into(),
+                                shape_orig,
+                                ShapeI::new(image_rect.width() as u32, image_rect.height() as u32),
+                                &self.zoom_box,
+                            );
+                            if let Some(zb) = self.zoom_box {
+                                if zb.contains(p) {
+                                    let x = x - zb.x.round() as u32;
+                                    let y = y - zb.y.round() as u32;
+                                    if x < self.im_view.width() && y < self.im_view.height() {
+                                        self.im_view.put_pixel(x, y, Rgb(color.0));
+                                    }
+                                }
+                            } else if x < self.im_view.width() && y < self.im_view.height() {
+                                self.im_view.put_pixel(x, y, Rgb(color.0));
+                            }
+                        }
+                    }
+                }
             }
+            let im = image_2_colorimage(&self.im_view);
+
+            texture.set(im, TextureOptions::NEAREST);
         }
         ui.painter().add(Shape::Vec(shapes));
     }

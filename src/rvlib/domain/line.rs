@@ -84,7 +84,17 @@ where
     Image(ImageBuffer<CLR, Vec<u8>>),
     Shape(ShapeI),
 }
-
+impl<CLR> RenderTargetOrShape<CLR>
+where
+    CLR: Pixel<Subpixel = u8>,
+{
+    pub fn make_buffer(self) -> ImageBuffer<CLR, Vec<u8>> {
+        match self {
+            RenderTargetOrShape::Image(im) => im,
+            RenderTargetOrShape::Shape(shape) => ImageBuffer::<CLR, Vec<u8>>::new(shape.w, shape.h),
+        }
+    }
+}
 pub fn bresenham_iter<'a>(
     points: impl Iterator<Item = PtF> + 'a + Clone,
 ) -> impl Iterator<Item = (i32, i32)> + 'a {
@@ -97,7 +107,7 @@ pub fn bresenham_iter<'a>(
 }
 
 pub fn render_line<'a, CLR>(
-    line: &Line,
+    line_points: impl Iterator<Item = PtF> + 'a + Clone,
     intensity: TPtF,
     thickness: TPtF,
     image_or_shape: RenderTargetOrShape<CLR>,
@@ -106,13 +116,10 @@ pub fn render_line<'a, CLR>(
 where
     CLR: Pixel<Subpixel = u8>,
 {
-    let mut im = match image_or_shape {
-        RenderTargetOrShape::Image(im) => im,
-        RenderTargetOrShape::Shape(shape) => ImageBuffer::<CLR, Vec<u8>>::new(shape.w, shape.h),
-    };
+    let mut im = image_or_shape.make_buffer();
     let color = color_with_intensity(color, intensity);
-    for center in bresenham_iter(line.points_iter()) {
-        draw_filled_circle_mut(&mut im, center, thickness as i32 / 2, color);
+    for center in bresenham_iter(line_points) {
+        draw_filled_circle_mut(&mut im, center, (thickness * 0.5) as i32, color);
     }
     im
 }
@@ -130,7 +137,7 @@ where
     };
     for brush_line in brush_lines {
         im = render_line(
-            &brush_line.line,
+            brush_line.line.points_iter(),
             brush_line.intensity,
             brush_line.thickness,
             RenderTargetOrShape::Image(im),

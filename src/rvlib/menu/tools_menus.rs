@@ -1,17 +1,23 @@
-use std::{collections::HashMap,  mem, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, mem, path::PathBuf, str::FromStr};
 
 use egui::Ui;
 use tracing::{info, warn};
 
 use crate::{
-    cfg::{ExportPath, ExportPathConnection}, domain::{InstanceAnnotate, TPtF, TPtI}, file_util::path_to_str, menu::ui_util::process_number, result::{to_rv, RvResult}, tools_data::{
+    cfg::{ExportPath, ExportPathConnection},
+    domain::{InstanceAnnotate, TPtF, TPtI},
+    file_util::path_to_str,
+    menu::ui_util::process_number,
+    result::{to_rv, RvResult},
+    tools_data::{
         annotations::{InstanceAnnotations, SplitMode},
         attributes_data::AttrVal,
         bbox_data::{BboxSpecificData, ImportMode},
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         AttributesToolData, BrushToolData, CoreOptions, LabelInfo, ToolSpecifics, ToolsData,
         OUTLINE_THICKNESS_CONVERSION,
-    }, ShapeI
+    },
+    ShapeI,
 };
 
 use super::ui_util::{slider, text_edit_singleline};

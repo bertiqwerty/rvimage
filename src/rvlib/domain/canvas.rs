@@ -1,27 +1,58 @@
 use image::{ImageBuffer, Luma, Pixel};
+use imageproc::drawing::draw_filled_circle_mut;
 use serde::{Deserialize, Serialize};
 
-use crate::{color_with_intensity, result::RvResult};
+use crate::{color_with_intensity, domain::OutOfBoundsMode, result::RvResult, rverr, ShapeI};
 
 use super::{
     bb::BB, line::render_line, BbI, BrushLine, InstanceAnnotate, PtF, PtI, RenderTargetOrShape,
     TPtF,
 };
 
-fn line_to_mask(line: &BrushLine, bb: BbI) -> Vec<u8> {
-    let im = render_line(
-        &line.line,
-        1.0,
-        line.thickness,
-        RenderTargetOrShape::Shape(bb.shape()),
-        Luma([1]),
-    );
-    im.to_vec()
+fn line_to_mask(line: &BrushLine, orig_shape: ShapeI) -> RvResult<(Vec<u8>, BbI)> {
+    let thickness = line.thickness;
+    let thickness_half = thickness * 0.5;
+    let bb = BB::from_points_iter(line.line.points_iter())?;
+    let bb = BB::new_shape_checked(
+        bb.x - thickness_half,
+        bb.y - thickness_half,
+        bb.w + thickness,
+        bb.h + thickness,
+        orig_shape,
+        OutOfBoundsMode::Resize(bb.shape()),
+    )
+    .ok_or_else(|| rverr!("Could not create bounding box for line"))?;
+    let color = Luma([1]);
+    let bbi = BbI::from(bb);
+    let im = if line.line.points.len() == 1 {
+        let mut im = RenderTargetOrShape::Shape(bbi.shape()).make_buffer();
+        let center = PtF {
+            x: line.line.points[0].x - bb.x,
+            y: line.line.points[0].y - bb.y,
+        };
+        draw_filled_circle_mut(&mut im, center.into(), thickness_half as i32, color);
+        im
+    } else {
+        render_line(
+            line.line
+                .points_iter()
+                .filter(|p| bb.contains(*p))
+                .map(|p| PtF {
+                    x: p.x - bb.x,
+                    y: p.y - bb.y,
+                }),
+            1.0,
+            line.thickness,
+            RenderTargetOrShape::Shape(bbi.shape()),
+            color,
+        )
+    };
+    Ok((im.to_vec(), bbi))
 }
 /// Access a with coordinates for the image containing the mask
 pub fn access_mask_abs(mask: &[u8], bb: BbI, p: PtI) -> u8 {
     if bb.contains(p) {
-        mask[(p.y * bb.w + p.x) as usize]
+        mask[((p.y - bb.y) * bb.w + p.x - bb.x) as usize]
     } else {
         0
     }
@@ -42,16 +73,13 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(line: &BrushLine) -> RvResult<Self> {
-        let bb = BB::from_points_iter(line.line.points_iter())?.into();
-        let mask = vec![];
-        let mut cv = Self {
+    pub fn new(line: &BrushLine, orig_shape: ShapeI) -> RvResult<Self> {
+        let (mask, bb) = line_to_mask(line, orig_shape)?;
+        Ok(Self {
             mask,
             bb,
             intensity: line.intensity,
-        };
-        cv.mask = line_to_mask(line, cv.bb);
-        Ok(cv)
+        })
     }
 }
 
@@ -65,11 +93,7 @@ impl InstanceAnnotate for Canvas {
     {
         let p_tmp: PtF = point.into();
         let p_idx: PtI = p_tmp.into();
-        if self.bb.contains(p_idx) {
-            access_mask_abs(&self.mask, self.bb, p_idx) > 0
-        } else {
-            false
-        }
+        access_mask_abs(&self.mask, self.bb, p_idx) > 0
     }
     fn dist_to_boundary(&self, p: PtF) -> TPtF {
         let mut min_dist = TPtF::MAX;
@@ -107,10 +131,7 @@ pub fn canvases_to_image<'a, CLR>(
 where
     CLR: Pixel<Subpixel = u8>,
 {
-    let mut im = match image_or_shape {
-        RenderTargetOrShape::Image(im) => im,
-        RenderTargetOrShape::Shape(shape) => ImageBuffer::<CLR, Vec<u8>>::new(shape.w, shape.h),
-    };
+    let mut im = image_or_shape.make_buffer();
     for cv in canvases {
         let color = color_with_intensity(color, cv.intensity);
         for y in cv.bb.y_range() {
@@ -130,20 +151,40 @@ where
 use super::Line;
 #[test]
 fn test_canvas() {
+    let orig_shape = ShapeI::new(30, 30);
     let bl = BrushLine {
         line: Line {
-            points: vec![PtF { x: 0.0, y: 0.0 }, PtF { x: 10.0, y: 10.0 }],
+            points: vec![PtF { x: 5.0, y: 5.0 }, PtF { x: 15.0, y: 15.0 }],
         },
         intensity: 0.5,
         thickness: 3.0,
     };
-    let cv = Canvas::new(&bl).unwrap();
-    assert!(cv.contains(PtF { x: 0.0, y: 0.0 }));
+    let cv = Canvas::new(&bl, orig_shape).unwrap();
     assert!(cv.contains(PtF { x: 5.0, y: 5.0 }));
-    assert!(cv.contains(PtF { x: 9.9, y: 9.9 }));
-    assert!(!cv.contains(PtF { x: 10.0, y: 0.0 }));
+    assert!(!cv.contains(PtF { x: 0.0, y: 0.0 }));
+    assert!(cv.contains(PtF { x: 14.9, y: 14.9 }));
+    assert!(!cv.contains(PtF { x: 0.0, y: 9.9 }));
+    assert!(!cv.contains(PtF { x: 15.0, y: 15.0 }));
 
     assert!((cv.dist_to_boundary(PtF { x: 5.0, y: 5.0 }) - 1.0).abs() < 1e-8);
-    let dist = cv.dist_to_boundary(PtF { x: 0.0, y: 10.0 });
-    assert!((dist - 5.656854249492381).abs() < 1e-8);
+    let dist = cv.dist_to_boundary(PtF { x: 5.0, y: 15.0 });
+    assert!(5.0 < dist && dist < 7.0);
+    for y in cv.bb.y_range() {
+        for x in cv.bb.x_range() {
+            access_mask_abs(&cv.mask, cv.bb, PtI { x, y });
+        }
+    }
+}
+#[test]
+fn test_canvas_single() {
+    let orig_shape = ShapeI::new(30, 30);
+    let bl = BrushLine {
+        line: Line {
+            points: vec![PtF { x: 5.0, y: 5.0 }],
+        },
+        intensity: 0.5,
+        thickness: 3.0,
+    };
+    let cv = Canvas::new(&bl, orig_shape).unwrap();
+    assert!(cv.mask.iter().sum::<u8>() > 0)
 }
