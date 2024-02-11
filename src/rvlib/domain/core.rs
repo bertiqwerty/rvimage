@@ -1,5 +1,5 @@
 use crate::{result::RvResult, rverr};
-use image::GenericImage;
+use image::{GenericImage, Pixel};
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
@@ -150,6 +150,10 @@ where
 
 pub trait InstanceAnnotate: Clone + Default + PartialEq {
     fn is_contained_in_image(&self, shape: ShapeI) -> bool;
+    fn contains<P>(&self, point: P) -> bool
+    where
+        P: Into<PtF>;
+    fn dist_to_boundary(&self, p: PtF) -> TPtF;
 }
 
 pub type ShapeI = Shape<u32>;
@@ -590,6 +594,16 @@ pub struct Circle {
     pub radius: TPtF,
 }
 
+pub fn color_with_intensity<CLR>(mut color: CLR, intensity: f64) -> CLR
+where
+    CLR: Pixel<Subpixel = u8>,
+{
+    let channels = color.channels_mut();
+    for channel in channels {
+        *channel = (*channel as f64 * intensity) as u8;
+    }
+    color
+}
 #[test]
 fn test_rot() {
     let shape = &Shape::new(5, 3);

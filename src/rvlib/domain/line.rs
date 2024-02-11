@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use tracing::warn;
 
-use super::core::{dist_lineseg_point, max_from_partial, InstanceAnnotate, Point, PtF, ShapeI, TPtF};
+use super::core::{
+    color_with_intensity, dist_lineseg_point, max_from_partial, Point, PtF, ShapeI, TPtF,
+};
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]
 pub struct BrushLine {
@@ -13,14 +15,6 @@ pub struct BrushLine {
     pub thickness: TPtF,
 }
 impl Eq for BrushLine {}
-
-impl InstanceAnnotate for BrushLine {
-    fn is_contained_in_image(&self, shape: ShapeI) -> bool {
-        self.line
-            .points_iter()
-            .all(|p| p.x < shape.w as f64 && p.y < shape.h as f64)
-    }
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct Line {
@@ -91,17 +85,6 @@ where
     Shape(ShapeI),
 }
 
-pub fn color_with_intensity<CLR>(mut color: CLR, intensity: f64) -> CLR
-where
-    CLR: Pixel<Subpixel = u8>,
-{
-    let channels = color.channels_mut();
-    for channel in channels {
-        *channel = (*channel as f64 * intensity) as u8;
-    }
-    color
-}
-
 pub fn bresenham_iter<'a>(
     points: impl Iterator<Item = PtF> + 'a + Clone,
 ) -> impl Iterator<Item = (i32, i32)> + 'a {
@@ -113,6 +96,26 @@ pub fn bresenham_iter<'a>(
     })
 }
 
+pub fn render_line<'a, CLR>(
+    line: &Line,
+    intensity: TPtF,
+    thickness: TPtF,
+    image_or_shape: RenderTargetOrShape<CLR>,
+    color: CLR,
+) -> ImageBuffer<CLR, Vec<u8>>
+where
+    CLR: Pixel<Subpixel = u8>,
+{
+    let mut im = match image_or_shape {
+        RenderTargetOrShape::Image(im) => im,
+        RenderTargetOrShape::Shape(shape) => ImageBuffer::<CLR, Vec<u8>>::new(shape.w, shape.h),
+    };
+    let color = color_with_intensity(color, intensity);
+    for center in bresenham_iter(line.points_iter()) {
+        draw_filled_circle_mut(&mut im, center, thickness as i32 / 2, color);
+    }
+    im
+}
 pub fn render_brushlines<'a, CLR>(
     brush_lines: impl Iterator<Item = &'a BrushLine>,
     image_or_shape: RenderTargetOrShape<CLR>,
@@ -126,10 +129,13 @@ where
         RenderTargetOrShape::Shape(shape) => ImageBuffer::<CLR, Vec<u8>>::new(shape.w, shape.h),
     };
     for brush_line in brush_lines {
-        let color = color_with_intensity(color, brush_line.intensity);
-        for center in bresenham_iter(brush_line.line.points_iter()) {
-            draw_filled_circle_mut(&mut im, center, brush_line.thickness as i32 / 2, color);
-        }
+        im = render_line(
+            &brush_line.line,
+            brush_line.intensity,
+            brush_line.thickness,
+            RenderTargetOrShape::Image(im),
+            color,
+        );
     }
     im
 }

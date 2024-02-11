@@ -1,16 +1,15 @@
 mod bb;
+mod canvas;
 mod core;
 mod line;
 mod polygon;
-
 pub use bb::{BbF, BbI};
+pub use canvas::{canvases_to_image, Canvas};
 pub use core::{
-    dist_lineseg_point, max_from_partial, min_from_partial, InstanceAnnotate, Calc, Circle, CoordinateBox,
-    OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
+    color_with_intensity, dist_lineseg_point, max_from_partial, min_from_partial, Calc, Circle,
+    CoordinateBox, InstanceAnnotate, OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
-pub use line::{
-    bresenham_iter, color_with_intensity, render_brushlines, BrushLine, Line, RenderTargetOrShape,
-};
+pub use line::{bresenham_iter, render_brushlines, BrushLine, Line, RenderTargetOrShape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
 
@@ -21,21 +20,6 @@ pub enum GeoFig {
 }
 
 impl GeoFig {
-    pub fn contains<P>(&self, point: P) -> bool
-    where
-        P: Into<PtF>,
-    {
-        match self {
-            Self::BB(bb) => bb.contains(point.into()),
-            Self::Poly(poly) => poly.contains(point),
-        }
-    }
-    pub fn distance_to_boundary(&self, point: PtF) -> TPtF {
-        match self {
-            Self::BB(bb) => bb.distance_to_boundary(point),
-            Self::Poly(poly) => poly.distance_to_boundary(point),
-        }
-    }
     pub fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
         match self {
             Self::BB(bb) => Self::BB(bb.rot90_with_image_ntimes(shape, n)),
@@ -126,6 +110,21 @@ impl InstanceAnnotate for GeoFig {
         match self {
             Self::BB(bb) => bb.is_contained_in_image(shape),
             Self::Poly(poly) => poly.is_contained_in_image(shape),
+        }
+    }
+    fn contains<P>(&self, point: P) -> bool
+    where
+        P: Into<PtF>,
+    {
+        match self {
+            Self::BB(bb) => bb.contains(point.into()),
+            Self::Poly(poly) => poly.contains(point),
+        }
+    }
+    fn dist_to_boundary(&self, point: PtF) -> TPtF {
+        match self {
+            Self::BB(bb) => bb.distance_to_boundary(point),
+            Self::Poly(poly) => poly.distance_to_boundary(point),
         }
     }
 }

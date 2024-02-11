@@ -316,76 +316,80 @@ impl RvImageApp {
             &self.zoom_box,
         )
     }
-    fn draw_annos(&self, ui: &mut Ui, image_rect: &Rect) {
+    fn draw_annos(&mut self, ui: &mut Ui, image_rect: &Rect) {
+        let mut text_images = vec![];
         let brush_annos = self
             .annos
             .iter()
             .flat_map(|anno| match anno {
-                Annotation::Brush(brush) => {
-                    // hide out of zoombox brushlines
-                    if brush
-                        .brush_line
-                        .line
-                        .points_iter()
-                        .any(|p| self.zoom_box.map(|zb| zb.contains(p)) != Some(false))
-                    {
-                        Some(brush)
-                    } else {
-                        None
-                    }
-                }
+                Annotation::Brush(brush) => Some(brush),
                 _ => None,
             })
             .flat_map(|anno| {
                 let size_from = self.shape_view().w.into();
                 let size_to = image_rect.size().x as TPtF;
-                let thickness = scale_coord(anno.brush_line.thickness, size_from, size_to);
                 let min_instensity = 0.3;
                 let max_instensity = 1.0;
                 let intensity_span = max_instensity - min_instensity;
-                let viz_intensity = anno.brush_line.intensity * intensity_span + min_instensity;
+                let viz_intensity = anno.canvas.intensity * intensity_span + min_instensity;
                 let color = rgb_2_clr(
                     Some(color_with_intensity(Rgb(anno.color), viz_intensity).0),
                     255,
                 );
 
-                let make_shape_vec = |thickness, color| {
-                    let egui_rect_points = anno
-                        .brush_line
-                        .line
-                        .points_iter()
-                        .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
-                        .collect::<Vec<_>>();
-                    let stroke = Stroke::new(thickness as f32, color);
-                    let start_circle = egui_rect_points.first().map(|p| {
-                        Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color))
-                    });
-                    let end_circle = egui_rect_points.last().map(|p| {
-                        Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color))
-                    });
-                    let end_circle = if egui_rect_points.len() > 1 {
-                        end_circle
-                    } else {
-                        None
+                let size = [anno.canvas.bb.w as usize, anno.canvas.bb.h as usize];
+                let mut im = ColorImage::new(size, Color32::from_white_alpha(0));
+                for (p, m) in im.pixels.iter_mut().zip(anno.canvas.mask.iter()) {
+                    if m > &0 {
+                        *p = color;
+                    }
+                }
+                let pos = [anno.canvas.bb.x as usize, anno.canvas.bb.y as usize];
+                text_images.push((im, pos));
+
+                if let Some(tmp_line) = &anno.tmp_line {
+                    let make_shape_vec = |thickness, color| {
+                        let egui_rect_points = tmp_line
+                            .line
+                            .points_iter()
+                            .map(|p| {
+                                self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size())
+                            })
+                            .collect::<Vec<_>>();
+                        let stroke = Stroke::new(thickness as f32, color);
+                        let start_circle = egui_rect_points.first().map(|p| {
+                            Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color))
+                        });
+                        let end_circle = egui_rect_points.last().map(|p| {
+                            Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color))
+                        });
+                        let end_circle = if egui_rect_points.len() > 1 {
+                            end_circle
+                        } else {
+                            None
+                        };
+                        let line = if egui_rect_points.len() > 2 {
+                            Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
+                        } else {
+                            None
+                        };
+                        [start_circle, line, end_circle]
+                            .into_iter()
+                            .flatten()
+                            .collect::<Vec<_>>()
                     };
-                    let line = if egui_rect_points.len() > 2 {
-                        Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
+                    let thickness = scale_coord(tmp_line.thickness, size_from, size_to);
+                    let mut shape_vec = make_shape_vec(thickness, color);
+                    let mut selected_shape_vec = if anno.is_selected == Some(true) {
+                        make_shape_vec(thickness + 5.0, rgb_2_clr(Some([0, 0, 0]), 255))
                     } else {
-                        None
+                        vec![]
                     };
-                    [start_circle, line, end_circle]
-                        .into_iter()
-                        .flatten()
-                        .collect::<Vec<_>>()
-                };
-                let mut shape_vec = make_shape_vec(thickness, color);
-                let mut selected_shape_vec = if anno.is_selected == Some(true) {
-                    make_shape_vec(thickness + 5.0, rgb_2_clr(Some([0, 0, 0]), 255))
+                    selected_shape_vec.append(&mut shape_vec);
+                    Some(Shape::Vec(selected_shape_vec))
                 } else {
-                    vec![]
-                };
-                selected_shape_vec.append(&mut shape_vec);
-                Some(Shape::Vec(selected_shape_vec))
+                    None
+                }
             });
         let bbox_annos = self
             .annos
@@ -472,6 +476,12 @@ impl RvImageApp {
                 Shape::Vec(draw_vec)
             });
         let shapes = brush_annos.chain(bbox_annos).collect::<Vec<Shape>>();
+        // update texture with brush canvas
+        if let Some(texture) = self.texture.as_mut() {
+            for (im, pos) in text_images {
+                texture.set_partial(pos, im, TextureOptions::NEAREST);
+            }
+        }
         ui.painter().add(Shape::Vec(shapes));
     }
     fn collect_events(&mut self, ui: &mut Ui, image_response: &Response) -> rvlib::Events {

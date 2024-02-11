@@ -1,5 +1,5 @@
 use crate::{
-    domain::{BbF, Circle, TPtF},
+    domain::{BbF, Canvas, Circle, TPtF},
     types::ViewImage,
     BrushLine, GeoFig,
 };
@@ -34,7 +34,8 @@ pub struct BboxAnnotation {
 
 #[derive(Clone, Debug)]
 pub struct BrushAnnotation {
-    pub brush_line: BrushLine,
+    pub canvas: Canvas,
+    pub tmp_line: Option<BrushLine>,
     pub color: [u8; 3],
     pub label: Option<String>,
     pub is_selected: Option<bool>,

@@ -5,18 +5,20 @@ use tracing::{error, info};
 
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{render_brushlines, BrushLine, PtF, RenderTargetOrShape, TPtF},
+    domain::{
+        canvases_to_image, BrushLine, Canvas, InstanceAnnotate, PtF, RenderTargetOrShape, TPtF,
+    },
     events::{Events, KeyCode},
     file_util::osstr_to_str,
     history::{History, Record},
     make_tool_transform,
     result::trace_ok,
     tools::core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
-    tools_data::{self, brush_data, LabelInfo},
     tools_data::{
+        self,
         annotations::BrushAnnotations,
-        brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        brush_mut, vis_from_lfoption,
+        brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
+        brush_mut, vis_from_lfoption, LabelInfo,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
@@ -54,11 +56,11 @@ tools_data_accessors_objects!(
     brush_mut
 );
 
-fn max_select_dist(shape: ShapeI, thickness: TPtF) -> TPtF {
-    (TPtF::from(shape.w.pow(2) + shape.h.pow(2)).sqrt() / 100.0).max(50.0) + thickness
+fn max_select_dist(shape: ShapeI) -> TPtF {
+    (TPtF::from(shape.w.pow(2) + shape.h.pow(2)).sqrt() / 100.0).max(50.0)
 }
 
-fn find_closest_brushline(
+fn find_closest_canvas(
     annos: &BrushAnnotations,
     p: PtF,
     predicate: impl Fn(usize) -> bool,
@@ -67,9 +69,13 @@ fn find_closest_brushline(
         .elts()
         .iter()
         .enumerate()
-        .map(|(i, line)| (i, line.line.dist_to_point(p)))
-        .filter(|(i, dist)| dist.is_some() && predicate(*i))
-        .map(|(i, dist)| (i, dist.unwrap()))
+        .map(|(i, cvs)| {
+            (
+                i,
+                cvs.dist_to_boundary(p) * if cvs.contains(p) { 0.0 } else { 1.0 },
+            )
+        })
+        .filter(|(i, _)| predicate(*i))
         .min_by(|(_, x), (_, y)| match x.partial_cmp(y) {
             Some(o) => o,
             None => Ordering::Greater,
@@ -84,7 +90,6 @@ fn check_selected_intensity_thickness(mut world: World) -> World {
         if options.is_selection_change_needed {
             for brushline in annos.selected_elts_iter_mut() {
                 brushline.intensity = options.intensity;
-                brushline.thickness = options.thickness;
                 any_selected = true;
             }
         }
@@ -121,7 +126,7 @@ fn check_export(mut world: World) -> World {
                                 .filter(|(_, cat_idx)| &label_info.labels()[**cat_idx] == label)
                                 .map(|(bl, _)| bl);
                             let render_shape = RenderTargetOrShape::Shape(*shape);
-                            let im = render_brushlines::<Luma<u8>>(
+                            let im = canvases_to_image::<Luma<u8>>(
                                 brush_lines,
                                 render_shape,
                                 Luma([255]),
@@ -170,7 +175,9 @@ fn check_export(mut world: World) -> World {
 }
 
 #[derive(Clone, Debug)]
-pub struct Brush {}
+pub struct Brush {
+    current_line: Option<BrushLine>,
+}
 
 impl Brush {
     fn mouse_pressed(
@@ -184,37 +191,28 @@ impl Brush {
         }
         if !events.held_ctrl() {
             let options = get_options(&world);
-            let label_info = get_label_info(&world);
-            let cat_idx = label_info.map(|li| li.cat_idx_current);
             let shape_orig = world.shape_orig();
             let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
             let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
-            if let (Some(mp), Some(annos), Some(options), Some(cat_idx)) = (
-                events.mouse_pos_on_orig,
-                get_annos_mut(&mut world),
-                options,
-                cat_idx,
-            ) {
+            if let (Some(mp), Some(annos), Some(options)) =
+                (events.mouse_pos_on_orig, get_annos_mut(&mut world), options)
+            {
                 let erase = options.core_options.erase;
                 if erase {
-                    let to_be_removed_line_idx = find_closest_brushline(annos, mp, |idx| {
+                    let to_be_removed_line_idx = find_closest_canvas(annos, mp, |idx| {
                         annos.is_of_current_label(idx, idx_current, show_only_current)
                     });
                     if let Some((idx, dist)) = to_be_removed_line_idx {
-                        let thickness = annos.elts()[idx].thickness;
-                        if dist < max_select_dist(shape_orig, thickness) {
+                        if dist < max_select_dist(shape_orig) {
                             annos.remove(idx);
                         }
                     }
                 } else {
-                    annos.add_elt(
-                        BrushLine {
-                            line: Line::new(),
-                            intensity: options.intensity,
-                            thickness: options.thickness,
-                        },
-                        cat_idx,
-                    );
+                    self.current_line = Some(BrushLine {
+                        line: Line::new(),
+                        intensity: options.intensity,
+                        thickness: options.thickness,
+                    });
                 }
             }
             set_visible(&mut world);
@@ -229,17 +227,17 @@ impl Brush {
     ) -> (World, History) {
         if !events.held_ctrl() {
             let erase = get_options(&world).map(|o| o.core_options.erase);
-            if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
+            if let Some(mp) = events.mouse_pos_on_orig {
                 if erase != Some(true) {
-                    if let Some(line) = annos.last_line_mut() {
-                        let last_point = line.last_point();
+                    if let Some(line) = self.current_line.as_mut() {
+                        let last_point = line.line.last_point();
                         let dist = if let Some(last_point) = last_point {
                             last_point.dist_square(&mp)
                         } else {
                             100.0
                         };
                         if dist >= 3.0 {
-                            line.push(mp);
+                            line.line.push(mp);
                         }
                     }
                 }
@@ -260,12 +258,11 @@ impl Brush {
             let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
             let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
             if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
-                let to_be_selected_line_idx = find_closest_brushline(annos, mp, |idx| {
+                let to_be_selected_line_idx = find_closest_canvas(annos, mp, |idx| {
                     annos.is_of_current_label(idx, idx_current, show_only_current)
                 });
                 if let Some((idx, dist)) = to_be_selected_line_idx {
-                    let thickness = annos.elts()[idx].thickness;
-                    if dist < max_select_dist(shape_orig, thickness) {
+                    if dist < max_select_dist(shape_orig) {
                         if annos.selected_mask()[idx] {
                             annos.deselect(idx);
                         } else {
@@ -280,6 +277,20 @@ impl Brush {
         } else if !(events.held_alt() || events.held_shift()) {
             // neither shift nor alt nor ctrl were held => a brushline has been finished
             // or a brush line has been deleted.
+            let erase = get_options(&world).map(|o| o.core_options.erase);
+            let cat_idx = get_specific(&world).map(|o| o.label_info.cat_idx_current);
+            if erase != Some(true) {
+                if let (Some(annos), Some(line), Some(cat_idx)) = (
+                    get_annos_mut(&mut world),
+                    self.current_line.as_ref(),
+                    cat_idx,
+                ) {
+                    let canvas = Canvas::new(line);
+                    if let Ok(canvas) = canvas {
+                        annos.add_elt(canvas, cat_idx);
+                    }
+                }
+            }
             history.push(Record::new(world.clone(), ACTOR_NAME));
         }
         (world, history)
@@ -383,7 +394,7 @@ impl Brush {
 
 impl Manipulate for Brush {
     fn new() -> Self {
-        Self {}
+        Self { current_line: None }
     }
 
     fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {

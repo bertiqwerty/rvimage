@@ -318,7 +318,7 @@ impl Default for LabelInfo {
 }
 #[cfg(test)]
 use crate::{
-    domain::{BrushLine, Line},
+    domain::{BrushLine, Canvas, Line},
     tools_data::brush_data,
 };
 #[test]
@@ -426,11 +426,12 @@ fn test_merge_annos() {
     };
     let mut annos_map1: super::brush_data::BrushAnnoMap = AnnotationsMap::new();
 
-    let anno1 = BrushLine {
+    let anno1 = Canvas::new(&BrushLine {
         line: Line::new(),
         thickness: 1.0,
         intensity: 1.0,
-    };
+    })
+    .unwrap();
     annos_map1.insert(
         "file1".to_string(),
         (
@@ -439,11 +440,12 @@ fn test_merge_annos() {
         ),
     );
     let mut annos_map2: brush_data::BrushAnnoMap = AnnotationsMap::new();
-    let anno2 = BrushLine {
+    let anno2 = Canvas::new(&BrushLine {
         line: Line::new(),
         thickness: 2.0,
         intensity: 2.0,
-    };
+    })
+    .unwrap();
 
     annos_map2.insert(
         "file1".to_string(),
@@ -496,7 +498,7 @@ fn test_merge_annos() {
         ),
     ]
     .into_iter()
-    .collect::<AnnotationsMap<BrushLine>>();
+    .collect::<AnnotationsMap<Canvas>>();
     for (k, (v, s)) in merged_map.iter() {
         assert_eq!(map_ref[k].0, *v);
         assert_eq!(map_ref[k].1, *s);

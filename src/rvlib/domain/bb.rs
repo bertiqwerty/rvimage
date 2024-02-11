@@ -43,27 +43,31 @@ where
         }
     }
 
-    pub fn from_vec(points: &[Point<T>]) -> RvResult<Self> {
-        let x_iter = points.iter().map(|p| p.x);
-        let y_iter = points.iter().map(|p| p.y);
+    // TODO: replace Point<T> by &Point<T>
+    pub fn from_points_iter(points: impl Iterator<Item = Point<T>> + Clone) -> RvResult<Self> {
+        let x_iter = points.clone().map(|p| p.x);
+        let y_iter = points.map(|p| p.y);
         let min_x = x_iter
             .clone()
             .min_by(min_from_partial)
-            .ok_or_else(|| rverr!("empty polygon"))?;
+            .ok_or_else(|| rverr!("empty iterator"))?;
         let min_y = y_iter
             .clone()
             .min_by(min_from_partial)
-            .ok_or_else(|| rverr!("empty polygon"))?;
+            .ok_or_else(|| rverr!("empty iterator"))?;
         let max_x = x_iter
             .max_by(max_from_partial)
-            .ok_or_else(|| rverr!("empty polygon"))?;
+            .ok_or_else(|| rverr!("empty iterator"))?;
         let max_y = y_iter
             .max_by(max_from_partial)
-            .ok_or_else(|| rverr!("empty polygon"))?;
+            .ok_or_else(|| rverr!("empty iterator"))?;
         Ok(BB::from_points(
             Point { x: min_x, y: min_y },
             Point { x: max_x, y: max_y },
         ))
+    }
+    pub fn from_vec(points: &[Point<T>]) -> RvResult<Self> {
+        Self::from_points_iter(points.iter().copied())
     }
 
     pub fn distance_to_boundary(&self, pos: Point<T>) -> T {
