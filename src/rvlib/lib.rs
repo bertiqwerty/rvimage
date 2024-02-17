@@ -27,8 +27,8 @@ pub use domain::{
     bresenham_iter, color_with_intensity, BbI, BrushLine, GeoFig, Line, Polygon, ShapeI,
 };
 pub use drawme::{
-    Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateAnnos, UpdateImage, UpdateView,
-    UpdateZoomBox,
+    Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateImage, UpdatePermAnnos,
+    UpdateTmpAnno, UpdateView, UpdateZoomBox,
 };
 pub use events::{Event, Events, KeyCode};
 pub use main_loop::MainEventLoop;

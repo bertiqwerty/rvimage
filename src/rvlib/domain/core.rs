@@ -533,6 +533,15 @@ pub type TPtI = u32;
 pub type PtF = Point<TPtF>;
 pub type PtI = Point<TPtI>;
 
+impl PtF {
+    pub fn round_signed(&self) -> Point<i32> {
+        Point {
+            x: self.x.round() as i32,
+            y: self.y.round() as i32,
+        }
+    }
+}
+
 impl PtI {
     pub fn from_signed(p: (i32, i32)) -> RvResult<Self> {
         if p.0 < 0 || p.1 < 0 {

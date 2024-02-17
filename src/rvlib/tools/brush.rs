@@ -23,7 +23,7 @@ use crate::{
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
     world::World,
-    Line, ShapeI,
+    Annotation, BrushAnnotation, Line, ShapeI,
 };
 
 use super::{
@@ -233,7 +233,7 @@ impl Brush {
             let erase = get_options(&world).map(|o| o.core_options.erase);
             if let Some(mp) = events.mouse_pos_on_orig {
                 if erase != Some(true) {
-                    if let Some((line, _)) =
+                    let line = if let Some((line, _)) =
                         get_specific_mut(&mut world).and_then(|d| d.tmp_line.as_mut())
                     {
                         let last_point = line.line.last_point();
@@ -245,11 +245,27 @@ impl Brush {
                         if dist >= 3.0 {
                             line.line.push(mp);
                         }
+                        Some(line.clone())
+                    } else {
+                        None
+                    };
+                    if let (Some(line), Some(color)) = (
+                        line,
+                        get_specific(&world)
+                            .map(|d| d.label_info.colors()[d.label_info.cat_idx_current]),
+                    ) {
+                        world.request_redraw_tmp_anno(Annotation::Brush(BrushAnnotation {
+                            canvas: Canvas::new(&line, world.shape_orig()).unwrap(),
+                            tmp_line: Some(line.clone()),
+                            color: color,
+                            label: None,
+                            is_selected: None,
+                        }));
                     }
                 }
             }
-            set_visible(&mut world);
         }
+
         (world, history)
     }
 

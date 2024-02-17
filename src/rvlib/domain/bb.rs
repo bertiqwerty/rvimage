@@ -404,6 +404,18 @@ impl From<BbI> for BbF {
     }
 }
 
+impl BbI {
+    pub fn expand(&self, x_expand: TPtI, y_expand: TPtI, shape: ShapeI) -> Self {
+        let (x, y) = (
+            self.x.saturating_sub(x_expand),
+            self.y.saturating_sub(y_expand),
+        );
+        let (w, h) = (self.w + 2 * x_expand, self.h + 2 * y_expand);
+        let (w, h) = (w.clamp(1, shape.w), h.clamp(1, shape.h));
+        Self { x, y, w, h }
+    }
+}
+
 impl<T> From<&[T; 4]> for BB<T>
 where
     T: Calc + CoordinateBox,
@@ -463,4 +475,15 @@ fn test_rot() {
     let p_max = PtF { x: 8.0, y: 2.0 };
     let bb_ref_3 = BB::from_points(p_min, p_max);
     assert_eq!(bb.rot90_with_image_ntimes(shape, 3), bb_ref_3);
+}
+
+#[test]
+fn test_expand() {
+    let bb = BbI::from_arr(&[0, 0, 10, 10])
+        .expand(1, 1, Shape::new(10, 10));
+    assert_eq!(bb, BbI::from_arr(&[0, 0, 10, 10]));
+
+    let bb = BbI::from_arr(&[5, 5, 10, 10])
+        .expand(1, 2, Shape::new(20, 20));
+    assert_eq!(bb, BbI::from_arr(&[4, 3, 12, 14]));
 }

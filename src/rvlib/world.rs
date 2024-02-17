@@ -1,11 +1,11 @@
 use crate::domain::{BbF, ShapeI};
-use crate::drawme::{Annotation, UpdateImage};
+use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
 use crate::file_util::MetaData;
 use crate::tools::add_tools_initial_data;
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
 use crate::util::Visibility;
-use crate::{image_util, UpdateAnnos, UpdateView, UpdateZoomBox};
+use crate::{image_util, UpdatePermAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
 use std::collections::HashMap;
 use std::{fmt::Debug, mem};
@@ -149,7 +149,8 @@ impl World {
             zoom_box,
             update_view: UpdateView {
                 image: UpdateImage::Yes(im),
-                annos: UpdateAnnos::No,
+                perm_annos: UpdatePermAnnos::No,
+                tmp_annos: UpdateTmpAnno::No,
                 zoom_box: UpdateZoomBox::Yes(zoom_box),
                 image_info: None,
             },
@@ -164,37 +165,27 @@ impl World {
             self.data.tools_data_map.get(tool_name),
         ) {
             (Visibility::All, Some(file_path), Some(td)) => {
-                self.update_view.annos = td.specifics.to_annotations_view(file_path, None);
+                self.update_view.perm_annos = td.specifics.to_annotations_view(file_path, None);
             }
 
             (Visibility::Only(idx), Some(file_path), Some(td)) => {
-                self.update_view.annos = td.specifics.to_annotations_view(file_path, Some(idx));
+                self.update_view.perm_annos =
+                    td.specifics.to_annotations_view(file_path, Some(idx));
             }
 
             (Visibility::None, _, _) => {
-                self.update_view.annos = UpdateAnnos::clear();
+                self.update_view.perm_annos = UpdatePermAnnos::clear();
             }
             _ => (),
         }
     }
 
     pub fn request_redraw_tmp_anno(&mut self, anno: Annotation) {
-        self.update_view.annos = match &mut self.update_view.annos {
-            UpdateAnnos::No => UpdateAnnos::Yes((vec![], Some(anno))),
-            UpdateAnnos::Yes((perma_annos, _)) => {
-                UpdateAnnos::Yes((std::mem::take(perma_annos), Some(anno)))
-            }
-        }
+        self.update_view.tmp_annos = UpdateTmpAnno::Yes(anno);
     }
 
     pub fn stop_tmp_anno(&mut self) {
-        self.update_view.annos = match &mut self.update_view.annos {
-            // hmm... this might override other permanent annos that were not updated recently
-            UpdateAnnos::No => UpdateAnnos::clear(),
-            UpdateAnnos::Yes((perma_annos, _)) => {
-                UpdateAnnos::Yes((std::mem::take(perma_annos), None))
-            }
-        }
+        self.update_view.tmp_annos = UpdateTmpAnno::No;
     }
 
     pub fn request_redraw_image(&mut self) {

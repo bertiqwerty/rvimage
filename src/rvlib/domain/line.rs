@@ -123,26 +123,3 @@ where
     }
     im
 }
-pub fn render_brushlines<'a, CLR>(
-    brush_lines: impl Iterator<Item = &'a BrushLine>,
-    image_or_shape: RenderTargetOrShape<CLR>,
-    color: CLR,
-) -> ImageBuffer<CLR, Vec<u8>>
-where
-    CLR: Pixel<Subpixel = u8>,
-{
-    let mut im = match image_or_shape {
-        RenderTargetOrShape::Image(im) => im,
-        RenderTargetOrShape::Shape(shape) => ImageBuffer::<CLR, Vec<u8>>::new(shape.w, shape.h),
-    };
-    for brush_line in brush_lines {
-        im = render_line(
-            brush_line.line.points_iter(),
-            brush_line.intensity,
-            brush_line.thickness,
-            RenderTargetOrShape::Image(im),
-            color,
-        );
-    }
-    im
-}

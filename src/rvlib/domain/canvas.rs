@@ -29,8 +29,9 @@ fn line_to_mask(line: &BrushLine, orig_shape: ShapeI) -> RvResult<(Vec<u8>, BbI)
         let center = PtF {
             x: line.line.points[0].x - bb.x,
             y: line.line.points[0].y - bb.y,
-        };
-        draw_filled_circle_mut(&mut im, center.into(), thickness_half as i32, color);
+        }
+        .round_signed();
+        draw_filled_circle_mut(&mut im, (center.x, center.y), thickness_half.round() as i32, color);
         im
     } else {
         render_line(

@@ -55,13 +55,15 @@ pub enum Update<T> {
 }
 
 pub type UpdateImage = Update<ViewImage>;
-// permament annotations in the Vec, one temporary annotation in the Option
-pub type UpdateAnnos = Update<(Vec<Annotation>, Option<Annotation>)>;
+// permament annotations
+pub type UpdatePermAnnos = Update<Vec<Annotation>>;
+// temporary annotation
+pub type UpdateTmpAnno = Update<Annotation>;
 pub type UpdateZoomBox = Update<Option<BbF>>;
 
-impl UpdateAnnos {
+impl UpdatePermAnnos {
     pub fn clear() -> Self {
-        Self::Yes((vec![], None))
+        Self::Yes(vec![])
     }
 }
 
@@ -76,7 +78,8 @@ pub struct ImageInfo {
 #[derive(Clone, Debug, Default)]
 pub struct UpdateView {
     pub image: UpdateImage,
-    pub annos: UpdateAnnos,
+    pub perm_annos: UpdatePermAnnos,
+    pub tmp_annos: UpdateTmpAnno,
     pub zoom_box: UpdateZoomBox,
     pub image_info: Option<ImageInfo>,
 }
@@ -85,7 +88,8 @@ impl UpdateView {
     pub fn from_zoombox(zoom_box: Option<BbF>) -> Self {
         UpdateView {
             image: UpdateImage::No,
-            annos: UpdateAnnos::No,
+            perm_annos: UpdatePermAnnos::No,
+            tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
             image_info: None,
         }

@@ -4,7 +4,7 @@ use crate::{
     result::{trace_ok, RvError, RvResult},
     rverr,
     world::World,
-    BrushAnnotation, UpdateAnnos,
+    BrushAnnotation, UpdatePermAnnos,
 };
 
 pub use self::core::{vis_from_lfoption, LabelInfo, OUTLINE_THICKNESS_CONVERSION};
@@ -185,7 +185,11 @@ impl ToolSpecifics {
         }
     }
 
-    pub fn to_annotations_view(&self, file_path: &str, only_cat_idx: Option<usize>) -> UpdateAnnos {
+    pub fn to_annotations_view(
+        &self,
+        file_path: &str,
+        only_cat_idx: Option<usize>,
+    ) -> UpdatePermAnnos {
         match self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
@@ -222,9 +226,9 @@ impl ToolSpecifics {
                             })
                         })
                         .collect::<Vec<Annotation>>();
-                    UpdateAnnos::Yes((bbs_colored, None))
+                    UpdatePermAnnos::Yes(bbs_colored)
                 } else {
-                    UpdateAnnos::clear()
+                    UpdatePermAnnos::clear()
                 }
             }
             ToolSpecifics::Brush(br_data) => {
@@ -264,12 +268,12 @@ impl ToolSpecifics {
                             })
                         })
                         .collect::<Vec<Annotation>>();
-                    UpdateAnnos::Yes((annos, None))
+                    UpdatePermAnnos::Yes(annos)
                 } else {
-                    UpdateAnnos::clear()
+                    UpdatePermAnnos::clear()
                 }
             }
-            _ => UpdateAnnos::default(),
+            _ => UpdatePermAnnos::default(),
         }
     }
 }
