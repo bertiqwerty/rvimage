@@ -307,7 +307,7 @@ pub(super) fn on_mouse_released_right(
                 _ => (),
             }
         }
-        if let Some(_) = mouse_pos {
+        if mouse_pos.is_some() {
             let annos = get_annos(&world);
             if let Some(annos) = annos {
                 if (0..annos.selected_mask().len()).any(|i| annos.selected_mask()[i]) {
