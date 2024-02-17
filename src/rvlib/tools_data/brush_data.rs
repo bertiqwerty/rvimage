@@ -4,15 +4,15 @@ use super::{
 };
 use crate::{
     cfg::ExportPath,
-    domain::{BrushLine, ShapeI},
+    domain::{Canvas, ShapeI},
     result::RvResult,
-    rverr,
+    rverr, BrushLine,
 };
 use crate::{domain::TPtF, implement_annotations_getters};
 
 use serde::{Deserialize, Serialize};
 
-pub type BrushAnnoMap = AnnotationsMap<BrushLine>;
+pub type BrushAnnoMap = AnnotationsMap<Canvas>;
 
 pub const MAX_THICKNESS: f64 = 300.0;
 pub const MIN_THICKNESS: f64 = 1.0;
@@ -42,10 +42,13 @@ impl Default for Options {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct BrushToolData {
     pub annotations_map: BrushAnnoMap,
+    // we might want to show this while it is being drawn,
+    // (line, cat_idx)
+    pub tmp_line: Option<(BrushLine, usize)>,
     pub options: Options,
     pub label_info: LabelInfo,
     #[serde(skip)]
-    pub clipboard: Option<ClipboardData<BrushLine>>,
+    pub clipboard: Option<ClipboardData<Canvas>>,
     pub export_folder: ExportPath,
 }
 impl BrushToolData {

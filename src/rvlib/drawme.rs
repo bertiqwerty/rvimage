@@ -1,5 +1,5 @@
 use crate::{
-    domain::{BbF, Circle, TPtF},
+    domain::{BbF, Canvas, Circle, TPtF},
     types::ViewImage,
     BrushLine, GeoFig,
 };
@@ -34,7 +34,8 @@ pub struct BboxAnnotation {
 
 #[derive(Clone, Debug)]
 pub struct BrushAnnotation {
-    pub brush_line: BrushLine,
+    pub canvas: Canvas,
+    pub tmp_line: Option<BrushLine>,
     pub color: [u8; 3],
     pub label: Option<String>,
     pub is_selected: Option<bool>,
@@ -54,13 +55,15 @@ pub enum Update<T> {
 }
 
 pub type UpdateImage = Update<ViewImage>;
-// permament annotations in the Vec, one temporary annotation in the Option
-pub type UpdateAnnos = Update<(Vec<Annotation>, Option<Annotation>)>;
+// permament annotations
+pub type UpdatePermAnnos = Update<Vec<Annotation>>;
+// temporary annotation
+pub type UpdateTmpAnno = Update<Annotation>;
 pub type UpdateZoomBox = Update<Option<BbF>>;
 
-impl UpdateAnnos {
+impl UpdatePermAnnos {
     pub fn clear() -> Self {
-        Self::Yes((vec![], None))
+        Self::Yes(vec![])
     }
 }
 
@@ -75,7 +78,8 @@ pub struct ImageInfo {
 #[derive(Clone, Debug, Default)]
 pub struct UpdateView {
     pub image: UpdateImage,
-    pub annos: UpdateAnnos,
+    pub perm_annos: UpdatePermAnnos,
+    pub tmp_annos: UpdateTmpAnno,
     pub zoom_box: UpdateZoomBox,
     pub image_info: Option<ImageInfo>,
 }
@@ -84,7 +88,8 @@ impl UpdateView {
     pub fn from_zoombox(zoom_box: Option<BbF>) -> Self {
         UpdateView {
             image: UpdateImage::No,
-            annos: UpdateAnnos::No,
+            perm_annos: UpdatePermAnnos::No,
+            tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
             image_info: None,
         }

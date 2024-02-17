@@ -43,27 +43,31 @@ where
         }
     }
 
-    pub fn from_vec(points: &[Point<T>]) -> RvResult<Self> {
-        let x_iter = points.iter().map(|p| p.x);
-        let y_iter = points.iter().map(|p| p.y);
+    // TODO: replace Point<T> by &Point<T>
+    pub fn from_points_iter(points: impl Iterator<Item = Point<T>> + Clone) -> RvResult<Self> {
+        let x_iter = points.clone().map(|p| p.x);
+        let y_iter = points.map(|p| p.y);
         let min_x = x_iter
             .clone()
             .min_by(min_from_partial)
-            .ok_or_else(|| rverr!("empty polygon"))?;
+            .ok_or_else(|| rverr!("empty iterator"))?;
         let min_y = y_iter
             .clone()
             .min_by(min_from_partial)
-            .ok_or_else(|| rverr!("empty polygon"))?;
+            .ok_or_else(|| rverr!("empty iterator"))?;
         let max_x = x_iter
             .max_by(max_from_partial)
-            .ok_or_else(|| rverr!("empty polygon"))?;
+            .ok_or_else(|| rverr!("empty iterator"))?;
         let max_y = y_iter
             .max_by(max_from_partial)
-            .ok_or_else(|| rverr!("empty polygon"))?;
+            .ok_or_else(|| rverr!("empty iterator"))?;
         Ok(BB::from_points(
             Point { x: min_x, y: min_y },
             Point { x: max_x, y: max_y },
         ))
+    }
+    pub fn from_vec(points: &[Point<T>]) -> RvResult<Self> {
+        Self::from_points_iter(points.iter().copied())
     }
 
     pub fn distance_to_boundary(&self, pos: Point<T>) -> T {
@@ -400,6 +404,18 @@ impl From<BbI> for BbF {
     }
 }
 
+impl BbI {
+    pub fn expand(&self, x_expand: TPtI, y_expand: TPtI, shape: ShapeI) -> Self {
+        let (x, y) = (
+            self.x.saturating_sub(x_expand),
+            self.y.saturating_sub(y_expand),
+        );
+        let (w, h) = (self.w + 2 * x_expand, self.h + 2 * y_expand);
+        let (w, h) = (w.clamp(1, shape.w), h.clamp(1, shape.h));
+        Self { x, y, w, h }
+    }
+}
+
 impl<T> From<&[T; 4]> for BB<T>
 where
     T: Calc + CoordinateBox,
@@ -459,4 +475,13 @@ fn test_rot() {
     let p_max = PtF { x: 8.0, y: 2.0 };
     let bb_ref_3 = BB::from_points(p_min, p_max);
     assert_eq!(bb.rot90_with_image_ntimes(shape, 3), bb_ref_3);
+}
+
+#[test]
+fn test_expand() {
+    let bb = BbI::from_arr(&[0, 0, 10, 10]).expand(1, 1, Shape::new(10, 10));
+    assert_eq!(bb, BbI::from_arr(&[0, 0, 10, 10]));
+
+    let bb = BbI::from_arr(&[5, 5, 10, 10]).expand(1, 2, Shape::new(20, 20));
+    assert_eq!(bb, BbI::from_arr(&[4, 3, 12, 14]));
 }
