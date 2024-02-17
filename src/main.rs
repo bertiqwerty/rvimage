@@ -300,7 +300,7 @@ struct RvImageApp {
     last_sensed_btncodes: LastSensedBtns,
     t_last_iterations: [f64; 3],
     egui_perm_shapes: Vec<Shape>,
-    egui_tmp_shapes: Vec<Shape>,
+    egui_tmp_shapes: [Option<Shape>; 2],
 }
 
 impl RvImageApp {
@@ -544,7 +544,13 @@ impl RvImageApp {
             }
         }
         ui.painter().add(Shape::Vec(self.egui_perm_shapes.clone()));
-        ui.painter().add(Shape::Vec(self.egui_tmp_shapes.clone()));
+        ui.painter().add(Shape::Vec(
+            self.egui_tmp_shapes
+                .iter()
+                .flatten()
+                .cloned()
+                .collect::<Vec<_>>(),
+        ));
     }
     fn collect_events(&mut self, ui: &mut Ui, image_response: &Response) -> rvlib::Events {
         let rect_size = image_response.rect.size();
@@ -643,21 +649,24 @@ impl eframe::App for RvImageApp {
                             update_texture = true;
                         }
                         match update_view.tmp_annos {
-                            UpdateTmpAnno::Yes(anno) => match anno {
-                                Annotation::Brush(brush) => {
-                                    if let Some(shape) =
-                                        self.update_brush_anno_tmp(&brush, &ir.rect)
-                                    {
-                                        self.egui_perm_shapes.push(shape);
+                            UpdateTmpAnno::Yes(anno) => {
+                                self.egui_tmp_shapes = [None, None];
+                                match anno {
+                                    Annotation::Brush(brush) => {
+                                        if let Some(shape) =
+                                            self.update_brush_anno_tmp(&brush, &ir.rect)
+                                        {
+                                            self.egui_tmp_shapes[0] = Some(shape);
+                                        }
+                                    }
+                                    Annotation::Bbox(bbox) => {
+                                        self.egui_tmp_shapes[1] =
+                                            Some(self.update_bbox_anno(&bbox, &ir.rect));
                                     }
                                 }
-                                Annotation::Bbox(bbox) => {
-                                    self.egui_tmp_shapes
-                                        .push(self.update_bbox_anno(&bbox, &ir.rect));
-                                }
-                            },
+                            }
                             UpdateTmpAnno::No => {
-                                self.egui_tmp_shapes.clear();
+                                self.egui_tmp_shapes = [None, None];
                             }
                         }
                         self.draw_annos(ui, update_texture);
