@@ -79,6 +79,7 @@ impl History {
         }
         if self.records.len() > MAX_HISTORY {
             self.records.remove(0);
+            self.current_idx = self.current_idx.map(|idx| idx - 1);
         }
     }
 
