@@ -479,11 +479,9 @@ fn test_rot() {
 
 #[test]
 fn test_expand() {
-    let bb = BbI::from_arr(&[0, 0, 10, 10])
-        .expand(1, 1, Shape::new(10, 10));
+    let bb = BbI::from_arr(&[0, 0, 10, 10]).expand(1, 1, Shape::new(10, 10));
     assert_eq!(bb, BbI::from_arr(&[0, 0, 10, 10]));
 
-    let bb = BbI::from_arr(&[5, 5, 10, 10])
-        .expand(1, 2, Shape::new(20, 20));
+    let bb = BbI::from_arr(&[5, 5, 10, 10]).expand(1, 2, Shape::new(20, 20));
     assert_eq!(bb, BbI::from_arr(&[4, 3, 12, 14]));
 }

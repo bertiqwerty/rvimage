@@ -31,7 +31,12 @@ fn line_to_mask(line: &BrushLine, orig_shape: ShapeI) -> RvResult<(Vec<u8>, BbI)
             y: line.line.points[0].y - bb.y,
         }
         .round_signed();
-        draw_filled_circle_mut(&mut im, (center.x, center.y), thickness_half.round() as i32, color);
+        draw_filled_circle_mut(
+            &mut im,
+            (center.x, center.y),
+            thickness_half.round() as i32,
+            color,
+        );
         im
     } else {
         render_line(

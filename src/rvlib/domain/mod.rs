@@ -9,7 +9,7 @@ pub use core::{
     color_with_intensity, dist_lineseg_point, max_from_partial, min_from_partial, Calc, Circle,
     CoordinateBox, InstanceAnnotate, OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
 };
-pub use line::{bresenham_iter,  BrushLine, Line, RenderTargetOrShape};
+pub use line::{bresenham_iter, BrushLine, Line, RenderTargetOrShape};
 pub use polygon::Polygon;
 use serde::{Deserialize, Serialize};
 

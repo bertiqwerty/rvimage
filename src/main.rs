@@ -461,7 +461,7 @@ impl RvImageApp {
                     );
 
                     if let Some(mask) = mask {
-                        let k = 5 as u8;
+                        let k = 5u8;
                         let expansion = (k / 2) as TPtI;
                         let new_bb = anno
                             .canvas

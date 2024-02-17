@@ -257,7 +257,7 @@ impl Brush {
                         world.request_redraw_tmp_anno(Annotation::Brush(BrushAnnotation {
                             canvas: Canvas::new(&line, world.shape_orig()).unwrap(),
                             tmp_line: Some(line.clone()),
-                            color: color,
+                            color,
                             label: None,
                             is_selected: None,
                         }));
