@@ -872,7 +872,14 @@ fn test_mouse_held() {
         annos.unwrap().select(0);
         let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());
         assert_ne!(get_annos(&world).unwrap().elts()[0], GeoFig::BB(bbs[0]));
-
+        assert!(history_equal(&history, &new_hist));
+        let (_, new_hist, _) = on_mouse_released_right(
+            mouse_pos,
+            PrevPos::default(),
+            Visibility::All,
+            world,
+            history.clone(),
+        );
         assert!(!history_equal(&history, &new_hist));
     }
 }
