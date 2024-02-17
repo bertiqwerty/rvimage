@@ -220,25 +220,21 @@ pub(super) fn on_mouse_held_right(
     mouse_pos: Option<PtF>,
     params: MouseMoveParams,
     mut world: World,
-    mut history: History,
+    history: History,
 ) -> (World, History) {
     if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
         let orig_shape = world.data.shape();
-        let mut add_to_history = false;
         let move_boxes = |mpo_from, mpo_to| {
             let split_mode = get_options(&world).map(|o| o.split_mode);
             let annos = get_annos_mut(&mut world);
             if let (Some(annos), Some(split_mode)) = (annos, split_mode) {
                 let tmp = mem::take(annos)
                     .selected_follow_movement(mpo_from, mpo_to, orig_shape, split_mode);
-                (*annos, add_to_history) = tmp;
+                (*annos, _) = tmp;
             }
             Some(())
         };
         params.mover.move_mouse_held(move_boxes, mouse_pos);
-        if add_to_history {
-            history.push(Record::new(world.clone(), ACTOR_NAME));
-        }
         let vis = get_visible(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
     }
@@ -309,6 +305,14 @@ pub(super) fn on_mouse_released_right(
                             .unwrap();
                 }
                 _ => (),
+            }
+        }
+        if let Some(_) = mouse_pos {
+            let annos = get_annos(&world);
+            if let Some(annos) = annos {
+                if (0..annos.selected_mask().len()).any(|i| annos.selected_mask()[i]) {
+                    history.push(Record::new(world.clone(), ACTOR_NAME));
+                }
             }
         }
     }
