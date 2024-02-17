@@ -1,6 +1,6 @@
 use image::{ImageBuffer, Luma, Pixel};
 use imageproc::drawing::draw_filled_circle_mut;
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
 use crate::{color_with_intensity, domain::OutOfBoundsMode, result::RvResult, rverr, ShapeI};
 
@@ -55,6 +55,41 @@ fn line_to_mask(line: &BrushLine, orig_shape: ShapeI) -> RvResult<(Vec<u8>, BbI)
     };
     Ok((im.to_vec(), bbi))
 }
+
+pub fn mask_to_rle(mask: &[u8], w: u32, h: u32) -> Vec<u32> {
+    let mut rle = Vec::new();
+    let mut current_run = 0;
+    let mut current_value = 0;
+    for y in 0..h {
+        for x in 0..w {
+            let value = mask[(y * w + x) as usize];
+            if value == current_value {
+                current_run += 1;
+            } else {
+                rle.push(current_run);
+                current_run = 1;
+                current_value = value;
+            }
+        }
+    }
+    rle.push(current_run);
+    rle
+}
+
+pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
+    let mut mask = vec![0; (w * h) as usize];
+    for (i, &run) in rle.iter().enumerate() {
+        let value = i % 2;
+        let start = rle.iter().take(i).sum::<u32>();
+        for idx in start..(start + run) {
+            let x = idx % w;
+            let y = idx / w;
+            mask[(y * w + x) as usize] = value as u8;
+        }
+    }
+    mask
+}
+
 /// Access a with coordinates for the image containing the mask
 pub fn access_mask_abs(mask: &[u8], bb: BbI, p: PtI) -> u8 {
     if bb.contains(p) {
@@ -71,7 +106,7 @@ pub fn access_mask_rel(mask: &[u8], x: u32, y: u32, w: u32, h: u32) -> u8 {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Canvas {
     pub mask: Vec<u8>,
     pub bb: BbI,
@@ -85,6 +120,39 @@ impl Canvas {
             mask,
             bb,
             intensity: line.intensity,
+        })
+    }
+}
+
+impl Serialize for Canvas {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("Canvas", 3)?;
+        state.serialize_field("rle", &mask_to_rle(&self.mask, self.bb.w, self.bb.h))?;
+        state.serialize_field("bb", &self.bb)?;
+        state.serialize_field("intensity", &self.intensity)?;
+        state.end()
+    }
+}
+impl<'de> Deserialize<'de> for Canvas {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct CanvasDe {
+            rle: Vec<u32>,
+            bb: BbI,
+            intensity: TPtF,
+        }
+        let canvas_de = CanvasDe::deserialize(deserializer)?;
+        let mask = rle_to_mask(&canvas_de.rle, canvas_de.bb.w, canvas_de.bb.h);
+        Ok(Self {
+            mask,
+            bb: canvas_de.bb,
+            intensity: canvas_de.intensity,
         })
     }
 }
@@ -193,4 +261,41 @@ fn test_canvas_single() {
     };
     let cv = Canvas::new(&bl, orig_shape).unwrap();
     assert!(cv.mask.iter().sum::<u8>() > 0)
+}
+
+#[test]
+fn test_rle() {
+    let mask = vec![0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let rle = mask_to_rle(&mask, 3, 3);
+    assert_eq!(rle, vec![9]);
+    let mask2 = rle_to_mask(&rle, 3, 3);
+    assert_eq!(mask, mask2);
+
+    let mask = vec![1, 1, 1, 1, 1, 1, 1, 1, 1];
+    let rle = mask_to_rle(&mask, 3, 3);
+    assert_eq!(rle, vec![0, 9]);
+    let mask2 = rle_to_mask(&rle, 3, 3);
+    assert_eq!(mask, mask2);
+
+    let mask = vec![1, 0, 0, 1, 1, 1, 0, 0, 0];
+    let rle = mask_to_rle(&mask, 3, 3);
+    assert_eq!(rle, vec![0, 1, 2, 3, 3]);
+    let mask2 = rle_to_mask(&rle, 3, 3);
+    assert_eq!(mask, mask2);
+}
+
+#[test]
+fn test_canvas_serde() {
+    let orig_shape = ShapeI::new(30, 30);
+    let bl = BrushLine {
+        line: Line {
+            points: vec![PtF { x: 5.0, y: 5.0 }],
+        },
+        intensity: 0.5,
+        thickness: 3.0,
+    };
+    let cv = Canvas::new(&bl, orig_shape).unwrap();
+    let s = serde_json::to_string(&cv).unwrap();
+    let cv_read: Canvas = serde_json::from_str(&s).unwrap();
+    assert_eq!(cv, cv_read);
 }
