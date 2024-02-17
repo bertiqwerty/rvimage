@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
-use rvlib::{
-    control::Control,
-    world::ToolsDataMap,
-};
+use rvlib::{control::Control, world::ToolsDataMap};
 
 fn get_test_folder() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
