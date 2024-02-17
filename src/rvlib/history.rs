@@ -3,6 +3,8 @@ use tracing::info;
 use crate::world::World;
 use std::fmt::Debug;
 
+const MAX_HISTORY: usize = 20;
+
 #[derive(Clone)]
 pub struct Record {
     pub world: World,
@@ -74,6 +76,9 @@ impl History {
                 self.current_idx = Some(idx + 1);
                 self.records.push(record);
             }
+        }
+        if self.records.len() > MAX_HISTORY {
+            self.records.remove(0);
         }
     }
 
