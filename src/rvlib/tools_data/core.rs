@@ -318,7 +318,7 @@ impl Default for LabelInfo {
 }
 #[cfg(test)]
 use crate::{
-    domain::{BrushLine, Canvas, Line},
+    domain::{BrushLine, Canvas, Line, PtF},
     tools_data::brush_data,
 };
 #[test]
@@ -427,9 +427,11 @@ fn test_merge_annos() {
     };
     let mut annos_map1: super::brush_data::BrushAnnoMap = AnnotationsMap::new();
 
+    let mut line = Line::new();
+    line.push(PtF { x: 5.0, y: 5.0 });
     let anno1 = Canvas::new(
         &BrushLine {
-            line: Line::new(),
+            line: line.clone(),
             thickness: 1.0,
             intensity: 1.0,
         },
@@ -446,7 +448,7 @@ fn test_merge_annos() {
     let mut annos_map2: brush_data::BrushAnnoMap = AnnotationsMap::new();
     let anno2 = Canvas::new(
         &BrushLine {
-            line: Line::new(),
+            line,
             thickness: 2.0,
             intensity: 2.0,
         },
