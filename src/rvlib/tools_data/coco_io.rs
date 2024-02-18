@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
-    domain::{BbF, Point, ShapeI, TPtF},
+    domain::{BbF, Point, ShapeI, TPtF, TPtI},
     file_util::{self, path_to_str, MetaData},
     result::{to_rv, RvError, RvResult},
     rverr, ssh,
@@ -37,6 +37,19 @@ struct CocoImage {
 struct CocoBboxCategory {
     id: u32,
     name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct CocoRle {
+    counts: Vec<TPtI>,
+    size: (TPtI, TPtI),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum CocoSegmentation {
+    Polygon(Vec<Vec<TPtF>>),
+    Rle(CocoRle),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -680,4 +693,22 @@ fn test_rotation_export_import() {
         }
     }
     assert_eq!(read.annotations_map, bbox_specifics.annotations_map);
+}
+
+#[test]
+fn test_serialize_rle() {
+    let rle = CocoRle {
+        counts: vec![1, 2, 3, 4],
+        size: (5, 6),
+    };
+    let rle = CocoSegmentation::Rle(rle);
+    let s = serde_json::to_string(&rle).unwrap();
+    println!("{s}");
+    let rle2: CocoSegmentation = serde_json::from_str(&s).unwrap();
+    assert_eq!(format!("{rle:?}"), format!("{rle2:?}"));
+    let poly = CocoSegmentation::Polygon(vec![vec![1.0, 2.0]]);
+    let s = serde_json::to_string(&poly).unwrap();
+    println!("{s}");
+    let poly2: CocoSegmentation = serde_json::from_str(&s).unwrap();
+    assert_eq!(format!("{poly:?}"), format!("{poly2:?}"));
 }
