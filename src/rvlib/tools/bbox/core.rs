@@ -329,13 +329,12 @@ impl Bbox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-
         // evaluate if a box or a polygon should be closed based on the number of points
         // at the time of the press and the number of points after the held
         let close_box_or_poly = self.points_at_press.map(|x| x + 4) < self.points_after_held;
         self.points_at_press = None;
         self.points_after_held = None;
-        
+
         let are_boxes_visible = get_visible(&world);
         if event.released(KeyCode::MouseLeft) {
             let params = MouseReleaseParams {
