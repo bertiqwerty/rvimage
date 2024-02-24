@@ -39,7 +39,6 @@ pub struct Options {
     #[serde(skip)]
     pub import_mode: ImportMode,
     pub split_mode: SplitMode,
-    pub export_absolute: bool,
     pub fill_alpha: u8,
     pub outline_alpha: u8,
     pub outline_thickness: u16,
@@ -54,7 +53,6 @@ impl Default for Options {
             is_import_triggered: false,
             import_mode: ImportMode::default(),
             split_mode: SplitMode::default(),
-            export_absolute: false,
             fill_alpha: 30,
             outline_alpha: 255,
             outline_thickness: OUTLINE_THICKNESS_CONVERSION as u16,
@@ -176,7 +174,7 @@ pub struct BboxExportData {
 
 impl BboxExportData {
     pub fn from_bbox_data(bbox_specifics: BboxSpecificData) -> Self {
-        let is_export_absolute = bbox_specifics.options.export_absolute;
+        let is_export_absolute = bbox_specifics.options.core_options.is_export_absolute;
         let (label_info, annotations_map, coco_file) = bbox_specifics.separate_data();
         let annotations = annotations_map
             .into_iter()

@@ -479,7 +479,7 @@ pub fn make_data(
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
     meta.connection_data = ConnectionData::Ssh(SshCfg::default());
     let mut bbox_data = BboxSpecificData::new();
-    bbox_data.options.export_absolute = export_absolute;
+    bbox_data.options.core_options.is_export_absolute = export_absolute;
     bbox_data.coco_file = ExportPath::default();
     bbox_data
         .label_info
