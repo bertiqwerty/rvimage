@@ -98,7 +98,7 @@ fn setup_custom_fonts(ctx: &egui::Context) {
     ctx.set_fonts(fonts);
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct LastSensedBtns {
     pub btn_codes: Vec<KeyCode>,
     pub modifiers: Vec<rvlib::Event>,
@@ -205,7 +205,10 @@ fn map_mouse_events(
         *last_sensed = btn_codes;
     }
 
-    if image_response.clicked() || image_response.drag_released() {
+    if image_response.clicked()
+        || image_response.secondary_clicked()
+        || image_response.drag_released()
+    {
         if last_sensed.btn_codes.contains(&KeyCode::MouseLeft) {
             events.push(rvlib::Event::Released(KeyCode::MouseLeft));
             for modifier in &last_sensed.modifiers {
@@ -619,7 +622,6 @@ impl eframe::App for RvImageApp {
                     self.update_texture(ctx);
                 }
                 if let UpdateImage::Yes(im) = update_view.image {
-                    println!("update image");
                     self.im_orig = im;
                     self.update_texture(ctx);
                 }
