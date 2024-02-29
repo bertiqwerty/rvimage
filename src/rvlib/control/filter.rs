@@ -3,11 +3,11 @@ use std::str::FromStr;
 use exmex::prelude::*;
 use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
 
-use crate::tools_data::InstanceAnnotate;
 use crate::result::{trace_ok, RvError, RvResult};
 use crate::rverr;
 use crate::tools::ATTRIBUTES_NAME;
 use crate::tools_data::annotations::InstanceAnnotations;
+use crate::tools_data::InstanceAnnotate;
 use crate::tools_data::LabelInfo;
 use crate::world::ToolsDataMap;
 

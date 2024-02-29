@@ -277,14 +277,13 @@ fn test_rle() {
     assert_eq!(rle, vec![0, 1, 2, 3, 3]);
     let mask2 = rle_to_mask(&rle, 3, 3);
     assert_eq!(mask, mask2);
-    
+
     let bb = BbI::from_arr(&[5, 5, 4, 4]);
     let shape_im = ShapeI::new(100, 100);
     let rle_bb = vec![1, 2, 3, 1, 9];
     let rle_im = rle_bb_to_image(&rle, bb, shape_im).unwrap();
     let rle_bb2 = rle_image_to_bb(&rle_im, bb, shape_im).unwrap();
     assert_eq!(rle_bb, rle_bb2);
-    
 }
 
 #[test]

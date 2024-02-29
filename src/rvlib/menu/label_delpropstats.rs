@@ -6,10 +6,10 @@ use tracing::info;
 use super::{main::TextBuffers, ui_util::button_triggerable_number};
 use crate::{
     control::{Control, SortType},
-    tools_data::InstanceAnnotate,
     paths_selector::PathsSelector,
     result::RvResult,
     tools_data::AnnotationsMap,
+    tools_data::InstanceAnnotate,
     world::ToolsDataMap,
 };
 #[derive(Default)]

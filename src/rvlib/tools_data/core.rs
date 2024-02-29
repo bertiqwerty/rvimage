@@ -564,8 +564,8 @@ where
             self.labels
                 .clone()
                 .into_iter()
-                .zip(self.colors.clone().into_iter())
-                .zip(self.cat_ids.clone().into_iter()),
+                .zip(self.colors.clone())
+                .zip(self.cat_ids.clone()),
         )
     }
 }

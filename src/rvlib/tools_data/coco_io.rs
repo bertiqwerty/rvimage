@@ -94,7 +94,7 @@ fn insert_elt<A>(
 ) where
     A: InstanceAnnotate,
 {
-    let geo = elt.rot90_with_image_ntimes(&shape_rotated, n_rotations);
+    let geo = elt.rot90_with_image_ntimes(shape_rotated, n_rotations);
     if let Some(annos_of_image) = annos.get_mut(&path_as_key) {
         annos_of_image.0.push(geo);
         annos_of_image.1.push(cat_idx);
