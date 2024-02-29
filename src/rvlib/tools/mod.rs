@@ -3,6 +3,7 @@ mod attributes;
 mod bbox;
 mod brush;
 mod core;
+mod instance_anno_shared;
 mod rot90;
 mod zoom;
 

@@ -1,9 +1,5 @@
 use crate::{
-    domain::{BbF, InstanceAnnotate},
-    result::RvResult,
-    rverr,
-    util::true_indices,
-    ShapeI,
+    domain::BbF, result::RvResult, rverr, tools_data::InstanceAnnotate, util::true_indices, ShapeI,
 };
 use serde::{Deserialize, Serialize};
 use std::mem;

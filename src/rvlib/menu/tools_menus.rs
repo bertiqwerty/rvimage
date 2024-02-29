@@ -5,7 +5,7 @@ use tracing::{info, warn};
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
-    domain::{InstanceAnnotate, TPtF, TPtI},
+    domain::{TPtF, TPtI},
     file_util::path_to_str,
     menu::ui_util::process_number,
     result::{to_rv, RvResult},
@@ -14,8 +14,8 @@ use crate::{
         attributes_data::AttrVal,
         bbox_data::{BboxSpecificData, ImportMode},
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        AttributesToolData, BrushToolData, CoreOptions, LabelInfo, ToolSpecifics, ToolsData,
-        OUTLINE_THICKNESS_CONVERSION,
+        AttributesToolData, BrushToolData, CoreOptions, InstanceAnnotate, LabelInfo, ToolSpecifics,
+        ToolsData, OUTLINE_THICKNESS_CONVERSION,
     },
     ShapeI,
 };
@@ -378,7 +378,7 @@ pub fn brush_menu(
     export_file_menu(
         ui,
         "png export folder",
-        &mut data.export_folder,
+        &mut data.coco_file,
         are_tools_active,
         &mut data.options.core_options.is_export_triggered,
         None,

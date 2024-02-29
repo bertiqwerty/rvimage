@@ -3,7 +3,7 @@ use std::str::FromStr;
 use exmex::prelude::*;
 use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
 
-use crate::domain::InstanceAnnotate;
+use crate::tools_data::InstanceAnnotate;
 use crate::result::{trace_ok, RvError, RvResult};
 use crate::rverr;
 use crate::tools::ATTRIBUTES_NAME;

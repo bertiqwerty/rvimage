@@ -12,13 +12,14 @@ use crate::{
             check_erase_mode, check_recolorboxes, check_trigger_history_update,
             check_trigger_redraw, deselect_all, map_released_key, Mover,
         },
-        rot90, Manipulate, BBOX_NAME,
+        instance_anno_shared::get_rot90_data,
+        Manipulate, BBOX_NAME,
     },
     tools_data::{
         self,
         annotations::BboxAnnotations,
         bbox_data::{self, ImportMode},
-        bbox_mut, merge, vis_from_lfoption, LabelInfo, Rot90ToolData, OUTLINE_THICKNESS_CONVERSION,
+        bbox_mut, merge, vis_from_lfoption, LabelInfo, OUTLINE_THICKNESS_CONVERSION,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
@@ -100,12 +101,6 @@ fn check_anno_outoffolder_remove(mut world: World) -> World {
         set_visible(&mut world);
     }
     world
-}
-
-fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
-    tools_data::get(world, rot90::ACTOR_NAME, "no rotation_data_found")
-        .and_then(|d| d.specifics.rot90())
-        .ok()
 }
 
 fn check_cocoexport(mut world: World) -> World {

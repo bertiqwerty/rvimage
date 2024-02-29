@@ -56,7 +56,15 @@ pub trait CoordinateBox {
 
 impl CoordinateBox for TPtI {
     fn size_addon() -> Self {
-        TPtI::one()
+        Self::one()
+    }
+    fn is_close_to(&self, other: Self) -> bool {
+        *self == other
+    }
+}
+impl CoordinateBox for TPtS {
+    fn size_addon() -> Self {
+        1
     }
     fn is_close_to(&self, other: Self) -> bool {
         *self == other
@@ -148,14 +156,6 @@ where
     }
 }
 
-pub trait InstanceAnnotate: Clone + Default + PartialEq {
-    fn is_contained_in_image(&self, shape: ShapeI) -> bool;
-    fn contains<P>(&self, point: P) -> bool
-    where
-        P: Into<PtF>;
-    fn dist_to_boundary(&self, p: PtF) -> TPtF;
-}
-
 pub type ShapeI = Shape<u32>;
 pub type ShapeF = Shape<f64>;
 
@@ -218,6 +218,18 @@ impl ShapeI {
 impl From<[usize; 2]> for ShapeI {
     fn from(value: [usize; 2]) -> Self {
         Self::new(value[0] as u32, value[1] as u32)
+    }
+}
+
+impl<T> From<(T, T)> for Shape<T>
+where
+    T: Calc,
+{
+    fn from(value: (T, T)) -> Self {
+        Self {
+            w: value.0,
+            h: value.1,
+        }
     }
 }
 
@@ -530,6 +542,7 @@ where
 impl_point_into!(i32);
 pub type TPtF = f64;
 pub type TPtI = u32;
+pub type TPtS = i64;
 pub type PtF = Point<TPtF>;
 pub type PtI = Point<TPtI>;
 
