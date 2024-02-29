@@ -87,36 +87,24 @@ pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
     mask
 }
 
-fn count_bb_to_im(cnt: u32, prevcnt: u32, bb: BbI, w_im: TPtI) -> u32 {
-    let p_prev_im = PtI {
-        x: prevcnt / bb.w,
-        y: prevcnt % bb.w,
-    } + bb.min();
-    let count_prev_im = p_prev_im.y * w_im + p_prev_im.x;
+fn idx_bb_to_im(idx_bb: u32, bb: BbI, w_im: TPtI) -> u32 {
     let p_im = PtI {
-        x: cnt / bb.w,
-        y: cnt % bb.w,
+        y: idx_bb / bb.w,
+        x: idx_bb % bb.w,
     } + bb.min();
-    let count_current_im = p_im.y * w_im + p_im.x;
-    count_current_im - count_prev_im
+    p_im.y * w_im + p_im.x
 }
 
-fn count_im_to_bb(cnt: u32, prevcnt: u32, bb: BbI, w_im: TPtI) -> u32 {
-    let p_prev_bb = PtI {
-        x: prevcnt / w_im,
-        y: prevcnt % w_im,
-    } - bb.min();
-    let count_prev_bb = p_prev_bb.y * bb.w + p_prev_bb.x;
+fn idx_im_to_bb(idx_im: u32, bb: BbI, w_im: TPtI) -> u32 {
     let p_bb = PtI {
-        x: cnt / w_im,
-        y: cnt % w_im,
+        x: idx_im % w_im,
+        y: idx_im / w_im,
     } - bb.min();
-    let count_current_bb = p_bb.y * bb.w + p_bb.x;
-    count_current_bb - count_prev_bb
+    p_bb.y * bb.w + p_bb.x
 }
 /// The input rle is computed with respect to the bounding box coordinates
 /// the result is with respect to image coordinates
-pub fn rle_bb_to_image(rle: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
+pub fn rle_bb_to_image(rle_bb: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
     if !bb.is_contained_in_image(shape_im) {
         Err(rverr!(
             "Bounding box {} is not contained in image with shape {:?}",
@@ -124,10 +112,14 @@ pub fn rle_bb_to_image(rle: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u
             shape_im
         ))
     } else {
-        let mut rle_im = vec![0; rle.len()];
-        rle_im[0] = count_bb_to_im(rle[0], 0, bb, shape_im.w);
-        for i in 1..rle.len() {
-            rle_im[i] = count_bb_to_im(rle[i], rle[i - 1], bb, shape_im.w);
+        let mut rle_im = vec![0; rle_bb.len()];
+        let offset = idx_bb_to_im(0, bb, shape_im.w);
+        rle_im[0] = offset + rle_bb[0];
+        let mut prev_idx = rle_im[0];
+        for i in 1..rle_bb.len() {
+            let im_idx = idx_bb_to_im(rle_bb[..=i].iter().sum(), bb, shape_im.w);
+            rle_im[i] = im_idx - prev_idx;
+            prev_idx = im_idx;
         }
         Ok(rle_im)
     }
@@ -143,9 +135,13 @@ pub fn rle_image_to_bb(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Ve
         ))
     } else {
         let mut rle_bb = vec![0; rle_im.len()];
-        rle_bb[0] = count_im_to_bb(rle_im[0], 0, bb, shape_im.w);
+        let offset = idx_bb_to_im(0, bb, shape_im.w);
+        rle_bb[0] = rle_im[0] - offset;
+        let mut prev_idx = rle_bb[0];
         for i in 1..rle_im.len() {
-            rle_bb[i] = count_im_to_bb(rle_im[i], rle_im[i - 1], bb, shape_im.w);
+            let bb_idx = idx_im_to_bb(rle_im[..=i].iter().sum(), bb, shape_im.w);
+            rle_bb[i] = bb_idx - prev_idx;
+            prev_idx = bb_idx;
         }
         Ok(rle_bb)
     }
@@ -278,10 +274,17 @@ fn test_rle() {
     let mask2 = rle_to_mask(&rle, 3, 3);
     assert_eq!(mask, mask2);
 
-    let bb = BbI::from_arr(&[5, 5, 4, 4]);
-    let shape_im = ShapeI::new(100, 100);
-    let rle_bb = vec![1, 2, 3, 1, 9];
-    let rle_im = rle_bb_to_image(&rle, bb, shape_im).unwrap();
+    let bb = BbI::from_arr(&[5, 10, 4, 8]);
+    let shape_im = ShapeI::new(100, 200);
+    let x = idx_bb_to_im(0, bb, shape_im.w);
+    assert_eq!(x, 1005);
+    let x = idx_bb_to_im(1, bb, shape_im.w);
+    assert_eq!(x, 1006);
+    let x = idx_bb_to_im(3, bb, shape_im.w);
+    assert_eq!(x, 1008);
+    let rle_bb = vec![1, 2, 3, 1, 4];
+    let rle_im = rle_bb_to_image(&rle_bb, bb, shape_im).unwrap();
+    assert_eq!(rle_im, vec![1006, 2, 99, 1, 100]);
     let rle_bb2 = rle_image_to_bb(&rle_im, bb, shape_im).unwrap();
     assert_eq!(rle_bb, rle_bb2);
 }
