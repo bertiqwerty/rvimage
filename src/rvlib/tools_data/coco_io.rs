@@ -510,15 +510,8 @@ use {
     file_util::{ConnectionData, DEFAULT_TMPDIR},
     std::{fs, str::FromStr},
 };
-
 #[cfg(test)]
-pub fn make_data(
-    image_file: &Path,
-    opened_folder: Option<&Path>,
-    export_absolute: bool,
-    n_boxes: Option<usize>,
-) -> (BboxSpecificData, MetaData, PathBuf, ShapeI) {
-    let shape = ShapeI::new(20, 10);
+fn make_meta_data(opened_folder: Option<&Path>) -> (MetaData, PathBuf) {
     let opened_folder = if let Some(of) = opened_folder {
         of.to_str().unwrap().to_string()
     } else {
@@ -547,6 +540,64 @@ pub fn make_data(
     meta.opened_folder = Some(opened_folder);
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
     meta.connection_data = ConnectionData::Ssh(SshCfg::default());
+    (meta, test_export_path)
+}
+#[cfg(test)]
+fn make_data_brush(
+    image_file: &Path,
+    opened_folder: Option<&Path>,
+    export_absolute: bool,
+    n_boxes: Option<usize>,
+) -> (BrushToolData, MetaData, PathBuf, ShapeI) {
+    let shape = ShapeI::new(20, 10);
+    let mut bbox_data = BrushToolData::default();
+    bbox_data.options.core_options.is_export_absolute = export_absolute;
+    bbox_data.coco_file = ExportPath::default();
+    bbox_data
+        .label_info
+        .push("x".to_string(), None, None)
+        .unwrap();
+
+    bbox_data
+        .label_info
+        .remove_catidx(0, &mut bbox_data.annotations_map);
+
+    let mut bbs = make_test_bbs();
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    bbs.extend(bbs.clone());
+    if let Some(n) = n_boxes {
+        bbs = bbs[0..n].to_vec();
+    }
+
+    let annos = bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), shape);
+    if let Some(a) = annos {
+        for bb in bbs {
+            let mut mask = vec![0; (shape.w * shape.h) as usize];
+            mask[4] = 1;
+            let c = Canvas {
+                bb: bb.into(),
+                mask,
+                intensity: 0.5,
+            };
+            a.add_elt(c, 0);
+        }
+    }
+    let (meta, test_export_path) = make_meta_data(opened_folder);
+    (bbox_data, meta, test_export_path, shape)
+}
+#[cfg(test)]
+pub fn make_data_bbox(
+    image_file: &Path,
+    opened_folder: Option<&Path>,
+    export_absolute: bool,
+    n_boxes: Option<usize>,
+) -> (BboxSpecificData, MetaData, PathBuf, ShapeI) {
+    let shape = ShapeI::new(20, 10);
     let mut bbox_data = BboxSpecificData::new();
     bbox_data.options.core_options.is_export_absolute = export_absolute;
     bbox_data.coco_file = ExportPath::default();
@@ -577,6 +628,7 @@ pub fn make_data(
             a.add_bb(bb, 0);
         }
     }
+    let (meta, test_export_path) = make_meta_data(opened_folder);
     (bbox_data, meta, test_export_path, shape)
 }
 
@@ -603,8 +655,37 @@ where
 
 #[test]
 fn test_coco_export() -> RvResult<()> {
-    fn test(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) -> RvResult<()> {
-        let (bbox_data, meta, _, _) = make_data(&file_path, opened_folder, export_absolute, None);
+    fn test_br(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) -> RvResult<()> {
+        let (brush_data, meta, _, _) =
+            make_data_brush(&file_path, opened_folder, export_absolute, None);
+        let (coco_file, handle) = write_coco(&meta, brush_data.clone(), None)?;
+        handle.join().unwrap().unwrap();
+        defer_file_removal!(&coco_file);
+        let (_, read) = read_coco(
+            &meta,
+            &ExportPath {
+                path: coco_file.clone(),
+                conn: ExportPathConnection::Local,
+            },
+            None,
+        )?;
+        assert_eq!(brush_data.label_info.cat_ids(), read.label_info.cat_ids());
+        assert_eq!(brush_data.label_info.labels(), read.label_info.labels());
+        for (brush_anno, read_anno) in brush_data.anno_iter().zip(read.anno_iter()) {
+            let (name, (instance_annos, shape)) = brush_anno;
+            let (read_name, (read_instance_annos, read_shape)) = read_anno;
+            assert_eq!(instance_annos.cat_idxs(), read_instance_annos.cat_idxs());
+            assert_eq!(instance_annos.elts(), read_instance_annos.elts());
+            assert_eq!(name, read_name);
+            assert_eq!(shape, read_shape);
+        }
+        no_image_dups(&coco_file);
+
+        Ok(())
+    }
+    fn test_bb(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) -> RvResult<()> {
+        let (bbox_data, meta, _, _) =
+            make_data_bbox(&file_path, opened_folder, export_absolute, None);
         let (coco_file, handle) = write_coco(&meta, bbox_data.clone(), None)?;
         handle.join().unwrap().unwrap();
         defer_file_removal!(&coco_file);
@@ -633,10 +714,12 @@ fn test_coco_export() -> RvResult<()> {
     let tmpdir = read_cfg()?.tmpdir().unwrap().to_string();
     let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
     let file_path = tmpdir.join("test_image.png");
-    test(&file_path, None, true)?;
+    test_bb(&file_path, None, true)?;
+    test_br(&file_path, None, true)?;
     let folder = Path::new("http://localhost:8000/some_path");
     let file = Path::new("http://localhost:8000/some_path/xyz.png");
-    test(file, Some(folder), false)?;
+    test_bb(file, Some(folder), false)?;
+    test_br(file, Some(folder), false)?;
     Ok(())
 }
 
@@ -738,7 +821,7 @@ fn color_vs_str() {
 
 #[test]
 fn test_rotation_export_import() {
-    let (bbox_specifics, meta_data, coco_file, shape) = make_data(
+    let (bbox_specifics, meta_data, coco_file, shape) = make_data_bbox(
         Path::new("some_path.png"),
         Some(Path::new("afolder")),
         false,
