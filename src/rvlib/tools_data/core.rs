@@ -528,7 +528,7 @@ where
     // filename, bounding boxes, classes of the boxes, dimensions of the image
     pub annotations: HashMap<String, (Vec<A>, Vec<usize>, ShapeI)>,
     pub coco_file: ExportPath,
-    pub is_path_export_absolute: bool,
+    pub is_export_absolute: bool,
 }
 
 impl<A> InstanceExportData<A>
@@ -556,7 +556,7 @@ where
             cat_ids,
             annotations,
             coco_file,
-            is_path_export_absolute: is_export_absolute,
+            is_export_absolute,
         }
     }
     pub fn label_info(&self) -> RvResult<LabelInfo> {
@@ -592,7 +592,12 @@ pub trait InstanceAnnotate: Clone + Default + PartialEq {
     fn dist_to_boundary(&self, p: PtF) -> TPtF;
     fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self;
     fn enclosing_bb(&self) -> BbF;
-    fn to_cocoseg(&self, w_im: TPtI, h_im: TPtI) -> Option<CocoSegmentation>;
+    fn to_cocoseg(
+        &self,
+        w_im: TPtI,
+        h_im: TPtI,
+        is_export_absolute: bool,
+    ) -> Option<CocoSegmentation>;
 }
 pub trait ExportAsCoco<A>
 where

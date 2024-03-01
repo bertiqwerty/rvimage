@@ -77,6 +77,13 @@ impl GeoFig {
         )
     }
 
+    pub fn points(&self) -> Vec<PtF> {
+        match self {
+            GeoFig::BB(bb) => bb.points_iter().collect(),
+            GeoFig::Poly(poly) => poly.points_iter().collect(),
+        }
+    }
+
     pub fn points_normalized(&self, w: f64, h: f64) -> Vec<PtF> {
         fn convert(iter: impl Iterator<Item = PtF>, w: f64, h: f64) -> Vec<PtF> {
             iter.map(|p| Point {

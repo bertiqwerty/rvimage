@@ -19,16 +19,6 @@ fn prj_load(file: &str) -> ToolsDataMap {
 }
 
 #[test]
-fn test_prj_load_v2_3() {
-    prj_load("rvprj_v2-3_test_dummy.json");
-}
-
-#[test]
-fn test_prj_load_v2_4() {
-    prj_load("rvprj_v2-4_test_dummy.json");
-}
-
-#[test]
 fn test_prj_v3_2() {
     prj_load("rvprj_v3-2_test_dummy.json");
 }

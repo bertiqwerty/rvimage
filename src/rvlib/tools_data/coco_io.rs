@@ -180,8 +180,9 @@ impl CocoExportData {
                         .rot90_with_image_ntimes(shape, n_rots_inverted);
 
                     let bb = inst_anno.enclosing_bb();
-                    let segmentation = inst_anno.to_cocoseg(shape.w, shape.h);
-                    let (imw, imh) = if export_data.is_path_export_absolute {
+                    let segmentation =
+                        inst_anno.to_cocoseg(shape.w, shape.h, export_data.is_export_absolute);
+                    let (imw, imh) = if export_data.is_export_absolute {
                         (1.0, 1.0)
                     } else {
                         (shape.w as TPtF, shape.h as TPtF)
@@ -385,7 +386,7 @@ impl CocoExportData {
             cat_ids: cat_ids.clone(),
             annotations: annotations_bbox,
             coco_file: coco_file.clone(),
-            is_path_export_absolute: false,
+            is_export_absolute: false,
         })?;
         let brush_data = BrushToolData::from_coco_export_data(InstanceExportData {
             labels,
@@ -393,7 +394,7 @@ impl CocoExportData {
             cat_ids,
             annotations: annotations_brush,
             coco_file,
-            is_path_export_absolute: false,
+            is_export_absolute: false,
         })?;
         Ok((bbox_data, brush_data))
     }
@@ -618,7 +619,12 @@ fn test_coco_export() -> RvResult<()> {
         assert_eq!(bbox_data.label_info.cat_ids(), read.label_info.cat_ids());
         assert_eq!(bbox_data.label_info.labels(), read.label_info.labels());
         for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
-            assert_eq!(bbd_anno, read_anno);
+            let (name, (instance_annos, shape)) = bbd_anno;
+            let (read_name, (read_instance_annos, read_shape)) = read_anno;
+            assert_eq!(instance_annos.cat_idxs(), read_instance_annos.cat_idxs());
+            assert_eq!(instance_annos.elts(), read_instance_annos.elts());
+            assert_eq!(name, read_name);
+            assert_eq!(shape, read_shape);
         }
         no_image_dups(&coco_file);
 

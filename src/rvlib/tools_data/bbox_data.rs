@@ -207,11 +207,19 @@ impl InstanceAnnotate for GeoFig {
             Self::Poly(poly) => poly.distance_to_boundary(point),
         }
     }
-    fn to_cocoseg(&self, w_im: TPtI, h_im: TPtI) -> Option<core::CocoSegmentation> {
-        Some(CocoSegmentation::Polygon(vec![self
-            .points_normalized(w_im as TPtF, h_im as TPtF)
-            .iter()
-            .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))
-            .collect::<Vec<_>>()]))
+    fn to_cocoseg(
+        &self,
+        w_im: TPtI,
+        h_im: TPtI,
+        is_export_absolute: bool,
+    ) -> Option<core::CocoSegmentation> {
+        Some(CocoSegmentation::Polygon(vec![if is_export_absolute {
+            self.points()
+        } else {
+            self.points_normalized(w_im as TPtF, h_im as TPtF)
+        }
+        .iter()
+        .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))
+        .collect::<Vec<_>>()]))
     }
 }

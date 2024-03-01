@@ -157,7 +157,12 @@ impl InstanceAnnotate for Canvas {
             intensity: self.intensity,
         }
     }
-    fn to_cocoseg(&self, w_im: TPtI, h_im: TPtI) -> Option<core::CocoSegmentation> {
+    fn to_cocoseg(
+        &self,
+        w_im: TPtI,
+        h_im: TPtI,
+        _is_export_absolute: bool,
+    ) -> Option<core::CocoSegmentation> {
         let rle_bb = mask_to_rle(&self.mask, self.bb.w, self.bb.h);
         let rle_im = trace_ok(rle_bb_to_image(&rle_bb, self.bb, ShapeI::new(w_im, h_im)));
         rle_im.map(|rle_im| {
