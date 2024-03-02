@@ -121,7 +121,7 @@ impl CocoExportData {
     fn from_tools_data<T, A>(tools_data: T, rotation_data: Option<&Rot90ToolData>) -> RvResult<Self>
     where
         T: ExportAsCoco<A>,
-        A: InstanceAnnotate,
+        A: InstanceAnnotate + 'static,
     {
         let (options, label_info, anno_map, coco_file) = tools_data.separate_data();
         let color_str = if let Some(s) = colors_to_string(label_info.colors()) {
@@ -445,7 +445,7 @@ pub fn write_coco<T, A>(
 ) -> RvResult<(PathBuf, JoinHandle<RvResult<()>>)>
 where
     T: ExportAsCoco<A> + Send + 'static,
-    A: InstanceAnnotate,
+    A: InstanceAnnotate + 'static,
 {
     let coco_file = tools_data.cocofile_conn();
     let meta_data = meta_data.clone();
@@ -549,7 +549,7 @@ fn make_data_brush(
     export_absolute: bool,
     n_boxes: Option<usize>,
 ) -> (BrushToolData, MetaData, PathBuf, ShapeI) {
-    let shape = ShapeI::new(20, 10);
+    let shape = ShapeI::new(100, 40);
     let mut bbox_data = BrushToolData::default();
     bbox_data.options.core_options.is_export_absolute = export_absolute;
     bbox_data.coco_file = ExportPath::default();
@@ -577,7 +577,7 @@ fn make_data_brush(
     let annos = bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), shape);
     if let Some(a) = annos {
         for bb in bbs {
-            let mut mask = vec![0; (shape.w * shape.h) as usize];
+            let mut mask = vec![0; (bb.w * bb.h) as usize];
             mask[4] = 1;
             let c = Canvas {
                 bb: bb.into(),
@@ -587,6 +587,7 @@ fn make_data_brush(
             a.add_elt(c, 0);
         }
     }
+
     let (meta, test_export_path) = make_meta_data(opened_folder);
     (bbox_data, meta, test_export_path, shape)
 }
@@ -647,80 +648,86 @@ where
     P: AsRef<Path> + Debug,
 {
     let s = file_util::read_to_string(&coco_file).unwrap();
-    println!("{s}");
     let read_raw: CocoExportData = serde_json::from_str(s.as_str()).unwrap();
 
     assert!(is_image_duplicate_free(&read_raw));
 }
-
 #[test]
-fn test_coco_export() -> RvResult<()> {
-    fn test_br(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) -> RvResult<()> {
-        let (brush_data, meta, _, _) =
-            make_data_brush(&file_path, opened_folder, export_absolute, None);
-        let (coco_file, handle) = write_coco(&meta, brush_data.clone(), None)?;
-        handle.join().unwrap().unwrap();
-        defer_file_removal!(&coco_file);
-        let (_, read) = read_coco(
-            &meta,
-            &ExportPath {
-                path: coco_file.clone(),
-                conn: ExportPathConnection::Local,
-            },
-            None,
-        )?;
-        assert_eq!(brush_data.label_info.cat_ids(), read.label_info.cat_ids());
-        assert_eq!(brush_data.label_info.labels(), read.label_info.labels());
-        for (brush_anno, read_anno) in brush_data.anno_iter().zip(read.anno_iter()) {
+fn test_coco_export() {
+    fn assert_coco_eq<T, A>(data: T, read: T, coco_file: &PathBuf)
+    where
+        T: ExportAsCoco<A> + Send + 'static,
+        A: InstanceAnnotate + 'static + Debug,
+    {
+        assert_eq!(data.label_info().cat_ids(), read.label_info().cat_ids());
+        assert_eq!(data.label_info().labels(), read.label_info().labels());
+        for (brush_anno, read_anno) in data.anno_iter().zip(read.anno_iter()) {
             let (name, (instance_annos, shape)) = brush_anno;
             let (read_name, (read_instance_annos, read_shape)) = read_anno;
             assert_eq!(instance_annos.cat_idxs(), read_instance_annos.cat_idxs());
-            assert_eq!(instance_annos.elts(), read_instance_annos.elts());
+            assert_eq!(
+                instance_annos.elts().len(),
+                read_instance_annos.elts().len()
+            );
+            for (i, (a, b)) in instance_annos
+                .elts()
+                .iter()
+                .zip(read_instance_annos.elts().iter())
+                .enumerate()
+            {
+                assert_eq!(a, b, "annos at index {} differ", i);
+            }
             assert_eq!(name, read_name);
             assert_eq!(shape, read_shape);
         }
         no_image_dups(&coco_file);
-
-        Ok(())
     }
-    fn test_bb(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) -> RvResult<()> {
+    fn write_read<T, A>(
+        meta: &MetaData,
+        tools_data: T,
+    ) -> ((BboxSpecificData, BrushToolData), PathBuf)
+    where
+        T: ExportAsCoco<A> + Send + 'static,
+        A: InstanceAnnotate + 'static,
+    {
+        let (coco_file, handle) = write_coco(&meta, tools_data, None).unwrap();
+        handle.join().unwrap().unwrap();
+        (
+            read_coco(
+                &meta,
+                &ExportPath {
+                    path: coco_file.clone(),
+                    conn: ExportPathConnection::Local,
+                },
+                None,
+            )
+            .unwrap(),
+            coco_file,
+        )
+    }
+    fn test_br(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) {
+        let (brush_data, meta, _, _) =
+            make_data_brush(&file_path, opened_folder, export_absolute, None);
+        let ((_, read), coco_file) = write_read(&meta, brush_data.clone());
+        defer_file_removal!(&coco_file);
+        assert_coco_eq(brush_data, read, &coco_file);
+    }
+    fn test_bb(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) {
         let (bbox_data, meta, _, _) =
             make_data_bbox(&file_path, opened_folder, export_absolute, None);
-        let (coco_file, handle) = write_coco(&meta, bbox_data.clone(), None)?;
-        handle.join().unwrap().unwrap();
+        let ((read, _), coco_file) = write_read(&meta, bbox_data.clone());
         defer_file_removal!(&coco_file);
-        let (read, _) = read_coco(
-            &meta,
-            &ExportPath {
-                path: coco_file.clone(),
-                conn: ExportPathConnection::Local,
-            },
-            None,
-        )?;
-        assert_eq!(bbox_data.label_info.cat_ids(), read.label_info.cat_ids());
-        assert_eq!(bbox_data.label_info.labels(), read.label_info.labels());
-        for (bbd_anno, read_anno) in bbox_data.anno_iter().zip(read.anno_iter()) {
-            let (name, (instance_annos, shape)) = bbd_anno;
-            let (read_name, (read_instance_annos, read_shape)) = read_anno;
-            assert_eq!(instance_annos.cat_idxs(), read_instance_annos.cat_idxs());
-            assert_eq!(instance_annos.elts(), read_instance_annos.elts());
-            assert_eq!(name, read_name);
-            assert_eq!(shape, read_shape);
-        }
-        no_image_dups(&coco_file);
-
-        Ok(())
+        assert_coco_eq(bbox_data, read, &coco_file);
     }
-    let tmpdir = read_cfg()?.tmpdir().unwrap().to_string();
+    let tmpdir = read_cfg().unwrap().tmpdir().unwrap().to_string();
     let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
     let file_path = tmpdir.join("test_image.png");
-    test_bb(&file_path, None, true)?;
-    test_br(&file_path, None, true)?;
+    test_br(&file_path, None, true);
+    test_bb(&file_path, None, true);
     let folder = Path::new("http://localhost:8000/some_path");
     let file = Path::new("http://localhost:8000/some_path/xyz.png");
-    test_bb(file, Some(folder), false)?;
-    test_br(file, Some(folder), false)?;
-    Ok(())
+    test_br(file, Some(folder), false);
+    test_bb(file, Some(folder), false);
 }
 
 #[cfg(test)]

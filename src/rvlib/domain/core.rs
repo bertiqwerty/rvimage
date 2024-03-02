@@ -88,7 +88,6 @@ pub trait Calc:
     + PartialOrd
     + Abs
     + From<u32>
-    + Into<TPtF>
     + Clone
     + Copy
 {
@@ -108,7 +107,6 @@ impl<T> Calc for T where
         + PartialOrd
         + Abs
         + From<u32>
-        + Into<TPtF>
         + Clone
         + Copy
 {
@@ -379,52 +377,26 @@ where
         self.x * rhs.x + self.y * rhs.y
     }
 
-    /// the zero is in the bottom left of the image, y points upwards
-    fn to_math_coord_sys(self, h: u32) -> Self {
-        Self {
-            x: self.x,
-            y: T::from(h) - self.y,
-        }
-    }
-
-    /// origin is the origin of the image coordinate system relative to the math coord system.
-    fn to_image_coord_sys(self, origin: Point<T>) -> Self
+    fn rot90(&self, w: u32) -> Self
     where
-        T: Neg<Output = T>,
+        T: CoordinateBox,
     {
         Self {
-            x: self.x - origin.x,
-            y: -(self.y - origin.y),
-        }
-    }
-
-    fn rot90_in_math(&self) -> Self
-    where
-        T: Neg<Output = T>,
-    {
-        Self {
-            x: -self.y,
-            y: self.x,
+            x: self.y,
+            y: T::from(w) - self.x - T::size_addon(),
         }
     }
 
     /// Mathematically positively oriented, counter clockwise, like Rot90 tool, different from image crate
     pub fn rot90_with_image(&self, shape: &ShapeI) -> Self
     where
-        T: Neg<Output = T>,
+        T: Neg<Output = T> + CoordinateBox,
     {
-        let p_in_math = self.to_math_coord_sys(shape.h);
-        let p_rotated = p_in_math.rot90_in_math();
-        let top_right_corner_in_math = Self {
-            x: T::from(shape.w),
-            y: T::from(shape.h),
-        };
-        let origin = top_right_corner_in_math.rot90_in_math();
-        p_rotated.to_image_coord_sys(origin)
+        self.rot90(shape.w)
     }
     pub fn rot90_with_image_ntimes(&self, shape: &ShapeI, n: u8) -> Self
     where
-        T: Neg<Output = T>,
+        T: Neg<Output = T> + CoordinateBox,
     {
         if n > 0 {
             let mut p = self.rot90_with_image(shape);
@@ -545,6 +517,7 @@ pub type TPtI = u32;
 pub type TPtS = i64;
 pub type PtF = Point<TPtF>;
 pub type PtI = Point<TPtI>;
+pub type PtS = Point<TPtS>;
 
 impl PtF {
     pub fn round_signed(&self) -> Point<i32> {
@@ -581,6 +554,16 @@ impl PtI {
 impl From<PtI> for PtF {
     fn from(p: PtI) -> Self {
         ((p.x as f64), (p.y as f64)).into()
+    }
+}
+impl From<PtI> for PtS {
+    fn from(p: PtI) -> Self {
+        ((p.x as TPtS), (p.y as TPtS)).into()
+    }
+}
+impl From<PtS> for PtI {
+    fn from(p: PtS) -> Self {
+        ((p.x as u32), (p.y as u32)).into()
     }
 }
 impl From<PtF> for PtI {
@@ -629,9 +612,35 @@ where
 #[test]
 fn test_rot() {
     let shape = &Shape::new(5, 3);
-    let p = PtF { x: 2.0, y: 1.0 };
+    let p = PtS { x: 2, y: 1 };
     let p_rot_1 = p.rot90_with_image(shape);
-    assert!(p_rot_1.is_close_to(PtF { x: 1.0, y: 3.0 }));
+    assert!(p_rot_1.is_close_to(PtS { x: 1, y: 2 }));
+    assert!(p
+        .rot90_with_image_ntimes(shape, 2)
+        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+    let p = PtF { x: 2.5, y: 1.0 };
+    let p_rot_1 = p.rot90_with_image(shape);
+    assert!(p_rot_1.is_close_to(PtF { x: 1.0, y: 2.5 }));
+    assert!(p
+        .rot90_with_image_ntimes(shape, 2)
+        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+
+    let shape = &Shape::new(5, 10);
+    let p = PtS { x: 1, y: 2 };
+    let p_rot_1 = p.rot90_with_image(shape);
+    assert!(p_rot_1.is_close_to(PtS { x: 2, y: 3 }));
+    assert!(p
+        .rot90_with_image_ntimes(shape, 2)
+        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+    let p = PtF { x: 1.0, y: 2.0 };
+    let p_rot_1 = p.rot90_with_image(shape);
+    assert!(p_rot_1.is_close_to(PtF { x: 2.0, y: 4.0 }));
+    assert!(p
+        .rot90_with_image_ntimes(shape, 2)
+        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+    let p = PtF { x: 2.0, y: 4.0 };
+    let p_rot_1 = p.rot90_with_image(shape);
+    assert!(p_rot_1.is_close_to(PtF { x: 4.0, y: 3.0 }));
     assert!(p
         .rot90_with_image_ntimes(shape, 2)
         .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));

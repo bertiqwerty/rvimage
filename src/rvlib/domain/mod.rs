@@ -3,14 +3,14 @@ mod canvas;
 mod core;
 mod line;
 mod polygon;
-pub use bb::{BbF, BbI, BB};
+pub use bb::{BbF, BbI, BbS, BB};
 pub use canvas::{
     access_mask_abs, access_mask_rel, canvases_to_image, mask_to_rle, rle_bb_to_image,
     rle_image_to_bb, rle_to_mask, Canvas,
 };
 pub use core::{
     color_with_intensity, dist_lineseg_point, max_from_partial, min_from_partial, Calc, Circle,
-    CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
+    CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, PtS, ShapeF, ShapeI, TPtF, TPtI, TPtS,
 };
 pub use line::{bresenham_iter, BrushLine, Line, RenderTargetOrShape};
 pub use polygon::Polygon;

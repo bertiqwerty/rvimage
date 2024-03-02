@@ -601,8 +601,10 @@ pub trait InstanceAnnotate: Clone + Default + PartialEq {
 }
 pub trait ExportAsCoco<A>
 where
-    A: InstanceAnnotate,
+    A: InstanceAnnotate + 'static,
 {
     fn separate_data(self) -> (Options, LabelInfo, AnnotationsMap<A>, ExportPath);
     fn cocofile_conn(&self) -> ExportPath;
+    fn label_info(&self) -> &LabelInfo;
+    fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<A>, ShapeI))>;
 }

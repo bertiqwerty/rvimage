@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use super::{
-    annotations::{BrushAnnotations, ClipboardData},
+    annotations::{BrushAnnotations, ClipboardData, InstanceAnnotations},
     core::{self, AnnotationsMap, CocoRle, CocoSegmentation, ExportAsCoco, LabelInfo},
     InstanceAnnotate, InstanceExportData,
 };
 use crate::{
     cfg::ExportPath,
     domain::{
-        access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, BbF, Canvas, Point, PtF,
-        PtI, ShapeI, TPtI, BB,
+        access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, BbF, Canvas, PtF, PtI, PtS,
+        ShapeI, TPtI, TPtS, BB,
     },
     result::{trace_ok, RvResult},
     rverr, BrushLine,
@@ -119,6 +119,12 @@ impl ExportAsCoco<Canvas> for BrushToolData {
             self.coco_file,
         )
     }
+    fn label_info(&self) -> &LabelInfo {
+        &self.label_info
+    }
+    fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<Canvas>, ShapeI))> {
+        self.anno_iter()
+    }
 }
 
 impl InstanceAnnotate for Canvas {
@@ -138,17 +144,18 @@ impl InstanceAnnotate for Canvas {
     }
     fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
         let bb = self.bb;
-        let bb_f: BbF = BB::from(self.bb);
-        let bb_rot = bb_f.rot90_with_image_ntimes(shape, n);
+        let bb_s: BB<TPtS> = BB::from(self.bb);
+        let bb_rot = bb_s.rot90_with_image_ntimes(shape, n);
         let mut new_mask = self.mask.clone();
         for y in 0..bb.h {
             for x in 0..bb.w {
-                let p = Point { x, y } + bb.min();
-                let p_rot = PtF::from(p).rot90_with_image_ntimes(shape, n);
-                let p_newmask = p_rot - bb_rot.min();
+                let p_mask = PtI { x, y };
+                let p_im = p_mask + bb.min();
+                let p_im_rot = PtS::from(p_im).rot90_with_image_ntimes(shape, n);
+                let p_newmask = p_im_rot - bb_rot.min();
                 let p_newmask: PtI = p_newmask.into();
                 new_mask[p_newmask.y as usize * bb_rot.w as usize + p_newmask.x as usize] =
-                    self.mask[p.y as usize * bb.w as usize + p.x as usize];
+                    self.mask[p_mask.y as usize * bb.w as usize + p_mask.x as usize];
             }
         }
         Self {
@@ -201,7 +208,7 @@ impl InstanceAnnotate for Canvas {
     }
 }
 #[cfg(test)]
-use crate::domain::Line;
+use crate::domain::{BbI, Line};
 #[test]
 fn test_canvas() {
     let orig_shape = ShapeI::new(30, 30);
@@ -212,19 +219,58 @@ fn test_canvas() {
         intensity: 0.5,
         thickness: 3.0,
     };
-    let cv = Canvas::new(&bl, orig_shape).unwrap();
-    assert!(cv.contains(PtF { x: 5.0, y: 5.0 }));
-    assert!(!cv.contains(PtF { x: 0.0, y: 0.0 }));
-    assert!(cv.contains(PtF { x: 14.9, y: 14.9 }));
-    assert!(!cv.contains(PtF { x: 0.0, y: 9.9 }));
-    assert!(!cv.contains(PtF { x: 15.0, y: 15.0 }));
+    let canv = Canvas::new(&bl, orig_shape).unwrap();
+    assert!(canv.contains(PtF { x: 5.0, y: 5.0 }));
+    assert!(!canv.contains(PtF { x: 0.0, y: 0.0 }));
+    assert!(canv.contains(PtF { x: 14.9, y: 14.9 }));
+    assert!(!canv.contains(PtF { x: 0.0, y: 9.9 }));
+    assert!(!canv.contains(PtF { x: 15.0, y: 15.0 }));
 
-    assert!((cv.dist_to_boundary(PtF { x: 5.0, y: 5.0 }) - 1.0).abs() < 1e-8);
-    let dist = cv.dist_to_boundary(PtF { x: 5.0, y: 15.0 });
+    assert!((canv.dist_to_boundary(PtF { x: 5.0, y: 5.0 }) - 1.0).abs() < 1e-8);
+    let dist = canv.dist_to_boundary(PtF { x: 5.0, y: 15.0 });
     assert!(5.0 < dist && dist < 7.0);
-    for y in cv.bb.y_range() {
-        for x in cv.bb.x_range() {
-            access_mask_abs(&cv.mask, cv.bb, PtI { x, y });
+    for y in canv.bb.y_range() {
+        for x in canv.bb.x_range() {
+            access_mask_abs(&canv.mask, canv.bb, PtI { x, y });
         }
     }
+    let canv = Canvas::new(&bl, orig_shape).unwrap();
+    let canv_rot = canv.clone().rot90_with_image_ntimes(&orig_shape, 1);
+    let bl_rot = BrushLine {
+        line: Line {
+            points: vec![
+                PtF { x: 5.0, y: 5.0 }.rot90_with_image_ntimes(&orig_shape, 1),
+                PtF { x: 15.0, y: 15.0 }.rot90_with_image_ntimes(&orig_shape, 1),
+            ],
+        },
+        intensity: 0.5,
+        thickness: 3.0,
+    };
+    let canv_rot_ref = Canvas::new(&bl_rot, orig_shape).unwrap();
+    assert_eq!(canv_rot.mask, canv_rot_ref.mask);
+    let inter = canv_rot
+        .enclosing_bb()
+        .intersect(canv_rot_ref.enclosing_bb());
+    assert!(
+        (inter.w - canv_rot.enclosing_bb().w).abs() <= 1.0
+            && (inter.h - canv_rot.enclosing_bb().h).abs() <= 1.0
+    );
+    let canv = Canvas::new(&bl, orig_shape).unwrap();
+    assert_eq!(canv, canv.clone().rot90_with_image_ntimes(&orig_shape, 0));
+}
+
+#[test]
+fn test_canvas_rot() {
+    let canv = Canvas {
+        mask: vec![0, 0, 0, 1],
+        bb: BbI::from_arr(&[0, 0, 4, 1]),
+        intensity: 0.5,
+    };
+    let canv_rot = canv.clone().rot90_with_image_ntimes(&ShapeI::new(4, 1), 1);
+    let canv_ref = Canvas {
+        mask: vec![1, 0, 0, 0],
+        bb: BbI::from_arr(&[0, 0, 1, 4]),
+        intensity: 0.5,
+    };
+    assert_eq!(canv_rot, canv_ref);
 }
