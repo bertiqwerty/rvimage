@@ -108,6 +108,31 @@ impl BrushToolData {
 }
 impl Eq for BrushToolData {}
 
+impl<'de> Deserialize<'de> for BrushToolData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct BrushToolDataDe {
+            annotations_map: BrushAnnoMap,
+            options: Options,
+            label_info: LabelInfo,
+            coco_file: Option<ExportPath>,
+        }
+
+        let read = BrushToolDataDe::deserialize(deserializer)?;
+        Ok(Self {
+            annotations_map: read.annotations_map,
+            tmp_line: None,
+            options: read.options,
+            label_info: read.label_info,
+            clipboard: None,
+            coco_file: read.coco_file.unwrap_or_default(),
+        })
+    }
+}
+
 impl ExportAsCoco<Canvas> for BrushToolData {
     fn cocofile_conn(&self) -> ExportPath {
         self.coco_file.clone()
