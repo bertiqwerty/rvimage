@@ -8,8 +8,8 @@ use crate::{
 };
 
 pub use self::core::{
-    vis_from_lfoption, ImportMode, InstanceAnnotate, InstanceExportData, LabelInfo,
-    OUTLINE_THICKNESS_CONVERSION, ExportAsCoco
+    vis_from_lfoption, ExportAsCoco, ImportMode, InstanceAnnotate, InstanceExportData, LabelInfo,
+    OUTLINE_THICKNESS_CONVERSION,
 };
 pub use self::{
     attributes_data::AttributesToolData, bbox_data::BboxSpecificData, brush_data::BrushToolData,

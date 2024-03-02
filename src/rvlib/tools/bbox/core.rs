@@ -16,8 +16,8 @@ use crate::{
         Manipulate, BBOX_NAME,
     },
     tools_data::{
-        self, annotations::BboxAnnotations, bbox_data, bbox_mut, vis_from_lfoption,
-        LabelInfo, OUTLINE_THICKNESS_CONVERSION,
+        self, annotations::BboxAnnotations, bbox_data, bbox_mut, vis_from_lfoption, LabelInfo,
+        OUTLINE_THICKNESS_CONVERSION,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
