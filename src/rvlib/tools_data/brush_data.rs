@@ -45,11 +45,12 @@ impl Default for Options {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[derive(Serialize, Clone, Debug, PartialEq, Default)]
 pub struct BrushToolData {
     pub annotations_map: BrushAnnoMap,
     // we might want to show this while it is being drawn,
     // (line, cat_idx)
+    #[serde(skip)]
     pub tmp_line: Option<(BrushLine, usize)>,
     pub options: Options,
     pub label_info: LabelInfo,

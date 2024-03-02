@@ -6,19 +6,31 @@ use crate::{color_with_intensity, domain::OutOfBoundsMode, result::RvResult, rve
 
 use super::{bb::BB, line::render_line, BbI, BrushLine, PtF, PtI, RenderTargetOrShape, TPtF, TPtI};
 
-fn line_to_mask(line: &BrushLine, orig_shape: ShapeI) -> RvResult<(Vec<u8>, BbI)> {
+fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u8>, BbI)> {
     let thickness = line.thickness;
     let thickness_half = thickness * 0.5;
     let bb = BB::from_points_iter(line.line.points_iter())?;
-    let bb = BB::new_shape_checked(
+
+    let xywh = [
         bb.x - thickness_half,
         bb.y - thickness_half,
         bb.w + thickness,
         bb.h + thickness,
-        orig_shape,
-        OutOfBoundsMode::Resize(bb.shape()),
-    )
-    .ok_or_else(|| rverr!("Could not create bounding box for line"))?;
+    ];
+
+    let bb = match orig_shape {
+        Some(orig_shape) => BB::new_shape_checked(
+            xywh[0],
+            xywh[1],
+            xywh[2],
+            xywh[3],
+            orig_shape,
+            OutOfBoundsMode::Resize(bb.shape()),
+        )
+        .ok_or_else(|| rverr!("Could not create bounding box for line"))?,
+        None => BB::from_arr(&xywh),
+    };
+
     let color = Luma([1]);
     let bbi = BbI::from(bb);
     let im = if line.line.points.len() == 1 {
@@ -172,11 +184,20 @@ pub struct Canvas {
 
 impl Canvas {
     pub fn new(line: &BrushLine, orig_shape: ShapeI) -> RvResult<Self> {
-        let (mask, bb) = line_to_mask(line, orig_shape)?;
+        let (mask, bb) = line_to_mask(line, Some(orig_shape))?;
         Ok(Self {
             mask,
             bb,
             intensity: line.intensity,
+        })
+    }
+    /// This function does check the for out of bounds. We assume valid data has been serialized.
+    pub fn from_serialized_brush_line(bl: &BrushLine) -> RvResult<Self> {
+        let (mask, bb) = line_to_mask(bl, None)?;
+        Ok(Self {
+            mask,
+            bb,
+            intensity: bl.intensity,
         })
     }
 }
@@ -204,13 +225,26 @@ impl<'de> Deserialize<'de> for Canvas {
             bb: BbI,
             intensity: TPtF,
         }
-        let canvas_de = CanvasDe::deserialize(deserializer)?;
-        let mask = rle_to_mask(&canvas_de.rle, canvas_de.bb.w, canvas_de.bb.h);
-        Ok(Self {
-            mask,
-            bb: canvas_de.bb,
-            intensity: canvas_de.intensity,
-        })
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum CanvasOrBl {
+            Canvas(CanvasDe),
+            BrushLine(BrushLine),
+        }
+        let read = CanvasOrBl::deserialize(deserializer)?;
+        match read {
+            CanvasOrBl::Canvas(canvas_de) => {
+                let mask = rle_to_mask(&canvas_de.rle, canvas_de.bb.w, canvas_de.bb.h);
+                Ok(Self {
+                    mask,
+                    bb: canvas_de.bb,
+                    intensity: canvas_de.intensity,
+                })
+            }
+            CanvasOrBl::BrushLine(bl) => {
+                Canvas::from_serialized_brush_line(&bl).map_err(serde::de::Error::custom)
+            }
+        }
     }
 }
 
