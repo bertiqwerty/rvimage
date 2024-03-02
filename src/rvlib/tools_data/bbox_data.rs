@@ -23,13 +23,6 @@ use crate::{
 /// filename -> (annotations per file, file dimensions)
 pub type BboxAnnoMap = AnnotationsMap<GeoFig>;
 
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ImportMode {
-    Merge,
-    #[default]
-    Replace,
-}
-
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
     #[serde(skip)]
@@ -38,10 +31,6 @@ pub struct Options {
     pub auto_paste: bool,
     #[serde(skip)]
     pub is_anno_outoffolder_rm_triggered: bool,
-    #[serde(skip)]
-    pub is_import_triggered: bool,
-    #[serde(skip)]
-    pub import_mode: ImportMode,
     pub split_mode: SplitMode,
     pub fill_alpha: u8,
     pub outline_alpha: u8,
@@ -54,8 +43,6 @@ impl Default for Options {
             core_options: core::Options::default(),
             auto_paste: false,
             is_anno_outoffolder_rm_triggered: false,
-            is_import_triggered: false,
-            import_mode: ImportMode::default(),
             split_mode: SplitMode::default(),
             fill_alpha: 30,
             outline_alpha: 255,
@@ -176,6 +163,36 @@ impl ExportAsCoco<GeoFig> for BboxSpecificData {
     }
     fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<GeoFig>, ShapeI))> {
         self.anno_iter()
+    }
+    fn core_options_mut(&mut self) -> &mut core::Options {
+        &mut self.options.core_options
+    }
+    fn new(
+        options: core::Options,
+        label_info: LabelInfo,
+        anno_map: AnnotationsMap<GeoFig>,
+        export_path: ExportPath,
+    ) -> Self {
+        Self {
+            label_info,
+            annotations_map: anno_map,
+            clipboard: None,
+            options: Options {
+                core_options: options,
+                ..Default::default()
+            },
+            coco_file: export_path,
+            highlight_circles: vec![],
+        }
+    }
+    fn set_annotations_map(
+        &mut self,
+        map: HashMap<String, (InstanceAnnotations<GeoFig>, ShapeI)>,
+    ) -> RvResult<()> {
+        self.set_annotations_map(map)
+    }
+    fn set_labelinfo(&mut self, info: LabelInfo) {
+        self.label_info = info;
     }
 }
 

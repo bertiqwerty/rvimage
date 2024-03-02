@@ -6,8 +6,7 @@ use crate::result::{trace_ok, RvResult};
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{
-    self, get_mut, get_specific_mut, vis_from_lfoption, CoreOptions, InstanceAnnotate, LabelInfo,
-    ToolSpecifics,
+    self, get_mut, get_specific_mut, vis_from_lfoption, CoreOptions, InstanceAnnotate, LabelInfo, ToolSpecifics
 };
 use crate::ShapeI;
 use crate::{domain::PtF, events::Events, history::History, world::World};

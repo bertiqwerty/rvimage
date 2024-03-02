@@ -1,18 +1,25 @@
 use std::{cmp::Ordering, mem, thread};
 
+use brush_data::BrushToolData;
+
 use crate::{
     annotations_accessor, annotations_accessor_mut,
+    cfg::ExportPath,
     domain::{BrushLine, Canvas, PtF, TPtF},
     events::{Events, KeyCode},
+    file_util::MetaData,
     history::{History, Record},
     make_tool_transform,
     result::trace_ok,
-    tools::core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
+    tools::{
+        core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
+        instance_anno_shared::check_cocoimport,
+    },
     tools_data::{
         self,
         annotations::BrushAnnotations,
         brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        brush_mut, vis_from_lfoption, InstanceAnnotate, LabelInfo,
+        brush_mut, vis_from_lfoption, InstanceAnnotate, LabelInfo, Rot90ToolData,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
@@ -51,6 +58,23 @@ tools_data_accessors_objects!(
     brush_mut
 );
 
+fn import_coco_if_triggered(
+    meta_data: &MetaData,
+    coco_file: Option<&ExportPath>,
+    rot90_data: Option<&Rot90ToolData>,
+) -> Option<BrushToolData> {
+    if let Some(coco_file) = coco_file {
+        match tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data) {
+            Ok((_, brush_data)) => Some(brush_data),
+            Err(e) => {
+                tracing::error!("could not import coco due to {e:?}");
+                None
+            }
+        }
+    } else {
+        None
+    }
+}
 fn max_select_dist(shape: ShapeI) -> TPtF {
     (TPtF::from(shape.w.pow(2) + shape.h.pow(2)).sqrt() / 100.0).max(50.0)
 }
@@ -408,6 +432,14 @@ impl Manipulate for Brush {
         (world, history) = check_trigger_history_update(world, history, BRUSH_NAME, |d| {
             brush_mut(d).map(|d| &mut d.options.core_options)
         });
+        world = check_cocoimport(
+            world,
+            |w| get_options(w).map(|o| o.core_options),
+            get_rot90_data,
+            get_specific,
+            get_specific_mut,
+            import_coco_if_triggered,
+        );
         world = check_recolorboxes(
             world,
             BRUSH_NAME,

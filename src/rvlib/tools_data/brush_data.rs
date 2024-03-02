@@ -125,6 +125,37 @@ impl ExportAsCoco<Canvas> for BrushToolData {
     fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<Canvas>, ShapeI))> {
         self.anno_iter()
     }
+    fn core_options_mut(&mut self) -> &mut core::Options {
+        &mut self.options.core_options
+    }
+    fn new(
+        options: core::Options,
+        label_info: LabelInfo,
+        anno_map: AnnotationsMap<Canvas>,
+        export_path: ExportPath,
+    ) -> Self {
+        Self {
+            annotations_map: anno_map,
+            tmp_line: None,
+            options: Options {
+                core_options: options,
+                ..Default::default()
+            },
+            label_info,
+            clipboard: None,
+            coco_file: export_path,
+        }
+    }
+    fn set_annotations_map(
+        &mut self,
+        map: HashMap<String, (InstanceAnnotations<Canvas>, ShapeI)>,
+    ) -> RvResult<()> {
+        self.annotations_map = map;
+        Ok(())
+    }
+    fn set_labelinfo(&mut self, info: LabelInfo) {
+        self.label_info = info;
+    }
 }
 
 impl InstanceAnnotate for Canvas {

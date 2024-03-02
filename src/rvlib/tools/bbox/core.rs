@@ -12,14 +12,12 @@ use crate::{
             check_erase_mode, check_recolorboxes, check_trigger_history_update,
             check_trigger_redraw, deselect_all, map_released_key, Mover,
         },
-        instance_anno_shared::get_rot90_data,
+        instance_anno_shared::{check_cocoimport, get_rot90_data},
         Manipulate, BBOX_NAME,
     },
     tools_data::{
-        self,
-        annotations::BboxAnnotations,
-        bbox_data::{self, ImportMode},
-        bbox_mut, merge, vis_from_lfoption, LabelInfo, OUTLINE_THICKNESS_CONVERSION,
+        self, annotations::BboxAnnotations, bbox_data, bbox_mut, vis_from_lfoption,
+        LabelInfo, OUTLINE_THICKNESS_CONVERSION,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
@@ -111,49 +109,6 @@ fn check_cocoexport(mut world: World) -> World {
         export_if_triggered(&world.data.meta_data, bbox_data, rot90_data);
         if let Some(o) = get_options_mut(&mut world) {
             o.core_options.is_export_triggered = false;
-        }
-    }
-    world
-}
-
-fn check_cocoimport(mut world: World) -> World {
-    // import coco if demanded
-    let options = get_options(&world);
-    if let Some(options) = options {
-        let rot90_data = get_rot90_data(&world);
-        if let Some(imported_data) = import_coco_if_triggered(
-            &world.data.meta_data,
-            if options.is_import_triggered {
-                get_specific(&world).map(|o| &o.coco_file)
-            } else {
-                None
-            },
-            rot90_data,
-        ) {
-            if let Some(data_mut) = get_specific_mut(&mut world) {
-                if options.is_import_triggered {
-                    match options.import_mode {
-                        ImportMode::Replace => {
-                            data_mut.annotations_map = imported_data.annotations_map;
-                            data_mut.label_info = imported_data.label_info;
-                        }
-                        ImportMode::Merge => {
-                            let (annotations_map, label_info) = merge(
-                                mem::take(&mut data_mut.annotations_map),
-                                mem::take(&mut data_mut.label_info),
-                                imported_data.annotations_map,
-                                imported_data.label_info,
-                            );
-                            data_mut.annotations_map = annotations_map;
-                            data_mut.label_info = label_info;
-                        }
-                    }
-                    data_mut.options.is_import_triggered = false;
-                }
-                set_visible(&mut world);
-            }
-        } else if let Some(data_mut) = get_specific_mut(&mut world) {
-            data_mut.options.is_import_triggered = false;
         }
     }
     world
@@ -485,7 +440,14 @@ impl Manipulate for Bbox {
 
         world = check_cocoexport(world);
 
-        world = check_cocoimport(world);
+        world = check_cocoimport(
+            world,
+            |w| get_options(w).map(|o| o.core_options),
+            get_rot90_data,
+            get_specific,
+            get_specific_mut,
+            import_coco_if_triggered,
+        );
 
         let options = get_options(&world);
 
@@ -632,7 +594,7 @@ fn test_coco_import_label_info() {
         conn: ExportPathConnection::Local,
     };
     let label_info_before = data.label_info.clone();
-    data.options.is_import_triggered = true;
+    data.options.core_options.is_import_triggered = true;
     let mut bbox = Bbox::new();
     let events = Events::default();
     (world, _) = bbox.events_tf(world, history, &events);
@@ -640,5 +602,5 @@ fn test_coco_import_label_info() {
     let label_info_after = data.label_info.clone();
     assert_eq!(label_info_before.labels(), &["foreground", "label"]);
     assert_eq!(label_info_after.labels(), &["first label", "second label"]);
-    assert!(!data.options.is_import_triggered);
+    assert!(!data.options.core_options.is_import_triggered);
 }

@@ -12,10 +12,10 @@ use crate::{
     tools_data::{
         annotations::{InstanceAnnotations, SplitMode},
         attributes_data::AttrVal,
-        bbox_data::{BboxSpecificData, ImportMode},
+        bbox_data::BboxSpecificData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        AttributesToolData, BrushToolData, CoreOptions, InstanceAnnotate, LabelInfo, ToolSpecifics,
-        ToolsData, OUTLINE_THICKNESS_CONVERSION,
+        AttributesToolData, BrushToolData, CoreOptions, ImportMode, InstanceAnnotate, LabelInfo,
+        ToolSpecifics, ToolsData, OUTLINE_THICKNESS_CONVERSION,
     },
     ShapeI,
 };
@@ -301,8 +301,8 @@ pub fn bbox_menu(
             &mut data.coco_file,
             are_tools_active,
             &mut data.options.core_options.is_export_triggered,
-            Some(&mut data.options.is_import_triggered),
-            Some(&mut data.options.import_mode),
+            Some(&mut data.options.core_options.is_import_triggered),
+            Some(&mut data.options.core_options.import_mode),
         );
 
         ui.separator();
@@ -377,12 +377,12 @@ pub fn brush_menu(
     }
     export_file_menu(
         ui,
-        "png export folder",
+        "coco file",
         &mut data.coco_file,
         are_tools_active,
         &mut data.options.core_options.is_export_triggered,
-        None,
-        None,
+        Some(&mut data.options.core_options.is_import_triggered),
+        Some(&mut data.options.core_options.import_mode),
     )?;
     if ui.button("close").clicked() {
         window_open = false;

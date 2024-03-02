@@ -23,6 +23,12 @@ fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
 }
 
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImportMode {
+    Merge,
+    #[default]
+    Replace,
+}
 pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, ShapeI)>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Options {
@@ -31,6 +37,8 @@ pub struct Options {
     pub is_redraw_annos_triggered: bool,
     pub is_export_triggered: bool,
     pub is_export_absolute: bool,
+    pub is_import_triggered: bool,
+    pub import_mode: ImportMode,
     pub is_history_update_triggered: bool,
     pub track_changes: bool,
     pub erase: bool,
@@ -45,6 +53,8 @@ impl Default for Options {
             is_redraw_annos_triggered: false,
             is_export_triggered: false,
             is_export_absolute: false,
+            is_import_triggered: false,
+            import_mode: ImportMode::default(),
             is_history_update_triggered: false,
             track_changes: false,
             erase: false,
@@ -607,4 +617,16 @@ where
     fn cocofile_conn(&self) -> ExportPath;
     fn label_info(&self) -> &LabelInfo;
     fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<A>, ShapeI))>;
+    fn set_annotations_map(
+        &mut self,
+        map: HashMap<String, (InstanceAnnotations<A>, ShapeI)>,
+    ) -> RvResult<()>;
+    fn set_labelinfo(&mut self, info: LabelInfo);
+    fn core_options_mut(&mut self) -> &mut Options;
+    fn new(
+        options: Options,
+        label_info: LabelInfo,
+        anno_map: AnnotationsMap<A>,
+        export_path: ExportPath,
+    ) -> Self;
 }
