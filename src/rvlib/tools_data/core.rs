@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{
-    domain::{InstanceAnnotate, TPtF},
+    cfg::ExportPath,
+    domain::{BbF, PtF, TPtF, TPtI},
     result::RvResult,
     rverr,
     util::Visibility,
@@ -22,6 +23,12 @@ fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
 }
 
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImportMode {
+    Merge,
+    #[default]
+    Replace,
+}
 pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, ShapeI)>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Options {
@@ -29,6 +36,9 @@ pub struct Options {
     pub is_colorchange_triggered: bool,
     pub is_redraw_annos_triggered: bool,
     pub is_export_triggered: bool,
+    pub is_export_absolute: bool,
+    pub is_import_triggered: bool,
+    pub import_mode: ImportMode,
     pub is_history_update_triggered: bool,
     pub track_changes: bool,
     pub erase: bool,
@@ -42,6 +52,9 @@ impl Default for Options {
             is_colorchange_triggered: false,
             is_redraw_annos_triggered: false,
             is_export_triggered: false,
+            is_export_absolute: false,
+            is_import_triggered: false,
+            import_mode: ImportMode::default(),
             is_history_update_triggered: false,
             track_changes: false,
             erase: false,
@@ -318,7 +331,7 @@ impl Default for LabelInfo {
 }
 #[cfg(test)]
 use crate::{
-    domain::{BrushLine, Canvas, Line, PtF},
+    domain::{BrushLine, Canvas, Line},
     tools_data::brush_data,
 };
 #[test]
@@ -512,4 +525,108 @@ fn test_merge_annos() {
         assert_eq!(map_ref[k].0, *v);
         assert_eq!(map_ref[k].1, *s);
     }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+pub struct InstanceExportData<A>
+where
+    A: InstanceAnnotate,
+{
+    pub labels: Vec<String>,
+    pub colors: Vec<[u8; 3]>,
+    pub cat_ids: Vec<u32>,
+    // filename, bounding boxes, classes of the boxes, dimensions of the image
+    pub annotations: HashMap<String, (Vec<A>, Vec<usize>, ShapeI)>,
+    pub coco_file: ExportPath,
+    pub is_export_absolute: bool,
+}
+
+impl<A> InstanceExportData<A>
+where
+    A: InstanceAnnotate,
+{
+    pub fn from_tools_data(
+        options: &Options,
+        label_info: LabelInfo,
+        coco_file: ExportPath,
+        annotations_map: AnnotationsMap<A>,
+    ) -> Self {
+        let is_export_absolute = options.is_export_absolute;
+        let annotations = annotations_map
+            .into_iter()
+            .map(|(filename, (annos, shape))| {
+                let (bbs, labels, _) = annos.separate_data();
+                (filename, (bbs, labels, shape))
+            })
+            .collect::<HashMap<_, _>>();
+        let (labels, colors, cat_ids) = label_info.separate_data();
+        InstanceExportData {
+            labels,
+            colors,
+            cat_ids,
+            annotations,
+            coco_file,
+            is_export_absolute,
+        }
+    }
+    pub fn label_info(&self) -> RvResult<LabelInfo> {
+        LabelInfo::from_iter(
+            self.labels
+                .clone()
+                .into_iter()
+                .zip(self.colors.clone())
+                .zip(self.cat_ids.clone()),
+        )
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CocoRle {
+    pub counts: Vec<TPtI>,
+    pub size: (TPtI, TPtI),
+    pub intensity: Option<TPtF>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CocoSegmentation {
+    Polygon(Vec<Vec<TPtF>>),
+    Rle(CocoRle),
+}
+
+pub trait InstanceAnnotate: Clone + Default + PartialEq {
+    fn is_contained_in_image(&self, shape: ShapeI) -> bool;
+    fn contains<P>(&self, point: P) -> bool
+    where
+        P: Into<PtF>;
+    fn dist_to_boundary(&self, p: PtF) -> TPtF;
+    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self;
+    fn enclosing_bb(&self) -> BbF;
+    fn to_cocoseg(
+        &self,
+        w_im: TPtI,
+        h_im: TPtI,
+        is_export_absolute: bool,
+    ) -> Option<CocoSegmentation>;
+}
+pub trait ExportAsCoco<A>
+where
+    A: InstanceAnnotate + 'static,
+{
+    fn separate_data(self) -> (Options, LabelInfo, AnnotationsMap<A>, ExportPath);
+    fn cocofile_conn(&self) -> ExportPath;
+    fn label_info(&self) -> &LabelInfo;
+    fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<A>, ShapeI))>;
+    fn set_annotations_map(
+        &mut self,
+        map: HashMap<String, (InstanceAnnotations<A>, ShapeI)>,
+    ) -> RvResult<()>;
+    fn set_labelinfo(&mut self, info: LabelInfo);
+    fn core_options_mut(&mut self) -> &mut Options;
+    fn new(
+        options: Options,
+        label_info: LabelInfo,
+        anno_map: AnnotationsMap<A>,
+        export_path: ExportPath,
+    ) -> Self;
 }

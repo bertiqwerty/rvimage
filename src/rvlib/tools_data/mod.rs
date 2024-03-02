@@ -7,10 +7,13 @@ use crate::{
     BrushAnnotation, UpdatePermAnnos,
 };
 
-pub use self::core::{vis_from_lfoption, LabelInfo, OUTLINE_THICKNESS_CONVERSION};
+pub use self::core::{
+    vis_from_lfoption, ExportAsCoco, ImportMode, InstanceAnnotate, InstanceExportData, LabelInfo,
+    OUTLINE_THICKNESS_CONVERSION,
+};
 pub use self::{
-    attributes_data::AttributesToolData, bbox_data::BboxExportData, bbox_data::BboxSpecificData,
-    brush_data::BrushToolData, coco_io::write_coco, rot90_data::Rot90ToolData,
+    attributes_data::AttributesToolData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
+    coco_io::write_coco, rot90_data::Rot90ToolData,
 };
 use serde::{Deserialize, Serialize};
 pub mod annotations;

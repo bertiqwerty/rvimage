@@ -16,8 +16,8 @@ use rvlib::{
     orig_2_view, orig_pos_2_view_pos, project_on_bb, read_darkmode,
     result::trace_ok,
     scale_coord, tracing_setup, view_pos_2_orig_pos, Annotation, BboxAnnotation, BrushAnnotation,
-    GeoFig, ImageU8, KeyCode, MainEventLoop, ShapeI, UpdateImage, UpdatePermAnnos, UpdateTmpAnno,
-    UpdateZoomBox,
+    GeoFig, ImageU8, InstanceAnnotate, KeyCode, MainEventLoop, ShapeI, UpdateImage,
+    UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
 };
 use tracing::error;
 

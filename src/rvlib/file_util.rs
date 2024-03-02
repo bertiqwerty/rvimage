@@ -1,7 +1,6 @@
 #[cfg(feature = "azure_blob")]
 use crate::cfg::AzureBlobCfg;
 use crate::result::{to_rv, RvResult};
-use crate::tools_data::{bbox_data, BboxExportData};
 use crate::{
     cfg::{Cfg, PyHttpReaderCfg, SshCfg},
     rverr,
@@ -145,14 +144,7 @@ pub struct SaveData {
     pub tools_data_map: ToolsDataMap,
     pub cfg: Cfg,
 }
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-pub struct SaveDataLegacy {
-    pub opened_folder: Option<String>,
-    pub bbox_data: Option<BboxExportData>,
-    #[serde(skip_deserializing)]
-    pub bbox_options: Option<bbox_data::Options>,
-    pub cfg: Cfg,
-}
+
 pub struct Defer<F: FnMut()> {
     pub func: F,
 }

@@ -3,11 +3,14 @@ mod canvas;
 mod core;
 mod line;
 mod polygon;
-pub use bb::{BbF, BbI};
-pub use canvas::{access_mask_abs, access_mask_rel, canvases_to_image, Canvas};
+pub use bb::{BbF, BbI, BbS, BB};
+pub use canvas::{
+    access_mask_abs, access_mask_rel, canvases_to_image, mask_to_rle, rle_bb_to_image,
+    rle_image_to_bb, rle_to_mask, Canvas,
+};
 pub use core::{
     color_with_intensity, dist_lineseg_point, max_from_partial, min_from_partial, Calc, Circle,
-    CoordinateBox, InstanceAnnotate, OutOfBoundsMode, Point, PtF, PtI, ShapeF, ShapeI, TPtF, TPtI,
+    CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, PtS, ShapeF, ShapeI, TPtF, TPtI, TPtS,
 };
 pub use line::{bresenham_iter, BrushLine, Line, RenderTargetOrShape};
 pub use polygon::Polygon;
@@ -20,12 +23,6 @@ pub enum GeoFig {
 }
 
 impl GeoFig {
-    pub fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
-        match self {
-            Self::BB(bb) => Self::BB(bb.rot90_with_image_ntimes(shape, n)),
-            Self::Poly(poly) => Self::Poly(poly.rot90_with_image_ntimes(shape, n)),
-        }
-    }
     pub fn max_squaredist(&self, other: &Self) -> (PtF, PtF, TPtF) {
         match self {
             Self::BB(bb) => match other {
@@ -55,12 +52,6 @@ impl GeoFig {
             Self::Poly(poly) => poly.translate(p.x, p.y, shape, oob_mode).map(GeoFig::Poly),
         }
     }
-    pub fn enclosing_bb(&self) -> BbF {
-        match self {
-            Self::BB(bb) => *bb,
-            Self::Poly(poly) => poly.enclosing_bb(),
-        }
-    }
     pub fn point(&self, idx: usize) -> PtF {
         match &self {
             GeoFig::BB(bb) => bb.corner(idx),
@@ -86,6 +77,13 @@ impl GeoFig {
         )
     }
 
+    pub fn points(&self) -> Vec<PtF> {
+        match self {
+            GeoFig::BB(bb) => bb.points_iter().collect(),
+            GeoFig::Poly(poly) => poly.points_iter().collect(),
+        }
+    }
+
     pub fn points_normalized(&self, w: f64, h: f64) -> Vec<PtF> {
         fn convert(iter: impl Iterator<Item = PtF>, w: f64, h: f64) -> Vec<PtF> {
             iter.map(|p| Point {
@@ -103,29 +101,6 @@ impl GeoFig {
 impl Default for GeoFig {
     fn default() -> Self {
         Self::BB(BbF::default())
-    }
-}
-impl InstanceAnnotate for GeoFig {
-    fn is_contained_in_image(&self, shape: ShapeI) -> bool {
-        match self {
-            Self::BB(bb) => bb.is_contained_in_image(shape),
-            Self::Poly(poly) => poly.is_contained_in_image(shape),
-        }
-    }
-    fn contains<P>(&self, point: P) -> bool
-    where
-        P: Into<PtF>,
-    {
-        match self {
-            Self::BB(bb) => bb.contains(point.into()),
-            Self::Poly(poly) => poly.contains(point),
-        }
-    }
-    fn dist_to_boundary(&self, point: PtF) -> TPtF {
-        match self {
-            Self::BB(bb) => bb.distance_to_boundary(point),
-            Self::Poly(poly) => poly.distance_to_boundary(point),
-        }
     }
 }
 

@@ -5,8 +5,8 @@ use lazy_static::lazy_static;
 use crate::{
     cfg::ExportPath,
     domain::{
-        self, max_from_partial, min_from_partial, shape_unscaled, BbF, InstanceAnnotate,
-        OutOfBoundsMode, Point, PtF, ShapeF, TPtF,
+        self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF,
+        ShapeF, TPtF,
     },
     file_util::MetaData,
     history::{History, Record},
@@ -21,7 +21,7 @@ use crate::{
     tools_data::{
         self,
         annotations::{BboxAnnotations, SplitMode},
-        BboxSpecificData, Rot90ToolData,
+        BboxSpecificData, InstanceAnnotate, Rot90ToolData,
     },
     util::{true_indices, Visibility},
     world::World,
@@ -98,7 +98,7 @@ pub(super) fn import_coco_if_triggered(
 ) -> Option<BboxSpecificData> {
     if let Some(coco_file) = coco_file {
         match tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data) {
-            Ok(bbox_data) => Some(bbox_data),
+            Ok((bbox_data, _)) => Some(bbox_data),
             Err(e) => {
                 tracing::error!("could not import coco due to {e:?}");
                 None

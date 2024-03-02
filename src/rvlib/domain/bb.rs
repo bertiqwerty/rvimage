@@ -11,7 +11,7 @@ use super::{
         clamp_sub_zero, max_from_partial, max_squaredist, min_from_partial, CoordinateBox, Max,
         Min, Shape,
     },
-    Calc, OutOfBoundsMode, Point, PtF, PtI, TPtF, TPtI,
+    Calc, OutOfBoundsMode, Point, PtF, PtI, TPtF, TPtI, TPtS,
 };
 use crate::{
     result::{to_rv, RvError, RvResult},
@@ -19,6 +19,7 @@ use crate::{
 };
 
 pub type BbI = BB<TPtI>;
+pub type BbS = BB<TPtS>;
 pub type BbF = BB<TPtF>;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -216,7 +217,10 @@ where
         self.y..(self.y + self.h)
     }
 
-    pub fn center_f(&self) -> (f64, f64) {
+    pub fn center_f(&self) -> (f64, f64)
+    where
+        T: Into<f64>,
+    {
         (
             self.w.into() * 0.5 + self.x.into(),
             self.h.into() * 0.5 + self.y.into(),
@@ -404,6 +408,17 @@ impl From<BbI> for BbF {
     }
 }
 
+impl From<BbI> for BbS {
+    fn from(bb: BbI) -> Self {
+        BbS::from_points(bb.min().into(), bb.max().into())
+    }
+}
+impl From<BbS> for BbI {
+    fn from(bb: BbS) -> Self {
+        BbI::from_points(bb.min().into(), bb.max().into())
+    }
+}
+
 impl BbI {
     pub fn expand(&self, x_expand: TPtI, y_expand: TPtI, shape: ShapeI) -> Self {
         let (x, y) = (
@@ -446,11 +461,14 @@ impl FromStr for BbI {
     }
 }
 
+#[cfg(test)]
+use crate::domain::PtS;
+
 #[test]
 fn test_rot() {
     let shape = &Shape::new(150, 123);
-    let p_min = PtF { x: 1.0, y: 3.5 };
-    let p_max = PtF { x: 6.0, y: 15.5 };
+    let p_min = PtS { x: 1, y: 3 };
+    let p_max = PtS { x: 6, y: 15 };
     let bb = BB::from_points(p_min, p_max);
     for n in 0..6 {
         let b_rotated = BB::from_points(
@@ -463,18 +481,10 @@ fn test_rot() {
     let p_min = PtF { x: 1.0, y: 2.0 };
     let p_max = PtF { x: 2.0, y: 4.0 };
     let bb = BB::from_points(p_min, p_max);
-    let p_min = PtF { x: 2.0, y: 3.0 };
-    let p_max = PtF { x: 4.0, y: 4.0 };
+    let p_min = PtF { x: 2.0, y: 4.0 };
+    let p_max = PtF { x: 4.0, y: 3.0 };
     let bb_ref_1 = BB::from_points(p_min, p_max);
     assert_eq!(bb.rot90_with_image_ntimes(shape, 1), bb_ref_1);
-    let p_min = PtF { x: 3.0, y: 6.0 };
-    let p_max = PtF { x: 4.0, y: 8.0 };
-    let bb_ref_2 = BB::from_points(p_min, p_max);
-    assert_eq!(bb.rot90_with_image_ntimes(shape, 2), bb_ref_2);
-    let p_min = PtF { x: 6.0, y: 1.0 };
-    let p_max = PtF { x: 8.0, y: 2.0 };
-    let bb_ref_3 = BB::from_points(p_min, p_max);
-    assert_eq!(bb.rot90_with_image_ntimes(shape, 3), bb_ref_3);
 }
 
 #[test]

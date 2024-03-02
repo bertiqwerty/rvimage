@@ -4,10 +4,7 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
 use crate::{color_with_intensity, domain::OutOfBoundsMode, result::RvResult, rverr, ShapeI};
 
-use super::{
-    bb::BB, line::render_line, BbI, BrushLine, InstanceAnnotate, PtF, PtI, RenderTargetOrShape,
-    TPtF,
-};
+use super::{bb::BB, line::render_line, BbI, BrushLine, PtF, PtI, RenderTargetOrShape, TPtF, TPtI};
 
 fn line_to_mask(line: &BrushLine, orig_shape: ShapeI) -> RvResult<(Vec<u8>, BbI)> {
     let thickness = line.thickness;
@@ -90,6 +87,66 @@ pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
     mask
 }
 
+fn idx_bb_to_im(idx_bb: u32, bb: BbI, w_im: TPtI) -> u32 {
+    let p_im = PtI {
+        y: idx_bb / bb.w,
+        x: idx_bb % bb.w,
+    } + bb.min();
+    p_im.y * w_im + p_im.x
+}
+
+fn idx_im_to_bb(idx_im: u32, bb: BbI, w_im: TPtI) -> u32 {
+    let p_bb = PtI {
+        x: idx_im % w_im,
+        y: idx_im / w_im,
+    } - bb.min();
+    p_bb.y * bb.w + p_bb.x
+}
+/// The input rle is computed with respect to the bounding box coordinates
+/// the result is with respect to image coordinates
+pub fn rle_bb_to_image(rle_bb: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
+    if !bb.is_contained_in_image(shape_im) {
+        Err(rverr!(
+            "Bounding box {} is not contained in image with shape {:?}",
+            bb,
+            shape_im
+        ))
+    } else {
+        let mut rle_im = vec![0; rle_bb.len()];
+        let offset = idx_bb_to_im(0, bb, shape_im.w);
+        rle_im[0] = offset + rle_bb[0];
+        let mut prev_idx = rle_im[0];
+        for i in 1..rle_bb.len() {
+            let im_idx = idx_bb_to_im(rle_bb[..=i].iter().sum(), bb, shape_im.w);
+            rle_im[i] = im_idx - prev_idx;
+            prev_idx = im_idx;
+        }
+        Ok(rle_im)
+    }
+}
+/// The input rle is computed with respect to the image coordinates
+/// the result is with respect to bounding box coordinates
+pub fn rle_image_to_bb(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
+    if !bb.is_contained_in_image(shape_im) {
+        Err(rverr!(
+            "Bounding box {} is not contained in image with shape {:?}",
+            bb,
+            shape_im
+        ))
+    } else {
+        let mut rle_bb = vec![0; rle_im.len()];
+        let offset = idx_bb_to_im(0, bb, shape_im.w);
+        rle_bb[0] = rle_im[0] - offset;
+        let mut prev_idx = rle_bb[0];
+        for i in 1..rle_im.len() {
+            let bb_idx = idx_im_to_bb(rle_im[..=i].iter().sum(), bb, shape_im.w);
+            rle_bb[i] = bb_idx - prev_idx;
+            prev_idx = bb_idx;
+        }
+        Ok(rle_bb)
+    }
+}
+
 /// Access a with coordinates for the image containing the mask
 pub fn access_mask_abs(mask: &[u8], bb: BbI, p: PtI) -> u8 {
     if bb.contains(p) {
@@ -157,46 +214,6 @@ impl<'de> Deserialize<'de> for Canvas {
     }
 }
 
-impl InstanceAnnotate for Canvas {
-    fn is_contained_in_image(&self, shape: crate::ShapeI) -> bool {
-        self.bb.is_contained_in_image(shape)
-    }
-    fn contains<P>(&self, point: P) -> bool
-    where
-        P: Into<super::PtF>,
-    {
-        let p_tmp: PtF = point.into();
-        let p_idx: PtI = p_tmp.into();
-        access_mask_abs(&self.mask, self.bb, p_idx) > 0
-    }
-    fn dist_to_boundary(&self, p: PtF) -> TPtF {
-        let mut min_dist = TPtF::MAX;
-        for y in 0..self.bb.h {
-            for x in 0..self.bb.w {
-                let is_current_foreground = access_mask_rel(&self.mask, x, y, self.bb.w, self.bb.h);
-                let neighbors_fg_mask = [
-                    access_mask_rel(&self.mask, x + 1, y, self.bb.w, self.bb.h),
-                    access_mask_rel(&self.mask, x.wrapping_sub(1), y, self.bb.w, self.bb.h),
-                    access_mask_rel(&self.mask, x, y + 1, self.bb.w, self.bb.h),
-                    access_mask_rel(&self.mask, x, y.wrapping_sub(1), self.bb.w, self.bb.h),
-                ];
-                if neighbors_fg_mask
-                    .iter()
-                    .any(|&b| b != is_current_foreground)
-                {
-                    let x = x as TPtF;
-                    let y = y as TPtF;
-                    let dist = p.dist_square(&PtF { x, y }).sqrt();
-                    if dist < min_dist {
-                        min_dist = dist;
-                    }
-                }
-            }
-        }
-        min_dist
-    }
-}
-
 pub fn canvases_to_image<'a, CLR>(
     canvases: impl Iterator<Item = &'a Canvas>,
     image_or_shape: RenderTargetOrShape<CLR>,
@@ -223,32 +240,6 @@ where
 
 #[cfg(test)]
 use super::Line;
-#[test]
-fn test_canvas() {
-    let orig_shape = ShapeI::new(30, 30);
-    let bl = BrushLine {
-        line: Line {
-            points: vec![PtF { x: 5.0, y: 5.0 }, PtF { x: 15.0, y: 15.0 }],
-        },
-        intensity: 0.5,
-        thickness: 3.0,
-    };
-    let cv = Canvas::new(&bl, orig_shape).unwrap();
-    assert!(cv.contains(PtF { x: 5.0, y: 5.0 }));
-    assert!(!cv.contains(PtF { x: 0.0, y: 0.0 }));
-    assert!(cv.contains(PtF { x: 14.9, y: 14.9 }));
-    assert!(!cv.contains(PtF { x: 0.0, y: 9.9 }));
-    assert!(!cv.contains(PtF { x: 15.0, y: 15.0 }));
-
-    assert!((cv.dist_to_boundary(PtF { x: 5.0, y: 5.0 }) - 1.0).abs() < 1e-8);
-    let dist = cv.dist_to_boundary(PtF { x: 5.0, y: 15.0 });
-    assert!(5.0 < dist && dist < 7.0);
-    for y in cv.bb.y_range() {
-        for x in cv.bb.x_range() {
-            access_mask_abs(&cv.mask, cv.bb, PtI { x, y });
-        }
-    }
-}
 #[test]
 fn test_canvas_single() {
     let orig_shape = ShapeI::new(30, 30);
@@ -282,6 +273,20 @@ fn test_rle() {
     assert_eq!(rle, vec![0, 1, 2, 3, 3]);
     let mask2 = rle_to_mask(&rle, 3, 3);
     assert_eq!(mask, mask2);
+
+    let bb = BbI::from_arr(&[5, 10, 4, 8]);
+    let shape_im = ShapeI::new(100, 200);
+    let x = idx_bb_to_im(0, bb, shape_im.w);
+    assert_eq!(x, 1005);
+    let x = idx_bb_to_im(1, bb, shape_im.w);
+    assert_eq!(x, 1006);
+    let x = idx_bb_to_im(3, bb, shape_im.w);
+    assert_eq!(x, 1008);
+    let rle_bb = vec![1, 2, 3, 1, 4];
+    let rle_im = rle_bb_to_image(&rle_bb, bb, shape_im).unwrap();
+    assert_eq!(rle_im, vec![1006, 2, 99, 1, 100]);
+    let rle_bb2 = rle_image_to_bb(&rle_im, bb, shape_im).unwrap();
+    assert_eq!(rle_bb, rle_bb2);
 }
 
 #[test]

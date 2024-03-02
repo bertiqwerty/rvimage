@@ -12,13 +12,12 @@ use crate::{
             check_erase_mode, check_recolorboxes, check_trigger_history_update,
             check_trigger_redraw, deselect_all, map_released_key, Mover,
         },
-        rot90, Manipulate, BBOX_NAME,
+        instance_anno_shared::{check_cocoimport, get_rot90_data},
+        Manipulate, BBOX_NAME,
     },
     tools_data::{
-        self,
-        annotations::BboxAnnotations,
-        bbox_data::{self, ImportMode},
-        bbox_mut, merge, vis_from_lfoption, LabelInfo, Rot90ToolData, OUTLINE_THICKNESS_CONVERSION,
+        self, annotations::BboxAnnotations, bbox_data, bbox_mut, vis_from_lfoption, LabelInfo,
+        OUTLINE_THICKNESS_CONVERSION,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
@@ -102,12 +101,6 @@ fn check_anno_outoffolder_remove(mut world: World) -> World {
     world
 }
 
-fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
-    tools_data::get(world, rot90::ACTOR_NAME, "no rotation_data_found")
-        .and_then(|d| d.specifics.rot90())
-        .ok()
-}
-
 fn check_cocoexport(mut world: World) -> World {
     // export label file if demanded
     let bbox_data = get_specific(&world);
@@ -116,49 +109,6 @@ fn check_cocoexport(mut world: World) -> World {
         export_if_triggered(&world.data.meta_data, bbox_data, rot90_data);
         if let Some(o) = get_options_mut(&mut world) {
             o.core_options.is_export_triggered = false;
-        }
-    }
-    world
-}
-
-fn check_cocoimport(mut world: World) -> World {
-    // import coco if demanded
-    let options = get_options(&world);
-    if let Some(options) = options {
-        let rot90_data = get_rot90_data(&world);
-        if let Some(imported_data) = import_coco_if_triggered(
-            &world.data.meta_data,
-            if options.is_import_triggered {
-                get_specific(&world).map(|o| &o.coco_file)
-            } else {
-                None
-            },
-            rot90_data,
-        ) {
-            if let Some(data_mut) = get_specific_mut(&mut world) {
-                if options.is_import_triggered {
-                    match options.import_mode {
-                        ImportMode::Replace => {
-                            data_mut.annotations_map = imported_data.annotations_map;
-                            data_mut.label_info = imported_data.label_info;
-                        }
-                        ImportMode::Merge => {
-                            let (annotations_map, label_info) = merge(
-                                mem::take(&mut data_mut.annotations_map),
-                                mem::take(&mut data_mut.label_info),
-                                imported_data.annotations_map,
-                                imported_data.label_info,
-                            );
-                            data_mut.annotations_map = annotations_map;
-                            data_mut.label_info = label_info;
-                        }
-                    }
-                    data_mut.options.is_import_triggered = false;
-                }
-                set_visible(&mut world);
-            }
-        } else if let Some(data_mut) = get_specific_mut(&mut world) {
-            data_mut.options.is_import_triggered = false;
         }
     }
     world
@@ -329,13 +279,12 @@ impl Bbox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-
         // evaluate if a box or a polygon should be closed based on the number of points
         // at the time of the press and the number of points after the held
         let close_box_or_poly = self.points_at_press.map(|x| x + 4) < self.points_after_held;
         self.points_at_press = None;
         self.points_after_held = None;
-        
+
         let are_boxes_visible = get_visible(&world);
         if event.released(KeyCode::MouseLeft) {
             let params = MouseReleaseParams {
@@ -490,8 +439,18 @@ impl Manipulate for Bbox {
         world = check_anno_outoffolder_remove(world);
 
         world = check_cocoexport(world);
-
-        world = check_cocoimport(world);
+        let imported;
+        (world, imported) = check_cocoimport(
+            world,
+            |w| get_options(w).map(|o| o.core_options),
+            get_rot90_data,
+            get_specific,
+            get_specific_mut,
+            import_coco_if_triggered,
+        );
+        if imported {
+            set_visible(&mut world);
+        }
 
         let options = get_options(&world);
 
@@ -638,7 +597,7 @@ fn test_coco_import_label_info() {
         conn: ExportPathConnection::Local,
     };
     let label_info_before = data.label_info.clone();
-    data.options.is_import_triggered = true;
+    data.options.core_options.is_import_triggered = true;
     let mut bbox = Bbox::new();
     let events = Events::default();
     (world, _) = bbox.events_tf(world, history, &events);
@@ -646,5 +605,5 @@ fn test_coco_import_label_info() {
     let label_info_after = data.label_info.clone();
     assert_eq!(label_info_before.labels(), &["foreground", "label"]);
     assert_eq!(label_info_after.labels(), &["first label", "second label"]);
-    assert!(!data.options.is_import_triggered);
+    assert!(!data.options.core_options.is_import_triggered);
 }

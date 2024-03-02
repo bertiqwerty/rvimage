@@ -1,24 +1,25 @@
-use std::{cmp::Ordering, io::Cursor, mem, path::Path, thread};
+use std::{cmp::Ordering, mem, thread};
 
-use image::{codecs::png, EncodableLayout, ImageEncoder, Luma};
-use tracing::{error, info};
+use brush_data::BrushToolData;
 
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{
-        canvases_to_image, BrushLine, Canvas, InstanceAnnotate, PtF, RenderTargetOrShape, TPtF,
-    },
+    cfg::ExportPath,
+    domain::{BrushLine, Canvas, PtF, TPtF},
     events::{Events, KeyCode},
-    file_util::osstr_to_str,
+    file_util::MetaData,
     history::{History, Record},
     make_tool_transform,
     result::trace_ok,
-    tools::core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
+    tools::{
+        core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
+        instance_anno_shared::check_cocoimport,
+    },
     tools_data::{
         self,
         annotations::BrushAnnotations,
         brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        brush_mut, vis_from_lfoption, LabelInfo,
+        brush_mut, vis_from_lfoption, InstanceAnnotate, LabelInfo, Rot90ToolData,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
@@ -31,6 +32,7 @@ use super::{
         check_erase_mode, deselect_all, label_change_key, map_held_key, map_released_key,
         on_selection_keys, HeldKey, ReleasedKey,
     },
+    instance_anno_shared::get_rot90_data,
     Manipulate, BRUSH_NAME,
 };
 
@@ -56,6 +58,23 @@ tools_data_accessors_objects!(
     brush_mut
 );
 
+fn import_coco_if_triggered(
+    meta_data: &MetaData,
+    coco_file: Option<&ExportPath>,
+    rot90_data: Option<&Rot90ToolData>,
+) -> Option<BrushToolData> {
+    if let Some(coco_file) = coco_file {
+        match tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data) {
+            Ok((_, brush_data)) => Some(brush_data),
+            Err(e) => {
+                tracing::error!("could not import coco due to {e:?}");
+                None
+            }
+        }
+    } else {
+        None
+    }
+}
 fn max_select_dist(shape: ShapeI) -> TPtF {
     (TPtF::from(shape.w.pow(2) + shape.h.pow(2)).sqrt() / 100.0).max(50.0)
 }
@@ -109,62 +128,15 @@ fn check_export(mut world: World) -> World {
     let specifics = get_specific(&world);
 
     if options.map(|o| o.core_options.is_export_triggered) == Some(true) {
+        let rot90_data = get_rot90_data(&world).cloned();
         if let Some(data) = specifics {
-            let annotations_map = data.annotations_map.clone();
-            let ssh_cfg = world.data.meta_data.ssh_cfg.clone();
-            let label_info = data.label_info.clone();
-            let export_folder = data.export_folder.clone();
-            let f_export = move || {
-                for (filename, annos) in &annotations_map {
-                    for label in label_info.labels() {
-                        let (annos, shape) = annos;
-                        if !annos.elts().is_empty() {
-                            let brush_lines = annos
-                                .elts()
-                                .iter()
-                                .zip(annos.cat_idxs().iter())
-                                .filter(|(_, cat_idx)| &label_info.labels()[**cat_idx] == label)
-                                .map(|(bl, _)| bl);
-                            let render_shape = RenderTargetOrShape::Shape(*shape);
-                            let im = canvases_to_image::<Luma<u8>>(
-                                brush_lines,
-                                render_shape,
-                                Luma([255]),
-                            );
-                            let filepath = Path::new(&filename);
-                            let outfilename = format!(
-                                "{}_{label}.png",
-                                osstr_to_str(filepath.file_stem()).unwrap_or_else(|_| panic!(
-                                    "a filepath needs a stem, what's wrong with {filepath:?}"
-                                ))
-                            );
-                            let outpath = export_folder.path.join(outfilename);
-                            let mut buffer = Cursor::new(vec![]);
-                            let encoder = png::PngEncoder::new_with_quality(
-                                &mut buffer,
-                                png::CompressionType::Best,
-                                png::FilterType::NoFilter,
-                            );
-                            if let Err(e) = encoder.write_image(
-                                im.as_bytes(),
-                                shape.w,
-                                shape.h,
-                                image::ColorType::L8,
-                            ) {
-                                error!("could not decode png due to {e:?}");
-                            } else if let Err(e) = export_folder.conn.write_bytes(
-                                buffer.get_ref(),
-                                &outpath,
-                                ssh_cfg.as_ref(),
-                            ) {
-                                error!("export failed due to {e:?}");
-                            } else {
-                                info!("exported label file to '{outpath:?}'");
-                            }
-                        }
-                    }
-                }
-            };
+            let meta_data = world.data.meta_data.clone();
+            let data = data.clone();
+            let f_export =
+                move || match tools_data::write_coco(&meta_data, data, rot90_data.as_ref()) {
+                    Ok(p) => tracing::info!("export to {p:?} successful"),
+                    Err(e) => tracing::error!("export failed due to {e:?}"),
+                };
             thread::spawn(f_export);
         }
         if let Some(options_mut) = get_options_mut(&mut world) {
@@ -460,6 +432,18 @@ impl Manipulate for Brush {
         (world, history) = check_trigger_history_update(world, history, BRUSH_NAME, |d| {
             brush_mut(d).map(|d| &mut d.options.core_options)
         });
+        let imported;
+        (world, imported) = check_cocoimport(
+            world,
+            |w| get_options(w).map(|o| o.core_options),
+            get_rot90_data,
+            get_specific,
+            get_specific_mut,
+            import_coco_if_triggered,
+        );
+        if imported {
+            set_visible(&mut world);
+        }
         world = check_recolorboxes(
             world,
             BRUSH_NAME,
