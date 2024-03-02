@@ -1,9 +1,14 @@
 use crate::{
-    cfg::ExportPath, file_util::MetaData, result::trace_ok, tools_data::{self, merge, CoreOptions, ExportAsCoco, ImportMode, Rot90ToolData}, world::World, InstanceAnnotate
+    cfg::ExportPath,
+    file_util::MetaData,
+    result::trace_ok,
+    tools_data::{self, merge, CoreOptions, ExportAsCoco, ImportMode, Rot90ToolData},
+    world::World,
+    InstanceAnnotate,
 };
 use std::mem;
 
-use super::{brush::set_visible, rot90};
+use super::rot90;
 
 pub(super) fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
     tools_data::get(world, rot90::ACTOR_NAME, "no rotation_data_found")
@@ -21,12 +26,13 @@ pub fn check_cocoimport<T, A>(
         Option<&ExportPath>,
         Option<&Rot90ToolData>,
     ) -> Option<T>,
-) -> World
+) -> (World, bool)
 where
     T: ExportAsCoco<A> + Default,
     A: InstanceAnnotate + 'static,
 {
     // import coco if demanded
+    let mut imported = false;
     let options = get_options(&world);
     if let Some(options) = options {
         let rot90_data = get_rot90_data(&world);
@@ -35,7 +41,8 @@ where
         } else {
             None
         };
-        if let Some(imported_data) = import_coco_if_triggered(&world.data.meta_data, d.as_ref(), rot90_data)
+        if let Some(imported_data) =
+            import_coco_if_triggered(&world.data.meta_data, d.as_ref(), rot90_data)
         {
             if let Some(data_mut) = get_specific_mut(&mut world) {
                 if options.is_import_triggered {
@@ -55,11 +62,11 @@ where
                     }
                     data_mut.core_options_mut().is_import_triggered = false;
                 }
-                set_visible(&mut world);
+                imported = true;
             }
         } else if let Some(data_mut) = get_specific_mut(&mut world) {
             data_mut.core_options_mut().is_import_triggered = false;
         }
     }
-    world
+    (world, imported)
 }

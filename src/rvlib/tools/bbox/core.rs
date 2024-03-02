@@ -439,8 +439,8 @@ impl Manipulate for Bbox {
         world = check_anno_outoffolder_remove(world);
 
         world = check_cocoexport(world);
-
-        world = check_cocoimport(
+        let imported;
+        (world, imported) = check_cocoimport(
             world,
             |w| get_options(w).map(|o| o.core_options),
             get_rot90_data,
@@ -448,6 +448,9 @@ impl Manipulate for Bbox {
             get_specific_mut,
             import_coco_if_triggered,
         );
+        if imported {
+            set_visible(&mut world);
+        }
 
         let options = get_options(&world);
 

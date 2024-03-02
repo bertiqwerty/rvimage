@@ -432,7 +432,8 @@ impl Manipulate for Brush {
         (world, history) = check_trigger_history_update(world, history, BRUSH_NAME, |d| {
             brush_mut(d).map(|d| &mut d.options.core_options)
         });
-        world = check_cocoimport(
+        let imported;
+        (world, imported) = check_cocoimport(
             world,
             |w| get_options(w).map(|o| o.core_options),
             get_rot90_data,
@@ -440,6 +441,9 @@ impl Manipulate for Brush {
             get_specific_mut,
             import_coco_if_triggered,
         );
+        if imported {
+            set_visible(&mut world);
+        }
         world = check_recolorboxes(
             world,
             BRUSH_NAME,
