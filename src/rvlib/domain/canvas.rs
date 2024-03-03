@@ -100,7 +100,10 @@ pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
         for idx in start..(start + run) {
             let x = idx % w;
             let y = idx / w;
-            mask[(y * w + x) as usize] = value as u8;
+            let idx = (y * w + x) as usize;
+            if idx < mask.len() {
+                mask[idx] = value as u8;
+            }
         }
     }
     mask
