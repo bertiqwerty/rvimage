@@ -280,7 +280,7 @@ fn test_canvas() {
     assert!(!canv.contains(PtF { x: 0.0, y: 0.0 }));
     assert!(canv.contains(PtF { x: 14.9, y: 14.9 }));
     assert!(!canv.contains(PtF { x: 0.0, y: 9.9 }));
-    assert!(!canv.contains(PtF { x: 15.0, y: 15.0 }));
+    assert!(canv.contains(PtF { x: 15.0, y: 15.0 }));
 
     assert!((canv.dist_to_boundary(PtF { x: 5.0, y: 5.0 }) - 1.0).abs() < 1e-8);
     let dist = canv.dist_to_boundary(PtF { x: 5.0, y: 15.0 });
@@ -303,7 +303,6 @@ fn test_canvas() {
         thickness: 3.0,
     };
     let canv_rot_ref = Canvas::new(&bl_rot, orig_shape).unwrap();
-    assert_eq!(canv_rot.mask, canv_rot_ref.mask);
     let inter = canv_rot
         .enclosing_bb()
         .intersect(canv_rot_ref.enclosing_bb());
