@@ -9,7 +9,7 @@ use crate::{
     cfg::ExportPath,
     domain::{
         access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, BbF, Canvas, PtF, PtI, PtS,
-        ShapeI, TPtI, TPtS, BB,
+        ShapeI, TPtS, BB,
     },
     result::{trace_ok, RvResult},
     rverr, BrushLine,
@@ -223,16 +223,15 @@ impl InstanceAnnotate for Canvas {
     }
     fn to_cocoseg(
         &self,
-        w_im: TPtI,
-        h_im: TPtI,
+        shape_im: ShapeI,
         _is_export_absolute: bool,
     ) -> Option<core::CocoSegmentation> {
         let rle_bb = mask_to_rle(&self.mask, self.bb.w, self.bb.h);
-        let rle_im = trace_ok(rle_bb_to_image(&rle_bb, self.bb, ShapeI::new(w_im, h_im)));
+        let rle_im = trace_ok(rle_bb_to_image(&rle_bb, self.bb, shape_im));
         rle_im.map(|rle_im| {
             CocoSegmentation::Rle(CocoRle {
                 counts: rle_im,
-                size: (w_im, h_im),
+                size: (shape_im.w, shape_im.h),
                 intensity: Some(self.intensity),
             })
         })

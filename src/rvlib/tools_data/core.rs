@@ -580,14 +580,14 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct CocoRle {
     pub counts: Vec<TPtI>,
     pub size: (TPtI, TPtI),
     pub intensity: Option<TPtF>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum CocoSegmentation {
     Polygon(Vec<Vec<TPtF>>),
@@ -602,12 +602,7 @@ pub trait InstanceAnnotate: Clone + Default + PartialEq {
     fn dist_to_boundary(&self, p: PtF) -> TPtF;
     fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self;
     fn enclosing_bb(&self) -> BbF;
-    fn to_cocoseg(
-        &self,
-        w_im: TPtI,
-        h_im: TPtI,
-        is_export_absolute: bool,
-    ) -> Option<CocoSegmentation>;
+    fn to_cocoseg(&self, shape_im: ShapeI, is_export_absolute: bool) -> Option<CocoSegmentation>;
 }
 pub trait ExportAsCoco<A>
 where

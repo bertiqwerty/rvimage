@@ -2,3 +2,4 @@
 .vscode
 rv_cfg.toml
 .DS_Store
+.venv

@@ -12,35 +12,28 @@ mod core;
 #[macro_export]
 macro_rules! implement_annotations_getters {
     ($tool_data_type:ident) => {
-        pub fn get_annos_with_shape_mut(
-            &mut self,
-            file_path: &str,
-            shape: ShapeI,
-        ) -> Option<(&mut $tool_data_type, Option<&mut ShapeI>)> {
-            let is_shape_none = if !self.annotations_map.contains_key(file_path) {
-                self.annotations_map
-                    .insert(file_path.to_string(), ($tool_data_type::default(), shape));
-                true
-            } else {
-                false
-            };
-            self.annotations_map
-                .get_mut(file_path)
-                .map(|(annos, shape)| {
-                    if is_shape_none {
-                        (annos, None)
-                    } else {
-                        (annos, Some(shape))
-                    }
-                })
-        }
         pub fn get_annos_mut(
             &mut self,
             file_path: &str,
-            shape: ShapeI,
+            shape_initial: ShapeI,
         ) -> Option<&mut $tool_data_type> {
-            self.get_annos_with_shape_mut(file_path, shape)
-                .map(|(annos, _shape)| annos)
+            if !self.annotations_map.contains_key(file_path) {
+                self.annotations_map.insert(
+                    file_path.to_string(),
+                    ($tool_data_type::default(), shape_initial),
+                );
+            } else {
+                // we reset the shape every time, since a file with the same name but a different shape
+                // might have replaced the old one
+                if let Some((_, shape)) = self.annotations_map.get_mut(file_path) {
+                    if *shape != shape_initial {
+                        *shape = shape_initial;
+                    }
+                }
+            }
+            self.annotations_map
+                .get_mut(file_path)
+                .map(|(annos, _)| annos)
         }
         pub fn get_annos(&self, file_path: &str) -> Option<&$tool_data_type> {
             let annos = self.annotations_map.get(file_path);

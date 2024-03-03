@@ -174,7 +174,7 @@ impl From<ShapeF> for ShapeI {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Shape<T>
 where
     T: Calc,
@@ -615,9 +615,10 @@ fn test_rot() {
     let p = PtS { x: 2, y: 1 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtS { x: 1, y: 2 }));
-    assert!(p
-        .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+    let p_rot_2 = p.rot90_with_image_ntimes(shape, 2);
+    let p_rot_2_ = p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1));
+    assert_eq!(p_rot_2, p_rot_2_);
+
     let p = PtF { x: 2.5, y: 1.0 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtF { x: 1.0, y: 2.5 }));

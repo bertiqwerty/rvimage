@@ -50,13 +50,13 @@ macro_rules! annotations_accessor_mut {
             is_no_anno_fine: bool,
         ) -> Option<&mut $annotations_type> {
             if let Some(current_file_path) = world.data.meta_data.file_path.as_ref() {
-                let shape = world.data.shape();
+                let shape_initial = *world.data.shape_initial();
                 let res = world
                     .data
                     .tools_data_map
                     .get_mut($actor)
                     .and_then(|x| x.specifics.$access_func().ok())
-                    .and_then(|d| d.get_annos_mut(&current_file_path, shape));
+                    .and_then(|d| d.get_annos_mut(&current_file_path, shape_initial));
                 if res.is_none() {
                     tracing::error!("{}", $error_msg);
                 }
@@ -81,6 +81,7 @@ pub type ToolsDataMap = HashMap<String, ToolsData>;
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
     im_background: DynamicImage,
+    shape_initial: ShapeI,
     pub meta_data: MetaData,
     pub tools_data_map: ToolsDataMap,
 }
@@ -94,8 +95,10 @@ impl DataRaw {
         meta_data: MetaData,
         tools_data_map: ToolsDataMap,
     ) -> Self {
+        let shape_initial = ShapeI::from_im(&im_background);
         DataRaw {
             im_background,
+            shape_initial,
             meta_data,
             tools_data_map,
         }
@@ -103,6 +106,10 @@ impl DataRaw {
 
     pub fn im_background(&self) -> &DynamicImage {
         &self.im_background
+    }
+
+    pub fn shape_initial(&self) -> &ShapeI {
+        &self.shape_initial
     }
 
     pub fn apply<FI>(&mut self, mut f_i: FI)

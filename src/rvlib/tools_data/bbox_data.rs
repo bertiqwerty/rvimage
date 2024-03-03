@@ -12,7 +12,7 @@ use super::{
 };
 use crate::{
     cfg::ExportPath,
-    domain::{BbF, Circle, PtF, ShapeI, TPtF, TPtI},
+    domain::{BbF, Circle, PtF, ShapeI, TPtF},
     file_util, implement_annotations_getters,
     result::RvResult,
     rverr,
@@ -232,14 +232,13 @@ impl InstanceAnnotate for GeoFig {
     }
     fn to_cocoseg(
         &self,
-        w_im: TPtI,
-        h_im: TPtI,
+        shape_im: ShapeI,
         is_export_absolute: bool,
     ) -> Option<core::CocoSegmentation> {
         Some(CocoSegmentation::Polygon(vec![if is_export_absolute {
             self.points()
         } else {
-            self.points_normalized(w_im as TPtF, h_im as TPtF)
+            self.points_normalized(shape_im.w as TPtF, shape_im.h as TPtF)
         }
         .iter()
         .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))

@@ -65,13 +65,13 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
     Ok((im.to_vec(), bbi))
 }
 
-pub fn mask_to_rle(mask: &[u8], w: u32, h: u32) -> Vec<u32> {
+pub fn mask_to_rle(mask: &[u8], mask_w: u32, mask_h: u32) -> Vec<u32> {
     let mut rle = Vec::new();
     let mut current_run = 0;
     let mut current_value = 0;
-    for y in 0..h {
-        for x in 0..w {
-            let value = mask[(y * w + x) as usize];
+    for y in 0..mask_h {
+        for x in 0..mask_w {
+            let value = mask[(y * mask_w + x) as usize];
             if value == current_value {
                 current_run += 1;
             } else {

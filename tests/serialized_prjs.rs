@@ -27,3 +27,8 @@ fn test_prj_v3_2() {
 fn test_prj_v3_3() {
     prj_load("rvprj_v3-3_test_dummy.rvi");
 }
+
+#[test]
+fn test_prj_v4_0() {
+    prj_load("rvprj_v4-0.json");
+}
