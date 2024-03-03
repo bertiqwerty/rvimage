@@ -76,6 +76,11 @@ impl Line {
         }
     }
 }
+impl From<PtF> for Line {
+    fn from(p: PtF) -> Self {
+        Self { points: vec![p] }
+    }
+}
 
 pub enum RenderTargetOrShape<CLR>
 where

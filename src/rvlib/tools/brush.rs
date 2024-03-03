@@ -179,8 +179,7 @@ impl Brush {
                     }
                 } else if let (Some(d), Some(cat_idx)) = (get_specific_mut(&mut world), idx_current)
                 {
-                    let mut line = Line::new();
-                    line.push(mp);
+                    let line = Line::from(mp);
                     d.tmp_line = Some((
                         BrushLine {
                             line,
@@ -276,9 +275,23 @@ impl Brush {
             if erase != Some(true) {
                 let shape_orig = world.shape_orig();
                 let line = get_specific(&world).and_then(|d| d.tmp_line.clone());
-                if let (Some(annos), Some((line, _)), Some(cat_idx)) =
-                    (get_annos_mut(&mut world), line, cat_idx)
-                {
+                let line = if let Some((line, _)) = line {
+                    Some(line)
+                } else {
+                    if let (Some(mp), Some(options)) =
+                        (events.mouse_pos_on_orig, get_options(&world))
+                    {
+                        Some(BrushLine {
+                            line: Line::from(mp),
+                            intensity: options.intensity,
+                            thickness: options.thickness,
+                        })
+                    } else {
+                        None
+                    }
+                };
+                let maybe_annos = get_annos_mut(&mut world);
+                if let (Some(annos), Some(line), Some(cat_idx)) = (maybe_annos, line, cat_idx) {
                     let canvas = Canvas::new(&line, shape_orig);
                     if let Ok(canvas) = canvas {
                         annos.add_elt(canvas, cat_idx);
