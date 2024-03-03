@@ -277,19 +277,18 @@ impl Brush {
                 let line = get_specific(&world).and_then(|d| d.tmp_line.clone());
                 let line = if let Some((line, _)) = line {
                     Some(line)
+                } else if let (Some(mp), Some(options)) =
+                    (events.mouse_pos_on_orig, get_options(&world))
+                {
+                    Some(BrushLine {
+                        line: Line::from(mp),
+                        intensity: options.intensity,
+                        thickness: options.thickness,
+                    })
                 } else {
-                    if let (Some(mp), Some(options)) =
-                        (events.mouse_pos_on_orig, get_options(&world))
-                    {
-                        Some(BrushLine {
-                            line: Line::from(mp),
-                            intensity: options.intensity,
-                            thickness: options.thickness,
-                        })
-                    } else {
-                        None
-                    }
+                    None
                 };
+
                 let maybe_annos = get_annos_mut(&mut world);
                 if let (Some(annos), Some(line), Some(cat_idx)) = (maybe_annos, line, cat_idx) {
                     let canvas = Canvas::new(&line, shape_orig);
