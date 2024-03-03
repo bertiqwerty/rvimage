@@ -12,12 +12,11 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
     let bb = BB::from_points_iter(line.line.points_iter())?;
 
     let xywh = [
-        bb.x - thickness_half,
-        bb.y - thickness_half,
+        bb.x - if thickness > 1.0 { thickness_half } else { 0.0 },
+        bb.y - if thickness > 1.0 { thickness_half } else { 0.0 },
         bb.w + thickness,
         bb.h + thickness,
     ];
-
     let bb = match orig_shape {
         Some(orig_shape) => BB::new_shape_checked(
             xywh[0],
@@ -25,7 +24,7 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
             xywh[2],
             xywh[3],
             orig_shape,
-            OutOfBoundsMode::Resize(bb.shape()),
+            OutOfBoundsMode::Resize(orig_shape.into()),
         )
         .ok_or_else(|| rverr!("Could not create bounding box for line"))?,
         None => BB::from_arr(&xywh),
@@ -40,12 +39,20 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
             y: line.line.points[0].y - bb.y,
         }
         .round_signed();
-        draw_filled_circle_mut(
-            &mut im,
-            (center.x, center.y),
-            thickness_half.round() as i32,
-            color,
-        );
+        if thickness <= 1.1 {
+            im.put_pixel(
+                line.line.points[0].x as u32,
+                line.line.points[0].y as u32,
+                color,
+            );
+        } else {
+            draw_filled_circle_mut(
+                &mut im,
+                (center.x, center.y),
+                thickness_half.round() as i32,
+                color,
+            );
+        }
         im
     } else {
         render_line(
