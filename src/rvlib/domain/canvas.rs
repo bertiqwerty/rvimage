@@ -4,19 +4,18 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
 use crate::{color_with_intensity, domain::OutOfBoundsMode, result::RvResult, rverr, ShapeI};
 
-use super::{bb::BB, line::render_line, BbI, BrushLine, PtF, PtI, RenderTargetOrShape, TPtF, TPtI};
+use super::{
+    bb::BB, line::render_line, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF, TPtI,
+};
 
 fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u8>, BbI)> {
     let thickness = line.thickness;
     let thickness_half = thickness * 0.5;
     let bb = BB::from_points_iter(line.line.points_iter())?;
 
-    let xywh = [
-        bb.x - if thickness > 1.0 { thickness_half } else { 0.0 },
-        bb.y - if thickness > 1.0 { thickness_half } else { 0.0 },
-        bb.w + thickness,
-        bb.h + thickness,
-    ];
+    let bb_x = bb.x - if thickness > 1.0 { thickness_half } else { 0.0 };
+    let bb_y = bb.y - if thickness > 1.0 { thickness_half } else { 0.0 };
+    let xywh = [bb_x, bb_y, bb.w + thickness, bb.h + thickness];
     let bb = match orig_shape {
         Some(orig_shape) => BB::new_shape_checked(
             xywh[0],
@@ -24,34 +23,30 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
             xywh[2],
             xywh[3],
             orig_shape,
-            OutOfBoundsMode::Resize(orig_shape.into()),
+            OutOfBoundsMode::Resize((xywh[2], xywh[3]).into()),
         )
         .ok_or_else(|| rverr!("Could not create bounding box for line"))?,
         None => BB::from_arr(&xywh),
     };
 
     let color = Luma([1]);
-    let bbi = BbI::from(bb);
+    let bbi = BbI::from_arr(&[
+        bb.x as u32,
+        bb.y as u32,
+        bb.w.ceil() as u32,
+        bb.h.ceil() as u32,
+    ]);
     let im = if line.line.points.len() == 1 {
         let mut im = RenderTargetOrShape::Shape(bbi.shape()).make_buffer();
-        let center = PtF {
-            x: line.line.points[0].x - bb.x,
-            y: line.line.points[0].y - bb.y,
-        }
-        .round_signed();
+        let center = Point {
+            x: (line.line.points[0].x - bb.x) as i32,
+            y: (line.line.points[0].y - bb.y) as i32,
+        };
+
         if thickness <= 1.1 {
-            im.put_pixel(
-                line.line.points[0].x as u32,
-                line.line.points[0].y as u32,
-                color,
-            );
+            im.put_pixel(center.x as u32, center.y as u32, color);
         } else {
-            draw_filled_circle_mut(
-                &mut im,
-                (center.x, center.y),
-                thickness_half.round() as i32,
-                color,
-            );
+            draw_filled_circle_mut(&mut im, (center.x, center.y), thickness_half as i32, color);
         }
         im
     } else {
@@ -347,4 +342,51 @@ fn test_canvas_serde() {
     let s = serde_json::to_string(&cv).unwrap();
     let cv_read: Canvas = serde_json::from_str(&s).unwrap();
     assert_eq!(cv, cv_read);
+}
+
+#[test]
+fn test_line_to_mask() {
+    fn test(mask_zeros: &[u8], mask_sum: u8, bb: BbI, bl: &BrushLine) {
+        let (mask2, bb2) = line_to_mask(bl, None).unwrap();
+
+        assert_eq!(bb, bb2);
+        assert_eq!(mask2.iter().sum::<u8>(), mask_sum);
+        for i in mask_zeros {
+            assert_eq!(mask2[*i as usize], 0);
+        }
+    }
+
+    let bl = BrushLine {
+        line: Line {
+            points: vec![PtF { x: 4.7, y: 4.7 }],
+        },
+        intensity: 0.5,
+        thickness: 3.0,
+    };
+    test(&[0, 2, 6, 8], 5, BB::from_arr(&[3, 3, 3, 3]), &bl);
+
+    let bl = BrushLine {
+        line: Line {
+            points: vec![PtF { x: 5.3, y: 5.3 }],
+        },
+        intensity: 0.5,
+        thickness: 3.0,
+    };
+    test(&[0, 2, 6, 8], 5, BB::from_arr(&[3, 3, 3, 3]), &bl);
+    let bl = BrushLine {
+        line: Line {
+            points: vec![PtF { x: 5.0, y: 5.0 }],
+        },
+        intensity: 0.5,
+        thickness: 3.0,
+    };
+    test(&[0, 2, 6, 8], 5, BB::from_arr(&[3, 3, 3, 3]), &bl);
+    let bl = BrushLine {
+        line: Line {
+            points: vec![PtF { x: 5.0, y: 5.0 }],
+        },
+        intensity: 0.5,
+        thickness: 5.0,
+    };
+    test(&[], 21, BB::from_arr(&[2, 2, 5, 5]), &bl);
 }
