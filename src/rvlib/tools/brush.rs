@@ -79,6 +79,23 @@ fn max_select_dist(shape: ShapeI) -> TPtF {
     (TPtF::from(shape.w.pow(2) + shape.h.pow(2)).sqrt() / 100.0).max(50.0)
 }
 
+fn draw_erase_circle(mut world: World, mp: PtF) -> World {
+    let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
+    let options = get_options(&world);
+    let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
+    let annos = get_annos_mut(&mut world);
+    if let (Some(options), Some(annos)) = (options, annos) {
+        let to_be_removed_line_idx = find_closest_canvas(annos, mp, |idx| {
+            annos.is_of_current_label(idx, idx_current, show_only_current)
+        });
+        if let Some((idx, _)) = to_be_removed_line_idx {
+            let canvas = annos.edit(idx);
+            canvas.draw_circle(mp, options.thickness, 0);
+        }
+        set_visible(&mut world);
+    }
+    world
+}
 fn find_closest_canvas(
     annos: &BrushAnnotations,
     p: PtF,
@@ -161,35 +178,21 @@ impl Brush {
         }
         if !events.held_ctrl() {
             let options = get_options(&world);
-            let shape_orig = world.shape_orig();
-            let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
             let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
-            if let (Some(mp), Some(annos), Some(options)) =
-                (events.mouse_pos_on_orig, get_annos_mut(&mut world), options)
-            {
+            if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
                 let erase = options.core_options.erase;
-                if erase {
-                    let to_be_removed_line_idx = find_closest_canvas(annos, mp, |idx| {
-                        annos.is_of_current_label(idx, idx_current, show_only_current)
-                    });
-                    if let Some((idx, dist)) = to_be_removed_line_idx {
-                        let canvas = annos.edit(idx);
-                        canvas.draw_circle(mp, options.thickness, 0);
-                        if dist < max_select_dist(shape_orig) {
-                            annos.remove(idx);
-                        }
+                if !erase {
+                    if let (Some(d), Some(cat_idx)) = (get_specific_mut(&mut world), idx_current) {
+                        let line = Line::from(mp);
+                        d.tmp_line = Some((
+                            BrushLine {
+                                line,
+                                intensity: options.intensity,
+                                thickness: options.thickness,
+                            },
+                            cat_idx,
+                        ));
                     }
-                } else if let (Some(d), Some(cat_idx)) = (get_specific_mut(&mut world), idx_current)
-                {
-                    let line = Line::from(mp);
-                    d.tmp_line = Some((
-                        BrushLine {
-                            line,
-                            intensity: options.intensity,
-                            thickness: options.thickness,
-                        },
-                        cat_idx,
-                    ));
                 }
             }
             set_visible(&mut world);
@@ -203,9 +206,11 @@ impl Brush {
         history: History,
     ) -> (World, History) {
         if !events.held_ctrl() {
-            let erase = get_options(&world).map(|o| o.core_options.erase);
-            if let Some(mp) = events.mouse_pos_on_orig {
-                if erase != Some(true) {
+            let options = get_options(&world);
+            if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
+                if options.core_options.erase {
+                    world = draw_erase_circle(world, mp);
+                } else {
                     let line = if let Some((line, _)) =
                         get_specific_mut(&mut world).and_then(|d| d.tmp_line.as_mut())
                     {
@@ -302,6 +307,8 @@ impl Brush {
                     d.tmp_line = None;
                 }
                 set_visible(&mut world);
+            } else if let Some(mp) = events.mouse_pos_on_orig {
+                world = draw_erase_circle(world, mp);
             }
             history.push(Record::new(world.clone(), ACTOR_NAME));
         }
