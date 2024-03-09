@@ -47,7 +47,12 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
         if thickness <= 1.1 {
             im.put_pixel(center.x as u32, center.y as u32, color);
         } else {
-            draw_filled_circle_mut(&mut im, (center.x, center.y), thickness_half as i32, color);
+            let r = if thickness_half.floor() == thickness_half {
+                (thickness_half - 1.0) as i32
+            } else {
+                thickness_half as i32
+            };
+            draw_filled_circle_mut(&mut im, (center.x, center.y), r, color);
         }
         im
     } else {
