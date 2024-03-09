@@ -173,6 +173,8 @@ impl Brush {
                         annos.is_of_current_label(idx, idx_current, show_only_current)
                     });
                     if let Some((idx, dist)) = to_be_removed_line_idx {
+                        let canvas = annos.edit(idx);
+                        canvas.draw_circle(mp, options.thickness, 0);
                         if dist < max_select_dist(shape_orig) {
                             annos.remove(idx);
                         }

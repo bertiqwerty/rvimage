@@ -42,6 +42,10 @@ where
         res
     }
 
+    pub fn edit(&mut self, elt_idx: usize) -> &mut T {
+        &mut self.elts[elt_idx]
+    }
+
     pub fn is_of_current_label(
         &self,
         elt_idx: usize,

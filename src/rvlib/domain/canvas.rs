@@ -1,6 +1,7 @@
 use image::{ImageBuffer, Luma, Pixel};
 use imageproc::drawing::draw_filled_circle_mut;
 use serde::{ser::SerializeStruct, Deserialize, Serialize};
+use std::mem;
 
 use crate::{color_with_intensity, domain::OutOfBoundsMode, result::RvResult, rverr, ShapeI};
 
@@ -196,6 +197,34 @@ impl Canvas {
             intensity: line.intensity,
         })
     }
+    pub fn draw_circle(&mut self, center: PtF, thickness: TPtF, color: u8) {
+        let im = ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(
+            self.bb.w,
+            self.bb.h,
+            mem::take(&mut self.mask),
+        );
+        if let Some(mut im) = im {
+            let color = Luma([color]);
+            let center = Point {
+                x: (center.x - self.bb.x as TPtF) as i32,
+                y: (center.y - self.bb.y as TPtF) as i32,
+            };
+
+            if thickness <= 1.1 {
+                im.put_pixel(center.x as u32, center.y as u32, color);
+            } else {
+                draw_filled_circle_mut(
+                    &mut im,
+                    (center.x, center.y),
+                    (thickness * 0.5) as i32,
+                    color,
+                );
+            }
+            self.mask = im.into_vec();
+        } else {
+            tracing::error!("Could not create image buffer for canvas at {:?}", self.bb);
+        }
+    }
     /// This function does check the for out of bounds. We assume valid data has been serialized.
     pub fn from_serialized_brush_line(bl: &BrushLine) -> RvResult<Self> {
         let (mask, bb) = line_to_mask(bl, None)?;
@@ -381,12 +410,17 @@ fn test_line_to_mask() {
         thickness: 3.0,
     };
     test(&[0, 2, 6, 8], 5, BB::from_arr(&[3, 3, 3, 3]), &bl);
+    let center = PtF { x: 5.0, y: 5.0 };
     let bl = BrushLine {
         line: Line {
-            points: vec![PtF { x: 5.0, y: 5.0 }],
+            points: vec![center],
         },
         intensity: 0.5,
         thickness: 5.0,
     };
     test(&[], 21, BB::from_arr(&[2, 2, 5, 5]), &bl);
+    let mut canvas = Canvas::new(&bl, ShapeI::new(30, 30)).unwrap();
+    canvas.draw_circle(center, 5.0, 0);
+    // maybe we didn't delete all but a significant portion due to rounding errors
+    assert!(canvas.mask.iter().sum::<u8>() < 21 / 2);
 }
