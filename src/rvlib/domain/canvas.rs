@@ -6,7 +6,8 @@ use std::mem;
 use crate::{color_with_intensity, domain::OutOfBoundsMode, result::RvResult, rverr, ShapeI};
 
 use super::{
-    bb::BB, line::render_line, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF, TPtI,
+    bb::BB, line::render_line, BbF, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF,
+    TPtI,
 };
 
 fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u8>, BbI)> {
@@ -238,6 +239,15 @@ impl Canvas {
             bb,
             intensity: bl.intensity,
         })
+    }
+    pub fn follow_movement(&mut self, from: PtF, to: PtF, shape: ShapeI) {
+        let x_shift = (to.x - from.x) as TPtF;
+        let y_shift = (to.y - from.y) as TPtF;
+        let bb: BbF = self.bb.into();
+        let bb = bb.translate(x_shift, y_shift, shape, OutOfBoundsMode::Deny);
+        if let Some(bb) = bb {
+            self.bb = bb.into();
+        }
     }
 }
 

@@ -17,7 +17,7 @@ use crate::{
     },
     tools_data::{
         self,
-        annotations::BrushAnnotations,
+        annotations::{BrushAnnotations, InstanceAnnotations},
         brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         brush_mut, vis_from_lfoption, InstanceAnnotate, LabelInfo, Rot90ToolData,
     },
@@ -30,7 +30,7 @@ use crate::{
 use super::{
     core::{
         check_erase_mode, deselect_all, label_change_key, map_held_key, map_released_key,
-        on_selection_keys, HeldKey, ReleasedKey,
+        on_selection_keys, HeldKey, Mover, ReleasedKey,
     },
     instance_anno_shared::get_rot90_data,
     Manipulate, BRUSH_NAME,
@@ -163,8 +163,37 @@ fn check_export(mut world: World) -> World {
     world
 }
 
+pub(super) fn on_mouse_held_right(
+    mouse_pos: Option<PtF>,
+    mover: &mut Mover,
+    mut world: World,
+    history: History,
+) -> (World, History) {
+    if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
+        let orig_shape = world.data.shape();
+        let move_boxes = |mpo_from, mpo_to| {
+            let annos = get_annos_mut(&mut world);
+            if let Some(annos) = annos {
+                let (mut elts, cat_idxs, selected_mask) = mem::take(annos).separate_data();
+                for (i, anno) in elts.iter_mut().enumerate() {
+                    if selected_mask[i] {
+                        anno.follow_movement(mpo_from, mpo_to, orig_shape);
+                    }
+                }
+                *annos = InstanceAnnotations::new(elts, cat_idxs, selected_mask).unwrap();
+            }
+            Some(())
+        };
+        mover.move_mouse_held(move_boxes, mouse_pos);
+        let vis = get_visible(&world);
+        world.request_redraw_annotations(ACTOR_NAME, vis);
+    }
+    (world, history)
+}
 #[derive(Clone, Debug)]
-pub struct Brush {}
+pub struct Brush {
+    mover: Mover,
+}
 
 impl Brush {
     fn mouse_pressed(
@@ -173,29 +202,35 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if !(events.held_alt() || events.held_ctrl() || events.held_shift()) {
-            world = deselect_all(world, BRUSH_NAME, get_annos_mut, get_label_info);
-        }
-        if !events.held_ctrl() {
-            let options = get_options(&world);
-            let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
-            if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
-                let erase = options.core_options.erase;
-                if !erase {
-                    if let (Some(d), Some(cat_idx)) = (get_specific_mut(&mut world), idx_current) {
-                        let line = Line::from(mp);
-                        d.tmp_line = Some((
-                            BrushLine {
-                                line,
-                                intensity: options.intensity,
-                                thickness: options.thickness,
-                            },
-                            cat_idx,
-                        ));
+        if events.pressed(KeyCode::MouseRight) {
+            self.mover.move_mouse_pressed(events.mouse_pos_on_orig);
+        } else {
+            if !(events.held_alt() || events.held_ctrl() || events.held_shift()) {
+                world = deselect_all(world, BRUSH_NAME, get_annos_mut, get_label_info);
+            }
+            if !events.held_ctrl() {
+                let options = get_options(&world);
+                let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
+                if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
+                    let erase = options.core_options.erase;
+                    if !erase {
+                        if let (Some(d), Some(cat_idx)) =
+                            (get_specific_mut(&mut world), idx_current)
+                        {
+                            let line = Line::from(mp);
+                            d.tmp_line = Some((
+                                BrushLine {
+                                    line,
+                                    intensity: options.intensity,
+                                    thickness: options.thickness,
+                                },
+                                cat_idx,
+                            ));
+                        }
                     }
                 }
+                set_visible(&mut world);
             }
-            set_visible(&mut world);
         }
         (world, history)
     }
@@ -205,47 +240,51 @@ impl Brush {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if !events.held_ctrl() {
-            let options = get_options(&world);
-            if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
-                if options.core_options.erase {
-                    world = draw_erase_circle(world, mp);
-                } else {
-                    let line = if let Some((line, _)) =
-                        get_specific_mut(&mut world).and_then(|d| d.tmp_line.as_mut())
-                    {
-                        let last_point = line.line.last_point();
-                        let dist = if let Some(last_point) = last_point {
-                            last_point.dist_square(&mp)
-                        } else {
-                            100.0
-                        };
-                        if dist >= 3.0 {
-                            line.line.push(mp);
-                        }
-                        Some(line.clone())
+        if events.held(KeyCode::MouseRight) {
+            on_mouse_held_right(events.mouse_pos_on_orig, &mut self.mover, world, history)
+        } else {
+            if !events.held_ctrl() {
+                let options = get_options(&world);
+                if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
+                    if options.core_options.erase {
+                        world = draw_erase_circle(world, mp);
                     } else {
-                        None
-                    };
-                    if let (Some(line), Some(color)) = (
-                        line,
-                        get_specific(&world)
-                            .map(|d| d.label_info.colors()[d.label_info.cat_idx_current]),
-                    ) {
-                        world.request_redraw_tmp_anno(Annotation::Brush(BrushAnnotation {
-                            canvas: Canvas::new(&line, world.shape_orig()).unwrap(),
-                            tmp_line: Some(line.clone()),
-                            color,
-                            label: None,
-                            is_selected: None,
-                            fill_alpha: options.fill_alpha,
-                        }));
+                        let line = if let Some((line, _)) =
+                            get_specific_mut(&mut world).and_then(|d| d.tmp_line.as_mut())
+                        {
+                            let last_point = line.line.last_point();
+                            let dist = if let Some(last_point) = last_point {
+                                last_point.dist_square(&mp)
+                            } else {
+                                100.0
+                            };
+                            if dist >= 3.0 {
+                                line.line.push(mp);
+                            }
+                            Some(line.clone())
+                        } else {
+                            None
+                        };
+                        if let (Some(line), Some(color)) = (
+                            line,
+                            get_specific(&world)
+                                .map(|d| d.label_info.colors()[d.label_info.cat_idx_current]),
+                        ) {
+                            world.request_redraw_tmp_anno(Annotation::Brush(BrushAnnotation {
+                                canvas: Canvas::new(&line, world.shape_orig()).unwrap(),
+                                tmp_line: Some(line.clone()),
+                                color,
+                                label: None,
+                                is_selected: None,
+                                fill_alpha: options.fill_alpha,
+                            }));
+                        }
                     }
                 }
             }
-        }
 
-        (world, history)
+            (world, history)
+        }
     }
 
     fn mouse_released(
@@ -414,7 +453,9 @@ impl Brush {
 
 impl Manipulate for Brush {
     fn new() -> Self {
-        Self {}
+        Self {
+            mover: Mover::new(),
+        }
     }
 
     fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
@@ -486,7 +527,9 @@ impl Manipulate for Brush {
             events,
             [
                 (pressed, KeyCode::MouseLeft, mouse_pressed),
+                (pressed, KeyCode::MouseRight, mouse_pressed),
                 (held, KeyCode::MouseLeft, mouse_held),
+                (held, KeyCode::MouseRight, mouse_held),
                 (released, KeyCode::MouseLeft, mouse_released),
                 (released, KeyCode::Back, key_released),
                 (released, KeyCode::Delete, key_released),

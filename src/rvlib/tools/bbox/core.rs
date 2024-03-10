@@ -30,7 +30,7 @@ use super::on_events::{
     change_annos_bbox, closest_corner, export_if_triggered, find_close_vertex,
     import_coco_if_triggered, move_corner_tol, on_key_released, on_mouse_held_left,
     on_mouse_held_right, on_mouse_released_left, on_mouse_released_right, KeyReleasedParams,
-    MouseHeldLeftParams, MouseMoveParams, MouseReleaseParams, PrevPos,
+    MouseHeldLeftParams, MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -248,11 +248,8 @@ impl Bbox {
         mut world: World,
         mut history: History,
     ) -> (World, History) {
-        let params = MouseMoveParams {
-            mover: &mut self.mover,
-        };
         if event.held(KeyCode::MouseRight) {
-            on_mouse_held_right(event.mouse_pos_on_orig, params, world, history)
+            on_mouse_held_right(event.mouse_pos_on_orig, &mut self.mover, world, history)
         } else {
             let options = get_options(&world);
             let params = MouseHeldLeftParams {

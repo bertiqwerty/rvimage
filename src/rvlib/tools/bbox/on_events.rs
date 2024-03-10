@@ -213,12 +213,9 @@ fn close_polygon(
     }
     Some((world, history, prev_pos))
 }
-pub(super) struct MouseMoveParams<'a> {
-    pub mover: &'a mut Mover,
-}
 pub(super) fn on_mouse_held_right(
     mouse_pos: Option<PtF>,
-    params: MouseMoveParams,
+    mover: &mut Mover,
     mut world: World,
     history: History,
 ) -> (World, History) {
@@ -234,7 +231,7 @@ pub(super) fn on_mouse_held_right(
             }
             Some(())
         };
-        params.mover.move_mouse_held(move_boxes, mouse_pos);
+        mover.move_mouse_held(move_boxes, mouse_pos);
         let vis = get_visible(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
     }
@@ -858,19 +855,17 @@ fn test_mouse_held() {
     {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
-        let params = MouseMoveParams { mover: &mut mover };
         let (world, new_hist) =
-            on_mouse_held_right(mouse_pos, params, world.clone(), history.clone());
+            on_mouse_held_right(mouse_pos, &mut mover, world.clone(), history.clone());
         assert_eq!(get_annos(&world).unwrap().elts()[0], GeoFig::BB(bbs[0]));
         assert!(history_equal(&history, &new_hist));
     }
     {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some(point!(12.0, 12.0)));
-        let params = MouseMoveParams { mover: &mut mover };
         let annos = get_annos_mut(&mut world);
         annos.unwrap().select(0);
-        let (world, new_hist) = on_mouse_held_right(mouse_pos, params, world, history.clone());
+        let (world, new_hist) = on_mouse_held_right(mouse_pos, &mut mover, world, history.clone());
         assert_ne!(get_annos(&world).unwrap().elts()[0], GeoFig::BB(bbs[0]));
         assert!(history_equal(&history, &new_hist));
         let (_, new_hist, _) = on_mouse_released_right(
