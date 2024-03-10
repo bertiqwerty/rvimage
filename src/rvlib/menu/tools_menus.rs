@@ -202,7 +202,6 @@ fn transparency_slider(
     name: &str,
 ) -> bool {
     let mut transparency: f32 = *alpha as f32 / 255.0 * 100.0;
-    ui.label("transparency");
     let is_redraw_triggered =
         slider(ui, are_tools_active, &mut transparency, 0.0..=100.0, name).changed();
     *alpha = (transparency / 100.0 * 255.0).round() as u8;
@@ -242,20 +241,24 @@ pub fn bbox_menu(
             &mut data.options.core_options.track_changes,
             "track changes",
         );
-        if transparency_slider(ui, are_tools_active, &mut data.options.fill_alpha, "fill") {
+        if transparency_slider(
+            ui,
+            are_tools_active,
+            &mut data.options.fill_alpha,
+            "fill transparency",
+        ) {
             data.options.core_options.is_redraw_annos_triggered = true;
         }
         if transparency_slider(
             ui,
             are_tools_active,
             &mut data.options.outline_alpha,
-            "outline",
+            "outline transparency",
         ) {
             data.options.core_options.is_redraw_annos_triggered = true;
         }
         let mut outline_thickness_f =
             data.options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION;
-        ui.separator();
         if slider(
             ui,
             are_tools_active,
@@ -269,8 +272,6 @@ pub fn bbox_menu(
         }
         data.options.outline_thickness =
             (outline_thickness_f * OUTLINE_THICKNESS_CONVERSION).round() as u16;
-
-        ui.separator();
         if slider(
             ui,
             are_tools_active,
@@ -355,6 +356,8 @@ pub fn brush_menu(
 
     data.options.core_options = toggle_erase(ui, data.options.core_options);
     data.options.core_options = hide_menu(ui, data.options.core_options);
+    ui.separator();
+    ui.label("properties");
     if slider(
         ui,
         are_tools_active,
@@ -377,12 +380,20 @@ pub fn brush_menu(
     {
         data.options.is_selection_change_needed = true;
     }
+    ui.separator();
+    ui.label("visualization");
+    if transparency_slider(
+        ui,
+        are_tools_active,
+        &mut data.options.fill_alpha,
+        "transparency",
+    ) {
+        data.options.core_options.is_redraw_annos_triggered = true;
+    }
     if ui.button("new random colors").clicked() {
         data.options.core_options.is_colorchange_triggered = true;
     }
-    if transparency_slider(ui, are_tools_active, &mut data.options.fill_alpha, "") {
-        data.options.core_options.is_redraw_annos_triggered = true;
-    }
+    ui.separator();
     export_file_menu(
         ui,
         "coco file",

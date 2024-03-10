@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 pub type BrushAnnoMap = AnnotationsMap<Canvas>;
 
-pub const MAX_THICKNESS: f64 = 300.0;
+pub const MAX_THICKNESS: f64 = 100.0;
 pub const MIN_THICKNESS: f64 = 1.0;
 pub const MAX_INTENSITY: f64 = 1.0;
 pub const MIN_INTENSITY: f64 = 0.01;
