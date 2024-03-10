@@ -73,7 +73,7 @@ fn get_pixel_on_orig_str(world: &World, mouse_pos: &Option<PtI>) -> Option<Strin
 }
 
 fn apply_tools(
-    tools: &mut Vec<ToolState>,
+    tools: &mut [ToolState],
     mut world: World,
     mut history: History,
     input_event: &Events,

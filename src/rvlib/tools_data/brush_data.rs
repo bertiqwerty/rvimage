@@ -302,7 +302,7 @@ fn test_canvas() {
     assert!(!canv.contains(PtF { x: 0.0, y: 9.9 }));
     assert!(!canv.contains(PtF { x: 15.0, y: 15.0 }));
     let d = canv.dist_to_boundary(PtF { x: 5.0, y: 5.0 });
-    assert!((d-1.0).abs() < 1e-8);
+    assert!((d - 1.0).abs() < 1e-8);
     let dist = canv.dist_to_boundary(PtF { x: 5.0, y: 15.0 });
     assert!(5.0 < dist && dist < 7.0);
     for y in canv.bb.y_range() {
