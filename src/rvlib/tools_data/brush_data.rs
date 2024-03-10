@@ -9,7 +9,7 @@ use crate::{
     cfg::ExportPath,
     domain::{
         access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, BbF, Canvas, PtF, PtI, PtS,
-        ShapeI, TPtS, BB,
+        ShapeI, TPtI, TPtS, BB,
     },
     result::{trace_ok, RvResult},
     rverr, BrushLine,
@@ -236,23 +236,45 @@ impl InstanceAnnotate for Canvas {
             })
         })
     }
+    /// Returns the distance to the boundary of the mask
+    ///
+    /// *Arguments*:
+    /// p: in image coordinates
     fn dist_to_boundary(&self, p: PtF) -> TPtF {
         let mut min_dist = TPtF::MAX;
+        let point_pixel = PtF {
+            x: self.bb.x as TPtF - p.x,
+            y: self.bb.y as TPtF - p.y,
+        };
+        let to_coord = |x| {
+            if x > 0.0 {
+                x as TPtI
+            } else {
+                TPtI::MAX
+            }
+        };
+        let point_pixel = PtI {
+            x: to_coord(point_pixel.x),
+            y: to_coord(point_pixel.y),
+        };
+        let point_pixel_value = access_mask_rel(
+            &self.mask,
+            point_pixel.x,
+            point_pixel.y,
+            self.bb.w,
+            self.bb.h,
+        );
         for y in 0..self.bb.h {
             for x in 0..self.bb.w {
-                let is_current_foreground = access_mask_rel(&self.mask, x, y, self.bb.w, self.bb.h);
                 let neighbors_fg_mask = [
                     access_mask_rel(&self.mask, x + 1, y, self.bb.w, self.bb.h),
                     access_mask_rel(&self.mask, x.wrapping_sub(1), y, self.bb.w, self.bb.h),
                     access_mask_rel(&self.mask, x, y + 1, self.bb.w, self.bb.h),
                     access_mask_rel(&self.mask, x, y.wrapping_sub(1), self.bb.w, self.bb.h),
                 ];
-                if neighbors_fg_mask
-                    .iter()
-                    .any(|&b| b != is_current_foreground)
-                {
-                    let x = x as TPtF;
-                    let y = y as TPtF;
+                if neighbors_fg_mask.iter().any(|&b| b != point_pixel_value) {
+                    let x = (x + self.bb.x) as TPtF;
+                    let y = (y + self.bb.y) as TPtF;
                     let dist = p.dist_square(&PtF { x, y }).sqrt();
                     if dist < min_dist {
                         min_dist = dist;
