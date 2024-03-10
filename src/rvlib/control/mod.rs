@@ -39,9 +39,21 @@ mod detail {
         file_util::{self, SaveData},
         result::{to_rv, RvResult},
         util::version_label,
-        world::ToolsDataMap,
+        world::{ToolsDataMap, World},
     };
 
+    pub(super) fn idx_change_check(
+        file_selected_idx: Option<usize>,
+        world_idx_pair: Option<(World, Option<usize>)>,
+    ) -> Option<(World, Option<usize>)> {
+        world_idx_pair.map(|(w, idx)| {
+            if idx != file_selected_idx {
+                (w, idx)
+            } else {
+                (w, None)
+            }
+        })
+    }
     pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, Cfg)> {
         let s = file_util::read_to_string(file_path)?;
         let save_data = serde_json::from_str::<SaveData>(s.as_str()).map_err(to_rv)?;
@@ -589,11 +601,17 @@ impl Control {
 
     pub fn redo(&mut self, history: &mut History) -> Option<(World, Option<usize>)> {
         self.flags.undo_redo_load = true;
-        history.next_world(&self.opened_folder)
+        detail::idx_change_check(
+            self.file_selected_idx,
+            history.next_world(&self.opened_folder),
+        )
     }
     pub fn undo(&mut self, history: &mut History) -> Option<(World, Option<usize>)> {
         self.flags.undo_redo_load = true;
-        history.prev_world(&self.opened_folder)
+        detail::idx_change_check(
+            self.file_selected_idx,
+            history.prev_world(&self.opened_folder),
+        )
     }
 
     pub fn load_new_image_if_triggered(

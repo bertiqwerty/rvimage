@@ -307,23 +307,12 @@ impl MainEventLoop {
         }
 
         // load new image if requested by a menu click or by the http server
-        // undo/redo always return the index of the file. we have to check for the change
-        let file_selected_idx = self.ctrl.file_selected_idx;
-        let idx_change_check = |state: Option<(World, Option<usize>)>| {
-            state.map(|(w, idx)| {
-                if idx != file_selected_idx {
-                    (w, idx)
-                } else {
-                    (w, None)
-                }
-            })
-        };
         let world_idx_pair = if e.held_ctrl() && e.pressed(KeyCode::Z) {
             info!("undo");
-            idx_change_check(self.ctrl.undo(&mut self.history))
+            self.ctrl.undo(&mut self.history)
         } else if e.held_ctrl() && e.pressed(KeyCode::Y) {
             info!("redo");
-            idx_change_check(self.ctrl.redo(&mut self.history))
+            self.ctrl.redo(&mut self.history)
         } else {
             match self
                 .ctrl
