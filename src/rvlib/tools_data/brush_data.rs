@@ -24,7 +24,9 @@ pub const MAX_THICKNESS: f64 = 300.0;
 pub const MIN_THICKNESS: f64 = 1.0;
 pub const MAX_INTENSITY: f64 = 1.0;
 pub const MIN_INTENSITY: f64 = 0.01;
-
+const fn default_alpha() -> u8 {
+    255
+}
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub struct Options {
     pub thickness: TPtF,
@@ -33,7 +35,7 @@ pub struct Options {
     pub is_selection_change_needed: bool,
     #[serde(skip)]
     pub core_options: core::Options,
-    #[serde(skip)]
+    #[serde(default = "default_alpha")]
     pub fill_alpha: u8,
 }
 impl Default for Options {
@@ -43,7 +45,7 @@ impl Default for Options {
             intensity: 0.5,
             is_selection_change_needed: false,
             core_options: core::Options::default(),
-            fill_alpha: 127,
+            fill_alpha: default_alpha(),
         }
     }
 }
