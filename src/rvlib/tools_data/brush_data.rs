@@ -242,10 +242,6 @@ impl InstanceAnnotate for Canvas {
     /// p: in image coordinates
     fn dist_to_boundary(&self, p: PtF) -> TPtF {
         let mut min_dist = TPtF::MAX;
-        let point_pixel = PtF {
-            x: self.bb.x as TPtF - p.x,
-            y: self.bb.y as TPtF - p.y,
-        };
         let to_coord = |x| {
             if x > 0.0 {
                 x as TPtI
@@ -253,14 +249,16 @@ impl InstanceAnnotate for Canvas {
                 TPtI::MAX
             }
         };
-        let point_pixel = PtI {
-            x: to_coord(point_pixel.x),
-            y: to_coord(point_pixel.y),
+        // we need this to check whether p is a foreground pixel in case
+        // it inside the bounding box of the canvas
+        let point_pixel_inside = PtI {
+            x: to_coord(p.x - self.bb.x as TPtF),
+            y: to_coord(p.y - self.bb.y as TPtF),
         };
         let point_pixel_value = access_mask_rel(
             &self.mask,
-            point_pixel.x,
-            point_pixel.y,
+            point_pixel_inside.x,
+            point_pixel_inside.y,
             self.bb.w,
             self.bb.h,
         );
@@ -303,8 +301,8 @@ fn test_canvas() {
     assert!(canv.contains(PtF { x: 14.9, y: 14.9 }));
     assert!(!canv.contains(PtF { x: 0.0, y: 9.9 }));
     assert!(!canv.contains(PtF { x: 15.0, y: 15.0 }));
-
-    assert!((canv.dist_to_boundary(PtF { x: 5.0, y: 5.0 }) - 1.0).abs() < 1e-8);
+    let d = canv.dist_to_boundary(PtF { x: 5.0, y: 5.0 });
+    assert!((d-1.0).abs() < 1e-8);
     let dist = canv.dist_to_boundary(PtF { x: 5.0, y: 15.0 });
     assert!(5.0 < dist && dist < 7.0);
     for y in canv.bb.y_range() {

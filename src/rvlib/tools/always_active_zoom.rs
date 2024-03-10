@@ -11,6 +11,10 @@ use crate::{
 
 use super::{core::Mover, zoom::move_zoom_box};
 
+fn event_move_zoom_box(events: &Events) -> bool {
+    events.held_ctrl() && events.pressed(KeyCode::MouseLeft)
+}
+
 #[derive(Clone, Debug)]
 pub struct AlwaysActiveZoom {
     mover: Mover,
@@ -22,7 +26,7 @@ impl AlwaysActiveZoom {
         world: World,
         history: History,
     ) -> (World, History) {
-        if events.held_ctrl() && events.pressed(KeyCode::MouseLeft) {
+        if event_move_zoom_box(events) {
             self.mover.move_mouse_pressed(events.mouse_pos_on_view);
         }
         (world, history)
@@ -34,7 +38,7 @@ impl AlwaysActiveZoom {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if events.held_ctrl() && events.held(KeyCode::MouseLeft) {
+        if event_move_zoom_box(events) {
             (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos_on_view);
             (world, history)
         } else {
@@ -68,6 +72,13 @@ impl Manipulate for AlwaysActiveZoom {
         AlwaysActiveZoom {
             mover: Mover::new(),
         }
+    }
+    fn has_been_used(&self, events: &Events) -> Option<bool> {
+        let zoomed = events.held_ctrl()
+            && (events.released(KeyCode::Key0)
+                || events.released(KeyCode::PlusEquals)
+                || events.released(KeyCode::Minus));
+        Some(zoomed || event_move_zoom_box(events))
     }
     fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History) {
         make_tool_transform!(

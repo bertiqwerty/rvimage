@@ -437,6 +437,15 @@ pub trait Manipulate {
     fn on_filechange(&mut self, world: World, history: History) -> (World, History) {
         (world, history)
     }
+    fn on_always_active_zoom(&mut self, world: World, history: History) -> (World, History) {
+        (world, history)
+    }
+    /// None -> the tool does not tell you if it has been used
+    /// Some(true) -> the tool has been used
+    /// Some(false) -> the tool has not been used
+    fn has_been_used(&self, _: &Events) -> Option<bool> {
+        None
+    }
     /// All events that are used by a tool are implemented in here. Use the macro [`make_tool_transform`](make_tool_transform). See, e.g.,
     /// [`Zoom::events_tf`](crate::tools::Zoom::events_tf).
     fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History);

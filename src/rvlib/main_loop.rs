@@ -9,7 +9,9 @@ use crate::file_util::DEFAULT_PRJ_PATH;
 use crate::history::{History, Record};
 use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
 use crate::result::{trace_ok, RvResult};
-use crate::tools::{make_tool_vec, Manipulate, ToolState, ToolWrapper, BBOX_NAME, ZOOM_NAME};
+use crate::tools::{
+    make_tool_vec, Manipulate, ToolState, ToolWrapper, ALWAYS_ACTIVE_ZOOM, BBOX_NAME, ZOOM_NAME,
+};
 use crate::util::Visibility;
 use crate::world::World;
 use crate::{apply_tool_method_mut, httpserver, image_util, UpdateView};
@@ -76,9 +78,19 @@ fn apply_tools(
     mut history: History,
     input_event: &Events,
 ) -> (World, History) {
-    for t in tools {
-        if t.is_active() {
-            (world, history) = apply_tool_method_mut!(t, events_tf, world, history, input_event);
+    let aaz = tools
+        .iter_mut()
+        .find(|t| t.name == ALWAYS_ACTIVE_ZOOM)
+        .unwrap();
+    (world, history) = apply_tool_method_mut!(aaz, events_tf, world, history, input_event);
+    let aaz_hbu = apply_tool_method_mut!(aaz, has_been_used, input_event);
+    let not_aaz = tools
+        .iter_mut()
+        .filter(|t| t.name != ALWAYS_ACTIVE_ZOOM && t.is_active());
+    for t in not_aaz {
+        (world, history) = apply_tool_method_mut!(t, events_tf, world, history, input_event);
+        if aaz_hbu == Some(true) {
+            (world, history) = apply_tool_method_mut!(t, on_always_active_zoom, world, history);
         }
     }
     (world, history)

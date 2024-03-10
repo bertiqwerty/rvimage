@@ -440,7 +440,12 @@ impl Manipulate for Brush {
         world.request_redraw_annotations(BRUSH_NAME, Visibility::None);
         world
     }
-
+    fn on_always_active_zoom(&mut self, mut world: World, history: History) -> (World, History) {
+        let visible = get_options(&world).map(|o| o.core_options.visible) == Some(true);
+        let vis = vis_from_lfoption(get_label_info(&world), visible);
+        world.request_redraw_annotations(BRUSH_NAME, vis);
+        (world, history)
+    }
     fn events_tf(
         &mut self,
         mut world: World,
