@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use std::{iter, panic, time::Instant};
+use std::{iter, ops::Deref, panic, time::Instant};
 
 use egui::{
     epaint::{CircleShape, PathShape, RectShape},
@@ -710,7 +710,10 @@ fn main() {
             error!("{e:?}");
         }
     }) {
-        let panic_s = e.downcast_ref::<&str>();
+        let panic_s = e
+            .downcast_ref::<String>()
+            .map(|s| s.as_str())
+            .or_else(|| e.downcast_ref::<&'static str>().map(Deref::deref));
         tracing::error!("{:?}", panic_s);
         let b = tracing_setup::BACKTRACE
             .with(|b| b.borrow_mut().take())
