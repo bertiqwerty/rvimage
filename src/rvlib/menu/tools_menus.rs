@@ -195,6 +195,19 @@ fn toggle_erase(ui: &mut Ui, mut options: CoreOptions) -> CoreOptions {
     }
     options
 }
+fn transparency_slider(
+    ui: &mut Ui,
+    are_tools_active: &mut bool,
+    alpha: &mut u8,
+    name: &str,
+) -> bool {
+    let mut transparency: f32 = *alpha as f32 / 255.0 * 100.0;
+    ui.label("transparency");
+    let is_redraw_triggered =
+        slider(ui, are_tools_active, &mut transparency, 0.0..=100.0, name).changed();
+    *alpha = (transparency / 100.0 * 255.0).round() as u8;
+    is_redraw_triggered
+}
 pub fn bbox_menu(
     ui: &mut Ui,
     mut window_open: bool,
@@ -229,25 +242,17 @@ pub fn bbox_menu(
             &mut data.options.core_options.track_changes,
             "track changes",
         );
-        let mut transparency: f32 = data.options.fill_alpha as f32 / 255.0 * 100.0;
-        ui.label("transparency");
-        if slider(ui, are_tools_active, &mut transparency, 0.0..=100.0, "fill").changed() {
+        if transparency_slider(ui, are_tools_active, &mut data.options.fill_alpha, "fill") {
             data.options.core_options.is_redraw_annos_triggered = true;
         }
-        data.options.fill_alpha = (transparency / 100.0 * 255.0).round() as u8;
-        let mut transparency = data.options.outline_alpha as f32 / 255.0 * 100.0;
-        if slider(
+        if transparency_slider(
             ui,
             are_tools_active,
-            &mut transparency,
-            0.0..=100.0,
+            &mut data.options.outline_alpha,
             "outline",
-        )
-        .changed()
-        {
+        ) {
             data.options.core_options.is_redraw_annos_triggered = true;
         }
-        data.options.outline_alpha = (transparency / 100.0 * 255.0).round() as u8;
         let mut outline_thickness_f =
             data.options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION;
         ui.separator();
@@ -374,6 +379,9 @@ pub fn brush_menu(
     }
     if ui.button("new random colors").clicked() {
         data.options.core_options.is_colorchange_triggered = true;
+    }
+    if transparency_slider(ui, are_tools_active, &mut data.options.fill_alpha, "") {
+        data.options.core_options.is_redraw_annos_triggered = true;
     }
     export_file_menu(
         ui,

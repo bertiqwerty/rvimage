@@ -281,13 +281,13 @@ fn orig_pos_2_egui_rect(
     Pos2::new(p_egui_rect_x, p_egui_rect_y)
 }
 
-fn color_tf(intensity: TPtF, color: [u8; 3]) -> (Rgb<u8>, Color32) {
+fn color_tf(intensity: TPtF, color: [u8; 3], alpha: u8) -> (Rgb<u8>, Color32) {
     let min_instensity = 0.3;
     let max_instensity = 1.0;
     let intensity_span = max_instensity - min_instensity;
     let viz_intensity = intensity * intensity_span + min_instensity;
     let color_rgb = color_with_intensity(Rgb(color), viz_intensity);
-    let color_egui = rgb_2_clr(Some(color_rgb.0), 255);
+    let color_egui = rgb_2_clr(Some(color_rgb.0), alpha);
     (color_rgb, color_egui)
 }
 
@@ -341,7 +341,7 @@ impl RvImageApp {
     ) -> Option<egui::epaint::Shape> {
         let size_from = self.shape_view().w.into();
         let size_to = image_rect.size().x as TPtF;
-        let (_, color_egui) = color_tf(anno.canvas.intensity, anno.color);
+        let (_, color_egui) = color_tf(anno.canvas.intensity, anno.color, anno.fill_alpha);
         if let Some(tmp_line) = &anno.tmp_line {
             let make_shape_vec = |thickness, color| {
                 let egui_rect_points = tmp_line
@@ -454,7 +454,7 @@ impl RvImageApp {
                 _ => None,
             })
             .flat_map(|anno| {
-                let (color_rgb, _) = color_tf(anno.canvas.intensity, anno.color);
+                let (color_rgb, _) = color_tf(anno.canvas.intensity, anno.color, 255);
                 let mut res = [None, None];
                 if anno.is_selected == Some(true) {
                     let mask = ImageBuffer::from_vec(
@@ -479,10 +479,10 @@ impl RvImageApp {
                             bb: new_bb,
                             intensity: 1.0,
                         };
-                        res[0] = Some((selection_viz_canvas, Rgb([0, 0, 0])));
+                        res[0] = Some((selection_viz_canvas, (Rgb([0, 0, 0]), 255)));
                     }
                 }
-                res[1] = Some((anno.canvas.clone(), color_rgb));
+                res[1] = Some((anno.canvas.clone(), (color_rgb, anno.fill_alpha)));
                 res
             });
         let bbox_annos = self
@@ -509,7 +509,7 @@ impl RvImageApp {
         // update texture with brush canvas
         let shape_orig = self.shape_orig();
         let mut im_view = orig_2_view(&self.im_orig, self.zoom_box);
-        for (canvas, color) in canvases.flatten() {
+        for (canvas, (color, fill_alpha)) in canvases.flatten() {
             for y in canvas.bb.y_range() {
                 for x in canvas.bb.x_range() {
                     let p = PtI { x, y };
@@ -521,16 +521,24 @@ impl RvImageApp {
                             ShapeI::new(image_rect.width() as u32, image_rect.height() as u32),
                             &self.zoom_box,
                         );
+                        let current_clr = im_view.get_pixel(x, y);
+                        let alpha = fill_alpha as f32 / 255.0;
+                        let mut clr = color.0;
+                        for i in 0..3 {
+                            clr[i] = (clr[i] as f32 * alpha + current_clr[i] as f32 * (1.0 - alpha))
+                                .round()
+                                .clamp(0.0, 255.0) as u8;
+                        }
                         if let Some(zb) = self.zoom_box {
                             if zb.contains(p) {
                                 let x = x - zb.x.round() as u32;
                                 let y = y - zb.y.round() as u32;
                                 if x < self.im_view.width() && y < self.im_view.height() {
-                                    im_view.put_pixel(x, y, Rgb(color.0));
+                                    im_view.put_pixel(x, y, Rgb(clr));
                                 }
                             }
                         } else if x < self.im_view.width() && y < self.im_view.height() {
-                            im_view.put_pixel(x, y, Rgb(color.0));
+                            im_view.put_pixel(x, y, Rgb(clr));
                         }
                     }
                 }

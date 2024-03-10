@@ -33,6 +33,8 @@ pub struct Options {
     pub is_selection_change_needed: bool,
     #[serde(skip)]
     pub core_options: core::Options,
+    #[serde(skip)]
+    pub fill_alpha: u8,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -41,6 +43,7 @@ impl Default for Options {
             intensity: 0.5,
             is_selection_change_needed: false,
             core_options: core::Options::default(),
+            fill_alpha: 127,
         }
     }
 }

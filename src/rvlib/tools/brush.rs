@@ -238,6 +238,7 @@ impl Brush {
                             color,
                             label: None,
                             is_selected: None,
+                            fill_alpha: options.fill_alpha,
                         }));
                     }
                 }

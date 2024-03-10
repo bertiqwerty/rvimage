@@ -39,6 +39,7 @@ pub struct BrushAnnotation {
     pub color: [u8; 3],
     pub label: Option<String>,
     pub is_selected: Option<bool>,
+    pub fill_alpha: u8,
 }
 
 #[derive(Clone, Debug)]

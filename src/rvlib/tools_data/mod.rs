@@ -268,6 +268,7 @@ impl ToolSpecifics {
                                 color: colors[*cat_idx],
                                 label: None,
                                 is_selected: Some(*is_selected),
+                                fill_alpha: br_data.options.fill_alpha,
                             })
                         })
                         .collect::<Vec<Annotation>>();
