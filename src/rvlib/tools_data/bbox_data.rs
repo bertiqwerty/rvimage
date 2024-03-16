@@ -28,8 +28,6 @@ pub struct Options {
     #[serde(skip)]
     pub core_options: core::Options,
     #[serde(skip)]
-    pub auto_paste: bool,
-    #[serde(skip)]
     pub is_anno_outoffolder_rm_triggered: bool,
     pub split_mode: SplitMode,
     pub fill_alpha: u8,
@@ -41,7 +39,6 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             core_options: core::Options::default(),
-            auto_paste: false,
             is_anno_outoffolder_rm_triggered: false,
             split_mode: SplitMode::default(),
             fill_alpha: 30,

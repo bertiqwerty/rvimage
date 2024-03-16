@@ -233,7 +233,7 @@ pub fn bbox_menu(
     data.options.core_options = toggle_erase(ui, data.options.core_options);
     data.options.core_options = hide_menu(ui, data.options.core_options);
 
-    ui.checkbox(&mut data.options.auto_paste, "auto paste");
+    ui.checkbox(&mut data.options.core_options.auto_paste, "auto paste");
 
     let mut export_file_menu_result = Ok(());
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
@@ -393,6 +393,8 @@ pub fn brush_menu(
     if ui.button("new random colors").clicked() {
         data.options.core_options.is_colorchange_triggered = true;
     }
+    ui.separator();
+    ui.checkbox(&mut data.options.core_options.auto_paste, "auto paste");
     ui.separator();
     export_file_menu(
         ui,

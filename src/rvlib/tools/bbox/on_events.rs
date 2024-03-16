@@ -621,7 +621,7 @@ pub(super) fn on_key_released(
         BBOX_NAME,
         get_annos_mut,
         |world| get_specific_mut(world).map(|d| &mut d.clipboard),
-        |world| get_options(world).map(|o| o.core_options),
+        |world| get_options_mut(world).map(|o| &mut o.core_options),
         get_label_info,
     );
     match params.released_key {
@@ -632,11 +632,6 @@ pub(super) fn on_key_released(
             }
             let vis = get_visible(&world);
             world.request_redraw_annotations(BBOX_NAME, vis);
-        }
-        ReleasedKey::V if !params.is_ctrl_held => {
-            if let Some(options_mut) = get_options_mut(&mut world) {
-                options_mut.auto_paste = !options_mut.auto_paste;
-            }
         }
         ReleasedKey::C if !params.is_ctrl_held => {
             // Paste selection directly at current mouse position

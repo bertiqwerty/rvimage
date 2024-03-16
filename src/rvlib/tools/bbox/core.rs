@@ -1,6 +1,6 @@
 use crate::{
     annotations_accessor, annotations_accessor_mut,
-    domain::{shape_unscaled, BbF, Circle, PtF, ShapeI, TPtF},
+    domain::{shape_unscaled, BbF, Circle, PtF, TPtF},
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     file_util,
@@ -9,7 +9,7 @@ use crate::{
     result::trace_ok,
     tools::{
         core::{
-            check_erase_mode, check_recolorboxes, check_trigger_history_update,
+            check_autopaste, check_erase_mode, check_recolorboxes, check_trigger_history_update,
             check_trigger_redraw, deselect_all, map_released_key, Mover,
         },
         instance_anno_shared::{check_cocoimport, get_rot90_data},
@@ -54,28 +54,6 @@ tools_data_accessors_objects!(
     bbox_mut
 );
 
-pub(super) fn paste(mut world: World, mut history: History) -> (World, History) {
-    let clipboard = get_specific(&world).and_then(|d| d.clipboard.clone());
-    if let Some(clipboard) = &clipboard {
-        let cb_bbs = clipboard.elts();
-        if !cb_bbs.is_empty() {
-            let shape_orig = ShapeI::from_im(world.data.im_background());
-            let paste_annos = |a: &mut BboxAnnotations| {
-                a.extend(
-                    cb_bbs.iter().cloned(),
-                    clipboard.cat_idxs().iter().copied(),
-                    shape_orig,
-                )
-            };
-            change_annos_bbox(&mut world, paste_annos);
-        }
-        set_visible(&mut world);
-        history.push(Record::new(world.clone(), ACTOR_NAME));
-    }
-
-    (world, history)
-}
-
 pub(super) fn current_cat_idx(world: &World) -> Option<usize> {
     get_specific(world).map(|d| d.label_info.cat_idx_current)
 }
@@ -112,18 +90,6 @@ fn check_cocoexport(mut world: World) -> World {
         }
     }
     world
-}
-
-fn check_autopaste(mut world: World, mut history: History, auto_paste: bool) -> (World, History) {
-    if world.data.meta_data.is_loading_screen_active == Some(false) && auto_paste {
-        let annos = get_annos_mut(&mut world);
-        if let Some(annos) = annos {
-            let all = (0..annos.elts().len()).collect::<Vec<_>>();
-            annos.remove_multiple(&all);
-        }
-        (world, history) = paste(world, history);
-    }
-    (world, history)
 }
 
 fn show_grab_ball(
@@ -409,16 +375,23 @@ impl Manipulate for Bbox {
         (world, history)
     }
     fn on_filechange(&mut self, mut world: World, mut history: History) -> (World, History) {
-        let options = get_options(&world);
         let bbox_data = get_specific_mut(&mut world);
-        if let (Some(bbox_data), Some(options)) = (bbox_data, options) {
+        if let Some(bbox_data) = bbox_data {
             for (_, (anno, _)) in bbox_data.anno_iter_mut() {
                 anno.deselect_all();
             }
-            (world, history) = check_autopaste(world, history, options.auto_paste);
-            let vis = get_visible(&world);
-            world.request_redraw_annotations(BBOX_NAME, vis);
         }
+
+        (world, history) = check_autopaste(
+            world,
+            history,
+            ACTOR_NAME,
+            |w| get_options_mut(w).map(|o| &mut o.core_options),
+            get_annos_mut,
+            get_label_info,
+            |w| get_specific(&w).and_then(|d| d.clipboard.clone()),
+        );
+
         (world, history)
     }
 

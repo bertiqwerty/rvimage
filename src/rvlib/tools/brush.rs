@@ -29,8 +29,7 @@ use crate::{
 
 use super::{
     core::{
-        check_erase_mode, deselect_all, label_change_key, map_held_key, map_released_key,
-        on_selection_keys, HeldKey, Mover, ReleasedKey,
+        check_autopaste, check_erase_mode, deselect_all, label_change_key, map_held_key, map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey
     },
     instance_anno_shared::get_rot90_data,
     Manipulate, BRUSH_NAME,
@@ -418,7 +417,7 @@ impl Brush {
             BRUSH_NAME,
             get_annos_mut,
             |world| get_specific_mut(world).map(|d| &mut d.clipboard),
-            |world| get_options(world).map(|o| o.core_options),
+            |world| get_options_mut(world).map(|o| &mut o.core_options),
             get_label_info,
         );
         let mut trigger_redraw = false;
@@ -458,13 +457,22 @@ impl Manipulate for Brush {
         }
     }
 
-    fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
+    fn on_filechange(&mut self, mut world: World, mut history: History) -> (World, History) {
         let brush_data = get_specific_mut(&mut world);
         if let Some(brush_data) = brush_data {
             for (_, (anno, _)) in brush_data.anno_iter_mut() {
                 anno.deselect_all();
             }
         }
+        (world, history) = check_autopaste(
+            world,
+            history,
+            ACTOR_NAME,
+            |w| get_options_mut(w).map(|o| &mut o.core_options),
+            get_annos_mut,
+            get_label_info,
+            |w| get_specific(&w).and_then(|d| d.clipboard.clone()),
+        );
         set_visible(&mut world);
         (world, history)
     }

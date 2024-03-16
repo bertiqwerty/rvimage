@@ -203,6 +203,40 @@ macro_rules! set_cat_current {
     };
 }
 
+pub(super) fn check_autopaste<T>(
+    mut world: World,
+    mut history: History,
+    actor: &'static str,
+    mut get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
+    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
+    get_clipboard: impl Fn(&World) -> Option<ClipboardData<T>>,
+) -> (World, History)
+where
+    T: InstanceAnnotate,
+{
+    let auto_paste = get_options_mut(&mut world)
+        .map(|o| o.auto_paste)
+        .unwrap_or(false);
+    if world.data.meta_data.is_loading_screen_active == Some(false) && auto_paste {
+        let annos = get_annos_mut(&mut world);
+        if let Some(annos) = annos {
+            let all = (0..annos.elts().len()).collect::<Vec<_>>();
+            annos.remove_multiple(&all);
+        }
+        let clipboard = get_clipboard(&world);
+        (world, history) = paste(
+            world,
+            history,
+            actor,
+            clipboard,
+            get_annos_mut,
+            get_options_mut,
+            get_label_info,
+        );
+    }
+    (world, history)
+}
 pub fn check_erase_mode(
     released_key: ReleasedKey,
     get_options_mut: impl Fn(&mut World) -> Option<&mut CoreOptions>,
@@ -281,33 +315,46 @@ pub(super) fn paste<T>(
     mut world: World,
     mut history: History,
     actor: &'static str,
-    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
     clipboard: Option<ClipboardData<T>>,
+    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    mut get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
+    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> (World, History)
 where
-    T: InstanceAnnotate + Default + PartialEq + Clone,
+    T: InstanceAnnotate,
 {
     if let Some(clipboard) = &clipboard {
         let cb_bbs = clipboard.elts();
         if !cb_bbs.is_empty() {
             let shape_orig = ShapeI::from_im(world.data.im_background());
-            if let Some(a) = get_annos_mut(&mut world) {
+            let paste_annos = |a: &mut InstanceAnnotations<T>| {
                 a.extend(
                     cb_bbs.iter().cloned(),
                     clipboard.cat_idxs().iter().copied(),
                     shape_orig,
                 )
-            }
+            };
+            let track_changes = get_options_mut(&mut world).map(|o| o.track_changes) == Some(true);
+            change_annos(
+                &mut world,
+                &make_track_changes_str(actor),
+                track_changes,
+                paste_annos,
+                get_annos_mut,
+            );
         }
+        let options_mut = get_options_mut(&mut world);
+        if let Some(options_mut) = options_mut {
+            options_mut.visible = true;
+        }
+        let visible = get_options_mut(&mut world).map(|o| o.visible) == Some(true);
+        let vis = vis_from_lfoption(get_label_info(&world), visible);
+        world.request_redraw_annotations(actor, vis);
+        history.push(Record::new(world.clone(), actor));
     }
-    let visibility = vis_from_lfoption(get_label_info(&mut world), true);
-    world.request_redraw_annotations(actor, visibility);
-    history.push(Record::new(world.clone(), actor));
 
     (world, history)
 }
-
 pub fn deselect_all<T>(
     mut world: World,
     actor: &'static str,
@@ -335,7 +382,7 @@ pub(super) fn on_selection_keys<T>(
     actor: &'static str,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
     get_clipboard_mut: impl Fn(&mut World) -> Option<&mut Option<ClipboardData<T>>>,
-    get_options: impl Fn(&World) -> Option<CoreOptions>,
+    mut get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
     get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> (World, History)
 where
@@ -344,7 +391,6 @@ where
     match key {
         ReleasedKey::A if is_ctrl_held => {
             // Select all visible
-            let options = get_options(&world);
             let current_active_idx = get_label_info(&world).and_then(|li| {
                 if li.show_only_current {
                     Some(li.cat_idx_current)
@@ -352,6 +398,7 @@ where
                     None
                 }
             });
+            let options = get_options_mut(&mut world);
             if options.map(|o| o.visible) == Some(true) {
                 if let (Some(current_active), Some(a)) =
                     (current_active_idx, get_annos_mut(&mut world))
@@ -392,15 +439,21 @@ where
                 world,
                 history,
                 actor,
-                get_annos_mut,
-                get_label_info,
                 clipboard_data,
+                get_annos_mut,
+                get_options_mut,
+                get_label_info,
             );
+        }
+        ReleasedKey::V if !is_ctrl_held => {
+            if let Some(options_mut) = get_options_mut(&mut world) {
+                options_mut.auto_paste = !options_mut.auto_paste;
+            }
         }
         ReleasedKey::Delete | ReleasedKey::Back => {
             // Remove selected
 
-            let track_changes = get_options(&world).map(|o| o.track_changes) == Some(true);
+            let track_changes = get_options_mut(&mut world).map(|o| o.track_changes) == Some(true);
             let del_annos = |annos: &mut InstanceAnnotations<T>| {
                 if !annos.selected_mask().is_empty() {
                     annos.remove_selected();
