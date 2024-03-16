@@ -44,7 +44,7 @@ pub struct Options {
     pub erase: bool,
     pub label_propagation: Option<usize>,
     pub label_deletion: Option<usize>,
-    pub auto_paste: bool
+    pub auto_paste: bool,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -61,7 +61,7 @@ impl Default for Options {
             erase: false,
             label_propagation: None,
             label_deletion: None,
-            auto_paste: false
+            auto_paste: false,
         }
     }
 }

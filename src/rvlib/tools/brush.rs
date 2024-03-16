@@ -29,7 +29,8 @@ use crate::{
 
 use super::{
     core::{
-        check_autopaste, check_erase_mode, deselect_all, label_change_key, map_held_key, map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey
+        check_autopaste, check_erase_mode, deselect_all, label_change_key, map_held_key,
+        map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey,
     },
     instance_anno_shared::get_rot90_data,
     Manipulate, BRUSH_NAME,
@@ -471,7 +472,7 @@ impl Manipulate for Brush {
             |w| get_options_mut(w).map(|o| &mut o.core_options),
             get_annos_mut,
             get_label_info,
-            |w| get_specific(&w).and_then(|d| d.clipboard.clone()),
+            |w| get_specific(w).and_then(|d| d.clipboard.clone()),
         );
         set_visible(&mut world);
         (world, history)

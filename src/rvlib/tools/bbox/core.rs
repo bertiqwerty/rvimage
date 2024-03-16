@@ -389,7 +389,7 @@ impl Manipulate for Bbox {
             |w| get_options_mut(w).map(|o| &mut o.core_options),
             get_annos_mut,
             get_label_info,
-            |w| get_specific(&w).and_then(|d| d.clipboard.clone()),
+            |w| get_specific(w).and_then(|d| d.clipboard.clone()),
         );
 
         (world, history)
