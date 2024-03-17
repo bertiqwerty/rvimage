@@ -1,7 +1,7 @@
 use crate::{
     cfg::ExportPath,
     file_util::MetaData,
-    result::trace_ok,
+    result::trace_ok_err,
     tools_data::{self, merge, CoreOptions, ExportAsCoco, ImportMode, Rot90ToolData},
     world::World,
     InstanceAnnotate,
@@ -49,7 +49,7 @@ where
                     let (_, import_label_info, import_anno_map, _) = imported_data.separate_data();
                     match options.import_mode {
                         ImportMode::Replace => {
-                            trace_ok(data_mut.set_annotations_map(import_anno_map));
+                            trace_ok_err(data_mut.set_annotations_map(import_anno_map));
                             data_mut.set_labelinfo(import_label_info);
                         }
                         ImportMode::Merge => {

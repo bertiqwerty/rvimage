@@ -8,7 +8,7 @@ use crate::events::{Events, KeyCode};
 use crate::file_util::DEFAULT_PRJ_PATH;
 use crate::history::{History, Record};
 use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
-use crate::result::{trace_ok, RvResult};
+use crate::result::{trace_ok_err, RvResult};
 use crate::tools::{
     make_tool_vec, Manipulate, ToolState, ToolWrapper, ALWAYS_ACTIVE_ZOOM, BBOX_NAME, ZOOM_NAME,
 };
@@ -180,7 +180,7 @@ impl MainEventLoop {
             autosave_timer: Instant::now(),
         };
 
-        trace_ok(self_.load_prj(prj_file_path));
+        trace_ok_err(self_.load_prj(prj_file_path));
         self_
     }
     pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
@@ -409,7 +409,7 @@ impl MainEventLoop {
 
                 let homefolder = self.ctrl.cfg.home_folder().map(PathBuf::from);
                 let make_filepath = move |n| {
-                    trace_ok(
+                    trace_ok_err(
                         homefolder
                             .clone()
                             .map(|hf| hf.join(format!("autosave_{n}.json", n = n))),
@@ -420,17 +420,18 @@ impl MainEventLoop {
                     for i in 1..(n_autosaves) {
                         if let (Some(from), Some(to)) = (mf_th(i), mf_th(i - 1)) {
                             if from.exists() {
-                                trace_ok(fs::copy(from, to));
+                                trace_ok_err(fs::copy(from, to));
                             }
                         }
                     }
                 });
                 let prj_path = make_filepath(n_autosaves - 1);
                 if let Some(prj_path) = prj_path {
-                    if trace_ok(
-                        self.ctrl
-                            .save(prj_path, &self.world.data.tools_data_map, false),
-                    )
+                    if trace_ok_err(self.ctrl.save(
+                        prj_path,
+                        &self.world.data.tools_data_map,
+                        false,
+                    ))
                     .is_some()
                     {
                         info!("autosaved");

@@ -2,7 +2,7 @@ use tracing::{info, warn};
 
 use super::attributes;
 use crate::history::Record;
-use crate::result::{trace_ok, RvResult};
+use crate::result::{trace_ok_err, RvResult};
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{
@@ -40,7 +40,7 @@ pub(super) fn change_annos<T>(
                 .map(|a| a.attr_names().contains(&track_change_str))
                 != Ok(true);
 
-            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
+            trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
                 let attr_options = attributes_data::Options {
                     is_export_triggered: false,
                     is_addition_triggered: populate_new_attr,
@@ -68,7 +68,7 @@ pub(super) fn change_annos<T>(
                 is_update_triggered: true,
                 removal_idx: None,
             };
-            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
+            trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
                 d.options = attr_options;
                 if let Some(attr_map) = &mut d.current_attr_map {
                     attr_map.insert(track_change_str, AttrVal::Bool(true));
@@ -85,7 +85,7 @@ pub(super) fn change_annos<T>(
         if let Ok(attr_data) =
             tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
         {
-            trace_ok(attr_data.specifics.attributes_mut().map(|d| {
+            trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
                 d.new_attr = old_attr_name;
                 d.new_attr_type = old_attr_type;
             }));

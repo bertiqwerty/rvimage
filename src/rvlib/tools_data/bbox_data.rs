@@ -194,11 +194,11 @@ impl ExportAsCoco<GeoFig> for BboxSpecificData {
 }
 
 impl InstanceAnnotate for GeoFig {
-    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
-        match self {
+    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> RvResult<Self> {
+        Ok(match self {
             Self::BB(bb) => Self::BB(bb.rot90_with_image_ntimes(shape, n)),
             Self::Poly(poly) => Self::Poly(poly.rot90_with_image_ntimes(shape, n)),
-        }
+        })
     }
     fn is_contained_in_image(&self, shape: ShapeI) -> bool {
         match self {
@@ -231,14 +231,16 @@ impl InstanceAnnotate for GeoFig {
         &self,
         shape_im: ShapeI,
         is_export_absolute: bool,
-    ) -> Option<core::CocoSegmentation> {
-        Some(CocoSegmentation::Polygon(vec![if is_export_absolute {
-            self.points()
-        } else {
-            self.points_normalized(shape_im.w as TPtF, shape_im.h as TPtF)
-        }
-        .iter()
-        .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))
-        .collect::<Vec<_>>()]))
+    ) -> RvResult<Option<core::CocoSegmentation>> {
+        Ok(Some(CocoSegmentation::Polygon(vec![
+            if is_export_absolute {
+                self.points()
+            } else {
+                self.points_normalized(shape_im.w as TPtF, shape_im.h as TPtF)
+            }
+            .iter()
+            .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))
+            .collect::<Vec<_>>(),
+        ])))
     }
 }

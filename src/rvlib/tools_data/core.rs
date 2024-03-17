@@ -405,9 +405,13 @@ pub trait InstanceAnnotate: Clone + Default + PartialEq {
     where
         P: Into<PtF>;
     fn dist_to_boundary(&self, p: PtF) -> TPtF;
-    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self;
+    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> RvResult<Self>;
     fn enclosing_bb(&self) -> BbF;
-    fn to_cocoseg(&self, shape_im: ShapeI, is_export_absolute: bool) -> Option<CocoSegmentation>;
+    fn to_cocoseg(
+        &self,
+        shape_im: ShapeI,
+        is_export_absolute: bool,
+    ) -> RvResult<Option<CocoSegmentation>>;
 }
 pub trait ExportAsCoco<A>
 where

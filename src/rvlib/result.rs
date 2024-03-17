@@ -2,7 +2,7 @@ use std::{
     error::Error,
     fmt::{self, Debug, Display, Formatter},
 };
-use tracing::error;
+use tracing::{error, warn};
 /// This will be thrown at you if the somehting within Exmex went wrong. Ok, obviously it is not an
 /// exception, so thrown needs to be understood figuratively.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -33,7 +33,7 @@ impl From<&str> for RvError {
 /// RV Image's result type with [`RvError`](RvError) as error type.
 pub type RvResult<U> = Result<U, RvError>;
 
-pub fn trace_ok<T, E>(x: Result<T, E>) -> Option<T>
+pub fn trace_ok_err<T, E>(x: Result<T, E>) -> Option<T>
 where
     E: Debug,
 {
@@ -41,6 +41,18 @@ where
         Ok(x) => Some(x),
         Err(e) => {
             error!("{e:?}");
+            None
+        }
+    }
+}
+pub fn trace_ok_warn<T, E>(x: Result<T, E>) -> Option<T>
+where
+    E: Debug,
+{
+    match x {
+        Ok(x) => Some(x),
+        Err(e) => {
+            warn!("{e:?}");
             None
         }
     }

@@ -6,7 +6,7 @@ use crate::{
     file_util,
     history::{History, Record},
     make_tool_transform,
-    result::trace_ok,
+    result::trace_ok_err,
     tools::{
         core::{
             check_autopaste, check_erase_mode, check_recolorboxes, check_trigger_history_update,
@@ -353,7 +353,7 @@ impl Manipulate for Bbox {
 
     fn on_activate(&mut self, mut world: World) -> World {
         self.prev_pos = PrevPos::default();
-        if let Some(data) = trace_ok(get_data_mut(&mut world)) {
+        if let Some(data) = trace_ok_err(get_data_mut(&mut world)) {
             data.menu_active = true;
         }
         set_visible(&mut world);

@@ -6,7 +6,7 @@ use crate::{
     events::Events,
     history::History,
     make_tool_transform,
-    result::trace_ok,
+    result::trace_ok_err,
     tools_data::{
         self,
         attributes_data::{self, set_attrmap_val, AttrMap},
@@ -40,14 +40,14 @@ impl Manipulate for Attributes {
 
     fn on_activate(&mut self, mut world: World) -> World {
         let data = get_data_mut(&mut world);
-        if let Some(data) = trace_ok(data) {
+        if let Some(data) = trace_ok_err(data) {
             data.menu_active = true;
         }
         world
     }
     fn on_deactivate(&mut self, mut world: World) -> World {
         let data = get_data_mut(&mut world);
-        if let Some(data) = trace_ok(data) {
+        if let Some(data) = trace_ok_err(data) {
             data.menu_active = false;
         }
         world
@@ -142,9 +142,10 @@ impl Manipulate for Attributes {
         let is_export_triggered = get_specific(&world).map(|d| d.options.is_export_triggered);
         if is_export_triggered == Some(true) {
             let ssh_cfg = world.data.meta_data.ssh_cfg.clone();
-            let annos_str = get_specific(&world).and_then(|d| trace_ok(d.serialize_annotations()));
+            let annos_str =
+                get_specific(&world).and_then(|d| trace_ok_err(d.serialize_annotations()));
             if let (Some(annos_str), Some(data)) = (annos_str, get_specific(&world)) {
-                if trace_ok(data.export_path.conn.write(
+                if trace_ok_err(data.export_path.conn.write(
                     &annos_str,
                     &data.export_path.path,
                     ssh_cfg.as_ref(),

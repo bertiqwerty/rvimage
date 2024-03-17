@@ -3,7 +3,7 @@ use egui::Ui;
 use crate::{
     cfg::Connection,
     control::Control,
-    result::{trace_ok, RvError, RvResult},
+    result::{trace_ok_err, RvError, RvResult},
 };
 
 use super::picklist::{self, PicklistResult};
@@ -22,7 +22,7 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                 }
                 sf.as_ref()
                     .and_then(|sf| {
-                        trace_ok(sf.to_str().ok_or_else(|| {
+                        trace_ok_err(sf.to_str().ok_or_else(|| {
                             RvError::new("could not transfer path to unicode string")
                         }))
                     })

@@ -1,7 +1,7 @@
 use crate::{
     domain::TPtF,
     drawme::{Annotation, BboxAnnotation, Stroke},
-    result::{trace_ok, RvError, RvResult},
+    result::{trace_ok_err, RvError, RvResult},
     rverr,
     world::World,
     BrushAnnotation, UpdatePermAnnos,
@@ -68,7 +68,7 @@ pub fn get_specific<T>(
     f: impl Fn(&ToolSpecifics) -> RvResult<&T>,
     data: RvResult<&ToolsData>,
 ) -> Option<&T> {
-    trace_ok(data.map(|d| &d.specifics).and_then(f))
+    trace_ok_err(data.map(|d| &d.specifics).and_then(f))
 }
 pub(super) fn get_mut<'a>(
     world: &'a mut World,
@@ -85,7 +85,7 @@ pub fn get_specific_mut<T>(
     f_data_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut T>,
     data: RvResult<&mut ToolsData>,
 ) -> Option<&mut T> {
-    trace_ok(data.map(|d| &mut d.specifics).and_then(f_data_access))
+    trace_ok_err(data.map(|d| &mut d.specifics).and_then(f_data_access))
 }
 
 #[macro_export]

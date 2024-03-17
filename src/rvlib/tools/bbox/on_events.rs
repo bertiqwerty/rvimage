@@ -10,7 +10,7 @@ use crate::{
     },
     file_util::MetaData,
     history::{History, Record},
-    result::{trace_ok, RvResult},
+    result::{trace_ok_err, RvResult},
     tools::{
         core::{
             change_annos, label_change_key, make_track_changes_str, on_selection_keys, Mover,
@@ -185,18 +185,18 @@ fn close_polygon(
         let tolerance = move_corner_tol(unscaled);
         let poly = if c_dist < tolerance {
             if let Some(mc_idx) = prev_pos.move_corner_idx {
-                trace_ok(Polygon::from_vec(trace_ok(shorter_path(
+                trace_ok_err(Polygon::from_vec(trace_ok_err(shorter_path(
                     c_idx,
                     mc_idx,
                     prev_pos.prev_pos,
                 ))?))?
             } else {
-                trace_ok(Polygon::from_vec(
+                trace_ok_err(Polygon::from_vec(
                     prev_pos.prev_pos.into_iter().collect::<Vec<_>>(),
                 ))?
             }
         } else {
-            trace_ok(Polygon::from_vec(
+            trace_ok_err(Polygon::from_vec(
                 prev_pos.prev_pos.into_iter().collect::<Vec<_>>(),
             ))?
         };

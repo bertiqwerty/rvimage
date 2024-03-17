@@ -14,7 +14,7 @@ use rvlib::{
     color_with_intensity,
     domain::{access_mask_abs, BbF, Canvas, PtF, PtI, TPtF, TPtI},
     orig_2_view, orig_pos_2_view_pos, project_on_bb, read_darkmode,
-    result::trace_ok,
+    result::trace_ok_err,
     scale_coord, tracing_setup, view_pos_2_orig_pos, Annotation, BboxAnnotation, BrushAnnotation,
     GeoFig, ImageU8, InstanceAnnotate, KeyCode, MainEventLoop, ShapeI, UpdateImage,
     UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
@@ -471,7 +471,7 @@ impl RvImageApp {
                             .bb
                             .expand(expansion, expansion, self.shape_orig());
                         let mut selection_viz = ImageBuffer::new(new_bb.w, new_bb.h);
-                        trace_ok(selection_viz.copy_from(&mask, expansion, expansion));
+                        trace_ok_err(selection_viz.copy_from(&mask, expansion, expansion));
                         let selection_viz =
                             imageproc::morphology::dilate(&selection_viz, Norm::L1, k);
                         let selection_viz_canvas = Canvas {

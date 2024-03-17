@@ -11,7 +11,7 @@ use crate::{
         access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, BbF, Canvas, PtF, PtI, PtS,
         ShapeI, TPtI, TPtS, BB,
     },
-    result::{trace_ok, RvResult},
+    result::{trace_ok_warn, RvResult},
     rverr, BrushLine,
 };
 use crate::{domain::TPtF, implement_annotations_getters};
@@ -204,10 +204,13 @@ impl InstanceAnnotate for Canvas {
     fn enclosing_bb(&self) -> BbF {
         self.bb.into()
     }
-    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
+    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> RvResult<Self> {
         let bb = self.bb;
         let bb_s: BB<TPtS> = BB::from(self.bb);
         let bb_rot = bb_s.rot90_with_image_ntimes(shape, n);
+        if bb_rot.x < 0 || bb_rot.y < 0 {
+            return Err(rverr!("rotated bb {bb_rot:?} has negative coordinates",));
+        }
         let mut new_mask = self.mask.clone();
         for y in 0..bb.h {
             for x in 0..bb.w {
@@ -220,26 +223,34 @@ impl InstanceAnnotate for Canvas {
                     self.mask[p_mask.y as usize * bb.w as usize + p_mask.x as usize];
             }
         }
-        Self {
+        Ok(Self {
             mask: new_mask,
             bb: bb_rot.into(),
             intensity: self.intensity,
-        }
+        })
     }
     fn to_cocoseg(
         &self,
         shape_im: ShapeI,
         _is_export_absolute: bool,
-    ) -> Option<core::CocoSegmentation> {
-        let rle_bb = mask_to_rle(&self.mask, self.bb.w, self.bb.h);
-        let rle_im = trace_ok(rle_bb_to_image(&rle_bb, self.bb, shape_im));
-        rle_im.map(|rle_im| {
-            CocoSegmentation::Rle(CocoRle {
-                counts: rle_im,
-                size: (shape_im.w, shape_im.h),
-                intensity: Some(self.intensity),
-            })
-        })
+    ) -> RvResult<Option<core::CocoSegmentation>> {
+        if !self.bb.is_contained_in_image(shape_im) {
+            Err(rverr!(
+                "bb {:?} not contained in image {shape_im:?}",
+                self.bb
+            ))
+        } else {
+            let rle_bb = mask_to_rle(&self.mask, self.bb.w, self.bb.h);
+
+            let rle_im = trace_ok_warn(rle_bb_to_image(&rle_bb, self.bb, shape_im));
+            Ok(rle_im.map(|rle_im| {
+                CocoSegmentation::Rle(CocoRle {
+                    counts: rle_im,
+                    size: (shape_im.w, shape_im.h),
+                    intensity: Some(self.intensity),
+                })
+            }))
+        }
     }
     /// Returns the distance to the boundary of the mask
     ///
@@ -267,13 +278,13 @@ impl InstanceAnnotate for Canvas {
             self.bb.w,
             self.bb.h,
         );
-        for y in 0..self.bb.h {
-            for x in 0..self.bb.w {
+        for y in 1..self.bb.h {
+            for x in 1..self.bb.w {
                 let neighbors_fg_mask = [
                     access_mask_rel(&self.mask, x + 1, y, self.bb.w, self.bb.h),
-                    access_mask_rel(&self.mask, x.wrapping_sub(1), y, self.bb.w, self.bb.h),
+                    access_mask_rel(&self.mask, x - 1, y, self.bb.w, self.bb.h),
                     access_mask_rel(&self.mask, x, y + 1, self.bb.w, self.bb.h),
-                    access_mask_rel(&self.mask, x, y.wrapping_sub(1), self.bb.w, self.bb.h),
+                    access_mask_rel(&self.mask, x, y - 1, self.bb.w, self.bb.h),
                 ];
                 if neighbors_fg_mask.iter().any(|&b| b != point_pixel_value) {
                     let x = (x + self.bb.x) as TPtF;
@@ -316,7 +327,10 @@ fn test_canvas() {
         }
     }
     let canv = Canvas::new(&bl, orig_shape).unwrap();
-    let canv_rot = canv.clone().rot90_with_image_ntimes(&orig_shape, 1);
+    let canv_rot = canv
+        .clone()
+        .rot90_with_image_ntimes(&orig_shape, 1)
+        .unwrap();
     let bl_rot = BrushLine {
         line: Line {
             points: vec![
@@ -336,7 +350,12 @@ fn test_canvas() {
             && (inter.h - canv_rot.enclosing_bb().h).abs() <= 1.0
     );
     let canv = Canvas::new(&bl, orig_shape).unwrap();
-    assert_eq!(canv, canv.clone().rot90_with_image_ntimes(&orig_shape, 0));
+    assert_eq!(
+        canv,
+        canv.clone()
+            .rot90_with_image_ntimes(&orig_shape, 0)
+            .unwrap()
+    );
 }
 
 #[test]
@@ -346,7 +365,10 @@ fn test_canvas_rot() {
         bb: BbI::from_arr(&[0, 0, 4, 1]),
         intensity: 0.5,
     };
-    let canv_rot = canv.clone().rot90_with_image_ntimes(&ShapeI::new(4, 1), 1);
+    let canv_rot = canv
+        .clone()
+        .rot90_with_image_ntimes(&ShapeI::new(4, 1), 1)
+        .unwrap();
     let canv_ref = Canvas {
         mask: vec![1, 0, 0, 0],
         bb: BbI::from_arr(&[0, 0, 1, 4]),

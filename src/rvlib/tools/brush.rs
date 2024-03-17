@@ -10,7 +10,7 @@ use crate::{
     file_util::MetaData,
     history::{History, Record},
     make_tool_transform,
-    result::trace_ok,
+    result::trace_ok_err,
     tools::{
         core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
         instance_anno_shared::check_cocoimport,
@@ -478,7 +478,7 @@ impl Manipulate for Brush {
         (world, history)
     }
     fn on_activate(&mut self, mut world: World) -> World {
-        if let Some(data) = trace_ok(get_data_mut(&mut world)) {
+        if let Some(data) = trace_ok_err(get_data_mut(&mut world)) {
             data.menu_active = true;
         }
         set_visible(&mut world);

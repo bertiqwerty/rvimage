@@ -3,7 +3,7 @@ use crate::file_util::{
     osstr_to_str, ConnectionData, MetaData, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
 };
 use crate::history::{History, Record};
-use crate::result::{trace_ok, RvError};
+use crate::result::{trace_ok_err, RvError};
 use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME};
 use crate::tools_data::bbox_data::BboxSpecificData;
 use crate::tools_data::{AttributesToolData, BrushToolData, Rot90ToolData};
@@ -261,14 +261,14 @@ impl Control {
         }
         self.cfg.set_current_prj_path(prj_file_path);
         // save cfg of imported project
-        trace_ok(cfg::write_cfg(&self.cfg));
+        trace_ok_err(cfg::write_cfg(&self.cfg));
 
         // map paths in annotations
         let bbox: Option<BboxSpecificData> = tools_data_map
             .get_mut(BBOX_NAME)
-            .and_then(|tdm| trace_ok(tdm.specifics.bbox_mut()))
+            .and_then(|tdm| trace_ok_err(tdm.specifics.bbox_mut()))
             .map(|d| {
-                trace_ok(
+                trace_ok_err(
                     d.set_annotations_map(
                         d.clone()
                             .anno_intoiter()
@@ -280,9 +280,9 @@ impl Control {
             });
         let brush: Option<BrushToolData> = tools_data_map
             .get_mut(BRUSH_NAME)
-            .and_then(|tdm| trace_ok(tdm.specifics.brush_mut()))
+            .and_then(|tdm| trace_ok_err(tdm.specifics.brush_mut()))
             .map(|d| {
-                trace_ok(
+                trace_ok_err(
                     d.set_annotations_map(
                         d.clone()
                             .anno_intoiter()
@@ -295,9 +295,9 @@ impl Control {
 
         let attributes: Option<AttributesToolData> = tools_data_map
             .get_mut(ATTRIBUTES_NAME)
-            .and_then(|tdm| trace_ok(tdm.specifics.attributes_mut()))
+            .and_then(|tdm| trace_ok_err(tdm.specifics.attributes_mut()))
             .map(|d| {
-                trace_ok(
+                trace_ok_err(
                     d.set_annotations_map(
                         d.clone()
                             .anno_intoiter()
@@ -309,7 +309,7 @@ impl Control {
             });
         let rot90: Option<Rot90ToolData> = tools_data_map
             .get_mut(ROT90_NAME)
-            .and_then(|tdm| trace_ok(tdm.specifics.rot90_mut()))
+            .and_then(|tdm| trace_ok_err(tdm.specifics.rot90_mut()))
             .map(|d| {
                 d.set_annotations_map(
                     d.clone()
@@ -361,7 +361,7 @@ impl Control {
         // update prj name in cfg
         self.cfg.set_current_prj_path(file_path);
         // save cfg of loaded project
-        trace_ok(cfg::write_cfg(&self.cfg));
+        trace_ok_err(cfg::write_cfg(&self.cfg));
 
         Ok(tools_data_map)
     }
@@ -404,17 +404,17 @@ impl Control {
         if set_cur_prj {
             self.cfg.set_current_prj_path(path.clone());
             // update prj name in cfg
-            let cfg_global = trace_ok(cfg::read_cfg());
+            let cfg_global = trace_ok_err(cfg::read_cfg());
             if let Some(mut cfg_global) = cfg_global {
                 cfg_global.set_current_prj_path(path.clone());
-                trace_ok(cfg::write_cfg(&cfg_global));
+                trace_ok_err(cfg::write_cfg(&cfg_global));
             }
         }
         let opened_folder = self.opened_folder().cloned();
         let tdm = tools_data_map.clone();
         let cfg = self.cfg.clone();
         let handle = thread::spawn(move || {
-            trace_ok(detail::save(
+            trace_ok_err(detail::save(
                 opened_folder.as_ref(),
                 &tdm,
                 path.as_path(),
@@ -469,16 +469,16 @@ impl Control {
                 let walkdir = WalkDir::new(elf);
                 let iter_log = walkdir.into_iter();
                 for entry in iter_log {
-                    if let Some(entry) = trace_ok(entry) {
+                    if let Some(entry) = trace_ok_err(entry) {
                         let path = entry.path();
                         if path.is_file() {
                             let file_name = osstr_to_str(path.file_name());
-                            trace_ok(file_name).and_then(|file_name| {
-                                trace_ok(
+                            trace_ok_err(file_name).and_then(|file_name| {
+                                trace_ok_err(
                                     zip.start_file(file_name, zip::write::FileOptions::default()),
                                 );
-                                trace_ok(fs::read(path))
-                                    .and_then(|buf| trace_ok(zip.write_all(&buf)))
+                                trace_ok_err(fs::read(path))
+                                    .and_then(|buf| trace_ok_err(zip.write_all(&buf)))
                             });
                         }
                     }
