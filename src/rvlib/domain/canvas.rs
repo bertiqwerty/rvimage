@@ -111,20 +111,29 @@ pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
     mask
 }
 
-fn idx_bb_to_im(idx_bb: u32, bb: BbI, w_im: TPtI) -> u32 {
-    let p_im = PtI {
+fn idx_bb_to_pixim(idx_bb: u32, bb: BbI) -> PtI {
+    PtI {
         y: idx_bb / bb.w,
         x: idx_bb % bb.w,
-    } + bb.min();
+    } + bb.min()
+}
+
+fn idx_bb_to_im(idx_bb: u32, bb: BbI, w_im: TPtI) -> u32 {
+    let p_im = idx_bb_to_pixim(idx_bb, bb);
     p_im.y * w_im + p_im.x
 }
 
-fn idx_im_to_bb(idx_im: u32, bb: BbI, w_im: TPtI) -> u32 {
-    let p_bb = PtI {
+fn idx_im_to_bb(idx_im: u32, bb: BbI, w_im: TPtI) -> Option<u32> {
+    let p_im = PtI {
         x: idx_im % w_im,
         y: idx_im / w_im,
-    } - bb.min();
-    p_bb.y * bb.w + p_bb.x
+    };
+    if bb.contains(p_im) {
+        let p = p_im - bb.min();
+        Some(p.y * bb.w + p.x)
+    } else {
+        None
+    }
 }
 /// The input rle is computed with respect to the bounding box coordinates
 /// the result is with respect to image coordinates
@@ -136,13 +145,91 @@ pub fn rle_bb_to_image(rle_bb: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Ve
             shape_im
         ))
     } else {
-        let mut rle_im = vec![0; rle_bb.len()];
+        // degenerate cases with all zeros
+        if rle_bb.len() == 1 {
+            return Ok(vec![shape_im.w * shape_im.h]);
+        }
+        // or leading rows with complete zeros
+        let n_zero_rows = rle_bb[0] / bb.w;
+        let bb = BbI::from_arr(&[bb.x, bb.y + n_zero_rows, bb.w, bb.h - n_zero_rows]);
+        let rle_0_correction = n_zero_rows * bb.w;
+        // or zeros at the end
+        let n_zero_rows = if rle_bb.len() % 2 == 1 {
+            rle_bb.iter().last().unwrap() / bb.w
+        } else {
+            0
+        };
+        let bb = BbI::from_arr(&[bb.x, bb.y, bb.w, bb.h - n_zero_rows]);
+        let rle_1_correction = n_zero_rows * bb.w;
+
+        let mut rle_im = vec![];
         let offset = idx_bb_to_im(0, bb, shape_im.w);
-        rle_im[0] = offset + rle_bb[0];
-        let mut prev_idx = rle_im[0];
+        rle_im.push(offset + rle_bb[0] - rle_0_correction);
+        let mut prev_idx = rle_im[0] - 1;
         for i in 1..rle_bb.len() {
-            let im_idx = idx_bb_to_im(rle_bb[..=i].iter().sum(), bb, shape_im.w);
-            rle_im[i] = im_idx - prev_idx;
+            let sum_correction = rle_0_correction
+                + if i == rle_bb.len() - 1 {
+                    rle_1_correction
+                } else {
+                    0
+                };
+            let im_idx = idx_bb_to_im(
+                rle_bb[..=i].iter().sum::<u32>() - 1 - sum_correction,
+                bb,
+                shape_im.w,
+            );
+            let p = PtI {
+                x: im_idx % shape_im.w,
+                y: im_idx / shape_im.w,
+            };
+            let p_prev = PtI {
+                x: prev_idx % shape_im.w,
+                y: prev_idx / shape_im.w,
+            };
+            let is_foreground_run = i % 2 == 1;
+            let row_span = p.y - p_prev.y;
+            if is_foreground_run {
+                if row_span == 0 {
+                    rle_im.push(p.x - p_prev.x);
+                } else {
+                    let n_elts = bb.max().x - p_prev.x;
+                    // in case of complete zero rows this can be zero
+                    if n_elts > 0 {
+                        rle_im.push(n_elts);
+                        for _ in 0..(row_span - 1) {
+                            rle_im.push(shape_im.w - bb.w);
+                            rle_im.push(bb.w);
+                        }
+                        rle_im.push(shape_im.w - bb.w);
+                    }
+                    rle_im.push(p.x + 1 - bb.x);
+                }
+                if i == rle_bb.len() - 1 {
+                    rle_im.push(
+                        bb.x + bb.w - 1 - p.x + shape_im.w * (shape_im.h - p.y - 1) + shape_im.w
+                            - (bb.w + bb.x),
+                    );
+                }
+            } else {
+                let n_elts = if row_span == 0 {
+                    p.x - p_prev.x
+                } else {
+                    bb.x_max() + 1 - p_prev.x + (row_span - 1) * shape_im.w + shape_im.w - bb.w
+                        + p.x
+                        - bb.x
+                };
+                let n_elts = if p.x == bb.x_max() && i < rle_bb.len() - 1 {
+                    n_elts + shape_im.w - bb.w
+                } else {
+                    n_elts
+                };
+                let n_elts = if i == rle_bb.len() - 1 {
+                    n_elts + shape_im.w - (bb.w + bb.x) + shape_im.w * (shape_im.h - p.y - 1)
+                } else {
+                    n_elts
+                };
+                rle_im.push(n_elts);
+            }
             prev_idx = im_idx;
         }
         Ok(rle_im)
@@ -158,16 +245,26 @@ pub fn rle_image_to_bb(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Ve
             shape_im
         ))
     } else {
-        let mut rle_bb = vec![0; rle_im.len()];
-        let offset = idx_bb_to_im(0, bb, shape_im.w);
-        rle_bb[0] = rle_im[0] - offset;
-        let mut prev_idx = rle_bb[0];
-        for i in 1..rle_im.len() {
-            let bb_idx = idx_im_to_bb(rle_im[..=i].iter().sum(), bb, shape_im.w);
-            rle_bb[i] = bb_idx - prev_idx;
-            prev_idx = bb_idx;
+        // degenerate cases with all zeros
+        if rle_im.len() == 1 {
+            return Ok(vec![bb.w * bb.h]);
         }
-        Ok(rle_bb)
+        let mut mask = vec![0; (bb.w * bb.h) as usize];
+        
+        for (i, run) in rle_im.iter().enumerate() {
+            let is_foreground_run = i % 2 == 1;
+            if is_foreground_run {
+                let start = rle_im.iter().take(i).sum::<u32>();
+                for idx in start..(start + run) {
+                    if let Some(idx_bb) = idx_im_to_bb(idx, bb, shape_im.w) {
+                        mask[idx_bb as usize] = 1;
+                    }
+                }
+            }
+            
+        }
+        
+        Ok(mask_to_rle(&mask, bb.w, bb.h))
     }
 }
 
@@ -339,6 +436,80 @@ fn test_canvas_single() {
 
 #[test]
 fn test_rle() {
+
+    fn test(bb: BbI, shape: ShapeI, rle_bb: &[u32], rle_im_ref: &[u32], skip_rec: bool) {
+        let rle_im = rle_bb_to_image(&rle_bb, bb, shape).unwrap();
+        assert_eq!(rle_im, rle_im_ref);
+        assert_eq!(rle_im.iter().sum::<u32>(), shape.w * shape.h);
+        let rle_bb_rec = rle_image_to_bb(&rle_im, bb, shape).unwrap();
+        if !skip_rec {
+            assert_eq!(rle_bb_rec, rle_bb);
+        }
+    }
+    let rle_bb = [1, 1, 4, 1, 1];
+    let bb = BbI::from_arr(&[1, 1, 2, 4]);
+    let shape = ShapeI::new(4, 6);
+    let rle_im_ref = [6, 1, 10, 1, 6];
+    test(bb, shape, &rle_bb, &rle_im_ref, false);
+
+    let rle_bb = [0, 3, 1, 2];
+    let bb = BbI::from_arr(&[3, 2, 2, 3]);
+    let shape = ShapeI::new(6, 6);
+    let rle_im_ref = [15, 2, 4, 1, 5, 2, 7];
+    test(bb, shape, &rle_bb, &rle_im_ref, false);
+
+    let rle_bb = [0, 1, 3];
+    let bb = BbI::from_arr(&[2, 2, 2, 2]);
+    let shape = ShapeI::new(6, 6);
+    let rle_im_ref = [14, 1, 21];
+    test(bb, shape, &rle_bb, &rle_im_ref, true);
+
+    let rle_bb = [1, 2, 1];
+    let bb = BbI::from_arr(&[1, 1, 2, 2]);
+    let shape = ShapeI::new(6, 4);
+    let rle_im_ref = [8, 1, 4, 1, 10];
+    test(bb, shape, &rle_bb, &rle_im_ref, false);
+
+    let rle_bb = vec![0, 2, 2, 2];
+    let bb = BbI::from_arr(&[3, 2, 2, 3]);
+    let shape = ShapeI::new(6, 6);
+    let rle_im_ref = vec![15, 2, 10, 2, 7];
+    test(bb, shape, &rle_bb, &rle_im_ref, false);
+
+    let rle_bb = vec![3, 1];
+    let bb = BbI::from_arr(&[1, 1, 2, 2]);
+    let shape = ShapeI::new(6, 6);
+    let rle_im_ref = vec![14, 1, 21];
+    test(bb, shape, &rle_bb, &rle_im_ref, true);
+
+    let rle_bb = vec![6];
+    let bb = BbI::from_arr(&[2, 1, 2, 3]);
+    let shape = ShapeI::new(6, 6);
+    let rle_im_ref = vec![36];
+    test(bb, shape, &rle_bb, &rle_im_ref, false);
+
+    let rle_bb = vec![0, 6];
+    let bb = BbI::from_arr(&[2, 1, 2, 3]);
+    let shape = ShapeI::new(6, 6);
+    let rle_im_ref = vec![8, 2, 4, 2, 4, 2, 14];
+    test(bb, shape, &rle_bb, &rle_im_ref, false);
+
+    let rle_bb = vec![0, 1, 2, 1];
+    let bb = BbI::from_arr(&[1, 1, 2, 2]);
+    let shape = ShapeI::new(6, 8);
+    let rle_im_ref = vec![7, 1, 6, 1, 33];
+    test(bb, shape, &rle_bb, &rle_im_ref, false);
+
+    let rle_bb = vec![1, 4, 1];
+    let bb = BbI::from_arr(&[1, 1, 2, 3]);
+    let shape = ShapeI::new(6, 6);
+    let rle_im_ref = vec![8, 1, 4, 2, 4, 1, 16];
+    test(bb, shape, &rle_bb, &rle_im_ref, false);
+
+    let mask = vec![0, 1, 0, 0, 0, 0, 1, 0];
+    let rle = mask_to_rle(&mask, 2, 4);
+    assert_eq!(rle, vec![1, 1, 4, 1, 1]);
+
     let mask = vec![0, 0, 0, 0, 0, 0, 0, 0, 0];
     let rle = mask_to_rle(&mask, 3, 3);
     assert_eq!(rle, vec![9]);
@@ -365,11 +536,6 @@ fn test_rle() {
     assert_eq!(x, 1006);
     let x = idx_bb_to_im(3, bb, shape_im.w);
     assert_eq!(x, 1008);
-    let rle_bb = vec![1, 2, 3, 1, 4];
-    let rle_im = rle_bb_to_image(&rle_bb, bb, shape_im).unwrap();
-    assert_eq!(rle_im, vec![1006, 2, 99, 1, 100]);
-    let rle_bb2 = rle_image_to_bb(&rle_im, bb, shape_im).unwrap();
-    assert_eq!(rle_bb, rle_bb2);
 }
 
 #[test]
