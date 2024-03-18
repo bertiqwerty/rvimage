@@ -250,7 +250,7 @@ pub fn rle_image_to_bb(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Ve
             return Ok(vec![bb.w * bb.h]);
         }
         let mut mask = vec![0; (bb.w * bb.h) as usize];
-        
+
         for (i, run) in rle_im.iter().enumerate() {
             let is_foreground_run = i % 2 == 1;
             if is_foreground_run {
@@ -261,9 +261,7 @@ pub fn rle_image_to_bb(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Ve
                     }
                 }
             }
-            
         }
-        
         Ok(mask_to_rle(&mask, bb.w, bb.h))
     }
 }
@@ -436,7 +434,6 @@ fn test_canvas_single() {
 
 #[test]
 fn test_rle() {
-
     fn test(bb: BbI, shape: ShapeI, rle_bb: &[u32], rle_im_ref: &[u32], skip_rec: bool) {
         let rle_im = rle_bb_to_image(&rle_bb, bb, shape).unwrap();
         assert_eq!(rle_im, rle_im_ref);
