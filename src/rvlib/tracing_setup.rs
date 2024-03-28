@@ -8,7 +8,7 @@ use tracing_subscriber::{
     prelude::*,
 };
 thread_local! {
-    pub static BACKTRACE: RefCell<Option<Backtrace>> = RefCell::new(None);
+    pub static BACKTRACE: RefCell<Option<Backtrace>> = const { RefCell::new(None) };
 }
 pub fn tracing_setup() -> WorkerGuard {
     let log_folder = get_log_folder().expect("no log folder");
