@@ -207,7 +207,7 @@ fn map_mouse_events(
 
     if image_response.clicked()
         || image_response.secondary_clicked()
-        || image_response.drag_released()
+        || image_response.drag_stopped()
     {
         if last_sensed.btn_codes.contains(&KeyCode::MouseLeft) {
             events.push(rvlib::Event::Released(KeyCode::MouseLeft));

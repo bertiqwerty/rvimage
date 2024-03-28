@@ -35,8 +35,8 @@ azure_storage_blobs = { version = "0.19.0", optional = true }
 conv = "0.3.3"
 dirs = "5.0.1"
 edit = "0.1.5"
-egui = "0.26.2"
-eframe = { version = "0.26.2", default-features = false, features = [
+egui = "0.27.0"
+eframe = { version = "0.27.0", default-features = false, features = [
     # "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
@@ -50,20 +50,20 @@ lazy_static = "1.4.0"
 log = "0.4"
 percent-encoding = "2.3.1"
 rand = "0.8.5"
-regex = "1.10.2"
-reqwest = { version = "0.12.1", features = ["blocking", "json"] }
+regex = "1.10.4"
+reqwest = { version = "0.12.2", features = ["blocking", "json"] }
 rfd = "0.14.0"
 rusttype = "0.9.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 ssh2 = { version = "0.9", features = ["vendored-openssl"] }
 toml = "0.8.8"
-walkdir = "2.4"
-tokio = { version = "1.35.0", optional = true }
+walkdir = "2.5"
+tokio = { version = "1.36.0", optional = true }
 uuid = { version = "1.6.1", features = ["v4", "fast-rng"] }
 exmex = "0.19.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
-backtrace = "0.3.69"
+backtrace = "0.3.71"
 zip = "0.6.6"
