@@ -9,6 +9,7 @@ pub fn scroll_area_file_selector(
     file_info_selected: Option<&str>,
     scroll_to_selected_label: bool,
     scroll_offset: f32,
+    show_idx: bool,
 ) -> f32 {
     let scroll_height = ui.available_height() - 200.0;
     let n_rows = paths_selector.len_filtered();
@@ -30,10 +31,13 @@ pub fn scroll_area_file_selector(
         },
     });
     let mut add_content = |ui: &mut Ui, filtered_label_idx: usize| {
-        let file_label = paths_selector
-            .filtered_idx_file_label_pairs(filtered_label_idx)
-            .1;
-        let file_label = RichText::new(file_label).monospace();
+        let (idx, file_label) = paths_selector.filtered_idx_file_label_pairs(filtered_label_idx);
+        let file_label = RichText::new(if show_idx {
+            format!("{idx}) {file_label}")
+        } else {
+            file_label.to_string()
+        })
+        .monospace();
         let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
             let path = paths_selector.file_selected_path(filtered_label_idx);
             if let Some(path) = path {

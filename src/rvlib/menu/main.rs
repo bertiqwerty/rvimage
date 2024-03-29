@@ -309,6 +309,7 @@ pub struct Menu {
     show_about: bool,
     import_prj_state: ImportPrjState,
     text_buffers: TextBuffers,
+    show_file_idx: bool,
 }
 
 impl Menu {
@@ -333,6 +334,7 @@ impl Menu {
             show_about: false,
             import_prj_state: ImportPrjState::default(),
             text_buffers,
+            show_file_idx: true,
         }
     }
     pub fn sort_type(&self) -> SortType {
@@ -534,6 +536,8 @@ impl Menu {
             let scroll_to_selected = ctrl.paths_navigator.scroll_to_selected_label();
             let mut filtered_label_selected_idx = ctrl.paths_navigator.file_label_selected_idx();
             if let Some(ps) = &ctrl.paths_navigator.paths_selector() {
+                ui.checkbox(&mut self.show_file_idx, "show file index");
+
                 self.scroll_offset = menu::scroll_area::scroll_area_file_selector(
                     ui,
                     &mut filtered_label_selected_idx,
@@ -541,6 +545,7 @@ impl Menu {
                     ctrl.file_info_selected.as_deref(),
                     scroll_to_selected,
                     self.scroll_offset,
+                    self.show_file_idx,
                 );
                 ctrl.paths_navigator.deactivate_scroll_to_selected_label();
                 if ctrl.paths_navigator.file_label_selected_idx() != filtered_label_selected_idx {
