@@ -3,7 +3,7 @@ use std::str::FromStr;
 use exmex::prelude::*;
 use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
 
-use crate::result::{trace_ok_err, RvError, RvResult};
+use crate::result::{ignore_error, RvError, RvResult};
 use crate::rverr;
 use crate::tools::ATTRIBUTES_NAME;
 use crate::tools_data::annotations::InstanceAnnotations;
@@ -81,7 +81,7 @@ impl FilterPredicate {
                 if let Some(tdm) = tdm {
                     if let Some(data) = tdm.get(ATTRIBUTES_NAME) {
                         if let Some(attr_val) =
-                            trace_ok_err(data.specifics.attributes()).and_then(|d| {
+                            ignore_error(data.specifics.attributes()).and_then(|d| {
                                 d.get_annos(path)
                                     .and_then(|annos| annos.get(attr_name.trim()))
                             })

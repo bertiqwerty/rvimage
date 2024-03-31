@@ -180,7 +180,7 @@ pub fn labels_and_sorting(
                                 let end = (selected_file_idx + n_del).min(ps.len_filtered());
                                 let range = selected_file_idx..end;
                                 let paths = &ps.filtered_file_paths()[range];
-                                if paths.is_empty() {
+                                if !paths.is_empty() {
                                     info!("deleting {} labels from {}", paths.len(), paths[0]);
                                     if let Some(data) = tools_data_map.get_mut(active_tool_name) {
                                         let _ = data.specifics.apply_mut(

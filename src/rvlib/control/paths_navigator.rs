@@ -1,7 +1,7 @@
 use super::{filter::FilterExpr, SortType};
 use crate::{
     paths_selector::PathsSelector,
-    result::{trace_ok_err, RvResult},
+    result::{ignore_error, trace_ok_err, RvResult},
     world::ToolsDataMap,
 };
 use exmex::prelude::*;
@@ -151,7 +151,7 @@ impl PathsNavigator {
         active_tool_name: Option<&str>,
     ) -> RvResult<()> {
         if let Some(filter_pred) =
-            trace_ok_err(FilterExpr::parse(s).and_then(|expr| expr.eval(&[])))
+            ignore_error(FilterExpr::parse(s).and_then(|expr| expr.eval(&[])))
         {
             let filter_pred_wrapper = |path: &str| {
                 trace_ok_err(filter_pred.apply(path, Some(tools_data_map), active_tool_name))

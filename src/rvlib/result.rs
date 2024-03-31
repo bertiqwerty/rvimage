@@ -33,6 +33,12 @@ impl From<&str> for RvError {
 /// RV Image's result type with [`RvError`](RvError) as error type.
 pub type RvResult<U> = Result<U, RvError>;
 
+pub fn ignore_error<T, E>(x: Result<T, E>) -> Option<T>
+where
+    E: Debug,
+{
+    x.ok()
+}
 pub fn trace_ok_err<T, E>(x: Result<T, E>) -> Option<T>
 where
     E: Debug,
