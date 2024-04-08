@@ -12,7 +12,7 @@ use crate::{
 use super::{core::Mover, zoom::move_zoom_box};
 
 fn event_move_zoom_box(events: &Events) -> bool {
-    events.held_ctrl() && events.pressed(KeyCode::MouseLeft)
+    events.held_ctrl() && (events.pressed(KeyCode::MouseLeft) || events.held(KeyCode::MouseLeft))
 }
 
 #[derive(Clone, Debug)]
