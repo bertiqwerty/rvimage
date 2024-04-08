@@ -515,33 +515,26 @@ impl RvImageApp {
                     let p = PtI { x, y };
                     let is_fg = access_mask_abs(&canvas.mask, canvas.bb, p) > 0;
                     if is_fg {
-                        orig_pos_2_view_pos(
+                        let p_view = orig_pos_2_view_pos(
                             p.into(),
                             shape_orig,
-                            ShapeI::new(image_rect.width() as u32, image_rect.height() as u32),
+                            ShapeI::from_im(&im_view),
                             &self.zoom_box,
                         );
-                        let current_clr = im_view.get_pixel_checked(x, y);
-                        if let Some(current_clr) = current_clr {
-                            let alpha = fill_alpha as f32 / 255.0;
-                            let mut clr = color.0;
-                            for i in 0..3 {
-                                clr[i] = (clr[i] as f32 * alpha
-                                    + current_clr[i] as f32 * (1.0 - alpha))
-                                    .round()
-                                    .clamp(0.0, 255.0)
-                                    as u8;
-                            }
-                            if let Some(zb) = self.zoom_box {
-                                if zb.contains(p) {
-                                    let x = x - zb.x.round() as u32;
-                                    let y = y - zb.y.round() as u32;
-                                    if x < self.im_view.width() && y < self.im_view.height() {
-                                        im_view.put_pixel(x, y, Rgb(clr));
-                                    }
+                        if let Some(p_view) = p_view {
+                            let (x_view, y_view) = (p_view.x as u32, p_view.y as u32);
+                            let current_clr = im_view.get_pixel_checked(x_view, y_view);
+                            if let Some(current_clr) = current_clr {
+                                let alpha = fill_alpha as f32 / 255.0;
+                                let mut clr = color.0;
+                                for i in 0..3 {
+                                    clr[i] = (clr[i] as f32 * alpha
+                                        + current_clr[i] as f32 * (1.0 - alpha))
+                                        .round()
+                                        .clamp(0.0, 255.0)
+                                        as u8;
                                 }
-                            } else if x < self.im_view.width() && y < self.im_view.height() {
-                                im_view.put_pixel(x, y, Rgb(clr));
+                                im_view.put_pixel(x_view, y_view, Rgb(clr));
                             }
                         }
                     }
