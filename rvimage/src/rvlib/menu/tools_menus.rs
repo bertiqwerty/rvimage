@@ -395,7 +395,10 @@ pub fn brush_menu(
     ui.separator();
     ui.checkbox(&mut data.options.core_options.auto_paste, "auto paste");
     ui.separator();
-    ui.checkbox(&mut data.options.per_file_crowd, "export merged annotations per file");
+    ui.checkbox(
+        &mut data.options.per_file_crowd,
+        "export merged annotations per file",
+    );
     export_file_menu(
         ui,
         "coco file",

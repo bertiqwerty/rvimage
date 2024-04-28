@@ -657,18 +657,20 @@ fn test_merge() {
     };
     let merged = c1.merge(&c2);
     assert_eq!(merged.mask, vec![1, 1, 1, 1]);
-    let c1 = Canvas {bb: BbI::from_arr(&[0, 0, 2, 2]), mask: vec![1, 0, 0, 1], intensity: 0.5};
-    let c2 = Canvas {bb: BbI::from_arr(&[2, 2, 2, 2]), mask: vec![1, 1, 1, 1], intensity: 0.7};
+    let c1 = Canvas {
+        bb: BbI::from_arr(&[0, 0, 2, 2]),
+        mask: vec![1, 0, 0, 1],
+        intensity: 0.5,
+    };
+    let c2 = Canvas {
+        bb: BbI::from_arr(&[2, 2, 2, 2]),
+        mask: vec![1, 1, 1, 1],
+        intensity: 0.7,
+    };
     let merged = c1.merge(&c2);
     assert_eq!(c2.intensity, merged.intensity);
     assert_eq!(merged.mask.len(), 16);
     assert_eq!(merged.bb, BbI::from_arr(&[0, 0, 4, 4]));
-    let mask_reference = vec![
-        1, 0, 0, 0, 
-        0, 1, 0, 0,
-        0, 0, 1, 1, 
-        0, 0, 1, 1,
-    ];
+    let mask_reference = vec![1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1];
     assert_eq!(merged.mask, mask_reference);
-
 }

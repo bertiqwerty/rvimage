@@ -1,6 +1,6 @@
-use std::{cmp::Ordering, mem, thread};
-
 use brush_data::BrushToolData;
+use std::{cmp::Ordering, mem, thread};
+use tracing::info;
 
 use crate::{
     annotations_accessor, annotations_accessor_mut,
@@ -152,32 +152,43 @@ fn check_export(mut world: World) -> World {
             let per_file_crowd = options.map(|o| o.per_file_crowd) == Some(true);
             let f_export = move || {
                 if per_file_crowd {
-                    for (_, (annos, _)) in data.annotations_map.iter_mut() {
+                    for (i, (filename, (annos, _))) in data.annotations_map.iter_mut().enumerate() {
+                        if i % 10 == 0 {
+                            info!("export - image #{i} converting {filename} to per-image-crowd");
+                        }
                         if let Some(max_catidx) = annos.cat_idxs().iter().max() {
-                            let mut merged_canvases_of_cat = vec![vec![]; max_catidx + 1];
+                            let mut merged_canvases_of_cats = vec![vec![]; max_catidx + 1];
                             for (i, elt) in annos.elts().iter().enumerate() {
-                                merged_canvases_of_cat[annos.cat_idxs()[i]].push(elt.clone());
+                                merged_canvases_of_cats[annos.cat_idxs()[i]].push(elt.clone());
                             }
-                            for i in 0..merged_canvases_of_cat.len() {
+                            for mcanvs in &mut merged_canvases_of_cats {
                                 let mut merged_canvas: Option<Canvas> = None;
-                                for elt in merged_canvases_of_cat[i].iter() {
+                                for elt in mcanvs.iter() {
                                     if let Some(merged_canvas) = &mut merged_canvas {
                                         *merged_canvas = merged_canvas.merge(elt);
-                                    } 
-                                    else {
+                                    } else {
                                         merged_canvas = Some(elt.clone());
-                                    } 
+                                    }
                                 }
-                                merged_canvases_of_cat[i] = vec![merged_canvas.unwrap()];
+                                if let Some(mc) = merged_canvas {
+                                    *mcanvs = vec![mc];
+                                }
                             }
-                            let elts = merged_canvases_of_cat
+                            let mut cat_idxes = vec![];
+                            let elts = merged_canvases_of_cats
                                 .into_iter()
-                                .map(|mut cvs| mem::take(&mut cvs[0]))
+                                .enumerate()
+                                .filter(|(_, cvs)| !cvs.is_empty())
+                                .map(|(i, mut cvs)| {
+                                    cat_idxes.push(i);
+                                    mem::take(&mut cvs[0])
+                                })
                                 .collect();
+                            let n_elts = cat_idxes.len();
                             let new_annos = trace_ok_warn(InstanceAnnotations::<Canvas>::new(
                                 elts,
-                                (0..=*max_catidx).collect(),
-                                vec![false; max_catidx + 1],
+                                cat_idxes,
+                                vec![false; n_elts],
                             ));
                             if let Some(new_annos) = new_annos {
                                 *annos = new_annos;

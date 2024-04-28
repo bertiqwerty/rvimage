@@ -43,7 +43,7 @@ where
             h: a[3],
         }
     }
-    
+
     pub fn merge(&self, other: Self) -> Self {
         let x = self.x.min(other.x);
         let y = self.y.min(other.y);
