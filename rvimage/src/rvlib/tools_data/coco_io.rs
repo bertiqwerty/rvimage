@@ -9,7 +9,12 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cfg::{ExportPath, ExportPathConnection}, file_util::{self, path_to_str, MetaData}, result::trace_ok_warn, ssh, util::version_label, GeoFig, Polygon
+    cfg::{ExportPath, ExportPathConnection},
+    file_util::{self, path_to_str, MetaData},
+    result::trace_ok_warn,
+    ssh,
+    util::version_label,
+    GeoFig, Polygon,
 };
 use rvimage_domain::{rle_image_to_bb, rle_to_mask, BbF, Canvas, Point, ShapeI, TPtF};
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};

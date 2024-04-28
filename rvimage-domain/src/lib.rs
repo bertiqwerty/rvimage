@@ -168,10 +168,7 @@ pub fn make_test_bbs() -> Vec<BbF> {
 }
 
 pub fn make_test_geos() -> Vec<GeoFig> {
-    make_test_bbs()
-        .into_iter()
-        .map(|bb| GeoFig::BB(bb))
-        .collect()
+    make_test_bbs().into_iter().map(GeoFig::BB).collect()
 }
 
 #[test]

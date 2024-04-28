@@ -22,15 +22,15 @@ mod util;
 mod view;
 pub mod world;
 pub use cfg::read_darkmode;
-pub use rvimage_domain::{
-    bresenham_iter, color_with_intensity, BbI, BrushLine, GeoFig, Line, Polygon, ShapeI,
-};
 pub use drawme::{
     Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateImage, UpdatePermAnnos,
     UpdateTmpAnno, UpdateView, UpdateZoomBox,
 };
 pub use events::{Event, Events, KeyCode};
 pub use main_loop::MainEventLoop;
+pub use rvimage_domain::{
+    bresenham_iter, color_with_intensity, BbI, BrushLine, GeoFig, Line, Polygon, ShapeI,
+};
 pub use tools_data::InstanceAnnotate;
 pub use view::{
     orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, ImageU8,

@@ -1,4 +1,9 @@
-use std::{fmt::Debug, io::{Read, Write}, net::TcpStream, path::Path};
+use std::{
+    fmt::Debug,
+    io::{Read, Write},
+    net::TcpStream,
+    path::Path,
+};
 
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use ssh2::{Channel, Session};

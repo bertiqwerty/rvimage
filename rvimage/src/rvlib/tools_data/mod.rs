@@ -29,7 +29,10 @@ macro_rules! variant_access {
         pub fn $func_name(self: $self) -> rvimage_domain::RvResult<$return_type> {
             match self {
                 ToolSpecifics::$variant(x) => Ok(x),
-                _ => Err(rvimage_domain::rverr!("this is not a {}", stringify!($variant))),
+                _ => Err(rvimage_domain::rverr!(
+                    "this is not a {}",
+                    stringify!($variant)
+                )),
             }
         }
     };
@@ -39,7 +42,10 @@ macro_rules! variant_access_free {
         pub fn $func_name<$lt>(x: $ToolsSpecific) -> rvimage_domain::RvResult<$return_type> {
             match x {
                 ToolSpecifics::$variant(x) => Ok(x),
-                _ => Err(rvimage_domain::rverr!("this is not a {}", stringify!($variant))),
+                _ => Err(rvimage_domain::rverr!(
+                    "this is not a {}",
+                    stringify!($variant)
+                )),
             }
         }
     };

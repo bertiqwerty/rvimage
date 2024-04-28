@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use crate::cache::Cache;
 use crate::paths_selector::PathsSelector;
-use rvimage_domain::RvResult;
 use crate::types::AsyncResultImage;
+use rvimage_domain::RvResult;
 
 pub const SUPPORTED_EXTENSIONS: [&str; 10] = [
     ".PNG", ".png", ".JPG", ".jpg", ".JPEG", ".jpeg", ".TIF", ".tif", ".TIFF", ".tiff",

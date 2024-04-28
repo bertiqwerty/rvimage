@@ -1,4 +1,3 @@
-use rvimage_domain::{BbF, ShapeI};
 use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
 use crate::file_util::MetaData;
 use crate::tools::add_tools_initial_data;
@@ -7,6 +6,7 @@ use crate::types::ViewImage;
 use crate::util::Visibility;
 use crate::{image_util, UpdatePermAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
+use rvimage_domain::{BbF, ShapeI};
 use std::collections::HashMap;
 use std::{fmt::Debug, mem};
 

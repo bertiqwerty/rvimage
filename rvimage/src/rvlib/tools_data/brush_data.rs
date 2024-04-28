@@ -8,7 +8,8 @@ use super::{
 use crate::implement_annotations_getters;
 use crate::{cfg::ExportPath, result::trace_ok_warn, BrushLine};
 use rvimage_domain::{
-    access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, rverr, BbF, Canvas, PtF, PtI, PtS, RvResult, ShapeI, TPtF, TPtI, TPtS, BB
+    access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, rverr, BbF, Canvas, PtF, PtI,
+    PtS, RvResult, ShapeI, TPtF, TPtI, TPtS, BB,
 };
 
 use serde::{Deserialize, Serialize};

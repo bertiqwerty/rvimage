@@ -24,7 +24,8 @@ use crate::{
     GeoFig, Polygon,
 };
 use rvimage_domain::{
-    self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF, RvResult, ShapeF, TPtF
+    self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF,
+    RvResult, ShapeF, TPtF,
 };
 
 use super::core::{

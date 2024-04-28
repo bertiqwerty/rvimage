@@ -1,8 +1,5 @@
 use std::{collections::HashMap, mem, path::PathBuf, str::FromStr};
 
-use egui::Ui;
-use tracing::{info, warn};
-use rvimage_domain::{TPtF, TPtI};
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
     file_util::path_to_str,
@@ -17,7 +14,10 @@ use crate::{
     },
     ShapeI,
 };
+use egui::Ui;
 use rvimage_domain::{to_rv, RvResult};
+use rvimage_domain::{TPtF, TPtI};
+use tracing::{info, warn};
 
 use super::ui_util::{slider, text_edit_singleline};
 

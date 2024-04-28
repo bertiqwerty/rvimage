@@ -193,7 +193,7 @@ impl Manipulate for Zoom {
 }
 
 #[cfg(test)]
-use {rvimage_domain::RvResult, image::DynamicImage, std::collections::HashMap};
+use {image::DynamicImage, rvimage_domain::RvResult, std::collections::HashMap};
 #[cfg(test)]
 fn mk_z(x: TPtF, y: TPtF, w: TPtF, h: TPtF) -> Option<BbF> {
     Some(BbF { x, y, w, h })
