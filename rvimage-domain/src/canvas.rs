@@ -94,8 +94,7 @@ pub fn mask_to_rle(mask: &[u8], mask_w: u32, mask_h: u32) -> Vec<u32> {
     rle
 }
 
-pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
-    let mut mask = vec![0; (w * h) as usize];
+pub fn rle_to_mask_inplace(rle: &[u32], mask: &mut [u8], w: u32) {
     for (i, &run) in rle.iter().enumerate() {
         let value = i % 2;
         let start = rle.iter().take(i).sum::<u32>();
@@ -108,6 +107,11 @@ pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
             }
         }
     }
+}
+
+pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
+    let mut mask = vec![0; (w * h) as usize];
+    rle_to_mask_inplace(rle, &mut mask, w);
     mask
 }
 

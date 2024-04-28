@@ -1,4 +1,4 @@
 [workspace]
 
-members = ["rvimage", "rvimage-domain"]
+members = ["rvimage", "rvimage-domain", "rvimage-py"]
 resolver = "2"

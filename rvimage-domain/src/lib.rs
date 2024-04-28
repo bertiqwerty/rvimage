@@ -7,7 +7,7 @@ pub mod result;
 pub use bb::{BbF, BbI, BbS, BB};
 pub use canvas::{
     access_mask_abs, access_mask_rel, canvases_to_image, mask_to_rle, rle_bb_to_image,
-    rle_image_to_bb, rle_to_mask, Canvas,
+    rle_image_to_bb, rle_to_mask, rle_to_mask_inplace, Canvas,
 };
 pub use core::{
     color_with_intensity, dist_lineseg_point, max_from_partial, min_from_partial, Calc, Circle,
