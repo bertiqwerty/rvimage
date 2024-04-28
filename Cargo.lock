@@ -3588,6 +3588,7 @@ dependencies = [
  "reqwest 0.12.2",
  "rfd",
  "rusttype",
+ "rvimage-domain",
  "serde",
  "serde_json",
  "ssh2",
@@ -3599,6 +3600,16 @@ dependencies = [
  "uuid",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "rvimage-domain"
+version = "0.4.1"
+dependencies = [
+ "image 0.25.0",
+ "imageproc",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
