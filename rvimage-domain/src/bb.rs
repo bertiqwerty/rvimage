@@ -43,6 +43,14 @@ where
             h: a[3],
         }
     }
+    
+    pub fn merge(&self, other: Self) -> Self {
+        let x = self.x.min(other.x);
+        let y = self.y.min(other.y);
+        let x_max = self.x_max().max(other.x_max());
+        let y_max = self.y_max().max(other.y_max());
+        BB::from_points((x, y).into(), (x_max, y_max).into())
+    }
 
     // TODO: replace Point<T> by &Point<T>
     pub fn from_points_iter(points: impl Iterator<Item = Point<T>> + Clone) -> RvResult<Self> {

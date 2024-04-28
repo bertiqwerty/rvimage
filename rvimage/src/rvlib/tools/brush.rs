@@ -9,7 +9,7 @@ use crate::{
     file_util::MetaData,
     history::{History, Record},
     make_tool_transform,
-    result::trace_ok_err,
+    result::{trace_ok_err, trace_ok_warn},
     tools::{
         core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
         instance_anno_shared::check_cocoimport,
@@ -148,12 +148,48 @@ fn check_export(mut world: World) -> World {
         let rot90_data = get_rot90_data(&world).cloned();
         if let Some(data) = specifics {
             let meta_data = world.data.meta_data.clone();
-            let data = data.clone();
-            let f_export =
-                move || match tools_data::write_coco(&meta_data, data, rot90_data.as_ref()) {
+            let mut data = data.clone();
+            let per_file_crowd = options.map(|o| o.per_file_crowd) == Some(true);
+            let f_export = move || {
+                if per_file_crowd {
+                    for (_, (annos, _)) in data.annotations_map.iter_mut() {
+                        if let Some(max_catidx) = annos.cat_idxs().iter().max() {
+                            let mut merged_canvases_of_cat = vec![vec![]; max_catidx + 1];
+                            for (i, elt) in annos.elts().iter().enumerate() {
+                                merged_canvases_of_cat[annos.cat_idxs()[i]].push(elt.clone());
+                            }
+                            for i in 0..merged_canvases_of_cat.len() {
+                                let mut merged_canvas: Option<Canvas> = None;
+                                for elt in merged_canvases_of_cat[i].iter() {
+                                    if let Some(merged_canvas) = &mut merged_canvas {
+                                        *merged_canvas = merged_canvas.merge(elt);
+                                    } 
+                                    else {
+                                        merged_canvas = Some(elt.clone());
+                                    } 
+                                }
+                                merged_canvases_of_cat[i] = vec![merged_canvas.unwrap()];
+                            }
+                            let elts = merged_canvases_of_cat
+                                .into_iter()
+                                .map(|mut cvs| mem::take(&mut cvs[0]))
+                                .collect();
+                            let new_annos = trace_ok_warn(InstanceAnnotations::<Canvas>::new(
+                                elts,
+                                (0..=*max_catidx).collect(),
+                                vec![false; max_catidx + 1],
+                            ));
+                            if let Some(new_annos) = new_annos {
+                                *annos = new_annos;
+                            }
+                        }
+                    }
+                }
+                match tools_data::write_coco(&meta_data, data, rot90_data.as_ref()) {
                     Ok(p) => tracing::info!("export to {p:?} successful"),
                     Err(e) => tracing::error!("export failed due to {e:?}"),
-                };
+                }
+            };
             thread::spawn(f_export);
         }
         if let Some(options_mut) = get_options_mut(&mut world) {

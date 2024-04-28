@@ -23,6 +23,9 @@ pub const MIN_INTENSITY: f64 = 0.01;
 const fn default_alpha() -> u8 {
     255
 }
+const fn default_perfilecrowd() -> bool {
+    false
+}
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub struct Options {
     pub thickness: TPtF,
@@ -33,6 +36,8 @@ pub struct Options {
     pub core_options: core::Options,
     #[serde(default = "default_alpha")]
     pub fill_alpha: u8,
+    #[serde(default = "default_perfilecrowd")]
+    pub per_file_crowd: bool,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -42,6 +47,7 @@ impl Default for Options {
             is_selection_change_needed: false,
             core_options: core::Options::default(),
             fill_alpha: default_alpha(),
+            per_file_crowd: default_perfilecrowd(),
         }
     }
 }
