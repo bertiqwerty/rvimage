@@ -30,8 +30,8 @@ azure_blob = [
 ]
 
 [dependencies]
-azure_storage = { version = "0.19.0", optional = true }
-azure_storage_blobs = { version = "0.19.0", optional = true }
+azure_storage = { version = "0.20.0", optional = true }
+azure_storage_blobs = { version = "0.20.0", optional = true }
 conv = "0.3.3"
 dirs = "5.0.1"
 edit = "0.1.5"
@@ -66,6 +66,6 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 backtrace = "0.3.71"
-zip = "0.6.6"
+zip = "1.1.2"
 rvimage-domain = { path = "../rvimage-domain" }
 

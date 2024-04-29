@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use std::{env, fs};
+use zip::write::ExtendedFileOptions;
 mod filter;
 pub mod paths_navigator;
 use crate::image_reader::LoadImageForGui;
@@ -474,9 +475,10 @@ impl Control {
                         if path.is_file() {
                             let file_name = osstr_to_str(path.file_name());
                             trace_ok_err(file_name).and_then(|file_name| {
-                                trace_ok_err(
-                                    zip.start_file(file_name, zip::write::FileOptions::default()),
-                                );
+                                trace_ok_err(zip.start_file::<&str, ExtendedFileOptions>(
+                                    file_name,
+                                    zip::write::FileOptions::default(),
+                                ));
                                 trace_ok_err(fs::read(path))
                                     .and_then(|buf| trace_ok_err(zip.write_all(&buf)))
                             });
