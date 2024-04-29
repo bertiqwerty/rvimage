@@ -151,37 +151,38 @@ fn check_export(mut world: World) -> World {
             let mut data = data.clone();
             let per_file_crowd = options.map(|o| o.per_file_crowd) == Some(true);
             let f_export = move || {
+                let start = std::time::Instant::now();
                 if per_file_crowd {
                     for (i, (filename, (annos, _))) in data.annotations_map.iter_mut().enumerate() {
                         if i % 10 == 0 {
                             info!("export - image #{i} converting {filename} to per-image-crowd");
                         }
                         if let Some(max_catidx) = annos.cat_idxs().iter().max() {
-                            let mut merged_canvases_of_cats = vec![vec![]; max_catidx + 1];
-                            for (i, elt) in annos.elts().iter().enumerate() {
-                                merged_canvases_of_cats[annos.cat_idxs()[i]].push(elt.clone());
+                            let mut canvas_idxes_of_cats = vec![vec![]; max_catidx + 1];
+                            for i in 0..(annos.elts().len()) {
+                                canvas_idxes_of_cats[annos.cat_idxs()[i]].push(i);
                             }
-                            for mcanvs in &mut merged_canvases_of_cats {
+                            let mut merged_canvases = vec![None; max_catidx + 1];
+                            for (cat_idx, canvas_idxes) in canvas_idxes_of_cats.iter().enumerate() {
                                 let mut merged_canvas: Option<Canvas> = None;
-                                for elt in mcanvs.iter() {
+                                for canvas_idx in canvas_idxes.iter() {
+                                    let elt = &annos.elts()[*canvas_idx];
                                     if let Some(merged_canvas) = &mut merged_canvas {
-                                        *merged_canvas = merged_canvas.merge(elt);
+                                        *merged_canvas = mem::take(merged_canvas).merge(elt);
                                     } else {
                                         merged_canvas = Some(elt.clone());
                                     }
                                 }
-                                if let Some(mc) = merged_canvas {
-                                    *mcanvs = vec![mc];
-                                }
+                                merged_canvases[cat_idx] = merged_canvas;
                             }
                             let mut cat_idxes = vec![];
-                            let elts = merged_canvases_of_cats
+                            let elts = merged_canvases
                                 .into_iter()
                                 .enumerate()
-                                .filter(|(_, cvs)| !cvs.is_empty())
-                                .map(|(i, mut cvs)| {
+                                .flat_map(|(i, cvs)| cvs.map(|cvs| (i, cvs)))
+                                .map(|(i, cvs)| {
                                     cat_idxes.push(i);
-                                    mem::take(&mut cvs[0])
+                                    cvs
                                 })
                                 .collect();
                             let n_elts = cat_idxes.len();
@@ -199,7 +200,8 @@ fn check_export(mut world: World) -> World {
                 match tools_data::write_coco(&meta_data, data, rot90_data.as_ref()) {
                     Ok(p) => tracing::info!("export to {p:?} successful"),
                     Err(e) => tracing::error!("export failed due to {e:?}"),
-                }
+                };
+                tracing::info!("export took {} seconds", start.elapsed().as_secs_f32());
             };
             thread::spawn(f_export);
         }

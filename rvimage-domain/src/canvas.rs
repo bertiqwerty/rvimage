@@ -270,10 +270,19 @@ pub fn rle_image_to_bb(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Ve
     }
 }
 
-/// Access a with coordinates for the image containing the mask
+/// Get the 1d-index inside a bounding box from image coordinates
+pub fn access_bb_idx(bb: BbI, p: PtI) -> usize {
+    if bb.contains(p) {
+        ((p.y - bb.y) * bb.w + p.x - bb.x) as usize
+    } else {
+        0
+    }
+}
+
+/// Access a mask with coordinates for the image containing the mask
 pub fn access_mask_abs(mask: &[u8], bb: BbI, p: PtI) -> u8 {
     if bb.contains(p) {
-        mask[((p.y - bb.y) * bb.w + p.x - bb.x) as usize]
+        mask[access_bb_idx(bb, p)]
     } else {
         0
     }
@@ -302,23 +311,33 @@ impl Canvas {
             intensity: line.intensity,
         })
     }
-    pub fn merge(&self, other: &Canvas) -> Self {
-        let merged_bb = self.bb.merge(other.bb);
-        let mut merged_mask = vec![0; (merged_bb.w * merged_bb.h) as usize];
-        for y in 0..merged_bb.h {
-            for x in 0..merged_bb.w {
-                let p = PtI { x, y } + merged_bb.min();
-                let val_self = access_mask_abs(&self.mask, self.bb, p);
-                let val_other = access_mask_abs(&other.mask, other.bb, p);
-                let val = val_self.max(val_other);
-                merged_mask[(y * merged_bb.w + x) as usize] = val;
+    pub fn merge(mut self, other: &Canvas) -> Self {
+        let old_self_bb = self.bb;
+        self.bb = self.bb.merge(other.bb);
+        self.mask.resize((self.bb.w * self.bb.h) as usize, 0);
+        // move self-mask to new positions
+        for y in (0..old_self_bb.h).rev() {
+            for x in (0..old_self_bb.w).rev() {
+                let p = PtI { x, y } + old_self_bb.min();
+                let old_idx = (y * old_self_bb.w + x) as usize;
+                let new_idx = access_bb_idx(self.bb, p);
+                let val = self.mask[old_idx];
+                self.mask[old_idx] = 0;
+                self.mask[new_idx] = val;
             }
         }
-        Self {
-            mask: merged_mask,
-            bb: merged_bb,
-            intensity: self.intensity.max(other.intensity),
+        // incorporate the other mask
+        for y in 0..other.bb.h {
+            for x in 0..other.bb.w {
+                let p = PtI { x, y } + other.bb.min();
+                let val_self = access_mask_abs(&self.mask, self.bb, p);
+                let val_other = other.mask[(y * other.bb.w + x) as usize];
+                let val = val_self.max(val_other);
+                self.mask[((p.y - self.bb.y) * self.bb.w + (p.x - self.bb.x)) as usize] = val;
+            }
         }
+        self.intensity = self.intensity.max(other.intensity);
+        self
     }
     pub fn draw_circle(&mut self, center: PtF, thickness: TPtF, color: u8) -> RvResult<()> {
         let im = ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(
@@ -641,7 +660,7 @@ fn test_merge() {
         mask: vec![1, 0, 0, 1],
         intensity: 0.7,
     };
-    let merged = c1.merge(&c2);
+    let merged = c1.clone().merge(&c2);
     assert_eq!(merged.mask, c1.mask);
     assert_eq!(merged.bb, c1.bb);
     assert_eq!(merged.intensity, c2.intensity);
@@ -657,9 +676,10 @@ fn test_merge() {
     };
     let merged = c1.merge(&c2);
     assert_eq!(merged.mask, vec![1, 1, 1, 1]);
+
     let c1 = Canvas {
-        bb: BbI::from_arr(&[0, 0, 2, 2]),
-        mask: vec![1, 0, 0, 1],
+        bb: BbI::from_arr(&[0, 0, 3, 2]),
+        mask: vec![1, 0, 0, 0, 1, 0],
         intensity: 0.5,
     };
     let c2 = Canvas {
@@ -671,6 +691,23 @@ fn test_merge() {
     assert_eq!(c2.intensity, merged.intensity);
     assert_eq!(merged.mask.len(), 16);
     assert_eq!(merged.bb, BbI::from_arr(&[0, 0, 4, 4]));
+    let mask_reference = vec![1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1];
+    assert_eq!(merged.mask, mask_reference);
+
+    let c1 = Canvas {
+        bb: BbI::from_arr(&[1, 1, 3, 2]),
+        mask: vec![1, 0, 0, 0, 1, 0],
+        intensity: 0.5,
+    };
+    let c2 = Canvas {
+        bb: BbI::from_arr(&[3, 3, 2, 2]),
+        mask: vec![1, 1, 1, 1],
+        intensity: 0.7,
+    };
+    let merged = c1.merge(&c2);
+    assert_eq!(c2.intensity, merged.intensity);
+    assert_eq!(merged.mask.len(), 16);
+    assert_eq!(merged.bb, BbI::from_arr(&[1, 1, 4, 4]));
     let mask_reference = vec![1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1];
     assert_eq!(merged.mask, mask_reference);
 }
