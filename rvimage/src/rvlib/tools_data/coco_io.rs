@@ -279,6 +279,7 @@ impl CocoExportData {
         for coco_anno in self.annotations {
             let (file_path, w_coco, h_coco) = id_image_map[&coco_anno.image_id];
 
+            let mut invalid_segmentation_exists = false;
             // The annotations in the coco files created by RV Image are stored
             // ignoring any orientation meta-data. Hence, if the image has been loaded
             // and rotated with RV Image we correct the rotation.
@@ -336,15 +337,22 @@ impl CocoExportData {
                         }
                         let n_points = segmentation[0].len();
                         let coco_data = &segmentation[0];
-                        let poly = Polygon::from_vec(
-                            (0..n_points)
-                                .step_by(2)
-                                .map(|idx| Point {
+
+                        let poly_points = (0..n_points)
+                            .step_by(2)
+                            .flat_map(|idx| {
+                                let p = Point {
                                     x: (coco_data[idx] * w_factor),
                                     y: (coco_data[idx + 1] * h_factor),
-                                })
-                                .collect(),
-                        );
+                                };
+                                if bb.contains(p) {
+                                    Some(p)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        let poly = Polygon::from_vec(poly_points);
                         match poly {
                             Ok(poly) => {
                                 let encl_bb = poly.enclosing_bb();
@@ -365,6 +373,9 @@ impl CocoExportData {
                                 }
                             }
                             Err(_) => {
+                                if n_points > 0 {
+                                    invalid_segmentation_exists = true;
+                                }
                                 // polygon might be empty, we continue with the BB
                                 GeoFig::BB(bb)
                             }
@@ -397,6 +408,9 @@ impl CocoExportData {
                     let geo = GeoFig::BB(bb);
                     insert_geo(geo);
                 }
+            }
+            if invalid_segmentation_exists {
+                tracing::warn!("invalid segmentation in coco file {file_path}");
             }
         }
         let bbox_data = BboxSpecificData::from_coco_export_data(InstanceExportData {
