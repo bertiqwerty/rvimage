@@ -35,8 +35,8 @@ mod detail {
     use serde::Serialize;
 
     use crate::{
-        cfg::Cfg,
-        file_util::{self, SaveData},
+        cfg::{read_cfg, Cfg},
+        file_util::{self, SaveData, SavedCfg},
         util::version_label,
         world::{ToolsDataMap, World},
     };
@@ -58,11 +58,16 @@ mod detail {
     pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, Cfg)> {
         let s = file_util::read_to_string(file_path)?;
         let save_data = serde_json::from_str::<SaveData>(s.as_str()).map_err(to_rv)?;
-        Ok((
-            save_data.tools_data_map,
-            save_data.opened_folder,
-            save_data.cfg,
-        ))
+        let cfg_prj = match save_data.cfg {
+            SavedCfg::CfgLegacy(cfg) => cfg.to_cfg().prj,
+            SavedCfg::CfgPrj(cfg_prj) => cfg_prj,
+        };
+        let cfg_usr = read_cfg()?.usr;
+        let cfg = Cfg {
+            prj: cfg_prj,
+            usr: cfg_usr,
+        };
+        Ok((save_data.tools_data_map, save_data.opened_folder, cfg))
     }
 
     fn write<T>(
@@ -97,7 +102,7 @@ mod detail {
             version: Some(version_label()),
             opened_folder: opened_folder.cloned(),
             tools_data_map: tdm.clone(),
-            cfg: cfg.clone(),
+            cfg: SavedCfg::CfgPrj(cfg.prj.clone()),
         };
         tracing::info!("saved to {file_path:?}");
         write(tools_data_map, make_data, file_path)?;
@@ -231,15 +236,13 @@ impl Control {
         let current_prj_path = self.cfg.current_prj_path().to_path_buf();
 
         // map paths in cfg
-        if let Some(azure_cfg) = &mut read_cfg.azure_blob_cfg {
+        if let Some(azure_cfg) = &mut read_cfg.usr.azure_blob {
             azure_cfg.connection_string_path =
                 folder_src_to_dst(mem::take(&mut azure_cfg.connection_string_path));
         }
-        read_cfg.ssh_cfg.ssh_identity_file_path =
-            folder_src_to_dst(read_cfg.ssh_cfg.ssh_identity_file_path);
+        read_cfg.usr.ssh.ssh_identity_file_path =
+            folder_src_to_dst(read_cfg.usr.ssh.ssh_identity_file_path);
         self.cfg = read_cfg;
-        self.cfg.import_old_path = Some(folder_src.to_string());
-        self.cfg.import_new_path = Some(folder_dst.to_string());
 
         // update prj path in cfg
         if current_prj_path.to_str() == DEFAULT_PRJ_PATH.to_str() {
@@ -550,22 +553,22 @@ impl Control {
         let cfg = self
             .cfg_of_opened_folder()
             .ok_or_else(|| RvError::new("save failed, open folder first"));
-        Ok(match self.cfg.connection {
+        Ok(match self.cfg.prj.connection {
             Connection::Ssh => {
-                let ssh_cfg = cfg.map(|cfg| cfg.ssh_cfg.clone())?;
+                let ssh_cfg = cfg.map(|cfg| cfg.ssh_cfg())?;
                 ConnectionData::Ssh(ssh_cfg)
             }
             Connection::Local => ConnectionData::None,
             Connection::PyHttp => {
                 let pyhttp_cfg = cfg
-                    .map(|cfg| cfg.py_http_reader_cfg.clone())?
+                    .map(|cfg| cfg.prj.py_http_reader_cfg.clone())?
                     .ok_or_else(|| RvError::new("cannot open pyhttp without pyhttp cfg"))?;
                 ConnectionData::PyHttp(pyhttp_cfg)
             }
             #[cfg(feature = "azure_blob")]
             Connection::AzureBlob => {
                 let azure_blob_cfg = cfg
-                    .map(|cfg| cfg.azure_blob_cfg.clone())?
+                    .map(|cfg| cfg.azure_blob_cfg())?
                     .ok_or_else(|| RvError::new("cannot open azure blob without cfg"))?;
                 ConnectionData::AzureBlobCfg(azure_blob_cfg)
             }
@@ -580,7 +583,7 @@ impl Control {
         let file_path = file_selected_idx
             .and_then(|fsidx| self.paths_navigator.file_path(fsidx).map(|s| s.to_string()));
         let open_folder = self.opened_folder().cloned();
-        let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg.clone());
+        let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg());
         let connection_data = match &ssh_cfg {
             Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg.clone()),
             None => ConnectionData::None,
@@ -750,7 +753,7 @@ fn test_save_load() {
     let tdm = make_data(&PathBuf::from_str("dummyfile").unwrap());
     let cfg = cfg::get_default_cfg();
     let opened_folder_name = "dummy_opened_folder";
-    let export_folder = cfg.tmpdir().unwrap();
+    let export_folder = cfg.tmpdir();
     let export_file = PathBuf::new().join(export_folder).join("export.json");
     let opened_folder = Some(opened_folder_name.to_string());
     detail::save(opened_folder.as_ref(), &tdm, &export_file, &cfg).unwrap();
@@ -759,5 +762,6 @@ fn test_save_load() {
 
     let (tdm_imported, _, cfg_imported) = detail::load(&export_file).unwrap();
     assert_eq!(tdm, tdm_imported);
-    assert_eq!(cfg, cfg_imported);
+    assert_eq!(cfg.prj, cfg_imported.prj);
+    assert_ne!(cfg.usr, cfg_imported.usr);
 }

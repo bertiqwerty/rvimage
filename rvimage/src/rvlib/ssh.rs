@@ -106,14 +106,14 @@ pub fn find(
 }
 
 pub fn auth(ssh_cfg: &SshCfg) -> RvResult<Session> {
-    let tcp = TcpStream::connect(&ssh_cfg.address).map_err(to_rv)?;
+    let tcp = TcpStream::connect(&ssh_cfg.prj.address).map_err(to_rv)?;
     let mut sess = Session::new().map_err(to_rv)?;
     sess.set_tcp_stream(tcp);
     sess.handshake().map_err(to_rv)?;
     sess.userauth_pubkey_file(
-        &ssh_cfg.user,
+        &ssh_cfg.usr.user,
         None,
-        Path::new(&ssh_cfg.ssh_identity_file_path),
+        Path::new(&ssh_cfg.usr.ssh_identity_file_path),
         None,
     )
     .map_err(to_rv)?;

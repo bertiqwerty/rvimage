@@ -12,7 +12,7 @@ use crate::{
     world::ToolsDataMap,
 };
 use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
-use rvimage_domain::{rverr, RvResult};
+use rvimage_domain::RvResult;
 use std::{
     mem,
     path::{Path, PathBuf},
@@ -141,90 +141,6 @@ struct PopupBtnResp {
     pub popup_open: bool,
 }
 
-#[derive(Default)]
-struct ImportPrjState {
-    show: bool,
-    is_import_triggered: bool,
-}
-struct ImportPrj<'a> {
-    id: Id,
-    state: &'a mut ImportPrjState,
-    are_tools_active: &'a mut bool,
-    old_path: &'a mut Option<String>,
-    new_path: &'a mut Option<String>,
-}
-impl<'a> ImportPrj<'a> {
-    pub fn new(
-        id: Id,
-        state: &'a mut ImportPrjState,
-        are_tools_active: &'a mut bool,
-        old_path: &'a mut Option<String>,
-        new_path: &'a mut Option<String>,
-    ) -> Self {
-        Self {
-            id,
-            state,
-            are_tools_active,
-            old_path,
-            new_path,
-        }
-    }
-}
-impl<'a> Widget for ImportPrj<'a> {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let import_show_poup_btn = ui.button("Import Project");
-        if import_show_poup_btn.clicked() {
-            self.state.show = true;
-        }
-        if self.state.show {
-            ui.memory_mut(|m| m.open_popup(self.id));
-            if ui.memory(|m| m.is_popup_open(self.id)) {
-                let area = Area::new(self.id)
-                    .order(Order::Foreground)
-                    .default_pos(import_show_poup_btn.rect.left_bottom());
-                area.show(ui.ctx(), |ui| {
-                    Frame::popup(ui.style()).show(ui, |ui| {
-                        ui.label("Map base path from");
-                        if self.old_path.is_none() {
-                            *self.old_path = Some("".to_string());
-                        }
-                        if let Some(old_path) = self.old_path.as_mut() {
-                            text_edit_singleline(ui, old_path, self.are_tools_active);
-                        }
-                        ui.label("to");
-                        ui.horizontal(|ui| {
-                            if self.new_path.is_none() {
-                                *self.new_path = Some("".to_string());
-                            }
-                            if let Some(new_path) = self.new_path.as_mut() {
-                                text_edit_singleline(ui, new_path, self.are_tools_active);
-                            }
-                            if ui.button("Select").clicked() {
-                                let src_path = rfd::FileDialog::new().pick_folder();
-                                if let Some(src_path) =
-                                    src_path.and_then(|p| p.to_str().map(|s| s.to_string()))
-                                {
-                                    *self.new_path = Some(src_path);
-                                }
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            if ui.button("Import").clicked() {
-                                self.state.is_import_triggered = true;
-                            }
-                            let resp_close = ui.button("Close");
-                            if resp_close.clicked() || self.state.is_import_triggered {
-                                ui.memory_mut(|m| m.close_popup());
-                                self.state.show = false;
-                            }
-                        });
-                    });
-                });
-            }
-        }
-        import_show_poup_btn
-    }
-}
 struct Help<'a> {
     id: Id,
     show_help: &'a mut bool,
@@ -293,7 +209,6 @@ pub struct TextBuffers {
     pub filter_string: String,
     pub label_propagation_buffer: String,
     pub label_deletion_buffer: String,
-    pub editable_ssh_cfg_str: String,
 }
 
 pub struct Menu {
@@ -306,20 +221,16 @@ pub struct Menu {
     stats: Stats,
     filename_sort_type: SortType,
     show_about: bool,
-    import_prj_state: ImportPrjState,
     text_buffers: TextBuffers,
     show_file_idx: bool,
 }
 
 impl Menu {
     fn new() -> Self {
-        let (cfg, _) = get_cfg();
-        let ssh_cfg_str = toml::to_string_pretty(&cfg.ssh_cfg).unwrap();
         let text_buffers = TextBuffers {
             filter_string: "".to_string(),
             label_propagation_buffer: "".to_string(),
             label_deletion_buffer: "".to_string(),
-            editable_ssh_cfg_str: ssh_cfg_str,
         };
         Self {
             window_open: true,
@@ -331,7 +242,6 @@ impl Menu {
             stats: Stats::default(),
             filename_sort_type: SortType::default(),
             show_about: false,
-            import_prj_state: ImportPrjState::default(),
             text_buffers,
             show_file_idx: true,
         }
@@ -399,22 +309,8 @@ impl Menu {
                         handle_error!(ctrl.save(prj_path, tools_data_map, true), self);
                     }
                 }
-                let import_prj_id = ui.make_persistent_id("import-prj-popup");
-                ui.add(ImportPrj::new(
-                    import_prj_id,
-                    &mut self.import_prj_state,
-                    &mut self.are_tools_active,
-                    &mut ctrl.cfg.import_old_path,
-                    &mut ctrl.cfg.import_new_path,
-                ));
-
                 let popup_id = ui.make_persistent_id("cfg-popup");
-                let cfg_gui = CfgMenu::new(
-                    popup_id,
-                    &mut ctrl.cfg,
-                    &mut self.text_buffers.editable_ssh_cfg_str,
-                    &mut self.are_tools_active,
-                );
+                let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg);
                 ui.add(cfg_gui);
                 let about_popup_id = ui.make_persistent_id("about-popup");
                 ui.add(Help::new(
@@ -427,34 +323,6 @@ impl Menu {
         let mut projected_loaded = false;
         egui::SidePanel::left("left-main-menu").show(ctx, |ui| {
             if let Some(load_btn_resp) = &self.load_button_resp.resp {
-                if self.import_prj_state.is_import_triggered {
-                    self.import_prj_state.is_import_triggered = false;
-                    let import_prj_path = dialog_in_prjfolder(
-                        ctrl.cfg.current_prj_path(),
-                        rfd::FileDialog::new().add_filter("project files", &["json", "rvi"]),
-                    )
-                    .pick_file();
-                    if let Some(import_prj_path) = import_prj_path {
-                        handle_error!(
-                            |tdm| {
-                                *tools_data_map = tdm;
-                                projected_loaded = true;
-                            },
-                            if let (Some(old_path), Some(new_path)) =
-                                (&ctrl.cfg.import_old_path, &ctrl.cfg.import_new_path)
-                            {
-                                ctrl.import(
-                                    import_prj_path,
-                                    old_path.clone().as_str(),
-                                    new_path.clone().as_str(),
-                                )
-                            } else {
-                                Err(rverr!("old and new path must be set"))
-                            },
-                            self
-                        );
-                    }
-                }
                 if load_btn_resp.clicked() {
                     self.load_button_resp.popup_open = true;
                 }

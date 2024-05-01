@@ -32,12 +32,12 @@ impl ReaderFromCfg {
     }
 
     pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
-        let n_ssh_reconnections = cfg.ssh_cfg.n_reconnection_attempts();
-        let tmpdir = format!("{}/{}", cfg.tmpdir()?, uuid::Uuid::new_v4());
+        let n_ssh_reconnections = cfg.ssh_cfg().n_reconnection_attempts();
+        let tmpdir = format!("{}/{}", cfg.tmpdir(), uuid::Uuid::new_v4());
         Ok(Self {
-            reader: match (&cfg.connection, &cfg.cache) {
+            reader: match (&cfg.prj.connection, &cfg.usr.cache) {
                 (Connection::Local, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
+                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone())?;
                     Box::new(Loader::<FileCache<ReadImageFromPath, _>, _>::new(
                         FileCacheArgs {
                             cfg_args: args,
@@ -48,13 +48,13 @@ impl ReaderFromCfg {
                     )?)
                 }
                 (Connection::Ssh, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
+                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone())?;
 
                     Box::new(
                         Loader::<FileCache<ReadImageFromSsh, _>, FileCacheArgs<_>>::new(
                             FileCacheArgs {
                                 cfg_args: args,
-                                reader_args: cfg.ssh_cfg.clone(),
+                                reader_args: cfg.ssh_cfg(),
                                 tmpdir,
                             },
                             n_ssh_reconnections,
@@ -69,12 +69,12 @@ impl ReaderFromCfg {
                 }
                 (Connection::Ssh, Cache::NoCache) => {
                     Box::new(Loader::<NoCache<ReadImageFromSsh, _>, _>::new(
-                        cfg.ssh_cfg.clone(),
+                        cfg.ssh_cfg(),
                         n_ssh_reconnections,
                     )?)
                 }
                 (Connection::PyHttp, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
+                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone())?;
 
                     Box::new(
                         Loader::<FileCache<ReadImageFromPyHttp, _>, FileCacheArgs<_>>::new(
@@ -92,13 +92,19 @@ impl ReaderFromCfg {
                 }
                 #[cfg(feature = "azure_blob")]
                 (Connection::AzureBlob, Cache::FileCache) => {
-                    let cache_args = unwrap_file_cache_args(cfg.file_cache_args.clone())?;
-                    let azure_cfg = cfg
-                        .azure_blob_cfg
+                    let cache_args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone())?;
+                    let azure_cfg_usr = cfg
+                        .usr
+                        .azure_blob
                         .as_ref()
                         .ok_or_else(|| rverr!("no azure cfg found"))?;
-                    let connection_string_path = azure_cfg.connection_string_path.clone();
-                    let container_name = azure_cfg.container_name.clone();
+                    let azure_cfg_prj = cfg
+                        .prj
+                        .azure_blob
+                        .as_ref()
+                        .ok_or_else(|| rverr!("no azure cfg found"))?;
+                    let connection_string_path = azure_cfg_usr.connection_string_path.clone();
+                    let container_name = azure_cfg_prj.container_name.clone();
 
                     Box::new(Loader::<
                         FileCache<ReadImageFromAzureBlob, _>,
@@ -119,8 +125,8 @@ impl ReaderFromCfg {
                 _ => {
                     Err(rverr!(
                         "configuration option ({:?}, {:?}) not implemented",
-                        cfg.connection,
-                        cfg.cache
+                        cfg.prj.connection,
+                        cfg.usr.cache
                     ))?;
                     // return a dummy such that the compiler is happy
                     Box::new(Loader::<NoCache<ReadImageFromPath, _>, _>::new(

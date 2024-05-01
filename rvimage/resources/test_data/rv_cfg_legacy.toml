@@ -1,0 +1,15 @@
+connection = "Local"
+cache = "FileCache"
+current_prj_path = "/Users/ultrauser/Desktop/ultra.json"
+darkmode = true
+
+[file_cache_args]
+n_prev_images = 2
+n_next_images = 8
+n_threads = 2
+
+[ssh_cfg]
+remote_folder_paths = ["a/b/c"]
+address = "73.42.73.42"
+user = "someuser"
+ssh_identity_file_path = "local/path"

@@ -1,7 +1,7 @@
 #[cfg(feature = "azure_blob")]
 use crate::cfg::AzureBlobCfg;
 use crate::{
-    cfg::{Cfg, PyHttpReaderCfg, SshCfg},
+    cfg::{CfgLegacy, CfgPrj, PyHttpReaderCfg, SshCfg},
     world::ToolsDataMap,
 };
 use lazy_static::lazy_static;
@@ -136,12 +136,21 @@ pub struct ExportData {
     pub version: Option<String>,
     pub tools_data_map: ToolsDataMap,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
+pub enum SavedCfg {
+    CfgPrj(CfgPrj),
+    CfgLegacy(CfgLegacy),
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct SaveData {
     pub version: Option<String>,
     pub opened_folder: Option<String>,
     pub tools_data_map: ToolsDataMap,
-    pub cfg: Cfg,
+    pub cfg: SavedCfg,
 }
 
 pub struct Defer<F: FnMut()> {

@@ -11,7 +11,7 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
         Ok(true)
     } else if open_folder_popup_open {
         let mut cancel = false;
-        let picked = match &ctrl.cfg.connection {
+        let picked = match &ctrl.cfg.prj.connection {
             Connection::Local => {
                 let sf = rfd::FileDialog::new().pick_folder();
                 if sf.is_none() {
@@ -29,7 +29,8 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                 let picklist_res = picklist::pick(
                     ui,
                     ctrl.cfg
-                        .ssh_cfg
+                        .prj
+                        .ssh
                         .remote_folder_paths
                         .iter()
                         .map(|s| s.as_str()),
@@ -50,6 +51,7 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                 let picklist_res = picklist::pick(
                     ui,
                     ctrl.cfg
+                        .prj
                         .py_http_reader_cfg
                         .as_ref()
                         .ok_or_else(|| RvError::new("no http reader cfg given in cfg"))?
@@ -76,7 +78,8 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
             Connection::AzureBlob => {
                 let address = ctrl
                     .cfg
-                    .azure_blob_cfg
+                    .prj
+                    .azure_blob
                     .as_ref()
                     .ok_or_else(|| RvError::new("no azure blob cfg given in cfg"))?
                     .prefix

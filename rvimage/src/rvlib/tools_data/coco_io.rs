@@ -752,7 +752,7 @@ fn test_coco_export() {
         defer_file_removal!(&coco_file);
         assert_coco_eq(bbox_data, read, &coco_file);
     }
-    let tmpdir = read_cfg().unwrap().tmpdir().unwrap().to_string();
+    let tmpdir = read_cfg().unwrap().tmpdir().to_string();
     let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
     let file_path = tmpdir.join("test_image.png");
     test_br(&file_path, None, true);

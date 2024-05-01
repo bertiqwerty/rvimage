@@ -1,33 +1,21 @@
-use egui::{Area, Color32, Frame, Id, Order, Response, RichText, TextEdit, Ui, Visuals, Widget};
+use std::fs::{self, File};
+
+use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Visuals, Widget};
 
 use crate::{
-    cfg::{self, Cache, Cfg, Connection, SshCfg},
+    cfg::{self, get_cfg_tmppath, write_cfg_str, Cache, Cfg, Connection},
     file_util::get_prj_name,
-    menu::{self, ui_util},
+    menu,
+    result::trace_ok_err,
 };
 
-fn is_valid_ssh_cfg(s: &str) -> bool {
-    toml::from_str::<SshCfg>(s).is_ok()
-}
 pub struct CfgMenu<'a> {
     id: Id,
     cfg: &'a mut Cfg,
-    ssh_cfg_str: &'a mut String,
-    are_tools_active: &'a mut bool,
 }
 impl<'a> CfgMenu<'a> {
-    pub fn new(
-        id: Id,
-        cfg: &'a mut Cfg,
-        ssh_cfg_str: &'a mut String,
-        are_tools_active: &'a mut bool,
-    ) -> CfgMenu<'a> {
-        Self {
-            id,
-            cfg,
-            ssh_cfg_str,
-            are_tools_active,
-        }
+    pub fn new(id: Id, cfg: &'a mut Cfg) -> CfgMenu<'a> {
+        Self { id, cfg }
     }
 }
 impl<'a> Widget for CfgMenu<'a> {
@@ -52,33 +40,36 @@ impl<'a> Widget for CfgMenu<'a> {
                         ui.horizontal(|ui| {
                             if ui.button("Open in Editor").clicked() {
                                 // to show the current config in an external editor, we need to save it first
-                                if let Err(e) = cfg::write_cfg(self.cfg) {
+                                let tmppath = get_cfg_tmppath(self.cfg);
+                                tmppath
+                                    .parent()
+                                    .and_then(|p| fs::create_dir_all(p).ok())
+                                    .or_else(|| {
+                                        tracing::error!("could not create directory for tmp file");
+                                        Some(())
+                                    });
+                                trace_ok_err(File::create(&tmppath));
+                                let log_tmp = false;
+                                if let Err(e) = toml::to_string_pretty(&self.cfg)
+                                    .map(|s| write_cfg_str(&s, &tmppath, log_tmp))
+                                {
                                     tracing::error!("could not write config,\n{e:#?}");
                                     tracing::error!("{:?}", self.cfg);
                                 }
-                                match cfg::get_cfg_path() {
-                                    Ok(p) => {
-                                        if let Err(e) = edit::edit_file(p) {
-                                            tracing::error!("{e:?}");
-                                            tracing::error!(
-                                                "could not open editor. {:?}",
-                                                edit::get_editor()
-                                            );
-                                        }
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("could not open config file. {e:?}");
-                                    }
+                                if let Err(e) = edit::edit_file(&tmppath) {
+                                    tracing::error!("{e:?}");
+                                    tracing::error!(
+                                        "could not open editor. {:?}",
+                                        edit::get_editor()
+                                    );
                                 }
-                                if let Ok(cfg) = cfg::read_cfg() {
+                                if let Ok(cfg) = cfg::read_cfg_gen::<Cfg>(&tmppath) {
                                     *self.cfg = cfg;
-                                    *self.ssh_cfg_str =
-                                        toml::to_string_pretty(&self.cfg.ssh_cfg).unwrap();
                                 } else {
                                     tracing::error!("could not reload cfg from file");
                                 }
                             }
-                            if ui.button("OK").clicked() {
+                            if ui.button("Save").clicked() {
                                 close = Close::Yes(true);
                             }
                             if ui.button("Cancel").clicked() {
@@ -95,66 +86,47 @@ impl<'a> Widget for CfgMenu<'a> {
                             ui.label("Style");
                             if ui.visuals().dark_mode {
                                 if ui.button("Light").clicked() {
-                                    self.cfg.darkmode = Some(false);
+                                    self.cfg.usr.darkmode = Some(false);
                                     ui.ctx().set_visuals(Visuals::light());
                                 }
                             } else if ui.button("Dark").clicked() {
-                                self.cfg.darkmode = Some(true);
+                                self.cfg.usr.darkmode = Some(true);
                                 ui.ctx().set_visuals(Visuals::dark());
                             }
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
-                            let mut autosave = self.cfg.n_autosaves.unwrap_or(0);
+                            let mut autosave = self.cfg.usr.n_autosaves.unwrap_or(0);
                             ui.label("Autosave versions");
                             ui.add(egui::Slider::new(&mut autosave, 0..=10));
                             if autosave > 0 {
-                                self.cfg.n_autosaves = Some(autosave);
+                                self.cfg.usr.n_autosaves = Some(autosave);
                             } else {
-                                self.cfg.n_autosaves = None;
+                                self.cfg.usr.n_autosaves = None;
                             }
                         });
                         ui.separator();
                         ui.label("Connection");
-                        ui.radio_value(&mut self.cfg.connection, Connection::Local, "Local");
-                        ui.radio_value(&mut self.cfg.connection, Connection::Ssh, "Ssh");
+                        ui.radio_value(&mut self.cfg.prj.connection, Connection::Local, "Local");
+                        ui.radio_value(&mut self.cfg.prj.connection, Connection::Ssh, "Ssh");
                         ui.radio_value(
-                            &mut self.cfg.connection,
+                            &mut self.cfg.prj.connection,
                             Connection::PyHttp,
                             "Http served by 'python -m http.server'",
                         );
                         #[cfg(feature = "azure_blob")]
                         ui.radio_value(
-                            &mut self.cfg.connection,
+                            &mut self.cfg.prj.connection,
                             Connection::AzureBlob,
                             "Azure blob experimental",
                         );
                         ui.separator();
                         ui.horizontal(|ui| {
                             ui.label("Cache");
-                            ui.radio_value(&mut self.cfg.cache, Cache::FileCache, "File Cache");
-                            ui.radio_value(&mut self.cfg.cache, Cache::NoCache, "No Cache");
+                            ui.radio_value(&mut self.cfg.usr.cache, Cache::FileCache, "File Cache");
+                            ui.radio_value(&mut self.cfg.usr.cache, Cache::NoCache, "No Cache");
                         });
                         ui.separator();
-                        ui.label("SSH Connection Parameters");
-                        let multiline = |txt: &mut String| {
-                            let clr = if is_valid_ssh_cfg(txt) {
-                                Color32::LIGHT_BLUE
-                            } else {
-                                Color32::LIGHT_RED
-                            };
-                            ui.add(
-                                TextEdit::multiline(txt)
-                                    .desired_width(f32::INFINITY)
-                                    .code_editor()
-                                    .text_color(clr),
-                            )
-                        };
-                        ui_util::text_edit_with_deactivated_tools(
-                            self.ssh_cfg_str,
-                            self.are_tools_active,
-                            multiline,
-                        );
                         ui.horizontal(|ui| {
                             if ui.button("Save").clicked() {
                                 close = Close::Yes(true);
@@ -167,8 +139,7 @@ impl<'a> Widget for CfgMenu<'a> {
                 })
                 .response;
             if let Close::Yes(save) = close {
-                if save && is_valid_ssh_cfg(self.ssh_cfg_str) {
-                    self.cfg.ssh_cfg = toml::from_str::<SshCfg>(self.ssh_cfg_str).unwrap();
+                if save {
                     if let Err(e) = cfg::write_cfg(self.cfg) {
                         tracing::error!("could not write config,\n{e:#?}");
                         tracing::error!("{:?}", self.cfg);

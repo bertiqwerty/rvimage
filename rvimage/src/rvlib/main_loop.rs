@@ -403,7 +403,7 @@ impl MainEventLoop {
             self.world.update_view.image_info = Some(s);
         }
 
-        if let Some(n_autosaves) = self.ctrl.cfg.n_autosaves {
+        if let Some(n_autosaves) = self.ctrl.cfg.usr.n_autosaves {
             if self.autosave_timer.elapsed().as_secs() > AUTOSAVE_INTERVAL_S {
                 self.autosave_timer = Instant::now();
 
