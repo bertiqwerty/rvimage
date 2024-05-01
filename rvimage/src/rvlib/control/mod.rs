@@ -751,7 +751,11 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
 #[test]
 fn test_save_load() {
     let tdm = make_data(&PathBuf::from_str("dummyfile").unwrap());
-    let cfg = cfg::get_default_cfg();
+    let cfg = {
+        let mut tmp = cfg::get_default_cfg();
+        tmp.usr.n_autosaves = Some(59);
+        tmp
+    };
     let opened_folder_name = "dummy_opened_folder";
     let export_folder = cfg.tmpdir();
     let export_file = PathBuf::new().join(export_folder).join("export.json");
