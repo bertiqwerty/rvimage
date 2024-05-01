@@ -4,22 +4,17 @@ use crate::file_util::{
 };
 use crate::history::{History, Record};
 use crate::result::trace_ok_err;
-use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME};
-use crate::tools_data::bbox_data::BboxSpecificData;
-use crate::tools_data::{AttributesToolData, BrushToolData, Rot90ToolData};
-use crate::tools_data::{ToolSpecifics, ToolsData};
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
 use rvimage_domain::{RvError, RvResult};
 use std::fmt::Debug;
+use std::fs;
 use std::io::Write;
-use std::mem;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
+use std::path::{Path, PathBuf};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use std::{env, fs};
 use zip::write::ExtendedFileOptions;
 mod filter;
 pub mod paths_navigator;
@@ -204,155 +199,6 @@ impl Control {
             self.file_selected_idx = None;
         }
         Ok(())
-    }
-
-    pub fn import(
-        &mut self,
-        mut prj_file_path: PathBuf,
-        folder_src: &str,
-        folder_dst: &str,
-    ) -> RvResult<ToolsDataMap> {
-        let folder_src_to_dst = |path: String| -> String {
-            let other_platform_path = if MAIN_SEPARATOR == '\\' { '/' } else { '\\' };
-            let new_path = Path::new(&path.replace(other_platform_path, MAIN_SEPARATOR_STR))
-                .strip_prefix(&folder_src.replace(other_platform_path, MAIN_SEPARATOR_STR))
-                .ok()
-                .and_then(|sub_path| {
-                    Path::new(folder_dst)
-                        .join(sub_path)
-                        .to_str()
-                        .map(|p| p.to_string())
-                });
-            new_path.unwrap_or(path)
-        };
-
-        let (mut tools_data_map, to_be_opened_folder, mut read_cfg) = detail::load(&prj_file_path)?;
-
-        if let Some(of) = to_be_opened_folder {
-            let dst = folder_src_to_dst(of);
-            self.open_folder(dst)?;
-        }
-
-        let current_prj_path = self.cfg.current_prj_path().to_path_buf();
-
-        // map paths in cfg
-        if let Some(azure_cfg) = &mut read_cfg.usr.azure_blob {
-            azure_cfg.connection_string_path =
-                folder_src_to_dst(mem::take(&mut azure_cfg.connection_string_path));
-        }
-        read_cfg.usr.ssh.ssh_identity_file_path =
-            folder_src_to_dst(read_cfg.usr.ssh.ssh_identity_file_path);
-        self.cfg = read_cfg;
-
-        // update prj path in cfg
-        if current_prj_path.to_str() == DEFAULT_PRJ_PATH.to_str() {
-            let username =
-                env::var("USER").unwrap_or_else(|_| env::var("USERNAME").unwrap_or_default());
-            let username = if username.is_empty() {
-                username
-            } else {
-                format!("_{username}")
-            };
-            let file_name = prj_file_path.file_stem().and_then(|stem| {
-                stem.to_str()
-                    .map(|s| format!("{s}_imported{}.rvi", username))
-            });
-            prj_file_path = file_name
-                .and_then(|filename| prj_file_path.parent().map(|p| p.join(filename)))
-                .unwrap_or(prj_file_path);
-        } else {
-            prj_file_path = current_prj_path;
-        }
-        self.cfg.set_current_prj_path(prj_file_path);
-        // save cfg of imported project
-        trace_ok_err(cfg::write_cfg(&self.cfg));
-
-        // map paths in annotations
-        let bbox: Option<BboxSpecificData> = tools_data_map
-            .get_mut(BBOX_NAME)
-            .and_then(|tdm| trace_ok_err(tdm.specifics.bbox_mut()))
-            .map(|d| {
-                trace_ok_err(
-                    d.set_annotations_map(
-                        d.clone()
-                            .anno_intoiter()
-                            .map(|(k, v)| (folder_src_to_dst(k), v))
-                            .collect(),
-                    ),
-                );
-                mem::take(d)
-            });
-        let brush: Option<BrushToolData> = tools_data_map
-            .get_mut(BRUSH_NAME)
-            .and_then(|tdm| trace_ok_err(tdm.specifics.brush_mut()))
-            .map(|d| {
-                trace_ok_err(
-                    d.set_annotations_map(
-                        d.clone()
-                            .anno_intoiter()
-                            .map(|(k, v)| (folder_src_to_dst(k), v))
-                            .collect(),
-                    ),
-                );
-                mem::take(d)
-            });
-
-        let attributes: Option<AttributesToolData> = tools_data_map
-            .get_mut(ATTRIBUTES_NAME)
-            .and_then(|tdm| trace_ok_err(tdm.specifics.attributes_mut()))
-            .map(|d| {
-                trace_ok_err(
-                    d.set_annotations_map(
-                        d.clone()
-                            .anno_intoiter()
-                            .map(|(k, v)| (folder_src_to_dst(k), v))
-                            .collect(),
-                    ),
-                );
-                mem::take(d)
-            });
-        let rot90: Option<Rot90ToolData> = tools_data_map
-            .get_mut(ROT90_NAME)
-            .and_then(|tdm| trace_ok_err(tdm.specifics.rot90_mut()))
-            .map(|d| {
-                d.set_annotations_map(
-                    d.clone()
-                        .anno_intoiter()
-                        .map(|(k, v)| (folder_src_to_dst(k), v))
-                        .collect(),
-                );
-                mem::take(d)
-            });
-        if let Some(mut bbox) = bbox {
-            let coco_file_str = bbox.coco_file.path.to_str().map(|s| s.to_string());
-            if let Some(coco_file_str) = coco_file_str {
-                bbox.coco_file.path = PathBuf::from(folder_src_to_dst(coco_file_str));
-            }
-            tools_data_map.insert(
-                BBOX_NAME.to_string(),
-                ToolsData::new(ToolSpecifics::Bbox(bbox)),
-            );
-        }
-        if let Some(brush) = brush {
-            tools_data_map.insert(
-                BRUSH_NAME.to_string(),
-                ToolsData::new(ToolSpecifics::Brush(brush)),
-            );
-        }
-        if let Some(attributes) = attributes {
-            tools_data_map.insert(
-                ATTRIBUTES_NAME.to_string(),
-                ToolsData::new(ToolSpecifics::Attributes(attributes)),
-            );
-        }
-        if let Some(rot90) = rot90 {
-            tools_data_map.insert(
-                ROT90_NAME.to_string(),
-                ToolsData::new(ToolSpecifics::Rot90(rot90)),
-            );
-        }
-
-        Ok(tools_data_map)
     }
 
     pub fn load(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
@@ -700,7 +546,12 @@ impl Control {
 
 #[cfg(test)]
 use {
-    crate::{defer_file_removal, file_util::DEFAULT_TMPDIR},
+    crate::{
+        defer_file_removal,
+        file_util::DEFAULT_TMPDIR,
+        tools::BBOX_NAME,
+        tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
+    },
     rvimage_domain::{make_test_bbs, ShapeI},
     std::{collections::HashMap, str::FromStr},
 };
