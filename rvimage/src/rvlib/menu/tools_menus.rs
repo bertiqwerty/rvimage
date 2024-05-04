@@ -62,7 +62,7 @@ fn show_inactive_tool_menu(
     ui.label("Show inactive tool");
     let mut changed = false;
     let inactives = get_visible_inactive_names(tool_name);
-    for (name, (show, _)) in inactives.iter().zip(visible.iter_mut()) {
+    for (name, show) in inactives.iter().zip(visible.iter_mut()) {
         changed |= ui.checkbox(show, *name).changed();
     }
     changed

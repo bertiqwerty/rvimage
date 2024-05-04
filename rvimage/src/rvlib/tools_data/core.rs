@@ -69,26 +69,21 @@ impl Options {
 }
 
 const N: usize = 1;
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct VisibleInactiveToolsState {
     // should the tool's annotations be shown in the background
     show_mask: [bool; N],
-    // configuration of the to be shown annotations of the inactive tool
-    visibilities: [Visibility; N],
 }
 impl VisibleInactiveToolsState {
     pub fn new() -> Self {
         Self::default()
     }
     #[allow(clippy::needless_lifetimes)]
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (bool, Visibility)> + 'a {
-        self.show_mask
-            .iter()
-            .zip(self.visibilities.iter())
-            .map(|(mask, visibility)| (*mask, *visibility))
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = bool> + 'a {
+        self.show_mask.iter().copied()
     }
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&mut bool, &mut Visibility)> {
-        self.show_mask.iter_mut().zip(self.visibilities.iter_mut())
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut bool> {
+        self.show_mask.iter_mut()
     }
     pub fn hide_all(&mut self) {
         for show in self.show_mask.iter_mut() {
@@ -97,17 +92,6 @@ impl VisibleInactiveToolsState {
     }
     pub fn set_show(&mut self, idx: usize, is_visible: bool) {
         self.show_mask[idx] = is_visible;
-    }
-    pub fn set_visibility(&mut self, idx: usize, visibility: Visibility) {
-        self.visibilities[idx] = visibility;
-    }
-}
-impl Default for VisibleInactiveToolsState {
-    fn default() -> Self {
-        Self {
-            show_mask: [false],
-            visibilities: [Visibility::All],
-        }
     }
 }
 

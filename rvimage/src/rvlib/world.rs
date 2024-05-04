@@ -1,7 +1,7 @@
 use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
 use crate::file_util::MetaData;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
-use crate::tools_data::ToolsData;
+use crate::tools_data::{self, vis_from_lfoption, ExportAsCoco, ToolsData};
 use crate::types::ViewImage;
 use crate::util::Visibility;
 use crate::{image_util, UpdatePermAnnos, UpdateView, UpdateZoomBox};
@@ -194,10 +194,30 @@ impl World {
         let tool_names_inactive = get_visible_inactive_names(tool_name);
         let mut annos_inactive: Option<Vec<Annotation>> = None;
         if let Some(visible_inactive_tools) = visible_inactive_tools {
-            for (tool_name_inactive, (show, visibility_inactive)) in tool_names_inactive
+            for (tool_name_inactive, show) in tool_names_inactive
                 .iter()
                 .zip(visible_inactive_tools.iter())
             {
+                let vli = self.data.tools_data_map.get(*tool_name_inactive).map(|td| {
+                    match &td.specifics {
+                        tools_data::ToolSpecifics::Bbox(bbox_data) => (
+                            bbox_data.options.core_options.visible,
+                            bbox_data.label_info(),
+                        ),
+                        tools_data::ToolSpecifics::Brush(brush_data) => (
+                            brush_data.options.core_options.visible,
+                            brush_data.label_info(),
+                        ),
+                        _ => {
+                            panic!("tool {tool_name_inactive} does not redraw annotations ");
+                        }
+                    }
+                });
+                let visibility_inactive = if let Some((visible, label_info)) = vli {
+                    vis_from_lfoption(Some(label_info), visible)
+                } else {
+                    Visibility::All
+                };
                 if show && visibility_active != Visibility::None {
                     if let Some(annos) = &mut annos_inactive {
                         let annos_inner = evaluate_visibility(
