@@ -331,8 +331,9 @@ pub fn bbox_menu(
     });
     export_file_menu_result?;
     ui.separator();
-    data.options.core_options.is_redraw_annos_triggered =
-        show_inactive_tool_menu(ui, &mut visible_inactive_tools);
+    if show_inactive_tool_menu(ui, &mut visible_inactive_tools) {
+        data.options.core_options.is_redraw_annos_triggered = true;
+    }
     ui.separator();
     ui.horizontal(|ui| {
         if ui.button("close").clicked() {
@@ -342,7 +343,7 @@ pub fn bbox_menu(
     Ok(ToolsData {
         specifics: ToolSpecifics::Bbox(data),
         menu_active: window_open,
-        visible_inactive_tools: visible_inactive_tools,
+        visible_inactive_tools,
     })
 }
 
@@ -425,15 +426,16 @@ pub fn brush_menu(
         Some(&mut data.options.core_options.import_mode),
     )?;
     ui.separator();
-    data.options.core_options.is_redraw_annos_triggered =
-        show_inactive_tool_menu(ui, &mut visible_inactive_tools);
+    if show_inactive_tool_menu(ui, &mut visible_inactive_tools) {
+        data.options.core_options.is_redraw_annos_triggered = true;
+    }
     if ui.button("close").clicked() {
         window_open = false;
     }
     Ok(ToolsData {
         specifics: ToolSpecifics::Brush(data),
         menu_active: window_open,
-        visible_inactive_tools: visible_inactive_tools,
+        visible_inactive_tools,
     })
 }
 

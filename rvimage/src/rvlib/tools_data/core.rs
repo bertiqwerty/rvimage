@@ -85,14 +85,14 @@ impl VisibleInactiveTools {
             visibilities: [Visibility::All; N],
         }
     }
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a str, bool, Visibility)> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = (&str, bool, Visibility)> {
         self.names
             .iter()
             .zip(self.show_mask.iter())
             .zip(self.visibilities.iter())
             .map(|((name, mask), visibility)| (name.as_str(), *mask, *visibility))
     }
-    pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (&'a str, &'a mut bool, &'a mut Visibility)> + 'a {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &mut bool, &mut Visibility)> {
         self.names
             .iter()
             .zip(self.show_mask.iter_mut())

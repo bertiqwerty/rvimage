@@ -205,7 +205,11 @@ impl World {
                             annos.extend(annos_inner);
                         }
                     } else {
-                        annos_inactive = evaluate_visibility(visibility_inactive, tool_name_inactive, &self.data);
+                        annos_inactive = evaluate_visibility(
+                            visibility_inactive,
+                            tool_name_inactive,
+                            &self.data,
+                        );
                     }
                 }
             }
@@ -219,10 +223,8 @@ impl World {
             } else {
                 self.update_view.perm_annos = UpdatePermAnnos::Yes(annos_active);
             }
-        } else {
-            if let Some(annos_inactive) = annos_inactive {
-                self.update_view.perm_annos = UpdatePermAnnos::Yes(annos_inactive);
-            }
+        } else if let Some(annos_inactive) = annos_inactive {
+            self.update_view.perm_annos = UpdatePermAnnos::Yes(annos_inactive);
         }
     }
 

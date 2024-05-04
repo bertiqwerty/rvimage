@@ -2,7 +2,7 @@ use crate::{
     drawme::{Annotation, BboxAnnotation, Stroke},
     result::trace_ok_err,
     world::World,
-    BrushAnnotation
+    BrushAnnotation,
 };
 
 pub use self::core::{

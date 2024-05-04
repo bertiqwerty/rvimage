@@ -596,7 +596,10 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
     }
     let tools_data_map = HashMap::from([(
         BBOX_NAME.to_string(),
-        ToolsData::new(ToolSpecifics::Bbox(bbox_data), VisibleInactiveTools::default()),
+        ToolsData::new(
+            ToolSpecifics::Bbox(bbox_data),
+            VisibleInactiveTools::default(),
+        ),
     )]);
     tools_data_map
 }
