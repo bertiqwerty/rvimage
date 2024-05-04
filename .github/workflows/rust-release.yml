@@ -31,7 +31,7 @@ jobs:
       - name: Check that tag version and Cargo.toml version are the same
         shell: bash
         run: |
-          if ! grep -q "version = \"$VERSION_CARGO\"" Cargo.toml; then
+          if ! grep -q "version = \"$VERSION_CARGO\"" rvimage/Cargo.toml; then
             echo "version does not match Cargo.toml" >&2
             exit 1
           fi
