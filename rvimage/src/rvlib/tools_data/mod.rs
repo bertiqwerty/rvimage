@@ -7,7 +7,7 @@ use crate::{
 
 pub use self::core::{
     vis_from_lfoption, ExportAsCoco, ImportMode, InstanceAnnotate, InstanceExportData, LabelInfo,
-    VisibleInactiveTools, OUTLINE_THICKNESS_CONVERSION,
+    VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
 };
 pub use self::{
     attributes_data::AttributesToolData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
@@ -296,10 +296,14 @@ impl Default for ToolSpecifics {
 pub struct ToolsData {
     pub specifics: ToolSpecifics,
     pub menu_active: bool,
-    pub visible_inactive_tools: VisibleInactiveTools,
+    #[serde(default)]
+    pub visible_inactive_tools: VisibleInactiveToolsState,
 }
 impl ToolsData {
-    pub fn new(specifics: ToolSpecifics, visible_inactive_tools: VisibleInactiveTools) -> Self {
+    pub fn new(
+        specifics: ToolSpecifics,
+        visible_inactive_tools: VisibleInactiveToolsState,
+    ) -> Self {
         ToolsData {
             specifics,
             menu_active: false,

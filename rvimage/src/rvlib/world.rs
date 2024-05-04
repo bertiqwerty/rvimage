@@ -1,6 +1,6 @@
 use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
 use crate::file_util::MetaData;
-use crate::tools::add_tools_initial_data;
+use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
 use crate::tools_data::ToolsData;
 use crate::types::ViewImage;
 use crate::util::Visibility;
@@ -191,9 +191,13 @@ impl World {
             .tools_data_map
             .get(tool_name)
             .map(|td| td.visible_inactive_tools.clone());
+        let tool_names_inactive = get_visible_inactive_names(tool_name);
         let mut annos_inactive: Option<Vec<Annotation>> = None;
         if let Some(visible_inactive_tools) = visible_inactive_tools {
-            for (tool_name_inactive, show, visibility_inactive) in visible_inactive_tools.iter() {
+            for (tool_name_inactive, (show, visibility_inactive)) in tool_names_inactive
+                .iter()
+                .zip(visible_inactive_tools.iter())
+            {
                 if show && visibility_active != Visibility::None {
                     if let Some(annos) = &mut annos_inactive {
                         let annos_inner = evaluate_visibility(

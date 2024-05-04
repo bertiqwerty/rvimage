@@ -9,7 +9,7 @@ mod zoom;
 
 use crate::{
     history::{History, Record},
-    tools_data::{AttributesToolData, BboxSpecificData, BrushToolData, VisibleInactiveTools},
+    tools_data::{AttributesToolData, BboxSpecificData, BrushToolData, VisibleInactiveToolsState},
     world::World,
 };
 
@@ -31,7 +31,16 @@ pub const ALWAYS_ACTIVE_ZOOM: &str = "AlwaysActiveZoom";
 pub const ATTRIBUTES_NAME: &str = "Attributes";
 
 macro_rules! make_tools {
-($(($tool:ident, $label:expr, $name:expr, $active:expr, $always_active:expr, $data_default:expr)),+) => {
+($(($tool:ident, $label:expr, $name:expr, $active:expr, $always_active:expr, $data_default:expr, $visible_inactive_names:expr)),+) => {
+        pub fn get_visible_inactive_names(name: &str) -> [&str; 1]{
+            $(if name == $name {
+                return $visible_inactive_names;
+            })+
+            else {
+                panic!("unknown tool {name}");
+            }
+
+        }
         #[derive(Clone, Debug)]
         pub enum ToolWrapper {
             $($tool($tool)),+
@@ -48,12 +57,10 @@ macro_rules! make_tools {
         }
         pub fn add_tools_initial_data(mut world: World) -> World {
             $(if world.data.tools_data_map.get_mut($name).is_none() {
-                let (data, visible_inactive_tools) = $data_default;
                 world.data.tools_data_map.insert(
                     $name.to_string(),
                     $crate::tools_data::ToolsData::new(
-                        $crate::tools_data::ToolSpecifics::$tool(data),
-                        visible_inactive_tools,
+                        $crate::tools_data::ToolSpecifics::$tool($data_default), VisibleInactiveToolsState::default()
                     ),
                 );
             })+
@@ -68,7 +75,8 @@ make_tools!(
         ROT90_NAME,
         true,
         true,
-        (Rot90ToolData::default(), VisibleInactiveTools::default())
+        Rot90ToolData::default(),
+        [""]
     ),
     (
         Brush,
@@ -76,10 +84,8 @@ make_tools!(
         BRUSH_NAME,
         false,
         false,
-        (
-            BrushToolData::default(),
-            VisibleInactiveTools::new([BBOX_NAME.to_string()])
-        )
+        BrushToolData::default(),
+        [BBOX_NAME]
     ),
     (
         Bbox,
@@ -87,10 +93,8 @@ make_tools!(
         BBOX_NAME,
         false,
         false,
-        (
-            BboxSpecificData::default(),
-            VisibleInactiveTools::new([BRUSH_NAME.to_string()])
-        )
+        BboxSpecificData::default(),
+        [BRUSH_NAME]
     ),
     (
         Attributes,
@@ -98,26 +102,18 @@ make_tools!(
         ATTRIBUTES_NAME,
         false,
         false,
-        (
-            AttributesToolData::default(),
-            VisibleInactiveTools::default()
-        )
+        AttributesToolData::default(),
+        [""]
     ),
-    (
-        Zoom,
-        "🔍",
-        ZOOM_NAME,
-        false,
-        false,
-        ((), VisibleInactiveTools::default())
-    ),
+    (Zoom, "🔍", ZOOM_NAME, false, false, (), [""]),
     (
         AlwaysActiveZoom,
         "AA🔍",
         ALWAYS_ACTIVE_ZOOM,
         true,
         true,
-        ((), VisibleInactiveTools::default())
+        (),
+        [""]
     )
 );
 

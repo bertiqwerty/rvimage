@@ -70,34 +70,25 @@ impl Options {
 
 const N: usize = 1;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct VisibleInactiveTools {
-    names: [String; N],
+pub struct VisibleInactiveToolsState {
     // should the tool's annotations be shown in the background
     show_mask: [bool; N],
     // configuration of the to be shown annotations of the inactive tool
     visibilities: [Visibility; N],
 }
-impl VisibleInactiveTools {
-    pub fn new(names: [String; N]) -> Self {
-        Self {
-            names,
-            show_mask: [false; N],
-            visibilities: [Visibility::All; N],
-        }
+impl VisibleInactiveToolsState {
+    pub fn new() -> Self {
+        Self::default()
     }
-    pub fn iter(&self) -> impl Iterator<Item = (&str, bool, Visibility)> {
-        self.names
+    #[allow(clippy::needless_lifetimes)]
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (bool, Visibility)> + 'a {
+        self.show_mask
             .iter()
-            .zip(self.show_mask.iter())
             .zip(self.visibilities.iter())
-            .map(|((name, mask), visibility)| (name.as_str(), *mask, *visibility))
+            .map(|(mask, visibility)| (*mask, *visibility))
     }
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &mut bool, &mut Visibility)> {
-        self.names
-            .iter()
-            .zip(self.show_mask.iter_mut())
-            .zip(self.visibilities.iter_mut())
-            .map(|((name, mask), visibility)| (name.as_str(), mask, visibility))
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&mut bool, &mut Visibility)> {
+        self.show_mask.iter_mut().zip(self.visibilities.iter_mut())
     }
     pub fn hide_all(&mut self) {
         for show in self.show_mask.iter_mut() {
@@ -111,10 +102,9 @@ impl VisibleInactiveTools {
         self.visibilities[idx] = visibility;
     }
 }
-impl Default for VisibleInactiveTools {
+impl Default for VisibleInactiveToolsState {
     fn default() -> Self {
         Self {
-            names: ["".to_string()],
             show_mask: [false],
             visibilities: [Visibility::All],
         }

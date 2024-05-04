@@ -4,13 +4,14 @@ use crate::{
     cfg::{ExportPath, ExportPathConnection},
     file_util::path_to_str,
     menu::ui_util::process_number,
+    tools::{get_visible_inactive_names, BBOX_NAME, BRUSH_NAME},
     tools_data::{
         annotations::{InstanceAnnotations, SplitMode},
         attributes_data::AttrVal,
         bbox_data::BboxSpecificData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         AttributesToolData, BrushToolData, CoreOptions, ImportMode, InstanceAnnotate, LabelInfo,
-        ToolSpecifics, ToolsData, VisibleInactiveTools, OUTLINE_THICKNESS_CONVERSION,
+        ToolSpecifics, ToolsData, VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
     },
     ShapeI,
 };
@@ -53,11 +54,16 @@ fn new_label_text(
     }
 }
 
-fn show_inactive_tool_menu(ui: &mut Ui, visible: &mut VisibleInactiveTools) -> bool {
+fn show_inactive_tool_menu(
+    ui: &mut Ui,
+    tool_name: &'static str,
+    visible: &mut VisibleInactiveToolsState,
+) -> bool {
     ui.label("Show inactive tool");
     let mut changed = false;
-    for (name, show, _) in visible.iter_mut() {
-        changed |= ui.checkbox(show, name).changed();
+    let inactives = get_visible_inactive_names(tool_name);
+    for (name, (show, _)) in inactives.iter().zip(visible.iter_mut()) {
+        changed |= ui.checkbox(show, *name).changed();
     }
     changed
 }
@@ -221,7 +227,7 @@ pub fn bbox_menu(
     mut window_open: bool,
     mut data: BboxSpecificData,
     are_tools_active: &mut bool,
-    mut visible_inactive_tools: VisibleInactiveTools,
+    mut visible_inactive_tools: VisibleInactiveToolsState,
 ) -> RvResult<ToolsData> {
     let LabelMenuResult {
         label_change,
@@ -331,7 +337,7 @@ pub fn bbox_menu(
     });
     export_file_menu_result?;
     ui.separator();
-    if show_inactive_tool_menu(ui, &mut visible_inactive_tools) {
+    if show_inactive_tool_menu(ui, BBOX_NAME, &mut visible_inactive_tools) {
         data.options.core_options.is_redraw_annos_triggered = true;
     }
     ui.separator();
@@ -352,7 +358,7 @@ pub fn brush_menu(
     mut window_open: bool,
     mut data: BrushToolData,
     are_tools_active: &mut bool,
-    mut visible_inactive_tools: VisibleInactiveTools,
+    mut visible_inactive_tools: VisibleInactiveToolsState,
 ) -> RvResult<ToolsData> {
     let LabelMenuResult {
         label_change,
@@ -426,7 +432,7 @@ pub fn brush_menu(
         Some(&mut data.options.core_options.import_mode),
     )?;
     ui.separator();
-    if show_inactive_tool_menu(ui, &mut visible_inactive_tools) {
+    if show_inactive_tool_menu(ui, BRUSH_NAME, &mut visible_inactive_tools) {
         data.options.core_options.is_redraw_annos_triggered = true;
     }
     if ui.button("close").clicked() {
@@ -571,6 +577,6 @@ pub fn attributes_menu(
     Ok(ToolsData {
         specifics: ToolSpecifics::Attributes(data),
         menu_active: window_open,
-        visible_inactive_tools: VisibleInactiveTools::default(),
+        visible_inactive_tools: VisibleInactiveToolsState::default(),
     })
 }

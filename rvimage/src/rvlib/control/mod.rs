@@ -557,7 +557,7 @@ use {
 };
 #[cfg(test)]
 pub fn make_data(image_file: &Path) -> ToolsDataMap {
-    use crate::tools_data::VisibleInactiveTools;
+    use crate::tools_data::VisibleInactiveToolsState;
 
     let test_export_folder = DEFAULT_TMPDIR.clone();
 
@@ -598,7 +598,7 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
         BBOX_NAME.to_string(),
         ToolsData::new(
             ToolSpecifics::Bbox(bbox_data),
-            VisibleInactiveTools::default(),
+            VisibleInactiveToolsState::default(),
         ),
     )]);
     tools_data_map
