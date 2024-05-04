@@ -139,6 +139,26 @@ impl Debug for DataRaw {
     }
 }
 
+fn evaluate_visibility(
+    visibility: Visibility,
+    tool_name: &str,
+    data: &DataRaw,
+) -> Option<Vec<Annotation>> {
+    match (
+        visibility,
+        &data.meta_data.file_path,
+        data.tools_data_map.get(tool_name),
+    ) {
+        (Visibility::All, Some(file_path), Some(td)) => {
+            td.specifics.to_annotations_view(file_path, None)
+        }
+        (Visibility::Only(idx), Some(file_path), Some(td)) => {
+            td.specifics.to_annotations_view(file_path, Some(idx))
+        }
+        (Visibility::None, _, _) => Some(vec![]),
+        _ => None,
+    }
+}
 /// Everything we need to draw
 #[derive(Clone, Default)]
 pub struct World {
@@ -165,25 +185,44 @@ impl World {
         add_tools_initial_data(world)
     }
 
-    pub fn request_redraw_annotations(&mut self, tool_name: &str, visibility: Visibility) {
-        match (
-            visibility,
-            &self.data.meta_data.file_path,
-            self.data.tools_data_map.get(tool_name),
-        ) {
-            (Visibility::All, Some(file_path), Some(td)) => {
-                self.update_view.perm_annos = td.specifics.to_annotations_view(file_path, None);
+    pub fn request_redraw_annotations(&mut self, tool_name: &str, visibility_active: Visibility) {
+        let visible_inactive_tools = self
+            .data
+            .tools_data_map
+            .get(tool_name)
+            .map(|td| td.visible_inactive_tools.clone());
+        let mut annos_inactive: Option<Vec<Annotation>> = None;
+        if let Some(visible_inactive_tools) = visible_inactive_tools {
+            for (tool_name_inactive, show, visibility_inactive) in visible_inactive_tools.iter() {
+                if show && visibility_active != Visibility::None {
+                    if let Some(annos) = &mut annos_inactive {
+                        let annos_inner = evaluate_visibility(
+                            visibility_inactive,
+                            tool_name_inactive,
+                            &self.data,
+                        );
+                        if let Some(annos_inner) = annos_inner {
+                            annos.extend(annos_inner);
+                        }
+                    } else {
+                        annos_inactive = evaluate_visibility(visibility_inactive, tool_name_inactive, &self.data);
+                    }
+                }
             }
-
-            (Visibility::Only(idx), Some(file_path), Some(td)) => {
-                self.update_view.perm_annos =
-                    td.specifics.to_annotations_view(file_path, Some(idx));
+        }
+        let annos_active = evaluate_visibility(visibility_active, tool_name, &self.data);
+        if let Some(annos_active) = annos_active {
+            if let Some(annos_inactive) = annos_inactive {
+                let mut annos = annos_active;
+                annos.extend(annos_inactive);
+                self.update_view.perm_annos = UpdatePermAnnos::Yes(annos);
+            } else {
+                self.update_view.perm_annos = UpdatePermAnnos::Yes(annos_active);
             }
-
-            (Visibility::None, _, _) => {
-                self.update_view.perm_annos = UpdatePermAnnos::clear();
+        } else {
+            if let Some(annos_inactive) = annos_inactive {
+                self.update_view.perm_annos = UpdatePermAnnos::Yes(annos_inactive);
             }
-            _ => (),
         }
     }
 

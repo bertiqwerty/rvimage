@@ -68,6 +68,59 @@ impl Options {
     }
 }
 
+const N: usize = 1;
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct VisibleInactiveTools {
+    names: [String; N],
+    // should the tool's annotations be shown in the background
+    show_mask: [bool; N],
+    // configuration of the to be shown annotations of the inactive tool
+    visibilities: [Visibility; N],
+}
+impl VisibleInactiveTools {
+    pub fn new(names: [String; N]) -> Self {
+        Self {
+            names,
+            show_mask: [false; N],
+            visibilities: [Visibility::All; N],
+        }
+    }
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a str, bool, Visibility)> + 'a {
+        self.names
+            .iter()
+            .zip(self.show_mask.iter())
+            .zip(self.visibilities.iter())
+            .map(|((name, mask), visibility)| (name.as_str(), *mask, *visibility))
+    }
+    pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (&'a str, &'a mut bool, &'a mut Visibility)> + 'a {
+        self.names
+            .iter()
+            .zip(self.show_mask.iter_mut())
+            .zip(self.visibilities.iter_mut())
+            .map(|((name, mask), visibility)| (name.as_str(), mask, visibility))
+    }
+    pub fn hide_all(&mut self) {
+        for show in self.show_mask.iter_mut() {
+            *show = false;
+        }
+    }
+    pub fn set_show(&mut self, idx: usize, is_visible: bool) {
+        self.show_mask[idx] = is_visible;
+    }
+    pub fn set_visibility(&mut self, idx: usize, visibility: Visibility) {
+        self.visibilities[idx] = visibility;
+    }
+}
+impl Default for VisibleInactiveTools {
+    fn default() -> Self {
+        Self {
+            names: ["".to_string()],
+            show_mask: [false],
+            visibilities: [Visibility::All],
+        }
+    }
+}
+
 pub fn random_clr() -> [u8; 3] {
     let r = rand::random::<u8>();
     let g = rand::random::<u8>();

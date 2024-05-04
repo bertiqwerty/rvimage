@@ -113,12 +113,20 @@ impl ToolSelectMenu {
         });
         for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
             let tmp = match &mut v.specifics {
-                ToolSpecifics::Bbox(x) => {
-                    bbox_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
-                }
-                ToolSpecifics::Brush(x) => {
-                    brush_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
-                }
+                ToolSpecifics::Bbox(x) => bbox_menu(
+                    ui,
+                    v.menu_active,
+                    mem::take(x),
+                    &mut self.are_tools_active,
+                    v.visible_inactive_tools.clone(),
+                ),
+                ToolSpecifics::Brush(x) => brush_menu(
+                    ui,
+                    v.menu_active,
+                    mem::take(x),
+                    &mut self.are_tools_active,
+                    v.visible_inactive_tools.clone(),
+                ),
                 ToolSpecifics::Attributes(x) => {
                     attributes_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
                 }

@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 #[allow(clippy::needless_lifetimes)]
@@ -61,7 +62,7 @@ pub fn version_label() -> String {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum Visibility {
     All,
     None,

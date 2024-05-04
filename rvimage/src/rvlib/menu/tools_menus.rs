@@ -10,7 +10,7 @@ use crate::{
         bbox_data::BboxSpecificData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         AttributesToolData, BrushToolData, CoreOptions, ImportMode, InstanceAnnotate, LabelInfo,
-        ToolSpecifics, ToolsData, OUTLINE_THICKNESS_CONVERSION,
+        ToolSpecifics, ToolsData, VisibleInactiveTools, OUTLINE_THICKNESS_CONVERSION,
     },
     ShapeI,
 };
@@ -52,6 +52,16 @@ fn new_label_text(
         None
     }
 }
+
+fn show_inactive_tool_menu(ui: &mut Ui, visible: &mut VisibleInactiveTools) -> bool {
+    ui.label("Show inactive tool");
+    let mut changed = false;
+    for (name, show, _) in visible.iter_mut() {
+        changed |= ui.checkbox(show, name).changed();
+    }
+    changed
+}
+
 #[derive(Default)]
 pub struct LabelMenuResult {
     pub label_change: bool,
@@ -211,6 +221,7 @@ pub fn bbox_menu(
     mut window_open: bool,
     mut data: BboxSpecificData,
     are_tools_active: &mut bool,
+    mut visible_inactive_tools: VisibleInactiveTools,
 ) -> RvResult<ToolsData> {
     let LabelMenuResult {
         label_change,
@@ -320,6 +331,9 @@ pub fn bbox_menu(
     });
     export_file_menu_result?;
     ui.separator();
+    data.options.core_options.is_redraw_annos_triggered =
+        show_inactive_tool_menu(ui, &mut visible_inactive_tools);
+    ui.separator();
     ui.horizontal(|ui| {
         if ui.button("close").clicked() {
             window_open = false;
@@ -328,6 +342,7 @@ pub fn bbox_menu(
     Ok(ToolsData {
         specifics: ToolSpecifics::Bbox(data),
         menu_active: window_open,
+        visible_inactive_tools: visible_inactive_tools,
     })
 }
 
@@ -336,6 +351,7 @@ pub fn brush_menu(
     mut window_open: bool,
     mut data: BrushToolData,
     are_tools_active: &mut bool,
+    mut visible_inactive_tools: VisibleInactiveTools,
 ) -> RvResult<ToolsData> {
     let LabelMenuResult {
         label_change,
@@ -408,12 +424,16 @@ pub fn brush_menu(
         Some(&mut data.options.core_options.is_import_triggered),
         Some(&mut data.options.core_options.import_mode),
     )?;
+    ui.separator();
+    data.options.core_options.is_redraw_annos_triggered =
+        show_inactive_tool_menu(ui, &mut visible_inactive_tools);
     if ui.button("close").clicked() {
         window_open = false;
     }
     Ok(ToolsData {
         specifics: ToolSpecifics::Brush(data),
         menu_active: window_open,
+        visible_inactive_tools: visible_inactive_tools,
     })
 }
 
@@ -549,5 +569,6 @@ pub fn attributes_menu(
     Ok(ToolsData {
         specifics: ToolSpecifics::Attributes(data),
         menu_active: window_open,
+        visible_inactive_tools: VisibleInactiveTools::default(),
     })
 }

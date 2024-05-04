@@ -9,7 +9,7 @@ mod zoom;
 
 use crate::{
     history::{History, Record},
-    tools_data::{AttributesToolData, BboxSpecificData, BrushToolData},
+    tools_data::{AttributesToolData, BboxSpecificData, BrushToolData, VisibleInactiveTools},
     world::World,
 };
 
@@ -48,10 +48,12 @@ macro_rules! make_tools {
         }
         pub fn add_tools_initial_data(mut world: World) -> World {
             $(if world.data.tools_data_map.get_mut($name).is_none() {
+                let (data, visible_inactive_tools) = $data_default;
                 world.data.tools_data_map.insert(
                     $name.to_string(),
                     $crate::tools_data::ToolsData::new(
-                        $crate::tools_data::ToolSpecifics::$tool($data_default),
+                        $crate::tools_data::ToolSpecifics::$tool(data),
+                        visible_inactive_tools,
                     ),
                 );
             })+
@@ -66,7 +68,7 @@ make_tools!(
         ROT90_NAME,
         true,
         true,
-        Rot90ToolData::default()
+        (Rot90ToolData::default(), VisibleInactiveTools::default())
     ),
     (
         Brush,
@@ -74,7 +76,10 @@ make_tools!(
         BRUSH_NAME,
         false,
         false,
-        BrushToolData::default()
+        (
+            BrushToolData::default(),
+            VisibleInactiveTools::new([BBOX_NAME.to_string()])
+        )
     ),
     (
         Bbox,
@@ -82,7 +87,10 @@ make_tools!(
         BBOX_NAME,
         false,
         false,
-        BboxSpecificData::default()
+        (
+            BboxSpecificData::default(),
+            VisibleInactiveTools::new([BRUSH_NAME.to_string()])
+        )
     ),
     (
         Attributes,
@@ -90,10 +98,27 @@ make_tools!(
         ATTRIBUTES_NAME,
         false,
         false,
-        AttributesToolData::default()
+        (
+            AttributesToolData::default(),
+            VisibleInactiveTools::default()
+        )
     ),
-    (Zoom, "🔍", ZOOM_NAME, false, false, ()),
-    (AlwaysActiveZoom, "AA🔍", ALWAYS_ACTIVE_ZOOM, true, true, ())
+    (
+        Zoom,
+        "🔍",
+        ZOOM_NAME,
+        false,
+        false,
+        ((), VisibleInactiveTools::default())
+    ),
+    (
+        AlwaysActiveZoom,
+        "AA🔍",
+        ALWAYS_ACTIVE_ZOOM,
+        true,
+        true,
+        ((), VisibleInactiveTools::default())
+    )
 );
 
 #[macro_export]

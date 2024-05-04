@@ -9,6 +9,7 @@ use crate::tools_data::{
     self, get_mut, get_specific_mut, vis_from_lfoption, CoreOptions, InstanceAnnotate, LabelInfo,
     ToolSpecifics,
 };
+use crate::util::Visibility;
 use crate::ShapeI;
 use crate::{events::Events, history::History, world::World};
 use rvimage_domain::{PtF, RvResult};
@@ -502,6 +503,10 @@ pub trait Manipulate {
     /// All events that are used by a tool are implemented in here. Use the macro [`make_tool_transform`](make_tool_transform). See, e.g.,
     /// [`Zoom::events_tf`](crate::tools::Zoom::events_tf).
     fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History);
+
+    fn get_visibility(&self, _world: &World) -> Visibility {
+        Visibility::None
+    }
 }
 
 const N_HIST_ELTS: usize = 8;

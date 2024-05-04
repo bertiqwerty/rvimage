@@ -2,12 +2,12 @@ use crate::{
     drawme::{Annotation, BboxAnnotation, Stroke},
     result::trace_ok_err,
     world::World,
-    BrushAnnotation, UpdatePermAnnos,
+    BrushAnnotation
 };
 
 pub use self::core::{
     vis_from_lfoption, ExportAsCoco, ImportMode, InstanceAnnotate, InstanceExportData, LabelInfo,
-    OUTLINE_THICKNESS_CONVERSION,
+    VisibleInactiveTools, OUTLINE_THICKNESS_CONVERSION,
 };
 pub use self::{
     attributes_data::AttributesToolData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
@@ -140,7 +140,7 @@ macro_rules! tools_data_accessors_objects {
                 options_mut.core_options.visible = true;
             }
             let vis = get_visible(world);
-            world.request_redraw_annotations($actor_name, vis)
+            world.request_redraw_annotations($actor_name, vis);
         }
     };
 }
@@ -197,7 +197,7 @@ impl ToolSpecifics {
         &self,
         file_path: &str,
         only_cat_idx: Option<usize>,
-    ) -> UpdatePermAnnos {
+    ) -> Option<Vec<Annotation>> {
         match self {
             ToolSpecifics::Bbox(bb_data) => {
                 if let Some(annos) = bb_data.get_annos(file_path) {
@@ -234,9 +234,9 @@ impl ToolSpecifics {
                             })
                         })
                         .collect::<Vec<Annotation>>();
-                    UpdatePermAnnos::Yes(bbs_colored)
+                    Some(bbs_colored)
                 } else {
-                    UpdatePermAnnos::clear()
+                    Some(vec![])
                 }
             }
             ToolSpecifics::Brush(br_data) => {
@@ -277,12 +277,12 @@ impl ToolSpecifics {
                             })
                         })
                         .collect::<Vec<Annotation>>();
-                    UpdatePermAnnos::Yes(annos)
+                    Some(annos)
                 } else {
-                    UpdatePermAnnos::clear()
+                    Some(vec![])
                 }
             }
-            _ => UpdatePermAnnos::default(),
+            _ => None,
         }
     }
 }
@@ -296,12 +296,14 @@ impl Default for ToolSpecifics {
 pub struct ToolsData {
     pub specifics: ToolSpecifics,
     pub menu_active: bool,
+    pub visible_inactive_tools: VisibleInactiveTools,
 }
 impl ToolsData {
-    pub fn new(specifics: ToolSpecifics) -> Self {
+    pub fn new(specifics: ToolSpecifics, visible_inactive_tools: VisibleInactiveTools) -> Self {
         ToolsData {
             specifics,
             menu_active: false,
+            visible_inactive_tools,
         }
     }
 }
