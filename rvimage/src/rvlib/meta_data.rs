@@ -70,7 +70,7 @@ impl MetaData {
             ssh_cfg,
             opened_folder,
             export_folder,
-            flags
+            flags,
         }
     }
     pub fn from_filepath(
