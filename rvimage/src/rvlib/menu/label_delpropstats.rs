@@ -1,6 +1,6 @@
 use egui::Ui;
 use rvimage_domain::RvResult;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use tracing::info;
 
 use super::{main::TextBuffers, ui_util::button_triggerable_number};
@@ -20,7 +20,7 @@ pub fn delete_annotations<T>(
     paths: &[&str],
 ) -> RvResult<()>
 where
-    T: Clone + Serialize,
+    T: Clone + Serialize + DeserializeOwned,
 {
     for p in paths {
         annotations_map.remove(p);

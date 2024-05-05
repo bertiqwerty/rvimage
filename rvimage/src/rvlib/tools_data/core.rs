@@ -1,3 +1,4 @@
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::info;
@@ -355,8 +356,6 @@ impl Default for LabelInfo {
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct InstanceExportData<A>
-where
-    A: InstanceAnnotate,
 {
     pub labels: Vec<String>,
     pub colors: Vec<[u8; 3]>,
@@ -420,7 +419,7 @@ pub enum CocoSegmentation {
     Rle(CocoRle),
 }
 
-pub trait InstanceAnnotate: Clone + Default + PartialEq + Serialize {
+pub trait InstanceAnnotate: Clone + Default + PartialEq + Serialize + DeserializeOwned {
     fn is_contained_in_image(&self, shape: ShapeI) -> bool;
     fn contains<P>(&self, point: P) -> bool
     where

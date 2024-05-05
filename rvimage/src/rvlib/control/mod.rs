@@ -1,4 +1,4 @@
-use crate::cfg::{self, get_log_folder, Connection};
+use crate::cfg::{self, get_log_folder, read_cfg, Connection};
 use crate::file_util::{
     osstr_to_str, ConnectionData, MetaData, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
 };
@@ -30,7 +30,7 @@ mod detail {
     use serde::Serialize;
 
     use crate::{
-        cfg::{read_cfg, Cfg},
+        cfg::{Cfg, CfgPrj},
         file_util::{self, SaveData, SavedCfg},
         util::version_label,
         world::{ToolsDataMap, World},
@@ -50,19 +50,14 @@ mod detail {
             }
         })
     }
-    pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, Cfg)> {
+    pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, CfgPrj)> {
         let s = file_util::read_to_string(file_path)?;
         let save_data = serde_json::from_str::<SaveData>(s.as_str()).map_err(to_rv)?;
         let cfg_prj = match save_data.cfg {
             SavedCfg::CfgLegacy(cfg) => cfg.to_cfg().prj,
             SavedCfg::CfgPrj(cfg_prj) => cfg_prj,
         };
-        let cfg_usr = read_cfg()?.usr;
-        let cfg = Cfg {
-            prj: cfg_prj,
-            usr: cfg_usr,
-        };
-        Ok((save_data.tools_data_map, save_data.opened_folder, cfg))
+        Ok((save_data.tools_data_map, save_data.opened_folder, cfg_prj))
     }
 
     fn write<T>(
@@ -202,14 +197,19 @@ impl Control {
     }
 
     pub fn load(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
+        let mut cfg = read_cfg()?;
+        // we need the project path before reading the annotations to map
+        // their path correctly
+        cfg.set_current_prj_path(file_path.clone());
+        cfg::write_cfg(&cfg)?;
+
         let (tools_data_map, to_be_opened_folder, read_cfg) = detail::load(&file_path)?;
         if let Some(of) = to_be_opened_folder {
             self.open_folder(of)?;
         }
-        self.cfg = read_cfg;
+        cfg.prj = read_cfg;
+        self.cfg = cfg;
 
-        // update prj name in cfg
-        self.cfg.set_current_prj_path(file_path);
         // save cfg of loaded project
         trace_ok_err(cfg::write_cfg(&self.cfg));
 
@@ -622,6 +622,5 @@ fn test_save_load() {
 
     let (tdm_imported, _, cfg_imported) = detail::load(&export_file).unwrap();
     assert_eq!(tdm, tdm_imported);
-    assert_eq!(cfg.prj, cfg_imported.prj);
-    assert_ne!(cfg.usr, cfg_imported.usr);
+    assert_eq!(cfg.prj, cfg_imported);
 }
