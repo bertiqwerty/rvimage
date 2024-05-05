@@ -22,7 +22,7 @@ where
     T: Clone,
 {
     for p in paths {
-        annotations_map.remove(*p);
+        annotations_map.remove(p);
     }
     Ok(())
 }
@@ -48,7 +48,7 @@ where
     paths
         .iter()
         .filter(|p| {
-            if let Some((anno, _)) = annotations_map.get(**p) {
+            if let Some((anno, _)) = annotations_map.get(p) {
                 !anno.elts().is_empty()
             } else {
                 false

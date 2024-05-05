@@ -177,10 +177,7 @@ impl ExportAsCoco<Canvas> for BrushToolData {
             coco_file: export_path,
         }
     }
-    fn set_annotations_map(
-        &mut self,
-        map: AnnotationsMap<Canvas>,
-    ) -> RvResult<()> {
+    fn set_annotations_map(&mut self, map: AnnotationsMap<Canvas>) -> RvResult<()> {
         self.annotations_map = map;
         Ok(())
     }
