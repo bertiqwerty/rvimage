@@ -1,11 +1,14 @@
+use serde::{Deserialize, Serialize, Serializer};
 use std::collections::HashMap;
 use std::ops::Index;
-
-use serde::{Deserialize, Serialize};
+use std::path::Path;
 use tracing::info;
 
+use crate::cfg::read_cfg;
+use crate::file_util::path_to_str;
+use crate::result::trace_ok_err;
 use crate::{cfg::ExportPath, util::Visibility, ShapeI};
-use rvimage_domain::{rverr, RvResult};
+use rvimage_domain::{rverr, to_rv, RvResult};
 use rvimage_domain::{BbF, PtF, TPtF, TPtI};
 
 use super::annotations::InstanceAnnotations;
@@ -25,15 +28,66 @@ pub enum ImportMode {
     #[default]
     Replace,
 }
-// pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, ShapeI)>;
+
+pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
+    if let Some(curr_prj_path) = curr_prj_path {
+        let path_ref = Path::new(&path);
+        let prj_parent = curr_prj_path
+            .parent()
+            .ok_or_else(|| rverr!("{curr_prj_path:?} has no parent"));
+        let relative_path =
+            prj_parent.and_then(|prj_parent| path_ref.strip_prefix(prj_parent).map_err(to_rv));
+        println!("{curr_prj_path:?} {relative_path:?} {path_ref:?}");
+        if let Ok(relative_path) = relative_path {
+            let without_base = path_to_str(relative_path);
+            if let Ok(without_base) = without_base {
+                without_base.to_string()
+            } else {
+                path
+            }
+        } else {
+            path
+        }
+    } else {
+        path
+    }
+}
+
+fn relative_toprj_paths<S, T>(
+    data: &HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    T: Serialize,
+    S: Serializer,
+{
+    let cfg = trace_ok_err(read_cfg());
+
+    data.into_iter()
+        .map(|(k, (v, s))| {
+            (
+                tf_to_annomap_key(k.clone(), cfg.as_ref().map(|cfg| cfg.current_prj_path())),
+                (v, *s),
+            )
+        })
+        .collect::<HashMap<_, _>>()
+        .serialize(serializer)
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
-pub struct AnnotationsMap<T> {
+pub struct AnnotationsMap<T>
+where
+    T: Serialize,
+{
     #[serde(flatten)]
+    // #[serde(serialize_with = "relative_toprj_paths")]
     map: HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
 }
 
-impl<T> IntoIterator for AnnotationsMap<T> {
+impl<T> IntoIterator for AnnotationsMap<T>
+where
+    T: Serialize,
+{
     type Item = (String, (InstanceAnnotations<T>, ShapeI));
     type IntoIter = std::collections::hash_map::IntoIter<String, (InstanceAnnotations<T>, ShapeI)>;
 
@@ -41,7 +95,10 @@ impl<T> IntoIterator for AnnotationsMap<T> {
         self.map.into_iter()
     }
 }
-impl<T> FromIterator<(String, (InstanceAnnotations<T>, ShapeI))> for AnnotationsMap<T> {
+impl<T> FromIterator<(String, (InstanceAnnotations<T>, ShapeI))> for AnnotationsMap<T>
+where
+    T: Serialize,
+{
     fn from_iter<I: IntoIterator<Item = (String, (InstanceAnnotations<T>, ShapeI))>>(
         iter: I,
     ) -> Self {
@@ -50,14 +107,20 @@ impl<T> FromIterator<(String, (InstanceAnnotations<T>, ShapeI))> for Annotations
         }
     }
 }
-impl<T> Index<&str> for AnnotationsMap<T> {
+impl<T> Index<&str> for AnnotationsMap<T>
+where
+    T: Serialize,
+{
     type Output = (InstanceAnnotations<T>, ShapeI);
 
     fn index(&self, index: &str) -> &Self::Output {
         &self.map[index]
     }
 }
-impl<T> AnnotationsMap<T> {
+impl<T> AnnotationsMap<T>
+where
+    T: Serialize,
+{
     pub fn new() -> Self {
         Self {
             map: HashMap::new(),
@@ -66,8 +129,11 @@ impl<T> AnnotationsMap<T> {
     pub fn insert(&mut self, key: String, value: (InstanceAnnotations<T>, ShapeI)) {
         self.map.insert(key, value);
     }
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut (InstanceAnnotations<T>, ShapeI)> {
-        self.map.get_mut(key)
+    pub fn get_mut(
+        &mut self,
+        absolute_path: &str,
+    ) -> Option<&mut (InstanceAnnotations<T>, ShapeI)> {
+        self.map.get_mut(absolute_path)
     }
     pub fn iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<T>, ShapeI))> {
         self.map.iter()
@@ -490,7 +556,7 @@ pub enum CocoSegmentation {
     Rle(CocoRle),
 }
 
-pub trait InstanceAnnotate: Clone + Default + PartialEq {
+pub trait InstanceAnnotate: Clone + Default + PartialEq + Serialize {
     fn is_contained_in_image(&self, shape: ShapeI) -> bool;
     fn contains<P>(&self, point: P) -> bool
     where
