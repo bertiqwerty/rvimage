@@ -4,12 +4,12 @@ authors = ["Behrang Shafei"]
 edition = "2021"
 name = "rvimage-domain"
 license = "MIT OR Apache-2.0"
-description = "Process elements in the image domain such as polygons or bounding boxes for rvimage"
+description = "Process elements in the image domain such as polygons or bounding boxes for RV Image"
 readme = "README.md"
 version = "0.4.1"
 homepage = "https://github.com/bertiqwerty/rvimage"
 repository = "https://github.com/bertiqwerty/rvimage"
-keywords = ["polygon", "bounding box", "canvas", "image"]
+keywords = ["polygon", "RLE", "canvas", "image"]
 categories = ["computer-vision"]
 
 [dependencies]
