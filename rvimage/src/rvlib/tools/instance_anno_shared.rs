@@ -1,6 +1,6 @@
 use crate::{
     cfg::ExportPath,
-    file_util::MetaData,
+    meta_data::MetaData,
     result::trace_ok_err,
     tools_data::{self, merge, CoreOptions, ExportAsCoco, ImportMode, Rot90ToolData},
     world::World,

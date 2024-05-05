@@ -3,27 +3,15 @@ use std::{cmp::Ordering, mem, thread};
 use tracing::info;
 
 use crate::{
-    annotations_accessor, annotations_accessor_mut,
-    cfg::ExportPath,
-    events::{Events, KeyCode},
-    file_util::MetaData,
-    history::{History, Record},
-    make_tool_transform,
-    result::{trace_ok_err, trace_ok_warn},
-    tools::{
+    annotations_accessor, annotations_accessor_mut, cfg::ExportPath, events::{Events, KeyCode}, history::{History, Record}, make_tool_transform, meta_data::MetaData, result::{trace_ok_err, trace_ok_warn}, tools::{
         core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
         instance_anno_shared::check_cocoimport,
-    },
-    tools_data::{
+    }, tools_data::{
         self,
         annotations::{BrushAnnotations, InstanceAnnotations},
         brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         brush_mut, vis_from_lfoption, InstanceAnnotate, LabelInfo, Rot90ToolData,
-    },
-    tools_data_accessors, tools_data_accessors_objects,
-    util::Visibility,
-    world::World,
-    Annotation, BrushAnnotation, Line, ShapeI,
+    }, tools_data_accessors, tools_data_accessors_objects, util::Visibility, world::World, Annotation, BrushAnnotation, Line, ShapeI
 };
 use rvimage_domain::{BrushLine, Canvas, PtF, TPtF};
 

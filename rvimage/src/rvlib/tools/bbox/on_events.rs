@@ -3,25 +3,17 @@ use std::{cmp::Ordering, iter, iter::empty, mem};
 use lazy_static::lazy_static;
 
 use crate::{
-    cfg::ExportPath,
-    file_util::MetaData,
-    history::{History, Record},
-    result::trace_ok_err,
-    tools::{
+    cfg::ExportPath, history::{History, Record}, meta_data::MetaData, result::trace_ok_err, tools::{
         core::{
             change_annos, label_change_key, make_track_changes_str, on_selection_keys, Mover,
             ReleasedKey,
         },
         BBOX_NAME,
-    },
-    tools_data::{
+    }, tools_data::{
         self,
         annotations::{BboxAnnotations, SplitMode},
         BboxSpecificData, InstanceAnnotate, Rot90ToolData,
-    },
-    util::{true_indices, Visibility},
-    world::World,
-    GeoFig, Polygon,
+    }, util::{true_indices, Visibility}, world::World, GeoFig, Polygon
 };
 use rvimage_domain::{
     self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF,

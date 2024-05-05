@@ -10,6 +10,7 @@ mod image_reader;
 pub mod image_util;
 pub mod main_loop;
 pub mod menu;
+mod meta_data;
 mod paths_selector;
 pub mod result;
 mod ssh;

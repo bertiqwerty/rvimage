@@ -1,8 +1,7 @@
 use crate::cfg::{self, get_log_folder, read_cfg, Connection};
-use crate::file_util::{
-    osstr_to_str, ConnectionData, MetaData, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
-};
+use crate::file_util::{osstr_to_str, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
 use crate::history::{History, Record};
+use crate::meta_data::{ConnectionData, MetaData};
 use crate::result::trace_ok_err;
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{

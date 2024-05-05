@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
-    file_util::{self, path_to_str, MetaData},
+    file_util::{self, path_to_str},
+    meta_data::MetaData,
     result::trace_ok_warn,
     ssh,
     util::version_label,
@@ -538,8 +539,9 @@ use {
     crate::{
         cfg::{read_cfg, SshCfg},
         defer_file_removal,
+        meta_data::ConnectionData,
     },
-    file_util::{ConnectionData, DEFAULT_TMPDIR},
+    file_util::DEFAULT_TMPDIR,
     rvimage_domain::{make_test_bbs, BbI},
     std::{fs, str::FromStr},
 };

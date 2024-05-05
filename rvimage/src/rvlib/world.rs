@@ -1,5 +1,5 @@
 use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
-use crate::file_util::MetaData;
+use crate::meta_data::MetaData;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
 use crate::tools_data::{self, vis_from_lfoption, ExportAsCoco, ToolsData};
 use crate::types::ViewImage;
