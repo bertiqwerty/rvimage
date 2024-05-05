@@ -7,6 +7,8 @@ use std::{
 use crate::{cfg::ExportPath, implement_annotations_getters, ShapeI};
 use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtI};
 
+use super::label_map::LabelMap;
+
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum AttrVal {
     Float(TPtF),
@@ -57,7 +59,7 @@ impl Default for AttrVal {
 // { attribute name: attribute value }
 pub type AttrMap = HashMap<String, AttrVal>;
 
-pub type AttrAnnotationsMap = HashMap<String, (AttrMap, ShapeI)>;
+pub type AttrAnnotationsMap = LabelMap<AttrMap>;
 
 pub fn set_attrmap_val(attr_map: &mut AttrMap, attr_name: &str, attr_val: &AttrVal) {
     attr_map.insert(attr_name.to_string(), attr_val.clone());

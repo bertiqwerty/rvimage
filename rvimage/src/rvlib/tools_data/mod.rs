@@ -21,6 +21,7 @@ pub mod bbox_data;
 pub mod brush_data;
 pub mod coco_io;
 mod core;
+mod label_map;
 pub mod rot90_data;
 pub use core::{merge, AnnotationsMap, Options as CoreOptions};
 
