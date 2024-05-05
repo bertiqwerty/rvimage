@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Index;
 
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -24,7 +25,78 @@ pub enum ImportMode {
     #[default]
     Replace,
 }
-pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, ShapeI)>;
+// pub type AnnotationsMap<T> = HashMap<String, (InstanceAnnotations<T>, ShapeI)>;
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct AnnotationsMap<T> {
+    #[serde(flatten)]
+    map: HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
+}
+
+impl<T> IntoIterator for AnnotationsMap<T> {
+    type Item = (String, (InstanceAnnotations<T>, ShapeI));
+    type IntoIter = std::collections::hash_map::IntoIter<String, (InstanceAnnotations<T>, ShapeI)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.map.into_iter()
+    }
+}
+impl<T> FromIterator<(String, (InstanceAnnotations<T>, ShapeI))> for AnnotationsMap<T> {
+    fn from_iter<I: IntoIterator<Item = (String, (InstanceAnnotations<T>, ShapeI))>>(
+        iter: I,
+    ) -> Self {
+        Self {
+            map: iter.into_iter().collect(),
+        }
+    }
+}
+impl<T> Index<&str> for AnnotationsMap<T> {
+    type Output = (InstanceAnnotations<T>, ShapeI);
+
+    fn index(&self, index: &str) -> &Self::Output {
+        &self.map[index]
+    }
+}
+impl<T> AnnotationsMap<T> {
+    pub fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+        }
+    }
+    pub fn insert(&mut self, key: String, value: (InstanceAnnotations<T>, ShapeI)) {
+        self.map.insert(key, value);
+    }
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut (InstanceAnnotations<T>, ShapeI)> {
+        self.map.get_mut(key)
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<T>, ShapeI))> {
+        self.map.iter()
+    }
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&String, &mut (InstanceAnnotations<T>, ShapeI))> {
+        self.map.iter_mut()
+    }
+    pub fn get(&self, key: &str) -> Option<&(InstanceAnnotations<T>, ShapeI)> {
+        self.map.get(key)
+    }
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.map.contains_key(key)
+    }
+    pub fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(&String, &mut (InstanceAnnotations<T>, ShapeI)) -> bool,
+    {
+        self.map.retain(f);
+    }
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut (InstanceAnnotations<T>, ShapeI)> {
+        self.map.values_mut()
+    }
+    pub fn remove(&mut self, key: &str) {
+        self.map.remove(key);
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Options {
     pub visible: bool,
@@ -309,11 +381,8 @@ impl LabelInfo {
             show_only_current: false,
         }
     }
-    pub fn remove_catidx<'a, T>(
-        &mut self,
-        cat_idx: usize,
-        annotaions_map: &mut HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
-    ) where
+    pub fn remove_catidx<'a, T>(&mut self, cat_idx: usize, annotaions_map: &mut AnnotationsMap<T>)
+    where
         T: InstanceAnnotate + PartialEq + Default + 'a,
     {
         if self.len() > 1 {
@@ -443,10 +512,7 @@ where
     fn cocofile_conn(&self) -> ExportPath;
     fn label_info(&self) -> &LabelInfo;
     fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<A>, ShapeI))>;
-    fn set_annotations_map(
-        &mut self,
-        map: HashMap<String, (InstanceAnnotations<A>, ShapeI)>,
-    ) -> RvResult<()>;
+    fn set_annotations_map(&mut self, map: AnnotationsMap<A>) -> RvResult<()>;
     fn set_labelinfo(&mut self, info: LabelInfo);
     fn core_options_mut(&mut self) -> &mut Options;
     fn new(

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter};
+use std::iter;
 
 use serde::{Deserialize, Serialize};
 
@@ -69,7 +69,7 @@ impl BboxSpecificData {
         let label_info = input_data.label_info()?;
         let mut out_data = Self {
             label_info,
-            annotations_map: HashMap::new(),
+            annotations_map: AnnotationsMap::new(),
             clipboard: None,
             options: Options {
                 core_options: core::Options {
@@ -103,7 +103,7 @@ impl BboxSpecificData {
 
         BboxSpecificData {
             label_info,
-            annotations_map: HashMap::new(),
+            annotations_map: AnnotationsMap::new(),
             clipboard: None,
             options: Options {
                 core_options: core::Options {
@@ -180,10 +180,7 @@ impl ExportAsCoco<GeoFig> for BboxSpecificData {
             highlight_circles: vec![],
         }
     }
-    fn set_annotations_map(
-        &mut self,
-        map: HashMap<String, (InstanceAnnotations<GeoFig>, ShapeI)>,
-    ) -> RvResult<()> {
+    fn set_annotations_map(&mut self, map: AnnotationsMap<GeoFig>) -> RvResult<()> {
         self.set_annotations_map(map)
     }
     fn set_labelinfo(&mut self, info: LabelInfo) {

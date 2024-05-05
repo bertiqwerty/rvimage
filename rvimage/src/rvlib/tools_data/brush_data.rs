@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{
     annotations::{BrushAnnotations, ClipboardData, InstanceAnnotations},
     core::{self, AnnotationsMap, CocoRle, CocoSegmentation, ExportAsCoco, LabelInfo},
@@ -87,7 +85,7 @@ impl BrushToolData {
             tmp_line: None,
 
             label_info,
-            annotations_map: HashMap::new(),
+            annotations_map: AnnotationsMap::new(),
             clipboard: None,
             options: Options {
                 core_options: core::Options {
@@ -181,7 +179,7 @@ impl ExportAsCoco<Canvas> for BrushToolData {
     }
     fn set_annotations_map(
         &mut self,
-        map: HashMap<String, (InstanceAnnotations<Canvas>, ShapeI)>,
+        map: AnnotationsMap<Canvas>,
     ) -> RvResult<()> {
         self.annotations_map = map;
         Ok(())

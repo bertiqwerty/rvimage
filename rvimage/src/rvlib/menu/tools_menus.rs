@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem, path::PathBuf, str::FromStr};
+use std::{mem, path::PathBuf, str::FromStr};
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
@@ -6,14 +6,14 @@ use crate::{
     menu::ui_util::process_number,
     tools::{get_visible_inactive_names, BBOX_NAME, BRUSH_NAME},
     tools_data::{
-        annotations::{InstanceAnnotations, SplitMode},
+        annotations::SplitMode,
         attributes_data::AttrVal,
         bbox_data::BboxSpecificData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        AttributesToolData, BrushToolData, CoreOptions, ImportMode, InstanceAnnotate, LabelInfo,
-        ToolSpecifics, ToolsData, VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
+        AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportMode,
+        InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData, VisibleInactiveToolsState,
+        OUTLINE_THICKNESS_CONVERSION,
     },
-    ShapeI,
 };
 use egui::Ui;
 use rvimage_domain::{to_rv, RvResult};
@@ -77,7 +77,7 @@ pub struct LabelMenuResult {
 pub fn label_menu<'a, T>(
     ui: &mut Ui,
     label_info: &mut LabelInfo,
-    annotations_map: &mut HashMap<String, (InstanceAnnotations<T>, ShapeI)>,
+    annotations_map: &mut AnnotationsMap<T>,
     are_tools_active: &mut bool,
 ) -> LabelMenuResult
 where

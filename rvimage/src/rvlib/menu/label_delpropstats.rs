@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use egui::Ui;
 use rvimage_domain::RvResult;
 use tracing::info;
@@ -17,7 +15,7 @@ pub(super) struct Stats {
     pub n_files_annotated_info: Option<String>,
 }
 pub fn delete_annotations<T>(
-    annotations_map: &mut HashMap<String, T>,
+    annotations_map: &mut AnnotationsMap<T>,
     paths: &[&str],
 ) -> RvResult<()>
 where
