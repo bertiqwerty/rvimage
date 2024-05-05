@@ -17,6 +17,28 @@ use std::{
 };
 use tracing::{error, info};
 
+pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
+    if let Some(curr_prj_path) = curr_prj_path {
+        let path_ref = Path::new(&path);
+        let prj_parent = curr_prj_path
+            .parent()
+            .ok_or_else(|| rverr!("{curr_prj_path:?} has no parent"));
+        let relative_path =
+            prj_parent.and_then(|prj_parent| path_ref.strip_prefix(prj_parent).map_err(to_rv));
+        if let Ok(relative_path) = relative_path {
+            let without_base = path_to_str(relative_path);
+            if let Ok(without_base) = without_base {
+                without_base.to_string()
+            } else {
+                path
+            }
+        } else {
+            path
+        }
+    } else {
+        path
+    }
+}
 lazy_static! {
     pub static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
 }

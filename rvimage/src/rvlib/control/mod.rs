@@ -437,16 +437,17 @@ impl Control {
             .cfg_of_opened_folder()
             .map(|cfg| cfg.home_folder().map(|ef| ef.to_string()).unwrap());
         let is_file_list_empty = Some(file_path.is_none());
-        MetaData {
+        MetaData::new(
             file_path,
+            self.cfg.current_prj_path().to_path_buf(),
             file_selected_idx,
             connection_data,
             ssh_cfg,
-            opened_folder: open_folder,
+            open_folder,
             export_folder,
             is_loading_screen_active,
             is_file_list_empty,
-        }
+        )
     }
 
     pub fn redo(&mut self, history: &mut History) -> Option<(World, Option<usize>)> {
@@ -485,7 +486,7 @@ impl Control {
                         self.file_info_selected = Some(ri.info);
                         let ims_raw = DataRaw::new(
                             ri.im,
-                            MetaData::from_filepath(fp, fidx),
+                            MetaData::from_filepath(fp, fidx, self.cfg.current_prj_path().to_path_buf()),
                             world.data.tools_data_map.clone(),
                         );
                         let zoom_box = if ims_raw.shape() == world.data.shape() {

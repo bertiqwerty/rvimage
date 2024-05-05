@@ -8,6 +8,7 @@ use crate::{image_util, UpdatePermAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
 use rvimage_domain::{BbF, ShapeI};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::{fmt::Debug, mem};
 
 #[macro_export]
@@ -17,7 +18,7 @@ macro_rules! annotations_accessor {
             world: &World,
             is_no_anno_fine: bool,
         ) -> Option<&$annotations_type> {
-            if let Some(current_file_path) = world.data.meta_data.file_path.as_ref() {
+            if let Some(current_file_path) = world.data.meta_data.file_path_relative() {
                 let res = world
                     .data
                     .tools_data_map
@@ -49,7 +50,7 @@ macro_rules! annotations_accessor_mut {
             world: &mut World,
             is_no_anno_fine: bool,
         ) -> Option<&mut $annotations_type> {
-            if let Some(current_file_path) = world.data.meta_data.file_path.as_ref() {
+            if let Some(current_file_path) = world.data.meta_data.file_path_relative() {
                 let shape_initial = *world.data.shape_initial();
                 let res = world
                     .data
@@ -87,9 +88,6 @@ pub struct DataRaw {
 }
 
 impl DataRaw {
-    pub fn current_file_path(&self) -> &Option<String> {
-        &self.meta_data.file_path
-    }
     pub fn new(
         im_background: DynamicImage,
         meta_data: MetaData,
@@ -146,11 +144,11 @@ fn evaluate_visibility(
 ) -> Option<Vec<Annotation>> {
     match (
         visibility,
-        &data.meta_data.file_path,
+        &data.meta_data.file_path_relative(),
         data.tools_data_map.get(tool_name),
     ) {
-        (Visibility::All, Some(file_path), Some(td)) => {
-            td.specifics.to_annotations_view(file_path, None)
+        (Visibility::All, Some(file_path_relative), Some(td)) => {
+            td.specifics.to_annotations_view(file_path_relative, None)
         }
         (Visibility::Only(idx), Some(file_path), Some(td)) => {
             td.specifics.to_annotations_view(file_path, Some(idx))
@@ -261,7 +259,7 @@ impl World {
     }
 
     pub fn request_redraw_image(&mut self) {
-        if self.data.meta_data.file_path.is_some() {
+        if self.data.meta_data.file_path_relative().is_some() {
             self.update_view.image = UpdateImage::Yes(self.data.bg_to_uncropped_view())
         }
     }
@@ -271,10 +269,11 @@ impl World {
         im: DynamicImage,
         tools_data: ToolsDataMap,
         file_path: Option<String>,
+        prj_path: PathBuf,
         file_selected_idx: Option<usize>,
     ) -> Self {
         let meta_data = match (file_path, file_selected_idx) {
-            (Some(fp), Some(fsidx)) => MetaData::from_filepath(fp, fsidx),
+            (Some(fp), Some(fsidx)) => MetaData::from_filepath(fp, fsidx, prj_path),
             _ => MetaData::default(),
         };
         Self::new(DataRaw::new(im, meta_data, tools_data), None)

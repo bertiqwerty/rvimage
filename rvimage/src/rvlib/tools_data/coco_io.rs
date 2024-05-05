@@ -571,6 +571,7 @@ fn make_meta_data(opened_folder: Option<&Path>) -> (MetaData, PathBuf) {
             .unwrap()
             .to_string(),
         0,
+        PathBuf::from_str("egal").unwrap(),
     );
     meta.opened_folder = Some(opened_folder);
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
@@ -770,16 +771,18 @@ const TEST_DATA_FOLDER: &str = "resources/test_data/";
 
 #[test]
 fn test_coco_import_export() {
-    let meta = MetaData {
-        file_path: None,
-        file_selected_idx: None,
-        connection_data: ConnectionData::None,
-        ssh_cfg: None,
-        opened_folder: Some("ohm_somefolder".to_string()),
-        export_folder: Some(TEST_DATA_FOLDER.to_string()),
-        is_loading_screen_active: None,
-        is_file_list_empty: None,
-    };
+    let prj_path = PathBuf::from_str("").unwrap();
+    let meta = MetaData::new(
+        None,
+        prj_path,
+        None,
+        ConnectionData::None,
+        None,
+        Some("ohm_somefolder".to_string()),
+        Some(TEST_DATA_FOLDER.to_string()),
+        None,
+        None,
+    );
     let test_file_src = format!("{TEST_DATA_FOLDER}catids_12_coco_imwolab.json");
     let test_file = "tmp_coco.json";
     defer_file_removal!(&test_file);
@@ -798,16 +801,18 @@ fn test_coco_import_export() {
 #[test]
 fn test_coco_import() -> RvResult<()> {
     fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BbI, &str)]) {
-        let meta = MetaData {
-            file_path: None,
-            file_selected_idx: None,
-            connection_data: ConnectionData::None,
-            ssh_cfg: None,
-            opened_folder: Some(filename.to_string()),
-            export_folder: Some(TEST_DATA_FOLDER.to_string()),
-            is_loading_screen_active: None,
-            is_file_list_empty: None,
-        };
+        let prj_path = PathBuf::from_str("").unwrap();
+        let meta = MetaData::new(
+            None,
+            prj_path,
+            None,
+            ConnectionData::None,
+            None,
+            Some(filename.to_string()),
+            Some(TEST_DATA_FOLDER.to_string()),
+            None,
+            None,
+        );
         let (read, _) = read_coco(&meta, &ExportPath::default(), None).unwrap();
         assert_eq!(read.label_info.cat_ids(), &cat_ids);
         assert_eq!(

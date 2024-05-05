@@ -116,6 +116,7 @@ fn empty_world() -> World {
         DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
         HashMap::new(),
         None,
+        PathBuf::from(""),
         None,
     )
 }
@@ -230,7 +231,7 @@ impl MainEventLoop {
         }
         if let (Some(idx_active), Some(_)) = (
             self.recently_clicked_tool_idx,
-            &self.world.data.meta_data.file_path,
+            &self.world.data.meta_data.file_path_absolute(),
         ) {
             if !self.ctrl.flags().is_loading_screen_active {
                 // first deactivate, then activate

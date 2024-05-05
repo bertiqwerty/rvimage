@@ -1,32 +1,9 @@
-use std::{collections::HashMap, ops::Index, path::Path};
+use std::{collections::HashMap, ops::Index};
 
-use rvimage_domain::{rverr, to_rv, ShapeI};
+use rvimage_domain::ShapeI;
 use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 
-use crate::{cfg::read_cfg, file_util::path_to_str, result::trace_ok_err};
-
-pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
-    if let Some(curr_prj_path) = curr_prj_path {
-        let path_ref = Path::new(&path);
-        let prj_parent = curr_prj_path
-            .parent()
-            .ok_or_else(|| rverr!("{curr_prj_path:?} has no parent"));
-        let relative_path =
-            prj_parent.and_then(|prj_parent| path_ref.strip_prefix(prj_parent).map_err(to_rv));
-        if let Ok(relative_path) = relative_path {
-            let without_base = path_to_str(relative_path);
-            if let Ok(without_base) = without_base {
-                without_base.to_string()
-            } else {
-                path
-            }
-        } else {
-            path
-        }
-    } else {
-        path
-    }
-}
+use crate::{cfg::read_cfg, file_util::tf_to_annomap_key, result::trace_ok_err};
 
 fn serialize_relative_paths<S, T>(
     data: &HashMap<String, (T, ShapeI)>,

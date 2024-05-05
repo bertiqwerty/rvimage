@@ -196,12 +196,12 @@ impl ToolSpecifics {
 
     pub fn to_annotations_view(
         &self,
-        file_path: &str,
+        file_path_relative: &str,
         only_cat_idx: Option<usize>,
     ) -> Option<Vec<Annotation>> {
         match self {
             ToolSpecifics::Bbox(bb_data) => {
-                if let Some(annos) = bb_data.get_annos(file_path) {
+                if let Some(annos) = bb_data.get_annos(file_path_relative) {
                     let geos = annos.elts();
                     let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_mask();
@@ -241,7 +241,7 @@ impl ToolSpecifics {
                 }
             }
             ToolSpecifics::Brush(br_data) => {
-                if let Some(annos) = br_data.get_annos(file_path) {
+                if let Some(annos) = br_data.get_annos(file_path_relative) {
                     let colors = br_data.label_info.colors();
                     let cats = annos.cat_idxs();
                     let selected_mask = annos.selected_mask();
