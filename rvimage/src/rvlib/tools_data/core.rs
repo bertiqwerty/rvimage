@@ -355,8 +355,7 @@ impl Default for LabelInfo {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-pub struct InstanceExportData<A>
-{
+pub struct InstanceExportData<A> {
     pub labels: Vec<String>,
     pub colors: Vec<[u8; 3]>,
     pub cat_ids: Vec<u32>,

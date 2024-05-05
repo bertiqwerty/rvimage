@@ -38,7 +38,7 @@ where
 {
     let cfg = trace_ok_err(read_cfg());
 
-    data.into_iter()
+    data.iter()
         .map(|(k, (v, s))| {
             (
                 tf_to_annomap_key(k.clone(), cfg.as_ref().map(|cfg| cfg.current_prj_path())),
