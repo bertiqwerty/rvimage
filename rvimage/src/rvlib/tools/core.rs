@@ -219,7 +219,7 @@ where
     let auto_paste = get_options_mut(&mut world)
         .map(|o| o.auto_paste)
         .unwrap_or(false);
-    if world.data.meta_data.is_loading_screen_active == Some(false) && auto_paste {
+    if world.data.meta_data.flags.is_loading_screen_active == Some(false) && auto_paste {
         let annos = get_annos_mut(&mut world);
         if let Some(annos) = annos {
             let all = (0..annos.elts().len()).collect::<Vec<_>>();

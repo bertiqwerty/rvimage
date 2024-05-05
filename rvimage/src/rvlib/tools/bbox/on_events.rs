@@ -690,17 +690,17 @@ use {
 
 #[cfg(test)]
 pub(super) fn test_data() -> (Option<PtF>, World, History) {
-    use std::path::PathBuf;
+    use std::path::Path;
 
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
     let mut world = World::from_real_im(
         im_test,
         HashMap::new(),
         Some("superimage.png".to_string()),
-        PathBuf::from("superimage.png"),
+        Path::new("superimage.png"),
         Some(0),
     );
-    world.data.meta_data.is_loading_screen_active = Some(false);
+    world.data.meta_data.flags.is_loading_screen_active = Some(false);
     get_specific_mut(&mut world)
         .unwrap()
         .label_info

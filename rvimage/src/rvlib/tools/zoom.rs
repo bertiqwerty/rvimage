@@ -194,7 +194,7 @@ impl Manipulate for Zoom {
 
 #[cfg(test)]
 use {
-    image::DynamicImage, rvimage_domain::RvResult, std::collections::HashMap, std::path::PathBuf,
+    image::DynamicImage, rvimage_domain::RvResult, std::collections::HashMap, std::path::Path,
 };
 #[cfg(test)]
 fn mk_z(x: TPtF, y: TPtF, w: TPtF, h: TPtF) -> Option<BbF> {
@@ -240,7 +240,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let mouse_pos = Some((30.0, 45.0).into());
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
-    let prj_path = PathBuf::from("");
+    let prj_path = Path::new("");
     let world = World::from_real_im(im_orig, HashMap::new(), None, prj_path, None);
     let history = History::default();
     let im_orig_old = world.data.clone();
@@ -255,7 +255,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
 fn test_on_mouse_released() -> RvResult<()> {
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
-    let prj_path = PathBuf::from("");
+    let prj_path = Path::new("");
     let world = World::from_real_im(im_orig, HashMap::new(), None, prj_path, None);
 
     z.set_mouse_start_zoom((30.0, 70.0).into());

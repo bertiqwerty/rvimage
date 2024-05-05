@@ -1,7 +1,7 @@
 use crate::cfg::{self, get_log_folder, read_cfg, Connection};
 use crate::file_util::{osstr_to_str, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
 use crate::history::{History, Record};
-use crate::meta_data::{ConnectionData, MetaData};
+use crate::meta_data::{ConnectionData, FilePathPair, MetaData, MetaDataFlags};
 use crate::result::trace_ok_err;
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
@@ -437,16 +437,19 @@ impl Control {
             .cfg_of_opened_folder()
             .map(|cfg| cfg.home_folder().map(|ef| ef.to_string()).unwrap());
         let is_file_list_empty = Some(file_path.is_none());
+        let prj_path = self.cfg.current_prj_path();
+        let fpp = file_path.map(|fp| FilePathPair::new(fp, prj_path));
         MetaData::new(
-            file_path,
-            self.cfg.current_prj_path().to_path_buf(),
+            fpp,
             file_selected_idx,
             connection_data,
             ssh_cfg,
             open_folder,
             export_folder,
-            is_loading_screen_active,
-            is_file_list_empty,
+            MetaDataFlags {
+                is_loading_screen_active,
+                is_file_list_empty,
+            },
         )
     }
 
@@ -486,7 +489,7 @@ impl Control {
                         self.file_info_selected = Some(ri.info);
                         let ims_raw = DataRaw::new(
                             ri.im,
-                            MetaData::from_filepath(fp, fidx, self.cfg.current_prj_path().to_path_buf()),
+                            MetaData::from_filepath(fp, fidx, self.cfg.current_prj_path()),
                             world.data.tools_data_map.clone(),
                         );
                         let zoom_box = if ims_raw.shape() == world.data.shape() {

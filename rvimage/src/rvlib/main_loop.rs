@@ -21,7 +21,7 @@ use lazy_static::lazy_static;
 use rvimage_domain::{PtI, RvResult};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::time::Instant;
 use std::{fs, mem, thread};
@@ -116,7 +116,7 @@ fn empty_world() -> World {
         DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
         HashMap::new(),
         None,
-        PathBuf::from(""),
+        Path::new(""),
         None,
     )
 }

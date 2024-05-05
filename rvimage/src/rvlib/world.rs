@@ -8,7 +8,7 @@ use crate::{image_util, UpdatePermAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
 use rvimage_domain::{BbF, ShapeI};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 use std::{fmt::Debug, mem};
 
 #[macro_export]
@@ -70,7 +70,7 @@ macro_rules! annotations_accessor_mut {
             }
         }
         pub(super) fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
-            let is_no_anno_fine = world.data.meta_data.is_file_list_empty == Some(true);
+            let is_no_anno_fine = world.data.meta_data.flags.is_file_list_empty == Some(true);
             get_annos_mut_(world, is_no_anno_fine)
         }
     };
@@ -269,7 +269,7 @@ impl World {
         im: DynamicImage,
         tools_data: ToolsDataMap,
         file_path: Option<String>,
-        prj_path: PathBuf,
+        prj_path: &Path,
         file_selected_idx: Option<usize>,
     ) -> Self {
         let meta_data = match (file_path, file_selected_idx) {

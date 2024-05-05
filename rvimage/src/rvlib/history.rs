@@ -140,17 +140,17 @@ impl Debug for History {
 #[cfg(test)]
 use {
     crate::types::ViewImage, image::DynamicImage, rvimage_domain::RvResult,
-    std::collections::HashMap, std::path::PathBuf, std::str::FromStr,
+    std::collections::HashMap, std::path::Path,
 };
 #[test]
 fn test_history() -> RvResult<()> {
     let im = ViewImage::new(64, 64);
-    let prj_path = PathBuf::from_str("").unwrap();
+    let prj_path = Path::new("");
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(im),
         HashMap::new(),
         None,
-        prj_path.clone(),
+        prj_path,
         None,
     );
     let mut hist = History::default();
@@ -165,7 +165,7 @@ fn test_history() -> RvResult<()> {
         DynamicImage::ImageRgb8(ViewImage::new(32, 32)),
         HashMap::new(),
         None,
-        prj_path.clone(),
+        prj_path,
         None,
     );
     hist.push(Record {

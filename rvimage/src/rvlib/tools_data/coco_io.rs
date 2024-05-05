@@ -539,7 +539,7 @@ use {
     crate::{
         cfg::{read_cfg, SshCfg},
         defer_file_removal,
-        meta_data::ConnectionData,
+        meta_data::{ConnectionData, MetaDataFlags},
     },
     file_util::DEFAULT_TMPDIR,
     rvimage_domain::{make_test_bbs, BbI},
@@ -571,7 +571,7 @@ fn make_meta_data(opened_folder: Option<&Path>) -> (MetaData, PathBuf) {
             .unwrap()
             .to_string(),
         0,
-        PathBuf::from_str("egal").unwrap(),
+        &Path::new("egal"),
     );
     meta.opened_folder = Some(opened_folder);
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
@@ -771,17 +771,14 @@ const TEST_DATA_FOLDER: &str = "resources/test_data/";
 
 #[test]
 fn test_coco_import_export() {
-    let prj_path = PathBuf::from_str("").unwrap();
     let meta = MetaData::new(
         None,
-        prj_path,
         None,
         ConnectionData::None,
         None,
         Some("ohm_somefolder".to_string()),
         Some(TEST_DATA_FOLDER.to_string()),
-        None,
-        None,
+        MetaDataFlags::default(),
     );
     let test_file_src = format!("{TEST_DATA_FOLDER}catids_12_coco_imwolab.json");
     let test_file = "tmp_coco.json";
@@ -801,17 +798,14 @@ fn test_coco_import_export() {
 #[test]
 fn test_coco_import() -> RvResult<()> {
     fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BbI, &str)]) {
-        let prj_path = PathBuf::from_str("").unwrap();
         let meta = MetaData::new(
             None,
-            prj_path,
             None,
             ConnectionData::None,
             None,
             Some(filename.to_string()),
             Some(TEST_DATA_FOLDER.to_string()),
-            None,
-            None,
+            MetaDataFlags::default(),
         );
         let (read, _) = read_coco(&meta, &ExportPath::default(), None).unwrap();
         assert_eq!(read.label_info.cat_ids(), &cat_ids);
