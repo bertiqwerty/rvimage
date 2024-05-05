@@ -17,6 +17,20 @@ use std::{
 };
 use tracing::{error, info};
 
+lazy_static! {
+    pub static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
+}
+lazy_static! {
+    pub static ref DEFAULT_HOMEDIR: PathBuf = match dirs::home_dir() {
+        Some(p) => p.join(".rvimage"),
+        _ => std::env::temp_dir().join("rvimage"),
+    };
+}
+lazy_static! {
+    pub static ref DEFAULT_PRJ_PATH: PathBuf =
+        DEFAULT_HOMEDIR.join(DEFAULT_PRJ_NAME).join("default.rvi");
+}
+
 pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
     if let Some(curr_prj_path) = curr_prj_path {
         let path_ref = Path::new(&path);
@@ -39,18 +53,41 @@ pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
         path
     }
 }
-lazy_static! {
-    pub static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
+#[derive(Clone, Default, PartialEq, Eq)]
+pub struct FilePathPair {
+    path_absolute: String,
+    path_relative: String,
 }
-lazy_static! {
-    pub static ref DEFAULT_HOMEDIR: PathBuf = match dirs::home_dir() {
-        Some(p) => p.join(".rvimage"),
-        _ => std::env::temp_dir().join("rvimage"),
-    };
-}
-lazy_static! {
-    pub static ref DEFAULT_PRJ_PATH: PathBuf =
-        DEFAULT_HOMEDIR.join(DEFAULT_PRJ_NAME).join("default.rvi");
+impl FilePathPair {
+    pub fn new(path_absolute: String, prj_path: &Path) -> Self {
+        let path_relative = tf_to_annomap_key(path_absolute.clone(), Some(prj_path));
+        FilePathPair {
+            path_absolute,
+            path_relative,
+        }
+    }
+    pub fn from_relative_path(path_relative: String, prj_path: &Path) -> Self {
+        let path_absolute = if let Some(parent) = prj_path.parent() {
+            let path_absolute = parent.join(path_relative.clone());
+            if path_absolute.exists() {
+                path_to_str(&path_absolute).unwrap().to_string()
+            } else {
+                path_relative.clone()
+            }
+        } else {
+            path_relative.clone()
+        };
+        FilePathPair {
+            path_absolute,
+            path_relative,
+        }
+    }
+    pub fn path_absolute(&self) -> &str {
+        &self.path_absolute
+    }
+    pub fn path_relative(&self) -> &str {
+        &self.path_relative
+    }
 }
 
 fn calculate_hash<T: Hash>(t: &T) -> u64 {

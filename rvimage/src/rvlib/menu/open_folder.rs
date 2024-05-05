@@ -88,7 +88,7 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
             }
         };
         if let Some(new_folder) = picked {
-            ctrl.open_folder(new_folder)?;
+            ctrl.open_relative_folder(new_folder)?;
             Ok(false)
         } else if cancel {
             Ok(false)

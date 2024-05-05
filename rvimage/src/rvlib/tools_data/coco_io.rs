@@ -443,7 +443,8 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
     );
     let opened_folder = meta_data
         .opened_folder
-        .as_deref()
+        .as_ref()
+        .map(|of| of.path_absolute())
         .ok_or_else(|| RvError::new("no folder open"))?;
     let parent = Path::new(opened_folder)
         .parent()
@@ -541,16 +542,16 @@ use {
         defer_file_removal,
         meta_data::{ConnectionData, MetaDataFlags},
     },
-    file_util::DEFAULT_TMPDIR,
+    file_util::{FilePathPair, DEFAULT_TMPDIR},
     rvimage_domain::{make_test_bbs, BbI},
     std::{fs, str::FromStr},
 };
 #[cfg(test)]
 fn make_meta_data(opened_folder: Option<&Path>) -> (MetaData, PathBuf) {
     let opened_folder = if let Some(of) = opened_folder {
-        of.to_str().unwrap().to_string()
+        FilePathPair::new(of.to_str().unwrap().to_string(), Path::new(""))
     } else {
-        "xi".to_string()
+        FilePathPair::new("xi".to_string(), Path::new(""))
     };
     let test_export_folder = DEFAULT_TMPDIR.clone();
 
@@ -563,7 +564,7 @@ fn make_meta_data(opened_folder: Option<&Path>) -> (MetaData, PathBuf) {
         }
     }
 
-    let test_export_path = DEFAULT_TMPDIR.join(format!("{}.json", opened_folder));
+    let test_export_path = DEFAULT_TMPDIR.join(format!("{}.json", opened_folder.path_absolute()));
     let mut meta = MetaData::from_filepath(
         test_export_path
             .with_extension("egal")
@@ -776,7 +777,10 @@ fn test_coco_import_export() {
         None,
         ConnectionData::None,
         None,
-        Some("ohm_somefolder".to_string()),
+        Some(FilePathPair::new(
+            "ohm_somefolder".to_string(),
+            Path::new(""),
+        )),
         Some(TEST_DATA_FOLDER.to_string()),
         MetaDataFlags::default(),
     );
@@ -803,7 +807,7 @@ fn test_coco_import() -> RvResult<()> {
             None,
             ConnectionData::None,
             None,
-            Some(filename.to_string()),
+            Some(FilePathPair::new(filename.to_string(), Path::new(""))),
             Some(TEST_DATA_FOLDER.to_string()),
             MetaDataFlags::default(),
         );

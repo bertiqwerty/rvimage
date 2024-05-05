@@ -66,7 +66,7 @@ fn check_anno_outoffolder_remove(mut world: World) -> World {
             .meta_data
             .opened_folder
             .as_ref()
-            .map(|of| file_util::url_encode(of));
+            .map(|of| file_util::url_encode(of.path_absolute()));
 
         // we show annotations after recoloring
         let data = get_specific_mut(&mut world);

@@ -1,6 +1,6 @@
 use tracing::info;
 
-use crate::world::World;
+use crate::{file_util::FilePathPair, world::World};
 use std::fmt::Debug;
 
 const MAX_HISTORY: usize = 20;
@@ -15,7 +15,12 @@ pub struct Record {
 
 impl Record {
     pub fn new(world: World, actor: &'static str) -> Self {
-        let folder = world.data.meta_data.opened_folder.clone();
+        let folder = world
+            .data
+            .meta_data
+            .opened_folder
+            .as_ref()
+            .map(|folder| folder.path_absolute().to_string());
         let file_selected_idx = world.data.meta_data.file_selected_idx;
 
         Self {
@@ -107,13 +112,31 @@ impl History {
         }
     }
 
-    pub fn prev_world(&mut self, opened_folder: &Option<String>) -> Option<(World, Option<usize>)> {
-        self.change_world(|idx| idx - 1, |idx| idx > 0, opened_folder)
+    pub fn prev_world(
+        &mut self,
+        opened_folder: &Option<FilePathPair>,
+    ) -> Option<(World, Option<usize>)> {
+        self.change_world(
+            |idx| idx - 1,
+            |idx| idx > 0,
+            &opened_folder
+                .as_ref()
+                .map(|of| of.path_absolute().to_string()),
+        )
     }
 
-    pub fn next_world(&mut self, opened_folder: &Option<String>) -> Option<(World, Option<usize>)> {
+    pub fn next_world(
+        &mut self,
+        opened_folder: &Option<FilePathPair>,
+    ) -> Option<(World, Option<usize>)> {
         let n_recs = self.records.len();
-        self.change_world(|idx| idx + 1, |idx| idx < n_recs - 1, opened_folder)
+        self.change_world(
+            |idx| idx + 1,
+            |idx| idx < n_recs - 1,
+            &opened_folder
+                .as_ref()
+                .map(|of| of.path_absolute().to_string()),
+        )
     }
 }
 

@@ -4,29 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::{AzureBlobCfg, PyHttpReaderCfg, SshCfg},
-    file_util::tf_to_annomap_key,
+    file_util::FilePathPair,
 };
-
-#[derive(Clone, Default, PartialEq, Eq)]
-pub struct FilePathPair {
-    file_path_absolute: String,
-    file_path_relative: String,
-}
-impl FilePathPair {
-    pub fn new(file_path_absolute: String, prj_path: &Path) -> Self {
-        let file_path_relative = tf_to_annomap_key(file_path_absolute.clone(), Some(prj_path));
-        FilePathPair {
-            file_path_absolute,
-            file_path_relative,
-        }
-    }
-    pub fn file_path_absolute(&self) -> &str {
-        &self.file_path_absolute
-    }
-    pub fn file_path_relative(&self) -> &str {
-        &self.file_path_relative
-    }
-}
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct MetaDataFlags {
@@ -49,7 +28,7 @@ pub struct MetaData {
     pub file_selected_idx: Option<usize>,
     pub connection_data: ConnectionData,
     pub ssh_cfg: Option<SshCfg>,
-    pub opened_folder: Option<String>,
+    pub opened_folder: Option<FilePathPair>,
     pub export_folder: Option<String>,
     pub flags: MetaDataFlags,
 }
@@ -59,7 +38,7 @@ impl MetaData {
         file_selected_idx: Option<usize>,
         connection_data: ConnectionData,
         ssh_cfg: Option<SshCfg>,
-        opened_folder: Option<String>,
+        opened_folder: Option<FilePathPair>,
         export_folder: Option<String>,
         flags: MetaDataFlags,
     ) -> Self {
@@ -89,13 +68,9 @@ impl MetaData {
         }
     }
     pub fn file_path_absolute(&self) -> Option<&str> {
-        self.file_path_pair
-            .as_ref()
-            .map(|fpp| fpp.file_path_absolute())
+        self.file_path_pair.as_ref().map(|fpp| fpp.path_absolute())
     }
     pub fn file_path_relative(&self) -> Option<&str> {
-        self.file_path_pair
-            .as_ref()
-            .map(|fpp| fpp.file_path_relative())
+        self.file_path_pair.as_ref().map(|fpp| fpp.path_relative())
     }
 }

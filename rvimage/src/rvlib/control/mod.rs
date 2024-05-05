@@ -1,7 +1,7 @@
 use crate::cfg::{self, get_log_folder, read_cfg, Connection};
-use crate::file_util::{osstr_to_str, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
+use crate::file_util::{osstr_to_str, FilePathPair, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
 use crate::history::{History, Record};
-use crate::meta_data::{ConnectionData, FilePathPair, MetaData, MetaDataFlags};
+use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::trace_ok_err;
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
@@ -114,14 +114,14 @@ mod detail {
     }
 
     pub fn save(
-        opened_folder: Option<&String>,
+        opened_folder: Option<&str>,
         tools_data_map: &ToolsDataMap,
         file_path: &Path,
         cfg: &Cfg,
     ) -> RvResult<()> {
         let make_data = |tdm: &ToolsDataMap| SaveData {
             version: Some(version_label()),
-            opened_folder: opened_folder.cloned(),
+            opened_folder: opened_folder.map(|of| of.to_string()),
             tools_data_map: tdm.clone(),
             cfg: SavedCfg::CfgPrj(cfg.prj.clone()),
         };
@@ -190,7 +190,7 @@ pub struct Control {
     pub reader: Option<ReaderFromCfg>,
     pub info: Info,
     pub paths_navigator: PathsNavigator,
-    pub opened_folder: Option<String>,
+    pub opened_folder: Option<FilePathPair>,
     tp: ThreadPool<RvResult<ReaderFromCfg>>,
     last_open_folder_job_id: Option<u128>,
     pub cfg: Cfg,
@@ -236,7 +236,7 @@ impl Control {
 
         let (tools_data_map, to_be_opened_folder, read_cfg) = detail::load(&file_path)?;
         if let Some(of) = to_be_opened_folder {
-            self.open_folder(of)?;
+            self.open_relative_folder(of)?;
         }
         cfg.prj = read_cfg;
         self.cfg = cfg;
@@ -274,7 +274,7 @@ impl Control {
     ) -> RvResult<JoinHandle<()>> {
         let path = if let Some(of) = self.opened_folder() {
             if DEFAULT_PRJ_PATH.as_os_str() == prj_path.as_os_str() {
-                PathBuf::from(of).join(DEFAULT_PRJ_NAME)
+                PathBuf::from(of.path_relative()).join(DEFAULT_PRJ_NAME)
             } else {
                 prj_path.clone()
             }
@@ -296,7 +296,7 @@ impl Control {
         let cfg = self.cfg.clone();
         let handle = thread::spawn(move || {
             trace_ok_err(detail::save(
-                opened_folder.as_ref(),
+                opened_folder.as_ref().map(|of| of.path_relative()),
                 &tdm,
                 path.as_path(),
                 &cfg,
@@ -371,16 +371,19 @@ impl Control {
         }
     }
 
-    pub fn open_folder(&mut self, new_folder: String) -> RvResult<()> {
+    pub fn open_relative_folder(&mut self, new_folder: String) -> RvResult<()> {
         tracing::info!("new opened folder {new_folder}");
         self.make_reader(self.cfg.clone())?;
-        self.opened_folder = Some(new_folder);
+        self.opened_folder = Some(FilePathPair::from_relative_path(
+            new_folder,
+            self.cfg.current_prj_path(),
+        ));
         Ok(())
     }
 
     pub fn load_opened_folder_content(&mut self, sort_type: SortType) -> RvResult<()> {
         if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
-            let selector = reader.open_folder(opened_folder.as_str())?;
+            let selector = reader.open_folder(opened_folder.path_absolute())?;
             self.paths_navigator = PathsNavigator::new(Some(selector), sort_type)?;
         }
         Ok(())
@@ -422,7 +425,7 @@ impl Control {
         self.reader().map(|r| r.cfg())
     }
 
-    fn opened_folder(&self) -> Option<&String> {
+    fn opened_folder(&self) -> Option<&FilePathPair> {
         self.opened_folder.as_ref()
     }
 
@@ -535,7 +538,10 @@ impl Control {
                                 world: world.clone(),
                                 actor: LOAD_ACTOR_NAME,
                                 file_label_idx: self.file_selected_idx,
-                                opened_folder: self.opened_folder.clone(),
+                                opened_folder: self
+                                    .opened_folder
+                                    .as_ref()
+                                    .map(|of| of.path_absolute().to_string()),
                             });
                         }
                         self.flags.undo_redo_load = false;
@@ -651,7 +657,7 @@ fn test_save_load() {
     let export_folder = cfg.tmpdir();
     let export_file = PathBuf::new().join(export_folder).join("export.json");
     let opened_folder = Some(opened_folder_name.to_string());
-    detail::save(opened_folder.as_ref(), &tdm, &export_file, &cfg).unwrap();
+    detail::save(opened_folder.as_deref(), &tdm, &export_file, &cfg).unwrap();
 
     defer_file_removal!(&export_file);
 
