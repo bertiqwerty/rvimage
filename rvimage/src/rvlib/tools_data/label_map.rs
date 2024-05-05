@@ -71,7 +71,7 @@ where
         })
         .collect())
 }
-#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct LabelMap<T>
 where
     T: Serialize + DeserializeOwned,

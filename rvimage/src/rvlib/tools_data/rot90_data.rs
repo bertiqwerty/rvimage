@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::{implement_annotations_getters, ShapeI};
+
+use super::label_map::LabelMap;
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Default, Copy)]
 pub enum NRotations {
@@ -38,7 +39,7 @@ impl NRotations {
     }
 }
 
-pub type Rot90AnnotationsMap = HashMap<String, (NRotations, ShapeI)>;
+pub type Rot90AnnotationsMap = LabelMap<NRotations>;
 
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]
 pub struct Rot90ToolData {
