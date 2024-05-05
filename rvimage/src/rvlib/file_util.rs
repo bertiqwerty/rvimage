@@ -131,14 +131,6 @@ pub enum SavedCfg {
     CfgLegacy(CfgLegacy),
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-pub struct SaveData {
-    pub version: Option<String>,
-    pub opened_folder: Option<String>,
-    pub tools_data_map: ToolsDataMap,
-    pub cfg: SavedCfg,
-}
-
 pub struct Defer<F: FnMut()> {
     pub func: F,
 }

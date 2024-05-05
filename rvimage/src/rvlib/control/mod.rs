@@ -26,16 +26,48 @@ mod detail {
     use std::path::Path;
 
     use image::{DynamicImage, ImageBuffer};
-    use serde::Serialize;
+    use serde::{Deserialize, Serialize, Serializer};
 
     use crate::{
-        cfg::{Cfg, CfgPrj},
-        file_util::{self, SaveData, SavedCfg},
+        cfg::{read_cfg, Cfg, CfgPrj},
+        file_util::{self, tf_to_annomap_key, SavedCfg},
+        result::trace_ok_err,
         util::version_label,
         world::{ToolsDataMap, World},
     };
     use rvimage_domain::result::{to_rv, RvResult};
     use rvimage_domain::ShapeI;
+
+    fn serialize_opened_folder<S>(folder: &Option<String>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let cfg = trace_ok_err(read_cfg());
+        let prj_path = cfg.as_ref().map(|cfg| cfg.current_prj_path());
+        let folder = folder
+            .clone()
+            .map(|folder| tf_to_annomap_key(folder, prj_path));
+        folder.serialize(serializer)
+    }
+    fn deserialize_opened_folder<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let cfg = trace_ok_err(read_cfg());
+        let prj_path = cfg.as_ref().map(|cfg| cfg.current_prj_path());
+        let folder: Option<String> = Option::deserialize(deserializer)?;
+
+        Ok(folder.map(|p| tf_to_annomap_key(p, prj_path)))
+    }
+    #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+    pub struct SaveData {
+        pub version: Option<String>,
+        #[serde(serialize_with = "serialize_opened_folder")]
+        #[serde(deserialize_with = "deserialize_opened_folder")]
+        pub opened_folder: Option<String>,
+        pub tools_data_map: ToolsDataMap,
+        pub cfg: SavedCfg,
+    }
 
     pub(super) fn idx_change_check(
         file_selected_idx: Option<usize>,

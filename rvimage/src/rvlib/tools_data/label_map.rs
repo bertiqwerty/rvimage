@@ -36,7 +36,7 @@ where
     let cfg = trace_ok_err(read_cfg());
 
     let map: HashMap<String, (T, ShapeI)> =
-        HashMap::deserialize(deserializer).map_err(serde::de::Error::custom)?;
+        HashMap::deserialize(deserializer)?;
 
     Ok(map
         .into_iter()
