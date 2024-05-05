@@ -35,8 +35,7 @@ where
 {
     let cfg = trace_ok_err(read_cfg());
 
-    let map: HashMap<String, (T, ShapeI)> =
-        HashMap::deserialize(deserializer)?;
+    let map: HashMap<String, (T, ShapeI)> = HashMap::deserialize(deserializer)?;
 
     Ok(map
         .into_iter()
