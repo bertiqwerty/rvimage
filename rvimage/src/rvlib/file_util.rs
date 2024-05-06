@@ -63,7 +63,12 @@ pub struct PathPair {
 impl PathPair {
     pub fn new(path_absolute: String, prj_path: &Path) -> Self {
         let path_absolute = path_absolute.replace('\\', "/");
-        let path_relative = tf_to_annomap_key(path_absolute.clone(), Some(prj_path));
+        let prj_path = if prj_path == Path::new("") {
+            None
+        } else {
+            Some(prj_path)
+        };
+        let path_relative = tf_to_annomap_key(path_absolute.clone(), prj_path);
         PathPair {
             path_absolute,
             path_relative,
