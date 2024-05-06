@@ -38,7 +38,9 @@ be in the currently opened folder.
 
 ## Configuration
 
-Create a file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) with the following content. For SSH currently, only authorization with key-files without passphrase is supported.
+When you start RV Image for the first time, a config-file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) is created for you. 
+In the following we describe some of the options. 
+For SSH currently, only authorization with key-files without passphrase is supported.
 ```
  # We support the connections "Local", "Ssh", "PyHttp", or "AzureBlob"
 connection = "Ssh"
@@ -89,8 +91,8 @@ prefix = ''
 
 RV Image comes with two labeling tools:
 
-1. Draw bounding boxes and polygons and export in [Coco format](https://cocodataset.org/#format-data).
-2. Draw brush lines and export as png-masks, one per class and image.
+1. Draw bounding boxes and polygons and export in the [Coco format](https://cocodataset.org/#format-data).
+2. Draw brush lines and export as [Coco-file](https://cocodataset#format-data) with run-length-encodings. Thereby, we ignore the `iscrowd=true` convention that usually comes with run-length-encoded annotations in Coco-files.
 
 All annotations are also stored in the project file in json format.
 
