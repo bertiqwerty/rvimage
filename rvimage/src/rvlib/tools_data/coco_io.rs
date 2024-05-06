@@ -542,16 +542,16 @@ use {
         defer_file_removal,
         meta_data::{ConnectionData, MetaDataFlags},
     },
-    file_util::{FilePathPair, DEFAULT_TMPDIR},
+    file_util::{PathPair, DEFAULT_TMPDIR},
     rvimage_domain::{make_test_bbs, BbI},
     std::{fs, str::FromStr},
 };
 #[cfg(test)]
 fn make_meta_data(opened_folder: Option<&Path>) -> (MetaData, PathBuf) {
     let opened_folder = if let Some(of) = opened_folder {
-        FilePathPair::new(of.to_str().unwrap().to_string(), Path::new(""))
+        PathPair::new(of.to_str().unwrap().to_string(), Path::new(""))
     } else {
-        FilePathPair::new("xi".to_string(), Path::new(""))
+        PathPair::new("xi".to_string(), Path::new(""))
     };
     let test_export_folder = DEFAULT_TMPDIR.clone();
 
@@ -777,10 +777,7 @@ fn test_coco_import_export() {
         None,
         ConnectionData::None,
         None,
-        Some(FilePathPair::new(
-            "ohm_somefolder".to_string(),
-            Path::new(""),
-        )),
+        Some(PathPair::new("ohm_somefolder".to_string(), Path::new(""))),
         Some(TEST_DATA_FOLDER.to_string()),
         MetaDataFlags::default(),
     );
@@ -807,7 +804,7 @@ fn test_coco_import() -> RvResult<()> {
             None,
             ConnectionData::None,
             None,
-            Some(FilePathPair::new(filename.to_string(), Path::new(""))),
+            Some(PathPair::new(filename.to_string(), Path::new(""))),
             Some(TEST_DATA_FOLDER.to_string()),
             MetaDataFlags::default(),
         );

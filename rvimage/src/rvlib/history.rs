@@ -1,6 +1,6 @@
 use tracing::info;
 
-use crate::{file_util::FilePathPair, world::World};
+use crate::{file_util::PathPair, world::World};
 use std::fmt::Debug;
 
 const MAX_HISTORY: usize = 20;
@@ -114,7 +114,7 @@ impl History {
 
     pub fn prev_world(
         &mut self,
-        opened_folder: &Option<FilePathPair>,
+        opened_folder: &Option<PathPair>,
     ) -> Option<(World, Option<usize>)> {
         self.change_world(
             |idx| idx - 1,
@@ -127,7 +127,7 @@ impl History {
 
     pub fn next_world(
         &mut self,
-        opened_folder: &Option<FilePathPair>,
+        opened_folder: &Option<PathPair>,
     ) -> Option<(World, Option<usize>)> {
         let n_recs = self.records.len();
         self.change_world(

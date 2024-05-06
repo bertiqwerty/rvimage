@@ -1,5 +1,5 @@
 use crate::cfg::{self, get_log_folder, read_cfg, Connection};
-use crate::file_util::{osstr_to_str, FilePathPair, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
+use crate::file_util::{osstr_to_str, PathPair, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::trace_ok_err;
@@ -190,7 +190,7 @@ pub struct Control {
     pub reader: Option<ReaderFromCfg>,
     pub info: Info,
     pub paths_navigator: PathsNavigator,
-    pub opened_folder: Option<FilePathPair>,
+    pub opened_folder: Option<PathPair>,
     tp: ThreadPool<RvResult<ReaderFromCfg>>,
     last_open_folder_job_id: Option<u128>,
     pub cfg: Cfg,
@@ -374,7 +374,7 @@ impl Control {
     pub fn open_relative_folder(&mut self, new_folder: String) -> RvResult<()> {
         tracing::info!("new opened folder {new_folder}");
         self.make_reader(self.cfg.clone())?;
-        self.opened_folder = Some(FilePathPair::from_relative_path(
+        self.opened_folder = Some(PathPair::from_relative_path(
             new_folder,
             self.cfg.current_prj_path(),
         ));
@@ -425,7 +425,7 @@ impl Control {
         self.reader().map(|r| r.cfg())
     }
 
-    fn opened_folder(&self) -> Option<&FilePathPair> {
+    fn opened_folder(&self) -> Option<&PathPair> {
         self.opened_folder.as_ref()
     }
 
@@ -473,7 +473,7 @@ impl Control {
             .map(|cfg| cfg.home_folder().map(|ef| ef.to_string()).unwrap());
         let is_file_list_empty = Some(file_path.is_none());
         let prj_path = self.cfg.current_prj_path();
-        let fpp = file_path.map(|fp| FilePathPair::new(fp, prj_path));
+        let fpp = file_path.map(|fp| PathPair::new(fp, prj_path));
         MetaData::new(
             fpp,
             file_selected_idx,

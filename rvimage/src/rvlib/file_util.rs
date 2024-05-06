@@ -31,7 +31,9 @@ lazy_static! {
         DEFAULT_HOMEDIR.join(DEFAULT_PRJ_NAME).join("default.rvi");
 }
 
+/// Keys of the annotation maps are the relative paths of the corresponding image files to the project folder.
 pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
+    let path = path.replace('\\', "/");
     if let Some(curr_prj_path) = curr_prj_path {
         let path_ref = Path::new(&path);
         let prj_parent = curr_prj_path
@@ -54,14 +56,15 @@ pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
     }
 }
 #[derive(Clone, Default, PartialEq, Eq)]
-pub struct FilePathPair {
+pub struct PathPair {
     path_absolute: String,
     path_relative: String,
 }
-impl FilePathPair {
+impl PathPair {
     pub fn new(path_absolute: String, prj_path: &Path) -> Self {
+        let path_absolute = path_absolute.replace('\\', "/");
         let path_relative = tf_to_annomap_key(path_absolute.clone(), Some(prj_path));
-        FilePathPair {
+        PathPair {
             path_absolute,
             path_relative,
         }
@@ -70,14 +73,14 @@ impl FilePathPair {
         let path_absolute = if let Some(parent) = prj_path.parent() {
             let path_absolute = parent.join(path_relative.clone());
             if path_absolute.exists() {
-                path_to_str(&path_absolute).unwrap().to_string()
+                path_to_str(&path_absolute).unwrap().replace('\\', "/")
             } else {
-                path_relative.clone()
+                path_relative.replace('\\', "/")
             }
         } else {
-            path_relative.clone()
+            path_relative.replace('\\', "/")
         };
-        FilePathPair {
+        PathPair {
             path_absolute,
             path_relative,
         }
@@ -354,6 +357,10 @@ where
         .unwrap_or_else(|_| "".to_string())
 }
 
+pub fn get_test_folder() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
+}
+
 #[test]
 fn get_last_part() {
     let path = "http://localhost:8000/a/21%20%20b/Beg.png";
@@ -412,4 +419,43 @@ fn test_stem() {
     assert_eq!(to_stem_str(Path::new("c:\\c.png")).unwrap(), "c:\\c");
     assert_eq!(to_stem_str(Path::new("/c.png")).unwrap(), "c");
     assert_eq!(to_stem_str(Path::new("/")).unwrap(), "");
+}
+
+#[test]
+fn test_pathpair() {
+    fn test(
+        path: &str,
+        prj_path: &str,
+        expected_absolute: &str,
+        expected_relative: &str,
+        skip_from_relative: bool,
+    ) {
+        let pp = PathPair::new(path.to_string(), Path::new(prj_path));
+        assert_eq!(pp.path_absolute(), expected_absolute);
+        assert_eq!(pp.path_relative(), expected_relative);
+        if !skip_from_relative {
+            let pp =
+                PathPair::from_relative_path(expected_relative.to_string(), Path::new(prj_path));
+            assert_eq!(pp.path_absolute(), expected_absolute);
+            assert_eq!(pp.path_relative(), expected_relative);
+        }
+    }
+
+    let relative_path = "somesubfolder/notanimage.png";
+    let prj_path_p = get_test_folder().join("rvprj_v3-3_test_dummy.rvi");
+    let prj_path_parent_p = prj_path_p.parent().unwrap();
+    let path_p = prj_path_parent_p.join(relative_path);
+    let prj_path = path_to_str(prj_path_p.as_path()).unwrap();
+    let path = path_to_str(path_p.as_path()).unwrap();
+    test(
+        path,
+        prj_path,
+        &path.replace("\\", "/"),
+        relative_path,
+        false,
+    );
+
+    let prj_path = "a\\b\\c\\prj.rvi";
+    let path = "a\\b\\c\\d\\e.png";
+    test(path, prj_path, &path.replace("\\", "/"), "d/e.png", true);
 }

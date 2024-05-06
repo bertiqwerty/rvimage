@@ -1,12 +1,12 @@
-use std::{fs, path::PathBuf, thread, time::Duration};
+#[cfg(test)]
+use std::{fs, thread, time::Duration};
 
+#[cfg(test)]
 use rvlib::{
-    cfg, defer_file_removal, tracing_setup::tracing_setup, Event, Events, KeyCode, MainEventLoop,
+    cfg, defer_file_removal, get_test_folder, tracing_setup::tracing_setup, Event, Events, KeyCode,
+    MainEventLoop,
 };
 
-fn get_test_folder() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
-}
 #[test]
 fn test_main() {
     let _ = tracing_setup();

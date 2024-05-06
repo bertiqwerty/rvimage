@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::{AzureBlobCfg, PyHttpReaderCfg, SshCfg},
-    file_util::FilePathPair,
+    file_util::PathPair,
 };
 
 #[derive(Clone, Default, PartialEq, Eq)]
@@ -24,21 +24,21 @@ pub enum ConnectionData {
 }
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct MetaData {
-    file_path_pair: Option<FilePathPair>,
+    file_path_pair: Option<PathPair>,
     pub file_selected_idx: Option<usize>,
     pub connection_data: ConnectionData,
     pub ssh_cfg: Option<SshCfg>,
-    pub opened_folder: Option<FilePathPair>,
+    pub opened_folder: Option<PathPair>,
     pub export_folder: Option<String>,
     pub flags: MetaDataFlags,
 }
 impl MetaData {
     pub fn new(
-        file_path_pair: Option<FilePathPair>,
+        file_path_pair: Option<PathPair>,
         file_selected_idx: Option<usize>,
         connection_data: ConnectionData,
         ssh_cfg: Option<SshCfg>,
-        opened_folder: Option<FilePathPair>,
+        opened_folder: Option<PathPair>,
         export_folder: Option<String>,
         flags: MetaDataFlags,
     ) -> Self {
@@ -58,7 +58,7 @@ impl MetaData {
         prj_path: &Path,
     ) -> Self {
         MetaData {
-            file_path_pair: Some(FilePathPair::new(file_path_absolute, prj_path)),
+            file_path_pair: Some(PathPair::new(file_path_absolute, prj_path)),
             file_selected_idx: Some(file_selected_idx),
             connection_data: ConnectionData::None,
             ssh_cfg: None,
