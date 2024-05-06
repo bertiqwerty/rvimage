@@ -455,7 +455,10 @@ fn test_pathpair() {
         false,
     );
 
-    let prj_path = "a\\b\\c\\prj.rvi";
-    let path = "a\\b\\c\\d\\e.png";
-    test(path, prj_path, &path.replace("\\", "/"), "d/e.png", true);
+    #[cfg(target_family = "windows")]
+    {
+        let prj_path = "a\\b\\c\\prj.rvi";
+        let path = "a\\b\\c\\d\\e.png";
+        test(path, prj_path, &path.replace("\\", "/"), "d/e.png", true);
+    }
 }
