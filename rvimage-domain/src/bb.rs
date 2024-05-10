@@ -393,6 +393,16 @@ impl BbF {
         let (w, h) = (self.w - x_shift, self.h - y_shift);
         Self::new_shape_checked(x, y, w, h, shape, OutOfBoundsMode::Deny)
     }
+
+    pub fn all_corners_close(&self, other: BbF) -> bool {
+        fn close_floats(a: f64, b: f64) -> bool {
+            (a - b).abs() < 1e-8
+        }
+        close_floats(self.x, other.x)
+            && close_floats(self.y, other.y)
+            && close_floats(self.w, other.w)
+            && close_floats(self.h, other.h)
+    }
 }
 
 impl From<BbF> for BbI {

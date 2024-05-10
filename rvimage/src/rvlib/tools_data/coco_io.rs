@@ -358,6 +358,14 @@ impl CocoExportData {
                             Ok(poly) => {
                                 let encl_bb = poly.enclosing_bb();
 
+                                if !bb.all_corners_close(encl_bb) {
+                                    tracing::warn!(
+                                        "bounding box and polygon enclosing box do not match. bb: {:?}, poly: {:?}",
+                                        bb,
+                                        encl_bb
+                                    );
+                                }
+
                                 // check if the poly is just a bounding box
                                 if poly.points().len() == 4
                                 // all points are bb corners
@@ -368,7 +376,7 @@ impl CocoExportData {
                                     .points_iter()
                                     .all(|p| poly.points_iter().filter(|p_| p == *p_).count() == 1)
                                 {
-                                    GeoFig::BB(poly.enclosing_bb())
+                                    GeoFig::BB(bb)
                                 } else {
                                     GeoFig::Poly(poly)
                                 }
