@@ -91,22 +91,12 @@ pub(super) fn find_close_vertex<'a>(
     .map(|(bb_idx, c_idx, _)| (bb_idx, c_idx))
 }
 
-pub(super) fn import_coco_if_triggered(
+pub(super) fn import_coco(
     meta_data: &MetaData,
-    coco_file: Option<&ExportPath>,
+    coco_file: &ExportPath,
     rot90_data: Option<&Rot90ToolData>,
 ) -> Option<BboxSpecificData> {
-    if let Some(coco_file) = coco_file {
-        match tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data) {
-            Ok((bbox_data, _)) => Some(bbox_data),
-            Err(e) => {
-                tracing::error!("could not import coco due to {e:?}");
-                None
-            }
-        }
-    } else {
-        None
-    }
+    trace_ok_err(tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data).map(|(d, _)| d))
 }
 
 pub(super) fn export_if_triggered(

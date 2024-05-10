@@ -58,23 +58,14 @@ tools_data_accessors_objects!(
     brush_mut
 );
 
-fn import_coco_if_triggered(
+fn import_coco(
     meta_data: &MetaData,
-    coco_file: Option<&ExportPath>,
+    coco_file: &ExportPath,
     rot90_data: Option<&Rot90ToolData>,
 ) -> Option<BrushToolData> {
-    if let Some(coco_file) = coco_file {
-        match tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data) {
-            Ok((_, brush_data)) => Some(brush_data),
-            Err(e) => {
-                tracing::error!("could not import coco due to {e:?}");
-                None
-            }
-        }
-    } else {
-        None
-    }
+    trace_ok_err(tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data).map(|(_, d)| d))
 }
+
 fn max_select_dist(shape: ShapeI) -> TPtF {
     (TPtF::from(shape.w.pow(2) + shape.h.pow(2)).sqrt() / 100.0).max(50.0)
 }
@@ -565,7 +556,7 @@ impl Manipulate for Brush {
             get_rot90_data,
             get_specific,
             get_specific_mut,
-            import_coco_if_triggered,
+            import_coco,
         );
         if imported {
             set_visible(&mut world);

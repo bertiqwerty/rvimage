@@ -27,10 +27,10 @@ use rvimage_domain::{shape_unscaled, BbF, Circle, PtF, TPtF};
 use std::{iter, mem, time::Instant};
 
 use super::on_events::{
-    change_annos_bbox, closest_corner, export_if_triggered, find_close_vertex,
-    import_coco_if_triggered, move_corner_tol, on_key_released, on_mouse_held_left,
-    on_mouse_held_right, on_mouse_released_left, on_mouse_released_right, KeyReleasedParams,
-    MouseHeldLeftParams, MouseReleaseParams, PrevPos,
+    change_annos_bbox, closest_corner, export_if_triggered, find_close_vertex, import_coco,
+    move_corner_tol, on_key_released, on_mouse_held_left, on_mouse_held_right,
+    on_mouse_released_left, on_mouse_released_right, KeyReleasedParams, MouseHeldLeftParams,
+    MouseReleaseParams, PrevPos,
 };
 pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -421,7 +421,7 @@ impl Manipulate for Bbox {
             get_rot90_data,
             get_specific,
             get_specific_mut,
-            import_coco_if_triggered,
+            import_coco,
         );
         if imported {
             set_visible(&mut world);
