@@ -204,9 +204,36 @@ macro_rules! set_cat_current {
     };
 }
 
+fn replace_annotations_with_clipboard<T>(
+    mut world: World,
+    history: History,
+    actor: &'static str,
+    get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
+    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
+    clipboard: Option<ClipboardData<T>>,
+) -> (World, History)
+where
+    T: InstanceAnnotate,
+{
+    let annos = get_annos_mut(&mut world);
+    if let Some(annos) = annos {
+        let all = (0..annos.elts().len()).collect::<Vec<_>>();
+        annos.remove_multiple(&all);
+    }
+    paste(
+        world,
+        history,
+        actor,
+        clipboard,
+        get_annos_mut,
+        get_options_mut,
+        get_label_info,
+    )
+}
 pub(super) fn check_autopaste<T>(
     mut world: World,
-    mut history: History,
+    history: History,
     actor: &'static str,
     mut get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
@@ -216,27 +243,23 @@ pub(super) fn check_autopaste<T>(
 where
     T: InstanceAnnotate,
 {
+    let clipboard_data = get_clipboard(&world);
     let auto_paste = get_options_mut(&mut world)
         .map(|o| o.auto_paste)
         .unwrap_or(false);
     if world.data.meta_data.flags.is_loading_screen_active == Some(false) && auto_paste {
-        let annos = get_annos_mut(&mut world);
-        if let Some(annos) = annos {
-            let all = (0..annos.elts().len()).collect::<Vec<_>>();
-            annos.remove_multiple(&all);
-        }
-        let clipboard = get_clipboard(&world);
-        (world, history) = paste(
+        replace_annotations_with_clipboard(
             world,
             history,
             actor,
-            clipboard,
-            get_annos_mut,
             get_options_mut,
+            get_annos_mut,
             get_label_info,
-        );
+            clipboard_data,
+        )
+    } else {
+        (world, history)
     }
-    (world, history)
 }
 pub fn check_erase_mode(
     released_key: ReleasedKey,
@@ -447,8 +470,20 @@ where
             );
         }
         ReleasedKey::V if !is_ctrl_held => {
+            let clipboard_data = get_clipboard_mut(&mut world).cloned().flatten();
             if let Some(options_mut) = get_options_mut(&mut world) {
                 options_mut.auto_paste = !options_mut.auto_paste;
+                if options_mut.auto_paste {
+                    (world, history) = replace_annotations_with_clipboard(
+                        world,
+                        history,
+                        actor,
+                        get_options_mut,
+                        get_annos_mut,
+                        get_label_info,
+                        clipboard_data,
+                    );
+                }
             }
         }
         ReleasedKey::Delete | ReleasedKey::Back => {

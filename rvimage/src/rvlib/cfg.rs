@@ -326,9 +326,14 @@ pub enum Style {
     Light,
 }
 
+fn get_default_n_autosaves() -> Option<u8> {
+    Some(2)
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct CfgUsr {
     pub darkmode: Option<bool>,
+    #[serde(default = "get_default_n_autosaves")]
     pub n_autosaves: Option<u8>,
     pub home_folder: Option<String>,
     pub cache: Cache,

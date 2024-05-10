@@ -132,6 +132,7 @@ where
         .rot90_with_image_ntimes(&shape_rotated, n_rots_inverted)?;
 
     let bb = inst_anno.enclosing_bb();
+
     let segmentation = inst_anno.to_cocoseg(*shape_im_unrotated, is_export_coords_absolute)?;
     let (imw, imh) = if is_export_coords_absolute {
         (1.0, 1.0)
@@ -140,6 +141,9 @@ where
     };
 
     let bb_f = [bb.x / imw, bb.y / imh, bb.w / imw, bb.h / imh];
+    if bb_f[1] * bb_f[2] < 1e-6 {
+        tracing::warn!("annotation has no area {bb:?}.");
+    }
     Ok((bb_f, segmentation))
 }
 
@@ -804,6 +808,15 @@ fn test_coco_import_export() {
     let (_, handle) = write_coco(&meta, read.clone(), None).unwrap();
     handle.join().unwrap().unwrap();
     no_image_dups(&read.coco_file.path);
+    let (read, _) = read_coco(&meta, &export_path, None).unwrap();
+    for anno in read.anno_iter() {
+        let (_, (annos, _)) = anno;
+        for a in annos.elts() {
+            println!("{a:?}");
+            assert!(a.enclosing_bb().w * a.enclosing_bb().h > 1e-3);
+        }
+    
+    }
 }
 
 #[test]
