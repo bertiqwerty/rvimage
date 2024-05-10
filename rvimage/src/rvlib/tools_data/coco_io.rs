@@ -815,7 +815,6 @@ fn test_coco_import_export() {
             println!("{a:?}");
             assert!(a.enclosing_bb().w * a.enclosing_bb().h > 1e-3);
         }
-    
     }
 }
 
