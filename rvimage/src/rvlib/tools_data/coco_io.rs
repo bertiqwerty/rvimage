@@ -357,17 +357,18 @@ impl CocoExportData {
                         match poly {
                             Ok(poly) => {
                                 let encl_bb = poly.enclosing_bb();
-
-                                if !bb.all_corners_close(encl_bb) {
-                                    tracing::warn!(
-                                        "bounding box and polygon enclosing box do not match. bb: {:?}, poly: {:?}",
-                                        bb,
-                                        encl_bb
+                                if encl_bb.w * encl_bb.h < 1e-6 && bb.w * bb.h > 1e-6 {
+                                    tracing::warn!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}");
+                                    GeoFig::BB(bb)
+                                } else {
+                                    if !bb.all_corners_close(encl_bb) {
+                                        tracing::warn!(
+                                        "bounding box and polygon enclosing box do not match. bb: {bb:?}, poly: {encl_bb:?}",
                                     );
-                                }
+                                    }
 
-                                // check if the poly is just a bounding box
-                                if poly.points().len() == 4
+                                    // check if the poly is just a bounding box
+                                    if poly.points().len() == 4
                                 // all points are bb corners
                                 && poly.points_iter().all(|p| {
                                     encl_bb.points_iter().any(|p_encl| p == p_encl)})
@@ -375,10 +376,11 @@ impl CocoExportData {
                                 && poly
                                     .points_iter()
                                     .all(|p| poly.points_iter().filter(|p_| p == *p_).count() == 1)
-                                {
-                                    GeoFig::BB(bb)
-                                } else {
-                                    GeoFig::Poly(poly)
+                                    {
+                                        GeoFig::BB(bb)
+                                    } else {
+                                        GeoFig::Poly(poly)
+                                    }
                                 }
                             }
                             Err(_) => {
