@@ -1394,9 +1394,9 @@ dependencies = [
 
 [[package]]
 name = "exmex"
-version = "0.19.0"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00ba02c553b1567daf3831b357b48c72e56ea159c0d7d4cb2ce8b1ba4cb4ea58"
+checksum = "bdb08e0d4137a0fe54eb70987a81691e7a68ec28f9f7394edefb82a5737b9852"
 dependencies = [
  "lazy_static",
  "num",
