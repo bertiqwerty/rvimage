@@ -197,7 +197,10 @@ fn check_export(mut world: World) -> World {
             thread::spawn(f_export);
         }
         if let Some(options_mut) = get_options_mut(&mut world) {
-            options_mut.core_options.import_export_trigger.untrigger_export();
+            options_mut
+                .core_options
+                .import_export_trigger
+                .untrigger_export();
         }
     }
     world
