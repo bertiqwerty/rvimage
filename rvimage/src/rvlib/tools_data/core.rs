@@ -26,6 +26,51 @@ pub enum ImportMode {
     Replace,
 }
 
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ImportExportTrigger {
+    export_triggered: bool,
+    import_triggered: bool,
+    import_mode: ImportMode,
+}
+impl ImportExportTrigger {
+    pub fn import_triggered(&self) -> bool {
+        self.import_triggered
+    }
+    pub fn import_mode(&self) -> ImportMode {
+        self.import_mode
+    }
+    pub fn export_triggered(&self) -> bool {
+        self.export_triggered
+    }
+    pub fn untrigger_export(&mut self) {
+        self.export_triggered = false;
+    }
+    pub fn untrigger_import(&mut self) {
+        self.import_triggered = false;
+    }
+    pub fn trigger_export(&mut self) {
+        self.export_triggered = true;
+    }
+    pub fn trigger_import(&mut self) {
+        self.import_triggered = true;
+    }
+    pub fn use_merge_import(&mut self) {
+        self.import_mode = ImportMode::Merge;
+    }
+    pub fn use_replace_import(&mut self) {
+        self.import_mode = ImportMode::Replace;
+    }
+    pub fn merge_mode(&self) -> bool {
+        self.import_mode == ImportMode::Merge
+    }
+    pub fn from_export_triggered(export_triggered: bool) -> Self {
+        Self {
+            export_triggered,
+            ..Default::default()
+        }
+    }
+}
+
 pub type AnnotationsMap<T> = LabelMap<InstanceAnnotations<T>>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,10 +78,8 @@ pub struct Options {
     pub visible: bool,
     pub is_colorchange_triggered: bool,
     pub is_redraw_annos_triggered: bool,
-    pub is_export_triggered: bool,
     pub is_export_absolute: bool,
-    pub is_import_triggered: bool,
-    pub import_mode: ImportMode,
+    pub import_export_trigger: ImportExportTrigger,
     pub is_history_update_triggered: bool,
     pub track_changes: bool,
     pub erase: bool,
@@ -50,10 +93,8 @@ impl Default for Options {
             visible: true,
             is_colorchange_triggered: false,
             is_redraw_annos_triggered: false,
-            is_export_triggered: false,
             is_export_absolute: false,
-            is_import_triggered: false,
-            import_mode: ImportMode::default(),
+            import_export_trigger: ImportExportTrigger::default(),
             is_history_update_triggered: false,
             track_changes: false,
             erase: false,

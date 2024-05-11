@@ -135,7 +135,7 @@ fn check_export(mut world: World) -> World {
     let options = get_options(&world);
     let specifics = get_specific(&world);
 
-    if options.map(|o| o.core_options.is_export_triggered) == Some(true) {
+    if options.map(|o| o.core_options.import_export_trigger.export_triggered()) == Some(true) {
         let rot90_data = get_rot90_data(&world).cloned();
         if let Some(data) = specifics {
             let meta_data = world.data.meta_data.clone();
@@ -197,7 +197,7 @@ fn check_export(mut world: World) -> World {
             thread::spawn(f_export);
         }
         if let Some(options_mut) = get_options_mut(&mut world) {
-            options_mut.core_options.is_export_triggered = false;
+            options_mut.core_options.import_export_trigger.untrigger_export();
         }
     }
     world

@@ -86,7 +86,7 @@ fn check_cocoexport(mut world: World) -> World {
         let rot90_data = get_rot90_data(&world);
         export_if_triggered(&world.data.meta_data, bbox_data, rot90_data);
         if let Some(o) = get_options_mut(&mut world) {
-            o.core_options.is_export_triggered = false;
+            o.core_options.import_export_trigger.untrigger_export();
         }
     }
     world
@@ -572,7 +572,10 @@ fn test_coco_import_label_info() {
         conn: ExportPathConnection::Local,
     };
     let label_info_before = data.label_info.clone();
-    data.options.core_options.is_import_triggered = true;
+    data.options
+        .core_options
+        .import_export_trigger
+        .trigger_import();
     let mut bbox = Bbox::new();
     let events = Events::default();
     (world, _) = bbox.events_tf(world, history, &events);
@@ -580,5 +583,9 @@ fn test_coco_import_label_info() {
     let label_info_after = data.label_info.clone();
     assert_eq!(label_info_before.labels(), &["foreground", "label"]);
     assert_eq!(label_info_after.labels(), &["first label", "second label"]);
-    assert!(!data.options.core_options.is_import_triggered);
+    assert!(!data
+        .options
+        .core_options
+        .import_export_trigger
+        .import_triggered());
 }

@@ -104,7 +104,12 @@ pub(super) fn export_if_triggered(
     bbox_data: &BboxSpecificData,
     rot90_data: Option<&Rot90ToolData>,
 ) {
-    if bbox_data.options.core_options.is_export_triggered {
+    if bbox_data
+        .options
+        .core_options
+        .import_export_trigger
+        .export_triggered()
+    {
         match tools_data::write_coco(meta_data, bbox_data.clone(), rot90_data) {
             Ok(p) => tracing::info!("export to {p:?} successful"),
             Err(e) => tracing::error!("export failed due to {e:?}"),

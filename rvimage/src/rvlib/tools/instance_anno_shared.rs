@@ -29,17 +29,36 @@ where
 {
     let options = get_options(&world);
     let rot90_data = get_rot90_data(&world);
-    let import_info = if let Some(options) = options {
-        get_specific(&world).map(|d| (d.cocofile_conn(), options.import_mode))
-    } else {
-        None
-    };
-    let imported = if let Some((coco_connection, import_mode)) = import_info {
+    enum IsImportTriggered {
+        Yes,
+        No,
+    }
+    let import_info = options.and_then(|options| {
+        let import_triggered = if options.import_export_trigger.import_triggered() {
+            IsImportTriggered::Yes
+        } else {
+            IsImportTriggered::No
+        };
+        get_specific(&world).map(|d| {
+            (
+                d.cocofile_conn(),
+                import_triggered,
+                options.import_export_trigger,
+            )
+        })
+    });
+
+    let imported = if let Some((coco_connection, IsImportTriggered::Yes, import_export_trigger)) =
+        import_info
+    {
         if let Some(imported_data) =
             import_coco(&world.data.meta_data, &coco_connection, rot90_data)
         {
             let (_, import_label_info, import_anno_map, _) = imported_data.separate_data();
-            match (import_mode, get_specific_mut(&mut world)) {
+            match (
+                import_export_trigger.import_mode(),
+                get_specific_mut(&mut world),
+            ) {
                 (ImportMode::Replace, Some(data_mut)) => {
                     trace_ok_err(data_mut.set_annotations_map(import_anno_map));
                     data_mut.set_labelinfo(import_label_info);
@@ -61,7 +80,10 @@ where
         false
     };
     if let Some(data_mut) = get_specific_mut(&mut world) {
-        data_mut.core_options_mut().is_import_triggered = false;
+        data_mut
+            .core_options_mut()
+            .import_export_trigger
+            .untrigger_import();
     }
     (world, imported)
 }

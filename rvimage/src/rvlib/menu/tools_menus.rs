@@ -10,7 +10,7 @@ use crate::{
         attributes_data::AttrVal,
         bbox_data::BboxSpecificData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportMode,
+        AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportExportTrigger,
         InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData, VisibleInactiveToolsState,
         OUTLINE_THICKNESS_CONVERSION,
     },
@@ -164,9 +164,8 @@ fn export_file_menu(
     label: &str,
     export_path: &mut ExportPath,
     are_tools_active: &mut bool,
-    is_export_triggered: &mut bool,
-    is_import_triggered: Option<&mut bool>,
-    import_mode: Option<&mut ImportMode>,
+    import_export_trigger: &mut ImportExportTrigger,
+    skip_import_mode: bool,
 ) -> RvResult<()> {
     let mut file_txt = path_to_str(&export_path.path)?.to_string();
     ui.horizontal(|ui| {
@@ -181,19 +180,19 @@ fn export_file_menu(
     ui.horizontal(|ui| {
         if ui.button("export").clicked() {
             tracing::info!("export triggered");
-            *is_export_triggered = true;
+            import_export_trigger.trigger_export();
         }
-        if let (Some(is_import_triggered), Some(import_mode)) = (is_import_triggered, import_mode) {
-            if ui.button("import").clicked() {
-                tracing::info!("import triggered");
-                *is_import_triggered = true;
-            }
-            let mut checked = *import_mode == ImportMode::Merge;
+        if ui.button("import").clicked() {
+            tracing::info!("import triggered");
+            import_export_trigger.trigger_import();
+        }
+        if skip_import_mode {
+            let mut checked = import_export_trigger.merge_mode();
             ui.checkbox(&mut checked, "merge import");
             if checked {
-                *import_mode = ImportMode::Merge;
+                import_export_trigger.use_merge_import();
             } else {
-                *import_mode = ImportMode::Replace;
+                import_export_trigger.use_replace_import();
             }
         }
     });
@@ -317,14 +316,14 @@ pub fn bbox_menu(
 
         ui.separator();
 
+        let skip_import_mode = false;
         export_file_menu_result = export_file_menu(
             ui,
             "coco file",
             &mut data.coco_file,
             are_tools_active,
-            &mut data.options.core_options.is_export_triggered,
-            Some(&mut data.options.core_options.is_import_triggered),
-            Some(&mut data.options.core_options.import_mode),
+            &mut data.options.core_options.import_export_trigger,
+            skip_import_mode,
         );
 
         ui.separator();
@@ -422,14 +421,14 @@ pub fn brush_menu(
         &mut data.options.per_file_crowd,
         "export merged annotations per file",
     );
+    let skip_import_mode = false;
     export_file_menu(
         ui,
         "coco file",
         &mut data.coco_file,
         are_tools_active,
-        &mut data.options.core_options.is_export_triggered,
-        Some(&mut data.options.core_options.is_import_triggered),
-        Some(&mut data.options.core_options.import_mode),
+        &mut data.options.core_options.import_export_trigger,
+        skip_import_mode,
     )?;
     ui.separator();
     if show_inactive_tool_menu(ui, BRUSH_NAME, &mut visible_inactive_tools) {
@@ -559,15 +558,18 @@ pub fn attributes_menu(
         });
 
     ui.separator();
+    let skip_merge_menu = true;
+    let mut import_export_trigger =
+        ImportExportTrigger::from_export_triggered(data.options.is_export_triggered);
     export_file_menu(
         ui,
         "export attributes as json",
         &mut data.export_path,
         are_tools_active,
-        &mut data.options.is_export_triggered,
-        None,
-        None,
+        &mut import_export_trigger,
+        skip_merge_menu,
     )?;
+    data.options.is_export_triggered = import_export_trigger.export_triggered();
 
     ui.separator();
     if ui.button("Close").clicked() {
