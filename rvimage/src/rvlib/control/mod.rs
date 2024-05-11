@@ -355,7 +355,7 @@ impl Control {
                         if path.is_file() {
                             let file_name = osstr_to_str(path.file_name());
                             trace_ok_err(file_name).and_then(|file_name| {
-                                trace_ok_err(zip.start_file::<&str, ExtendedFileOptions>(
+                                trace_ok_err(zip.start_file::<&str, ExtendedFileOptions, _>(
                                     file_name,
                                     zip::write::FileOptions::default(),
                                 ));
