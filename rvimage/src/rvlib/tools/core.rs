@@ -48,8 +48,8 @@ pub(super) fn change_annos<T>(
                     is_update_triggered: false,
                     removal_idx: None,
                 };
-                old_attr_name = d.new_attr.clone();
-                old_attr_type = d.new_attr_type.clone();
+                old_attr_name.clone_from(&d.new_attr);
+                old_attr_type.clone_from(&d.new_attr_type);
                 d.new_attr = track_change_str.to_string();
                 d.new_attr_type = AttrVal::Bool(false);
                 d.options = attr_options;

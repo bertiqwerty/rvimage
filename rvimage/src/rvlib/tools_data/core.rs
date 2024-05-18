@@ -480,7 +480,7 @@ where
     fn separate_data(self) -> (Options, LabelInfo, AnnotationsMap<A>, ExportPath);
     fn cocofile_conn(&self) -> ExportPath;
     fn label_info(&self) -> &LabelInfo;
-    fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<A>, ShapeI))>;
+    // fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<A>, ShapeI))>;
     fn set_annotations_map(&mut self, map: AnnotationsMap<A>) -> RvResult<()>;
     fn set_labelinfo(&mut self, info: LabelInfo);
     fn core_options_mut(&mut self) -> &mut Options;

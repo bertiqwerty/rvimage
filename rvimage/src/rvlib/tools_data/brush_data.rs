@@ -1,5 +1,5 @@
 use super::{
-    annotations::{BrushAnnotations, ClipboardData, InstanceAnnotations},
+    annotations::{BrushAnnotations, ClipboardData},
     core::{self, AnnotationsMap, CocoRle, CocoSegmentation, ExportAsCoco, LabelInfo},
     InstanceAnnotate, InstanceExportData,
 };
@@ -152,9 +152,6 @@ impl ExportAsCoco<Canvas> for BrushToolData {
     }
     fn label_info(&self) -> &LabelInfo {
         &self.label_info
-    }
-    fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<Canvas>, ShapeI))> {
-        self.anno_iter()
     }
     fn core_options_mut(&mut self) -> &mut core::Options {
         &mut self.options.core_options

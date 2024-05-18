@@ -3,7 +3,7 @@ use std::iter;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    annotations::{BboxAnnotations, ClipboardData, InstanceAnnotations},
+    annotations::{BboxAnnotations, ClipboardData},
     core::{
         AnnotationsMap, CocoSegmentation, ExportAsCoco, InstanceExportData, LabelInfo,
         OUTLINE_THICKNESS_CONVERSION,
@@ -155,9 +155,6 @@ impl ExportAsCoco<GeoFig> for BboxSpecificData {
     }
     fn label_info(&self) -> &LabelInfo {
         &self.label_info
-    }
-    fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<GeoFig>, ShapeI))> {
-        self.anno_iter()
     }
     fn core_options_mut(&mut self) -> &mut core::Options {
         &mut self.options.core_options

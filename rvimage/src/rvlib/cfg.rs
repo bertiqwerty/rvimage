@@ -117,21 +117,21 @@ pub fn get_default_cfg() -> Cfg {
     cfg.usr.current_prj_path = Some(DEFAULT_PRJ_PATH.to_path_buf());
     cfg
 }
-fn get_cfg_path(filename: &str) -> RvResult<PathBuf> {
-    Ok(dirs::home_dir()
-        .ok_or_else(|| RvError::new("where is your home? cannot load config"))?
-        .join(".rvimage")
-        .join(filename))
+fn get_cfg_folder() -> PathBuf {
+    DEFAULT_HOMEDIR.clone().join(".rvimage")
 }
-pub fn get_cfg_path_legacy() -> RvResult<PathBuf> {
+fn get_cfg_path(filename: &str) -> PathBuf {
+    get_cfg_folder().join(filename)
+}
+pub fn get_cfg_path_legacy() -> PathBuf {
     get_cfg_path("rv_cfg.toml")
 }
 
-pub fn get_cfg_path_usr() -> RvResult<PathBuf> {
+pub fn get_cfg_path_usr() -> PathBuf {
     get_cfg_path("rv_cfg_usr.toml")
 }
 
-pub fn get_cfg_path_prj() -> RvResult<PathBuf> {
+pub fn get_cfg_path_prj() -> PathBuf {
     get_cfg_path("rv_cfg_prjtmp.toml")
 }
 
@@ -142,12 +142,10 @@ pub fn get_cfg_tmppath(cfg: &Cfg) -> PathBuf {
 }
 
 pub fn get_log_folder() -> RvResult<PathBuf> {
-    get_cfg_path_usr().and_then(|cfg_path| {
-        Ok(cfg_path
-            .parent()
-            .ok_or_else(|| RvError::new("the cfg file needs a parent"))?
-            .join("logs"))
-    })
+    Ok(get_cfg_path_usr()
+        .parent()
+        .ok_or_else(|| RvError::new("the cfg file needs a parent"))?
+        .join("logs"))
 }
 
 pub fn read_cfg_gen<CFG: Debug + DeserializeOwned + Default>(
@@ -182,9 +180,9 @@ fn read_cfg_from_paths(
 }
 
 pub fn read_cfg() -> RvResult<Cfg> {
-    let cfg_toml_path_usr = get_cfg_path_usr()?;
-    let cfg_toml_path_prj = get_cfg_path_prj()?;
-    let cfg_toml_path_legacy = get_cfg_path_legacy()?;
+    let cfg_toml_path_usr = get_cfg_path_usr();
+    let cfg_toml_path_prj = get_cfg_path_prj();
+    let cfg_toml_path_legacy = get_cfg_path_legacy();
     read_cfg_from_paths(
         &cfg_toml_path_usr,
         &cfg_toml_path_prj,
@@ -201,14 +199,14 @@ pub fn write_cfg_str(cfg_str: &str, p: &Path, log: bool) -> RvResult<()> {
 }
 
 pub fn write_cfg(cfg: &Cfg) -> RvResult<()> {
-    let cfg_usr_path = get_cfg_path_usr()?;
+    let cfg_usr_path = get_cfg_path_usr();
     if let Some(cfg_parent) = cfg_usr_path.parent() {
         fs::create_dir_all(cfg_parent).map_err(to_rv)?;
     }
     let cfg_usr_str = toml::to_string_pretty(&cfg.usr).map_err(to_rv)?;
     let log = true;
     write_cfg_str(&cfg_usr_str, &cfg_usr_path, log).and_then(|_| {
-        let cfg_prj_path = get_cfg_path_prj()?;
+        let cfg_prj_path = get_cfg_path_prj();
         let cfg_prj_str = toml::to_string_pretty(&cfg.prj).map_err(to_rv)?;
         write_cfg_str(&cfg_prj_str, &cfg_prj_path, log)
     })

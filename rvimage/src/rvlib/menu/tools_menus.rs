@@ -90,7 +90,7 @@ where
     let default_label = label_info.find_default();
     if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
         info!("replaced default '{default_label}' label by '{new_label}'");
-        *default_label = new_label.clone();
+        default_label.clone_from(new_label);
         label_change = true;
     } else if let Some(new_label) = new_label {
         if let Err(e) = label_info.push(new_label, None, None) {

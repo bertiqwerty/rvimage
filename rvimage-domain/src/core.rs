@@ -280,11 +280,6 @@ where
         .unwrap()
 }
 
-pub trait IsSignedInt {}
-
-impl IsSignedInt for i32 {}
-impl IsSignedInt for i64 {}
-
 #[cfg(test)]
 #[macro_export]
 macro_rules! point {

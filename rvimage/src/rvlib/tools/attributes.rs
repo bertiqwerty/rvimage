@@ -99,7 +99,7 @@ impl Manipulate for Attributes {
                 }
                 set_attrmap_val(&mut attr_map_tmp, &new_attr, &new_attr_type);
                 if let Some(a) = get_annos_mut(&mut world) {
-                    *a = attr_map_tmp.clone();
+                    a.clone_from(&attr_map_tmp);
                 }
                 if let Some(data) = get_specific_mut(&mut world) {
                     data.current_attr_map = Some(attr_map_tmp);
