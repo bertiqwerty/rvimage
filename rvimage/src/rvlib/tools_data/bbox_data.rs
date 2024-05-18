@@ -2,6 +2,8 @@ use std::iter;
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+use super::annotations::InstanceAnnotations;
 use super::{
     annotations::{BboxAnnotations, ClipboardData},
     core::{
@@ -155,6 +157,10 @@ impl ExportAsCoco<GeoFig> for BboxSpecificData {
     }
     fn label_info(&self) -> &LabelInfo {
         &self.label_info
+    }
+    #[cfg(test)]
+    fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<GeoFig>, ShapeI))> {
+        self.anno_iter()
     }
     fn core_options_mut(&mut self) -> &mut core::Options {
         &mut self.options.core_options
