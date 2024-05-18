@@ -117,11 +117,9 @@ pub fn get_default_cfg() -> Cfg {
     cfg.usr.current_prj_path = Some(DEFAULT_PRJ_PATH.to_path_buf());
     cfg
 }
-fn get_cfg_folder() -> PathBuf {
-    DEFAULT_HOMEDIR.clone().join(".rvimage")
-}
+
 fn get_cfg_path(filename: &str) -> PathBuf {
-    get_cfg_folder().join(filename)
+    DEFAULT_HOMEDIR.join(filename)
 }
 pub fn get_cfg_path_legacy() -> PathBuf {
     get_cfg_path("rv_cfg.toml")
