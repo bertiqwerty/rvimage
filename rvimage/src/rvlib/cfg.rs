@@ -181,11 +181,6 @@ fn read_cfg_from_paths(
     }
 }
 
-pub fn read_cfg_usr() -> RvResult<CfgUsr> {
-    let cfg_toml_path_usr = get_cfg_path_usr()?;
-    read_cfg_gen(&cfg_toml_path_usr)
-}
-
 pub fn read_cfg() -> RvResult<Cfg> {
     let cfg_toml_path_usr = get_cfg_path_usr()?;
     let cfg_toml_path_prj = get_cfg_path_prj()?;

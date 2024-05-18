@@ -211,7 +211,8 @@ where
 
 #[cfg(test)]
 use {
-    crate::{cfg, defer_folder_removal},
+    crate::defer_folder_removal,
+    crate::file_util::{path_to_str, DEFAULT_TMPDIR},
     image::DynamicImage,
     image::{ImageBuffer, Rgb},
     std::{thread, time::Duration},
@@ -219,10 +220,10 @@ use {
 
 #[test]
 fn test_file_cache() -> RvResult<()> {
-    let cfg = cfg::read_cfg()?;
-    let tmpdir_path = Path::new(cfg.tmpdir());
-    fs::create_dir_all(tmpdir_path).map_err(to_rv)?;
-    defer_folder_removal!(&tmpdir_path);
+    let tmpdir_str = path_to_str(&DEFAULT_TMPDIR).unwrap();
+    let tmpdir = DEFAULT_TMPDIR.clone();
+    fs::create_dir_all(&tmpdir).map_err(to_rv)?;
+    defer_folder_removal!(&tmpdir);
     let test = |files: &[&str], selected: usize| -> RvResult<()> {
         #[derive(Clone)]
         struct DummyRead;
@@ -250,7 +251,7 @@ fn test_file_cache() -> RvResult<()> {
                 n_threads: 2,
             },
             reader_args: (),
-            tmpdir: cfg.tmpdir().to_string(),
+            tmpdir: tmpdir_str.to_string(),
         };
         let mut cache = FileCache::<DummyRead, ()>::new(file_cache_args)?;
         let min_i = if selected > cache.n_prev_images {
@@ -276,11 +277,9 @@ fn test_file_cache() -> RvResult<()> {
         {
             println!(
                 "filename in tmpdir {:?}",
-                Path::new(file_util::filename_in_tmpdir(file, cfg.tmpdir())?.as_str())
+                Path::new(file_util::filename_in_tmpdir(file, tmpdir_str)?.as_str())
             );
-            assert!(
-                Path::new(file_util::filename_in_tmpdir(file, cfg.tmpdir())?.as_str()).exists()
-            );
+            assert!(Path::new(file_util::filename_in_tmpdir(file, tmpdir_str)?.as_str()).exists());
         }
         Ok(())
     };
@@ -296,7 +295,7 @@ fn test_file_cache() -> RvResult<()> {
     for i in (14..25).chain(34..45) {
         let f = format!("{}.png", i);
         assert!(
-            Path::new(file_util::filename_in_tmpdir(f.as_str(), cfg.tmpdir())?.as_str()).exists()
+            Path::new(file_util::filename_in_tmpdir(f.as_str(), tmpdir_str)?.as_str()).exists()
         );
     }
     Ok(())

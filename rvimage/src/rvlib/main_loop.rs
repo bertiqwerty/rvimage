@@ -1,6 +1,5 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
-use crate::cfg::{self, Cfg};
 use crate::control::{Control, Info};
 use crate::drawme::ImageInfo;
 use crate::events::{Events, KeyCode};
@@ -17,7 +16,6 @@ use crate::{apply_tool_method_mut, httpserver, image_util, UpdateView};
 use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
-use lazy_static::lazy_static;
 use rvimage_domain::{PtI, RvResult};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -32,19 +30,6 @@ const START_HEIGHT: u32 = 480;
 
 const AUTOSAVE_INTERVAL_S: u64 = 120;
 
-fn cfg_static_ref() -> &'static Cfg {
-    lazy_static! {
-        static ref CFG: Cfg = cfg::read_cfg().expect("config broken");
-    }
-    &CFG
-}
-
-fn http_address() -> &'static str {
-    lazy_static! {
-        static ref HTTP_ADDRESS: &'static str = cfg_static_ref().http_address();
-    }
-    &HTTP_ADDRESS
-}
 fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
 where
     T: GenericImageView,
@@ -142,17 +127,13 @@ pub struct MainEventLoop {
 }
 impl Default for MainEventLoop {
     fn default() -> Self {
-        let cfg = cfg::read_cfg().unwrap_or_else(|e| {
-            warn!("could not read cfg due to {e:?}, returning default");
-            cfg::get_default_cfg()
-        });
         let file_path = std::env::args().nth(1).map(PathBuf::from);
-        Self::new(cfg, file_path)
+        Self::new(file_path)
     }
 }
 impl MainEventLoop {
-    pub fn new(cfg: Cfg, prj_file_path: Option<PathBuf>) -> Self {
-        let ctrl = Control::new(cfg);
+    pub fn new(prj_file_path: Option<PathBuf>) -> Self {
+        let ctrl = Control::new();
 
         let mut world = empty_world();
         let mut tools = make_tool_vec();
@@ -161,7 +142,7 @@ impl MainEventLoop {
                 (world, _) = t.activate(world, History::default());
             }
         }
-        let http_addr = http_address().to_string();
+        let http_addr = ctrl.http_address();
         // http server state
         let rx_from_http = if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
             Some(rx)

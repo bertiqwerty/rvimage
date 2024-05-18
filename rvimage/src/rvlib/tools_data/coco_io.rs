@@ -552,7 +552,7 @@ pub fn read_coco(
 use {
     super::core::CocoRle,
     crate::{
-        cfg::{read_cfg, SshCfg},
+        cfg::SshCfg,
         defer_file_removal,
         meta_data::{ConnectionData, MetaDataFlags},
     },
@@ -770,8 +770,7 @@ fn test_coco_export() {
         defer_file_removal!(&coco_file);
         assert_coco_eq(bbox_data, read, &coco_file);
     }
-    let tmpdir = read_cfg().unwrap().tmpdir().to_string();
-    let tmpdir = PathBuf::from_str(&tmpdir).unwrap();
+    let tmpdir = &DEFAULT_TMPDIR;
     let file_path = tmpdir.join("test_image.png");
     test_br(&file_path, None, true);
     test_bb(&file_path, None, true);

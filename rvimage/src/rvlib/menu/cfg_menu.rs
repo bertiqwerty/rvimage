@@ -5,17 +5,24 @@ use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Visuals, Widget};
 use crate::{
     cfg::{self, get_cfg_tmppath, write_cfg_str, Cache, Cfg, Connection},
     file_util::get_prj_name,
-    menu,
     result::trace_ok_err,
 };
 
+// fn get_cfg() -> (Cfg, Info) {
+//     match cfg::read_cfg() {
+//         Ok(cfg) => (cfg, Info::None),
+//         Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{e:?}"))),
+//     }
+// }
 pub struct CfgMenu<'a> {
     id: Id,
     cfg: &'a mut Cfg,
+    cfg_orig: Cfg,
 }
 impl<'a> CfgMenu<'a> {
     pub fn new(id: Id, cfg: &'a mut Cfg) -> CfgMenu<'a> {
-        Self { id, cfg }
+        let cfg_orig = cfg.clone();
+        Self { id, cfg, cfg_orig }
     }
 }
 impl<'a> Widget for CfgMenu<'a> {
@@ -145,15 +152,13 @@ impl<'a> Widget for CfgMenu<'a> {
                         tracing::error!("{:?}", self.cfg);
                     }
                 } else {
-                    let tmp = menu::main::get_cfg();
-                    *self.cfg = tmp.0;
+                    *self.cfg = self.cfg_orig.clone();
                 }
                 ui.memory_mut(|m| m.toggle_popup(self.id));
             }
             if !edit_cfg_btn_resp.clicked() && area_response.clicked_elsewhere() {
                 ui.memory_mut(|m| m.toggle_popup(self.id));
-                let tmp = menu::main::get_cfg();
-                *self.cfg = tmp.0;
+                *self.cfg = self.cfg_orig.clone();
             }
         }
         edit_cfg_btn_resp

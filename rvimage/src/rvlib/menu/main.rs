@@ -1,5 +1,4 @@
 use crate::{
-    cfg::{self, Cfg},
     control::{Control, Info, SortType},
     file_util::get_prj_name,
     menu::{
@@ -50,12 +49,6 @@ fn show_popup(
     new_msg
 }
 
-pub(super) fn get_cfg() -> (Cfg, Info) {
-    match cfg::read_cfg() {
-        Ok(cfg) => (cfg, Info::None),
-        Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{e:?}"))),
-    }
-}
 // evaluates an expression that is expected to return Result,
 // passes unpacked value to effect function in case of Ok,
 // sets according error message in case of Err.

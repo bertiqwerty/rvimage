@@ -3,19 +3,18 @@ use std::{fs, thread, time::Duration};
 
 #[cfg(test)]
 use rvlib::{
-    cfg, defer_file_removal, get_test_folder, tracing_setup::tracing_setup, Event, Events, KeyCode,
+    defer_file_removal, get_test_folder, tracing_setup::tracing_setup, Event, Events, KeyCode,
     MainEventLoop,
 };
 
 #[test]
 fn test_main() {
     let _ = tracing_setup();
-    let cfg = cfg::get_default_cfg();
     let test_file_src = get_test_folder().join("rvprj_v3-3_test_dummy.rvi");
     let test_file = get_test_folder().join("tmp-test.rvi");
     fs::copy(&test_file_src, &test_file).unwrap();
     defer_file_removal!(&test_file);
-    let mut main_loop = MainEventLoop::new(cfg, Some(test_file.clone()));
+    let mut main_loop = MainEventLoop::new(Some(test_file.clone()));
     let events = Events::default();
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, &ctx).unwrap();

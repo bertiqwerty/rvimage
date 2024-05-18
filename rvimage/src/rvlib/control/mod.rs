@@ -1,4 +1,4 @@
-use crate::cfg::{self, get_log_folder, read_cfg, Connection};
+use crate::cfg::{self, get_log_folder, Connection};
 use crate::file_util::{osstr_to_str, PathPair, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
@@ -19,7 +19,7 @@ mod filter;
 pub mod paths_navigator;
 use crate::image_reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;
-use tracing::info;
+use tracing::{info, warn};
 use walkdir::WalkDir;
 
 mod detail {
@@ -29,7 +29,7 @@ mod detail {
     use serde::{Deserialize, Serialize, Serializer};
 
     use crate::{
-        cfg::{read_cfg, Cfg, CfgPrj},
+        cfg::{read_cfg, write_cfg, Cfg, CfgPrj},
         file_util::{self, tf_to_annomap_key, SavedCfg},
         result::trace_ok_err,
         util::version_label,
@@ -119,6 +119,9 @@ mod detail {
         file_path: &Path,
         cfg: &Cfg,
     ) -> RvResult<()> {
+        // we need to write the cfg for correct prj-path mapping during serialization
+        // of annotations
+        trace_ok_err(write_cfg(cfg));
         let make_data = |tdm: &ToolsDataMap| SaveData {
             version: Some(version_label()),
             opened_folder: opened_folder.map(|of| of.to_string()),
@@ -203,6 +206,9 @@ pub struct Control {
 }
 
 impl Control {
+    pub fn http_address(&self) -> String {
+        self.cfg.http_address().to_string()
+    }
     pub fn flags(&self) -> &ControlFlags {
         &self.flags
     }
@@ -228,18 +234,16 @@ impl Control {
     }
 
     pub fn load(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
-        let mut cfg = read_cfg()?;
         // we need the project path before reading the annotations to map
         // their path correctly
-        cfg.set_current_prj_path(file_path.clone());
-        cfg::write_cfg(&cfg)?;
+        self.cfg.set_current_prj_path(file_path.clone());
+        cfg::write_cfg(&self.cfg)?;
 
         let (tools_data_map, to_be_opened_folder, read_cfg) = detail::load(&file_path)?;
         if let Some(of) = to_be_opened_folder {
             self.open_relative_folder(of)?;
         }
-        cfg.prj = read_cfg;
-        self.cfg = cfg;
+        self.cfg.prj = read_cfg;
 
         // save cfg of loaded project
         trace_ok_err(cfg::write_cfg(&self.cfg));
@@ -285,11 +289,7 @@ impl Control {
         if set_cur_prj {
             self.cfg.set_current_prj_path(path.clone());
             // update prj name in cfg
-            let cfg_global = trace_ok_err(cfg::read_cfg());
-            if let Some(mut cfg_global) = cfg_global {
-                cfg_global.set_current_prj_path(path.clone());
-                trace_ok_err(cfg::write_cfg(&cfg_global));
-            }
+            trace_ok_err(cfg::write_cfg(&self.cfg));
         }
         let opened_folder = self.opened_folder().cloned();
         let tdm = tools_data_map.clone();
@@ -305,7 +305,11 @@ impl Control {
         Ok(handle)
     }
 
-    pub fn new(cfg: Cfg) -> Self {
+    pub fn new() -> Self {
+        let cfg = cfg::read_cfg().unwrap_or_else(|e| {
+            warn!("could not read cfg due to {e:?}, returning default");
+            cfg::get_default_cfg()
+        });
         Self {
             cfg,
             ..Default::default()
