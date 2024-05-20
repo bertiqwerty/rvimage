@@ -2,8 +2,8 @@ use core::cmp::Ordering::{Greater, Less};
 use std::ops::{Add, Sub};
 
 use image::{
-    buffer::ConvertBuffer, DynamicImage, GenericImage, GenericImageView, ImageBuffer, Luma, Rgb,
-    Rgba,
+    buffer::ConvertBuffer, DynamicImage, GenericImage, GenericImageView, ImageBuffer, Luma, Pixel,
+    Rgb, Rgba,
 };
 use imageproc::definitions::Clamp;
 
@@ -155,7 +155,7 @@ pub fn draw_on_image<I: GenericImage, F: Fn(&I::Pixel) -> I::Pixel>(
 ) -> I
 where
     <<I as GenericImageView>::Pixel as image::Pixel>::Subpixel: Clamp<f32>,
-    f32: conv::ValueFrom<<<I as GenericImageView>::Pixel as image::Pixel>::Subpixel>,
+    f32: From<<<I as GenericImageView>::Pixel as Pixel>::Subpixel>,
 {
     if let Some(first) = boundary_points.next() {
         for inner_point in inner_points {
