@@ -1,10 +1,10 @@
 use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
-    cfg::{Cache, Cfg, Connection},
+    cfg::{get_default_cfg_usr, Cache, Cfg, Connection},
     paths_selector::PathsSelector,
     types::AsyncResultImage,
 };
-use rvimage_domain::{RvError, RvResult};
+use rvimage_domain::RvResult;
 #[cfg(feature = "azure_blob")]
 use {
     super::azure_blob_reader::{AzureConnectionData, ReadImageFromAzureBlob},
@@ -18,8 +18,12 @@ use super::{
     ssh_reader::ReadImageFromSsh,
 };
 
-fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> RvResult<FileCacheCfgArgs> {
-    args.ok_or_else(|| RvError::new("cfg with file cache needs file_cache_args"))
+fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> FileCacheCfgArgs {
+    args.unwrap_or_else(|| {
+        get_default_cfg_usr()
+            .file_cache_args
+            .expect("default usr cfg needs file_cache_args")
+    })
 }
 
 pub struct ReaderFromCfg {
@@ -37,7 +41,7 @@ impl ReaderFromCfg {
         Ok(Self {
             reader: match (&cfg.prj.connection, &cfg.usr.cache) {
                 (Connection::Local, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone())?;
+                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
                     Box::new(Loader::<FileCache<ReadImageFromPath, _>, _>::new(
                         FileCacheArgs {
                             cfg_args: args,
@@ -48,7 +52,7 @@ impl ReaderFromCfg {
                     )?)
                 }
                 (Connection::Ssh, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone())?;
+                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
 
                     Box::new(
                         Loader::<FileCache<ReadImageFromSsh, _>, FileCacheArgs<_>>::new(
@@ -74,7 +78,7 @@ impl ReaderFromCfg {
                     )?)
                 }
                 (Connection::PyHttp, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone())?;
+                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
 
                     Box::new(
                         Loader::<FileCache<ReadImageFromPyHttp, _>, FileCacheArgs<_>>::new(
@@ -92,7 +96,7 @@ impl ReaderFromCfg {
                 }
                 #[cfg(feature = "azure_blob")]
                 (Connection::AzureBlob, Cache::FileCache) => {
-                    let cache_args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone())?;
+                    let cache_args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
                     let azure_cfg_usr = cfg
                         .usr
                         .azure_blob

@@ -102,7 +102,7 @@ const CFG_DEFAULT_PRJ: &str = r#"
     address = "73.42.73.42"
     "#;
 
-fn get_default_cfg_usr() -> CfgUsr {
+pub fn get_default_cfg_usr() -> CfgUsr {
     toml::from_str(CFG_DEFAULT_USR).expect("default user config broken")
 }
 
