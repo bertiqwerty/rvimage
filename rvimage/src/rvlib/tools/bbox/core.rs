@@ -565,7 +565,7 @@ fn test_bbox_ctrl_h() {
 #[test]
 fn test_coco_import_label_info() {
     const TEST_DATA_FOLDER: &str = "resources/test_data/";
-    let (_, mut world, history) = test_data();
+    let (_, mut world, mut history) = test_data();
     let data = get_specific_mut(&mut world).unwrap();
     data.coco_file = ExportPath {
         path: PathBuf::from(format!("{}catids_12_coco.json", TEST_DATA_FOLDER)),
@@ -578,7 +578,7 @@ fn test_coco_import_label_info() {
         .trigger_import();
     let mut bbox = Bbox::new();
     let events = Events::default();
-    (world, _) = bbox.events_tf(world, history, &events);
+    (world, history) = bbox.events_tf(world, history, &events);
     let data = get_specific(&world).unwrap();
     let label_info_after = data.label_info.clone();
     assert_eq!(label_info_before.labels(), &["foreground", "label"]);
@@ -588,4 +588,15 @@ fn test_coco_import_label_info() {
         .core_options
         .import_export_trigger
         .import_triggered());
+
+    let data = get_specific_mut(&mut world).unwrap();
+    data.coco_file = ExportPath {
+        path: PathBuf::from(format!("{}catids_01_coco_3labels.json", TEST_DATA_FOLDER)),
+        conn: ExportPathConnection::Local,
+    };
+    data.options
+        .core_options
+        .import_export_trigger
+        .trigger_import();
+    bbox.events_tf(world, history, &events);
 }
