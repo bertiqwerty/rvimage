@@ -60,8 +60,8 @@ where
                 get_specific_mut(&mut world),
             ) {
                 (ImportMode::Replace, Some(data_mut)) => {
-                    trace_ok_err(data_mut.set_annotations_map(import_anno_map));
                     data_mut.set_labelinfo(import_label_info);
+                    trace_ok_err(data_mut.set_annotations_map(import_anno_map));
                 }
                 (ImportMode::Merge, Some(data_mut)) => {
                     let (options, label_info, anno_map, export_path) =
