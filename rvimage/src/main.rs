@@ -302,6 +302,7 @@ struct RvImageApp {
     t_last_iterations: [f64; 3],
     egui_perm_shapes: Vec<Shape>,
     egui_tmp_shapes: [Option<Shape>; 2],
+    prev_im_rect: Option<Rect>,
 }
 
 impl RvImageApp {
@@ -647,6 +648,11 @@ impl eframe::App for RvImageApp {
                     let image_response = self.add_image(ui);
                     let mut update_texture = false;
                     if let Some(ir) = image_response {
+                        // react to resizing the image rect
+                        if self.prev_im_rect != Some(ir.rect) {
+                            self.update_perm_annos(&ir.rect);
+                            self.prev_im_rect = Some(ir.rect);
+                        }
                         self.events = self.collect_events(ui, &ir);
                         if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {
                             self.annos = perm_annos;
