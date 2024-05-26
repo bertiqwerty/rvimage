@@ -590,6 +590,7 @@ fn test_coco_import_label_info() {
         .import_export_trigger
         .import_triggered());
 
+    // now we import another coco file with different labels
     let data = get_specific_mut(&mut world).unwrap();
     data.coco_file = ExportPath {
         path: PathBuf::from(format!("{}catids_01_coco_3labels.json", TEST_DATA_FOLDER)),
