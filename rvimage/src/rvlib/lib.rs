@@ -28,13 +28,16 @@ pub use drawme::{
     UpdateTmpAnno, UpdateView, UpdateZoomBox,
 };
 pub use events::{Event, Events, KeyCode};
+pub use file_util::get_test_folder;
 pub use main_loop::MainEventLoop;
+pub use meta_data::MetaData;
 pub use rvimage_domain::{
     bresenham_iter, color_with_intensity, BbI, BrushLine, GeoFig, Line, Polygon, ShapeI,
 };
-pub use tools_data::InstanceAnnotate;
+pub use tools_data::{
+    coco_io::{read_coco, write_coco},
+    InstanceAnnotate, Rot90ToolData,
+};
 pub use view::{
     orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, ImageU8,
 };
-
-pub use file_util::get_test_folder;

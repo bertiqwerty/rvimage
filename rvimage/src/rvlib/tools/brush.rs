@@ -18,7 +18,7 @@ use crate::{
         self,
         annotations::{BrushAnnotations, InstanceAnnotations},
         brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        brush_mut, vis_from_lfoption, InstanceAnnotate, LabelInfo, Rot90ToolData,
+        brush_mut, vis_from_lfoption, ExportAsCoco, InstanceAnnotate, LabelInfo, Rot90ToolData,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
@@ -188,7 +188,9 @@ fn check_export(mut world: World) -> World {
                         }
                     }
                 }
-                match tools_data::write_coco(&meta_data, data, rot90_data.as_ref()) {
+                let coco_file_conn = data.cocofile_conn();
+                match tools_data::write_coco(&meta_data, data, rot90_data.as_ref(), coco_file_conn)
+                {
                     Ok(p) => tracing::info!("export to {p:?} successful"),
                     Err(e) => tracing::error!("export failed due to {e:?}"),
                 };

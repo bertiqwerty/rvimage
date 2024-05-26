@@ -491,12 +491,12 @@ pub fn write_coco<T, A>(
     meta_data: &MetaData,
     tools_data: T,
     rotation_data: Option<&Rot90ToolData>,
+    coco_file: ExportPath,
 ) -> RvResult<(PathBuf, JoinHandle<RvResult<()>>)>
 where
     T: ExportAsCoco<A> + Send + 'static,
     A: InstanceAnnotate + 'static,
 {
-    let coco_file = tools_data.cocofile_conn();
     let meta_data = meta_data.clone();
     let coco_out_path = get_cocofilepath(&meta_data, &coco_file)?;
     let coco_out_path_for_thr = coco_out_path.clone();
@@ -741,7 +741,8 @@ fn test_coco_export() {
         T: ExportAsCoco<A> + Send + 'static,
         A: InstanceAnnotate + 'static,
     {
-        let (coco_file, handle) = write_coco(&meta, tools_data, None).unwrap();
+        let coco_file = tools_data.cocofile_conn();
+        let (coco_file, handle) = write_coco(&meta, tools_data, None, coco_file).unwrap();
         handle.join().unwrap().unwrap();
         (
             read_coco(
@@ -804,7 +805,7 @@ fn test_coco_import_export() {
     };
 
     let (read, _) = read_coco(&meta, &export_path, None).unwrap();
-    let (_, handle) = write_coco(&meta, read.clone(), None).unwrap();
+    let (_, handle) = write_coco(&meta, read.clone(), None, export_path.clone()).unwrap();
     handle.join().unwrap().unwrap();
     no_image_dups(&read.coco_file.path);
     let (read, _) = read_coco(&meta, &export_path, None).unwrap();
@@ -900,8 +901,14 @@ fn test_rotation_export_import() {
         if let Some(annos) = annos {
             *annos = annos.increase();
         }
-        let (out_path, handle) =
-            write_coco(&meta_data, bbox_specifics.clone(), Some(&rotation_data)).unwrap();
+        let coco_file = bbox_specifics.cocofile_conn();
+        let (out_path, handle) = write_coco(
+            &meta_data,
+            bbox_specifics.clone(),
+            Some(&rotation_data),
+            coco_file,
+        )
+        .unwrap();
         handle.join().unwrap().unwrap();
         println!("write to {out_path:?}");
         let out_path = ExportPath {

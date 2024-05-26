@@ -26,7 +26,7 @@ pub use zoom::Zoom;
 pub const BBOX_NAME: &str = bbox::ACTOR_NAME;
 pub const BRUSH_NAME: &str = brush::ACTOR_NAME;
 pub const ZOOM_NAME: &str = "Zoom";
-pub const ROT90_NAME: &str = "Rot90";
+pub const ROT90_NAME: &str = rot90::ACTOR_NAME;
 pub const ALWAYS_ACTIVE_ZOOM: &str = "AlwaysActiveZoom";
 pub const ATTRIBUTES_NAME: &str = "Attributes";
 

@@ -17,7 +17,7 @@ use crate::{
     tools_data::{
         self,
         annotations::{BboxAnnotations, SplitMode},
-        BboxSpecificData, InstanceAnnotate, Rot90ToolData,
+        BboxSpecificData, ExportAsCoco, InstanceAnnotate, Rot90ToolData,
     },
     util::{true_indices, Visibility},
     world::World,
@@ -110,7 +110,12 @@ pub(super) fn export_if_triggered(
         .import_export_trigger
         .export_triggered()
     {
-        match tools_data::write_coco(meta_data, bbox_data.clone(), rot90_data) {
+        match tools_data::write_coco(
+            meta_data,
+            bbox_data.clone(),
+            rot90_data,
+            bbox_data.cocofile_conn(),
+        ) {
             Ok(p) => tracing::info!("export to {p:?} successful"),
             Err(e) => tracing::error!("export failed due to {e:?}"),
         }

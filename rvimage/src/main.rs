@@ -1,8 +1,7 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-use std::{iter, ops::Deref, panic, time::Instant};
-
+use clap::Parser;
 use egui::{
     epaint::{CircleShape, PathShape, RectShape},
     Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
@@ -10,12 +9,26 @@ use egui::{
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
-use rvimage_domain::{access_mask_abs, BbF, Canvas, PtF, PtI, TPtF, TPtI};
+use rvimage_domain::{access_mask_abs, rverr, to_rv, BbF, Canvas, PtF, PtI, RvResult, TPtF, TPtI};
 use rvlib::{
-    color_with_intensity, orig_2_view, orig_pos_2_view_pos, project_on_bb, read_darkmode,
-    result::trace_ok_err, scale_coord, tracing_setup, view_pos_2_orig_pos, Annotation,
-    BboxAnnotation, BrushAnnotation, GeoFig, ImageU8, InstanceAnnotate, KeyCode, MainEventLoop,
-    ShapeI, UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
+    cfg::{ExportPath, ExportPathConnection},
+    color_with_intensity,
+    control::Control,
+    file_util::osstr_to_str,
+    orig_2_view, orig_pos_2_view_pos, project_on_bb, read_darkmode,
+    result::trace_ok_err,
+    scale_coord,
+    tools::{self, BBOX_NAME, BRUSH_NAME},
+    tracing_setup, view_pos_2_orig_pos, write_coco, Annotation, BboxAnnotation, BrushAnnotation,
+    GeoFig, ImageU8, InstanceAnnotate, KeyCode, MainEventLoop, MetaData, Rot90ToolData, ShapeI,
+    UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
+};
+use std::{
+    iter,
+    ops::Deref,
+    panic,
+    path::{Path, PathBuf},
+    time::Instant,
 };
 use tracing::error;
 
@@ -693,30 +706,98 @@ impl eframe::App for RvImageApp {
     }
 }
 
+#[derive(Parser)]
+struct Cli {
+    in_prj_path: Option<std::path::PathBuf>,
+    out_folder: Option<std::path::PathBuf>,
+}
+fn export_coco_path(
+    in_prj_path: &Path,
+    out_folder: &Path,
+    name: &'static str,
+) -> RvResult<ExportPath> {
+    Ok(ExportPath {
+        path: out_folder.join(format!(
+            "{}_coco_{name}.json",
+            osstr_to_str(in_prj_path.file_stem()).map_err(to_rv)?
+        )),
+        conn: ExportPathConnection::Local,
+    })
+}
+fn export_coco(
+    in_prj_path: PathBuf,
+    out_folder: &Path,
+) -> RvResult<(Vec<ExportPath>, MetaData, Option<Rot90ToolData>)> {
+    let mut ctrl = Control::default();
+    let tdm = ctrl.load(in_prj_path.clone());
+    let meta_data = ctrl.meta_data(None, None);
+    if let Ok(tdm) = tdm {
+        let rot90 = tdm
+            .get(tools::ROT90_NAME)
+            .and_then(|d| d.specifics.rot90().ok());
+        let mut handles = vec![];
+        let mut export_paths = vec![];
+        if let Some(tools_data) = tdm.get(BBOX_NAME) {
+            let export_path = export_coco_path(&in_prj_path, out_folder, BBOX_NAME)?;
+            tracing::info!("{:?}", export_path.path);
+            let (_, handle) = write_coco(
+                &meta_data,
+                tools_data.specifics.bbox()?.clone(),
+                rot90,
+                export_path.clone(),
+            )?;
+            export_paths.push(export_path);
+            handles.push(handle);
+        }
+        if let Some(tools_data) = tdm.get(BRUSH_NAME) {
+            let export_path = export_coco_path(&in_prj_path, out_folder, BRUSH_NAME)?;
+            tracing::info!("{:?}", export_path.path);
+            let (_, handle) = write_coco(
+                &meta_data,
+                tools_data.specifics.brush()?.clone(),
+                rot90,
+                export_path.clone(),
+            )?;
+            handles.push(handle);
+            export_paths.push(export_path);
+        }
+        for handle in handles {
+            handle.join().map_err(to_rv)??;
+        }
+        Ok((export_paths, meta_data, rot90.cloned()))
+    } else {
+        Err(rverr!("Could not load project"))
+    }
+}
 fn main() {
     let _guard_flush_to_logfile = tracing_setup::tracing_setup();
     if let Err(e) = panic::catch_unwind(|| {
-        let native_options = eframe::NativeOptions::default();
-        if let Err(e) = eframe::run_native(
-            "RV Image",
-            native_options,
-            Box::new(|cc| {
-                if let Some(dm) = read_darkmode() {
-                    let viz = if dm {
-                        Visuals::dark()
-                    } else {
-                        Visuals::light()
-                    };
-                    let style = Style {
-                        visuals: viz,
-                        ..Style::default()
-                    };
-                    cc.egui_ctx.set_style(style);
-                }
-                Box::new(RvImageApp::new(cc))
-            }),
-        ) {
-            error!("{e:?}");
+        let cli = Cli::parse();
+        if let (Some(in_prj_path), Some(out_folder)) = (cli.in_prj_path, cli.out_folder) {
+            trace_ok_err(export_coco(in_prj_path, &out_folder));
+        } else {
+            let native_options = eframe::NativeOptions::default();
+            if let Err(e) = eframe::run_native(
+                "RV Image",
+                native_options,
+                Box::new(|cc| {
+                    if let Some(dm) = read_darkmode() {
+                        let viz = if dm {
+                            Visuals::dark()
+                        } else {
+                            Visuals::light()
+                        };
+                        let style = Style {
+                            visuals: viz,
+                            ..Style::default()
+                        };
+                        cc.egui_ctx.set_style(style);
+                    }
+                    Box::new(RvImageApp::new(cc))
+                }),
+            ) {
+                error!("{e:?}");
+            }
         }
     }) {
         let panic_s = e
@@ -731,5 +812,34 @@ fn main() {
     }
 }
 
+#[cfg(test)]
+use rvlib::{defer_folder_removal, file_util::DEFAULT_TMPDIR, read_coco};
+
 #[test]
-fn test() {}
+fn test_coco() {
+    let in_prj_path = PathBuf::from("resources/test_data/rvprj_v4-0.json");
+    let tmp_folder = DEFAULT_TMPDIR.join("convertcocotest");
+    std::fs::create_dir_all(&tmp_folder).unwrap();
+    defer_folder_removal!(&tmp_folder);
+    let (export_path, meta_data, rot90) = export_coco(in_prj_path, &tmp_folder).unwrap();
+    let files = tmp_folder
+        .read_dir()
+        .unwrap()
+        .map(|entry| {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            path
+        })
+        .collect::<Vec<_>>();
+    files
+        .iter()
+        .find(|f| osstr_to_str(f.file_stem()).unwrap().contains(BBOX_NAME))
+        .unwrap();
+    files
+        .iter()
+        .find(|f| osstr_to_str(f.file_stem()).unwrap().contains(BRUSH_NAME))
+        .unwrap();
+    for ep in export_path {
+        read_coco(&meta_data, &ep, rot90.as_ref()).unwrap();
+    }
+}
