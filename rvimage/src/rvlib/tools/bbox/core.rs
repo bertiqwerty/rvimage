@@ -565,7 +565,7 @@ fn test_bbox_ctrl_h() {
 #[test]
 fn test_coco_import_label_info() {
     const TEST_DATA_FOLDER: &str = "resources/test_data/";
-    let (_, mut world, mut history) = test_data();
+    let (_, mut world, history) = test_data();
     let data = get_specific_mut(&mut world).unwrap();
     data.coco_file = ExportPath {
         path: PathBuf::from(format!("{}catids_12_coco.json", TEST_DATA_FOLDER)),
@@ -578,11 +578,12 @@ fn test_coco_import_label_info() {
         .trigger_import();
     let mut bbox = Bbox::new();
     let events = Events::default();
-    (world, history) = bbox.events_tf(world, history, &events);
+    let (mut world, history) = bbox.events_tf(world, history, &events);
     let data = get_specific(&world).unwrap();
-    let label_info_after = data.label_info.clone();
     assert_eq!(label_info_before.labels(), &["foreground", "label"]);
-    assert_eq!(label_info_after.labels(), &["first label", "second label"]);
+    assert_eq!(label_info_before.cat_ids(), &[1, 2]);
+    assert_eq!(data.label_info.labels(), &["first label", "second label"]);
+    assert_eq!(data.label_info.cat_ids(), &[1, 2]);
     assert!(!data
         .options
         .core_options
@@ -598,5 +599,19 @@ fn test_coco_import_label_info() {
         .core_options
         .import_export_trigger
         .trigger_import();
-    bbox.events_tf(world, history, &events);
+    let (world, _) = bbox.events_tf(world, history, &events);
+    let data = get_specific(&world).unwrap();
+    assert_eq!(
+        data.label_info.labels(),
+        &["first label", "second label", "third label"]
+    );
+    assert_eq!(data.label_info.cat_ids(), &[0, 1, 2]);
+    let all_occurring_cats = data
+        .annotations_map
+        .iter()
+        .flat_map(|(_, (v, _))| v.cat_idxs().into_iter().copied())
+        .collect::<Vec<usize>>();
+    assert!(all_occurring_cats.contains(&0));
+    assert!(all_occurring_cats.contains(&1));
+    assert!(all_occurring_cats.contains(&2));
 }
