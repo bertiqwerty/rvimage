@@ -18,7 +18,7 @@ fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
                 None => false,
             },
         })
-        .map(|p| Ok(file_util::path_to_str(p?.path())?.to_string()))
+        .map(|p| Ok(file_util::path_to_str(p?.path())?.replace('\\', "/")))
         .collect::<RvResult<Vec<String>>>()
 }
 

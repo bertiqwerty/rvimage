@@ -519,7 +519,7 @@ impl Control {
             // load new image
             if let Some(selected) = &menu_file_selected {
                 let file_path = menu_file_selected
-                    .and_then(|fs| Some(self.paths_navigator.file_path(fs)?.to_string()));
+                    .and_then(|fs| Some(self.paths_navigator.file_path(fs)?.replace('\\', "/")));
                 let im_read = self.read_image(*selected, self.flags.reload_cached_images)?;
                 let read_image_and_idx = match (file_path, menu_file_selected, im_read) {
                     (Some(fp), Some(fidx), Some(ri)) => {

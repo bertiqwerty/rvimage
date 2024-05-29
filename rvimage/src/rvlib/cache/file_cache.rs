@@ -37,7 +37,7 @@ where
     files
         .map(|(prio, file)| {
             let dst_file = file_util::filename_in_tmpdir(file, tmpdir)?;
-            let file_for_thread = file.to_string();
+            let file_for_thread = file.replace('\\', "/");
             let reader_for_thread = reader.clone();
             let job = Box::new(move || {
                 match copy(&file_for_thread, |p| reader_for_thread.read(p), &dst_file) {

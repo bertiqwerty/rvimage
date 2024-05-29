@@ -122,7 +122,7 @@ pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
     Path::new(tmpdir)
         .join(&fname)
         .to_str()
-        .map(|s| s.to_string())
+        .map(|s| s.replace('\\', "/"))
         .ok_or_else(|| rverr!("filename_in_tmpdir could not transform {:?} to &str", fname))
 }
 

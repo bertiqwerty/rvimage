@@ -362,7 +362,7 @@ impl CocoExportData {
                             Ok(poly) => {
                                 let encl_bb = poly.enclosing_bb();
                                 if encl_bb.w * encl_bb.h < 1e-6 && bb.w * bb.h > 1e-6 {
-                                    tracing::warn!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}");
+                                    tracing::warn!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}");
                                     GeoFig::BB(bb)
                                 } else {
                                     if !bb.all_corners_close(encl_bb) {
