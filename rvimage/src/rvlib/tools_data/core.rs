@@ -12,7 +12,7 @@ use super::label_map::LabelMap;
 
 pub const OUTLINE_THICKNESS_CONVERSION: TPtF = 10.0;
 
-const DEFAULT_LABEL: &str = "foreground";
+const DEFAULT_LABEL: &str = "rvimage_fg";
 
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
@@ -299,6 +299,14 @@ impl LabelInfo {
             } else {
                 self.cat_ids.push(1);
             }
+            Ok(())
+        }
+    }
+    pub fn rename_label(&mut self, idx: usize, label: String) -> RvResult<()> {
+        if self.labels.contains(&label) {
+            Err(rverr!("label '{label}' already exists"))
+        } else {
+            self.labels[idx] = label;
             Ok(())
         }
     }

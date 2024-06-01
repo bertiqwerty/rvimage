@@ -40,18 +40,27 @@ fn removable_rows(
     }
     to_be_removed
 }
+enum LabelEditMode {
+    Add,
+    Rename,
+}
 
 fn new_label_text(
     ui: &mut Ui,
     new_label: &mut String,
     are_tools_active: &mut bool,
-) -> Option<String> {
-    let label_field = text_edit_singleline(ui, new_label, are_tools_active);
-    if label_field.lost_focus() {
-        Some(new_label.clone())
-    } else {
-        None
-    }
+) -> Option<(String, LabelEditMode)> {
+    text_edit_singleline(ui, new_label, are_tools_active);
+    ui.horizontal(|ui| {
+        if ui.button("add").clicked() {
+            Some((new_label.clone(), LabelEditMode::Add))
+        } else if ui.button("rename").clicked() {
+            Some((new_label.clone(), LabelEditMode::Rename))
+        } else {
+            None
+        }
+    })
+    .inner
 }
 
 fn show_inactive_tool_menu(
@@ -88,17 +97,28 @@ where
     let mut show_only_change = false;
     let new_label = new_label_text(ui, &mut label_info.new_label, are_tools_active);
     let default_label = label_info.find_default();
-    if let (Some(default_label), Some(new_label)) = (default_label, new_label.as_ref()) {
+    if let (Some(default_label), Some((new_label, _))) = (default_label, new_label.as_ref()) {
         info!("replaced default '{default_label}' label by '{new_label}'");
         default_label.clone_from(new_label);
         label_change = true;
-    } else if let Some(new_label) = new_label {
-        if let Err(e) = label_info.push(new_label, None, None) {
-            warn!("{e:?}");
-            return LabelMenuResult::default();
+    } else if let Some((new_label, edit_mode)) = new_label {
+        match edit_mode {
+            LabelEditMode::Add => {
+                if let Err(e) = label_info.push(new_label, None, None) {
+                    warn!("{e:?}");
+                    return LabelMenuResult::default();
+                }
+                label_change = true;
+                new_idx = label_info.len() - 1;
+            }
+            LabelEditMode::Rename => {
+                if let Err(e) = label_info.rename_label(label_info.cat_idx_current, new_label) {
+                    warn!("{e:?}");
+                    return LabelMenuResult::default();
+                }
+                label_change = true;
+            }
         }
-        label_change = true;
-        new_idx = label_info.len() - 1;
     }
     let mut show_only_current = label_info.show_only_current;
     let mut to_be_removed = None;
