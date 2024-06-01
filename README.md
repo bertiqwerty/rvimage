@@ -107,9 +107,9 @@ You can also use the separate zoom tool and draw a box on the image area you wan
 To move the zoomed area hold <kbd>Ctrl</kbd> and drag
 with the left mouse button. 
 
-### Filtering
+### Filter Expressions for Image Files
 
-You can filter for images to appear in the left selection area. The entered string will reveal those
+You can filter for images files to appear in the left selection area. The entered string will reveal those
 images that contain the string in their full pathname. There are three labeling related keywords, though:
 
 1. `nolabel` reveals all images that have not been labeled with the currently active tool.
