@@ -382,6 +382,10 @@ impl Manipulate for Bbox {
             }
         }
 
+        let visible = get_options(&world).map(|o| o.core_options.visible) == Some(true);
+        let vis = vis_from_lfoption(get_label_info(&world), visible);
+        world.request_redraw_annotations(BBOX_NAME, vis);
+
         (world, history) = check_autopaste(
             world,
             history,
