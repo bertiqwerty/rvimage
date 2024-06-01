@@ -18,7 +18,6 @@ pub(super) fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
 pub fn check_cocoimport<T, A>(
     mut world: World,
     get_options: impl Fn(&World) -> Option<CoreOptions>,
-    get_rot90_data: impl Fn(&World) -> Option<&Rot90ToolData>,
     get_specific: impl Fn(&World) -> Option<&T>,
     get_specific_mut: impl Fn(&mut World) -> Option<&mut T>,
     import_coco: impl Fn(&MetaData, &ExportPath, Option<&Rot90ToolData>) -> Option<T>,

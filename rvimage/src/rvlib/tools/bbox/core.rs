@@ -418,7 +418,6 @@ impl Manipulate for Bbox {
         (world, imported) = check_cocoimport(
             world,
             |w| get_options(w).map(|o| o.core_options),
-            get_rot90_data,
             get_specific,
             get_specific_mut,
             import_coco,
