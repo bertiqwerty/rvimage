@@ -166,12 +166,12 @@ fn shorter_path(
 }
 
 fn close_polygon(
-    mut prev_pos: PrevPos,
+    prev_pos: &mut PrevPos,
     in_menu_selected_label: usize,
     visible: Visibility,
-    mut world: World,
-    mut history: History,
-) -> Option<(World, History, PrevPos)> {
+    world: &mut World,
+    history: &mut History,
+) -> Option<()> {
     if prev_pos.prev_pos.len() > 2 {
         let (c_idx, c_dist) = closest_corner(
             prev_pos.prev_pos.last().cloned()?,
@@ -188,30 +188,31 @@ fn close_polygon(
                 trace_ok_err(Polygon::from_vec(trace_ok_err(shorter_path(
                     c_idx,
                     mc_idx,
-                    prev_pos.prev_pos,
+                    mem::take(prev_pos).prev_pos,
                 ))?))?
             } else {
                 trace_ok_err(Polygon::from_vec(
-                    prev_pos.prev_pos.into_iter().collect::<Vec<_>>(),
+                    mem::take(prev_pos).prev_pos.into_iter().collect::<Vec<_>>(),
                 ))?
             }
         } else {
             trace_ok_err(Polygon::from_vec(
-                prev_pos.prev_pos.into_iter().collect::<Vec<_>>(),
+                mem::take(prev_pos).prev_pos.into_iter().collect::<Vec<_>>(),
             ))?
         };
         prev_pos.prev_pos = vec![];
         let add_annos = |annos: &mut BboxAnnotations| {
             annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
         };
-        change_annos_bbox(&mut world, add_annos);
+        change_annos_bbox(world, add_annos);
         history.push(Record::new(world.clone(), ACTOR_NAME));
         prev_pos.prev_pos = vec![];
         world.request_redraw_annotations(BBOX_NAME, visible);
+        Some(())
     } else {
         tracing::error!("polygon needs at least 3 points");
+        None
     }
-    Some((world, history, prev_pos))
 }
 pub(super) fn on_mouse_held_right(
     mouse_pos: Option<PtF>,
@@ -297,9 +298,13 @@ pub(super) fn on_mouse_released_right(
                 }
                 Ordering::Greater => {
                     prev_pos.prev_pos.push(mp);
-                    (world, history, prev_pos) =
-                        close_polygon(prev_pos, in_menu_selected_label, visible, world, history)
-                            .unwrap();
+                    close_polygon(
+                        &mut prev_pos,
+                        in_menu_selected_label,
+                        visible,
+                        &mut world,
+                        &mut history,
+                    );
                 }
                 _ => (),
             }
@@ -392,10 +397,15 @@ pub(super) fn on_mouse_released_left(
     } else if close {
         let in_menu_selected_label = current_cat_idx(&world);
         if let Some(in_menu_selected_label) = in_menu_selected_label {
-            close_polygon(prev_pos, in_menu_selected_label, visible, world, history).unwrap()
-        } else {
-            (world, history, prev_pos)
+            close_polygon(
+                &mut prev_pos,
+                in_menu_selected_label,
+                visible,
+                &mut world,
+                &mut history,
+            );
         }
+        (world, history, prev_pos)
     } else {
         let in_menu_selected_label = current_cat_idx(&world);
         if let Some(mp) = mouse_pos {
