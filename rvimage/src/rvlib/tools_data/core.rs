@@ -535,8 +535,8 @@ fn test_labelinfo_merge() {
         .unwrap();
     let (li_merged, _) = li_merged.merge(li1);
     let li_reference = LabelInfo {
-        new_label: "foreground".to_string(),
-        labels: vec!["foreground".to_string(), "new_label".to_string()],
+        new_label: DEFAULT_LABEL.to_string(),
+        labels: vec![DEFAULT_LABEL.to_string(), "new_label".to_string()],
         colors: vec![[255, 255, 255], [0, 0, 1]],
         cat_ids: vec![1, 2],
         cat_idx_current: 0,
@@ -545,7 +545,7 @@ fn test_labelinfo_merge() {
     assert_eq!(li_merged, li_reference);
     assert_eq!(li_merged.clone().merge(li_merged.clone()).0, li_reference);
     let li = LabelInfo {
-        new_label: "foreground".to_string(),
+        new_label: DEFAULT_LABEL.to_string(),
         labels: vec!["somelabel".to_string(), "new_label".to_string()],
         colors: vec![[255, 255, 255], [0, 1, 1]],
         cat_ids: vec![1, 2],
@@ -555,9 +555,9 @@ fn test_labelinfo_merge() {
     let li_merged_ = li_merged.clone().merge(li.clone());
     let li_reference = (
         LabelInfo {
-            new_label: "foreground".to_string(),
+            new_label: DEFAULT_LABEL.to_string(),
             labels: vec![
-                "foreground".to_string(),
+                DEFAULT_LABEL.to_string(),
                 "new_label".to_string(),
                 "somelabel".to_string(),
             ],
@@ -572,11 +572,11 @@ fn test_labelinfo_merge() {
     assert_eq!(li_merged_, li_reference);
     let li_merged = li.merge(li_merged);
     let li_reference = LabelInfo {
-        new_label: "foreground".to_string(),
+        new_label: DEFAULT_LABEL.to_string(),
         labels: vec![
             "somelabel".to_string(),
             "new_label".to_string(),
-            "foreground".to_string(),
+            DEFAULT_LABEL.to_string(),
         ],
         colors: vec![[255, 255, 255], [0, 1, 1], li_merged.0.colors[2]],
         cat_ids: vec![1, 2, 3],

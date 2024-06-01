@@ -579,7 +579,7 @@ fn test_coco_import_label_info() {
     let events = Events::default();
     let (mut world, history) = bbox.events_tf(world, history, &events);
     let data = get_specific(&world).unwrap();
-    assert_eq!(label_info_before.labels(), &["foreground", "label"]);
+    assert_eq!(label_info_before.labels(), &["rvimage_fg", "label"]);
     assert_eq!(label_info_before.cat_ids(), &[1, 2]);
     assert_eq!(data.label_info.labels(), &["first label", "second label"]);
     assert_eq!(data.label_info.cat_ids(), &[1, 2]);
