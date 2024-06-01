@@ -3614,7 +3614,7 @@ dependencies = [
 
 [[package]]
 name = "rvimage"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "azure_storage",
  "azure_storage_blobs",
@@ -3654,7 +3654,7 @@ dependencies = [
 
 [[package]]
 name = "rvimage-domain"
-version = "0.4.1"
+version = "0.4.5"
 dependencies = [
  "image 0.25.1",
  "imageproc",
