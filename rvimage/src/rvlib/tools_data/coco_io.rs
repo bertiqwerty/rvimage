@@ -1,12 +1,14 @@
 use std::{
     collections::HashMap,
     fmt::Debug,
+    mem,
     path::{Path, PathBuf},
     thread::{self, JoinHandle},
     vec,
 };
 
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
@@ -21,6 +23,8 @@ use rvimage_domain::{rle_image_to_bb, rle_to_mask, BbF, Canvas, Point, ShapeI, T
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 
 use super::{
+    annotations::InstanceAnnotations,
+    brush_data::BrushAnnoMap,
     core::{new_random_colors, CocoSegmentation, ExportAsCoco},
     BboxSpecificData, BrushToolData, InstanceAnnotate, InstanceExportData, Rot90ToolData,
 };
@@ -481,6 +485,52 @@ fn get_cocofilepath(meta_data: &MetaData, coco_file: &ExportPath) -> RvResult<Pa
         meta_data_to_coco_path(meta_data)
     } else {
         Ok(coco_file.path.clone())
+    }
+}
+
+pub fn to_per_file_crowd(brush_annotations_map: &mut BrushAnnoMap) {
+    for (i, (filename, (annos, _))) in brush_annotations_map.iter_mut().enumerate() {
+        if i % 10 == 0 {
+            info!("export - image #{i} converting {filename} to per-image-crowd");
+        }
+        if let Some(max_catidx) = annos.cat_idxs().iter().max() {
+            let mut canvas_idxes_of_cats = vec![vec![]; max_catidx + 1];
+            for i in 0..(annos.elts().len()) {
+                canvas_idxes_of_cats[annos.cat_idxs()[i]].push(i);
+            }
+            let mut merged_canvases = vec![None; max_catidx + 1];
+            for (cat_idx, canvas_idxes) in canvas_idxes_of_cats.iter().enumerate() {
+                let mut merged_canvas: Option<Canvas> = None;
+                for canvas_idx in canvas_idxes.iter() {
+                    let elt = &annos.elts()[*canvas_idx];
+                    if let Some(merged_canvas) = &mut merged_canvas {
+                        *merged_canvas = mem::take(merged_canvas).merge(elt);
+                    } else {
+                        merged_canvas = Some(elt.clone());
+                    }
+                }
+                merged_canvases[cat_idx] = merged_canvas;
+            }
+            let mut cat_idxes = vec![];
+            let elts = merged_canvases
+                .into_iter()
+                .enumerate()
+                .flat_map(|(i, cvs)| cvs.map(|cvs| (i, cvs)))
+                .map(|(i, cvs)| {
+                    cat_idxes.push(i);
+                    cvs
+                })
+                .collect();
+            let n_elts = cat_idxes.len();
+            let new_annos = trace_ok_warn(InstanceAnnotations::<Canvas>::new(
+                elts,
+                cat_idxes,
+                vec![false; n_elts],
+            ));
+            if let Some(new_annos) = new_annos {
+                *annos = new_annos;
+            }
+        }
     }
 }
 

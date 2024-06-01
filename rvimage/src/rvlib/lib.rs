@@ -35,7 +35,7 @@ pub use rvimage_domain::{
     bresenham_iter, color_with_intensity, BbI, BrushLine, GeoFig, Line, Polygon, ShapeI,
 };
 pub use tools_data::{
-    coco_io::{read_coco, write_coco},
+    coco_io::{read_coco, to_per_file_crowd, write_coco},
     InstanceAnnotate, Rot90ToolData,
 };
 pub use view::{

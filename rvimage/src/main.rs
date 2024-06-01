@@ -17,7 +17,7 @@ use rvlib::{
     file_util::osstr_to_str,
     orig_2_view, orig_pos_2_view_pos, project_on_bb, read_darkmode,
     result::trace_ok_err,
-    scale_coord,
+    scale_coord, to_per_file_crowd,
     tools::{self, BBOX_NAME, BRUSH_NAME},
     tracing_setup, view_pos_2_orig_pos, write_coco, Annotation, BboxAnnotation, BrushAnnotation,
     GeoFig, ImageU8, InstanceAnnotate, KeyCode, MainEventLoop, MetaData, Rot90ToolData, ShapeI,
@@ -707,9 +707,13 @@ impl eframe::App for RvImageApp {
 }
 
 #[derive(Parser)]
+// #[command(version, about, long_about = None)]
+
 struct Cli {
     in_prj_path: Option<std::path::PathBuf>,
     out_folder: Option<std::path::PathBuf>,
+    #[arg(short, long)]
+    per_file_crowd: bool,
 }
 fn export_coco_path(
     in_prj_path: &Path,
@@ -727,6 +731,7 @@ fn export_coco_path(
 fn export_coco(
     in_prj_path: PathBuf,
     out_folder: &Path,
+    per_file_crowd: bool,
 ) -> RvResult<(Vec<ExportPath>, MetaData, Option<Rot90ToolData>)> {
     let mut ctrl = Control::default();
     let tdm = ctrl.load(in_prj_path.clone());
@@ -752,12 +757,11 @@ fn export_coco(
         if let Some(tools_data) = tdm.get(BRUSH_NAME) {
             let export_path = export_coco_path(&in_prj_path, out_folder, BRUSH_NAME)?;
             tracing::info!("{:?}", export_path.path);
-            let (_, handle) = write_coco(
-                &meta_data,
-                tools_data.specifics.brush()?.clone(),
-                rot90,
-                export_path.clone(),
-            )?;
+            let mut brush_data = tools_data.specifics.brush()?.clone();
+            if per_file_crowd {
+                to_per_file_crowd(&mut brush_data.annotations_map);
+            }
+            let (_, handle) = write_coco(&meta_data, brush_data, rot90, export_path.clone())?;
             handles.push(handle);
             export_paths.push(export_path);
         }
@@ -774,7 +778,7 @@ fn main() {
     if let Err(e) = panic::catch_unwind(|| {
         let cli = Cli::parse();
         if let (Some(in_prj_path), Some(out_folder)) = (cli.in_prj_path, cli.out_folder) {
-            trace_ok_err(export_coco(in_prj_path, &out_folder));
+            trace_ok_err(export_coco(in_prj_path, &out_folder, cli.per_file_crowd));
         } else {
             let native_options = eframe::NativeOptions::default();
             if let Err(e) = eframe::run_native(
@@ -821,7 +825,7 @@ fn test_coco() {
     let tmp_folder = DEFAULT_TMPDIR.join("convertcocotest");
     std::fs::create_dir_all(&tmp_folder).unwrap();
     defer_folder_removal!(&tmp_folder);
-    let (export_path, meta_data, rot90) = export_coco(in_prj_path, &tmp_folder).unwrap();
+    let (export_path, meta_data, rot90) = export_coco(in_prj_path, &tmp_folder, true).unwrap();
     let files = tmp_folder
         .read_dir()
         .unwrap()

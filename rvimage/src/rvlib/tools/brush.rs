@@ -1,6 +1,5 @@
 use brush_data::BrushToolData;
 use std::{cmp::Ordering, mem, thread};
-use tracing::info;
 
 use crate::{
     annotations_accessor, annotations_accessor_mut,
@@ -9,7 +8,7 @@ use crate::{
     history::{History, Record},
     make_tool_transform,
     meta_data::MetaData,
-    result::{trace_ok_err, trace_ok_warn},
+    result::trace_ok_err,
     tools::{
         core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
         instance_anno_shared::check_cocoimport,
@@ -18,7 +17,9 @@ use crate::{
         self,
         annotations::{BrushAnnotations, InstanceAnnotations},
         brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        brush_mut, vis_from_lfoption, ExportAsCoco, InstanceAnnotate, LabelInfo, Rot90ToolData,
+        brush_mut,
+        coco_io::to_per_file_crowd,
+        vis_from_lfoption, ExportAsCoco, InstanceAnnotate, LabelInfo, Rot90ToolData,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
@@ -144,49 +145,7 @@ fn check_export(mut world: World) -> World {
             let f_export = move || {
                 let start = std::time::Instant::now();
                 if per_file_crowd {
-                    for (i, (filename, (annos, _))) in data.annotations_map.iter_mut().enumerate() {
-                        if i % 10 == 0 {
-                            info!("export - image #{i} converting {filename} to per-image-crowd");
-                        }
-                        if let Some(max_catidx) = annos.cat_idxs().iter().max() {
-                            let mut canvas_idxes_of_cats = vec![vec![]; max_catidx + 1];
-                            for i in 0..(annos.elts().len()) {
-                                canvas_idxes_of_cats[annos.cat_idxs()[i]].push(i);
-                            }
-                            let mut merged_canvases = vec![None; max_catidx + 1];
-                            for (cat_idx, canvas_idxes) in canvas_idxes_of_cats.iter().enumerate() {
-                                let mut merged_canvas: Option<Canvas> = None;
-                                for canvas_idx in canvas_idxes.iter() {
-                                    let elt = &annos.elts()[*canvas_idx];
-                                    if let Some(merged_canvas) = &mut merged_canvas {
-                                        *merged_canvas = mem::take(merged_canvas).merge(elt);
-                                    } else {
-                                        merged_canvas = Some(elt.clone());
-                                    }
-                                }
-                                merged_canvases[cat_idx] = merged_canvas;
-                            }
-                            let mut cat_idxes = vec![];
-                            let elts = merged_canvases
-                                .into_iter()
-                                .enumerate()
-                                .flat_map(|(i, cvs)| cvs.map(|cvs| (i, cvs)))
-                                .map(|(i, cvs)| {
-                                    cat_idxes.push(i);
-                                    cvs
-                                })
-                                .collect();
-                            let n_elts = cat_idxes.len();
-                            let new_annos = trace_ok_warn(InstanceAnnotations::<Canvas>::new(
-                                elts,
-                                cat_idxes,
-                                vec![false; n_elts],
-                            ));
-                            if let Some(new_annos) = new_annos {
-                                *annos = new_annos;
-                            }
-                        }
-                    }
+                    to_per_file_crowd(&mut data.annotations_map);
                 }
                 let coco_file_conn = data.cocofile_conn();
                 match tools_data::write_coco(&meta_data, data, rot90_data.as_ref(), coco_file_conn)
