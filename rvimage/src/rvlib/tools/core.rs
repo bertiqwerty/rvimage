@@ -233,7 +233,7 @@ where
 }
 pub(super) fn check_autopaste<T>(
     mut world: World,
-    history: History,
+    mut history: History,
     actor: &'static str,
     mut get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
@@ -248,6 +248,7 @@ where
         .map(|o| o.auto_paste)
         .unwrap_or(false);
     if world.data.meta_data.flags.is_loading_screen_active == Some(false) && auto_paste {
+        history.push(Record::new(world.clone(), actor));
         replace_annotations_with_clipboard(
             world,
             history,
