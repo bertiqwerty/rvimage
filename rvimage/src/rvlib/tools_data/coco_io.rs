@@ -151,6 +151,42 @@ where
     Ok((bb_f, segmentation))
 }
 
+struct WarnerCounting<'a> {
+    n_warnings: usize,
+    n_max_warnings: usize,
+    suppressing: bool,
+    suppress_str: &'a str,
+}
+impl<'a> WarnerCounting<'a> {
+    fn new(n_max_warnings: usize, suppress_str: &'a str) -> Self {
+        Self {
+            n_warnings: 0,
+            n_max_warnings,
+            suppressing: false,
+            suppress_str,
+        }
+    }
+    fn warn_str<'b>(&mut self, msg: &'b str) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        if self.n_warnings < self.n_max_warnings {
+            self.n_warnings += 1;
+            Some(msg)
+        } else if !self.suppressing {
+            self.suppressing = true;
+            Some(self.suppress_str)
+        } else {
+            None
+        }
+    }
+    fn warn(&mut self, msg: String) {
+        if let Some(msg) = self.warn_str(msg.as_str()) {
+            tracing::warn!(msg);
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CocoExportData {
     info: CocoInfo,
@@ -285,6 +321,11 @@ impl CocoExportData {
         let mut annotations_brush: HashMap<String, (Vec<Canvas>, Vec<usize>, ShapeI)> =
             HashMap::new();
 
+        let n_annotations = self.annotations.len();
+        let mut warner = WarnerCounting::new(
+            n_annotations / 10,
+            "suppressing further warnings during coco import",
+        );
         for coco_anno in self.annotations {
             let (file_path, w_coco, h_coco) = id_image_map[&coco_anno.image_id];
 
@@ -340,9 +381,9 @@ impl CocoExportData {
                 Some(CocoSegmentation::Polygon(segmentation)) => {
                     let geo = if !segmentation.is_empty() {
                         if segmentation.len() > 1 {
-                            tracing::error!(
+                            return Err(rverr!(
                                 "multiple polygons per box not supported. ignoring all but first."
-                            )
+                            ));
                         }
                         let n_points = segmentation[0].len();
                         let coco_data = &segmentation[0];
@@ -366,15 +407,13 @@ impl CocoExportData {
                             Ok(poly) => {
                                 let encl_bb = poly.enclosing_bb();
                                 if encl_bb.w * encl_bb.h < 1e-6 && bb.w * bb.h > 1e-6 {
-                                    tracing::warn!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}");
+                                    warner.warn(format!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}"));
                                     GeoFig::BB(bb)
                                 } else {
                                     if !bb.all_corners_close(encl_bb) {
-                                        tracing::warn!(
-                                        "bounding box and polygon enclosing box do not match. bb: {bb:?}, poly: {encl_bb:?}",
-                                    );
+                                        let msg = format!("bounding box and polygon enclosing box do not match. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}");
+                                        warner.warn(msg);
                                     }
-
                                     // check if the poly is just a bounding box
                                     if poly.points().len() == 4
                                 // all points are bb corners
@@ -429,7 +468,7 @@ impl CocoExportData {
                 }
             }
             if invalid_segmentation_exists {
-                tracing::warn!("invalid segmentation in coco file {file_path}");
+                warner.warn(format!("invalid segmentation in coco file {file_path}"));
             }
         }
         let bbox_data = BboxSpecificData::from_coco_export_data(InstanceExportData {
@@ -1067,4 +1106,15 @@ fn test_instance_to_coco() {
         .unwrap();
     assert_ne!(coco_seg, None);
     assert_eq!(segmentation, coco_seg);
+}
+
+#[test]
+fn test_warner() {
+    let suppress_msg = "no further warnings";
+    let mut warner = WarnerCounting::new(3, suppress_msg);
+    assert_eq!(warner.warn_str("a"), Some("a"));
+    assert_eq!(warner.warn_str("a"), Some("a"));
+    assert_eq!(warner.warn_str("b"), Some("b"));
+    assert_eq!(warner.warn_str("a"), Some(suppress_msg));
+    assert_eq!(warner.warn_str("a"), None);
 }
