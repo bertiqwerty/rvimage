@@ -49,6 +49,7 @@ pub fn natural_cmp(s1: &str, s2: &str) -> Ordering {
 pub fn version_label() -> String {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     const GIT_DESC: &str = env!("GIT_DESC");
+    #[allow(clippy::const_is_empty)]
     if !GIT_DESC.is_empty() {
         const GIT_DIRTY: &str = env!("GIT_DIRTY");
         let is_dirty = GIT_DIRTY == "true";
