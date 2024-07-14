@@ -707,8 +707,6 @@ impl eframe::App for RvImageApp {
 }
 
 #[derive(Parser)]
-// #[command(version, about, long_about = None)]
-
 struct Cli {
     in_prj_path: Option<std::path::PathBuf>,
     out_folder: Option<std::path::PathBuf>,

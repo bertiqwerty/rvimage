@@ -489,6 +489,7 @@ impl Control {
                 is_loading_screen_active,
                 is_file_list_empty,
             },
+            Some(prj_path.to_path_buf()),
         )
     }
 

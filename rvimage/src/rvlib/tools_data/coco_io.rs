@@ -12,7 +12,8 @@ use tracing::info;
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
-    file_util::{self, path_to_str},
+    file_util::{self, path_to_str, PathPair},
+    image_util,
     meta_data::MetaData,
     result::trace_ok_warn,
     ssh,
@@ -195,7 +196,11 @@ pub struct CocoExportData {
     categories: Vec<CocoBboxCategory>,
 }
 impl CocoExportData {
-    fn from_tools_data<T, A>(tools_data: T, rotation_data: Option<&Rot90ToolData>) -> RvResult<Self>
+    fn from_tools_data<T, A>(
+        tools_data: T,
+        rotation_data: Option<&Rot90ToolData>,
+        prj_path: Option<&Path>,
+    ) -> RvResult<Self>
     where
         T: ExportAsCoco<A>,
         A: InstanceAnnotate + 'static,
@@ -244,13 +249,30 @@ impl CocoExportData {
         let mut box_id = 0;
         type AnnoType<'a, A> = (usize, (&'a String, &'a (Vec<A>, Vec<usize>, ShapeI)));
         let make_anno_map = |(image_idx, (file_path, (bbs, cat_idxs, shape))): AnnoType<A>| {
+            let prj_path = if let Some(prj_path) = prj_path {
+                prj_path
+            } else {
+                Path::new("")
+            };
+            let p = PathPair::new(file_path.clone(), prj_path);
+            let p_abs = p.path_absolute();
+            let shape = if Path::new(p_abs).exists() {
+                let im = trace_ok_warn(image_util::read_image(file_path));
+                if let Some(im) = im {
+                    ShapeI::new(im.width(), im.height())
+                } else {
+                    *shape
+                }
+            } else {
+                *shape
+            };
+            let n_rotations = get_n_rotations(rotation_data, file_path);
             bbs.iter()
                 .zip(cat_idxs.iter())
                 .flat_map(|(inst_anno, cat_idx): (&A, &usize)| {
-                    let n_rotations = get_n_rotations(rotation_data, file_path);
                     trace_ok_warn(instance_to_coco_anno(
                         inst_anno,
-                        shape,
+                        &shape,
                         n_rotations,
                         options.is_export_absolute,
                     ))
@@ -592,7 +614,11 @@ where
     let rotation_data = rotation_data.cloned();
     let conn = coco_file.conn.clone();
     let handle = thread::spawn(move || {
-        let coco_data = CocoExportData::from_tools_data(tools_data, rotation_data.as_ref())?;
+        let coco_data = CocoExportData::from_tools_data(
+            tools_data,
+            rotation_data.as_ref(),
+            meta_data.prj_path(),
+        )?;
         let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
         conn.write(
             &data_str,
@@ -645,7 +671,7 @@ use {
         defer_file_removal,
         meta_data::{ConnectionData, MetaDataFlags},
     },
-    file_util::{PathPair, DEFAULT_TMPDIR},
+    file_util::DEFAULT_TMPDIR,
     rvimage_domain::{make_test_bbs, BbI},
     std::{fs, str::FromStr},
 };
@@ -883,6 +909,7 @@ fn test_coco_import_export() {
         Some(PathPair::new("ohm_somefolder".to_string(), Path::new(""))),
         Some(TEST_DATA_FOLDER.to_string()),
         MetaDataFlags::default(),
+        None,
     );
     let test_file_src = format!("{TEST_DATA_FOLDER}catids_12_coco_imwolab.json");
     let test_file = "tmp_coco.json";
@@ -918,6 +945,7 @@ fn test_coco_import() -> RvResult<()> {
             Some(PathPair::new(filename.to_string(), Path::new(""))),
             Some(TEST_DATA_FOLDER.to_string()),
             MetaDataFlags::default(),
+            None,
         );
         let (read, _) = read_coco(&meta, &ExportPath::default(), None).unwrap();
         assert_eq!(read.label_info.cat_ids(), &cat_ids);

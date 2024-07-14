@@ -67,20 +67,6 @@ pub struct BrushToolData {
 }
 impl BrushToolData {
     implement_annotations_getters!(BrushAnnotations);
-    pub fn set_annotations_map(&mut self, map: BrushAnnoMap) -> RvResult<()> {
-        for (_, (annos, _)) in map.iter() {
-            for cat_idx in annos.cat_idxs() {
-                let len = self.label_info.len();
-                if *cat_idx >= len {
-                    return Err(rverr!(
-                        "cat idx {cat_idx} does not have a label, out of bounds, {len}"
-                    ));
-                }
-            }
-        }
-        self.annotations_map = map;
-        Ok(())
-    }
     pub fn from_coco_export_data(input_data: InstanceExportData<Canvas>) -> RvResult<Self> {
         let label_info = input_data.label_info()?;
         let mut out_data = Self {
@@ -177,6 +163,16 @@ impl ExportAsCoco<Canvas> for BrushToolData {
         }
     }
     fn set_annotations_map(&mut self, map: AnnotationsMap<Canvas>) -> RvResult<()> {
+        for (_, (annos, _)) in map.iter() {
+            for cat_idx in annos.cat_idxs() {
+                let len = self.label_info.len();
+                if *cat_idx >= len {
+                    return Err(rverr!(
+                        "cat idx {cat_idx} does not have a label, out of bounds, {len}"
+                    ));
+                }
+            }
+        }
         self.annotations_map = map;
         Ok(())
     }

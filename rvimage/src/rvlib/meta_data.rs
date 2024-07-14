@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -31,8 +31,10 @@ pub struct MetaData {
     pub opened_folder: Option<PathPair>,
     pub export_folder: Option<String>,
     pub flags: MetaDataFlags,
+    prj_path: Option<PathBuf>,
 }
 impl MetaData {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         file_path_pair: Option<PathPair>,
         file_selected_idx: Option<usize>,
@@ -41,6 +43,7 @@ impl MetaData {
         opened_folder: Option<PathPair>,
         export_folder: Option<String>,
         flags: MetaDataFlags,
+        prj_path: Option<PathBuf>,
     ) -> Self {
         MetaData {
             file_path_pair,
@@ -50,6 +53,7 @@ impl MetaData {
             opened_folder,
             export_folder,
             flags,
+            prj_path,
         }
     }
     pub fn from_filepath(
@@ -65,6 +69,7 @@ impl MetaData {
             opened_folder: None,
             export_folder: None,
             flags: MetaDataFlags::default(),
+            prj_path: Some(prj_path.to_path_buf()),
         }
     }
     pub fn file_path_absolute(&self) -> Option<&str> {
@@ -72,5 +77,8 @@ impl MetaData {
     }
     pub fn file_path_relative(&self) -> Option<&str> {
         self.file_path_pair.as_ref().map(|fpp| fpp.path_relative())
+    }
+    pub fn prj_path(&self) -> Option<&Path> {
+        self.prj_path.as_deref()
     }
 }
