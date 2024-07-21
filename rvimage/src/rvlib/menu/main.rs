@@ -32,20 +32,27 @@ fn show_popup(
 ) -> Info {
     ui.memory_mut(|m| m.open_popup(popup_id));
     let mut new_msg = Info::None;
-    egui::popup_above_or_below_widget(ui, popup_id, response, egui::AboveOrBelow::Above, |ui| {
-        let max_msg_len = 500;
-        let shortened_msg = if msg.len() > max_msg_len {
-            &msg[..max_msg_len]
-        } else {
-            msg
-        };
-        ui.label(format!("{icon} {shortened_msg}"));
-        new_msg = if ui.button("Close").clicked() {
-            Info::None
-        } else {
-            info_message
-        }
-    });
+    egui::popup_above_or_below_widget(
+        ui,
+        popup_id,
+        response,
+        egui::AboveOrBelow::Above,
+        egui::PopupCloseBehavior::CloseOnClickOutside,
+        |ui| {
+            let max_msg_len = 500;
+            let shortened_msg = if msg.len() > max_msg_len {
+                &msg[..max_msg_len]
+            } else {
+                msg
+            };
+            ui.label(format!("{icon} {shortened_msg}"));
+            new_msg = if ui.button("Close").clicked() {
+                Info::None
+            } else {
+                info_message
+            }
+        },
+    );
     new_msg
 }
 

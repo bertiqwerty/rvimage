@@ -795,7 +795,7 @@ fn main() {
                         };
                         cc.egui_ctx.set_style(style);
                     }
-                    Box::new(RvImageApp::new(cc))
+                    Ok(Box::new(RvImageApp::new(cc)))
                 }),
             ) {
                 error!("{e:?}");
