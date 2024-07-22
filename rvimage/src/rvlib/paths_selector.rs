@@ -20,22 +20,25 @@ fn make_folder_label(folder_path: Option<&str>) -> RvResult<String> {
     match folder_path {
         Some(fp) => {
             let folder_path = Path::new(fp);
+            if folder_path.is_file() {
+                return Err(rverr!("path {folder_path:?} is a file"));
+            }
             let last = folder_path.ancestors().next();
             let one_before_last = folder_path.ancestors().nth(1);
             match (one_before_last, last) {
                 (Some(obl), Some(last)) => Ok(if obl.to_string_lossy().is_empty() {
-                    file_util::to_stem_str(last)?.to_string()
+                    file_util::to_name_str(last)?.to_string()
                 } else {
                     format!(
                         "{}/{}",
-                        file_util::to_stem_str(obl)?,
-                        file_util::to_stem_str(last)?,
+                        file_util::to_name_str(obl)?,
+                        file_util::to_name_str(last)?,
                     )
                 }),
-                (None, Some(l)) => Ok(if fp.is_empty() {
+                (None, Some(last)) => Ok(if fp.is_empty() {
                     "".to_string()
                 } else {
-                    file_util::to_stem_str(l)?.to_string()
+                    file_util::to_name_str(last)?.to_string()
                 }),
                 _ => Err(rverr!("could not convert path {:?} to str", fp)),
             }
