@@ -193,7 +193,9 @@ fn export_file_menu(
         ui.radio_value(&mut export_path.conn, ExportPathConnection::Local, "local");
         ui.radio_value(&mut export_path.conn, ExportPathConnection::Ssh, "ssh");
     });
-    text_edit_singleline(ui, &mut file_txt, are_tools_active);
+    text_edit_singleline(ui, &mut file_txt, are_tools_active)
+        .on_hover_text(path_to_str(&export_path.path)?);
+
     if path_to_str(&export_path.path)? != file_txt {
         export_path.path = PathBuf::from_str(&file_txt).map_err(to_rv)?;
     }
