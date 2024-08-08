@@ -1,5 +1,10 @@
 use rvimage_domain::PtF;
 
+#[derive(Clone, Copy, Debug)]
+pub enum ZoomAmount {
+    Delta(f64),
+    Factor(f64),
+}
 macro_rules! action_keycode {
     ($name:ident, $action:ident, $key_code:ident) => {
         pub fn $name(&self) -> bool {
@@ -47,6 +52,17 @@ impl Events {
     pub fn events(mut self, mut events: Vec<Event>) -> Self {
         self.events.append(&mut events);
         self
+    }
+    pub fn zoom(&self) -> Option<ZoomAmount> {
+        self.events
+            .iter()
+            .find(|e| matches!(e, Event::Zoom(_)))
+            .map(|e| match e {
+                Event::Zoom(z) => *z,
+                _ => {
+                    unreachable!();
+                }
+            })
     }
     action_keycode!(held_alt, Held, Alt);
     action_keycode!(held_shift, Held, Shift);
@@ -110,4 +126,5 @@ pub enum Event {
     Released(KeyCode),
     Held(KeyCode),
     MouseWheel(i64),
+    Zoom(ZoomAmount),
 }

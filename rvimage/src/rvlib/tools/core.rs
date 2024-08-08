@@ -599,14 +599,14 @@ macro_rules! make_tool_transform {
         $self:expr,
         $world:expr,
         $history:expr,
-        $event:expr,
+        $events:expr,
         [$(($key_event:ident, $key_btn:expr, $method_name:ident)),*]
     ) => {
         if false {
             ($world, $history)
         }
-        $(else if $event.$key_event($key_btn) {
-            $self.$method_name($event, $world, $history)
+        $(else if $events.$key_event($key_btn) {
+            $self.$method_name($events, $world, $history)
         })*
         else {
             ($world, $history)

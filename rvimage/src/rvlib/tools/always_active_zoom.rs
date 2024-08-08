@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use rvimage_domain::{BbF, BbI, ShapeI};
 
 use crate::{
-    events::{Events, KeyCode},
+    events::{Events, KeyCode, ZoomAmount},
     history::History,
     make_tool_transform,
     tools::core::Manipulate,
@@ -15,19 +15,28 @@ use super::{core::Mover, zoom::move_zoom_box};
 fn event_move_zoom_box(events: &Events) -> bool {
     events.held_ctrl() && (events.pressed(KeyCode::MouseLeft) || events.held(KeyCode::MouseLeft))
 }
-fn zoom_box_mouse_wheel(zoom_box: Option<BbF>, shape_orig: ShapeI, y_delta: f64) -> Option<BbF> {
+fn zoom_box_mouse_wheel(
+    zoom_box: Option<BbF>,
+    shape_orig: ShapeI,
+    amount: ZoomAmount,
+) -> Option<BbF> {
     let current_zb = if let Some(zb) = zoom_box {
         zb
     } else {
         BbI::from_arr(&[0, 0, shape_orig.w, shape_orig.h]).into()
     };
     let clip_val = 1.0;
-    let y_delta_clipped = if y_delta > 0.0 {
-        y_delta.min(clip_val)
-    } else {
-        y_delta.max(-clip_val)
+    let factor = match amount {
+        ZoomAmount::Delta(y_delta) => {
+            let y_delta_clipped = if y_delta > 0.0 {
+                y_delta.min(clip_val)
+            } else {
+                y_delta.max(-clip_val)
+            };
+            1.0 - y_delta_clipped * 0.1
+        }
+        ZoomAmount::Factor(factor) => factor,
     };
-    let factor = 1.0 - y_delta_clipped * 0.1;
 
     Some(current_zb.center_scale(factor, shape_orig))
 }
@@ -73,9 +82,17 @@ impl AlwaysActiveZoom {
             let zb = if events.released(KeyCode::Key0) {
                 None
             } else if events.released(KeyCode::PlusEquals) {
-                zoom_box_mouse_wheel(*world.zoom_box(), world.shape_orig(), 1.0)
+                zoom_box_mouse_wheel(
+                    *world.zoom_box(),
+                    world.shape_orig(),
+                    ZoomAmount::Delta(1.0),
+                )
             } else if events.released(KeyCode::Minus) {
-                zoom_box_mouse_wheel(*world.zoom_box(), world.shape_orig(), -1.0)
+                zoom_box_mouse_wheel(
+                    *world.zoom_box(),
+                    world.shape_orig(),
+                    ZoomAmount::Delta(-1.0),
+                )
             } else {
                 *world.zoom_box()
             };
@@ -94,10 +111,21 @@ impl Manipulate for AlwaysActiveZoom {
         let zoomed = events.held_ctrl()
             && (events.released(KeyCode::Key0)
                 || events.released(KeyCode::PlusEquals)
-                || events.released(KeyCode::Minus));
+                || events.released(KeyCode::Minus)
+                || events.zoom().is_some());
         Some(zoomed || event_move_zoom_box(events))
     }
-    fn events_tf(&mut self, world: World, history: History, events: &Events) -> (World, History) {
+    fn events_tf(
+        &mut self,
+        mut world: World,
+        history: History,
+        events: &Events,
+    ) -> (World, History) {
+        let zoom_factor = events.zoom();
+        if let Some(z) = zoom_factor {
+            let zb = zoom_box_mouse_wheel(*world.zoom_box(), world.shape_orig(), z);
+            world.set_zoom_box(zb);
+        }
         make_tool_transform!(
             self,
             world,
@@ -119,7 +147,7 @@ fn test_zb() {
     fn test(zb: Option<BbF>, y_delta: f64, reference_coords: &[u32; 4]) {
         println!("y_delta {}", y_delta);
         let shape = ShapeI::new(200, 100);
-        let zb_new = zoom_box_mouse_wheel(zb, shape, y_delta);
+        let zb_new = zoom_box_mouse_wheel(zb, shape, ZoomAmount::Delta(y_delta));
         assert_eq!(zb_new, Some(BbI::from_arr(reference_coords).into()));
     }
     test(None, 1.0, &[10, 5, 180, 90]);

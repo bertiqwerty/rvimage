@@ -27,7 +27,7 @@ pub use drawme::{
     Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateImage, UpdatePermAnnos,
     UpdateTmpAnno, UpdateView, UpdateZoomBox,
 };
-pub use events::{Event, Events, KeyCode};
+pub use events::{Event, Events, KeyCode, ZoomAmount};
 pub use file_util::get_test_folder;
 pub use main_loop::MainEventLoop;
 pub use meta_data::MetaData;

@@ -21,7 +21,7 @@ use rvlib::{
     tools::{self, BBOX_NAME, BRUSH_NAME},
     tracing_setup, view_pos_2_orig_pos, write_coco, Annotation, BboxAnnotation, BrushAnnotation,
     GeoFig, ImageU8, InstanceAnnotate, KeyCode, MainEventLoop, MetaData, Rot90ToolData, ShapeI,
-    UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
+    UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox, ZoomAmount,
 };
 use std::{
     iter,
@@ -192,24 +192,38 @@ fn map_mouse_events(
     let mut btn_codes = LastSensedBtns::default();
     ui.input(|i| {
         for e in i.events.iter() {
-            if let egui::Event::PointerButton {
-                pos: _,
-                button,
-                pressed: _,
-                modifiers,
-            } = e
-            {
-                let modifier_events = map_modifiers(modifiers);
-                if let Some(me) = modifier_events {
-                    let btn_code = match button {
-                        PointerButton::Primary => KeyCode::MouseLeft,
-                        PointerButton::Secondary => KeyCode::MouseRight,
-                        _ => KeyCode::DontCare,
-                    };
-                    btn_codes.btn_codes.push(btn_code);
-                    btn_codes.modifiers = me;
+            match e {
+                egui::Event::PointerButton {
+                    pos: _,
+                    button,
+                    pressed: _,
+                    modifiers,
+                } => {
+                    let modifier_events = map_modifiers(modifiers);
+                    if let Some(me) = modifier_events {
+                        let btn_code = match button {
+                            PointerButton::Primary => KeyCode::MouseLeft,
+                            PointerButton::Secondary => KeyCode::MouseRight,
+                            _ => KeyCode::DontCare,
+                        };
+                        btn_codes.btn_codes.push(btn_code);
+                        btn_codes.modifiers = me;
+                    }
                 }
-            }
+                egui::Event::Zoom(z) => {
+                    events.push(rvlib::Event::Zoom(ZoomAmount::Factor(*z as f64)));
+                }
+                egui::Event::MouseWheel {
+                    unit: _,
+                    delta,
+                    modifiers,
+                } => {
+                    if modifiers.ctrl {
+                        events.push(rvlib::Event::Zoom(ZoomAmount::Delta(delta.y as f64)));
+                    }
+                }
+                _ => {}
+            };
         }
     });
     if !btn_codes.is_empty() {
