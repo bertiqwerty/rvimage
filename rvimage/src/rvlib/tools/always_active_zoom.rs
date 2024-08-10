@@ -112,8 +112,7 @@ impl Manipulate for AlwaysActiveZoom {
             || events.held_ctrl()
                 && (events.released(KeyCode::Key0)
                     || events.released(KeyCode::PlusEquals)
-                    || events.released(KeyCode::Minus)
-                    || events.mouse_wheel().is_some());
+                    || events.released(KeyCode::Minus));
         Some(zoomed || event_move_zoom_box(events))
     }
     fn events_tf(

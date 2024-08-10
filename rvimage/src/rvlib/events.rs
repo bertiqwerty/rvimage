@@ -64,17 +64,6 @@ impl Events {
                 }
             })
     }
-    pub fn mouse_wheel(&self) -> Option<i64> {
-        self.events
-            .iter()
-            .find(|e| matches!(e, Event::MouseWheel(_)))
-            .map(|e| match e {
-                Event::MouseWheel(d) => *d,
-                _ => {
-                    unreachable!();
-                }
-            })
-    }
     action_keycode!(held_alt, Held, Alt);
     action_keycode!(held_shift, Held, Shift);
     action_keycode!(held_ctrl, Held, Ctrl);
@@ -136,6 +125,5 @@ pub enum Event {
     Pressed(KeyCode),
     Released(KeyCode),
     Held(KeyCode),
-    MouseWheel(i64),
     Zoom(ZoomAmount),
 }
