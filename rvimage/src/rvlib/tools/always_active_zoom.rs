@@ -108,11 +108,12 @@ impl Manipulate for AlwaysActiveZoom {
         }
     }
     fn has_been_used(&self, events: &Events) -> Option<bool> {
-        let zoomed = events.held_ctrl()
-            && (events.released(KeyCode::Key0)
-                || events.released(KeyCode::PlusEquals)
-                || events.released(KeyCode::Minus)
-                || events.zoom().is_some());
+        let zoomed = events.zoom().is_some()
+            || events.held_ctrl()
+                && (events.released(KeyCode::Key0)
+                    || events.released(KeyCode::PlusEquals)
+                    || events.released(KeyCode::Minus)
+                    || events.mouse_wheel().is_some());
         Some(zoomed || event_move_zoom_box(events))
     }
     fn events_tf(
