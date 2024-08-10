@@ -2,17 +2,26 @@ use std::path::Path;
 
 use rvimage_domain::{rverr, RvResult};
 
-use crate::{control::SortType, file_util, util::natural_cmp};
+use crate::{
+    control::SortType,
+    file_util::{self, PathPair},
+    util::natural_cmp,
+};
 
 fn list_file_labels(
-    file_paths: &[String],
+    file_paths: &[PathPair],
     mut filter_predicate: impl FnMut(&str) -> bool,
 ) -> RvResult<Vec<(usize, String)>> {
     file_paths
         .iter()
         .enumerate()
-        .filter(|(_, p)| filter_predicate(p))
-        .map(|(i, p)| Ok((i, file_util::to_name_str(Path::new(p))?.to_string())))
+        .filter(|(_, p)| filter_predicate(p.path_relative()))
+        .map(|(i, p)| {
+            Ok((
+                i,
+                file_util::to_name_str(Path::new(p.path_relative()))?.to_string(),
+            ))
+        })
         .collect::<RvResult<Vec<_>>>()
 }
 
@@ -48,7 +57,7 @@ fn make_folder_label(folder_path: Option<&str>) -> RvResult<String> {
 }
 
 pub struct PathsSelector {
-    file_paths: Vec<String>,
+    file_paths: Vec<PathPair>,
     filtered_file_labels: Vec<(usize, String)>, // index-string pairs necessary due to filtering
     folder_label: String,
 }
@@ -63,21 +72,27 @@ impl PathsSelector {
     }
 
     pub fn natural_sort(&mut self) -> RvResult<()> {
-        self.file_paths.sort_by(|s1, s2| natural_cmp(s1, s2));
+        self.file_paths
+            .sort_by(|s1, s2| natural_cmp(s1.path_relative(), s2.path_relative()));
         self.filtered_file_labels = list_file_labels(&self.file_paths, |_| true)?;
         Ok(())
     }
 
     pub fn alphabetical_sort(&mut self) -> RvResult<()> {
-        self.file_paths.sort();
+        self.file_paths
+            .sort_by(|s1, s2| s1.path_relative().cmp(s2.path_relative()));
         self.filtered_file_labels = list_file_labels(&self.file_paths, |_| true)?;
         Ok(())
     }
 
-    pub fn new(mut file_paths: Vec<String>, folder_path: Option<String>) -> RvResult<Self> {
+    pub fn new(mut file_paths: Vec<PathPair>, folder_path: Option<String>) -> RvResult<Self> {
         match SortType::default() {
-            SortType::Natural => file_paths.sort_by(|s1, s2| natural_cmp(s1, s2)),
-            SortType::Alphabetical => file_paths.sort(),
+            SortType::Natural => {
+                file_paths.sort_by(|s1, s2| natural_cmp(s1.path_relative(), s2.path_relative()))
+            }
+            SortType::Alphabetical => {
+                file_paths.sort_by(|s1, s2| s1.path_relative().cmp(s2.path_relative()))
+            }
         }
         let filtered_file_labels = list_file_labels(&file_paths, |_| true)?;
         let folder_label = make_folder_label(folder_path.as_deref())?;
@@ -88,9 +103,9 @@ impl PathsSelector {
         })
     }
 
-    pub fn file_selected_path(&self, filtered_label_idx: usize) -> Option<&str> {
+    pub fn file_selected_path(&self, filtered_label_idx: usize) -> Option<&PathPair> {
         let idx = self.label_idx_2_path_idx(filtered_label_idx);
-        idx.map(|idx| self.file_paths[idx].as_str())
+        idx.map(|idx| &self.file_paths[idx])
     }
 
     pub fn filter(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {
@@ -113,10 +128,16 @@ impl PathsSelector {
             .map(|(idx, fl)| (*idx, fl.as_str()))
     }
 
-    pub fn filtered_file_paths(&self) -> Vec<&str> {
+    pub fn filtered_file_paths(&self) -> Vec<&PathPair> {
         self.filtered_file_labels
             .iter()
-            .map(|(idx, _)| self.file_paths[*idx].as_str())
+            .map(|(idx, _)| &self.file_paths[*idx])
+            .collect()
+    }
+    pub fn filtered_abs_file_paths(&self) -> Vec<&str> {
+        self.filtered_file_labels
+            .iter()
+            .map(|(idx, _)| self.file_paths[*idx].path_absolute())
             .collect()
     }
 

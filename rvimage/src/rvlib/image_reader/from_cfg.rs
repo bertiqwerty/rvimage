@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
     cfg::{get_default_cfg_usr, Cache, Cfg, Connection},
@@ -147,14 +149,14 @@ impl LoadImageForGui for ReaderFromCfg {
     fn read_image(
         &mut self,
         file_selected_idx: usize,
-        file_paths: &[&str],
+        abs_file_paths: &[&str],
         reload: bool,
     ) -> AsyncResultImage {
         self.reader
-            .read_image(file_selected_idx, file_paths, reload)
+            .read_image(file_selected_idx, abs_file_paths, reload)
     }
 
-    fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector> {
-        self.reader.open_folder(folder_path)
+    fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector> {
+        self.reader.open_folder(abs_folder_path, prj_path)
     }
 }

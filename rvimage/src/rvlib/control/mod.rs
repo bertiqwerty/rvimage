@@ -323,7 +323,7 @@ impl Control {
     pub fn read_image(&mut self, file_label_selected_idx: usize, reload: bool) -> AsyncResultImage {
         let wrapped_image = self.reader.as_mut().and_then(|r| {
             self.paths_navigator.paths_selector().as_ref().map(|ps| {
-                let ffp = ps.filtered_file_paths();
+                let ffp = ps.filtered_abs_file_paths();
                 r.read_image(file_label_selected_idx, &ffp, reload)
             })
         });
@@ -387,7 +387,8 @@ impl Control {
 
     pub fn load_opened_folder_content(&mut self, sort_type: SortType) -> RvResult<()> {
         if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
-            let selector = reader.open_folder(opened_folder.path_absolute())?;
+            let prj_folder = self.cfg.current_prj_path();
+            let selector = reader.open_folder(opened_folder.path_absolute(), prj_folder)?;
             self.paths_navigator = PathsNavigator::new(Some(selector), sort_type)?;
         }
         Ok(())
@@ -464,8 +465,8 @@ impl Control {
         file_selected_idx: Option<usize>,
         is_loading_screen_active: Option<bool>,
     ) -> MetaData {
-        let file_path = file_selected_idx
-            .and_then(|fsidx| self.paths_navigator.file_path(fsidx).map(|s| s.to_string()));
+        let file_path =
+            file_selected_idx.and_then(|fsidx| self.paths_navigator.file_path(fsidx).cloned());
         let open_folder = self.opened_folder().cloned();
         let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg());
         let connection_data = match &ssh_cfg {
@@ -477,9 +478,8 @@ impl Control {
             .map(|cfg| cfg.home_folder().map(|ef| ef.to_string()).unwrap());
         let is_file_list_empty = Some(file_path.is_none());
         let prj_path = self.cfg.current_prj_path();
-        let fpp = file_path.map(|fp| PathPair::new(fp, prj_path));
         MetaData::new(
-            fpp,
+            file_path,
             file_selected_idx,
             connection_data,
             ssh_cfg,
@@ -519,10 +519,16 @@ impl Control {
         {
             // load new image
             if let Some(selected) = &menu_file_selected {
-                let file_path = menu_file_selected
-                    .and_then(|fs| Some(self.paths_navigator.file_path(fs)?.replace('\\', "/")));
+                let abs_file_path = menu_file_selected.and_then(|fs| {
+                    Some(
+                        self.paths_navigator
+                            .file_path(fs)?
+                            .path_absolute()
+                            .replace('\\', "/"),
+                    )
+                });
                 let im_read = self.read_image(*selected, self.flags.reload_cached_images)?;
-                let read_image_and_idx = match (file_path, menu_file_selected, im_read) {
+                let read_image_and_idx = match (abs_file_path, menu_file_selected, im_read) {
                     (Some(fp), Some(fidx), Some(ri)) => {
                         info!("loading {} from {}", ri.info, fp);
                         self.file_selected_idx = menu_file_selected;

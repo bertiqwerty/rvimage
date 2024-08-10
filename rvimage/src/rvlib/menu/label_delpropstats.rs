@@ -6,6 +6,7 @@ use tracing::info;
 use super::{main::TextBuffers, ui_util::button_triggerable_number};
 use crate::{
     control::{Control, SortType},
+    file_util::PathPair,
     paths_selector::PathsSelector,
     tools_data::{AnnotationsMap, BboxSpecificData, BrushToolData, InstanceAnnotate},
     world::ToolsDataMap,
@@ -17,39 +18,42 @@ pub(super) struct Stats {
 }
 pub fn delete_annotations<T>(
     annotations_map: &mut AnnotationsMap<T>,
-    paths: &[&str],
+    paths: &[&PathPair],
 ) -> RvResult<()>
 where
     T: Clone + Serialize + DeserializeOwned,
 {
     for p in paths {
-        annotations_map.remove(p);
+        annotations_map.remove_pp(p);
     }
     Ok(())
 }
 pub fn propagate_instance_annotations<T>(
     annotations_map: &mut AnnotationsMap<T>,
-    paths: &[&str],
+    paths: &[&PathPair],
 ) -> RvResult<()>
 where
     T: InstanceAnnotate,
 {
-    let prop_anno_shape = annotations_map.get(paths[0]).cloned();
+    let prop_anno_shape = annotations_map.get_pp(paths[0]).cloned();
     if let Some((prop_anno, shape)) = prop_anno_shape {
         for p in paths {
-            annotations_map.insert(p.to_string(), (prop_anno.clone(), shape));
+            annotations_map.insert_pp(p, (prop_anno.clone(), shape));
         }
     }
     Ok(())
 }
-pub fn n_instance_annotated_images<T>(annotations_map: &AnnotationsMap<T>, paths: &[&str]) -> usize
+pub fn n_instance_annotated_images<T>(
+    annotations_map: &AnnotationsMap<T>,
+    paths: &[&PathPair],
+) -> usize
 where
     T: InstanceAnnotate,
 {
     paths
         .iter()
         .filter(|p| {
-            if let Some((anno, _)) = annotations_map.get(p) {
+            if let Some((anno, _)) = annotations_map.get_pp(p) {
                 !anno.elts().is_empty()
             } else {
                 false
@@ -157,7 +161,11 @@ pub fn labels_and_sorting(
                                 let range = selected_file_idx..end;
                                 let paths = &ps.filtered_file_paths()[range];
                                 if !paths.is_empty() {
-                                    info!("propagating {} labels from {}", paths.len(), paths[0]);
+                                    info!(
+                                        "propagating {} labels from {}",
+                                        paths.len(),
+                                        paths[0].path_relative()
+                                    );
                                     if let Some(data) = tools_data_map.get_mut(active_tool_name) {
                                         let _ = data.specifics.apply_mut(
                                             |d| {
@@ -181,7 +189,11 @@ pub fn labels_and_sorting(
                                 let range = selected_file_idx..end;
                                 let paths = &ps.filtered_file_paths()[range];
                                 if !paths.is_empty() {
-                                    info!("deleting {} labels from {}", paths.len(), paths[0]);
+                                    info!(
+                                        "deleting {} labels from {}",
+                                        paths.len(),
+                                        paths[0].path_relative()
+                                    );
                                     if let Some(data) = tools_data_map.get_mut(active_tool_name) {
                                         let _ = data.specifics.apply_mut(
                                             |d| delete_annotations(&mut d.annotations_map, paths),

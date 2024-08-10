@@ -1,7 +1,9 @@
+use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
 use crate::cache::Cache;
+use crate::file_util::PathPair;
 use crate::paths_selector::PathsSelector;
 use crate::types::AsyncResultImage;
 use rvimage_domain::RvResult;
@@ -20,11 +22,11 @@ pub trait LoadImageForGui {
     fn read_image(
         &mut self,
         file_selected_idx: usize,
-        file_paths: &[&str],
+        abs_file_paths: &[&str],
         reload: bool,
     ) -> AsyncResultImage;
     /// get the user input of a new folder and open it
-    fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector>;
+    fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector>;
 }
 
 pub struct Loader<C, CA>
@@ -58,12 +60,12 @@ where
     fn read_image(
         &mut self,
         selected_file_idx: usize,
-        file_paths: &[&str],
+        abs_file_paths: &[&str],
         reload: bool,
     ) -> AsyncResultImage {
         let mut loaded = self
             .cache
-            .load_from_cache(selected_file_idx, file_paths, reload);
+            .load_from_cache(selected_file_idx, abs_file_paths, reload);
         let mut counter = 0usize;
         while let Err(e) = loaded {
             tracing::info!(
@@ -76,7 +78,7 @@ where
             self.cache = C::new(self.cache_args.clone())?;
             loaded = self
                 .cache
-                .load_from_cache(selected_file_idx, file_paths, reload);
+                .load_from_cache(selected_file_idx, abs_file_paths, reload);
             if counter == self.n_cache_recreations {
                 tracing::info!("max recreations (={counter}) reached.");
                 return loaded;
@@ -86,8 +88,14 @@ where
         loaded
     }
 
-    fn open_folder(&self, folder_path: &str) -> RvResult<PathsSelector> {
-        let file_paths = self.cache.ls(folder_path)?;
-        PathsSelector::new(file_paths, Some(folder_path.to_string()))
+    fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector> {
+        let file_paths = self
+            .cache
+            .ls(abs_folder_path)?
+            .iter()
+            .map(|p| PathPair::new(p.to_string(), prj_path))
+            .collect::<Vec<_>>();
+
+        PathsSelector::new(file_paths, Some(abs_folder_path.to_string()))
     }
 }

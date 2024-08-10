@@ -1,5 +1,6 @@
 use super::{filter::FilterExpr, SortType};
 use crate::{
+    file_util::PathPair,
     paths_selector::PathsSelector,
     result::{ignore_error, trace_ok_err},
     world::ToolsDataMap,
@@ -177,7 +178,7 @@ impl PathsNavigator {
         self.paths_selector().as_ref().map(|ps| ps.folder_label())
     }
 
-    pub fn file_path(&self, file_idx: usize) -> Option<&str> {
+    pub fn file_path(&self, file_idx: usize) -> Option<&PathPair> {
         self.paths_selector()
             .as_ref()
             .and_then(|ps| ps.file_selected_path(file_idx))

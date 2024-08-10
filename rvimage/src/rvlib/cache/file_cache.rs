@@ -156,8 +156,8 @@ where
             let (file, th_res) = elt;
             self.cached_paths.insert(file, th_res);
         }
-        let selected_file = files[selected_file_idx];
-        let selected_file_state = &self.cached_paths[selected_file];
+        let selected_file = &files[selected_file_idx];
+        let selected_file_state = &self.cached_paths[*selected_file];
         match selected_file_state {
             ThreadResult::Ok(path_info_pair) => {
                 let LocalImagePathInfoPair { path, info } = path_info_pair;
@@ -178,7 +178,7 @@ where
                             .reader
                             .file_info(selected_file)
                             .unwrap_or_else(|_| file_util::local_file_info(&pic));
-                        *self.cached_paths.get_mut(selected_file).unwrap() =
+                        *self.cached_paths.get_mut(*selected_file).unwrap() =
                             ThreadResult::Ok(LocalImagePathInfoPair {
                                 path: pic,
                                 info: info.clone(),
@@ -265,7 +265,7 @@ fn test_file_cache() -> RvResult<()> {
             selected + cache.n_next_images
         };
         let reload = false;
-        cache.load_from_cache(selected, files, reload)?;
+        cache.load_from_cache(selected, &files, reload)?;
         let n_millis = (max_i - min_i) * 100;
         println!("waiting {} millis", n_millis);
         thread::sleep(Duration::from_millis(n_millis as u64));

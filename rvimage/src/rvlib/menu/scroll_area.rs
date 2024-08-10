@@ -43,9 +43,11 @@ pub fn scroll_area_file_selector(
             if let Some(path) = path {
                 let sl_ = ui.selectable_label(true, file_label);
                 let sl_ = if let Some(fis) = file_info_selected {
-                    sl_.on_hover_text(RichText::new(format!("{path}\n{fis}")).monospace())
+                    sl_.on_hover_text(
+                        RichText::new(format!("{}\n{fis}", path.path_absolute())).monospace(),
+                    )
                 } else {
-                    sl_.on_hover_text(path)
+                    sl_.on_hover_text(path.path_absolute())
                 };
 
                 if scroll_to_selected_label {
@@ -59,8 +61,9 @@ pub fn scroll_area_file_selector(
             ui.selectable_label(false, file_label)
         };
         if sl.clicked_by(egui::PointerButton::Secondary) {
+            // copy to clipboard
             if let Some(fsp) = paths_selector.file_selected_path(filtered_label_idx) {
-                ui.output_mut(|po| po.copied_text = fsp.to_string());
+                ui.output_mut(|po| po.copied_text = fsp.path_absolute().to_string());
             }
         }
         if sl.clicked() {

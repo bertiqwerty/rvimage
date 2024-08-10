@@ -3,7 +3,11 @@ use std::{collections::HashMap, ops::Index};
 use rvimage_domain::ShapeI;
 use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 
-use crate::{cfg::read_cfg, file_util::tf_to_annomap_key, result::trace_ok_err};
+use crate::{
+    cfg::read_cfg,
+    file_util::{tf_to_annomap_key, PathPair},
+    result::trace_ok_err,
+};
 
 fn serialize_relative_paths<S, T>(
     data: &HashMap<String, (T, ShapeI)>,
@@ -101,6 +105,9 @@ where
     pub fn insert(&mut self, key: String, value: (T, ShapeI)) {
         self.map.insert(key, value);
     }
+    pub fn insert_pp(&mut self, key: &PathPair, value: (T, ShapeI)) {
+        self.map.insert(key.path_relative().to_string(), value);
+    }
     pub fn get_mut(&mut self, absolute_path: &str) -> Option<&mut (T, ShapeI)> {
         self.map.get_mut(absolute_path)
     }
@@ -112,6 +119,9 @@ where
     }
     pub fn get(&self, key: &str) -> Option<&(T, ShapeI)> {
         self.map.get(key)
+    }
+    pub fn get_pp(&self, key: &PathPair) -> Option<&(T, ShapeI)> {
+        self.get(key.path_relative())
     }
     pub fn contains_key(&self, key: &str) -> bool {
         self.map.contains_key(key)
@@ -127,5 +137,8 @@ where
     }
     pub fn remove(&mut self, key: &str) {
         self.map.remove(key);
+    }
+    pub fn remove_pp(&mut self, key: &PathPair) {
+        self.remove(key.path_relative());
     }
 }
