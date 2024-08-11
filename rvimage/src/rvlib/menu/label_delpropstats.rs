@@ -103,18 +103,24 @@ pub fn labels_and_sorting(
         Some(format!("{n_files_filtered} files"))
     };
     let get_annotation_info = |ps: &PathsSelector| {
+        let len_n_filtered = (ps.len_filtered().checked_ilog10().unwrap_or(0) + 1) as usize;
+        let paths = &ps.filtered_file_paths();
         tools_data_map
             .iter()
             .flat_map(|(active_tool_name, data)| {
-                let paths = &ps.filtered_file_paths();
                 let n = data.specifics.apply(
                     |d: &BboxSpecificData| {
                         Ok(n_instance_annotated_images(&d.annotations_map, paths))
                     },
                     |d: &BrushToolData| Ok(n_instance_annotated_images(&d.annotations_map, paths)),
                 );
-                n.ok()
-                    .map(|n| format!("{n} files with {active_tool_name} annotations"))
+                n.ok().map(|n| {
+                    format!(
+                        "{n:width1$} have {active_tool_name:width2$} annos",
+                        width1 = len_n_filtered,
+                        width2 = 5
+                    )
+                })
             })
             .reduce(|s1, s2| format!("{s1}\n{s2}"))
     };
