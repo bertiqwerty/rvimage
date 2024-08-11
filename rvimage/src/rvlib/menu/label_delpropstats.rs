@@ -93,18 +93,19 @@ pub fn labels_and_sorting(
         ctrl.reload(*filename_sort_type)?;
     }
     if let Some(info) = &stats.n_files_filtered_info {
-        ui.label(info);
+        ui.label(egui::RichText::new(info).monospace());
     }
     if let Some(info) = &stats.n_files_annotated_info {
-        ui.label(info);
+        ui.label(egui::RichText::new(info).monospace());
     }
     let get_file_info = |ps: &PathsSelector| {
         let n_files_filtered = ps.len_filtered();
         Some(format!("{n_files_filtered} files"))
     };
     let get_annotation_info = |ps: &PathsSelector| {
-        if let Some(active_tool_name) = active_tool_name {
-            if let Some(data) = tools_data_map.get(active_tool_name) {
+        tools_data_map
+            .iter()
+            .flat_map(|(active_tool_name, data)| {
                 let paths = &ps.filtered_file_paths();
                 let n = data.specifics.apply(
                     |d: &BboxSpecificData| {
@@ -114,12 +115,8 @@ pub fn labels_and_sorting(
                 );
                 n.ok()
                     .map(|n| format!("{n} files with {active_tool_name} annotations"))
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+            })
+            .reduce(|s1, s2| format!("{s1}\n{s2}"))
     };
     if let Some(ps) = ctrl.paths_navigator.paths_selector() {
         if stats.n_files_filtered_info.is_none() {
