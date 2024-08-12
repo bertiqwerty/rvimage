@@ -5,8 +5,8 @@ use super::{
     core::{self, AnnotationsMap, CocoRle, CocoSegmentation, ExportAsCoco, LabelInfo},
     InstanceAnnotate, InstanceExportData,
 };
-use crate::implement_annotations_getters;
 use crate::{cfg::ExportPath, result::trace_ok_warn, BrushLine};
+use crate::{implement_annotate, implement_annotations_getters};
 use rvimage_domain::{
     access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, rverr, BbF, Canvas, PtF, PtI,
     PtS, RvResult, ShapeI, TPtF, TPtI, TPtS, BB,
@@ -295,6 +295,9 @@ impl InstanceAnnotate for Canvas {
         min_dist
     }
 }
+
+implement_annotate!(BrushToolData);
+
 #[cfg(test)]
 use rvimage_domain::{BbI, Line};
 #[test]

@@ -8,7 +8,7 @@ use crate::{
     control::{Control, SortType},
     file_util::PathPair,
     paths_selector::PathsSelector,
-    tools_data::{AnnotationsMap, BboxSpecificData, BrushToolData, InstanceAnnotate},
+    tools_data::{AnnotationsMap, BboxToolData, BrushToolData, InstanceAnnotate},
     world::ToolsDataMap,
 };
 #[derive(Default)]
@@ -109,9 +109,7 @@ pub fn labels_and_sorting(
             .iter()
             .flat_map(|(active_tool_name, data)| {
                 let n = data.specifics.apply(
-                    |d: &BboxSpecificData| {
-                        Ok(n_instance_annotated_images(&d.annotations_map, paths))
-                    },
+                    |d: &BboxToolData| Ok(n_instance_annotated_images(&d.annotations_map, paths)),
                     |d: &BrushToolData| Ok(n_instance_annotated_images(&d.annotations_map, paths)),
                 );
                 n.ok().map(|n| {

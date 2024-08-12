@@ -17,7 +17,7 @@ use crate::{
     tools_data::{
         self,
         annotations::{BboxAnnotations, SplitMode},
-        BboxSpecificData, ExportAsCoco, InstanceAnnotate, Rot90ToolData,
+        BboxToolData, ExportAsCoco, InstanceAnnotate, Rot90ToolData,
     },
     util::{true_indices, Visibility},
     world::World,
@@ -95,13 +95,13 @@ pub(super) fn import_coco(
     meta_data: &MetaData,
     coco_file: &ExportPath,
     rot90_data: Option<&Rot90ToolData>,
-) -> Option<BboxSpecificData> {
+) -> Option<BboxToolData> {
     trace_ok_err(tools_data::coco_io::read_coco(meta_data, coco_file, rot90_data).map(|(d, _)| d))
 }
 
 pub(super) fn export_if_triggered(
     meta_data: &MetaData,
-    bbox_data: &BboxSpecificData,
+    bbox_data: &BboxToolData,
     rot90_data: Option<&Rot90ToolData>,
 ) {
     if bbox_data

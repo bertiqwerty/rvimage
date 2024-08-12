@@ -467,6 +467,24 @@ pub enum CocoSegmentation {
     Rle(CocoRle),
 }
 
+#[macro_export]
+macro_rules! implement_annotate {
+    ($tooldata:ident) => {
+        impl $crate::tools_data::core::Annotate for $tooldata {
+            fn has_annos(&self, relative_path: &str) -> bool {
+                if let Some(v) = self.get_annos(relative_path) {
+                    !v.is_empty()
+                } else {
+                    false
+                }
+            }
+        }
+    };
+}
+pub trait Annotate {
+    fn has_annos(&self, relative_path: &str) -> bool;
+}
+
 pub trait InstanceAnnotate: Clone + Default + PartialEq + Serialize + DeserializeOwned {
     fn is_contained_in_image(&self, shape: ShapeI) -> bool;
     fn contains<P>(&self, point: P) -> bool

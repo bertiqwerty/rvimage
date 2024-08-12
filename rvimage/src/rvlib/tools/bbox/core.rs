@@ -41,7 +41,7 @@ tools_data_accessors!(
     ACTOR_NAME,
     MISSING_DATA_MSG,
     bbox_data,
-    BboxSpecificData,
+    BboxToolData,
     bbox,
     bbox_mut
 );

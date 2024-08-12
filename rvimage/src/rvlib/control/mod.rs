@@ -602,7 +602,7 @@ use {
         defer_file_removal,
         file_util::DEFAULT_TMPDIR,
         tools::BBOX_NAME,
-        tools_data::{BboxSpecificData, ToolSpecifics, ToolsData},
+        tools_data::{BboxToolData, ToolSpecifics, ToolsData},
     },
     rvimage_domain::{make_test_bbs, ShapeI},
     std::{collections::HashMap, str::FromStr},
@@ -620,7 +620,7 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
         }
     }
 
-    let mut bbox_data = BboxSpecificData::new();
+    let mut bbox_data = BboxToolData::new();
     bbox_data
         .label_info
         .push("x".to_string(), None, None)

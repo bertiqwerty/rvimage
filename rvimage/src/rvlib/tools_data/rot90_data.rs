@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{implement_annotations_getters, ShapeI};
+use crate::{implement_annotate, implement_annotations_getters, ShapeI};
 
 use super::label_map::LabelMap;
 
@@ -37,6 +37,9 @@ impl NRotations {
             other
         }
     }
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Self::Zero)
+    }
 }
 
 pub type Rot90AnnotationsMap = LabelMap<NRotations>;
@@ -63,3 +66,5 @@ impl Rot90ToolData {
         self.annotations_map = map;
     }
 }
+
+implement_annotate!(Rot90ToolData);

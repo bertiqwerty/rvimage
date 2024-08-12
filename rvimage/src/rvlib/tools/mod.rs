@@ -9,7 +9,7 @@ mod zoom;
 
 use crate::{
     history::{History, Record},
-    tools_data::{AttributesToolData, BboxSpecificData, BrushToolData, VisibleInactiveToolsState},
+    tools_data::{AttributesToolData, BboxToolData, BrushToolData, VisibleInactiveToolsState},
     world::World,
 };
 
@@ -93,7 +93,7 @@ make_tools!(
         BBOX_NAME,
         false,
         false,
-        BboxSpecificData::default(),
+        BboxToolData::default(),
         [BRUSH_NAME]
     ),
     (

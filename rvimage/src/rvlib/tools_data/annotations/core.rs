@@ -106,6 +106,12 @@ where
     pub fn elts(&self) -> &Vec<T> {
         &self.elts
     }
+    pub fn len(&self) -> usize {
+        self.elts.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.elts.is_empty()
+    }
     pub fn deselect(&mut self, box_idx: usize) {
         self.selected_mask[box_idx] = false;
     }

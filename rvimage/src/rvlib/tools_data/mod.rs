@@ -6,11 +6,11 @@ use crate::{
 };
 
 pub use self::core::{
-    vis_from_lfoption, ExportAsCoco, ImportExportTrigger, ImportMode, InstanceAnnotate,
+    vis_from_lfoption, Annotate, ExportAsCoco, ImportExportTrigger, ImportMode, InstanceAnnotate,
     InstanceExportData, LabelInfo, VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
 };
 pub use self::{
-    attributes_data::AttributesToolData, bbox_data::BboxSpecificData, brush_data::BrushToolData,
+    attributes_data::AttributesToolData, bbox_data::BboxToolData, brush_data::BrushToolData,
     coco_io::write_coco, rot90_data::Rot90ToolData,
 };
 use rvimage_domain::{rverr, RvError, RvResult, TPtF};
@@ -52,8 +52,8 @@ macro_rules! variant_access_free {
     };
 }
 
-variant_access_free!(Bbox, bbox, 'a, &'a ToolSpecifics, &'a BboxSpecificData);
-variant_access_free!(Bbox, bbox_mut, 'a, &'a mut ToolSpecifics, &'a mut BboxSpecificData);
+variant_access_free!(Bbox, bbox, 'a, &'a ToolSpecifics, &'a BboxToolData);
+variant_access_free!(Bbox, bbox_mut, 'a, &'a mut ToolSpecifics, &'a mut BboxToolData);
 variant_access_free!(Brush, brush, 'a, &'a ToolSpecifics, &'a BrushToolData);
 variant_access_free!(Brush, brush_mut, 'a, &'a mut ToolSpecifics, &'a mut BrushToolData);
 variant_access_free!(Attributes, attributes, 'a, &'a ToolSpecifics, &'a AttributesToolData);
@@ -149,7 +149,7 @@ macro_rules! tools_data_accessors_objects {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[allow(clippy::large_enum_variant)]
 pub enum ToolSpecifics {
-    Bbox(BboxSpecificData),
+    Bbox(BboxToolData),
     Brush(BrushToolData),
     Rot90(Rot90ToolData),
     Zoom(()),
@@ -157,11 +157,11 @@ pub enum ToolSpecifics {
     Attributes(AttributesToolData),
 }
 impl ToolSpecifics {
-    variant_access!(Bbox, bbox, &Self, &BboxSpecificData);
+    variant_access!(Bbox, bbox, &Self, &BboxToolData);
     variant_access!(Brush, brush, &Self, &BrushToolData);
     variant_access!(Rot90, rot90, &Self, &Rot90ToolData);
     variant_access!(Attributes, attributes, &Self, &AttributesToolData);
-    variant_access!(Bbox, bbox_mut, &mut Self, &mut BboxSpecificData);
+    variant_access!(Bbox, bbox_mut, &mut Self, &mut BboxToolData);
     variant_access!(Brush, brush_mut, &mut Self, &mut BrushToolData);
     variant_access!(Rot90, rot90_mut, &mut Self, &mut Rot90ToolData);
     variant_access!(
@@ -173,7 +173,7 @@ impl ToolSpecifics {
 
     pub fn apply_mut<T>(
         &mut self,
-        mut f_bbox: impl FnMut(&mut BboxSpecificData) -> RvResult<T>,
+        mut f_bbox: impl FnMut(&mut BboxToolData) -> RvResult<T>,
         mut f_brush: impl FnMut(&mut BrushToolData) -> RvResult<T>,
     ) -> RvResult<T> {
         match self {
@@ -184,7 +184,7 @@ impl ToolSpecifics {
     }
     pub fn apply<T>(
         &self,
-        mut f_bbox: impl FnMut(&BboxSpecificData) -> RvResult<T>,
+        mut f_bbox: impl FnMut(&BboxToolData) -> RvResult<T>,
         mut f_brush: impl FnMut(&BrushToolData) -> RvResult<T>,
     ) -> RvResult<T> {
         match self {
@@ -289,7 +289,7 @@ impl ToolSpecifics {
 }
 impl Default for ToolSpecifics {
     fn default() -> Self {
-        ToolSpecifics::Bbox(BboxSpecificData::default())
+        ToolSpecifics::Bbox(BboxToolData::default())
     }
 }
 

@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     cfg::ExportPath,
-    file_util, implement_annotations_getters,
+    file_util, implement_annotate, implement_annotations_getters,
     tools_data::{annotations::SplitMode, core},
     GeoFig,
 };
@@ -49,7 +49,7 @@ impl Default for Options {
     }
 }
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
-pub struct BboxSpecificData {
+pub struct BboxToolData {
     pub label_info: LabelInfo,
     pub annotations_map: BboxAnnoMap,
     #[serde(skip)]
@@ -60,7 +60,7 @@ pub struct BboxSpecificData {
     pub highlight_circles: Vec<Circle>,
 }
 
-impl BboxSpecificData {
+impl BboxToolData {
     implement_annotations_getters!(BboxAnnotations);
 
     pub fn separate_data(self) -> (LabelInfo, BboxAnnoMap, ExportPath) {
@@ -103,7 +103,7 @@ impl BboxSpecificData {
     pub fn new() -> Self {
         let label_info = LabelInfo::default();
 
-        BboxSpecificData {
+        BboxToolData {
             label_info,
             annotations_map: AnnotationsMap::new(),
             clipboard: None,
@@ -137,13 +137,15 @@ impl BboxSpecificData {
     }
 }
 
-impl Default for BboxSpecificData {
+implement_annotate!(BboxToolData);
+
+impl Default for BboxToolData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ExportAsCoco<GeoFig> for BboxSpecificData {
+impl ExportAsCoco<GeoFig> for BboxToolData {
     fn cocofile_conn(&self) -> ExportPath {
         self.coco_file.clone()
     }

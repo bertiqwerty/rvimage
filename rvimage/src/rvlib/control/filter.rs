@@ -6,8 +6,8 @@ use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
 use crate::result::ignore_error;
 use crate::tools::ATTRIBUTES_NAME;
 use crate::tools_data::annotations::InstanceAnnotations;
-use crate::tools_data::InstanceAnnotate;
 use crate::tools_data::LabelInfo;
+use crate::tools_data::{Annotate, InstanceAnnotate, ToolSpecifics};
 use crate::world::ToolsDataMap;
 use rvimage_domain::{rverr, RvError, RvResult};
 
@@ -43,6 +43,7 @@ where
 pub enum FilterPredicate {
     FilterStr(String),
     Label(Box<FilterPredicate>),
+    Tool(Box<FilterPredicate>),
     Attribute(Box<FilterPredicate>),
     Nolabel,
     Anylabel,
@@ -104,6 +105,27 @@ impl FilterPredicate {
                             |d| Ok(contains_label(label, &d.label_info, d.get_annos(path))),
                             |d| Ok(contains_label(label, &d.label_info, d.get_annos(path))),
                         ) == Ok(true)
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                }
+            }
+            FilterPredicate::Tool(tool_name) => {
+                let tool_name = match &(**tool_name) {
+                    FilterPredicate::FilterStr(tool) => tool,
+                    _ => Err(RvError::new("Label must be a string"))?,
+                };
+                if let Some(tdm) = tdm {
+                    if let Some(data) = tdm.get(tool_name) {
+                        match &data.specifics {
+                            ToolSpecifics::Attributes(d) => d.has_annos(path),
+                            ToolSpecifics::Bbox(d) => d.has_annos(path),
+                            ToolSpecifics::Brush(d) => d.has_annos(path),
+                            ToolSpecifics::Rot90(d) => d.has_annos(path),
+                            _ => false,
+                        }
                     } else {
                         true
                     }
@@ -189,6 +211,9 @@ ops_factory!(
     Operator::make_unary("attr", |a: FilterPredicate| FilterPredicate::Attribute(
         Box::new(a)
     )),
+    Operator::make_unary("tool", |a: FilterPredicate| FilterPredicate::Tool(
+        Box::new(a)
+    )),
     Operator::make_constant("nolabel", FilterPredicate::Nolabel),
     Operator::make_constant("anylabel", FilterPredicate::Anylabel)
 );
@@ -202,6 +227,7 @@ impl MatchLiteral for PathMatcher {
             || trimmed.starts_with("nolabel")
             || trimmed.starts_with("anylabel")
             || trimmed.starts_with("attr")
+            || trimmed.starts_with("tool")
         {
             None
         } else {

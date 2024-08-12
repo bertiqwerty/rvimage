@@ -4,7 +4,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use crate::{cfg::ExportPath, implement_annotations_getters, ShapeI};
+use crate::{cfg::ExportPath, implement_annotate, implement_annotations_getters, ShapeI};
 use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtI};
 
 use super::label_map::LabelMap;
@@ -135,3 +135,4 @@ impl AttributesToolData {
         Ok(())
     }
 }
+implement_annotate!(AttributesToolData);

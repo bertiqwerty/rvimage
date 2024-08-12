@@ -27,7 +27,7 @@ use super::{
     annotations::InstanceAnnotations,
     brush_data::BrushAnnoMap,
     core::{new_random_colors, CocoSegmentation, ExportAsCoco},
-    BboxSpecificData, BrushToolData, InstanceAnnotate, InstanceExportData, Rot90ToolData,
+    BboxToolData, BrushToolData, InstanceAnnotate, InstanceExportData, Rot90ToolData,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -310,7 +310,7 @@ impl CocoExportData {
         self,
         coco_file: ExportPath,
         rotation_data: Option<&Rot90ToolData>,
-    ) -> RvResult<(BboxSpecificData, BrushToolData)> {
+    ) -> RvResult<(BboxToolData, BrushToolData)> {
         let cat_ids: Vec<u32> = self.categories.iter().map(|coco_cat| coco_cat.id).collect();
         let labels: Vec<String> = self
             .categories
@@ -493,7 +493,7 @@ impl CocoExportData {
                 warner.warn(format!("invalid segmentation in coco file {file_path}"));
             }
         }
-        let bbox_data = BboxSpecificData::from_coco_export_data(InstanceExportData {
+        let bbox_data = BboxToolData::from_coco_export_data(InstanceExportData {
             labels: labels.clone(),
             colors: colors.clone(),
             cat_ids: cat_ids.clone(),
@@ -638,7 +638,7 @@ pub fn read_coco(
     meta_data: &MetaData,
     coco_file: &ExportPath,
     rotation_data: Option<&Rot90ToolData>,
-) -> RvResult<(BboxSpecificData, BrushToolData)> {
+) -> RvResult<(BboxToolData, BrushToolData)> {
     let coco_inpath = get_cocofilepath(meta_data, coco_file)?;
     match &coco_file.conn {
         ExportPathConnection::Local => {
@@ -763,9 +763,9 @@ pub fn make_data_bbox(
     opened_folder: Option<&Path>,
     export_absolute: bool,
     n_boxes: Option<usize>,
-) -> (BboxSpecificData, MetaData, PathBuf, ShapeI) {
+) -> (BboxToolData, MetaData, PathBuf, ShapeI) {
     let shape = ShapeI::new(20, 10);
-    let mut bbox_data = BboxSpecificData::new();
+    let mut bbox_data = BboxToolData::new();
     bbox_data.options.core_options.is_export_absolute = export_absolute;
     bbox_data.coco_file = ExportPath::default();
     bbox_data
@@ -848,10 +848,7 @@ fn test_coco_export() {
         }
         no_image_dups(&coco_file);
     }
-    fn write_read<T, A>(
-        meta: &MetaData,
-        tools_data: T,
-    ) -> ((BboxSpecificData, BrushToolData), PathBuf)
+    fn write_read<T, A>(meta: &MetaData, tools_data: T) -> ((BboxToolData, BrushToolData), PathBuf)
     where
         T: ExportAsCoco<A> + Send + 'static,
         A: InstanceAnnotate + 'static,

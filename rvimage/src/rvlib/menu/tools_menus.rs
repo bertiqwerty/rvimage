@@ -8,7 +8,7 @@ use crate::{
     tools_data::{
         annotations::SplitMode,
         attributes_data::AttrVal,
-        bbox_data::BboxSpecificData,
+        bbox_data::BboxToolData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportExportTrigger,
         InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData, VisibleInactiveToolsState,
@@ -246,7 +246,7 @@ fn transparency_slider(
 pub fn bbox_menu(
     ui: &mut Ui,
     mut window_open: bool,
-    mut data: BboxSpecificData,
+    mut data: BboxToolData,
     are_tools_active: &mut bool,
     mut visible_inactive_tools: VisibleInactiveToolsState,
 ) -> RvResult<ToolsData> {
