@@ -118,12 +118,12 @@ Besides based on the pathname, you can also filter based on the labels and attri
 2. `anylabel` reveals all images that have been labeled with the currently active tool.
 3. `label(<label-name>)` reveals all images that have a label of the class `<label-name>` for the currently active tool. 
    For instance, if the bounding box tool is active `label(foreground)` will reveal all images that contain bounding boxes
-   or polygons of the class `foreground`. This works only if your label-names do not contain white spaces. Some special characters
-   might also lead to troubles.
+   or polygons of the class `foreground`. Some special characters in the label names
+   might lead to troubles.
 4. `tool(<tool-name>)` reveals all images that have been labeled with the tool `<tool-name>`. 
    For instance, `tool(Brush)` will reveal all images that have been labeled with the brush tool.
 5. `attr(<attr-name>:<attr-val>)` reveals all images that have the attribute `<attr-name>` set to `<attr-val>`.
-5. `attr(<attr-name>:<attr-val-min>-<attr-val-max)` reveals all images that have the attribute `<attr-name>` set between `<attr-val-min>` and `<attr-val-max>`.
+6. `attr(<attr-name>:<attr-val-min>-<attr-val-max)` reveals all images that have the attribute `<attr-name>` set between `<attr-val-min>` and `<attr-val-max>`.
 
 Filter strings can be combined with `&&`, `||`, and `!`. For instance
 - `!nolabel` corresponds to `anylabel`
