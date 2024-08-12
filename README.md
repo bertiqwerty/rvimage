@@ -110,16 +110,19 @@ with the left mouse button.
 ### Filter Expressions for Image Files
 
 You can filter for image files to appear in the left selection area. The entered string will reveal those
-images that contain the string in their full pathname. There are four labeling related keywords, though:
+images that contain the string in their pathname. 
+
+Besides based on the pathname, you can also filter based on the labels and attributes you have used:
 
 1. `nolabel` reveals all images that have not been labeled with the currently active tool.
-1. `anylabel` reveals all images that have been labeled with the currently active tool.
-2. `label(<label-name>)` reveals all images that have a label of the class `<label-name>` for the currently active tool. 
+2. `anylabel` reveals all images that have been labeled with the currently active tool.
+3. `label(<label-name>)` reveals all images that have a label of the class `<label-name>` for the currently active tool. 
    For instance, if the bounding box tool is active `label(foreground)` will reveal all images that contain bounding boxes
    or polygons of the class `foreground`. This works only if your label-names do not contain white spaces. Some special characters
    might also lead to troubles.
-3. `tool(<tool-name>)` reveals all images that have been labeled with the tool `<tool-name>`. 
-   For instance, `tool(Brush)` will reveal all images that have been labeled with the brush tool. 
+4. `tool(<tool-name>)` reveals all images that have been labeled with the tool `<tool-name>`. 
+   For instance, `tool(Brush)` will reveal all images that have been labeled with the brush tool.
+5. `attr(<attr-name>:<attr-val>)` reveals all images that have the attribute `<attr-name>` set to `<attr-val>`.
 
 Filter strings can be combined with `&&`, `||`, and `!`. For instance
 - `!nolabel` corresponds to `anylabel`
