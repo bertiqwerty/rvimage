@@ -481,7 +481,10 @@ macro_rules! implement_annotate {
         }
     };
 }
+
 pub trait Annotate {
+    /// Has the image with the given path annotations of the
+    /// trait-implementing tool?
     fn has_annos(&self, relative_path: &str) -> bool;
 }
 
