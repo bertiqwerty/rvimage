@@ -2,12 +2,25 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
+    str::FromStr,
 };
 
 use crate::{cfg::ExportPath, implement_annotate, implement_annotations_getters, ShapeI};
 use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtI};
 
 use super::label_map::LabelMap;
+
+fn interval_check<T>(val: T, min: &str, max: &str) -> RvResult<bool>
+where
+    T: PartialOrd + FromStr + Debug,
+    <T as FromStr>::Err: Debug,
+{
+    let min = min.parse::<T>().map_err(to_rv)?;
+    let max = max.parse::<T>().map_err(to_rv)?;
+    Ok(val >= min && val <= max)
+}
+
+pub const ATTR_INTERVAL_SEPARATOR: &str = "-";
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum AttrVal {
@@ -18,6 +31,19 @@ pub enum AttrVal {
 }
 
 impl AttrVal {
+    pub fn in_domain_str(&self, domain_str: &str) -> RvResult<bool> {
+        println!("domain_str: {domain_str}");
+        let mut min_max_str_it = domain_str.trim().split(ATTR_INTERVAL_SEPARATOR);
+        let min_str = min_max_str_it.next().ok_or(rverr!("min not found"))?;
+        let max_str = min_max_str_it.next().ok_or(rverr!("max not found"))?;
+        Ok(match self {
+            AttrVal::Float(x) => interval_check(*x, min_str, max_str)?,
+            AttrVal::Int(x) => interval_check(*x, min_str, max_str)?,
+            _ => Err(rverr!(
+                "in_domain_str not implemented for the type of {self}"
+            ))?,
+        })
+    }
     pub fn corresponds_to_str(&self, attr_val: &str) -> RvResult<bool> {
         Ok(match self {
             AttrVal::Bool(b) => {
