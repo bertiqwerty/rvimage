@@ -123,6 +123,7 @@ Besides based on the pathname, you can also filter based on the labels and attri
 4. `tool(<tool-name>)` reveals all images that have been labeled with the tool `<tool-name>`. 
    For instance, `tool(Brush)` will reveal all images that have been labeled with the brush tool.
 5. `attr(<attr-name>:<attr-val>)` reveals all images that have the attribute `<attr-name>` set to `<attr-val>`.
+5. `attr(<attr-name>:<attr-val-min>-<attr-val-max)` reveals all images that have the attribute `<attr-name>` set between `<attr-val-min>` and `<attr-val-max>`.
 
 Filter strings can be combined with `&&`, `||`, and `!`. For instance
 - `!nolabel` corresponds to `anylabel`
