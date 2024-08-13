@@ -102,7 +102,7 @@ pub struct AttributesToolData {
     attr_names: Vec<String>,
     attr_types: Vec<AttrVal>,
     pub new_attr: String,
-    pub new_attr_type: AttrVal,
+    pub new_attr_val: AttrVal,
     new_attr_buffers: Vec<String>,
     // maps the filename to the number of rotations
     annotations_map: AttrAnnotationsMap,
@@ -159,6 +159,11 @@ impl AttributesToolData {
         }
         self.annotations_map = map;
         Ok(())
+    }
+    pub fn attr_map(&mut self, filename: &str) -> Option<&mut AttrMap> {
+        self.annotations_map
+            .get_mut(filename)
+            .map(|(attr_map, _)| attr_map)
     }
 }
 implement_annotate!(AttributesToolData);

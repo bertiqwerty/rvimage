@@ -18,6 +18,84 @@ pub(super) fn make_track_changes_str(actor: &'static str) -> String {
     format!("{actor}_TRACK_CHANGE")
 }
 
+pub(super) fn insert_attribute(
+    mut world: World,
+    name: &str,
+    value: AttrVal,
+    default_value: AttrVal,
+    filepath: Option<&str>,
+) -> World {
+    let mut old_attr_name = String::new();
+    let mut old_attr_type = AttrVal::Bool(false);
+
+    if let Ok(attr_data) =
+        tools_data::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing")
+    {
+        // does the new attribute already exist?
+        let populate_new_attr = attr_data.specifics.attributes().map(|a| {
+            a.attr_names()
+                .iter()
+                .any(|attr_name| attr_name.as_str() == name)
+        }) != Ok(true);
+
+        // set the attribute data to addtion
+        trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
+            let attr_options = attributes_data::Options {
+                is_export_triggered: false,
+                is_addition_triggered: populate_new_attr,
+                is_update_triggered: false,
+                removal_idx: None,
+            };
+            old_attr_name.clone_from(&d.new_attr);
+            old_attr_type.clone_from(&d.new_attr_val);
+            d.new_attr = name.to_string();
+            d.new_attr_val = default_value;
+            d.options = attr_options;
+        }));
+    }
+
+    // actually add the attribute
+    (world, _) = attributes::Attributes {}.events_tf(world, History::default(), &Events::default());
+
+    // insert the attribute's value to the attribute map of the current file
+    if let Ok(attr_data) =
+        tools_data::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing")
+    {
+        let attr_options = attributes_data::Options {
+            is_export_triggered: false,
+            is_addition_triggered: false,
+            is_update_triggered: true,
+            removal_idx: None,
+        };
+        trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
+            d.options = attr_options;
+            let attr_map = if let Some(filepath) = filepath {
+                d.attr_map(filepath)
+            } else {
+                d.current_attr_map.as_mut()
+            };
+            if let Some(attr_map) = attr_map {
+                attr_map.insert(name.to_string(), value);
+            } else {
+                warn!("no attrmap found");
+            }
+        }));
+    }
+    (world, _) = attributes::Attributes {}.events_tf(world, History::default(), &Events::default());
+
+    if let Ok(attr_data) =
+        tools_data::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing")
+    {
+        // reset the state of the attribute data
+        trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
+            d.new_attr = old_attr_name;
+            d.new_attr_val = old_attr_type;
+        }));
+    }
+
+    world
+}
+
 pub(super) fn change_annos<T>(
     world: &mut World,
     track_change_str: &str,
@@ -29,68 +107,13 @@ pub(super) fn change_annos<T>(
         f_change(annos);
     }
     if track_changes {
-        let mut old_attr_name = String::new();
-        let mut old_attr_type = AttrVal::Bool(false);
-        let track_change_str = track_change_str.to_string();
-        if let Ok(attr_data) =
-            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
-        {
-            let populate_new_attr = attr_data
-                .specifics
-                .attributes()
-                .map(|a| a.attr_names().contains(&track_change_str))
-                != Ok(true);
-
-            trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
-                let attr_options = attributes_data::Options {
-                    is_export_triggered: false,
-                    is_addition_triggered: populate_new_attr,
-                    is_update_triggered: false,
-                    removal_idx: None,
-                };
-                old_attr_name.clone_from(&d.new_attr);
-                old_attr_type.clone_from(&d.new_attr_type);
-                d.new_attr = track_change_str.to_string();
-                d.new_attr_type = AttrVal::Bool(false);
-                d.options = attr_options;
-            }));
-        }
-        (*world, _) = attributes::Attributes {}.events_tf(
+        *world = insert_attribute(
             mem::take(world),
-            History::default(),
-            &Events::default(),
+            track_change_str,
+            AttrVal::Bool(true),
+            AttrVal::Bool(false),
+            None,
         );
-        if let Ok(attr_data) =
-            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
-        {
-            let attr_options = attributes_data::Options {
-                is_export_triggered: false,
-                is_addition_triggered: false,
-                is_update_triggered: true,
-                removal_idx: None,
-            };
-            trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
-                d.options = attr_options;
-                if let Some(attr_map) = &mut d.current_attr_map {
-                    attr_map.insert(track_change_str, AttrVal::Bool(true));
-                } else {
-                    warn!("no attrmap found");
-                }
-            }));
-        }
-        (*world, _) = attributes::Attributes {}.events_tf(
-            mem::take(world),
-            History::default(),
-            &Events::default(),
-        );
-        if let Ok(attr_data) =
-            tools_data::get_mut(world, attributes::ACTOR_NAME, "Attr data missing")
-        {
-            trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
-                d.new_attr = old_attr_name;
-                d.new_attr_type = old_attr_type;
-            }));
-        }
     }
 }
 pub(super) fn check_trigger_redraw(

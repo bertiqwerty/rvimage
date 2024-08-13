@@ -93,7 +93,7 @@ impl Manipulate for Attributes {
 
             if let (Some(mut attr_map_tmp), Some(data)) = (attr_map_tmp, data) {
                 let new_attr = data.new_attr.clone();
-                let new_attr_type = data.new_attr_type.clone();
+                let new_attr_type = data.new_attr_val.clone();
                 for (_, (val_map, _)) in data.anno_iter_mut() {
                     set_attrmap_val(val_map, &new_attr, &new_attr_type);
                 }
