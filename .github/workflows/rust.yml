@@ -23,6 +23,8 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install reqs
       run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev
+    - name: Check
+      run: cargo check --workspace --all-features
     - name: Clippy
       run: cargo clippy -- -D warnings
     - name: Fmt
