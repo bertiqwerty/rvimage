@@ -481,7 +481,7 @@ pub fn attributes_menu(
         egui::ComboBox::from_label("")
             .selected_text(format!(
                 "{:?}",
-                match data.new_attr_val {
+                match data.new_attr_type {
                     AttrVal::Float(_) => FLOAT_LABEL,
                     AttrVal::Int(_) => INT_LABEL,
                     AttrVal::Str(_) => TEXT_LABEL,
@@ -490,21 +490,21 @@ pub fn attributes_menu(
             ))
             .show_ui(ui, |ui| {
                 ui.selectable_value(
-                    &mut data.new_attr_val,
+                    &mut data.new_attr_type,
                     AttrVal::Float(TPtF::default()),
                     FLOAT_LABEL,
                 );
                 ui.selectable_value(
-                    &mut data.new_attr_val,
+                    &mut data.new_attr_type,
                     AttrVal::Int(TPtI::default()),
                     INT_LABEL,
                 );
                 ui.selectable_value(
-                    &mut data.new_attr_val,
+                    &mut data.new_attr_type,
                     AttrVal::Str(String::new()),
                     TEXT_LABEL,
                 );
-                ui.selectable_value(&mut data.new_attr_val, AttrVal::Bool(false), BOOL_LABEL);
+                ui.selectable_value(&mut data.new_attr_type, AttrVal::Bool(false), BOOL_LABEL);
             });
         if ui.button("Add").clicked() {
             if data.attr_names().contains(&data.new_attr) {

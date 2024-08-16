@@ -9,7 +9,7 @@ use egui::{
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
-use rvimage_domain::{access_mask_abs, rverr, to_rv, BbF, Canvas, PtF, PtI, RvResult, TPtF, TPtI};
+use rvimage_domain::{access_mask_abs, to_rv, BbF, Canvas, PtF, PtI, RvResult, TPtF, TPtI};
 use rvlib::{
     cfg::{ExportPath, ExportPathConnection},
     color_with_intensity,
@@ -746,44 +746,40 @@ fn export_coco(
     per_file_crowd: bool,
 ) -> RvResult<(Vec<ExportPath>, MetaData, Option<Rot90ToolData>)> {
     let mut ctrl = Control::default();
-    let tdm = ctrl.load(in_prj_path.clone());
+    let tdm = ctrl.load(in_prj_path.clone())?;
     let meta_data = ctrl.meta_data(None, None);
-    if let Ok(tdm) = tdm {
-        let rot90 = tdm
-            .get(tools::ROT90_NAME)
-            .and_then(|d| d.specifics.rot90().ok());
-        let mut handles = vec![];
-        let mut export_paths = vec![];
-        if let Some(tools_data) = tdm.get(BBOX_NAME) {
-            let export_path = export_coco_path(&in_prj_path, out_folder, BBOX_NAME)?;
-            tracing::info!("{:?}", export_path.path);
-            let (_, handle) = write_coco(
-                &meta_data,
-                tools_data.specifics.bbox()?.clone(),
-                rot90,
-                export_path.clone(),
-            )?;
-            export_paths.push(export_path);
-            handles.push(handle);
-        }
-        if let Some(tools_data) = tdm.get(BRUSH_NAME) {
-            let export_path = export_coco_path(&in_prj_path, out_folder, BRUSH_NAME)?;
-            tracing::info!("{:?}", export_path.path);
-            let mut brush_data = tools_data.specifics.brush()?.clone();
-            if per_file_crowd {
-                to_per_file_crowd(&mut brush_data.annotations_map);
-            }
-            let (_, handle) = write_coco(&meta_data, brush_data, rot90, export_path.clone())?;
-            handles.push(handle);
-            export_paths.push(export_path);
-        }
-        for handle in handles {
-            handle.join().map_err(to_rv)??;
-        }
-        Ok((export_paths, meta_data, rot90.cloned()))
-    } else {
-        Err(rverr!("Could not load project"))
+    let rot90 = tdm
+        .get(tools::ROT90_NAME)
+        .and_then(|d| d.specifics.rot90().ok());
+    let mut handles = vec![];
+    let mut export_paths = vec![];
+    if let Some(tools_data) = tdm.get(BBOX_NAME) {
+        let export_path = export_coco_path(&in_prj_path, out_folder, BBOX_NAME)?;
+        tracing::info!("{:?}", export_path.path);
+        let (_, handle) = write_coco(
+            &meta_data,
+            tools_data.specifics.bbox()?.clone(),
+            rot90,
+            export_path.clone(),
+        )?;
+        export_paths.push(export_path);
+        handles.push(handle);
     }
+    if let Some(tools_data) = tdm.get(BRUSH_NAME) {
+        let export_path = export_coco_path(&in_prj_path, out_folder, BRUSH_NAME)?;
+        tracing::info!("{:?}", export_path.path);
+        let mut brush_data = tools_data.specifics.brush()?.clone();
+        if per_file_crowd {
+            to_per_file_crowd(&mut brush_data.annotations_map);
+        }
+        let (_, handle) = write_coco(&meta_data, brush_data, rot90, export_path.clone())?;
+        handles.push(handle);
+        export_paths.push(export_path);
+    }
+    for handle in handles {
+        handle.join().map_err(to_rv)??;
+    }
+    Ok((export_paths, meta_data, rot90.cloned()))
 }
 fn main() {
     let _guard_flush_to_logfile = tracing_setup::tracing_setup();

@@ -102,7 +102,7 @@ pub struct AttributesToolData {
     attr_names: Vec<String>,
     attr_types: Vec<AttrVal>,
     pub new_attr: String,
-    pub new_attr_val: AttrVal,
+    pub new_attr_type: AttrVal,
     new_attr_buffers: Vec<String>,
     // maps the filename to the number of rotations
     annotations_map: AttrAnnotationsMap,
