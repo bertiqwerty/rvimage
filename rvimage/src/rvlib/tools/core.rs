@@ -46,10 +46,10 @@ pub(super) fn insert_attribute(
                 is_update_triggered: false,
                 removal_idx: None,
             };
-            old_attr_name.clone_from(&d.new_attr);
-            old_attr_type.clone_from(&d.new_attr_type);
-            d.new_attr = name.to_string();
-            d.new_attr_type = default_value;
+            old_attr_name.clone_from(&d.new_attr_name);
+            old_attr_type.clone_from(&d.new_attr_val);
+            d.new_attr_name = name.to_string();
+            d.new_attr_val = default_value;
             d.options = attr_options;
         }));
     }
@@ -88,8 +88,8 @@ pub(super) fn insert_attribute(
     {
         // reset the state of the attribute data
         trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
-            d.new_attr = old_attr_name;
-            d.new_attr_type = old_attr_type;
+            d.new_attr_name = old_attr_name;
+            d.new_attr_val = old_attr_type;
         }));
     }
 

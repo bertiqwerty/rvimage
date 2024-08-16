@@ -100,10 +100,14 @@ pub struct Options {
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct AttributesToolData {
     attr_names: Vec<String>,
-    attr_types: Vec<AttrVal>,
-    pub new_attr: String,
-    pub new_attr_type: AttrVal,
-    new_attr_buffers: Vec<String>,
+    #[serde(alias = "attr_types")]
+    attr_vals: Vec<AttrVal>,
+    #[serde(alias = "new_attr")]
+    pub new_attr_name: String,
+    #[serde(alias = "new_attr_type")]
+    pub new_attr_val: AttrVal,
+    #[serde(alias = "new_attr_buffers")]
+    new_attr_name_buffers: Vec<String>,
     // maps the filename to the number of rotations
     annotations_map: AttrAnnotationsMap,
     pub options: Options,
@@ -125,8 +129,8 @@ impl AttributesToolData {
     pub fn push(&mut self, attr_name: String, attr_val: AttrVal) {
         if !self.attr_names.contains(&attr_name) {
             self.attr_names.push(attr_name);
-            self.attr_types.push(attr_val);
-            self.new_attr_buffers.push(String::new());
+            self.attr_vals.push(attr_val);
+            self.new_attr_name_buffers.push(String::new());
         }
     }
     pub fn remove_attr(&mut self, idx: usize) {
@@ -134,17 +138,17 @@ impl AttributesToolData {
             attr_map.remove(&self.attr_names[idx]);
         }
         self.attr_names.remove(idx);
-        self.attr_types.remove(idx);
-        self.new_attr_buffers.remove(idx);
+        self.attr_vals.remove(idx);
+        self.new_attr_name_buffers.remove(idx);
     }
     pub fn attr_names(&self) -> &Vec<String> {
         &self.attr_names
     }
     pub fn attr_types(&self) -> &Vec<AttrVal> {
-        &self.attr_types
+        &self.attr_vals
     }
     pub fn attr_buffer_mut(&mut self, idx: usize) -> &mut String {
-        &mut self.new_attr_buffers[idx]
+        &mut self.new_attr_name_buffers[idx]
     }
     pub fn serialize_annotations(&self) -> RvResult<String> {
         serde_json::to_string(&self.annotations_map).map_err(to_rv)

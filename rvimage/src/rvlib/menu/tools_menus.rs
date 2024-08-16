@@ -476,12 +476,12 @@ pub fn attributes_menu(
     const INT_LABEL: &str = "Int";
     const TEXT_LABEL: &str = "Text";
     const BOOL_LABEL: &str = "Bool";
-    text_edit_singleline(ui, &mut data.new_attr, are_tools_active);
+    text_edit_singleline(ui, &mut data.new_attr_name, are_tools_active);
     ui.horizontal(|ui| {
         egui::ComboBox::from_label("")
             .selected_text(format!(
                 "{:?}",
-                match data.new_attr_type {
+                match data.new_attr_val {
                     AttrVal::Float(_) => FLOAT_LABEL,
                     AttrVal::Int(_) => INT_LABEL,
                     AttrVal::Str(_) => TEXT_LABEL,
@@ -490,25 +490,25 @@ pub fn attributes_menu(
             ))
             .show_ui(ui, |ui| {
                 ui.selectable_value(
-                    &mut data.new_attr_type,
+                    &mut data.new_attr_val,
                     AttrVal::Float(TPtF::default()),
                     FLOAT_LABEL,
                 );
                 ui.selectable_value(
-                    &mut data.new_attr_type,
+                    &mut data.new_attr_val,
                     AttrVal::Int(TPtI::default()),
                     INT_LABEL,
                 );
                 ui.selectable_value(
-                    &mut data.new_attr_type,
+                    &mut data.new_attr_val,
                     AttrVal::Str(String::new()),
                     TEXT_LABEL,
                 );
-                ui.selectable_value(&mut data.new_attr_type, AttrVal::Bool(false), BOOL_LABEL);
+                ui.selectable_value(&mut data.new_attr_val, AttrVal::Bool(false), BOOL_LABEL);
             });
         if ui.button("Add").clicked() {
-            if data.attr_names().contains(&data.new_attr) {
-                warn!("attribute {:?} already exists", data.new_attr);
+            if data.attr_names().contains(&data.new_attr_name) {
+                warn!("attribute {:?} already exists", data.new_attr_name);
             }
             data.options.is_addition_triggered = true;
             data.options.is_update_triggered = true;
