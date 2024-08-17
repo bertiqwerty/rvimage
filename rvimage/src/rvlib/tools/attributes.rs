@@ -27,6 +27,35 @@ tools_data_accessors!(
     attributes,
     attributes_mut
 );
+
+fn file_change(mut world: World) -> World {
+    let annos = get_annos_mut(&mut world).map(mem::take);
+    let data = get_specific_mut(&mut world);
+
+    if let (Some(data), Some(mut annos)) = (data, annos) {
+        for (attr_name, attr_type) in data.attr_names().iter().zip(data.attr_types().iter()) {
+            if !annos.contains_key(attr_name) {
+                set_attrmap_val(&mut annos, attr_name, attr_type);
+            }
+        }
+        let attr_buffers: Vec<String> = data
+            .attr_names()
+            .iter()
+            .map(|attr_name| annos.get(attr_name).unwrap().to_string())
+            .collect();
+        for (i, buffer) in attr_buffers.into_iter().enumerate() {
+            *data.attr_buffer_mut(i) = buffer;
+        }
+        if let Some(annos_) = get_annos_mut(&mut world) {
+            *annos_ = annos;
+        }
+    }
+    let current = get_annos(&world).cloned();
+    if let Some(data) = get_specific_mut(&mut world) {
+        data.current_attr_map = current;
+    }
+    world
+}
 #[derive(Clone, Copy, Debug)]
 pub struct Attributes;
 
@@ -43,7 +72,7 @@ impl Manipulate for Attributes {
         if let Some(data) = trace_ok_err(data) {
             data.menu_active = true;
         }
-        world
+        file_change(world)
     }
     fn on_deactivate(&mut self, mut world: World) -> World {
         let data = get_data_mut(&mut world);
@@ -52,33 +81,8 @@ impl Manipulate for Attributes {
         }
         world
     }
-    fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
-        let annos = get_annos_mut(&mut world).map(mem::take);
-        let data = get_specific_mut(&mut world);
-
-        if let (Some(data), Some(mut annos)) = (data, annos) {
-            for (attr_name, attr_type) in data.attr_names().iter().zip(data.attr_types().iter()) {
-                if !annos.contains_key(attr_name) {
-                    set_attrmap_val(&mut annos, attr_name, attr_type);
-                }
-            }
-            let attr_buffers: Vec<String> = data
-                .attr_names()
-                .iter()
-                .map(|attr_name| annos.get(attr_name).unwrap().to_string())
-                .collect();
-            for (i, buffer) in attr_buffers.into_iter().enumerate() {
-                *data.attr_buffer_mut(i) = buffer;
-            }
-            if let Some(annos_) = get_annos_mut(&mut world) {
-                *annos_ = annos;
-            }
-        }
-        let current = get_annos(&world).cloned();
-        if let Some(data) = get_specific_mut(&mut world) {
-            data.current_attr_map = current;
-        }
-        (world, history)
+    fn on_filechange(&mut self, world: World, history: History) -> (World, History) {
+        (file_change(world), history)
     }
     fn events_tf(
         &mut self,

@@ -30,8 +30,8 @@ use rvimage_domain::{BrushLine, Canvas, PtF, TPtF};
 
 use super::{
     core::{
-        check_autopaste, check_erase_mode, deselect_all, label_change_key, map_held_key,
-        map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey,
+        change_annos, check_autopaste, check_erase_mode, deselect_all, label_change_key,
+        map_held_key, map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey,
     },
     instance_anno_shared::get_rot90_data,
     Manipulate, BRUSH_NAME,
@@ -59,6 +59,10 @@ tools_data_accessors_objects!(
     brush_mut
 );
 
+pub(super) fn change_annos_brush(world: &mut World, change: impl FnOnce(&mut BrushAnnotations)) {
+    change_annos(world, change, get_annos_mut, get_track_changes_str);
+}
+
 fn import_coco(
     meta_data: &MetaData,
     coco_file: &ExportPath,
@@ -75,15 +79,17 @@ fn draw_erase_circle(mut world: World, mp: PtF) -> World {
     let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
     let options = get_options(&world);
     let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
-    let annos = get_annos_mut(&mut world);
-    if let (Some(options), Some(annos)) = (options, annos) {
-        let to_be_removed_line_idx = find_closest_canvas(annos, mp, |idx| {
-            annos.is_of_current_label(idx, idx_current, show_only_current)
-        });
-        if let Some((idx, _)) = to_be_removed_line_idx {
-            let canvas = annos.edit(idx);
-            trace_ok_err(canvas.draw_circle(mp, options.thickness, 0));
-        }
+    if let Some(options) = options {
+        let erase = |annos: &mut BrushAnnotations| {
+            let to_be_removed_line_idx = find_closest_canvas(annos, mp, |idx| {
+                annos.is_of_current_label(idx, idx_current, show_only_current)
+            });
+            if let Some((idx, _)) = to_be_removed_line_idx {
+                let canvas = annos.edit(idx);
+                trace_ok_err(canvas.draw_circle(mp, options.thickness, 0));
+            }
+        };
+        change_annos_brush(&mut world, erase);
         set_visible(&mut world);
     }
     world
@@ -340,13 +346,15 @@ impl Brush {
                     None
                 };
 
-                let maybe_annos = get_annos_mut(&mut world);
-                if let (Some(annos), Some(line), Some(cat_idx)) = (maybe_annos, line, cat_idx) {
-                    let canvas = Canvas::new(&line, shape_orig);
-                    if let Ok(canvas) = canvas {
-                        annos.add_elt(canvas, cat_idx);
+                let change_annos = |annos: &mut BrushAnnotations| {
+                    if let (Some(line), Some(cat_idx)) = (line, cat_idx) {
+                        let canvas = Canvas::new(&line, shape_orig);
+                        if let Ok(canvas) = canvas {
+                            annos.add_elt(canvas, cat_idx);
+                        }
                     }
-                }
+                };
+                change_annos_brush(&mut world, change_annos);
                 if let Some(d) = get_specific_mut(&mut world) {
                     d.tmp_line = None;
                 }
@@ -414,7 +422,7 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         let released_key = map_released_key(events);
-        (world, history) = on_selection_keys(
+        (world, history) = on_selection_keys::<_, AnnoMetaAccessors>(
             world,
             history,
             released_key,
@@ -422,8 +430,6 @@ impl Brush {
             BRUSH_NAME,
             get_annos_mut,
             |world| get_specific_mut(world).map(|d| &mut d.clipboard),
-            |world| get_options_mut(world).map(|o| &mut o.core_options),
-            get_label_info,
         );
         let mut trigger_redraw = false;
         if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
@@ -469,13 +475,11 @@ impl Manipulate for Brush {
                 anno.deselect_all();
             }
         }
-        (world, history) = check_autopaste(
+        (world, history) = check_autopaste::<_, AnnoMetaAccessors>(
             world,
             history,
             ACTOR_NAME,
-            |w| get_options_mut(w).map(|o| &mut o.core_options),
             get_annos_mut,
-            get_label_info,
             |w| get_specific(w).and_then(|d| d.clipboard.clone()),
         );
         set_visible(&mut world);

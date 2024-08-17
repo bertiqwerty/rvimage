@@ -7,7 +7,8 @@ use crate::{
 
 pub use self::core::{
     vis_from_lfoption, Annotate, ExportAsCoco, ImportExportTrigger, ImportMode, InstanceAnnotate,
-    InstanceExportData, LabelInfo, VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
+    InstanceExportData, LabelInfo, Options, VisibleInactiveToolsState,
+    OUTLINE_THICKNESS_CONVERSION,
 };
 pub use self::{
     attributes_data::AttributesToolData, bbox_data::BboxToolData, brush_data::BrushToolData,
@@ -94,6 +95,13 @@ pub fn get_specific_mut<T>(
     trace_ok_err(data.map(|d| &mut d.specifics).and_then(f_data_access))
 }
 
+/// Often needed meta data when accessing annotations, see different `AnnoMetaAccessors` structs.
+pub(super) trait AnnoMetaAccess {
+    fn get_core_options_mut(world: &mut World) -> Option<&mut core::Options>;
+    fn get_track_changes_str(world: &World) -> Option<&'static str>;
+    fn get_label_info(world: &World) -> Option<&LabelInfo>;
+}
+
 #[macro_export]
 macro_rules! tools_data_accessors {
     ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
@@ -126,9 +134,31 @@ macro_rules! tools_data_accessors_objects {
         pub(super) fn get_options_mut(world: &mut World) -> Option<&mut $data_module::Options> {
             get_specific_mut(world).map(|d| &mut d.options)
         }
+        pub(super) fn get_track_changes_str(world: &World) -> Option<&'static str> {
+            lazy_static::lazy_static! {
+                static ref TRACK_CHANGE_STR: String = $crate::tools::core::make_track_changes_str(ACTOR_NAME);
+            };
+            let track_changes =
+                get_options(world).map(|o| o.core_options.track_changes) == Some(true);
+            $crate::util::wrap_if(&TRACK_CHANGE_STR, track_changes)
+        }
 
         pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
             get_specific(world).map(|d| &d.label_info)
+        }
+
+        /// when you access annotations, you often also need this metadata
+        pub(super) struct AnnoMetaAccessors;
+        impl $crate::tools_data::AnnoMetaAccess for AnnoMetaAccessors {
+            fn get_core_options_mut(world: &mut World) -> Option<&mut $crate::tools_data::Options> {
+                get_options_mut(world).map(|o| &mut o.core_options)
+            }
+            fn get_track_changes_str(world: &World) -> Option<&'static str> {
+                get_track_changes_str(world)
+            }
+            fn get_label_info(world: &World) -> Option<&LabelInfo> {
+                get_label_info(world)
+            }
         }
 
         pub(super) fn get_visible(world: &World) -> Visibility {

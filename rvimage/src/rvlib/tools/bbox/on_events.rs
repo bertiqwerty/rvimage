@@ -1,17 +1,12 @@
 use std::{cmp::Ordering, iter, iter::empty, mem};
 
-use lazy_static::lazy_static;
-
 use crate::{
     cfg::ExportPath,
     history::{History, Record},
     meta_data::MetaData,
     result::trace_ok_err,
     tools::{
-        core::{
-            change_annos, label_change_key, make_track_changes_str, on_selection_keys, Mover,
-            ReleasedKey,
-        },
+        core::{change_annos, label_change_key, on_selection_keys, Mover, ReleasedKey},
         BBOX_NAME,
     },
     tools_data::{
@@ -29,24 +24,15 @@ use rvimage_domain::{
 };
 
 use super::core::{
-    current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_label_info, get_options,
-    get_options_mut, get_specific, get_specific_mut, get_visible, ACTOR_NAME,
+    current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_options, get_options_mut,
+    get_specific, get_specific_mut, get_track_changes_str, get_visible, AnnoMetaAccessors,
+    ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
 
 pub(super) fn change_annos_bbox(world: &mut World, change: impl FnOnce(&mut BboxAnnotations)) {
-    lazy_static! {
-        static ref TRACK_CHANGE_STR: String = make_track_changes_str(ACTOR_NAME);
-    };
-    let track_changes = get_options(world).map(|o| o.core_options.track_changes) == Some(true);
-    change_annos(
-        world,
-        TRACK_CHANGE_STR.as_str(),
-        track_changes,
-        change,
-        get_annos_mut,
-    );
+    change_annos(world, change, get_annos_mut, get_track_changes_str);
 }
 
 fn closest_containing_boundary_idx(
@@ -623,7 +609,7 @@ pub(super) fn on_key_released(
         let vis = get_visible(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
     }
-    (world, history) = on_selection_keys(
+    (world, history) = on_selection_keys::<_, AnnoMetaAccessors>(
         world,
         history,
         params.released_key,
@@ -631,8 +617,6 @@ pub(super) fn on_key_released(
         BBOX_NAME,
         get_annos_mut,
         |world| get_specific_mut(world).map(|d| &mut d.clipboard),
-        |world| get_options_mut(world).map(|o| &mut o.core_options),
-        get_label_info,
     );
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {

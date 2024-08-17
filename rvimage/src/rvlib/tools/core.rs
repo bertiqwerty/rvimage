@@ -6,18 +6,18 @@ use crate::result::trace_ok_err;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{
-    self, get_mut, get_specific_mut, vis_from_lfoption, CoreOptions, InstanceAnnotate, LabelInfo,
-    ToolSpecifics,
+    self, get_mut, get_specific_mut, vis_from_lfoption, AnnoMetaAccess, CoreOptions,
+    InstanceAnnotate, LabelInfo, ToolSpecifics,
 };
 use crate::util::Visibility;
 use crate::ShapeI;
 use crate::{events::Events, history::History, world::World};
 use rvimage_domain::{PtF, RvResult};
 use std::mem;
+
 pub(super) fn make_track_changes_str(actor: &'static str) -> String {
     format!("{actor}_TRACK_CHANGE")
 }
-
 pub(super) fn insert_attribute(
     mut world: World,
     name: &str,
@@ -98,18 +98,18 @@ pub(super) fn insert_attribute(
 
 pub(super) fn change_annos<T>(
     world: &mut World,
-    track_change_str: &str,
-    track_changes: bool,
     f_change: impl FnOnce(&mut InstanceAnnotations<T>),
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    get_track_changes_str: impl Fn(&World) -> Option<&'static str>,
 ) {
     if let Some(annos) = get_annos_mut(world) {
         f_change(annos);
     }
-    if track_changes {
+    let track_changes_str = get_track_changes_str(world);
+    if let Some(track_changes_str) = track_changes_str {
         *world = insert_attribute(
             mem::take(world),
-            track_change_str,
+            track_changes_str,
             AttrVal::Bool(true),
             AttrVal::Bool(false),
             None,
@@ -227,58 +227,46 @@ macro_rules! set_cat_current {
     };
 }
 
-fn replace_annotations_with_clipboard<T>(
+fn replace_annotations_with_clipboard<T, AC>(
     mut world: World,
     history: History,
     actor: &'static str,
-    get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
     clipboard: Option<ClipboardData<T>>,
 ) -> (World, History)
 where
     T: InstanceAnnotate,
+    AC: AnnoMetaAccess,
 {
     let annos = get_annos_mut(&mut world);
     if let Some(annos) = annos {
         let all = (0..annos.elts().len()).collect::<Vec<_>>();
         annos.remove_multiple(&all);
     }
-    paste(
-        world,
-        history,
-        actor,
-        clipboard,
-        get_annos_mut,
-        get_options_mut,
-        get_label_info,
-    )
+    paste::<T, AC>(world, history, actor, clipboard, get_annos_mut)
 }
-pub(super) fn check_autopaste<T>(
+pub(super) fn check_autopaste<T, AC>(
     mut world: World,
     mut history: History,
     actor: &'static str,
-    mut get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
     get_clipboard: impl Fn(&World) -> Option<ClipboardData<T>>,
 ) -> (World, History)
 where
     T: InstanceAnnotate,
+    AC: AnnoMetaAccess,
 {
     let clipboard_data = get_clipboard(&world);
-    let auto_paste = get_options_mut(&mut world)
+    let auto_paste = AC::get_core_options_mut(&mut world)
         .map(|o| o.auto_paste)
         .unwrap_or(false);
     if world.data.meta_data.flags.is_loading_screen_active == Some(false) && auto_paste {
         history.push(Record::new(world.clone(), actor));
-        replace_annotations_with_clipboard(
+        replace_annotations_with_clipboard::<T, AC>(
             world,
             history,
             actor,
-            get_options_mut,
             get_annos_mut,
-            get_label_info,
             clipboard_data,
         )
     } else {
@@ -359,17 +347,16 @@ pub(super) fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> (
     };
     (label_info, label_change)
 }
-pub(super) fn paste<T>(
+pub(super) fn paste<T, AC>(
     mut world: World,
     mut history: History,
     actor: &'static str,
     clipboard: Option<ClipboardData<T>>,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    mut get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
-    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> (World, History)
 where
     T: InstanceAnnotate,
+    AC: AnnoMetaAccess,
 {
     if let Some(clipboard) = &clipboard {
         let cb_bbs = clipboard.elts();
@@ -382,21 +369,19 @@ where
                     shape_orig,
                 )
             };
-            let track_changes = get_options_mut(&mut world).map(|o| o.track_changes) == Some(true);
             change_annos(
                 &mut world,
-                &make_track_changes_str(actor),
-                track_changes,
                 paste_annos,
                 get_annos_mut,
+                AC::get_track_changes_str,
             );
         }
-        let options_mut = get_options_mut(&mut world);
+        let options_mut = AC::get_core_options_mut(&mut world);
         if let Some(options_mut) = options_mut {
             options_mut.visible = true;
         }
-        let visible = get_options_mut(&mut world).map(|o| o.visible) == Some(true);
-        let vis = vis_from_lfoption(get_label_info(&world), visible);
+        let visible = AC::get_core_options_mut(&mut world).map(|o| o.visible) == Some(true);
+        let vis = vis_from_lfoption(AC::get_label_info(&world), visible);
         world.request_redraw_annotations(actor, vis);
         history.push(Record::new(world.clone(), actor));
     }
@@ -421,8 +406,7 @@ where
     world
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(super) fn on_selection_keys<T>(
+pub(super) fn on_selection_keys<T, AC>(
     mut world: World,
     mut history: History,
     key: ReleasedKey,
@@ -430,23 +414,22 @@ pub(super) fn on_selection_keys<T>(
     actor: &'static str,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
     get_clipboard_mut: impl Fn(&mut World) -> Option<&mut Option<ClipboardData<T>>>,
-    mut get_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
-    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> (World, History)
 where
     T: InstanceAnnotate,
+    AC: AnnoMetaAccess,
 {
     match key {
         ReleasedKey::A if is_ctrl_held => {
             // Select all visible
-            let current_active_idx = get_label_info(&world).and_then(|li| {
+            let current_active_idx = AC::get_label_info(&world).and_then(|li| {
                 if li.show_only_current {
                     Some(li.cat_idx_current)
                 } else {
                     None
                 }
             });
-            let options = get_options_mut(&mut world);
+            let options = AC::get_core_options_mut(&mut world);
             if options.map(|o| o.visible) == Some(true) {
                 if let (Some(current_active), Some(a)) =
                     (current_active_idx, get_annos_mut(&mut world))
@@ -462,12 +445,12 @@ where
                 } else if let Some(a) = get_annos_mut(&mut world) {
                     a.select_all()
                 };
-                let vis = vis_from_lfoption(get_label_info(&world), true);
+                let vis = vis_from_lfoption(AC::get_label_info(&world), true);
                 world.request_redraw_annotations(actor, vis);
             }
         }
         ReleasedKey::D if is_ctrl_held => {
-            world = deselect_all(world, actor, get_annos_mut, get_label_info);
+            world = deselect_all(world, actor, get_annos_mut, AC::get_label_info);
         }
         ReleasedKey::C if is_ctrl_held => {
             // Copy to clipboard
@@ -478,33 +461,23 @@ where
             {
                 *clipboard_mut = Some(clipboard_data);
             }
-            let vis = vis_from_lfoption(get_label_info(&world), true);
+            let vis = vis_from_lfoption(AC::get_label_info(&world), true);
             world.request_redraw_annotations(actor, vis);
         }
         ReleasedKey::V if is_ctrl_held => {
             let clipboard_data = get_clipboard_mut(&mut world).cloned().flatten();
-            (world, history) = paste(
-                world,
-                history,
-                actor,
-                clipboard_data,
-                get_annos_mut,
-                get_options_mut,
-                get_label_info,
-            );
+            (world, history) = paste::<_, AC>(world, history, actor, clipboard_data, get_annos_mut);
         }
         ReleasedKey::V if !is_ctrl_held => {
             let clipboard_data = get_clipboard_mut(&mut world).cloned().flatten();
-            if let Some(options_mut) = get_options_mut(&mut world) {
+            if let Some(options_mut) = AC::get_core_options_mut(&mut world) {
                 options_mut.auto_paste = !options_mut.auto_paste;
                 if options_mut.auto_paste {
-                    (world, history) = replace_annotations_with_clipboard(
+                    (world, history) = replace_annotations_with_clipboard::<T, AC>(
                         world,
                         history,
                         actor,
-                        get_options_mut,
                         get_annos_mut,
-                        get_label_info,
                         clipboard_data,
                     );
                 }
@@ -513,21 +486,18 @@ where
         ReleasedKey::Delete | ReleasedKey::Back => {
             // Remove selected
 
-            let track_changes = get_options_mut(&mut world).map(|o| o.track_changes) == Some(true);
             let del_annos = |annos: &mut InstanceAnnotations<T>| {
                 if !annos.selected_mask().is_empty() {
                     annos.remove_selected();
                 }
             };
-            let track_change_str = make_track_changes_str(actor);
             change_annos(
                 &mut world,
-                track_change_str.as_str(),
-                track_changes,
                 del_annos,
                 get_annos_mut,
+                AC::get_track_changes_str,
             );
-            let vis = vis_from_lfoption(get_label_info(&world), true);
+            let vis = vis_from_lfoption(AC::get_label_info(&world), true);
             world.request_redraw_annotations(actor, vis);
             history.push(Record::new(world.clone(), actor));
         }

@@ -3,6 +3,14 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
+pub fn wrap_if<T>(x: T, cond: bool) -> Option<T> {
+    if cond {
+        Some(x)
+    } else {
+        None
+    }
+}
+
 #[allow(clippy::needless_lifetimes)]
 fn xor_mask<'a>(mask: &'a [bool], other: bool) -> impl Iterator<Item = usize> + Clone + 'a {
     let res = mask

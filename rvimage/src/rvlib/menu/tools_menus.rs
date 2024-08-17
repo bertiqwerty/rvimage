@@ -4,6 +4,7 @@ use crate::{
     cfg::{ExportPath, ExportPathConnection},
     file_util::path_to_str,
     menu::ui_util::process_number,
+    result::trace_ok_err,
     tools::{get_visible_inactive_names, BBOX_NAME, BRUSH_NAME},
     tools_data::{
         annotations::SplitMode,
@@ -397,65 +398,72 @@ pub fn brush_menu(
         data.options.core_options.is_redraw_annos_triggered = true;
     }
 
+    ui.separator();
     data.options.core_options = toggle_erase(ui, data.options.core_options);
     data.options.core_options = hide_menu(ui, data.options.core_options);
-    ui.separator();
-    ui.label("properties");
-    if slider(
-        ui,
-        are_tools_active,
-        &mut data.options.thickness,
-        MIN_THICKNESS..=MAX_THICKNESS,
-        "thickness",
-    )
-    .changed()
-    {
-        data.options.is_selection_change_needed = true;
-    }
-    if slider(
-        ui,
-        are_tools_active,
-        &mut data.options.intensity,
-        MIN_INTENSITY..=MAX_INTENSITY,
-        "intensity",
-    )
-    .changed()
-    {
-        data.options.is_selection_change_needed = true;
-    }
-    ui.separator();
-    ui.label("visualization");
-    if transparency_slider(
-        ui,
-        are_tools_active,
-        &mut data.options.fill_alpha,
-        "transparency",
-    ) {
-        data.options.core_options.is_redraw_annos_triggered = true;
-    }
-    if ui.button("new random colors").clicked() {
-        data.options.core_options.is_colorchange_triggered = true;
-    }
-    ui.separator();
     ui.checkbox(&mut data.options.core_options.auto_paste, "auto paste");
-    ui.separator();
-    ui.checkbox(
-        &mut data.options.per_file_crowd,
-        "export merged annotations per file",
-    );
-    let skip_import_mode = false;
-    export_file_menu(
-        ui,
-        "coco file",
-        &mut data.coco_file,
-        are_tools_active,
-        &mut data.options.core_options.import_export_trigger,
-        skip_import_mode,
-    )?;
+    egui::CollapsingHeader::new("advanced").show(ui, |ui| {
+        ui.checkbox(
+            &mut data.options.core_options.track_changes,
+            "track changes",
+        );
+        ui.separator();
+        ui.label("properties");
+        if slider(
+            ui,
+            are_tools_active,
+            &mut data.options.thickness,
+            MIN_THICKNESS..=MAX_THICKNESS,
+            "thickness",
+        )
+        .changed()
+        {
+            data.options.is_selection_change_needed = true;
+        }
+        if slider(
+            ui,
+            are_tools_active,
+            &mut data.options.intensity,
+            MIN_INTENSITY..=MAX_INTENSITY,
+            "intensity",
+        )
+        .changed()
+        {
+            data.options.is_selection_change_needed = true;
+        }
+        ui.separator();
+        ui.label("visualization");
+        if transparency_slider(
+            ui,
+            are_tools_active,
+            &mut data.options.fill_alpha,
+            "transparency",
+        ) {
+            data.options.core_options.is_redraw_annos_triggered = true;
+        }
+        if ui.button("new random colors").clicked() {
+            data.options.core_options.is_colorchange_triggered = true;
+        }
+        ui.separator();
+        ui.checkbox(
+            &mut data.options.per_file_crowd,
+            "export merged annotations per file",
+        );
+        let skip_import_mode = false;
+        trace_ok_err(export_file_menu(
+            ui,
+            "coco file",
+            &mut data.coco_file,
+            are_tools_active,
+            &mut data.options.core_options.import_export_trigger,
+            skip_import_mode,
+        ));
+    });
     ui.separator();
     if show_inactive_tool_menu(ui, BRUSH_NAME, &mut visible_inactive_tools) {
         data.options.core_options.is_redraw_annos_triggered = true;
     }
+    ui.separator();
     if ui.button("close").clicked() {
         window_open = false;
     }

@@ -386,13 +386,11 @@ impl Manipulate for Bbox {
         let vis = vis_from_lfoption(get_label_info(&world), visible);
         world.request_redraw_annotations(BBOX_NAME, vis);
 
-        (world, history) = check_autopaste(
+        (world, history) = check_autopaste::<_, AnnoMetaAccessors>(
             world,
             history,
             ACTOR_NAME,
-            |w| get_options_mut(w).map(|o| &mut o.core_options),
             get_annos_mut,
-            get_label_info,
             |w| get_specific(w).and_then(|d| d.clipboard.clone()),
         );
 
