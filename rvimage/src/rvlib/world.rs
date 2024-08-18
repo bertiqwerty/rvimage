@@ -1,19 +1,137 @@
 use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
 use crate::meta_data::MetaData;
+use crate::result::trace_ok_err;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
-use crate::tools_data::{self, vis_from_lfoption, ExportAsCoco, ToolsData};
+use crate::tools_data::{
+    self, vis_from_lfoption, ExportAsCoco, LabelInfo, ToolSpecifics, ToolsData,
+};
 use crate::types::ViewImage;
 use crate::util::Visibility;
 use crate::{image_util, UpdatePermAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
-use rvimage_domain::{BbF, ShapeI};
+use rvimage_domain::{BbF, RvError, RvResult, ShapeI};
 use std::collections::HashMap;
 use std::path::Path;
 use std::{fmt::Debug, mem};
 
+pub(super) fn get<'a>(
+    world: &'a World,
+    actor: &'static str,
+    error_msg: &'a str,
+) -> RvResult<&'a ToolsData> {
+    world
+        .data
+        .tools_data_map
+        .get(actor)
+        .ok_or_else(|| RvError::new(error_msg))
+}
+pub fn get_specific<T>(
+    f: impl Fn(&ToolSpecifics) -> RvResult<&T>,
+    data: RvResult<&ToolsData>,
+) -> Option<&T> {
+    trace_ok_err(data.map(|d| &d.specifics).and_then(f))
+}
+pub(super) fn get_mut<'a>(
+    world: &'a mut World,
+    actor: &'static str,
+    error_msg: &'a str,
+) -> RvResult<&'a mut ToolsData> {
+    world
+        .data
+        .tools_data_map
+        .get_mut(actor)
+        .ok_or_else(|| RvError::new(error_msg))
+}
+pub fn get_specific_mut<T>(
+    f_data_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut T>,
+    data: RvResult<&mut ToolsData>,
+) -> Option<&mut T> {
+    trace_ok_err(data.map(|d| &mut d.specifics).and_then(f_data_access))
+}
+
+/// Often needed meta data when accessing annotations, see different `AnnoMetaAccessors` structs.
+pub(super) trait AnnoMetaAccess {
+    fn get_core_options_mut(world: &mut World) -> Option<&mut tools_data::Options>;
+    fn get_track_changes_str(world: &World) -> Option<&'static str>;
+    fn get_label_info(world: &World) -> Option<&LabelInfo>;
+}
+
+#[macro_export]
+macro_rules! tools_data_accessors {
+    ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
+        #[allow(unused)]
+        pub(super) fn get_data(
+            world: &World,
+        ) -> rvimage_domain::RvResult<&$crate::tools_data::ToolsData> {
+            $crate::world::get(world, $actor_name, $missing_data_msg)
+        }
+        #[allow(unused)]
+        pub(super) fn get_specific(world: &World) -> Option<&$data_module::$data_type> {
+            $crate::world::get_specific(tools_data::$data_func, get_data(world))
+        }
+        pub(super) fn get_data_mut(
+            world: &mut World,
+        ) -> rvimage_domain::RvResult<&mut $crate::tools_data::ToolsData> {
+            $crate::world::get_mut(world, $actor_name, $missing_data_msg)
+        }
+        pub(super) fn get_specific_mut(world: &mut World) -> Option<&mut $data_module::$data_type> {
+            $crate::world::get_specific_mut(tools_data::$data_func_mut, get_data_mut(world))
+        }
+    };
+}
+#[macro_export]
+macro_rules! tools_data_accessors_objects {
+    ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
+        pub(super) fn get_options(world: &World) -> Option<$data_module::Options> {
+            get_specific(world).map(|d| d.options)
+        }
+        pub(super) fn get_options_mut(world: &mut World) -> Option<&mut $data_module::Options> {
+            get_specific_mut(world).map(|d| &mut d.options)
+        }
+        pub(super) fn get_track_changes_str(world: &World) -> Option<&'static str> {
+            lazy_static::lazy_static! {
+                static ref TRACK_CHANGE_STR: String = $crate::tools::core::make_track_changes_str(ACTOR_NAME);
+            };
+            let track_changes =
+                get_options(world).map(|o| o.core_options.track_changes) == Some(true);
+            $crate::util::wrap_if(&TRACK_CHANGE_STR, track_changes)
+        }
+
+        pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
+            get_specific(world).map(|d| &d.label_info)
+        }
+
+        /// when you access annotations, you often also need this metadata
+        pub(super) struct AnnoMetaAccessors;
+        impl $crate::world::AnnoMetaAccess for AnnoMetaAccessors {
+            fn get_core_options_mut(world: &mut World) -> Option<&mut $crate::tools_data::Options> {
+                get_options_mut(world).map(|o| &mut o.core_options)
+            }
+            fn get_track_changes_str(world: &World) -> Option<&'static str> {
+                get_track_changes_str(world)
+            }
+            fn get_label_info(world: &World) -> Option<&LabelInfo> {
+                get_label_info(world)
+            }
+        }
+
+        pub(super) fn get_visible(world: &World) -> Visibility {
+            let visible = get_options(world).map(|o| o.core_options.visible) == Some(true);
+            vis_from_lfoption(get_label_info(world), visible)
+        }
+        pub(super) fn set_visible(world: &mut World) {
+            let options_mut = get_options_mut(world);
+            if let Some(options_mut) = options_mut {
+                options_mut.core_options.visible = true;
+            }
+            let vis = get_visible(world);
+            world.request_redraw_annotations($actor_name, vis);
+        }
+    };
+}
 #[macro_export]
 macro_rules! annotations_accessor {
-    ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
+    ($actor_name:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
         pub(super) fn get_annos_(
             world: &World,
             is_no_anno_fine: bool,
@@ -22,7 +140,7 @@ macro_rules! annotations_accessor {
                 let res = world
                     .data
                     .tools_data_map
-                    .get($actor)
+                    .get($actor_name)
                     .and_then(|x| x.specifics.$access_func().ok())
                     .and_then(|d| d.get_annos(&current_file_path));
                 if res.is_none() && !is_no_anno_fine {
@@ -45,7 +163,7 @@ macro_rules! annotations_accessor {
 }
 #[macro_export]
 macro_rules! annotations_accessor_mut {
-    ($actor:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
+    ($actor_name:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
         pub(super) fn get_annos_mut_(
             world: &mut World,
             is_no_anno_fine: bool,
@@ -55,7 +173,7 @@ macro_rules! annotations_accessor_mut {
                 let res = world
                     .data
                     .tools_data_map
-                    .get_mut($actor)
+                    .get_mut($actor_name)
                     .and_then(|x| x.specifics.$access_func().ok())
                     .and_then(|d| d.get_annos_mut(&current_file_path, shape_initial));
                 if res.is_none() {

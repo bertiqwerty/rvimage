@@ -6,12 +6,16 @@ use crate::result::trace_ok_err;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{
-    self, get_mut, get_specific_mut, vis_from_lfoption, AnnoMetaAccess, CoreOptions,
-    InstanceAnnotate, LabelInfo, ToolSpecifics,
+    vis_from_lfoption, CoreOptions, InstanceAnnotate, LabelInfo, ToolSpecifics,
 };
 use crate::util::Visibility;
 use crate::ShapeI;
-use crate::{events::Events, history::History, world::World};
+use crate::{
+    events::Events,
+    history::History,
+    world,
+    world::{AnnoMetaAccess, World},
+};
 use rvimage_domain::{PtF, RvResult};
 use std::mem;
 
@@ -28,9 +32,7 @@ pub(super) fn insert_attribute(
     let mut old_attr_name = String::new();
     let mut old_attr_type = AttrVal::Bool(false);
 
-    if let Ok(attr_data) =
-        tools_data::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing")
-    {
+    if let Ok(attr_data) = world::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing") {
         // does the new attribute already exist?
         let populate_new_attr = attr_data.specifics.attributes().map(|a| {
             a.attr_names()
@@ -58,9 +60,7 @@ pub(super) fn insert_attribute(
     (world, _) = attributes::Attributes {}.events_tf(world, History::default(), &Events::default());
 
     // insert the attribute's value to the attribute map of the current file
-    if let Ok(attr_data) =
-        tools_data::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing")
-    {
+    if let Ok(attr_data) = world::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing") {
         let attr_options = attributes_data::Options {
             is_export_triggered: false,
             is_addition_triggered: false,
@@ -83,9 +83,7 @@ pub(super) fn insert_attribute(
     }
     (world, _) = attributes::Attributes {}.events_tf(world, History::default(), &Events::default());
 
-    if let Ok(attr_data) =
-        tools_data::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing")
-    {
+    if let Ok(attr_data) = world::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing") {
         // reset the state of the attribute data
         trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
             d.new_attr_name = old_attr_name;
@@ -122,8 +120,8 @@ pub(super) fn check_trigger_redraw(
     get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
     f_tool_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut CoreOptions> + Clone,
 ) -> World {
-    let data_mut = get_mut(&mut world, name, "could not access data");
-    let core_options = get_specific_mut(f_tool_access.clone(), data_mut).cloned();
+    let data_mut = world::get_mut(&mut world, name, "could not access data");
+    let core_options = world::get_specific_mut(f_tool_access.clone(), data_mut).cloned();
     let is_redraw_triggered = core_options.map(|o| o.is_redraw_annos_triggered);
     if is_redraw_triggered == Some(true) {
         let visibility = vis_from_lfoption(
@@ -131,8 +129,8 @@ pub(super) fn check_trigger_redraw(
             core_options.map(|o| o.visible) == Some(true),
         );
         world.request_redraw_annotations(name, visibility);
-        let data_mut = get_mut(&mut world, name, "could not access data");
-        let core_options_mut = get_specific_mut(f_tool_access, data_mut);
+        let data_mut = world::get_mut(&mut world, name, "could not access data");
+        let core_options_mut = world::get_specific_mut(f_tool_access, data_mut);
         if let Some(core_options_mut) = core_options_mut {
             core_options_mut.is_redraw_annos_triggered = false;
         }
@@ -146,12 +144,12 @@ pub(super) fn check_trigger_history_update(
     name: &'static str,
     f_tool_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut CoreOptions> + Clone,
 ) -> (World, History) {
-    let data_mut = get_mut(&mut world, name, "could not access data");
-    let core_options = get_specific_mut(f_tool_access.clone(), data_mut).cloned();
+    let data_mut = world::get_mut(&mut world, name, "could not access data");
+    let core_options = world::get_specific_mut(f_tool_access.clone(), data_mut).cloned();
     let is_history_update_triggered = core_options.map(|o| o.is_history_update_triggered);
     if is_history_update_triggered == Some(true) {
-        let data_mut = get_mut(&mut world, name, "could not access data");
-        let core_options_mut = get_specific_mut(f_tool_access, data_mut);
+        let data_mut = world::get_mut(&mut world, name, "could not access data");
+        let core_options_mut = world::get_specific_mut(f_tool_access, data_mut);
         if let Some(core_options_mut) = core_options_mut {
             core_options_mut.is_history_update_triggered = false;
         }

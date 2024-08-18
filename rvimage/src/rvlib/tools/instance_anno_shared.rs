@@ -2,8 +2,8 @@ use crate::{
     cfg::ExportPath,
     meta_data::MetaData,
     result::trace_ok_err,
-    tools_data::{self, merge, CoreOptions, ExportAsCoco, ImportMode, Rot90ToolData},
-    world::World,
+    tools_data::{merge, CoreOptions, ExportAsCoco, ImportMode, Rot90ToolData},
+    world::{self, World},
     InstanceAnnotate,
 };
 use std::mem;
@@ -11,7 +11,7 @@ use std::mem;
 use super::rot90;
 
 pub(super) fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
-    tools_data::get(world, rot90::ACTOR_NAME, "no rotation_data_found")
+    world::get(world, rot90::ACTOR_NAME, "no rotation_data_found")
         .and_then(|d| d.specifics.rot90())
         .ok()
 }
