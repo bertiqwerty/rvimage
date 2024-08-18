@@ -15,7 +15,7 @@ use crate::{
         Manipulate, BBOX_NAME,
     },
     tools_data::{
-        self, annotations::BboxAnnotations, bbox_data, bbox_mut, vis_from_lfoption, LabelInfo,
+        self, annotations::BboxAnnotations, bbox_data, vis_from_lfoption, LabelInfo,
         OUTLINE_THICKNESS_CONVERSION,
     },
     tools_data_accessors, tools_data_accessors_objects,
@@ -410,9 +410,8 @@ impl Manipulate for Bbox {
             |world| get_specific_mut(world).map(|d| &mut d.label_info),
         );
 
-        (world, history) = check_trigger_history_update(world, history, BBOX_NAME, |d| {
-            bbox_mut(d).map(|d| &mut d.options.core_options)
-        });
+        (world, history) =
+            check_trigger_history_update::<AnnoMetaAccessors>(world, history, BBOX_NAME);
         world = check_anno_outoffolder_remove(world);
 
         world = check_cocoexport(world);
@@ -438,9 +437,7 @@ impl Manipulate for Bbox {
             options.as_ref(),
         );
         if let Some(options) = options {
-            world = check_trigger_redraw(world, BBOX_NAME, get_label_info, |d| {
-                bbox_mut(d).map(|d| &mut d.options.core_options)
-            });
+            world = check_trigger_redraw::<AnnoMetaAccessors>(world, BBOX_NAME);
 
             let in_menu_selected_label = current_cat_idx(&world);
             if let (Some(in_menu_selected_label), Some(mp)) =

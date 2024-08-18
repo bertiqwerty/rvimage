@@ -5,9 +5,7 @@ use crate::history::Record;
 use crate::result::trace_ok_err;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data::{self, AttrVal};
-use crate::tools_data::{
-    vis_from_lfoption, CoreOptions, InstanceAnnotate, LabelInfo, ToolSpecifics,
-};
+use crate::tools_data::{vis_from_lfoption, CoreOptions, InstanceAnnotate, LabelInfo};
 use crate::util::Visibility;
 use crate::ShapeI;
 use crate::{
@@ -16,7 +14,7 @@ use crate::{
     world,
     world::{AnnoMetaAccess, World},
 };
-use rvimage_domain::{PtF, RvResult};
+use rvimage_domain::PtF;
 use std::mem;
 
 pub(super) fn make_track_changes_str(actor: &'static str) -> String {
@@ -114,23 +112,19 @@ pub(super) fn change_annos<T>(
         );
     }
 }
-pub(super) fn check_trigger_redraw(
-    mut world: World,
-    name: &'static str,
-    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
-    f_tool_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut CoreOptions> + Clone,
-) -> World {
-    let data_mut = world::get_mut(&mut world, name, "could not access data");
-    let core_options = world::get_specific_mut(f_tool_access.clone(), data_mut).cloned();
+pub(super) fn check_trigger_redraw<AC>(mut world: World, name: &'static str) -> World
+where
+    AC: AnnoMetaAccess,
+{
+    let core_options = AC::get_core_options_mut(&mut world).cloned();
     let is_redraw_triggered = core_options.map(|o| o.is_redraw_annos_triggered);
     if is_redraw_triggered == Some(true) {
         let visibility = vis_from_lfoption(
-            get_label_info(&world),
+            AC::get_label_info(&world),
             core_options.map(|o| o.visible) == Some(true),
         );
         world.request_redraw_annotations(name, visibility);
-        let data_mut = world::get_mut(&mut world, name, "could not access data");
-        let core_options_mut = world::get_specific_mut(f_tool_access, data_mut);
+        let core_options_mut = AC::get_core_options_mut(&mut world);
         if let Some(core_options_mut) = core_options_mut {
             core_options_mut.is_redraw_annos_triggered = false;
         }
@@ -138,18 +132,18 @@ pub(super) fn check_trigger_redraw(
     world
 }
 
-pub(super) fn check_trigger_history_update(
+pub(super) fn check_trigger_history_update<AC>(
     mut world: World,
     mut history: History,
     name: &'static str,
-    f_tool_access: impl FnMut(&mut ToolSpecifics) -> RvResult<&mut CoreOptions> + Clone,
-) -> (World, History) {
-    let data_mut = world::get_mut(&mut world, name, "could not access data");
-    let core_options = world::get_specific_mut(f_tool_access.clone(), data_mut).cloned();
+) -> (World, History)
+where
+    AC: AnnoMetaAccess,
+{
+    let core_options = AC::get_core_options_mut(&mut world).cloned();
     let is_history_update_triggered = core_options.map(|o| o.is_history_update_triggered);
     if is_history_update_triggered == Some(true) {
-        let data_mut = world::get_mut(&mut world, name, "could not access data");
-        let core_options_mut = world::get_specific_mut(f_tool_access, data_mut);
+        let core_options_mut = AC::get_core_options_mut(&mut world);
         if let Some(core_options_mut) = core_options_mut {
             core_options_mut.is_history_update_triggered = false;
         }

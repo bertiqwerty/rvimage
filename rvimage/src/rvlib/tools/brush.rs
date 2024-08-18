@@ -17,7 +17,6 @@ use crate::{
         self,
         annotations::{BrushAnnotations, InstanceAnnotations},
         brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        brush_mut,
         coco_io::to_per_file_crowd,
         vis_from_lfoption, ExportAsCoco, InstanceAnnotate, LabelInfo, Rot90ToolData,
     },
@@ -511,12 +510,9 @@ impl Manipulate for Brush {
         mut history: History,
         events: &Events,
     ) -> (World, History) {
-        world = check_trigger_redraw(world, BRUSH_NAME, get_label_info, |d| {
-            brush_mut(d).map(|d| &mut d.options.core_options)
-        });
-        (world, history) = check_trigger_history_update(world, history, BRUSH_NAME, |d| {
-            brush_mut(d).map(|d| &mut d.options.core_options)
-        });
+        world = check_trigger_redraw::<AnnoMetaAccessors>(world, BRUSH_NAME);
+        (world, history) =
+            check_trigger_history_update::<AnnoMetaAccessors>(world, history, BRUSH_NAME);
         let imported;
         (world, imported) = check_cocoimport(
             world,
