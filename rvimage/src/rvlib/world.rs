@@ -54,6 +54,7 @@ pub(super) trait AnnoMetaAccess {
     fn get_core_options_mut(world: &mut World) -> Option<&mut tools_data::Options>;
     fn get_track_changes_str(world: &World) -> Option<&'static str>;
     fn get_label_info(world: &World) -> Option<&LabelInfo>;
+    fn get_label_info_mut(world: &mut World) -> Option<&mut LabelInfo>;
 }
 
 #[macro_export]
@@ -112,6 +113,9 @@ macro_rules! tools_data_accessors_objects {
             }
             fn get_label_info(world: &World) -> Option<&LabelInfo> {
                 get_label_info(world)
+            }
+            fn get_label_info_mut(world: &mut World) -> Option<&mut LabelInfo> {
+                get_specific_mut(world).map(|d| &mut d.label_info)
             }
         }
 

@@ -5,7 +5,7 @@ use crate::history::Record;
 use crate::result::trace_ok_err;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data::{self, AttrVal};
-use crate::tools_data::{vis_from_lfoption, CoreOptions, InstanceAnnotate, LabelInfo};
+use crate::tools_data::{vis_from_lfoption, InstanceAnnotate, LabelInfo};
 use crate::util::Visibility;
 use crate::ShapeI;
 use crate::{
@@ -265,13 +265,17 @@ where
         (world, history)
     }
 }
-pub fn check_erase_mode(
+pub fn check_erase_mode<AC>(
     released_key: ReleasedKey,
-    get_options_mut: impl Fn(&mut World) -> Option<&mut CoreOptions>,
     set_visible: impl Fn(&mut World),
     mut world: World,
-) -> World {
-    if let (ReleasedKey::E, Some(core_options)) = (released_key, get_options_mut(&mut world)) {
+) -> World
+where
+    AC: AnnoMetaAccess,
+{
+    if let (ReleasedKey::E, Some(core_options)) =
+        (released_key, AC::get_core_options_mut(&mut world))
+    {
         if core_options.erase {
             info!("stop erase via shortcut");
         } else {
@@ -284,24 +288,22 @@ pub fn check_erase_mode(
     world
 }
 
-pub fn check_recolorboxes(
-    mut world: World,
-    actor: &'static str,
-    mut get_core_options_mut: impl FnMut(&mut World) -> Option<&mut CoreOptions>,
-    mut get_label_info_mut: impl FnMut(&mut World) -> Option<&mut LabelInfo>,
-) -> World {
+pub fn check_recolorboxes<AC>(mut world: World, actor: &'static str) -> World
+where
+    AC: AnnoMetaAccess,
+{
     let is_colorchange_triggered =
-        get_core_options_mut(&mut world).map(|o| o.is_colorchange_triggered);
+        AC::get_core_options_mut(&mut world).map(|o| o.is_colorchange_triggered);
     if is_colorchange_triggered == Some(true) {
-        let core_options = get_core_options_mut(&mut world);
+        let core_options = AC::get_core_options_mut(&mut world);
         if let Some(core_options) = core_options {
             core_options.is_colorchange_triggered = false;
             core_options.visible = true;
         }
-        if let Some(label_info) = get_label_info_mut(&mut world) {
+        if let Some(label_info) = AC::get_label_info_mut(&mut world) {
             label_info.new_random_colors();
         }
-        let visibility = vis_from_lfoption(get_label_info_mut(&mut world).map(|x| &*x), true);
+        let visibility = vis_from_lfoption(AC::get_label_info_mut(&mut world).map(|x| &*x), true);
         world.request_redraw_annotations(actor, visibility);
     }
     world
@@ -380,20 +382,20 @@ where
 
     (world, history)
 }
-pub fn deselect_all<T>(
+pub fn deselect_all<T, AC>(
     mut world: World,
     actor: &'static str,
     get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    get_label_info: impl Fn(&World) -> Option<&LabelInfo>,
 ) -> World
 where
     T: InstanceAnnotate,
+    AC: AnnoMetaAccess,
 {
     // Deselect all
     if let Some(a) = get_annos_mut(&mut world) {
         a.deselect_all()
     };
-    let vis = vis_from_lfoption(get_label_info(&world), true);
+    let vis = vis_from_lfoption(AC::get_label_info(&world), true);
     world.request_redraw_annotations(actor, vis);
     world
 }
@@ -442,7 +444,7 @@ where
             }
         }
         ReleasedKey::D if is_ctrl_held => {
-            world = deselect_all(world, actor, get_annos_mut, AC::get_label_info);
+            world = deselect_all::<_, AC>(world, actor, get_annos_mut);
         }
         ReleasedKey::C if is_ctrl_held => {
             // Copy to clipboard

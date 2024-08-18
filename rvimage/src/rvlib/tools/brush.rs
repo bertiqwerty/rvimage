@@ -215,7 +215,7 @@ impl Brush {
             self.mover.move_mouse_pressed(events.mouse_pos_on_orig);
         } else {
             if !(events.held_alt() || events.held_ctrl() || events.held_shift()) {
-                world = deselect_all(world, BRUSH_NAME, get_annos_mut, get_label_info);
+                world = deselect_all::<_, AnnoMetaAccessors>(world, BRUSH_NAME, get_annos_mut);
             }
             if !events.held_ctrl() {
                 let options = get_options(&world);
@@ -318,7 +318,8 @@ impl Brush {
                             annos.select(idx);
                         }
                     } else {
-                        world = deselect_all(world, BRUSH_NAME, get_annos_mut, get_label_info);
+                        world =
+                            deselect_all::<_, AnnoMetaAccessors>(world, BRUSH_NAME, get_annos_mut);
                     }
                 }
             }
@@ -450,12 +451,7 @@ impl Brush {
             }
             _ => (),
         }
-        world = check_erase_mode(
-            released_key,
-            |w| get_options_mut(w).map(|o| &mut o.core_options),
-            set_visible,
-            world,
-        );
+        world = check_erase_mode::<AnnoMetaAccessors>(released_key, set_visible, world);
         (world, history)
     }
 }
@@ -524,12 +520,7 @@ impl Manipulate for Brush {
         if imported {
             set_visible(&mut world);
         }
-        world = check_recolorboxes(
-            world,
-            BRUSH_NAME,
-            |world| get_options_mut(world).map(|o| &mut o.core_options),
-            |world| get_specific_mut(world).map(|d| &mut d.label_info),
-        );
+        world = check_recolorboxes::<AnnoMetaAccessors>(world, BRUSH_NAME);
         world = check_selected_intensity_thickness(world);
         world = check_export(world);
         make_tool_transform!(
