@@ -25,13 +25,13 @@ use rvimage_domain::{
 
 use super::core::{
     current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_options, get_options_mut,
-    get_specific, get_specific_mut, get_track_changes_str, get_visible, DataAccessors, ACTOR_NAME,
+    get_specific, get_specific_mut, get_visible, DataAccessors, InstanceAnnoAccessors, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
 
 pub(super) fn change_annos_bbox(world: &mut World, change: impl FnOnce(&mut BboxAnnotations)) {
-    change_annos(world, change, get_annos_mut, get_track_changes_str);
+    change_annos::<_, DataAccessors, InstanceAnnoAccessors>(world, change);
 }
 
 fn closest_containing_boundary_idx(
@@ -608,14 +608,12 @@ pub(super) fn on_key_released(
         let vis = get_visible(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
     }
-    (world, history) = on_selection_keys::<_, DataAccessors>(
+    (world, history) = on_selection_keys::<_, DataAccessors, InstanceAnnoAccessors>(
         world,
         history,
         params.released_key,
         params.is_ctrl_held,
         BBOX_NAME,
-        get_annos_mut,
-        |world| get_specific_mut(world).map(|d| &mut d.clipboard),
     );
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {

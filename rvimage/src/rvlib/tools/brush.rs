@@ -6,7 +6,7 @@ use crate::{
     cfg::ExportPath,
     events::{Events, KeyCode},
     history::{History, Record},
-    make_tool_transform,
+    instance_annotations_accessor, make_tool_transform,
     meta_data::MetaData,
     result::trace_ok_err,
     tools::{
@@ -41,6 +41,7 @@ const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized"
 const MISSING_DATA_MSG: &str = "brush data not available";
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
 annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
+instance_annotations_accessor!(Canvas);
 tools_data_accessors!(
     ACTOR_NAME,
     MISSING_DATA_MSG,
@@ -57,9 +58,8 @@ tools_data_accessors_objects!(
     brush,
     brush_mut
 );
-
 pub(super) fn change_annos_brush(world: &mut World, change: impl FnOnce(&mut BrushAnnotations)) {
-    change_annos(world, change, get_annos_mut, get_track_changes_str);
+    change_annos::<_, DataAccessors, InstanceAnnoAccessors>(world, change);
 }
 
 fn import_coco(
@@ -215,7 +215,7 @@ impl Brush {
             self.mover.move_mouse_pressed(events.mouse_pos_on_orig);
         } else {
             if !(events.held_alt() || events.held_ctrl() || events.held_shift()) {
-                world = deselect_all::<_, DataAccessors>(world, BRUSH_NAME, get_annos_mut);
+                world = deselect_all::<_, DataAccessors, InstanceAnnoAccessors>(world, BRUSH_NAME);
             }
             if !events.held_ctrl() {
                 let options = get_options(&world).cloned();
@@ -318,7 +318,9 @@ impl Brush {
                             annos.select(idx);
                         }
                     } else {
-                        world = deselect_all::<_, DataAccessors>(world, BRUSH_NAME, get_annos_mut);
+                        world = deselect_all::<_, DataAccessors, InstanceAnnoAccessors>(
+                            world, BRUSH_NAME,
+                        );
                     }
                 }
             }
@@ -421,14 +423,12 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         let released_key = map_released_key(events);
-        (world, history) = on_selection_keys::<_, DataAccessors>(
+        (world, history) = on_selection_keys::<_, DataAccessors, InstanceAnnoAccessors>(
             world,
             history,
             released_key,
             events.held_ctrl(),
             BRUSH_NAME,
-            get_annos_mut,
-            |world| get_specific_mut(world).map(|d| &mut d.clipboard),
         );
         let mut trigger_redraw = false;
         if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
@@ -470,9 +470,7 @@ impl Manipulate for Brush {
             }
         }
         (world, history) =
-            check_autopaste::<_, DataAccessors>(world, history, ACTOR_NAME, get_annos_mut, |w| {
-                get_specific(w).and_then(|d| d.clipboard.clone())
-            });
+            check_autopaste::<_, DataAccessors, InstanceAnnoAccessors>(world, history, ACTOR_NAME);
         set_visible(&mut world);
         (world, history)
     }

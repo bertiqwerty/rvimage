@@ -15,7 +15,7 @@ pub(super) fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
         .and_then(|d| d.specifics.rot90())
         .ok()
 }
-pub fn check_cocoimport<T, A, DC>(
+pub fn check_cocoimport<T, A, DA>(
     mut world: World,
     get_specific: impl Fn(&World) -> Option<&T>,
     get_specific_mut: impl Fn(&mut World) -> Option<&mut T>,
@@ -24,9 +24,9 @@ pub fn check_cocoimport<T, A, DC>(
 where
     T: ExportAsCoco<A> + Default,
     A: InstanceAnnotate + 'static,
-    DC: DataAccess,
+    DA: DataAccess,
 {
-    let options = DC::get_core_options(&world);
+    let options = DA::get_core_options(&world);
     let rot90_data = get_rot90_data(&world);
     enum IsImportTriggered {
         Yes,

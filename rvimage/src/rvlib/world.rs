@@ -2,12 +2,13 @@ use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
 use crate::meta_data::MetaData;
 use crate::result::trace_ok_err;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
+use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::{
     self, vis_from_lfoption, ExportAsCoco, LabelInfo, ToolSpecifics, ToolsData,
 };
 use crate::types::ViewImage;
 use crate::util::Visibility;
-use crate::{image_util, UpdatePermAnnos, UpdateView, UpdateZoomBox};
+use crate::{image_util, InstanceAnnotate, UpdatePermAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
 use rvimage_domain::{BbF, RvError, RvResult, ShapeI};
 use std::collections::HashMap;
@@ -50,7 +51,7 @@ pub fn get_specific_mut<T>(
 }
 
 /// Often needed meta data when accessing annotations, see different `AnnoMetaAccessors` structs.
-pub(super) trait DataAccess {
+pub trait DataAccess {
     fn get_core_options(world: &World) -> Option<&tools_data::Options>;
     fn get_core_options_mut(world: &mut World) -> Option<&mut tools_data::Options>;
     fn get_track_changes_str(world: &World) -> Option<&'static str>;
@@ -202,6 +203,45 @@ macro_rules! annotations_accessor_mut {
     };
 }
 
+pub trait InstanceAnnoAccess<T>
+where
+    T: InstanceAnnotate,
+{
+    fn get_annos(world: &World) -> Option<&InstanceAnnotations<T>>;
+    fn get_annos_mut(world: &mut World) -> Option<&mut InstanceAnnotations<T>>;
+    fn get_clipboard(world: &World) -> Option<&ClipboardData<T>>;
+    fn set_clipboard(world: &mut World, clipboard: Option<ClipboardData<T>>);
+}
+#[macro_export]
+macro_rules! instance_annotations_accessor {
+    ($annotations_type:ty) => {
+        pub(super) struct InstanceAnnoAccessors;
+        impl $crate::world::InstanceAnnoAccess<$annotations_type> for InstanceAnnoAccessors {
+            fn get_annos(world: &World) -> Option<&$crate::tools_data::annotations::InstanceAnnotations<$annotations_type>> {
+                get_annos(world)
+            }
+            fn get_annos_mut(
+                world: &mut World,
+            ) -> Option<&mut $crate::tools_data::annotations::InstanceAnnotations<$annotations_type>> {
+                get_annos_mut(world)
+            }
+            fn get_clipboard(
+                world: &World,
+            ) -> Option<&$crate::tools_data::annotations::ClipboardData<$annotations_type>> {
+                get_specific(world).and_then(|d| d.clipboard.as_ref())
+            }
+            fn set_clipboard(
+                world: &mut World,
+                clipboard: Option<$crate::tools_data::annotations::ClipboardData<$annotations_type>>,
+            ) {
+                let specific_data = get_specific_mut(world);
+                if let Some(d) = specific_data {
+                    d.clipboard = clipboard;
+                }
+            }
+        }
+    };
+}
 // tool name -> tool's menu data type
 pub type ToolsDataMap = HashMap<String, ToolsData>;
 

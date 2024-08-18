@@ -4,7 +4,7 @@ use crate::{
     events::{Events, KeyCode},
     file_util,
     history::{History, Record},
-    make_tool_transform,
+    instance_annotations_accessor, make_tool_transform,
     result::trace_ok_err,
     tools::{
         core::{
@@ -37,6 +37,7 @@ const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
 const MISSING_DATA_MSG: &str = "bbox tools data not available";
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
 annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
+instance_annotations_accessor!(GeoFig);
 tools_data_accessors!(
     ACTOR_NAME,
     MISSING_DATA_MSG,
@@ -201,7 +202,8 @@ impl Bbox {
                 self.start_press_time = Some(Instant::now());
                 self.points_at_press = Some(self.prev_pos.prev_pos.len());
                 if !(event.held_alt() || event.held_ctrl() || event.held_shift()) {
-                    world = deselect_all::<_, DataAccessors>(world, BBOX_NAME, get_annos_mut);
+                    world =
+                        deselect_all::<_, DataAccessors, InstanceAnnoAccessors>(world, BBOX_NAME);
                 }
             }
         }
@@ -382,9 +384,7 @@ impl Manipulate for Bbox {
         world.request_redraw_annotations(BBOX_NAME, vis);
 
         (world, history) =
-            check_autopaste::<_, DataAccessors>(world, history, ACTOR_NAME, get_annos_mut, |w| {
-                get_specific(w).and_then(|d| d.clipboard.clone())
-            });
+            check_autopaste::<_, DataAccessors, InstanceAnnoAccessors>(world, history, ACTOR_NAME);
 
         (world, history)
     }

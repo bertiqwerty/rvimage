@@ -7,6 +7,7 @@ use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{vis_from_lfoption, InstanceAnnotate, LabelInfo};
 use crate::util::Visibility;
+use crate::world::InstanceAnnoAccess;
 use crate::ShapeI;
 use crate::{
     events::Events,
@@ -92,16 +93,18 @@ pub(super) fn insert_attribute(
     world
 }
 
-pub(super) fn change_annos<T>(
+pub(super) fn change_annos<T, DA, IA>(
     world: &mut World,
     f_change: impl FnOnce(&mut InstanceAnnotations<T>),
-    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    get_track_changes_str: impl Fn(&World) -> Option<&'static str>,
-) {
-    if let Some(annos) = get_annos_mut(world) {
+) where
+    T: InstanceAnnotate,
+    DA: DataAccess,
+    IA: InstanceAnnoAccess<T>,
+{
+    if let Some(annos) = IA::get_annos_mut(world) {
         f_change(annos);
     }
-    let track_changes_str = get_track_changes_str(world);
+    let track_changes_str = DA::get_track_changes_str(world);
     if let Some(track_changes_str) = track_changes_str {
         *world = insert_attribute(
             mem::take(world),
@@ -219,47 +222,45 @@ macro_rules! set_cat_current {
     };
 }
 
-fn replace_annotations_with_clipboard<T, AC>(
+fn replace_annotations_with_clipboard<T, DA, IA>(
     mut world: World,
     history: History,
     actor: &'static str,
-    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    clipboard: Option<ClipboardData<T>>,
+    clipboard: Option<&ClipboardData<T>>,
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    AC: DataAccess,
+    DA: DataAccess,
+    IA: InstanceAnnoAccess<T>,
 {
-    let annos = get_annos_mut(&mut world);
+    let annos = IA::get_annos_mut(&mut world);
     if let Some(annos) = annos {
         let all = (0..annos.elts().len()).collect::<Vec<_>>();
         annos.remove_multiple(&all);
     }
-    paste::<T, AC>(world, history, actor, clipboard, get_annos_mut)
+    paste::<T, DA, IA>(world, history, actor, clipboard)
 }
-pub(super) fn check_autopaste<T, AC>(
+pub(super) fn check_autopaste<T, DA, IA>(
     mut world: World,
     mut history: History,
     actor: &'static str,
-    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    get_clipboard: impl Fn(&World) -> Option<ClipboardData<T>>,
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    AC: DataAccess,
+    DA: DataAccess,
+    IA: InstanceAnnoAccess<T>,
 {
-    let clipboard_data = get_clipboard(&world);
-    let auto_paste = AC::get_core_options_mut(&mut world)
+    let clipboard_data = IA::get_clipboard(&world).cloned();
+    let auto_paste = DA::get_core_options_mut(&mut world)
         .map(|o| o.auto_paste)
         .unwrap_or(false);
     if world.data.meta_data.flags.is_loading_screen_active == Some(false) && auto_paste {
         history.push(Record::new(world.clone(), actor));
-        replace_annotations_with_clipboard::<T, AC>(
+        replace_annotations_with_clipboard::<T, DA, IA>(
             world,
             history,
             actor,
-            get_annos_mut,
-            clipboard_data,
+            clipboard_data.as_ref(),
         )
     } else {
         (world, history)
@@ -341,18 +342,18 @@ pub(super) fn label_change_key(key: ReleasedKey, mut label_info: LabelInfo) -> (
     };
     (label_info, label_change)
 }
-pub(super) fn paste<T, AC>(
+pub(super) fn paste<T, DA, IA>(
     mut world: World,
     mut history: History,
     actor: &'static str,
-    clipboard: Option<ClipboardData<T>>,
-    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
+    clipboard: Option<&ClipboardData<T>>,
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    AC: DataAccess,
+    DA: DataAccess,
+    IA: InstanceAnnoAccess<T>,
 {
-    if let Some(clipboard) = &clipboard {
+    if let Some(clipboard) = clipboard {
         let cb_bbs = clipboard.elts();
         if !cb_bbs.is_empty() {
             let shape_orig = ShapeI::from_im(world.data.im_background());
@@ -363,70 +364,61 @@ where
                     shape_orig,
                 )
             };
-            change_annos(
-                &mut world,
-                paste_annos,
-                get_annos_mut,
-                AC::get_track_changes_str,
-            );
+            change_annos::<T, DA, IA>(&mut world, paste_annos);
         }
-        let options_mut = AC::get_core_options_mut(&mut world);
+        let options_mut = DA::get_core_options_mut(&mut world);
         if let Some(options_mut) = options_mut {
             options_mut.visible = true;
         }
-        let visible = AC::get_core_options_mut(&mut world).map(|o| o.visible) == Some(true);
-        let vis = vis_from_lfoption(AC::get_label_info(&world), visible);
+        let visible = DA::get_core_options_mut(&mut world).map(|o| o.visible) == Some(true);
+        let vis = vis_from_lfoption(DA::get_label_info(&world), visible);
         world.request_redraw_annotations(actor, vis);
         history.push(Record::new(world.clone(), actor));
     }
 
     (world, history)
 }
-pub fn deselect_all<T, AC>(
-    mut world: World,
-    actor: &'static str,
-    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-) -> World
+pub fn deselect_all<T, DA, IA>(mut world: World, actor: &'static str) -> World
 where
     T: InstanceAnnotate,
-    AC: DataAccess,
+    DA: DataAccess,
+    IA: InstanceAnnoAccess<T>,
 {
     // Deselect all
-    if let Some(a) = get_annos_mut(&mut world) {
+    if let Some(a) = IA::get_annos_mut(&mut world) {
         a.deselect_all()
     };
-    let vis = vis_from_lfoption(AC::get_label_info(&world), true);
+    let vis = vis_from_lfoption(DA::get_label_info(&world), true);
     world.request_redraw_annotations(actor, vis);
     world
 }
 
-pub(super) fn on_selection_keys<T, AC>(
+pub(super) fn on_selection_keys<T, DA, IA>(
     mut world: World,
     mut history: History,
     key: ReleasedKey,
     is_ctrl_held: bool,
     actor: &'static str,
-    get_annos_mut: impl Fn(&mut World) -> Option<&mut InstanceAnnotations<T>>,
-    get_clipboard_mut: impl Fn(&mut World) -> Option<&mut Option<ClipboardData<T>>>,
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    AC: DataAccess,
+    DA: DataAccess,
+    IA: InstanceAnnoAccess<T>,
 {
     match key {
         ReleasedKey::A if is_ctrl_held => {
             // Select all visible
-            let current_active_idx = AC::get_label_info(&world).and_then(|li| {
+            let current_active_idx = DA::get_label_info(&world).and_then(|li| {
                 if li.show_only_current {
                     Some(li.cat_idx_current)
                 } else {
                     None
                 }
             });
-            let options = AC::get_core_options_mut(&mut world);
+            let options = DA::get_core_options_mut(&mut world);
             if options.map(|o| o.visible) == Some(true) {
                 if let (Some(current_active), Some(a)) =
-                    (current_active_idx, get_annos_mut(&mut world))
+                    (current_active_idx, IA::get_annos_mut(&mut world))
                 {
                     let relevant_indices = a
                         .cat_idxs()
@@ -436,62 +428,51 @@ where
                         .map(|(i, _)| i)
                         .collect::<Vec<_>>();
                     a.select_multi(relevant_indices.into_iter());
-                } else if let Some(a) = get_annos_mut(&mut world) {
+                } else if let Some(a) = IA::get_annos_mut(&mut world) {
                     a.select_all()
                 };
-                let vis = vis_from_lfoption(AC::get_label_info(&world), true);
+                let vis = vis_from_lfoption(DA::get_label_info(&world), true);
                 world.request_redraw_annotations(actor, vis);
             }
         }
         ReleasedKey::D if is_ctrl_held => {
-            world = deselect_all::<_, AC>(world, actor, get_annos_mut);
+            world = deselect_all::<_, DA, IA>(world, actor);
         }
         ReleasedKey::C if is_ctrl_held => {
             // Copy to clipboard
-            let clipboard_data =
-                get_annos_mut(&mut world).map(|d| ClipboardData::from_annotations(d));
-            if let (Some(clipboard_data), Some(clipboard_mut)) =
-                (clipboard_data, get_clipboard_mut(&mut world))
-            {
-                *clipboard_mut = Some(clipboard_data);
-            }
-            let vis = vis_from_lfoption(AC::get_label_info(&world), true);
+            let clipboard_data_new =
+                IA::get_annos(&world).map(|d| ClipboardData::from_annotations(d));
+            IA::set_clipboard(&mut world, clipboard_data_new);
+            let vis = vis_from_lfoption(DA::get_label_info(&world), true);
             world.request_redraw_annotations(actor, vis);
         }
         ReleasedKey::V if is_ctrl_held => {
-            let clipboard_data = get_clipboard_mut(&mut world).cloned().flatten();
-            (world, history) = paste::<_, AC>(world, history, actor, clipboard_data, get_annos_mut);
+            let clipboard_data = IA::get_clipboard(&world).cloned();
+            (world, history) = paste::<_, DA, IA>(world, history, actor, clipboard_data.as_ref());
         }
         ReleasedKey::V if !is_ctrl_held => {
-            let clipboard_data = get_clipboard_mut(&mut world).cloned().flatten();
-            if let Some(options_mut) = AC::get_core_options_mut(&mut world) {
+            let clipboard_data = IA::get_clipboard(&world).cloned();
+            if let Some(options_mut) = DA::get_core_options_mut(&mut world) {
                 options_mut.auto_paste = !options_mut.auto_paste;
                 if options_mut.auto_paste {
-                    (world, history) = replace_annotations_with_clipboard::<T, AC>(
+                    (world, history) = replace_annotations_with_clipboard::<T, DA, IA>(
                         world,
                         history,
                         actor,
-                        get_annos_mut,
-                        clipboard_data,
+                        clipboard_data.as_ref(),
                     );
                 }
             }
         }
         ReleasedKey::Delete | ReleasedKey::Back => {
             // Remove selected
-
             let del_annos = |annos: &mut InstanceAnnotations<T>| {
                 if !annos.selected_mask().is_empty() {
                     annos.remove_selected();
                 }
             };
-            change_annos(
-                &mut world,
-                del_annos,
-                get_annos_mut,
-                AC::get_track_changes_str,
-            );
-            let vis = vis_from_lfoption(AC::get_label_info(&world), true);
+            change_annos::<T, DA, IA>(&mut world, del_annos);
+            let vis = vis_from_lfoption(DA::get_label_info(&world), true);
             world.request_redraw_annotations(actor, vis);
             history.push(Record::new(world.clone(), actor));
         }

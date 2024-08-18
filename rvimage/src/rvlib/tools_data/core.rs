@@ -1,6 +1,7 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Debug;
 use tracing::info;
 
 use crate::{cfg::ExportPath, util::Visibility, ShapeI};
@@ -488,7 +489,9 @@ pub trait Annotate {
     fn has_annos(&self, relative_path: &str) -> bool;
 }
 
-pub trait InstanceAnnotate: Clone + Default + PartialEq + Serialize + DeserializeOwned {
+pub trait InstanceAnnotate:
+    Clone + Default + Debug + PartialEq + Serialize + DeserializeOwned
+{
     fn is_contained_in_image(&self, shape: ShapeI) -> bool;
     fn contains<P>(&self, point: P) -> bool
     where
