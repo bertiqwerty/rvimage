@@ -201,7 +201,7 @@ impl Bbox {
                 self.start_press_time = Some(Instant::now());
                 self.points_at_press = Some(self.prev_pos.prev_pos.len());
                 if !(event.held_alt() || event.held_ctrl() || event.held_shift()) {
-                    world = deselect_all::<_, AnnoMetaAccessors>(world, BBOX_NAME, get_annos_mut);
+                    world = deselect_all::<_, DataAccessors>(world, BBOX_NAME, get_annos_mut);
                 }
             }
         }
@@ -328,7 +328,7 @@ impl Bbox {
             is_ctrl_held: events.held_ctrl(),
             released_key: map_released_key(events),
         };
-        world = check_erase_mode::<AnnoMetaAccessors>(params.released_key, set_visible, world);
+        world = check_erase_mode::<DataAccessors>(params.released_key, set_visible, world);
         (world, history) = on_key_released(world, history, events.mouse_pos_on_orig, params);
         (world, history)
     }
@@ -381,13 +381,10 @@ impl Manipulate for Bbox {
         let vis = vis_from_lfoption(get_label_info(&world), visible);
         world.request_redraw_annotations(BBOX_NAME, vis);
 
-        (world, history) = check_autopaste::<_, AnnoMetaAccessors>(
-            world,
-            history,
-            ACTOR_NAME,
-            get_annos_mut,
-            |w| get_specific(w).and_then(|d| d.clipboard.clone()),
-        );
+        (world, history) =
+            check_autopaste::<_, DataAccessors>(world, history, ACTOR_NAME, get_annos_mut, |w| {
+                get_specific(w).and_then(|d| d.clipboard.clone())
+            });
 
         (world, history)
     }
@@ -398,17 +395,15 @@ impl Manipulate for Bbox {
         mut history: History,
         events: &Events,
     ) -> (World, History) {
-        world = check_recolorboxes::<AnnoMetaAccessors>(world, BBOX_NAME);
+        world = check_recolorboxes::<DataAccessors>(world, BBOX_NAME);
 
-        (world, history) =
-            check_trigger_history_update::<AnnoMetaAccessors>(world, history, BBOX_NAME);
+        (world, history) = check_trigger_history_update::<DataAccessors>(world, history, BBOX_NAME);
         world = check_anno_outoffolder_remove(world);
 
         world = check_cocoexport(world);
         let imported;
-        (world, imported) = check_cocoimport(
+        (world, imported) = check_cocoimport::<_, _, DataAccessors>(
             world,
-            |w| get_options(w).map(|o| o.core_options),
             get_specific,
             get_specific_mut,
             import_coco,
@@ -417,7 +412,7 @@ impl Manipulate for Bbox {
             set_visible(&mut world);
         }
 
-        let options = get_options(&world);
+        let options = get_options(&world).cloned();
 
         self.last_proximal_circle_check = show_grab_ball(
             events.mouse_pos_on_orig,
@@ -427,7 +422,7 @@ impl Manipulate for Bbox {
             options.as_ref(),
         );
         if let Some(options) = options {
-            world = check_trigger_redraw::<AnnoMetaAccessors>(world, BBOX_NAME);
+            world = check_trigger_redraw::<DataAccessors>(world, BBOX_NAME);
 
             let in_menu_selected_label = current_cat_idx(&world);
             if let (Some(in_menu_selected_label), Some(mp)) =

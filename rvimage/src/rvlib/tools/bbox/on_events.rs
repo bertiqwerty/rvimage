@@ -25,8 +25,7 @@ use rvimage_domain::{
 
 use super::core::{
     current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_options, get_options_mut,
-    get_specific, get_specific_mut, get_track_changes_str, get_visible, AnnoMetaAccessors,
-    ACTOR_NAME,
+    get_specific, get_specific_mut, get_track_changes_str, get_visible, DataAccessors, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
@@ -609,7 +608,7 @@ pub(super) fn on_key_released(
         let vis = get_visible(&world);
         world.request_redraw_annotations(BBOX_NAME, vis);
     }
-    (world, history) = on_selection_keys::<_, AnnoMetaAccessors>(
+    (world, history) = on_selection_keys::<_, DataAccessors>(
         world,
         history,
         params.released_key,

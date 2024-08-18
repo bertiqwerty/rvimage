@@ -12,7 +12,7 @@ use crate::{
     events::Events,
     history::History,
     world,
-    world::{AnnoMetaAccess, World},
+    world::{DataAccess, World},
 };
 use rvimage_domain::PtF;
 use std::mem;
@@ -112,19 +112,19 @@ pub(super) fn change_annos<T>(
         );
     }
 }
-pub(super) fn check_trigger_redraw<AC>(mut world: World, name: &'static str) -> World
+pub(super) fn check_trigger_redraw<DC>(mut world: World, name: &'static str) -> World
 where
-    AC: AnnoMetaAccess,
+    DC: DataAccess,
 {
-    let core_options = AC::get_core_options_mut(&mut world).cloned();
+    let core_options = DC::get_core_options_mut(&mut world).cloned();
     let is_redraw_triggered = core_options.map(|o| o.is_redraw_annos_triggered);
     if is_redraw_triggered == Some(true) {
         let visibility = vis_from_lfoption(
-            AC::get_label_info(&world),
+            DC::get_label_info(&world),
             core_options.map(|o| o.visible) == Some(true),
         );
         world.request_redraw_annotations(name, visibility);
-        let core_options_mut = AC::get_core_options_mut(&mut world);
+        let core_options_mut = DC::get_core_options_mut(&mut world);
         if let Some(core_options_mut) = core_options_mut {
             core_options_mut.is_redraw_annos_triggered = false;
         }
@@ -132,18 +132,18 @@ where
     world
 }
 
-pub(super) fn check_trigger_history_update<AC>(
+pub(super) fn check_trigger_history_update<DC>(
     mut world: World,
     mut history: History,
     name: &'static str,
 ) -> (World, History)
 where
-    AC: AnnoMetaAccess,
+    DC: DataAccess,
 {
-    let core_options = AC::get_core_options_mut(&mut world).cloned();
+    let core_options = DC::get_core_options_mut(&mut world).cloned();
     let is_history_update_triggered = core_options.map(|o| o.is_history_update_triggered);
     if is_history_update_triggered == Some(true) {
-        let core_options_mut = AC::get_core_options_mut(&mut world);
+        let core_options_mut = DC::get_core_options_mut(&mut world);
         if let Some(core_options_mut) = core_options_mut {
             core_options_mut.is_history_update_triggered = false;
         }
@@ -228,7 +228,7 @@ fn replace_annotations_with_clipboard<T, AC>(
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    AC: AnnoMetaAccess,
+    AC: DataAccess,
 {
     let annos = get_annos_mut(&mut world);
     if let Some(annos) = annos {
@@ -246,7 +246,7 @@ pub(super) fn check_autopaste<T, AC>(
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    AC: AnnoMetaAccess,
+    AC: DataAccess,
 {
     let clipboard_data = get_clipboard(&world);
     let auto_paste = AC::get_core_options_mut(&mut world)
@@ -271,7 +271,7 @@ pub fn check_erase_mode<AC>(
     mut world: World,
 ) -> World
 where
-    AC: AnnoMetaAccess,
+    AC: DataAccess,
 {
     if let (ReleasedKey::E, Some(core_options)) =
         (released_key, AC::get_core_options_mut(&mut world))
@@ -290,7 +290,7 @@ where
 
 pub fn check_recolorboxes<AC>(mut world: World, actor: &'static str) -> World
 where
-    AC: AnnoMetaAccess,
+    AC: DataAccess,
 {
     let is_colorchange_triggered =
         AC::get_core_options_mut(&mut world).map(|o| o.is_colorchange_triggered);
@@ -350,7 +350,7 @@ pub(super) fn paste<T, AC>(
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    AC: AnnoMetaAccess,
+    AC: DataAccess,
 {
     if let Some(clipboard) = &clipboard {
         let cb_bbs = clipboard.elts();
@@ -389,7 +389,7 @@ pub fn deselect_all<T, AC>(
 ) -> World
 where
     T: InstanceAnnotate,
-    AC: AnnoMetaAccess,
+    AC: DataAccess,
 {
     // Deselect all
     if let Some(a) = get_annos_mut(&mut world) {
@@ -411,7 +411,7 @@ pub(super) fn on_selection_keys<T, AC>(
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    AC: AnnoMetaAccess,
+    AC: DataAccess,
 {
     match key {
         ReleasedKey::A if is_ctrl_held => {

@@ -76,7 +76,7 @@ fn max_select_dist(shape: ShapeI) -> TPtF {
 
 fn draw_erase_circle(mut world: World, mp: PtF) -> World {
     let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
-    let options = get_options(&world);
+    let options = get_options(&world).cloned();
     let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
     if let Some(options) = options {
         let erase = |annos: &mut BrushAnnotations| {
@@ -116,7 +116,7 @@ fn find_closest_canvas(
 }
 
 fn check_selected_intensity_thickness(mut world: World) -> World {
-    let options = get_options(&world);
+    let options = get_options(&world).cloned();
     let annos = get_annos_mut(&mut world);
     let mut any_selected = false;
     if let (Some(annos), Some(options)) = (annos, options) {
@@ -215,10 +215,10 @@ impl Brush {
             self.mover.move_mouse_pressed(events.mouse_pos_on_orig);
         } else {
             if !(events.held_alt() || events.held_ctrl() || events.held_shift()) {
-                world = deselect_all::<_, AnnoMetaAccessors>(world, BRUSH_NAME, get_annos_mut);
+                world = deselect_all::<_, DataAccessors>(world, BRUSH_NAME, get_annos_mut);
             }
             if !events.held_ctrl() {
-                let options = get_options(&world);
+                let options = get_options(&world).cloned();
                 let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
                 if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
                     let erase = options.core_options.erase;
@@ -253,7 +253,7 @@ impl Brush {
             on_mouse_held_right(events.mouse_pos_on_orig, &mut self.mover, world, history)
         } else {
             if !events.held_ctrl() {
-                let options = get_options(&world);
+                let options = get_options(&world).cloned();
                 if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
                     if options.core_options.erase {
                         world = draw_erase_circle(world, mp);
@@ -318,8 +318,7 @@ impl Brush {
                             annos.select(idx);
                         }
                     } else {
-                        world =
-                            deselect_all::<_, AnnoMetaAccessors>(world, BRUSH_NAME, get_annos_mut);
+                        world = deselect_all::<_, DataAccessors>(world, BRUSH_NAME, get_annos_mut);
                     }
                 }
             }
@@ -422,7 +421,7 @@ impl Brush {
         mut history: History,
     ) -> (World, History) {
         let released_key = map_released_key(events);
-        (world, history) = on_selection_keys::<_, AnnoMetaAccessors>(
+        (world, history) = on_selection_keys::<_, DataAccessors>(
             world,
             history,
             released_key,
@@ -451,7 +450,7 @@ impl Brush {
             }
             _ => (),
         }
-        world = check_erase_mode::<AnnoMetaAccessors>(released_key, set_visible, world);
+        world = check_erase_mode::<DataAccessors>(released_key, set_visible, world);
         (world, history)
     }
 }
@@ -470,13 +469,10 @@ impl Manipulate for Brush {
                 anno.deselect_all();
             }
         }
-        (world, history) = check_autopaste::<_, AnnoMetaAccessors>(
-            world,
-            history,
-            ACTOR_NAME,
-            get_annos_mut,
-            |w| get_specific(w).and_then(|d| d.clipboard.clone()),
-        );
+        (world, history) =
+            check_autopaste::<_, DataAccessors>(world, history, ACTOR_NAME, get_annos_mut, |w| {
+                get_specific(w).and_then(|d| d.clipboard.clone())
+            });
         set_visible(&mut world);
         (world, history)
     }
@@ -506,13 +502,12 @@ impl Manipulate for Brush {
         mut history: History,
         events: &Events,
     ) -> (World, History) {
-        world = check_trigger_redraw::<AnnoMetaAccessors>(world, BRUSH_NAME);
+        world = check_trigger_redraw::<DataAccessors>(world, BRUSH_NAME);
         (world, history) =
-            check_trigger_history_update::<AnnoMetaAccessors>(world, history, BRUSH_NAME);
+            check_trigger_history_update::<DataAccessors>(world, history, BRUSH_NAME);
         let imported;
-        (world, imported) = check_cocoimport(
+        (world, imported) = check_cocoimport::<_, _, DataAccessors>(
             world,
-            |w| get_options(w).map(|o| o.core_options),
             get_specific,
             get_specific_mut,
             import_coco,
@@ -520,7 +515,7 @@ impl Manipulate for Brush {
         if imported {
             set_visible(&mut world);
         }
-        world = check_recolorboxes::<AnnoMetaAccessors>(world, BRUSH_NAME);
+        world = check_recolorboxes::<DataAccessors>(world, BRUSH_NAME);
         world = check_selected_intensity_thickness(world);
         world = check_export(world);
         make_tool_transform!(

@@ -2,8 +2,8 @@ use crate::{
     cfg::ExportPath,
     meta_data::MetaData,
     result::trace_ok_err,
-    tools_data::{merge, CoreOptions, ExportAsCoco, ImportMode, Rot90ToolData},
-    world::{self, World},
+    tools_data::{merge, ExportAsCoco, ImportMode, Rot90ToolData},
+    world::{self, DataAccess, World},
     InstanceAnnotate,
 };
 use std::mem;
@@ -15,9 +15,8 @@ pub(super) fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
         .and_then(|d| d.specifics.rot90())
         .ok()
 }
-pub fn check_cocoimport<T, A>(
+pub fn check_cocoimport<T, A, DC>(
     mut world: World,
-    get_options: impl Fn(&World) -> Option<CoreOptions>,
     get_specific: impl Fn(&World) -> Option<&T>,
     get_specific_mut: impl Fn(&mut World) -> Option<&mut T>,
     import_coco: impl Fn(&MetaData, &ExportPath, Option<&Rot90ToolData>) -> Option<T>,
@@ -25,8 +24,9 @@ pub fn check_cocoimport<T, A>(
 where
     T: ExportAsCoco<A> + Default,
     A: InstanceAnnotate + 'static,
+    DC: DataAccess,
 {
-    let options = get_options(&world);
+    let options = DC::get_core_options(&world);
     let rot90_data = get_rot90_data(&world);
     enum IsImportTriggered {
         Yes,

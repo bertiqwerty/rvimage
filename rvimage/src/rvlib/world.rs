@@ -50,7 +50,8 @@ pub fn get_specific_mut<T>(
 }
 
 /// Often needed meta data when accessing annotations, see different `AnnoMetaAccessors` structs.
-pub(super) trait AnnoMetaAccess {
+pub(super) trait DataAccess {
+    fn get_core_options(world: &World) -> Option<&tools_data::Options>;
     fn get_core_options_mut(world: &mut World) -> Option<&mut tools_data::Options>;
     fn get_track_changes_str(world: &World) -> Option<&'static str>;
     fn get_label_info(world: &World) -> Option<&LabelInfo>;
@@ -83,8 +84,8 @@ macro_rules! tools_data_accessors {
 #[macro_export]
 macro_rules! tools_data_accessors_objects {
     ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
-        pub(super) fn get_options(world: &World) -> Option<$data_module::Options> {
-            get_specific(world).map(|d| d.options)
+        pub(super) fn get_options(world: &World) -> Option<&$data_module::Options> {
+            get_specific(world).map(|d| &d.options)
         }
         pub(super) fn get_options_mut(world: &mut World) -> Option<&mut $data_module::Options> {
             get_specific_mut(world).map(|d| &mut d.options)
@@ -103,8 +104,11 @@ macro_rules! tools_data_accessors_objects {
         }
 
         /// when you access annotations, you often also need this metadata
-        pub(super) struct AnnoMetaAccessors;
-        impl $crate::world::AnnoMetaAccess for AnnoMetaAccessors {
+        pub(super) struct DataAccessors;
+        impl $crate::world::DataAccess for DataAccessors {
+            fn get_core_options(world: &World) -> Option<&$crate::tools_data::Options> {
+                get_options(world).map(|o| &o.core_options)
+            }
             fn get_core_options_mut(world: &mut World) -> Option<&mut $crate::tools_data::Options> {
                 get_options_mut(world).map(|o| &mut o.core_options)
             }
