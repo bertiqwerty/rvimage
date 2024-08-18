@@ -119,7 +119,7 @@ pub(super) fn check_trigger_redraw<DC>(mut world: World, name: &'static str) -> 
 where
     DC: DataAccess,
 {
-    let core_options = DC::get_core_options_mut(&mut world).cloned();
+    let core_options = DC::get_core_options(&world).cloned();
     let is_redraw_triggered = core_options.map(|o| o.is_redraw_annos_triggered);
     if is_redraw_triggered == Some(true) {
         let visibility = vis_from_lfoption(
