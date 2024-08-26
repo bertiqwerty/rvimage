@@ -17,8 +17,8 @@ use crate::{
     },
 };
 use egui::Ui;
-use rvimage_domain::{to_rv, RvResult};
-use rvimage_domain::{TPtF, TPtI};
+use rvimage_domain::TPtF;
+use rvimage_domain::{to_rv, RvResult, TPtS};
 use tracing::{info, warn};
 
 use super::ui_util::{slider, text_edit_singleline};
@@ -504,7 +504,7 @@ pub fn attributes_menu(
                 );
                 ui.selectable_value(
                     &mut data.new_attr_val,
-                    AttrVal::Int(TPtI::default()),
+                    AttrVal::Int(TPtS::default()),
                     INT_LABEL,
                 );
                 ui.selectable_value(
@@ -539,7 +539,7 @@ pub fn attributes_menu(
                             }
                         }
                         Some(AttrVal::Float(x)) => {
-                            let (lost_focus, new_val) = process_number(
+                            let (input_changed, new_val) = process_number(
                                 ui,
                                 are_tools_active,
                                 FLOAT_LABEL,
@@ -548,7 +548,7 @@ pub fn attributes_menu(
                             if let Some(new_val) = new_val {
                                 *x = new_val;
                             }
-                            if lost_focus || ui.button("OK").clicked() {
+                            if input_changed {
                                 data.options.is_update_triggered = true;
                             }
                         }
@@ -562,7 +562,7 @@ pub fn attributes_menu(
                             if let Some(new_val) = new_val {
                                 *x = new_val;
                             }
-                            if lost_focus || ui.button("OK").clicked() {
+                            if lost_focus {
                                 data.options.is_update_triggered = true;
                             }
                         }
@@ -570,7 +570,7 @@ pub fn attributes_menu(
                             let lost_focus = text_edit_singleline(ui, s, are_tools_active)
                                 .on_hover_text(TEXT_LABEL)
                                 .lost_focus();
-                            if lost_focus || ui.button("OK").clicked() {
+                            if lost_focus {
                                 data.options.is_update_triggered = true;
                             }
                         }

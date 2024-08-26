@@ -64,14 +64,14 @@ where
     let new_val = text_edit_singleline(ui, buffer, are_tools_active).on_hover_text(label);
     if new_val.changed() {
         match buffer.parse::<T>() {
-            Ok(val) => (new_val.lost_focus(), Some(val)),
+            Ok(val) => (true, Some(val)),
             Err(_) => {
                 warn!("could not parse {buffer} as number");
-                (new_val.lost_focus(), None)
+                (false, None)
             }
         }
     } else {
-        (new_val.lost_focus(), None)
+        (false, None)
     }
 }
 pub fn button_triggerable_number<T>(

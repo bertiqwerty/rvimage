@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{cfg::ExportPath, implement_annotate, implement_annotations_getters, ShapeI};
-use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtI};
+use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtS};
 
 use super::label_map::LabelMap;
 
@@ -25,7 +25,7 @@ pub const ATTR_INTERVAL_SEPARATOR: &str = "-";
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum AttrVal {
     Float(TPtF),
-    Int(TPtI),
+    Int(TPtS),
     Str(String),
     Bool(bool),
 }
@@ -55,7 +55,7 @@ impl AttrVal {
                 x == &attr_val
             }
             AttrVal::Int(x) => {
-                let attr_val = attr_val.parse::<TPtI>().map_err(to_rv)?;
+                let attr_val = attr_val.parse::<TPtS>().map_err(to_rv)?;
                 x == &attr_val
             }
             AttrVal::Str(s) => {
