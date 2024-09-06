@@ -589,6 +589,7 @@ pub fn attributes_menu(
 
     ui.separator();
     let skip_merge_menu = true;
+    ui.checkbox(&mut data.options.export_only_opened_folder, "export only opened folder");
     let mut import_export_trigger =
         ImportExportTrigger::from_export_triggered(data.options.is_export_triggered);
     export_file_menu(

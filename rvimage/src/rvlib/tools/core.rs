@@ -45,6 +45,7 @@ pub(super) fn insert_attribute(
                 is_export_triggered: false,
                 is_addition_triggered: populate_new_attr,
                 is_update_triggered: false,
+                export_only_opened_folder: false,
                 removal_idx: None,
             };
             old_attr_name.clone_from(&d.new_attr_name);
@@ -64,6 +65,7 @@ pub(super) fn insert_attribute(
             is_export_triggered: false,
             is_addition_triggered: false,
             is_update_triggered: true,
+            export_only_opened_folder: false,
             removal_idx: None,
         };
         trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {

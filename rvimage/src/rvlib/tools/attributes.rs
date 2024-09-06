@@ -9,7 +9,7 @@ use crate::{
     result::trace_ok_err,
     tools_data::{
         self,
-        attributes_data::{self, set_attrmap_val, AttrMap},
+        attributes_data::{self, set_attrmap_val, AttrMap}
     },
     tools_data_accessors,
     world::World,
@@ -146,8 +146,21 @@ impl Manipulate for Attributes {
         let is_export_triggered = get_specific(&world).map(|d| d.options.is_export_triggered);
         if is_export_triggered == Some(true) {
             let ssh_cfg = world.data.meta_data.ssh_cfg.clone();
-            let annos_str =
-                get_specific(&world).and_then(|d| trace_ok_err(d.serialize_annotations()));
+            let attr_data = get_specific(&world);
+            let export_only_opened_folder =
+                attr_data.map(|d| d.options.export_only_opened_folder) == Some(true);
+            let key_filter = if export_only_opened_folder {
+                world
+                    .data
+                    .meta_data
+                    .opened_folder
+                    .as_ref()
+                    .map(|folder| folder.path_relative())
+            } else {
+                None
+            };
+            let annos_str = get_specific(&world)
+                .and_then(|d| trace_ok_err(d.serialize_annotations(key_filter)));
             if let (Some(annos_str), Some(data)) = (annos_str, get_specific(&world)) {
                 if trace_ok_err(data.export_path.conn.write(
                     &annos_str,

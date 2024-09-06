@@ -95,6 +95,8 @@ pub struct Options {
     pub is_addition_triggered: bool,
     pub is_update_triggered: bool,
     pub is_export_triggered: bool,
+    #[serde(default)]
+    pub export_only_opened_folder: bool,
     pub removal_idx: Option<usize>,
 }
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
@@ -150,8 +152,13 @@ impl AttributesToolData {
     pub fn attr_buffer_mut(&mut self, idx: usize) -> &mut String {
         &mut self.new_attr_name_buffers[idx]
     }
-    pub fn serialize_annotations(&self) -> RvResult<String> {
-        serde_json::to_string(&self.annotations_map).map_err(to_rv)
+    pub fn serialize_annotations(&self, key_filter: Option<&str>) -> RvResult<String> {
+        if let Some(kf) = key_filter {
+            let am = self.annotations_map.iter().filter(|(k, _)| k.contains(kf)).collect::<HashMap<_, _>>();
+            serde_json::to_string(&am).map_err(to_rv)
+        } else {
+            serde_json::to_string(&self.annotations_map).map_err(to_rv)
+        }
     }
     pub fn set_annotations_map(&mut self, map: AttrAnnotationsMap) -> RvResult<()> {
         for (_, (attr_map, _)) in map.iter() {
