@@ -154,7 +154,11 @@ impl AttributesToolData {
     }
     pub fn serialize_annotations(&self, key_filter: Option<&str>) -> RvResult<String> {
         if let Some(kf) = key_filter {
-            let am = self.annotations_map.iter().filter(|(k, _)| k.contains(kf)).collect::<HashMap<_, _>>();
+            let am = self
+                .annotations_map
+                .iter()
+                .filter(|(k, _)| k.contains(kf))
+                .collect::<HashMap<_, _>>();
             serde_json::to_string(&am).map_err(to_rv)
         } else {
             serde_json::to_string(&self.annotations_map).map_err(to_rv)

@@ -9,7 +9,7 @@ use crate::{
     result::trace_ok_err,
     tools_data::{
         self,
-        attributes_data::{self, set_attrmap_val, AttrMap}
+        attributes_data::{self, set_attrmap_val, AttrMap},
     },
     tools_data_accessors,
     world::World,
