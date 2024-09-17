@@ -1,6 +1,7 @@
-use std::{cmp::Ordering, path::Path};
+use std::{cmp::Ordering, collections::HashMap, fmt::Debug, path::Path};
 
-use rvimage_domain::{rverr, RvResult};
+use rvimage_domain::{rverr, to_rv, RvResult};
+use serde::Serialize;
 
 use crate::{
     control::SortType,
@@ -154,6 +155,31 @@ impl PathsSelector {
             .iter()
             .map(|(idx, _)| self.file_paths[*idx].path_absolute())
             .collect()
+    }
+
+    pub fn export_filtered<P>(&self, export_path: P, filter_str: &str) -> RvResult<()>
+    where
+        P: AsRef<Path> + Debug,
+    {
+        let filelist = self
+            .filtered_file_labels
+            .iter()
+            .map(|(idx, _)| self.file_paths[*idx].path_relative())
+            .collect::<Vec<_>>();
+
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum ExportVal<'a> {
+            Str(&'a str),
+            List(Vec<&'a str>),
+        }
+        let forexport = HashMap::from([
+            ("filter_str", ExportVal::Str(filter_str)),
+            ("paths", ExportVal::List(filelist)),
+        ]);
+
+        let export_str = serde_json::to_string_pretty(&forexport).map_err(to_rv)?;
+        file_util::write(export_path, export_str)
     }
 
     pub fn folder_label(&self) -> &str {

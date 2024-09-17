@@ -72,6 +72,16 @@ pub fn labels_and_sorting(
     are_tools_active: &mut bool,
     stats: &mut Stats,
 ) -> RvResult<()> {
+    if ui.button("Export filtered filelist").clicked() {
+        let export_path = rfd::FileDialog::new()
+            .add_filter("json", &["json"])
+            .set_file_name("filtered_filelist.json")
+            .save_file();
+        if let Some(ep) = export_path {
+            ctrl.paths_navigator
+                .export_filtered_filelist(ep, &text_buffers.filter_string)?
+        }
+    }
     let mut clicked_nat = false;
     let mut clicked_alp = false;
     ui.horizontal(|ui| {

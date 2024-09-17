@@ -1,3 +1,5 @@
+use std::{fmt::Debug, path::Path};
+
 use super::{filter::FilterExpr, SortParams, SortType};
 use crate::{
     file_util::PathPair,
@@ -84,6 +86,15 @@ impl PathsNavigator {
                 self.file_label_selected_idx = Some(idx);
             }
         }
+    }
+    pub fn export_filtered_filelist<P>(&self, export_path: P, filter_str: &str) -> RvResult<()>
+    where
+        P: AsRef<Path> + Debug,
+    {
+        if let Some(ps) = self.paths_selector() {
+            ps.export_filtered(export_path, filter_str)?
+        };
+        Ok(())
     }
 
     fn idx_of_file_label(&self, file_label: &str) -> Option<usize> {
