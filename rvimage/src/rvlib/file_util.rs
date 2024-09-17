@@ -55,7 +55,7 @@ pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
         path
     }
 }
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct PathPair {
     path_absolute: String,
     path_relative: String,
@@ -95,6 +95,9 @@ impl PathPair {
     }
     pub fn path_relative(&self) -> &str {
         &self.path_relative
+    }
+    pub fn filename(&self) -> RvResult<&str> {
+        to_name_str(Path::new(&self.path_relative))
     }
 }
 

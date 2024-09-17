@@ -1,5 +1,5 @@
 use crate::{
-    control::{Control, Info, SortType},
+    control::{Control, Info, SortParams},
     file_util::get_prj_name,
     menu::{
         self, cfg_menu::CfgMenu, label_delpropstats::labels_and_sorting, open_folder,
@@ -227,7 +227,7 @@ pub struct Menu {
     open_folder_popup_open: bool,
     load_button_resp: PopupBtnResp,
     stats: Stats,
-    filename_sort_type: SortType,
+    filename_sort_type: SortParams,
     show_about: bool,
     text_buffers: TextBuffers,
     show_file_idx: bool,
@@ -248,13 +248,13 @@ impl Menu {
             open_folder_popup_open: false,
             load_button_resp: PopupBtnResp::default(),
             stats: Stats::default(),
-            filename_sort_type: SortType::default(),
+            filename_sort_type: SortParams::default(),
             show_about: false,
             text_buffers,
             show_file_idx: true,
         }
     }
-    pub fn sort_type(&self) -> SortType {
+    pub fn sort_params(&self) -> SortParams {
         self.filename_sort_type
     }
     pub fn popup(&mut self, info: Info) {

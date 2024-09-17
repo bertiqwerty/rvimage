@@ -1,4 +1,4 @@
-use super::{filter::FilterExpr, SortType};
+use super::{filter::FilterExpr, SortParams, SortType};
 use crate::{
     file_util::PathPair,
     paths_selector::PathsSelector,
@@ -32,11 +32,14 @@ pub struct PathsNavigator {
     scroll_to_selected_label: bool,
 }
 impl PathsNavigator {
-    pub fn new(mut paths_selector: Option<PathsSelector>, sort_type: SortType) -> RvResult<Self> {
+    pub fn new(
+        mut paths_selector: Option<PathsSelector>,
+        sort_params: SortParams,
+    ) -> RvResult<Self> {
         if let Some(ps) = &mut paths_selector {
-            match sort_type {
-                SortType::Natural => ps.natural_sort()?,
-                SortType::Alphabetical => ps.alphabetical_sort()?,
+            match sort_params.kind {
+                SortType::Natural => ps.natural_sort(sort_params.sort_by_filename)?,
+                SortType::Alphabetical => ps.alphabetical_sort(sort_params.sort_by_filename)?,
             }
         };
         Ok(Self {
@@ -96,31 +99,6 @@ impl PathsNavigator {
 
     pub fn paths_selector(&self) -> &Option<PathsSelector> {
         &self.paths_selector
-    }
-
-    pub fn natural_sort(
-        &mut self,
-        filter_str: &str,
-        tools_data_map: &ToolsDataMap,
-        active_tool_name: Option<&str>,
-    ) -> RvResult<()> {
-        if let Some(ps) = &mut self.paths_selector {
-            ps.natural_sort()?;
-            self.filter(filter_str, tools_data_map, active_tool_name)?;
-        }
-        Ok(())
-    }
-    pub fn alphabetical_sort(
-        &mut self,
-        filter_str: &str,
-        tools_data_map: &ToolsDataMap,
-        active_tool_name: Option<&str>,
-    ) -> RvResult<()> {
-        if let Some(ps) = &mut self.paths_selector {
-            ps.alphabetical_sort()?;
-            self.filter(filter_str, tools_data_map, active_tool_name)?;
-        }
-        Ok(())
     }
 
     fn filter_by_pred(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {

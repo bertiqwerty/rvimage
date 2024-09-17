@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{cmp::Ordering, path::Path};
 
 use rvimage_domain::{rverr, RvResult};
 
@@ -71,18 +71,33 @@ impl PathsSelector {
         }
     }
 
-    pub fn natural_sort(&mut self) -> RvResult<()> {
-        self.file_paths
-            .sort_by(|s1, s2| natural_cmp(s1.path_relative(), s2.path_relative()));
+    fn sort(&mut self, sort_by_filename: bool, f_cmp: fn(&str, &str) -> Ordering) -> RvResult<()> {
+        self.file_paths.sort_by(|s1, s2| {
+            if sort_by_filename {
+                match (s1.filename(), s2.filename()) {
+                    (Ok(fname1), Ok(fname2)) => f_cmp(fname1, fname2),
+                    _ => {
+                        tracing::warn!("could not sort {s1:?} and {s2:?} by filename");
+                        f_cmp(s1.path_relative(), s2.path_relative())
+                    }
+                }
+            } else {
+                f_cmp(s1.path_relative(), s2.path_relative())
+            }
+        });
         self.filtered_file_labels = list_file_labels(&self.file_paths, |_| true)?;
         Ok(())
     }
 
-    pub fn alphabetical_sort(&mut self) -> RvResult<()> {
-        self.file_paths
-            .sort_by(|s1, s2| s1.path_relative().cmp(s2.path_relative()));
-        self.filtered_file_labels = list_file_labels(&self.file_paths, |_| true)?;
-        Ok(())
+    pub fn natural_sort(&mut self, sort_by_filename: bool) -> RvResult<()> {
+        self.sort(sort_by_filename, natural_cmp)
+    }
+
+    pub fn alphabetical_sort(&mut self, sort_by_filename: bool) -> RvResult<()> {
+        fn f_cmp(s1: &str, s2: &str) -> Ordering {
+            s1.cmp(s2)
+        }
+        self.sort(sort_by_filename, f_cmp)
     }
 
     pub fn new(mut file_paths: Vec<PathPair>, folder_path: Option<String>) -> RvResult<Self> {

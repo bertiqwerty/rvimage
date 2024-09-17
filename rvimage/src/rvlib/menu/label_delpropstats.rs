@@ -5,7 +5,7 @@ use tracing::info;
 
 use super::{main::TextBuffers, ui_util::button_triggerable_number};
 use crate::{
-    control::{Control, SortType},
+    control::{Control, SortParams, SortType},
     file_util::PathPair,
     paths_selector::PathsSelector,
     tools_data::{AnnotationsMap, BboxToolData, BrushToolData, InstanceAnnotate},
@@ -64,7 +64,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn labels_and_sorting(
     ui: &mut Ui,
-    filename_sort_type: &mut SortType,
+    filename_sort_type: &mut SortParams,
     ctrl: &mut Control,
     tools_data_map: &mut ToolsDataMap,
     text_buffers: &mut TextBuffers,
@@ -72,24 +72,44 @@ pub fn labels_and_sorting(
     are_tools_active: &mut bool,
     stats: &mut Stats,
 ) -> RvResult<()> {
-    let clicked_nat = ui
-        .radio_value(filename_sort_type, SortType::Natural, "Natural Sorting")
-        .clicked();
-    let clicked_alp = ui
-        .radio_value(
-            filename_sort_type,
-            SortType::Alphabetical,
-            "Alphabetical Sorting",
-        )
-        .clicked();
-    if clicked_nat || clicked_alp {
-        ctrl.sort(
-            *filename_sort_type,
-            &text_buffers.filter_string,
-            tools_data_map,
-            active_tool_name,
-        )?;
-
+    let mut clicked_nat = false;
+    let mut clicked_alp = false;
+    ui.horizontal(|ui| {
+        ui.label("Sort");
+        clicked_nat = ui
+            .radio_value(&mut filename_sort_type.kind, SortType::Natural, "naturally")
+            .clicked();
+        clicked_alp = ui
+            .radio_value(
+                &mut filename_sort_type.kind,
+                SortType::Alphabetical,
+                "alphabetically",
+            )
+            .clicked();
+    });
+    #[derive(PartialEq)]
+    enum TmpSortBy {
+        Filename,
+        RelativePath,
+    }
+    let mut tmp_sort_by = if filename_sort_type.sort_by_filename {
+        TmpSortBy::Filename
+    } else {
+        TmpSortBy::RelativePath
+    };
+    let mut clicked_relative = false;
+    let mut clicked_filename = false;
+    ui.horizontal(|ui| {
+        ui.label("Sort by");
+        clicked_relative = ui
+            .radio_value(&mut tmp_sort_by, TmpSortBy::RelativePath, "Relative path")
+            .clicked();
+        clicked_filename = ui
+            .radio_value(&mut tmp_sort_by, TmpSortBy::Filename, "Filename")
+            .clicked();
+    });
+    filename_sort_type.sort_by_filename = matches!(tmp_sort_by, TmpSortBy::Filename);
+    if clicked_nat || clicked_alp || clicked_relative || clicked_filename {
         ctrl.reload(*filename_sort_type)?;
     }
     if let Some(info) = &stats.n_files_filtered_info {
