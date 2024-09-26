@@ -63,6 +63,7 @@ impl<'a> Widget for CfgMenu<'a> {
                                     tracing::error!("could not write config,\n{e:#?}");
                                     tracing::error!("{:?}", self.cfg);
                                 }
+                                tracing::info!("opening {tmppath:?}");
                                 if let Err(e) = edit::edit_file(&tmppath) {
                                     tracing::error!("{e:?}");
                                     tracing::error!(
@@ -70,10 +71,12 @@ impl<'a> Widget for CfgMenu<'a> {
                                         edit::get_editor()
                                     );
                                 }
-                                if let Ok(cfg) = cfg::read_cfg_gen::<Cfg>(&tmppath) {
+                                if let Some(cfg) = trace_ok_err(cfg::read_cfg_gen::<Cfg>(&tmppath))
+                                {
                                     *self.cfg = cfg;
-                                } else {
-                                    tracing::error!("could not reload cfg from file");
+                                }
+                                if let Err(e) = cfg::write_cfg(self.cfg) {
+                                    tracing::error!("could not save cfg {e:?}");
                                 }
                             }
                             if ui.button("Save").clicked() {

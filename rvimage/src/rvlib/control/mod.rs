@@ -365,10 +365,11 @@ impl Control {
     pub fn open_relative_folder(&mut self, new_folder: String) -> RvResult<()> {
         tracing::info!("new opened folder {new_folder}");
         self.make_reader(self.cfg.clone())?;
-        self.opened_folder = Some(PathPair::from_relative_path(
-            new_folder,
-            self.cfg.current_prj_path(),
-        ));
+        let current_prj_path = match self.cfg.prj.connection {
+            Connection::Local => Some(self.cfg.current_prj_path()),
+            _ => None,
+        };
+        self.opened_folder = Some(PathPair::from_relative_path(new_folder, current_prj_path));
         Ok(())
     }
 

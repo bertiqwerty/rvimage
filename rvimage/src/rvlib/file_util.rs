@@ -74,20 +74,27 @@ impl PathPair {
             path_relative,
         }
     }
-    pub fn from_relative_path(path_relative: String, prj_path: &Path) -> Self {
-        let path_absolute = if let Some(parent) = prj_path.parent() {
-            let path_absolute = parent.join(path_relative.clone());
-            if path_absolute.exists() {
-                path_to_str(&path_absolute).unwrap().replace('\\', "/")
+    pub fn from_relative_path(path_relative: String, prj_path: Option<&Path>) -> Self {
+        if let Some(prj_path) = prj_path {
+            let path_absolute = if let Some(parent) = prj_path.parent() {
+                let path_absolute = parent.join(path_relative.clone());
+                if path_absolute.exists() {
+                    path_to_str(&path_absolute).unwrap().replace('\\', "/")
+                } else {
+                    path_relative.replace('\\', "/")
+                }
             } else {
                 path_relative.replace('\\', "/")
+            };
+            PathPair {
+                path_absolute,
+                path_relative,
             }
         } else {
-            path_relative.replace('\\', "/")
-        };
-        PathPair {
-            path_absolute,
-            path_relative,
+            PathPair {
+                path_relative: path_relative.clone(),
+                path_absolute: path_relative,
+            }
         }
     }
     pub fn path_absolute(&self) -> &str {
@@ -442,8 +449,10 @@ fn test_pathpair() {
         assert_eq!(pp.path_absolute(), expected_absolute);
         assert_eq!(pp.path_relative(), expected_relative);
         if !skip_from_relative {
-            let pp =
-                PathPair::from_relative_path(expected_relative.to_string(), Path::new(prj_path));
+            let pp = PathPair::from_relative_path(
+                expected_relative.to_string(),
+                Some(Path::new(prj_path)),
+            );
             assert_eq!(pp.path_absolute(), expected_absolute);
             assert_eq!(pp.path_relative(), expected_relative);
         }

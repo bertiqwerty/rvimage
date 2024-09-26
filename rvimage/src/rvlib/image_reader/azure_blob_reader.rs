@@ -22,10 +22,14 @@ pub struct AzureConnectionData {
 
 async fn blob_list(container_client: &ContainerClient, prefix: &str) -> RvResult<Vec<String>> {
     let mut res = vec![];
-    let mut stream = container_client
-        .list_blobs()
-        .prefix(prefix.to_string())
-        .into_stream();
+    let mut stream = if prefix.is_empty() {
+        container_client.list_blobs().into_stream()
+    } else {
+        container_client
+            .list_blobs()
+            .prefix(prefix.to_string())
+            .into_stream()
+    };
     while let Some(value) = stream.next().await {
         let page = value.map_err(|e| {
             rverr!(
@@ -60,9 +64,10 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
     fn new(conn_data: AzureConnectionData) -> RvResult<Self> {
         let connection_string =
             fs::read_to_string(&conn_data.connection_string_path).map_err(to_rv)?;
-        let line_with_cs = connection_string
-            .lines()
-            .find(|line| !line.starts_with('#') && line.contains("connection_string"));
+        let line_with_cs = connection_string.lines().find(|line| {
+            !line.starts_with('#') && (line.to_lowercase().contains("connection_string"))
+                || line.to_lowercase().contains("azure_connection_string")
+        });
         let connection_string = if let Some(line_with_cs) = line_with_cs {
             line_with_cs
                 .split_once('=')
@@ -74,7 +79,6 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
         } else {
             connection_string
         };
-        println!("connection_string: {:?}", connection_string);
 
         let connection_string = ConnectionString::new(&connection_string).map_err(to_rv)?;
         let blob_service_client = BlobServiceClient::new(
