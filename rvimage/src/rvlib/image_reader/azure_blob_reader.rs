@@ -1,4 +1,4 @@
-use std::{fs, vec};
+use std::{fs, path::PathBuf, vec};
 
 use crate::{
     cache::ReadImageToCache, image_reader::core::SUPPORTED_EXTENSIONS, types::ResultImage,
@@ -16,7 +16,8 @@ lazy_static! {
 
 #[derive(Clone)]
 pub struct AzureConnectionData {
-    pub connection_string_path: String,
+    pub current_prj_path: PathBuf,
+    pub connection_string_path: PathBuf,
     pub container_name: String,
 }
 
@@ -62,8 +63,17 @@ pub struct ReadImageFromAzureBlob {
 
 impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
     fn new(conn_data: AzureConnectionData) -> RvResult<Self> {
-        let connection_string =
-            fs::read_to_string(&conn_data.connection_string_path).map_err(to_rv)?;
+        let constr_path = if conn_data.connection_string_path.is_absolute() {
+            conn_data.connection_string_path
+        } else {
+            conn_data
+                .current_prj_path
+                .parent()
+                .expect("current project file cannot be in no parent directory")
+                .join(conn_data.connection_string_path)
+        };
+        println!("CSP {constr_path:?}");
+        let connection_string = fs::read_to_string(&constr_path).map_err(to_rv)?;
         let line_with_cs = connection_string.lines().find(|line| {
             !line.starts_with('#') && (line.to_lowercase().contains("connection_string"))
                 || line.to_lowercase().contains("azure_connection_string")

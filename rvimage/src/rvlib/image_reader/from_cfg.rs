@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
     cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
@@ -99,17 +99,13 @@ impl ReaderFromCfg {
                 #[cfg(feature = "azure_blob")]
                 (Connection::AzureBlob, Cache::FileCache) => {
                     let cache_args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
-                    let azure_cfg_usr = cfg
-                        .usr
-                        .azure_blob
-                        .as_ref()
-                        .ok_or_else(|| rverr!("no azure cfg found"))?;
                     let azure_cfg_prj = cfg
                         .prj
                         .azure_blob
                         .as_ref()
                         .ok_or_else(|| rverr!("no azure cfg found"))?;
-                    let connection_string_path = azure_cfg_usr.connection_string_path.clone();
+                    let connection_string_path =
+                        PathBuf::from(&azure_cfg_prj.connection_string_path);
                     let container_name = azure_cfg_prj.container_name.clone();
 
                     Box::new(Loader::<
@@ -119,6 +115,7 @@ impl ReaderFromCfg {
                         FileCacheArgs {
                             cfg_args: cache_args,
                             reader_args: AzureConnectionData {
+                                current_prj_path: cfg.current_prj_path().to_path_buf(),
                                 connection_string_path,
                                 container_name,
                             },

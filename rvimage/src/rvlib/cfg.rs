@@ -60,9 +60,6 @@ impl CfgLegacy {
                 ssh_identity_file_path: self.ssh_cfg.ssh_identity_file_path,
                 n_reconnection_attempts: self.ssh_cfg.n_reconnection_attempts,
             },
-            azure_blob: self.azure_blob_cfg.clone().map(|ab| AzureBlobCfgUsr {
-                connection_string_path: ab.connection_string_path,
-            }),
         };
         let prj = CfgPrj {
             connection: self.connection,
@@ -73,6 +70,7 @@ impl CfgLegacy {
                 address: self.ssh_cfg.address,
             },
             azure_blob: self.azure_blob_cfg.map(|ab| AzureBlobCfgPrj {
+                connection_string_path: ab.connection_string_path,
                 container_name: ab.container_name,
                 prefix: ab.prefix,
             }),
@@ -254,12 +252,9 @@ impl SshCfg {
 
 #[cfg(feature = "azure_blob")]
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
-pub struct AzureBlobCfgUsr {
-    pub connection_string_path: String,
-}
-#[cfg(feature = "azure_blob")]
-#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfgPrj {
+    #[serde(default)]
+    pub connection_string_path: String,
     pub container_name: String,
     pub prefix: String,
 }
@@ -267,7 +262,6 @@ pub struct AzureBlobCfgPrj {
 #[cfg(feature = "azure_blob")]
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfg {
-    pub user: AzureBlobCfgUsr,
     pub prj: AzureBlobCfgPrj,
 }
 
@@ -332,8 +326,6 @@ pub struct CfgUsr {
     current_prj_path: Option<PathBuf>,
     pub file_cache_args: Option<FileCacheCfgArgs>,
     pub ssh: SshCfgUsr,
-    #[cfg(feature = "azure_blob")]
-    pub azure_blob: Option<AzureBlobCfgUsr>,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct CfgPrj {
@@ -359,13 +351,10 @@ impl Cfg {
     }
     #[cfg(feature = "azure_blob")]
     pub fn azure_blob_cfg(&self) -> Option<AzureBlobCfg> {
-        match (&self.usr.azure_blob, &self.prj.azure_blob) {
-            (Some(user), Some(prj)) => Some(AzureBlobCfg {
-                user: user.clone(),
-                prj: prj.clone(),
-            }),
-            _ => None,
-        }
+        self.prj
+            .azure_blob
+            .as_ref()
+            .map(|prj| AzureBlobCfg { prj: prj.clone() })
     }
     pub fn home_folder(&self) -> RvResult<&str> {
         let ef = self.usr.home_folder.as_deref();
