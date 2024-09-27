@@ -38,13 +38,15 @@ be in the currently opened folder.
 
 ## Configuration
 
-When you start RV Image for the first time, a config-file `rv_cfg.toml` in `%USERPROFILE%/.rvimage/rv_cfg.toml` (or probably `$HOME/.rvimage/rv_cfg.toml` under Linux, untested) is created for you. 
-In the following we describe some of the options. 
+To configure RV Image open `Settings` from the main menu. Many options can only be adapted after clicking
+on `Open in Editor`. The configuration is separated into user-specific and project-specific options.
+The project specific options are persisted in the project file. The user-specific options are persisted
+in `%USERPROFILE%/.rvimage/rv_cfg_usr.toml` or `$HOME/.rvimage/rv_cfg_usr.toml` depending on your operating system.
 For SSH currently, only authorization with key-files without passphrase is supported.
 ```
- # We support the connections "Local", "Ssh", "PyHttp", or "AzureBlob"
-connection = "Ssh"
-
+[usr]
+n_autosave = 2
+current_pjr_path = "prjpath.json"
 # "NoCache" for not caching at all or "FileCache" for caching files in a temp dir.
 cache = "FileCache"  
 
@@ -54,36 +56,39 @@ cache = "FileCache"
 # If you do not want to use the temporary directory of your OS, you can add something else.
 # tmpdir = 
 
-[file_cache_args]
+[usr.file_cache_args]
 n_prev_images = 2  # number of images to be cached previous to the selected one
 n_next_images = 8  # number of images to be cached following the selected one
 n_threads = 4  # number of threads to be used for background file caching
+[usr.ssh]
+user = "your username"
+ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
 
-[ssh_cfg]             
+[prj]
+# We support the connections "Local", "Ssh", "PyHttp", or "AzureBlob"
+connection = "Ssh"
+[prj.ssh]             
 # Local folders can interactively be chosen via file dialog. Remote folders are restricted to one of the following list. 
 remote_folder_paths = [
     "folder on your server", 
     "another folder"
 ]
 address = "address:port"  # port is usually 22
-user = "your username"
-ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
 
-[py_http_reader_cfg]
+[prj.py_http_reader_cfg]
 # The server is expected to be started via `python -m http.server` in some folder.
 # The content of this folder is than accessible.  
 server_addresses = ['http://localhost:8000/']
 
-[azure_blob_cfg]
+[prj.azure_blob]
 # With a connection string you can view the images inside a blob storage.
-# The connection_string_path should point to file that only contains the 
-# connection string.
-connection_string_path = ''
-container_name = ''
-# The prefix is also called folder in the Microsoft Azure Storage Explorer.
+# The connection_string_path should point to file that contains just the 
+# connection string or a line with `CONNECTION_STRING = ` or `AZURE_CONNECTION_STRING = `.
+connection_string_path = "connection_str.txt"
+container_name = "images"
+# The prefix is alsocalled folder in the Microsoft Azure Storage Explorer.
 # Currently, you cannot choose this interactively.
-prefix = ''
-
+prefix = ""
 
 ```
 
