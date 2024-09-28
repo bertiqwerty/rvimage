@@ -77,7 +77,7 @@ address = "address:port"  # port is usually 22
 
 [prj.py_http_reader_cfg]
 # The server is expected to be started via `python -m http.server` in some folder.
-# The content of this folder is than accessible.  
+# The content of this folder is then accessible.  
 server_addresses = ['http://localhost:8000/']
 
 [prj.azure_blob]
