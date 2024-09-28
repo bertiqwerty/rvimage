@@ -1,6 +1,7 @@
 use std::fs::{self, File};
 
 use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Visuals, Widget};
+use rvimage_domain::to_rv;
 
 use crate::{
     cfg::{self, get_cfg_tmppath, write_cfg_str, Cache, Cfg, Connection},
@@ -9,12 +10,6 @@ use crate::{
     result::trace_ok_err,
 };
 
-// fn get_cfg() -> (Cfg, Info) {
-//     match cfg::read_cfg() {
-//         Ok(cfg) => (cfg, Info::None),
-//         Err(e) => (cfg::get_default_cfg(), Info::Error(format!("{e:?}"))),
-//     }
-// }
 pub struct CfgMenu<'a> {
     id: Id,
     cfg: &'a mut Cfg,
@@ -138,6 +133,11 @@ impl<'a> Widget for CfgMenu<'a> {
                             "Azure blob experimental",
                         );
                         if self.cfg.prj.connection == Connection::AzureBlob {
+                            let curprjpath = self
+                                .cfg
+                                .current_prj_path()
+                                .parent()
+                                .map(|cpp| cpp.to_path_buf());
                             if let Some(azure_cfg) = &mut self.cfg.prj.azure_blob {
                                 egui::Grid::new("azure-cfg-menu")
                                     .num_columns(2)
@@ -149,6 +149,23 @@ impl<'a> Widget for CfgMenu<'a> {
                                             self.are_tools_active,
                                         )
                                         .on_hover_text(azure_cfg.connection_string_path.clone());
+                                        if ui.button("browse").clicked() {
+                                            let csf = rfd::FileDialog::new().pick_file();
+                                            if let Some(csf) = csf {
+                                                let relpath = curprjpath
+                                                    .and_then(|cpp| {
+                                                        csf.strip_prefix(cpp).map_err(to_rv).ok()
+                                                    })
+                                                    .and_then(|rp| rp.to_str());
+                                                if let Some(relpath) = relpath {
+                                                    azure_cfg.connection_string_path =
+                                                        relpath.to_string();
+                                                } else if let Some(csf_s) = csf.to_str() {
+                                                    azure_cfg.connection_string_path =
+                                                        csf_s.to_string();
+                                                }
+                                            }
+                                        }
                                         ui.end_row();
 
                                         ui.label("Blob container name");
