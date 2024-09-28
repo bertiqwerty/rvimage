@@ -5,6 +5,7 @@ use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Visuals, Widget};
 use crate::{
     cfg::{self, get_cfg_tmppath, write_cfg_str, Cache, Cfg, Connection},
     file_util::get_prj_name,
+    menu::ui_util::text_edit_singleline,
     result::trace_ok_err,
 };
 
@@ -18,11 +19,17 @@ pub struct CfgMenu<'a> {
     id: Id,
     cfg: &'a mut Cfg,
     cfg_orig: Cfg,
+    are_tools_active: &'a mut bool,
 }
 impl<'a> CfgMenu<'a> {
-    pub fn new(id: Id, cfg: &'a mut Cfg) -> CfgMenu<'a> {
+    pub fn new(id: Id, cfg: &'a mut Cfg, are_tools_active: &'a mut bool) -> CfgMenu<'a> {
         let cfg_orig = cfg.clone();
-        Self { id, cfg, cfg_orig }
+        Self {
+            id,
+            cfg,
+            cfg_orig,
+            are_tools_active,
+        }
     }
 }
 impl<'a> Widget for CfgMenu<'a> {
@@ -79,7 +86,7 @@ impl<'a> Widget for CfgMenu<'a> {
                                     tracing::error!("could not save cfg {e:?}");
                                 }
                             }
-                            if ui.button("Save").clicked() {
+                            if ui.button("OK").clicked() {
                                 close = Close::Yes(true);
                             }
                             if ui.button("Cancel").clicked() {
@@ -130,12 +137,42 @@ impl<'a> Widget for CfgMenu<'a> {
                             Connection::AzureBlob,
                             "Azure blob experimental",
                         );
+                        if self.cfg.prj.connection == Connection::AzureBlob {
+                            if let Some(azure_cfg) = &mut self.cfg.prj.azure_blob {
+                                egui::Grid::new("azure-cfg-menu")
+                                    .num_columns(2)
+                                    .show(ui, |ui| {
+                                        ui.label("Connection str path");
+                                        text_edit_singleline(
+                                            ui,
+                                            &mut azure_cfg.connection_string_path,
+                                            self.are_tools_active,
+                                        );
+                                        ui.end_row();
+
+                                        ui.label("Blob container name");
+                                        text_edit_singleline(
+                                            ui,
+                                            &mut azure_cfg.container_name,
+                                            self.are_tools_active,
+                                        );
+                                        ui.end_row();
+                                        ui.label("Prefix/folder");
+                                        text_edit_singleline(
+                                            ui,
+                                            &mut azure_cfg.prefix,
+                                            self.are_tools_active,
+                                        );
+                                    });
+                            }
+                        }
                         ui.separator();
                         ui.horizontal(|ui| {
                             ui.label("Cache");
                             ui.radio_value(&mut self.cfg.usr.cache, Cache::FileCache, "File Cache");
                             ui.radio_value(&mut self.cfg.usr.cache, Cache::NoCache, "No Cache");
                         });
+                        ui.separator();
                         ui.separator();
                         ui.horizontal(|ui| {
                             if ui.button("Save").clicked() {

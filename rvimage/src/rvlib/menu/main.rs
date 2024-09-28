@@ -318,7 +318,7 @@ impl Menu {
                     }
                 }
                 let popup_id = ui.make_persistent_id("cfg-popup");
-                let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg);
+                let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.are_tools_active);
                 ui.add(cfg_gui);
                 let about_popup_id = ui.make_persistent_id("about-popup");
                 ui.add(Help::new(
