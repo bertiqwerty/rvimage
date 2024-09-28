@@ -175,7 +175,7 @@ impl<'a> Widget for CfgMenu<'a> {
                         ui.separator();
                         ui.separator();
                         ui.horizontal(|ui| {
-                            if ui.button("Save").clicked() {
+                            if ui.button("OK").clicked() {
                                 close = Close::Yes(true);
                             }
                             if ui.button("Cancel").clicked() {
