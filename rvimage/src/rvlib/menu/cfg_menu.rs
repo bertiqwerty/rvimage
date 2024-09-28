@@ -147,7 +147,8 @@ impl<'a> Widget for CfgMenu<'a> {
                                             ui,
                                             &mut azure_cfg.connection_string_path,
                                             self.are_tools_active,
-                                        );
+                                        )
+                                        .on_hover_text(azure_cfg.connection_string_path.clone());
                                         ui.end_row();
 
                                         ui.label("Blob container name");
@@ -155,14 +156,16 @@ impl<'a> Widget for CfgMenu<'a> {
                                             ui,
                                             &mut azure_cfg.container_name,
                                             self.are_tools_active,
-                                        );
+                                        )
+                                        .on_hover_text(azure_cfg.container_name.clone());
                                         ui.end_row();
                                         ui.label("Prefix/folder");
                                         text_edit_singleline(
                                             ui,
                                             &mut azure_cfg.prefix,
                                             self.are_tools_active,
-                                        );
+                                        )
+                                        .on_hover_text(azure_cfg.prefix.clone());
                                     });
                             }
                         }
