@@ -86,7 +86,7 @@ server_addresses = ['http://localhost:8000/']
 # connection string or a line with `CONNECTION_STRING = ` or `AZURE_CONNECTION_STRING = `.
 connection_string_path = "connection_str.txt"
 container_name = "images"
-# The prefix is alsocalled folder in the Microsoft Azure Storage Explorer.
+# The prefix is also called folder in the Microsoft Azure Storage Explorer.
 # Currently, you cannot choose this interactively.
 prefix = ""
 
@@ -105,7 +105,7 @@ Besides labeling tools we also provide means to filter the images to select from
 
 ### Zoom
 
-You can zoom anytime with holding <kbd>Ctrl</kbd> and pressing <kbd>+</kbd> or <kbd>-</kbd>. 
+You can zoom anytime with holding <kbd>Ctrl</kbd> and pressing <kbd>+</kbd> or <kbd>-</kbd>. Additionally, you can operate the mouse wheel while holding <kbd>Ctrl</kbd>.
 
 You can also use the separate zoom tool and draw a box on the image area you want to see enlarged. 
 
