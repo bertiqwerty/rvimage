@@ -139,11 +139,17 @@ fn settings_popup(ui: &mut Ui, cfg: &mut Cfg, are_tools_active: &mut bool) -> Cl
             Connection::AzureBlob,
             "Azure blob experimental",
         );
+        #[cfg(feature = "azure_blob")]
         if cfg.prj.connection == Connection::AzureBlob {
             let curprjpath = cfg.current_prj_path().parent().map(|cpp| cpp.to_path_buf());
-            if let Some(azure_cfg) = &mut cfg.prj.azure_blob {
-                azure_cfg_menu(ui, azure_cfg, curprjpath.as_deref(), are_tools_active);
-            }
+            let azure_cfg = match &mut cfg.prj.azure_blob {
+                Some(cfg) => cfg,
+                None => {
+                    cfg.prj.azure_blob = Some(AzureBlobCfgPrj::default());
+                    cfg.prj.azure_blob.as_mut().unwrap()
+                }
+            };
+            azure_cfg_menu(ui, azure_cfg, curprjpath.as_deref(), are_tools_active);
         }
         ui.separator();
         ui.horizontal(|ui| {
