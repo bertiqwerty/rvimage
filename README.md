@@ -17,7 +17,8 @@ you can also
 ```
 cargo install rvimage
 ```
-to install the latest stable release.
+to install the latest stable release. Additionally to the Rust toolchain, you need a c-compiler, make, and perl in your path, since we use the
+[ssh2-crate](https://crates.io/crates/ssh2) with the `vendorerd-openssl` feature, see [here](https://docs.rs/openssl/latest/openssl/index.html#vendored). 
 
 ## Connect to remote
 
