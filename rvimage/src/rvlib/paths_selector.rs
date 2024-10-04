@@ -4,8 +4,8 @@ use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::Serialize;
 
 use crate::{
-    control::SortType,
     file_util::{self, PathPair},
+    sort_params::SortType,
     util::natural_cmp,
 };
 

@@ -5,9 +5,10 @@ use tracing::info;
 
 use super::{main::TextBuffers, ui_util::button_triggerable_number};
 use crate::{
-    control::{Control, SortParams, SortType},
+    control::Control,
     file_util::PathPair,
     paths_selector::PathsSelector,
+    sort_params::{SortParams, SortType},
     tools_data::{AnnotationsMap, BboxToolData, BrushToolData, InstanceAnnotate},
     world::ToolsDataMap,
 };
@@ -120,7 +121,7 @@ pub fn labels_and_sorting(
     });
     filename_sort_type.sort_by_filename = matches!(tmp_sort_by, TmpSortBy::Filename);
     if clicked_nat || clicked_alp || clicked_relative || clicked_filename {
-        ctrl.reload(*filename_sort_type)?;
+        ctrl.reload(Some(*filename_sort_type))?;
     }
     if let Some(info) = &stats.n_files_filtered_info {
         ui.label(egui::RichText::new(info).monospace());

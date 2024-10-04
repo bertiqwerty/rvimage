@@ -3,6 +3,7 @@ use crate::file_util::{osstr_to_str, PathPair, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PAT
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::trace_ok_err;
+use crate::sort_params::SortParams;
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
@@ -181,19 +182,6 @@ pub struct ControlFlags {
     pub reload_cached_images: bool,
 }
 
-#[derive(Default, PartialEq, Debug, Clone, Copy)]
-pub enum SortType {
-    #[default]
-    Natural,
-    Alphabetical,
-}
-
-#[derive(Default, PartialEq, Debug, Clone, Copy)]
-pub struct SortParams {
-    pub kind: SortType,
-    pub sort_by_filename: bool,
-}
-
 #[derive(Default)]
 pub struct Control {
     pub reader: Option<ReaderFromCfg>,
@@ -218,7 +206,10 @@ impl Control {
     pub fn flags(&self) -> &ControlFlags {
         &self.flags
     }
-    pub fn reload(&mut self, sort_params: SortParams) -> RvResult<()> {
+    pub fn reload(&mut self, sort_params: Option<SortParams>) -> RvResult<()> {
+        if let Some(sort_params) = sort_params {
+            self.cfg.prj.sort_params = sort_params;
+        }
         let label_selected = self.file_selected_idx.and_then(|idx| {
             self.paths_navigator.len_filtered().and_then(|len_f| {
                 if idx < len_f {
@@ -228,7 +219,7 @@ impl Control {
                 }
             })
         });
-        self.load_opened_folder_content(sort_params)?;
+        self.load_opened_folder_content(self.cfg.prj.sort_params)?;
         self.flags.reload_cached_images = true;
         if let Some(label_selected) = label_selected {
             self.paths_navigator

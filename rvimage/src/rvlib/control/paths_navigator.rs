@@ -1,10 +1,11 @@
 use std::{fmt::Debug, path::Path};
 
-use super::{filter::FilterExpr, SortParams, SortType};
+use super::filter::FilterExpr;
 use crate::{
     file_util::PathPair,
     paths_selector::PathsSelector,
     result::{ignore_error, trace_ok_err},
+    sort_params::{SortParams, SortType},
     world::ToolsDataMap,
 };
 use exmex::prelude::*;

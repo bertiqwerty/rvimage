@@ -13,6 +13,7 @@ pub mod menu;
 mod meta_data;
 mod paths_selector;
 pub mod result;
+mod sort_params;
 mod ssh;
 mod threadpool;
 pub mod tools;

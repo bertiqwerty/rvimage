@@ -265,7 +265,7 @@ impl MainEventLoop {
             self.menu.toggle();
         }
         if e.released(KeyCode::F5) {
-            if let Err(e) = self.ctrl.reload(self.menu.sort_params()) {
+            if let Err(e) = self.ctrl.reload(None) {
                 self.menu
                     .show_info(Info::Error(format!("could not reload due to {e:?}")));
             }

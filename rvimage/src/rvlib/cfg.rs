@@ -1,6 +1,7 @@
 use crate::{
     cache::FileCacheCfgArgs,
     file_util::{self, DEFAULT_HOMEDIR, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR},
+    sort_params::SortParams,
     ssh,
 };
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
@@ -74,6 +75,7 @@ impl CfgLegacy {
                 container_name: ab.container_name,
                 prefix: ab.prefix,
             }),
+            sort_params: SortParams::default(),
         };
         Cfg { usr, prj }
     }
@@ -335,6 +337,8 @@ pub struct CfgPrj {
     pub ssh: SshCfgPrj,
     #[cfg(feature = "azure_blob")]
     pub azure_blob: Option<AzureBlobCfgPrj>,
+    #[serde(default)]
+    pub sort_params: SortParams,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct Cfg {

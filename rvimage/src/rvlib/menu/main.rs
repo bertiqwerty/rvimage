@@ -1,5 +1,5 @@
 use crate::{
-    control::{Control, Info, SortParams},
+    control::{Control, Info},
     file_util::get_prj_name,
     menu::{
         self, cfg_menu::CfgMenu, label_delpropstats::labels_and_sorting, open_folder,
@@ -227,7 +227,6 @@ pub struct Menu {
     open_folder_popup_open: bool,
     load_button_resp: PopupBtnResp,
     stats: Stats,
-    filename_sort_type: SortParams,
     show_about: bool,
     text_buffers: TextBuffers,
     show_file_idx: bool,
@@ -248,14 +247,10 @@ impl Menu {
             open_folder_popup_open: false,
             load_button_resp: PopupBtnResp::default(),
             stats: Stats::default(),
-            filename_sort_type: SortParams::default(),
             show_about: false,
             text_buffers,
             show_file_idx: true,
         }
-    }
-    pub fn sort_params(&self) -> SortParams {
-        self.filename_sort_type
     }
     pub fn popup(&mut self, info: Info) {
         self.info_message = info;
@@ -271,7 +266,7 @@ impl Menu {
     }
 
     pub fn reload_opened_folder(&mut self, ctrl: &mut Control) {
-        if let Err(e) = ctrl.load_opened_folder_content(self.filename_sort_type) {
+        if let Err(e) = ctrl.load_opened_folder_content(ctrl.cfg.prj.sort_params) {
             self.info_message = Info::Error(format!("{e:?}"));
         }
     }
@@ -357,7 +352,7 @@ impl Menu {
                 |con| {
                     connected = con;
                 },
-                ctrl.check_if_connected(self.filename_sort_type),
+                ctrl.check_if_connected(ctrl.cfg.prj.sort_params),
                 self
             );
             if connected {
@@ -430,10 +425,11 @@ impl Menu {
             }
 
             ui.separator();
+            let mut sort_params = ctrl.cfg.prj.sort_params;
             handle_error!(
                 labels_and_sorting(
                     ui,
-                    &mut self.filename_sort_type,
+                    &mut sort_params,
                     ctrl,
                     tools_data_map,
                     &mut self.text_buffers,
@@ -443,6 +439,7 @@ impl Menu {
                 ),
                 self
             );
+            ctrl.cfg.prj.sort_params = sort_params;
         });
         projected_loaded
     }
