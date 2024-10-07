@@ -42,7 +42,7 @@ eframe = { version = "0.29.1", default-features = false, features = [
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",   # Enable restoring app state when restarting the app.
 ] }
-futures = { version = "0.3", optional = true }
+futures = { version = "0.3.31", optional = true }
 httparse = "1.9.4"
 image = "0.25.1"
 imageproc = "0.25.0"
