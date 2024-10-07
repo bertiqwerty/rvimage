@@ -665,12 +665,18 @@ impl eframe::App for RvImageApp {
                     format!("{}", it_per_s.round())
                 };
                 if let Some(info) = update_view.image_info {
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "{}  |  {}  |  {}  |  {} it/s",
-                            info.filename, info.shape_info, info.pixel_value, it_str
-                        ))
-                        .monospace(),
+                    ui.add(
+                        egui::Label::new(egui::RichText::new(info.filename).monospace()).truncate(),
+                    );
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(format!(
+                                "{} | {} | {} it/s",
+                                info.pixel_value, info.shape_info, it_str
+                            ))
+                            .monospace(),
+                        )
+                        .truncate(),
                     );
                     let image_response = self.add_image(ui);
                     let mut update_texture = false;
