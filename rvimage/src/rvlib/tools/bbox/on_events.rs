@@ -464,11 +464,19 @@ pub(super) fn on_mouse_released_left(
         } else {
             let shape_orig = world.data.shape();
             let unscaled = shape_unscaled(world.zoom_box(), shape_orig);
-            let close_corner = mouse_pos.and_then(|mp| {
-                get_annos_if_some(&world).and_then(|a| {
-                    find_close_vertex(mp, a.elts().iter().enumerate(), move_corner_tol(unscaled))
+            let close_corner = if prev_pos.prev_pos.is_empty() {
+                mouse_pos.and_then(|mp| {
+                    get_annos_if_some(&world).and_then(|a| {
+                        find_close_vertex(
+                            mp,
+                            a.elts().iter().enumerate(),
+                            move_corner_tol(unscaled),
+                        )
+                    })
                 })
-            });
+            } else {
+                None
+            };
             if let Some((bb_idx, vertex_idx)) = close_corner {
                 // move an existing corner
                 let annos = get_annos_mut(&mut world);
