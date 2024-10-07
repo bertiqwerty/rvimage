@@ -14,7 +14,7 @@ use crate::{
 use rvimage_domain::{rverr, to_rv, ShapeI};
 
 pub fn read_image(path: &str) -> ResultImage {
-    image::io::Reader::open(path)
+    image::ImageReader::open(path)
         .map_err(to_rv)?
         .with_guessed_format()
         .map_err(to_rv)?
