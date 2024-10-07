@@ -36,7 +36,7 @@ where
     <T as GenericImageView>::Pixel: Debug,
 {
     let p = format!("{:?}", im.get_pixel(x, y));
-    format!("({x}, {y}) -> ({})", &p[6..p.len()-2])
+    format!("({x}, {y}) -> ({})", &p[6..p.len() - 2])
 }
 
 fn pos_2_string(im: &DynamicImage, x: u32, y: u32) -> String {
