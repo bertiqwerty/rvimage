@@ -4,6 +4,7 @@ use crate::{
     sort_params::SortParams,
     ssh,
 };
+use chrono::{DateTime, Utc};
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
@@ -76,6 +77,7 @@ impl CfgLegacy {
                 prefix: ab.prefix,
             }),
             sort_params: SortParams::default(),
+            deadmansswitch: Utc::now(),
         };
         Cfg { usr, prj }
     }
@@ -339,6 +341,8 @@ pub struct CfgPrj {
     pub azure_blob: Option<AzureBlobCfgPrj>,
     #[serde(default)]
     pub sort_params: SortParams,
+    #[serde(default = "Utc::now")]
+    pub deadmansswitch: DateTime<Utc>,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct Cfg {
@@ -368,6 +372,10 @@ impl Cfg {
                 .ok_or_else(|| RvError::new("could not get homedir")),
             Some(ef) => Ok(ef),
         }
+    }
+
+    pub fn push_deadmansswitch(&mut self) {
+        self.prj.deadmansswitch = Utc::now();
     }
 
     pub fn tmpdir(&self) -> &str {

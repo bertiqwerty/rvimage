@@ -186,6 +186,13 @@ pub enum SavedCfg {
     CfgLegacy(CfgLegacy),
 }
 
+pub fn save<T>(file_path: &Path, data: T) -> RvResult<()>
+where
+    T: Serialize,
+{
+    let data_str = serde_json::to_string(&data).map_err(to_rv)?;
+    write(file_path, data_str)
+}
 pub struct Defer<F: FnMut()> {
     pub func: F,
 }

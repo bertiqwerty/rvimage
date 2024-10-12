@@ -29,6 +29,7 @@ const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 
 const AUTOSAVE_INTERVAL_S: u64 = 120;
+const DEAD_MANS_SWITCH_S: u64 = 60;
 
 fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
 where
@@ -124,6 +125,7 @@ pub struct MainEventLoop {
     rx_from_http: Option<Receiver<RvResult<String>>>,
     http_addr: String,
     autosave_timer: Instant,
+    deadmansswitch_timer: Instant,
 }
 impl Default for MainEventLoop {
     fn default() -> Self {
@@ -133,7 +135,7 @@ impl Default for MainEventLoop {
 }
 impl MainEventLoop {
     pub fn new(prj_file_path: Option<PathBuf>) -> Self {
-        let ctrl = Control::new();
+        let mut ctrl = Control::new();
 
         let mut world = empty_world();
         let mut tools = make_tool_vec();
@@ -149,6 +151,7 @@ impl MainEventLoop {
         } else {
             None
         };
+        ctrl.push_deadmansswitch();
         let mut self_ = Self {
             world,
             ctrl,
@@ -160,6 +163,7 @@ impl MainEventLoop {
             recently_clicked_tool_idx: None,
             rx_from_http,
             autosave_timer: Instant::now(),
+            deadmansswitch_timer: Instant::now(),
         };
 
         trace_ok_err(self_.load_prj(prj_file_path));
@@ -384,7 +388,10 @@ impl MainEventLoop {
             };
             self.world.update_view.image_info = Some(s);
         }
-
+        if self.deadmansswitch_timer.elapsed().as_secs() > DEAD_MANS_SWITCH_S {
+            self.ctrl.push_deadmansswitch();
+            self.deadmansswitch_timer = Instant::now();
+        }
         if let Some(n_autosaves) = self.ctrl.cfg.usr.n_autosaves {
             if self.autosave_timer.elapsed().as_secs() > AUTOSAVE_INTERVAL_S {
                 self.autosave_timer = Instant::now();

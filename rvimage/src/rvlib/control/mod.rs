@@ -1,5 +1,7 @@
 use crate::cfg::{self, get_log_folder, Connection};
-use crate::file_util::{osstr_to_str, PathPair, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH};
+use crate::file_util::{
+    self, osstr_to_str, PathPair, SavedCfg, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
+};
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::trace_ok_err;
@@ -8,10 +10,13 @@ use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
-use rvimage_domain::{RvError, RvResult};
+use chrono::{DateTime, Utc};
+use rvimage_domain::{to_rv, RvError, RvResult};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
 use std::io::Write;
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -31,15 +36,21 @@ mod detail {
 
     use crate::{
         cfg::{read_cfg, write_cfg, Cfg, CfgPrj},
+        control::{Deadmansswitch, SavePrjData},
         file_util::{self, tf_to_annomap_key, SavedCfg},
         result::trace_ok_err,
         util::version_label,
         world::{ToolsDataMap, World},
     };
-    use rvimage_domain::result::{to_rv, RvResult};
+    use rvimage_domain::result::RvResult;
     use rvimage_domain::ShapeI;
 
-    fn serialize_opened_folder<S>(folder: &Option<String>, serializer: S) -> Result<S::Ok, S::Error>
+    use super::load_prj;
+
+    pub fn serialize_opened_folder<S>(
+        folder: &Option<String>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -50,7 +61,7 @@ mod detail {
             .map(|folder| tf_to_annomap_key(folder, prj_path));
         folder.serialize(serializer)
     }
-    fn deserialize_opened_folder<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+    pub fn deserialize_opened_folder<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -59,15 +70,6 @@ mod detail {
         let folder: Option<String> = Option::deserialize(deserializer)?;
 
         Ok(folder.map(|p| tf_to_annomap_key(p, prj_path)))
-    }
-    #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-    pub struct SaveData {
-        pub version: Option<String>,
-        #[serde(serialize_with = "serialize_opened_folder")]
-        #[serde(deserialize_with = "deserialize_opened_folder")]
-        pub opened_folder: Option<String>,
-        pub tools_data_map: ToolsDataMap,
-        pub cfg: SavedCfg,
     }
 
     pub(super) fn idx_change_check(
@@ -81,15 +83,6 @@ mod detail {
                 (w, None)
             }
         })
-    }
-    pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, CfgPrj)> {
-        let s = file_util::read_to_string(file_path)?;
-        let save_data = serde_json::from_str::<SaveData>(s.as_str()).map_err(to_rv)?;
-        let cfg_prj = match save_data.cfg {
-            SavedCfg::CfgLegacy(cfg) => cfg.to_cfg().prj,
-            SavedCfg::CfgPrj(cfg_prj) => cfg_prj,
-        };
-        Ok((save_data.tools_data_map, save_data.opened_folder, cfg_prj))
     }
 
     fn write<T>(
@@ -109,9 +102,7 @@ mod detail {
             })
             .collect::<ToolsDataMap>();
         let data = make_data(&tools_data_map);
-        let data_str = serde_json::to_string(&data).map_err(to_rv)?;
-        file_util::write(export_path, data_str)?;
-        Ok(())
+        file_util::save(export_path, data)
     }
 
     pub fn save(
@@ -123,11 +114,12 @@ mod detail {
         // we need to write the cfg for correct prj-path mapping during serialization
         // of annotations
         trace_ok_err(write_cfg(cfg));
-        let make_data = |tdm: &ToolsDataMap| SaveData {
+        let make_data = |tdm: &ToolsDataMap| SavePrjData {
             version: Some(version_label()),
             opened_folder: opened_folder.map(|of| of.to_string()),
             tools_data_map: tdm.clone(),
             cfg: SavedCfg::CfgPrj(cfg.prj.clone()),
+            deadmansswitch: Deadmansswitch::new(),
         };
         tracing::info!("saved to {file_path:?}");
         write(tools_data_map, make_data, file_path)?;
@@ -164,8 +156,52 @@ mod detail {
             image::Rgb([77u8, 77u8, 87u8])
         }))
     }
+    pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, CfgPrj)> {
+        let save_data = load_prj(file_path)?;
+        let cfg_prj = match save_data.cfg {
+            SavedCfg::CfgLegacy(cfg) => cfg.to_cfg().prj,
+            SavedCfg::CfgPrj(cfg_prj) => cfg_prj,
+        };
+        Ok((save_data.tools_data_map, save_data.opened_folder, cfg_prj))
+    }
 }
 const LOAD_ACTOR_NAME: &str = "Load";
+
+pub fn load_prj(file_path: &Path) -> RvResult<SavePrjData> {
+    let s = file_util::read_to_string(file_path)?;
+    serde_json::from_str::<SavePrjData>(s.as_str()).map_err(to_rv)
+}
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+pub struct Deadmansswitch {
+    time: DateTime<Utc>,
+    username: String,
+    realname: String,
+}
+impl Deadmansswitch {
+    pub fn new() -> Self {
+        Deadmansswitch {
+            time: Utc::now(),
+            username: whoami::username(),
+            realname: whoami::realname(),
+        }
+    }
+}
+impl Default for Deadmansswitch {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+pub struct SavePrjData {
+    pub version: Option<String>,
+    #[serde(serialize_with = "detail::serialize_opened_folder")]
+    #[serde(deserialize_with = "detail::deserialize_opened_folder")]
+    pub opened_folder: Option<String>,
+    pub tools_data_map: ToolsDataMap,
+    pub cfg: SavedCfg,
+    #[serde(default = "Deadmansswitch::new")]
+    pub deadmansswitch: Deadmansswitch,
+}
 
 #[derive(Clone, Debug, Default)]
 pub enum Info {
@@ -197,6 +233,7 @@ pub struct Control {
     flags: ControlFlags,
     pub loading_screen_animation_counter: u128,
     pub log_export_path: Option<PathBuf>,
+    save_handle: Option<JoinHandle<()>>,
 }
 
 impl Control {
@@ -248,12 +285,33 @@ impl Control {
         Ok(tools_data_map)
     }
 
+    fn wait_for_save(&mut self) {
+        if self.save_handle.is_some() {
+            mem::take(&mut self.save_handle).map(|h| trace_ok_err(h.join().map_err(to_rv)));
+        }
+    }
+
+    pub fn push_deadmansswitch(&mut self) {
+        self.wait_for_save();
+        let prj_path = self.cfg.current_prj_path().to_path_buf();
+        let handle = thread::spawn(move || {
+            tracing::info!("pushing dead man's switch...");
+            let prj_data = trace_ok_err(load_prj(&prj_path));
+            if let Some(mut prj_data) = prj_data {
+                prj_data.deadmansswitch = Deadmansswitch::new();
+                trace_ok_err(file_util::save(&prj_path, prj_data));
+            }
+            tracing::info!("pushing dead man's done!");
+        });
+        self.save_handle = Some(handle);
+    }
+
     pub fn save(
         &mut self,
         prj_path: PathBuf,
         tools_data_map: &ToolsDataMap,
         set_cur_prj: bool,
-    ) -> RvResult<JoinHandle<()>> {
+    ) -> RvResult<()> {
         let path = if let Some(of) = self.opened_folder() {
             if DEFAULT_PRJ_PATH.as_os_str() == prj_path.as_os_str() {
                 PathBuf::from(of.path_relative()).join(DEFAULT_PRJ_NAME)
@@ -272,6 +330,7 @@ impl Control {
         let opened_folder = self.opened_folder().cloned();
         let tdm = tools_data_map.clone();
         let cfg = self.cfg.clone();
+        self.wait_for_save();
         let handle = thread::spawn(move || {
             trace_ok_err(detail::save(
                 opened_folder.as_ref().map(|of| of.path_relative()),
@@ -280,7 +339,8 @@ impl Control {
                 &cfg,
             ));
         });
-        Ok(handle)
+        self.save_handle = Some(handle);
+        Ok(())
     }
 
     pub fn new() -> Self {
