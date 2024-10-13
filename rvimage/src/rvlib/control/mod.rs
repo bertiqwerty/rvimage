@@ -36,7 +36,7 @@ mod detail {
 
     use crate::{
         cfg::{read_cfg, write_cfg, Cfg, CfgPrj},
-        control::{Deadmansswitch, SavePrjData},
+        control::{LastTimePrjOpened, SavePrjData},
         file_util::{self, tf_to_annomap_key, SavedCfg},
         result::trace_ok_err,
         util::version_label,
@@ -119,7 +119,7 @@ mod detail {
             opened_folder: opened_folder.map(|of| of.to_string()),
             tools_data_map: tdm.clone(),
             cfg: SavedCfg::CfgPrj(cfg.prj.clone()),
-            deadmansswitch: Deadmansswitch::new(),
+            last_time_prj_opened: LastTimePrjOpened::new(),
         };
         tracing::info!("saved to {file_path:?}");
         write(tools_data_map, make_data, file_path)?;
@@ -172,21 +172,21 @@ pub fn load_prj(file_path: &Path) -> RvResult<SavePrjData> {
     serde_json::from_str::<SavePrjData>(s.as_str()).map_err(to_rv)
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-pub struct Deadmansswitch {
+pub struct LastTimePrjOpened {
     time: DateTime<Utc>,
     username: String,
     realname: String,
 }
-impl Deadmansswitch {
+impl LastTimePrjOpened {
     pub fn new() -> Self {
-        Deadmansswitch {
+        LastTimePrjOpened {
             time: Utc::now(),
             username: whoami::username(),
             realname: whoami::realname(),
         }
     }
 }
-impl Default for Deadmansswitch {
+impl Default for LastTimePrjOpened {
     fn default() -> Self {
         Self::new()
     }
@@ -199,8 +199,8 @@ pub struct SavePrjData {
     pub opened_folder: Option<String>,
     pub tools_data_map: ToolsDataMap,
     pub cfg: SavedCfg,
-    #[serde(default = "Deadmansswitch::new")]
-    pub deadmansswitch: Deadmansswitch,
+    #[serde(default = "LastTimePrjOpened::new")]
+    pub last_time_prj_opened: LastTimePrjOpened,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -291,14 +291,14 @@ impl Control {
         }
     }
 
-    pub fn push_deadmansswitch(&mut self) {
+    pub fn write_lasttimeprjopened(&mut self) {
         self.wait_for_save();
         let prj_path = self.cfg.current_prj_path().to_path_buf();
         let handle = thread::spawn(move || {
             tracing::info!("pushing dead man's switch...");
             let prj_data = trace_ok_err(load_prj(&prj_path));
             if let Some(mut prj_data) = prj_data {
-                prj_data.deadmansswitch = Deadmansswitch::new();
+                prj_data.last_time_prj_opened = LastTimePrjOpened::new();
                 trace_ok_err(file_util::save(&prj_path, prj_data));
             }
             tracing::info!("pushing dead man's done!");
