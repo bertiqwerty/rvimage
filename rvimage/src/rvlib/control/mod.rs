@@ -292,18 +292,20 @@ impl Control {
     }
 
     pub fn write_lasttimeprjopened(&mut self) {
-        self.wait_for_save();
-        let prj_path = self.cfg.current_prj_path().to_path_buf();
-        let handle = thread::spawn(move || {
-            tracing::info!("pushing dead man's switch...");
-            let prj_data = trace_ok_err(load_prj(&prj_path));
-            if let Some(mut prj_data) = prj_data {
-                prj_data.last_time_prj_opened = LastTimePrjOpened::new();
-                trace_ok_err(file_util::save(&prj_path, prj_data));
-            }
-            tracing::info!("pushing dead man's done!");
-        });
-        self.save_handle = Some(handle);
+        if self.save_handle.as_ref().map(|h| h.is_finished()) != Some(false) {
+            self.wait_for_save(); // paranoia check
+            let prj_path = self.cfg.current_prj_path().to_path_buf();
+            let handle = thread::spawn(move || {
+                tracing::info!("writing now as last time the project has been opened...");
+                let prj_data = trace_ok_err(load_prj(&prj_path));
+                if let Some(mut prj_data) = prj_data {
+                    prj_data.last_time_prj_opened = LastTimePrjOpened::new();
+                    trace_ok_err(file_util::save(&prj_path, prj_data));
+                }
+                tracing::info!("writing now as ... done!");
+            });
+            self.save_handle = Some(handle);
+        }
     }
 
     pub fn save(
