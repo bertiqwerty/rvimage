@@ -121,7 +121,7 @@ pub struct AttributesToolData {
 impl AttributesToolData {
     implement_annotations_getters!(AttrMap);
     pub fn rename(&mut self, from_name: &str, to_name: &str) {
-        if self.attr_names().contains(&to_name.to_string()) {
+        if self.attr_names().iter().any(|n| n == to_name) {
             tracing::warn!("Cannot update to {to_name}. Already exists.")
         } else {
             // better solution: use indices the attr_map hashmap keys instead of Strings
