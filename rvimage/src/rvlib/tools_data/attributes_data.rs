@@ -93,6 +93,8 @@ pub fn set_attrmap_val(attr_map: &mut AttrMap, attr_name: &str, attr_val: &AttrV
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct Options {
     pub is_addition_triggered: bool,
+    #[serde(default)]
+    pub rename_src_idx: Option<usize>, // target idx of renamed attribute
     pub is_update_triggered: bool,
     pub is_export_triggered: bool,
     #[serde(default)]
@@ -118,6 +120,38 @@ pub struct AttributesToolData {
 }
 impl AttributesToolData {
     implement_annotations_getters!(AttrMap);
+    pub fn rename(&mut self, from_name: &str, to_name: &str) {
+        if self.attr_names().contains(&to_name.to_string()) {
+            tracing::warn!("Cannot update to {to_name}. Already exists.")
+        } else {
+            // better solution: use indices the attr_map hashmap keys instead of Strings
+            // rename would then be not necessary anymore.
+            let update_attr_map = |attr_map: &mut HashMap<String, AttrVal>| {
+                let keys = attr_map.keys().cloned().collect::<Vec<_>>();
+                for k in keys {
+                    if k == from_name {
+                        let val = attr_map.remove(&k);
+                        if let Some(val) = val {
+                            attr_map.insert(to_name.to_string(), val);
+                        }
+                    }
+                }
+            };
+            for (attr_map, _) in self.annotations_map.values_mut() {
+                update_attr_map(attr_map);
+            }
+
+            if let Some(curmap) = &mut self.current_attr_map {
+                update_attr_map(curmap);
+            }
+
+            for old_name in &mut self.attr_names {
+                if old_name == from_name {
+                    *old_name = to_name.to_string();
+                }
+            }
+        }
+    }
     pub fn merge(mut self, other: Self) -> Self {
         for (filename, (attrmap_other, _)) in other.annotations_map {
             if let Some((attr_map_self, _)) = self.annotations_map.get_mut(&filename) {

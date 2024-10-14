@@ -44,6 +44,7 @@ pub(super) fn insert_attribute(
             let attr_options = attributes_data::Options {
                 is_export_triggered: false,
                 is_addition_triggered: populate_new_attr,
+                rename_src_idx: None,
                 is_update_triggered: false,
                 export_only_opened_folder: false,
                 removal_idx: None,
@@ -64,6 +65,7 @@ pub(super) fn insert_attribute(
         let attr_options = attributes_data::Options {
             is_export_triggered: false,
             is_addition_triggered: false,
+            rename_src_idx: None,
             is_update_triggered: true,
             export_only_opened_folder: false,
             removal_idx: None,

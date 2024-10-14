@@ -116,6 +116,16 @@ impl Manipulate for Attributes {
                 *populate_new_attr = false;
             }
         }
+        let attr_data = get_specific_mut(&mut world);
+        if let Some(attr_data) = attr_data {
+            if let Some(rename_src_idx) = attr_data.options.rename_src_idx {
+                let from_name = &attr_data.attr_names()[rename_src_idx].clone();
+                let to_name = &attr_data.new_attr_name.clone();
+                tracing::info!("Rename attribute {from_name} to {to_name}");
+                attr_data.rename(from_name, to_name);
+                attr_data.options.rename_src_idx = None;
+            }
+        }
         let is_update_triggered = get_specific(&world).map(|d| d.options.is_update_triggered);
         if is_update_triggered == Some(true) {
             info!("update attr");

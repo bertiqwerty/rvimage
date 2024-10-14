@@ -484,7 +484,6 @@ pub fn attributes_menu(
     const INT_LABEL: &str = "Int";
     const TEXT_LABEL: &str = "Text";
     const BOOL_LABEL: &str = "Bool";
-    text_edit_singleline(ui, &mut data.new_attr_name, are_tools_active);
     ui.horizontal(|ui| {
         egui::ComboBox::from_label("")
             .selected_text(format!(
@@ -514,14 +513,15 @@ pub fn attributes_menu(
                 );
                 ui.selectable_value(&mut data.new_attr_val, AttrVal::Bool(false), BOOL_LABEL);
             });
-        if ui.button("Add").clicked() {
-            if data.attr_names().contains(&data.new_attr_name) {
-                warn!("attribute {:?} already exists", data.new_attr_name);
-            }
-            data.options.is_addition_triggered = true;
-            data.options.is_update_triggered = true;
-        }
     });
+    text_edit_singleline(ui, &mut data.new_attr_name, are_tools_active);
+    if ui.button("add").clicked() {
+        if data.attr_names().contains(&data.new_attr_name) {
+            warn!("attribute {:?} already exists", data.new_attr_name);
+        }
+        data.options.is_addition_triggered = true;
+        data.options.is_update_triggered = true;
+    }
     egui::Grid::new("attributes_grid")
         .num_columns(4)
         .show(ui, |ui| {
@@ -580,6 +580,10 @@ pub fn attributes_menu(
                     }
                 }
                 *data.attr_buffer_mut(idx) = new_attr_buffer;
+                if ui.button("rename").clicked() {
+                    data.options.rename_src_idx = Some(idx);
+                    data.options.is_update_triggered = true;
+                }
                 ui.end_row();
             });
             if let Some(tbr) = to_be_removed {
