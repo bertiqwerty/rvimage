@@ -282,6 +282,9 @@ impl Control {
         // save cfg of loaded project
         trace_ok_err(cfg::write_cfg(&self.cfg));
 
+        // write time stamp to indicate that the project is currently open
+        self.write_lasttimeprjopened();
+
         Ok(tools_data_map)
     }
 
