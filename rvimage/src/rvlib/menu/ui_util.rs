@@ -1,6 +1,9 @@
 use std::{fmt::Display, ops::RangeInclusive, str::FromStr};
 
-use egui::{FontSelection, Response, TextBuffer, TextEdit, Ui, Widget};
+use egui::{
+    text::{CCursor, CCursorRange},
+    FontSelection, Response, TextBuffer, TextEdit, Ui,
+};
 use tracing::warn;
 
 pub fn ui_with_deactivated_tools(
@@ -25,15 +28,28 @@ pub fn text_edit_with_deactivated_tools<S: TextBuffer>(
 ) -> Response {
     ui_with_deactivated_tools(are_tools_active, || f_ui(text))
 }
-pub fn text_edit_singleline<S: TextBuffer>(
+pub fn text_edit_singleline(
     ui: &mut Ui,
-    text: &mut S,
+    text: &mut String,
     are_tools_active: &mut bool,
 ) -> Response {
     text_edit_with_deactivated_tools(text, are_tools_active, |text| {
-        TextEdit::singleline(text)
+        let mut textedit_output = TextEdit::singleline(text)
             .font(FontSelection::Style(egui::TextStyle::Monospace))
-            .ui(ui)
+            .show(ui);
+        if textedit_output.response.clicked() {
+            textedit_output
+                .state
+                .cursor
+                .set_char_range(Some(CCursorRange::two(
+                    CCursor::new(0),
+                    CCursor::new(text.len()),
+                )));
+            textedit_output
+                .state
+                .store(ui.ctx(), textedit_output.response.id);
+        }
+        textedit_output.response
     })
 }
 pub fn slider<Num>(
