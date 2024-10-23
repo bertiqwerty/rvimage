@@ -96,24 +96,30 @@ impl Manipulate for Attributes {
             let data = get_specific_mut(&mut world);
 
             if let (Some(mut attr_map_tmp), Some(data)) = (attr_map_tmp, data) {
-                let new_attr = data.new_attr_name.clone();
-                let new_attr_type = data.new_attr_val.clone();
-                for (_, (val_map, _)) in data.anno_iter_mut() {
-                    set_attrmap_val(val_map, &new_attr, &new_attr_type);
-                }
-                set_attrmap_val(&mut attr_map_tmp, &new_attr, &new_attr_type);
-                if let Some(a) = get_annos_mut(&mut world) {
-                    a.clone_from(&attr_map_tmp);
-                }
-                if let Some(data) = get_specific_mut(&mut world) {
-                    data.current_attr_map = Some(attr_map_tmp);
-                    data.push(new_attr, new_attr_type);
+                let new_attr_name = data.new_attr_name.clone();
+                if !data.attr_names().contains(&new_attr_name) {
+                    let new_attr_val = data.new_attr_val.clone();
+                    for (_, (val_map, _)) in data.anno_iter_mut() {
+                        set_attrmap_val(val_map, &new_attr_name, &new_attr_val);
+                    }
+                    set_attrmap_val(&mut attr_map_tmp, &new_attr_name, &new_attr_val);
+                    if let Some(a) = get_annos_mut(&mut world) {
+                        a.clone_from(&attr_map_tmp);
+                    }
+                    if let Some(data) = get_specific_mut(&mut world) {
+                        data.current_attr_map = Some(attr_map_tmp);
+                        data.push(new_attr_name, new_attr_val);
+                    }
+                } else {
+                    tracing::error!(
+                        "New attribute {new_attr_name} could not be created, already exists"
+                    );
                 }
             }
-            if let Some(populate_new_attr) =
+            if let Some(is_add_triggered_out) =
                 get_specific_mut(&mut world).map(|d| &mut d.options.is_addition_triggered)
             {
-                *populate_new_attr = false;
+                *is_add_triggered_out = false;
             }
         }
         let attr_data = get_specific_mut(&mut world);

@@ -517,10 +517,14 @@ pub fn attributes_menu(
     text_edit_singleline(ui, &mut data.new_attr_name, are_tools_active);
     if ui.button("add").clicked() {
         if data.attr_names().contains(&data.new_attr_name) {
-            warn!("attribute {:?} already exists", data.new_attr_name);
+            tracing::error!(
+                "attribute {:?} already exists, we do not re-create it",
+                data.new_attr_name
+            );
+        } else {
+            data.options.is_addition_triggered = true;
+            data.options.is_update_triggered = true;
         }
-        data.options.is_addition_triggered = true;
-        data.options.is_update_triggered = true;
     }
     egui::Grid::new("attributes_grid")
         .num_columns(4)
