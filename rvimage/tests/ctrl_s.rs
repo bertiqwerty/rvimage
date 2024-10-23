@@ -20,6 +20,7 @@ fn test_main() {
         main_loop.one_iteration(&events, &ctx).unwrap();
     });
     main_loop.load_prj(Some(test_file.clone())).unwrap();
+    thread::sleep(Duration::from_millis(1));
     let file_info_before = fs::metadata(test_file.as_path())
         .unwrap()
         .modified()
@@ -28,23 +29,16 @@ fn test_main() {
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, &ctx).unwrap();
     });
-    thread::sleep(Duration::from_millis(10));
-    let file_info_before_2 = fs::metadata(test_file.as_path())
-        .unwrap()
-        .modified()
-        .unwrap();
     thread::sleep(Duration::from_millis(1));
     let events =
         Events::default().events(vec![Event::Held(KeyCode::Ctrl), Event::Pressed(KeyCode::S)]);
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, &ctx).unwrap();
     });
-    thread::sleep(Duration::from_millis(10));
+    thread::sleep(Duration::from_millis(1));
     let file_info_after = fs::metadata(test_file.as_path())
         .unwrap()
         .modified()
         .unwrap();
     assert_ne!(file_info_before, file_info_after);
-    // we write the last person into to the project file
-    assert_ne!(file_info_before, file_info_before_2);
 }

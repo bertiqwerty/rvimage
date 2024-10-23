@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
-use rvlib::{control::Control, world::ToolsDataMap};
+use rvlib::{control::Control, defer_file_removal, world::ToolsDataMap};
 
 fn get_test_folder() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
@@ -15,7 +15,11 @@ fn get_ctrl() -> Control {
 
 fn prj_load(file: &str) -> ToolsDataMap {
     let mut ctrl = get_ctrl();
-    ctrl.load(get_test_folder().join(file)).unwrap()
+    let test_file_src = get_test_folder().join(get_test_folder().join(file));
+    let test_file = get_test_folder().join("tmp-test.rvi");
+    defer_file_removal!(&test_file);
+    fs::copy(&test_file_src, &test_file).unwrap();
+    ctrl.load(test_file.clone()).unwrap()
 }
 
 #[test]

@@ -831,15 +831,22 @@ fn main() {
 }
 
 #[cfg(test)]
-use rvlib::{defer_folder_removal, file_util::DEFAULT_TMPDIR, read_coco};
+use {
+    rvlib::{defer_file_removal, defer_folder_removal, file_util::DEFAULT_TMPDIR, read_coco},
+    std::fs,
+};
 
 #[test]
 fn test_coco() {
     let in_prj_path = PathBuf::from("resources/test_data/rvprj_v4-0.json");
+    let test_file = in_prj_path.parent().unwrap().join("tmp-test.rvi");
+    defer_file_removal!(&test_file);
+    fs::copy(&in_prj_path, &test_file).unwrap();
     let tmp_folder = DEFAULT_TMPDIR.join("convertcocotest");
     std::fs::create_dir_all(&tmp_folder).unwrap();
     defer_folder_removal!(&tmp_folder);
-    let (export_path, meta_data, rot90) = export_coco(in_prj_path, &tmp_folder, true).unwrap();
+    let (export_path, meta_data, rot90) =
+        export_coco(test_file.clone(), &tmp_folder, true).unwrap();
     let files = tmp_folder
         .read_dir()
         .unwrap()
