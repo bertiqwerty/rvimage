@@ -28,6 +28,7 @@ fn test_main() {
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, &ctx).unwrap();
     });
+    thread::sleep(Duration::from_millis(10));
     let file_info_before_2 = fs::metadata(test_file.as_path())
         .unwrap()
         .modified()
@@ -44,5 +45,6 @@ fn test_main() {
         .modified()
         .unwrap();
     assert_ne!(file_info_before, file_info_after);
-    assert_eq!(file_info_before, file_info_before_2);
+    // we write the last person into to the project file
+    assert_ne!(file_info_before, file_info_before_2);
 }
