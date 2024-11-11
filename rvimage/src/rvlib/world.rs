@@ -278,7 +278,7 @@ impl DataRaw {
     pub fn shape_initial(&self) -> &ShapeI {
         &self.shape_initial
     }
-    
+
     pub fn set_image_rect(&mut self, ui_image_rect: Option<ShapeF>) {
         self.ui_image_rect = ui_image_rect;
     }

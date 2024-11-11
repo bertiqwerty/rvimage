@@ -581,7 +581,7 @@ impl Control {
                             ri.im,
                             world.data.tools_data_map.clone(),
                             MetaData::from_filepath(fp, fidx, self.cfg.current_prj_path()),
-                            world.ui_image_rect()
+                            world.ui_image_rect(),
                         );
                         let zoom_box = if ims_raw.shape() == world.data.shape() {
                             *world.zoom_box()
