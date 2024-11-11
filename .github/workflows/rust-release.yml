@@ -74,7 +74,7 @@ jobs:
         shell: powershell
         run: |
           cargo build --verbose --release --target ${{ matrix.target }}
-          bin=target/${{ matrix.target }}/release/rvimage.exe
+          $bin="target/${{ matrix.target }}/release/rvimage.exe"
           echo "BIN=$bin" >> $env:GITHUB_ENV
 
       - name: Build release binary MacOS
