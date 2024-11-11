@@ -579,8 +579,9 @@ impl Control {
                         self.file_info_selected = Some(ri.info);
                         let ims_raw = DataRaw::new(
                             ri.im,
-                            MetaData::from_filepath(fp, fidx, self.cfg.current_prj_path()),
                             world.data.tools_data_map.clone(),
+                            MetaData::from_filepath(fp, fidx, self.cfg.current_prj_path()),
+                            world.ui_image_rect()
                         );
                         let zoom_box = if ims_raw.shape() == world.data.shape() {
                             *world.zoom_box()
@@ -615,8 +616,9 @@ impl Control {
                                         shape,
                                         self.loading_screen_animation_counter,
                                     ),
-                                    MetaData::default(),
                                     world.data.tools_data_map.clone(),
+                                    MetaData::default(),
+                                    world.ui_image_rect(),
                                 ),
                                 None,
                             ),

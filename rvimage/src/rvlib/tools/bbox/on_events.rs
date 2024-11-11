@@ -703,6 +703,7 @@ pub(super) fn test_data() -> (Option<PtF>, World, History) {
     let mut world = World::from_real_im(
         im_test,
         HashMap::new(),
+        None,
         Some("superimage.png".to_string()),
         Path::new("superimage.png"),
         Some(0),

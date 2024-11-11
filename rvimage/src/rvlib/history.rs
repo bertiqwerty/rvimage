@@ -173,6 +173,7 @@ fn test_history() -> RvResult<()> {
         DynamicImage::ImageRgb8(im),
         HashMap::new(),
         None,
+        None,
         prj_path,
         None,
     );
@@ -187,6 +188,7 @@ fn test_history() -> RvResult<()> {
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(32, 32)),
         HashMap::new(),
+        None,
         None,
         prj_path,
         None,
@@ -204,6 +206,7 @@ fn test_history() -> RvResult<()> {
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(16, 16)),
         HashMap::new(),
+        None,
         None,
         prj_path,
         None,

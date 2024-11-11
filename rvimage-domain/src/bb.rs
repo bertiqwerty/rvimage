@@ -365,14 +365,14 @@ impl BbF {
         Self::from_arr(&[x, y, w, h])
     }
 
-    pub fn center_scale(&self, factor: f64, shape: ShapeI) -> Self {
+    pub fn center_scale(&self, x_factor: f64, y_factor: f64, shape: ShapeI) -> Self {
         let x = self.x;
         let y = self.y;
         let w = self.w;
         let h = self.h;
         let (cx, cy) = (w * 0.5 + x, h * 0.5 + y);
-        let topleft = (cx + factor * (x - cx), cy + factor * (y - cy));
-        let btmright = (cx + factor * (x + w - cx), cy + factor * (y + h - cy));
+        let topleft = (cx + x_factor * (x - cx), cy + y_factor * (y - cy));
+        let btmright = (cx + x_factor * (x + w - cx), cy + y_factor * (y + h - cy));
         let (x_tl, y_tl) = topleft;
         let (x_br, y_br) = btmright;
         let w = x_br - x_tl;

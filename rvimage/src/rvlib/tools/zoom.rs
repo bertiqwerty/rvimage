@@ -239,7 +239,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
     let prj_path = Path::new("");
-    let world = World::from_real_im(im_orig, HashMap::new(), None, prj_path, None);
+    let world = World::from_real_im(im_orig, HashMap::new(), None, None, prj_path, None);
     let history = History::default();
     let im_orig_old = world.data.clone();
     let event = Events::default().mousepos_orig(mouse_pos);
@@ -254,7 +254,7 @@ fn test_on_mouse_released() -> RvResult<()> {
     let im_orig = DynamicImage::ImageRgb8(ViewImage::new(250, 500));
     let mut z = Zoom::new();
     let prj_path = Path::new("");
-    let world = World::from_real_im(im_orig, HashMap::new(), None, prj_path, None);
+    let world = World::from_real_im(im_orig, HashMap::new(), None, None, prj_path, None);
 
     z.set_mouse_start_zoom((30.0, 70.0).into());
 

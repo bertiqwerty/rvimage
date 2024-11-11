@@ -17,7 +17,7 @@ fn test_main() {
     let mut main_loop = MainEventLoop::new(Some(test_file.clone()));
     let events = Events::default();
     egui::__run_test_ctx(|ctx| {
-        main_loop.one_iteration(&events, &ctx).unwrap();
+        main_loop.one_iteration(&events, None, &ctx).unwrap();
     });
     main_loop.load_prj(Some(test_file.clone())).unwrap();
     thread::sleep(Duration::from_millis(1));
@@ -27,13 +27,13 @@ fn test_main() {
         .unwrap();
     thread::sleep(Duration::from_millis(1));
     egui::__run_test_ctx(|ctx| {
-        main_loop.one_iteration(&events, &ctx).unwrap();
+        main_loop.one_iteration(&events, None, &ctx).unwrap();
     });
     thread::sleep(Duration::from_millis(1));
     let events =
         Events::default().events(vec![Event::Held(KeyCode::Ctrl), Event::Pressed(KeyCode::S)]);
     egui::__run_test_ctx(|ctx| {
-        main_loop.one_iteration(&events, &ctx).unwrap();
+        main_loop.one_iteration(&events, None, &ctx).unwrap();
     });
     thread::sleep(Duration::from_millis(1));
     let file_info_after = fs::metadata(test_file.as_path())

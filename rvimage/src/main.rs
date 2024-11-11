@@ -9,7 +9,7 @@ use egui::{
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
-use rvimage_domain::{access_mask_abs, to_rv, BbF, Canvas, PtF, PtI, RvResult, TPtF, TPtI};
+use rvimage_domain::{access_mask_abs, to_rv, BbF, Canvas, PtF, PtI, RvResult, ShapeF, TPtF, TPtI};
 use rvlib::{
     cfg::{ExportPath, ExportPathConnection},
     color_with_intensity,
@@ -329,7 +329,7 @@ struct RvImageApp {
     t_last_iterations: [f64; 3],
     egui_perm_shapes: Vec<Shape>,
     egui_tmp_shapes: [Option<Shape>; 2],
-    prev_im_rect: Option<Rect>,
+    image_rect: Option<Rect>,
 }
 
 impl RvImageApp {
@@ -645,7 +645,12 @@ impl eframe::App for RvImageApp {
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;
         });
-        let update_view = self.event_loop.one_iteration(&self.events, ctx);
+        let update_view = self.event_loop.one_iteration(
+            &self.events,
+            self.image_rect
+                .map(|ir| ShapeF::new(ir.width().into(), ir.height().into())),
+            ctx,
+        );
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Ok(update_view) = update_view {
                 if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
@@ -678,13 +683,15 @@ impl eframe::App for RvImageApp {
                         )
                         .truncate(),
                     );
+                    let image_surrounding_rect = ui.max_rect();
                     let image_response = self.add_image(ui);
                     let mut update_texture = false;
                     if let Some(ir) = image_response {
                         // react to resizing the image rect
-                        if self.prev_im_rect != Some(ir.rect) {
+                        if self.image_rect != Some(ir.rect) {
                             self.update_perm_annos(&ir.rect);
-                            self.prev_im_rect = Some(ir.rect);
+
+                            self.image_rect = Some(image_surrounding_rect);
                         }
                         self.events = self.collect_events(ui, &ir);
                         if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {

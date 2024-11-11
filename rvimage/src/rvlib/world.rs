@@ -10,7 +10,7 @@ use crate::types::ViewImage;
 use crate::util::Visibility;
 use crate::{image_util, InstanceAnnotate, UpdatePermAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
-use rvimage_domain::{BbF, RvError, RvResult, ShapeI};
+use rvimage_domain::{BbF, RvError, RvResult, ShapeF, ShapeI};
 use std::collections::HashMap;
 use std::path::Path;
 use std::{fmt::Debug, mem};
@@ -249,6 +249,7 @@ pub type ToolsDataMap = HashMap<String, ToolsData>;
 pub struct DataRaw {
     im_background: DynamicImage,
     shape_initial: ShapeI,
+    ui_image_rect: Option<ShapeF>,
     pub meta_data: MetaData,
     pub tools_data_map: ToolsDataMap,
 }
@@ -256,13 +257,15 @@ pub struct DataRaw {
 impl DataRaw {
     pub fn new(
         im_background: DynamicImage,
-        meta_data: MetaData,
         tools_data_map: ToolsDataMap,
+        meta_data: MetaData,
+        ui_image_rect: Option<ShapeF>,
     ) -> Self {
         let shape_initial = ShapeI::from_im(&im_background);
         DataRaw {
             im_background,
             shape_initial,
+            ui_image_rect,
             meta_data,
             tools_data_map,
         }
@@ -274,6 +277,10 @@ impl DataRaw {
 
     pub fn shape_initial(&self) -> &ShapeI {
         &self.shape_initial
+    }
+    
+    pub fn set_image_rect(&mut self, ui_image_rect: Option<ShapeF>) {
+        self.ui_image_rect = ui_image_rect;
     }
 
     pub fn apply<FI>(&mut self, mut f_i: FI)
@@ -347,6 +354,10 @@ impl World {
             },
         };
         add_tools_initial_data(world)
+    }
+
+    pub fn ui_image_rect(&self) -> Option<ShapeF> {
+        self.data.ui_image_rect
     }
 
     pub fn request_redraw_annotations(&mut self, tool_name: &str, visibility_active: Visibility) {
@@ -434,6 +445,7 @@ impl World {
     pub fn from_real_im(
         im: DynamicImage,
         tools_data: ToolsDataMap,
+        ui_image_rect: Option<ShapeF>,
         file_path: Option<String>,
         prj_path: &Path,
         file_selected_idx: Option<usize>,
@@ -442,7 +454,7 @@ impl World {
             (Some(fp), Some(fsidx)) => MetaData::from_filepath(fp, fsidx, prj_path),
             _ => MetaData::default(),
         };
-        Self::new(DataRaw::new(im, meta_data, tools_data), None)
+        Self::new(DataRaw::new(im, tools_data, meta_data, ui_image_rect), None)
     }
 
     pub fn shape_orig(&self) -> ShapeI {
@@ -467,6 +479,10 @@ impl World {
 
     pub fn zoom_box(&self) -> &Option<BbF> {
         &self.zoom_box
+    }
+
+    pub fn set_image_rect(&mut self, ui_image_rect: Option<ShapeF>) {
+        self.data.set_image_rect(ui_image_rect);
     }
 }
 impl Debug for World {

@@ -16,7 +16,7 @@ use crate::{apply_tool_method_mut, httpserver, image_util, UpdateView};
 use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
-use rvimage_domain::{PtI, RvResult};
+use rvimage_domain::{PtI, RvResult, ShapeF};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
@@ -102,6 +102,7 @@ fn empty_world() -> World {
         DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
         HashMap::new(),
         None,
+        None,
         Path::new(""),
         None,
     )
@@ -169,7 +170,13 @@ impl MainEventLoop {
         trace_ok_err(self_.load_prj(prj_file_path));
         self_
     }
-    pub fn one_iteration(&mut self, e: &Events, ctx: &Context) -> RvResult<UpdateView> {
+    pub fn one_iteration(
+        &mut self,
+        e: &Events,
+        ui_image_rect: Option<ShapeF>,
+        ctx: &Context,
+    ) -> RvResult<UpdateView> {
+        self.world.set_image_rect(ui_image_rect);
         let project_loaded = self.menu.ui(
             ctx,
             &mut self.ctrl,
