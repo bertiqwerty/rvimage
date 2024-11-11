@@ -451,6 +451,8 @@ impl World {
 
     pub fn set_zoom_box(&mut self, zoom_box: Option<BbF>) {
         let mut set_zb = || {
+            let zoom_box =
+                zoom_box.map(|zb| BbF::new_fit_to_image(zb.x, zb.y, zb.w, zb.h, self.shape_orig()));
             self.zoom_box = zoom_box;
             self.update_view = UpdateView::from_zoombox(zoom_box);
         };
