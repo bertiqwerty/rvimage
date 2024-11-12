@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use rvimage_domain::{BbF, BbI, ShapeF, ShapeI};
+use rvimage_domain::{BbF, BbI, PtF, ShapeF, ShapeI};
 
 use crate::{
     events::{Events, KeyCode, ZoomAmount},
@@ -20,6 +20,7 @@ fn zoom_box_mouse_wheel(
     shape_orig: ShapeI,
     ui_image_rect: Option<ShapeF>,
     amount: ZoomAmount,
+    mouse_pos: Option<PtF>,
 ) -> BbF {
     let current_zb = if let Some(zb) = zoom_box {
         zb
@@ -62,7 +63,7 @@ fn zoom_box_mouse_wheel(
         }
         None => (factor, factor),
     };
-    current_zb.center_scale(x_factor, y_factor, shape_orig)
+    current_zb.center_scale(x_factor, y_factor, shape_orig, mouse_pos)
 }
 
 #[derive(Clone, Debug)]
@@ -111,6 +112,7 @@ impl AlwaysActiveZoom {
                     world.shape_orig(),
                     world.ui_image_rect(),
                     ZoomAmount::Delta(1.0),
+                    None,
                 ))
             } else if events.released(KeyCode::Minus) {
                 Some(zoom_box_mouse_wheel(
@@ -118,6 +120,7 @@ impl AlwaysActiveZoom {
                     world.shape_orig(),
                     world.ui_image_rect(),
                     ZoomAmount::Delta(-1.0),
+                    None,
                 ))
             } else {
                 *world.zoom_box()
@@ -154,6 +157,7 @@ impl Manipulate for AlwaysActiveZoom {
                 world.shape_orig(),
                 world.ui_image_rect(),
                 z,
+                events.mouse_pos_on_orig,
             );
             world.set_zoom_box(Some(zb));
         }
@@ -178,7 +182,7 @@ fn test_zb() {
     fn test(zb: Option<BbF>, y_delta: f64, reference_coords: &[u32; 4]) {
         println!("y_delta {}", y_delta);
         let shape = ShapeI::new(200, 100);
-        let zb_new = zoom_box_mouse_wheel(zb, shape, None, ZoomAmount::Delta(y_delta));
+        let zb_new = zoom_box_mouse_wheel(zb, shape, None, ZoomAmount::Delta(y_delta), None);
         assert_eq!(zb_new, BbI::from_arr(reference_coords).into());
     }
     test(None, 1.0, &[10, 5, 180, 90]);
