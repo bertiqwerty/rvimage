@@ -44,10 +44,11 @@ fn zoom_box_mouse_wheel(
         Some(uir) => {
             let diff2off = |ar_diff: f64| (ar_diff / 5.0).abs().min(0.1);
             let ar_diff = ar(uir) - ar(vis_im_shape);
-            let (xoff, yoff) = if ar_diff > 0.0 {
+            let ar_diff_tolerance = 0.0001;
+            let (xoff, yoff) = if ar_diff > ar_diff_tolerance {
                 let off = diff2off(ar_diff);
                 (off, -off)
-            } else if ar_diff < 0.0 {
+            } else if ar_diff < -ar_diff_tolerance {
                 let off = diff2off(ar_diff);
                 (-off, off)
             } else {
