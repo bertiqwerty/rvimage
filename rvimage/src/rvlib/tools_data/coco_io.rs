@@ -649,6 +649,7 @@ pub fn read_coco(
         }
         ExportPathConnection::Ssh => {
             if let Some(ssh_cfg) = &meta_data.ssh_cfg {
+                tracing::info!("creating session based on {:?}", meta_data.ssh_cfg);
                 let sess = ssh::auth(ssh_cfg)?;
                 let read_bytes = ssh::download(path_to_str(&coco_file.path)?, &sess)?;
                 let s = String::from_utf8(read_bytes).map_err(to_rv)?;

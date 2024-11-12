@@ -512,10 +512,10 @@ impl Control {
         let file_path =
             file_selected_idx.and_then(|fsidx| self.paths_navigator.file_path(fsidx).cloned());
         let open_folder = self.opened_folder().cloned();
-        let ssh_cfg = self.cfg_of_opened_folder().map(|cfg| cfg.ssh_cfg());
-        let connection_data = match &ssh_cfg {
-            Some(ssh_cfg) => ConnectionData::Ssh(ssh_cfg.clone()),
-            None => ConnectionData::None,
+        let connection_data = if self.reader.is_some() {
+            ConnectionData::Ssh(self.cfg.ssh_cfg())
+        } else {
+            ConnectionData::None
         };
         let export_folder = self
             .cfg_of_opened_folder()
@@ -526,7 +526,7 @@ impl Control {
             file_path,
             file_selected_idx,
             connection_data,
-            ssh_cfg,
+            Some(self.cfg.ssh_cfg()),
             open_folder,
             export_folder,
             MetaDataFlags {

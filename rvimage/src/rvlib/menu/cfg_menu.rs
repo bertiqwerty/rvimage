@@ -82,6 +82,7 @@ fn settings_popup(ui: &mut Ui, cfg: &mut Cfg, are_tools_active: &mut bool) -> Cl
                     tracing::error!("could not open editor. {:?}", edit::get_editor());
                 }
                 if let Some(cfg_) = trace_ok_err(cfg::read_cfg_gen::<Cfg>(&tmppath)) {
+                    tracing::info!("config updated with new settings");
                     *cfg = cfg_;
                 }
                 if let Err(e) = cfg::write_cfg(cfg) {

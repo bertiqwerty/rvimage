@@ -110,13 +110,12 @@ pub fn auth(ssh_cfg: &SshCfg) -> RvResult<Session> {
     let mut sess = Session::new().map_err(to_rv)?;
     sess.set_tcp_stream(tcp);
     sess.handshake().map_err(to_rv)?;
-    sess.userauth_pubkey_file(
-        &ssh_cfg.usr.user,
-        None,
-        Path::new(&ssh_cfg.usr.ssh_identity_file_path),
-        None,
-    )
-    .map_err(to_rv)?;
+    let keyfile = Path::new(&ssh_cfg.usr.ssh_identity_file_path);
+    if !keyfile.exists() {
+        return Err(rverr!("could not find private key file {keyfile:?}"));
+    }
+    sess.userauth_pubkey_file(&ssh_cfg.usr.user, None, keyfile, None)
+        .map_err(to_rv)?;
     assert!(sess.authenticated());
     Ok(sess)
 }
