@@ -142,7 +142,10 @@ where
     let (imw, imh) = if is_export_coords_absolute {
         (1.0, 1.0)
     } else {
-        (shape_im_unrotated.w as TPtF, shape_im_unrotated.h as TPtF)
+        (
+            TPtF::from(shape_im_unrotated.w),
+            TPtF::from(shape_im_unrotated.h),
+        )
     };
 
     let bb_f = [bb.x / imw, bb.y / imh, bb.w / imw, bb.h / imh];
@@ -181,8 +184,8 @@ impl<'a> WarnerCounting<'a> {
             None
         }
     }
-    fn warn(&mut self, msg: String) {
-        if let Some(msg) = self.warn_str(msg.as_str()) {
+    fn warn(&mut self, msg: &str) {
+        if let Some(msg) = self.warn_str(msg) {
             tracing::warn!(msg);
         }
     }
@@ -200,7 +203,7 @@ impl CocoExportData {
         tools_data: T,
         rotation_data: Option<&Rot90ToolData>,
         prj_path: Option<&Path>,
-    ) -> RvResult<Self>
+    ) -> Self
     where
         T: ExportAsCoco<A>,
         A: InstanceAnnotate + 'static,
@@ -297,13 +300,12 @@ impl CocoExportData {
             .flat_map(make_anno_map)
             .collect::<Vec<_>>();
 
-        let coco_data = CocoExportData {
+        CocoExportData {
             info,
             images,
             annotations,
             categories,
-        };
-        Ok(coco_data)
+        }
     }
 
     fn convert_to_toolsdata(
@@ -429,12 +431,12 @@ impl CocoExportData {
                             Ok(poly) => {
                                 let encl_bb = poly.enclosing_bb();
                                 if encl_bb.w * encl_bb.h < 1e-6 && bb.w * bb.h > 1e-6 {
-                                    warner.warn(format!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}"));
+                                    warner.warn(&format!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}"));
                                     GeoFig::BB(bb)
                                 } else {
                                     if !bb.all_corners_close(encl_bb) {
                                         let msg = format!("bounding box and polygon enclosing box do not match. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}");
-                                        warner.warn(msg);
+                                        warner.warn(&msg);
                                     }
                                     // check if the poly is just a bounding box
                                     if poly.points().len() == 4
@@ -490,7 +492,7 @@ impl CocoExportData {
                 }
             }
             if invalid_segmentation_exists {
-                warner.warn(format!("invalid segmentation in coco file {file_path}"));
+                warner.warn(&format!("invalid segmentation in coco file {file_path}"));
             }
         }
         let bbox_data = BboxToolData::from_coco_export_data(InstanceExportData {
@@ -618,7 +620,7 @@ where
             tools_data,
             rotation_data.as_ref(),
             meta_data.prj_path(),
-        )?;
+        );
         let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
         conn.write(
             &data_str,

@@ -1,4 +1,7 @@
 #![deny(clippy::all)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_sign_loss)]
 #![forbid(unsafe_code)]
 
 use clap::Parser;
@@ -23,13 +26,7 @@ use rvlib::{
     GeoFig, ImageU8, InstanceAnnotate, KeyCode, MainEventLoop, MetaData, Rot90ToolData, ShapeI,
     UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox, ZoomAmount,
 };
-use std::{
-    iter,
-    ops::Deref,
-    panic,
-    path::{Path, PathBuf},
-    time::Instant,
-};
+use std::{iter, ops::Deref, panic, path::Path, time::Instant};
 use tracing::error;
 
 fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
@@ -137,24 +134,24 @@ fn rgb_2_clr(rgb: Option<[u8; 3]>, alpha: u8) -> Color32 {
     }
 }
 
-fn map_modifiers(modifiers: &Modifiers) -> Option<Vec<rvlib::Event>> {
+fn map_modifiers(modifiers: Modifiers) -> Vec<rvlib::Event> {
     let mut events = Vec::new();
     if modifiers.alt {
-        events.push(rvlib::Event::Held(KeyCode::Alt))
+        events.push(rvlib::Event::Held(KeyCode::Alt));
     }
     if modifiers.command || modifiers.ctrl {
-        events.push(rvlib::Event::Held(KeyCode::Ctrl))
+        events.push(rvlib::Event::Held(KeyCode::Ctrl));
     }
     if modifiers.shift {
-        events.push(rvlib::Event::Held(KeyCode::Shift))
+        events.push(rvlib::Event::Held(KeyCode::Shift));
     }
-    Some(events)
+    events
 }
 
 fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
     let mut events = vec![];
     ui.input(|i| {
-        for e in i.events.iter() {
+        for e in &i.events {
             if let egui::Event::Key {
                 key,
                 pressed,
@@ -173,10 +170,8 @@ fn map_key_events(ui: &mut Ui) -> Vec<rvlib::Event> {
                         events.push(rvlib::Event::Held(k));
                     }
                 }
-                let modifier_events = map_modifiers(modifiers);
-                if let Some(mut me) = modifier_events {
-                    events.append(&mut me);
-                }
+                let mut modifier_events = map_modifiers(*modifiers);
+                events.append(&mut modifier_events);
             }
         }
     });
@@ -191,7 +186,7 @@ fn map_mouse_events(
     let mut events = vec![];
     let mut btn_codes = LastSensedBtns::default();
     ui.input(|i| {
-        for e in i.events.iter() {
+        for e in &i.events {
             match e {
                 egui::Event::PointerButton {
                     pos: _,
@@ -199,19 +194,17 @@ fn map_mouse_events(
                     pressed: _,
                     modifiers,
                 } => {
-                    let modifier_events = map_modifiers(modifiers);
-                    if let Some(me) = modifier_events {
-                        let btn_code = match button {
-                            PointerButton::Primary => KeyCode::MouseLeft,
-                            PointerButton::Secondary => KeyCode::MouseRight,
-                            _ => KeyCode::DontCare,
-                        };
-                        btn_codes.btn_codes.push(btn_code);
-                        btn_codes.modifiers = me;
-                    }
+                    let modifier_events = map_modifiers(*modifiers);
+                    let btn_code = match button {
+                        PointerButton::Primary => KeyCode::MouseLeft,
+                        PointerButton::Secondary => KeyCode::MouseRight,
+                        _ => KeyCode::DontCare,
+                    };
+                    btn_codes.btn_codes.push(btn_code);
+                    btn_codes.modifiers = modifier_events;
                 }
                 egui::Event::Zoom(z) => {
-                    events.push(rvlib::Event::Zoom(ZoomAmount::Factor(*z as f64)));
+                    events.push(rvlib::Event::Zoom(ZoomAmount::Factor(f64::from(*z))));
                 }
                 egui::Event::MouseWheel {
                     unit: _,
@@ -219,7 +212,7 @@ fn map_mouse_events(
                     modifiers,
                 } => {
                     if modifiers.ctrl {
-                        events.push(rvlib::Event::Zoom(ZoomAmount::Delta(delta.y as f64)));
+                        events.push(rvlib::Event::Zoom(ZoomAmount::Delta(f64::from(delta.y))));
                     }
                 }
                 _ => {}
@@ -300,9 +293,9 @@ fn orig_pos_2_egui_rect(
     let p_view: PtF = orig_pos_2_view_pos(p, shape_orig, shape_view, zoom_box)
         .expect("After projection to zoombox it should be inside");
     let p_egui_rect_x =
-        offset.x + scale_coord(p_view.x, shape_view.w.into(), rect_size.x as TPtF) as f32;
+        offset.x + scale_coord(p_view.x, shape_view.w.into(), TPtF::from(rect_size.x)) as f32;
     let p_egui_rect_y =
-        offset.y + scale_coord(p_view.y, shape_view.h.into(), rect_size.y as TPtF) as f32;
+        offset.y + scale_coord(p_view.y, shape_view.h.into(), TPtF::from(rect_size.y)) as f32;
     Pos2::new(p_egui_rect_x, p_egui_rect_y)
 }
 
@@ -366,7 +359,7 @@ impl RvImageApp {
         image_rect: &Rect,
     ) -> Option<egui::epaint::Shape> {
         let size_from = self.shape_view().w.into();
-        let size_to = image_rect.size().x as TPtF;
+        let size_to = TPtF::from(image_rect.size().x);
         let (_, color_egui) = color_tf(anno.canvas.intensity, anno.color, anno.fill_alpha);
         if let Some(tmp_line) = &anno.tmp_line {
             let make_shape_vec = |thickness, color| {
@@ -475,9 +468,9 @@ impl RvImageApp {
         let canvases = self
             .annos
             .iter()
-            .flat_map(|anno| match anno {
+            .filter_map(|anno| match anno {
                 Annotation::Brush(brush) => Some(brush),
-                _ => None,
+                Annotation::Bbox(_) => None,
             })
             .flat_map(|anno| {
                 let (color_rgb, _) = color_tf(anno.canvas.intensity, anno.color, 255);
@@ -491,7 +484,7 @@ impl RvImageApp {
 
                     if let Some(mask) = mask {
                         let k = 5u8;
-                        let expansion = (k / 2) as TPtI;
+                        let expansion = TPtI::from(k / 2);
                         let new_bb = anno
                             .canvas
                             .bb
@@ -514,7 +507,7 @@ impl RvImageApp {
         let bbox_annos = self
             .annos
             .iter()
-            .flat_map(|anno| match anno {
+            .filter_map(|anno| match anno {
                 Annotation::Bbox(bbox) => {
                     // hide out of zoombox geos
                     if self.zoom_box.map(|zb| {
@@ -522,14 +515,14 @@ impl RvImageApp {
                             .map(|corner_idx| bbox.geofig.enclosing_bb().corner(corner_idx))
                             .chain(iter::once(bbox.geofig.enclosing_bb().center_f().into()))
                             .any(|p| zb.contains(p))
-                    }) != Some(false)
+                    }) == Some(false)
                     {
-                        Some(bbox)
-                    } else {
                         None
+                    } else {
+                        Some(bbox)
                     }
                 }
-                _ => None,
+                Annotation::Brush(_) => None,
             })
             .map(|anno| self.update_bbox_anno(anno, image_rect));
         // update texture with brush canvas
@@ -551,11 +544,11 @@ impl RvImageApp {
                             let (x_view, y_view) = (p_view.x as u32, p_view.y as u32);
                             let current_clr = im_view.get_pixel_checked(x_view, y_view);
                             if let Some(current_clr) = current_clr {
-                                let alpha = fill_alpha as f32 / 255.0;
+                                let alpha = f32::from(fill_alpha) / 255.0;
                                 let mut clr = color.0;
                                 for i in 0..3 {
-                                    clr[i] = (clr[i] as f32 * alpha
-                                        + current_clr[i] as f32 * (1.0 - alpha))
+                                    clr[i] = (f32::from(clr[i]) * alpha
+                                        + f32::from(current_clr[i]) * (1.0 - alpha))
                                         .round()
                                         .clamp(0.0, 255.0)
                                         as u8;
@@ -594,8 +587,8 @@ impl RvImageApp {
         let mouse_pos_on_view = mouse_pos_egui.map(|mp_egui| {
             view_pos_2_orig_pos(
                 (
-                    (mp_egui.x - offset_x) as TPtF,
-                    (mp_egui.y - offset_y) as TPtF,
+                    TPtF::from(mp_egui.x - offset_x),
+                    TPtF::from(mp_egui.y - offset_y),
                 )
                     .into(),
                 self.shape_view(),
@@ -754,12 +747,12 @@ fn export_coco_path(
     })
 }
 fn export_coco(
-    in_prj_path: PathBuf,
+    in_prj_path: &Path,
     out_folder: &Path,
     per_file_crowd: bool,
 ) -> RvResult<(Vec<ExportPath>, MetaData, Option<Rot90ToolData>)> {
     let mut ctrl = Control::default();
-    let tdm = ctrl.load(in_prj_path.clone())?;
+    let tdm = ctrl.load(in_prj_path.to_path_buf())?;
     let meta_data = ctrl.meta_data(None, None);
     let rot90 = tdm
         .get(tools::ROT90_NAME)
@@ -767,7 +760,7 @@ fn export_coco(
     let mut handles = vec![];
     let mut export_paths = vec![];
     if let Some(tools_data) = tdm.get(BBOX_NAME) {
-        let export_path = export_coco_path(&in_prj_path, out_folder, BBOX_NAME)?;
+        let export_path = export_coco_path(in_prj_path, out_folder, BBOX_NAME)?;
         tracing::info!("{:?}", export_path.path);
         let (_, handle) = write_coco(
             &meta_data,
@@ -779,7 +772,7 @@ fn export_coco(
         handles.push(handle);
     }
     if let Some(tools_data) = tdm.get(BRUSH_NAME) {
-        let export_path = export_coco_path(&in_prj_path, out_folder, BRUSH_NAME)?;
+        let export_path = export_coco_path(in_prj_path, out_folder, BRUSH_NAME)?;
         tracing::info!("{:?}", export_path.path);
         let mut brush_data = tools_data.specifics.brush()?.clone();
         if per_file_crowd {
@@ -799,7 +792,7 @@ fn main() {
     if let Err(e) = panic::catch_unwind(|| {
         let cli = Cli::parse();
         if let (Some(in_prj_path), Some(out_folder)) = (cli.in_prj_path, cli.out_folder) {
-            trace_ok_err(export_coco(in_prj_path, &out_folder, cli.per_file_crowd));
+            trace_ok_err(export_coco(&in_prj_path, &out_folder, cli.per_file_crowd));
         } else {
             let native_options = eframe::NativeOptions::default();
             if let Err(e) = eframe::run_native(
@@ -827,7 +820,7 @@ fn main() {
     }) {
         let panic_s = e
             .downcast_ref::<String>()
-            .map(|s| s.as_str())
+            .map(String::as_str)
             .or_else(|| e.downcast_ref::<&'static str>().map(Deref::deref));
         tracing::error!("{:?}", panic_s);
         let b = tracing_setup::BACKTRACE
@@ -841,6 +834,7 @@ fn main() {
 use {
     rvlib::{defer_file_removal, defer_folder_removal, file_util::DEFAULT_TMPDIR, read_coco},
     std::fs,
+    std::path::PathBuf,
 };
 
 #[test]
@@ -852,8 +846,7 @@ fn test_coco() {
     let tmp_folder = DEFAULT_TMPDIR.join("convertcocotest");
     std::fs::create_dir_all(&tmp_folder).unwrap();
     defer_folder_removal!(&tmp_folder);
-    let (export_path, meta_data, rot90) =
-        export_coco(test_file.clone(), &tmp_folder, true).unwrap();
+    let (export_path, meta_data, rot90) = export_coco(&test_file, &tmp_folder, true).unwrap();
     let files = tmp_folder
         .read_dir()
         .unwrap()

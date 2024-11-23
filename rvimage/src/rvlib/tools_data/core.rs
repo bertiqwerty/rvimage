@@ -131,7 +131,7 @@ impl VisibleInactiveToolsState {
         self.show_mask.iter_mut()
     }
     pub fn hide_all(&mut self) {
-        for show in self.show_mask.iter_mut() {
+        for show in &mut self.show_mask {
             *show = false;
         }
     }
@@ -213,7 +213,7 @@ where
     let (li, idx_map) = li1.merge(li2);
     let mut annotations_map = annos1;
 
-    for (k, (v2, s)) in annos2.into_iter() {
+    for (k, (v2, s)) in annos2 {
         if let Some((v1, _)) = annotations_map.get_mut(&k) {
             let (elts, cat_idxs, _) = v2.separate_data();
             v1.extend(
