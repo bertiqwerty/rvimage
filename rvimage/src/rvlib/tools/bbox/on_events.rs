@@ -91,7 +91,7 @@ pub(super) fn export_if_triggered(
 ) {
     if bbox_data
         .options
-        .core_options
+        .core
         .import_export_trigger
         .export_triggered()
     {
@@ -205,7 +205,7 @@ pub(super) fn on_mouse_held_right(
     mut world: World,
     history: History,
 ) -> (World, History) {
-    if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
+    if get_options(&world).map(|o| o.core.erase) != Some(true) {
         let orig_shape = world.data.shape();
         let move_boxes = |mpo_from, mpo_to| {
             let split_mode = get_options(&world).map(|o| o.split_mode);
@@ -255,7 +255,7 @@ pub(super) fn on_mouse_released_right(
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
-    if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
+    if get_options(&world).map(|o| o.core.erase) != Some(true) {
         let split_mode = get_options(&world).map(|o| o.split_mode);
         let lc_orig = prev_pos.last_valid_click;
         let in_menu_selected_label = current_cat_idx(&world);
@@ -313,7 +313,7 @@ pub(super) fn on_mouse_held_left(
     history: History,
 ) -> (World, History, PrevPos) {
     if params.elapsed_millis_since_press > 200
-        && get_options(&world).map(|o| o.core_options.erase) != Some(true)
+        && get_options(&world).map(|o| o.core.erase) != Some(true)
     {
         const SENSITIVITY_FACTOR: f64 = 5.0;
         let min_distance_start_end = (SENSITIVITY_FACTOR * params.distance).max(5.0);
@@ -356,7 +356,7 @@ pub(super) fn on_mouse_released_left(
         is_ctrl_held,
         close_box_or_poly: close,
     } = params;
-    let erase = get_options(&world).map(|o| o.core_options.erase);
+    let erase = get_options(&world).map(|o| o.core.erase);
     let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
     let cat_idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
     if erase == Some(true) {
@@ -627,7 +627,7 @@ pub(super) fn on_key_released(
         ReleasedKey::H if params.is_ctrl_held => {
             // Hide all boxes (selected or not)
             if let Some(options_mut) = get_options_mut(&mut world) {
-                options_mut.core_options.visible = !options_mut.core_options.visible;
+                options_mut.core.visible = !options_mut.core.visible;
             }
             let vis = get_visible(&world);
             world.request_redraw_annotations(BBOX_NAME, vis);
@@ -811,14 +811,14 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::D, true);
     let (world, history) = on_key_released(world, history, None, params);
     let flags = get_options(&world).unwrap();
-    assert!(flags.core_options.visible);
+    assert!(flags.core.visible);
     assert!(!get_annos(&world).unwrap().selected_mask()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
     let (world, history) = on_key_released(world, history, None, params);
     let flags = get_options(&world).unwrap();
-    assert!(!flags.core_options.visible);
+    assert!(!flags.core.visible);
 
     // don't delete any box since they are hidden boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
@@ -834,7 +834,7 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::H, true);
     let (world, history) = on_key_released(world, history, None, params);
     let flags = get_options(&world).unwrap();
-    assert!(flags.core_options.visible);
+    assert!(flags.core.visible);
     // and now delete them
     let params = make_params(ReleasedKey::Delete, true);
     let (world, _) = on_key_released(world, history, None, params);

@@ -33,7 +33,7 @@ pub struct Options {
     #[serde(skip)]
     pub is_selection_change_needed: bool,
     #[serde(skip)]
-    pub core_options: core::Options,
+    pub core: core::Options,
     #[serde(default = "default_alpha")]
     pub fill_alpha: u8,
     #[serde(default = "default_perfilecrowd")]
@@ -45,7 +45,7 @@ impl Default for Options {
             thickness: 15.0,
             intensity: 0.5,
             is_selection_change_needed: false,
-            core_options: core::Options::default(),
+            core: core::Options::default(),
             fill_alpha: default_alpha(),
             per_file_crowd: default_perfilecrowd(),
         }
@@ -76,7 +76,7 @@ impl BrushToolData {
             annotations_map: AnnotationsMap::new(),
             clipboard: None,
             options: Options {
-                core_options: core::Options {
+                core: core::Options {
                     visible: true,
                     ..Default::default()
                 },
@@ -132,7 +132,7 @@ impl ExportAsCoco<Canvas> for BrushToolData {
     }
     fn separate_data(self) -> (core::Options, LabelInfo, AnnotationsMap<Canvas>, ExportPath) {
         (
-            self.options.core_options,
+            self.options.core,
             self.label_info,
             self.annotations_map,
             self.coco_file,
@@ -142,7 +142,7 @@ impl ExportAsCoco<Canvas> for BrushToolData {
         &self.label_info
     }
     fn core_options_mut(&mut self) -> &mut core::Options {
-        &mut self.options.core_options
+        &mut self.options.core
     }
     fn new(
         options: core::Options,
@@ -154,7 +154,7 @@ impl ExportAsCoco<Canvas> for BrushToolData {
             annotations_map: anno_map,
             tmp_line: None,
             options: Options {
-                core_options: options,
+                core: options,
                 ..Default::default()
             },
             label_info,
@@ -230,12 +230,7 @@ impl InstanceAnnotate for Canvas {
         shape_im: ShapeI,
         _is_export_absolute: bool,
     ) -> RvResult<Option<core::CocoSegmentation>> {
-        if !self.bb.is_contained_in_image(shape_im) {
-            Err(rverr!(
-                "bb {:?} not contained in image {shape_im:?}",
-                self.bb
-            ))
-        } else {
+        if self.bb.is_contained_in_image(shape_im) {
             let rle_bb = mask_to_rle(&self.mask, self.bb.w, self.bb.h);
 
             let rle_im = trace_ok_warn(rle_bb_to_image(&rle_bb, self.bb, shape_im));
@@ -246,6 +241,11 @@ impl InstanceAnnotate for Canvas {
                     intensity: Some(self.intensity),
                 })
             }))
+        } else {
+            Err(rverr!(
+                "bb {:?} not contained in image {shape_im:?}",
+                self.bb
+            ))
         }
     }
     /// Returns the distance to the boundary of the mask
@@ -264,8 +264,8 @@ impl InstanceAnnotate for Canvas {
         // we need this to check whether p is a foreground pixel in case
         // it inside the bounding box of the canvas
         let point_pixel_inside = PtI {
-            x: to_coord(p.x - self.bb.x as TPtF),
-            y: to_coord(p.y - self.bb.y as TPtF),
+            x: to_coord(p.x - TPtF::from(self.bb.x)),
+            y: to_coord(p.y - TPtF::from(self.bb.y)),
         };
         let point_pixel_value = access_mask_rel(
             &self.mask,
@@ -283,8 +283,8 @@ impl InstanceAnnotate for Canvas {
                     access_mask_rel(&self.mask, x, y - 1, self.bb.w, self.bb.h),
                 ];
                 if neighbors_fg_mask.iter().any(|&b| b != point_pixel_value) {
-                    let x = (x + self.bb.x) as TPtF;
-                    let y = (y + self.bb.y) as TPtF;
+                    let x = TPtF::from(x + self.bb.x);
+                    let y = TPtF::from(y + self.bb.y);
                     let dist = p.dist_square(&PtF { x, y }).sqrt();
                     if dist < min_dist {
                         min_dist = dist;

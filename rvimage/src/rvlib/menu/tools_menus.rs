@@ -261,31 +261,28 @@ pub fn bbox_menu(
         are_tools_active,
     );
     if label_change {
-        data.options.core_options = data.options.core_options.trigger_redraw_and_hist();
+        data.options.core = data.options.core.trigger_redraw_and_hist();
     }
     if show_only_change {
-        data.options.core_options.is_redraw_annos_triggered = true;
+        data.options.core.is_redraw_annos_triggered = true;
     }
     ui.separator();
 
-    data.options.core_options = toggle_erase(ui, data.options.core_options);
-    data.options.core_options = hide_menu(ui, data.options.core_options);
+    data.options.core = toggle_erase(ui, data.options.core);
+    data.options.core = hide_menu(ui, data.options.core);
 
-    ui.checkbox(&mut data.options.core_options.auto_paste, "auto paste");
+    ui.checkbox(&mut data.options.core.auto_paste, "auto paste");
 
     let mut export_file_menu_result = Ok(());
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
-        ui.checkbox(
-            &mut data.options.core_options.track_changes,
-            "track changes",
-        );
+        ui.checkbox(&mut data.options.core.track_changes, "track changes");
         if transparency_slider(
             ui,
             are_tools_active,
             &mut data.options.fill_alpha,
             "fill transparency",
         ) {
-            data.options.core_options.is_redraw_annos_triggered = true;
+            data.options.core.is_redraw_annos_triggered = true;
         }
         if transparency_slider(
             ui,
@@ -293,7 +290,7 @@ pub fn bbox_menu(
             &mut data.options.outline_alpha,
             "outline transparency",
         ) {
-            data.options.core_options.is_redraw_annos_triggered = true;
+            data.options.core.is_redraw_annos_triggered = true;
         }
         let mut outline_thickness_f =
             data.options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION;
@@ -306,7 +303,7 @@ pub fn bbox_menu(
         )
         .changed()
         {
-            data.options.core_options.is_redraw_annos_triggered = true;
+            data.options.core.is_redraw_annos_triggered = true;
         }
         data.options.outline_thickness =
             (outline_thickness_f * OUTLINE_THICKNESS_CONVERSION).round() as u16;
@@ -319,7 +316,7 @@ pub fn bbox_menu(
         )
         .changed()
         {
-            data.options.core_options.is_redraw_annos_triggered = true;
+            data.options.core.is_redraw_annos_triggered = true;
         }
         ui.horizontal(|ui| {
             ui.separator();
@@ -345,13 +342,13 @@ pub fn bbox_menu(
             "coco file",
             &mut data.coco_file,
             are_tools_active,
-            &mut data.options.core_options.import_export_trigger,
+            &mut data.options.core.import_export_trigger,
             skip_import_mode,
         );
 
         ui.separator();
         if ui.button("new random colors").clicked() {
-            data.options.core_options.is_colorchange_triggered = true;
+            data.options.core.is_colorchange_triggered = true;
         }
         if ui.button("clear out of folder annotations").clicked() {
             data.options.is_anno_outoffolder_rm_triggered = true;
@@ -360,7 +357,7 @@ pub fn bbox_menu(
     export_file_menu_result?;
     ui.separator();
     if show_inactive_tool_menu(ui, BBOX_NAME, &mut visible_inactive_tools) {
-        data.options.core_options.is_redraw_annos_triggered = true;
+        data.options.core.is_redraw_annos_triggered = true;
     }
     ui.separator();
     ui.horizontal(|ui| {
@@ -392,21 +389,18 @@ pub fn brush_menu(
         are_tools_active,
     );
     if label_change {
-        data.options.core_options = data.options.core_options.trigger_redraw_and_hist();
+        data.options.core = data.options.core.trigger_redraw_and_hist();
     }
     if show_only_change {
-        data.options.core_options.is_redraw_annos_triggered = true;
+        data.options.core.is_redraw_annos_triggered = true;
     }
 
     ui.separator();
-    data.options.core_options = toggle_erase(ui, data.options.core_options);
-    data.options.core_options = hide_menu(ui, data.options.core_options);
-    ui.checkbox(&mut data.options.core_options.auto_paste, "auto paste");
+    data.options.core = toggle_erase(ui, data.options.core);
+    data.options.core = hide_menu(ui, data.options.core);
+    ui.checkbox(&mut data.options.core.auto_paste, "auto paste");
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
-        ui.checkbox(
-            &mut data.options.core_options.track_changes,
-            "track changes",
-        );
+        ui.checkbox(&mut data.options.core.track_changes, "track changes");
         ui.separator();
         ui.label("properties");
         if slider(
@@ -439,10 +433,10 @@ pub fn brush_menu(
             &mut data.options.fill_alpha,
             "transparency",
         ) {
-            data.options.core_options.is_redraw_annos_triggered = true;
+            data.options.core.is_redraw_annos_triggered = true;
         }
         if ui.button("new random colors").clicked() {
-            data.options.core_options.is_colorchange_triggered = true;
+            data.options.core.is_colorchange_triggered = true;
         }
         ui.separator();
         ui.checkbox(
@@ -455,13 +449,13 @@ pub fn brush_menu(
             "coco file",
             &mut data.coco_file,
             are_tools_active,
-            &mut data.options.core_options.import_export_trigger,
+            &mut data.options.core.import_export_trigger,
             skip_import_mode,
         ));
     });
     ui.separator();
     if show_inactive_tool_menu(ui, BRUSH_NAME, &mut visible_inactive_tools) {
-        data.options.core_options.is_redraw_annos_triggered = true;
+        data.options.core.is_redraw_annos_triggered = true;
     }
     ui.separator();
     if ui.button("close").clicked() {

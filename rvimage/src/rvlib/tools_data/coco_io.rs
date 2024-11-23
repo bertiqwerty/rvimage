@@ -87,8 +87,7 @@ fn string_to_colors(s: &str) -> RvResult<Vec<[u8; 3]>> {
 fn get_n_rotations(rotation_data: Option<&Rot90ToolData>, file_path: &str) -> u8 {
     rotation_data
         .and_then(|d| d.get_annos(file_path))
-        .map(|n_rot| n_rot.to_num())
-        .unwrap_or(0)
+        .map_or(0, |n_rot| n_rot.to_num())
 }
 
 fn insert_elt<A>(
@@ -121,7 +120,7 @@ fn insert_elt<A>(
 
 fn instance_to_coco_anno<A>(
     inst_anno: &A,
-    shape_im_unrotated: &ShapeI,
+    shape_im_unrotated: ShapeI,
     n_rotations: u8,
     is_export_coords_absolute: bool,
 ) -> RvResult<([f64; 4], Option<CocoSegmentation>)>
@@ -138,7 +137,7 @@ where
 
     let bb = inst_anno.enclosing_bb();
 
-    let segmentation = inst_anno.to_cocoseg(*shape_im_unrotated, is_export_coords_absolute)?;
+    let segmentation = inst_anno.to_cocoseg(shape_im_unrotated, is_export_coords_absolute)?;
     let (imw, imh) = if is_export_coords_absolute {
         (1.0, 1.0)
     } else {
@@ -208,11 +207,14 @@ impl CocoExportData {
         T: ExportAsCoco<A>,
         A: InstanceAnnotate + 'static,
     {
+        type AnnoType<'a, A> = (usize, (&'a String, &'a (Vec<A>, Vec<usize>, ShapeI)));
+        type AnnotationMapValue<'a, A> = (&'a String, &'a (Vec<A>, Vec<usize>, ShapeI));
+
         let (options, label_info, anno_map, coco_file) = tools_data.separate_data();
         let color_str = if let Some(s) = colors_to_string(label_info.colors()) {
             format!(", {s}")
         } else {
-            "".to_string()
+            String::new()
         };
         let info_str = format!(
             "created with RV Image {}, https://github.com/bertiqwerty/rvimage{color_str}",
@@ -224,7 +226,6 @@ impl CocoExportData {
         let export_data =
             InstanceExportData::from_tools_data(&options, label_info, coco_file, anno_map);
 
-        type AnnotationMapValue<'a, A> = (&'a String, &'a (Vec<A>, Vec<usize>, ShapeI));
         let make_image_map =
             |(idx, (file_path, (_, _, shape))): (usize, AnnotationMapValue<A>)| CocoImage {
                 id: idx as u32,
@@ -250,7 +251,6 @@ impl CocoExportData {
             .collect::<Vec<_>>();
 
         let mut box_id = 0;
-        type AnnoType<'a, A> = (usize, (&'a String, &'a (Vec<A>, Vec<usize>, ShapeI)));
         let make_anno_map = |(image_idx, (file_path, (bbs, cat_idxs, shape))): AnnoType<A>| {
             let prj_path = if let Some(prj_path) = prj_path {
                 prj_path
@@ -272,10 +272,10 @@ impl CocoExportData {
             let n_rotations = get_n_rotations(rotation_data, file_path);
             bbs.iter()
                 .zip(cat_idxs.iter())
-                .flat_map(|(inst_anno, cat_idx): (&A, &usize)| {
+                .filter_map(|(inst_anno, cat_idx): (&A, &usize)| {
                     trace_ok_warn(instance_to_coco_anno(
                         inst_anno,
-                        &shape,
+                        shape,
                         n_rotations,
                         options.is_export_absolute,
                     ))
@@ -308,6 +308,7 @@ impl CocoExportData {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn convert_to_toolsdata(
         self,
         coco_file: ExportPath,
@@ -380,7 +381,7 @@ impl CocoExportData {
             let (w_factor, h_factor) = if coords_absolute {
                 (1.0, 1.0)
             } else {
-                (w_coco as f64, h_coco as f64)
+                (f64::from(w_coco), f64::from(h_coco))
             };
             let bbox = [
                 (w_factor * coco_anno.bbox[0]),
@@ -403,7 +404,9 @@ impl CocoExportData {
             let bb = BbF::from(&bbox);
             match coco_anno.segmentation {
                 Some(CocoSegmentation::Polygon(segmentation)) => {
-                    let geo = if !segmentation.is_empty() {
+                    let geo = if segmentation.is_empty() {
+                        GeoFig::BB(bb)
+                    } else {
                         if segmentation.len() > 1 {
                             return Err(rverr!(
                                 "multiple polygons per box not supported. ignoring all but first."
@@ -414,7 +417,7 @@ impl CocoExportData {
 
                         let poly_points = (0..n_points)
                             .step_by(2)
-                            .flat_map(|idx| {
+                            .filter_map(|idx| {
                                 let p = Point {
                                     x: (coco_data[idx] * w_factor),
                                     y: (coco_data[idx + 1] * h_factor),
@@ -427,19 +430,18 @@ impl CocoExportData {
                             })
                             .collect();
                         let poly = Polygon::from_vec(poly_points);
-                        match poly {
-                            Ok(poly) => {
-                                let encl_bb = poly.enclosing_bb();
-                                if encl_bb.w * encl_bb.h < 1e-6 && bb.w * bb.h > 1e-6 {
-                                    warner.warn(&format!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}"));
-                                    GeoFig::BB(bb)
-                                } else {
-                                    if !bb.all_corners_close(encl_bb) {
-                                        let msg = format!("bounding box and polygon enclosing box do not match. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}");
-                                        warner.warn(&msg);
-                                    }
-                                    // check if the poly is just a bounding box
-                                    if poly.points().len() == 4
+                        if let Ok(poly) = poly {
+                            let encl_bb = poly.enclosing_bb();
+                            if encl_bb.w * encl_bb.h < 1e-6 && bb.w * bb.h > 1e-6 {
+                                warner.warn(&format!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}"));
+                                GeoFig::BB(bb)
+                            } else {
+                                if !bb.all_corners_close(encl_bb) {
+                                    let msg = format!("bounding box and polygon enclosing box do not match. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}");
+                                    warner.warn(&msg);
+                                }
+                                // check if the poly is just a bounding box
+                                if poly.points().len() == 4
                                 // all points are bb corners
                                 && poly.points_iter().all(|p| {
                                     encl_bb.points_iter().any(|p_encl| p == p_encl)})
@@ -447,23 +449,19 @@ impl CocoExportData {
                                 && poly
                                     .points_iter()
                                     .all(|p| poly.points_iter().filter(|p_| p == *p_).count() == 1)
-                                    {
-                                        GeoFig::BB(bb)
-                                    } else {
-                                        GeoFig::Poly(poly)
-                                    }
+                                {
+                                    GeoFig::BB(bb)
+                                } else {
+                                    GeoFig::Poly(poly)
                                 }
                             }
-                            Err(_) => {
-                                if n_points > 0 {
-                                    invalid_segmentation_exists = true;
-                                }
-                                // polygon might be empty, we continue with the BB
-                                GeoFig::BB(bb)
+                        } else {
+                            if n_points > 0 {
+                                invalid_segmentation_exists = true;
                             }
+                            // polygon might be empty, we continue with the BB
+                            GeoFig::BB(bb)
                         }
-                    } else {
-                        GeoFig::BB(bb)
                     };
                     insert_geo(geo);
                 }
@@ -525,7 +523,7 @@ fn meta_data_to_coco_path(meta_data: &MetaData) -> RvResult<PathBuf> {
     let opened_folder = meta_data
         .opened_folder
         .as_ref()
-        .map(|of| of.path_absolute())
+        .map(PathPair::path_absolute)
         .ok_or_else(|| RvError::new("no folder open"))?;
     let parent = Path::new(opened_folder)
         .parent()
@@ -728,7 +726,7 @@ fn make_data_brush(
 ) -> (BrushToolData, MetaData, PathBuf, ShapeI) {
     let shape = ShapeI::new(100, 40);
     let mut bbox_data = BrushToolData::default();
-    bbox_data.options.core_options.is_export_absolute = export_absolute;
+    bbox_data.options.core.is_export_absolute = export_absolute;
     bbox_data.coco_file = ExportPath::default();
     bbox_data
         .label_info
@@ -777,7 +775,7 @@ pub fn make_data_bbox(
 ) -> (BboxToolData, MetaData, PathBuf, ShapeI) {
     let shape = ShapeI::new(20, 10);
     let mut bbox_data = BboxToolData::new();
-    bbox_data.options.core_options.is_export_absolute = export_absolute;
+    bbox_data.options.core.is_export_absolute = export_absolute;
     bbox_data.coco_file = ExportPath::default();
     bbox_data
         .label_info
@@ -1099,7 +1097,7 @@ fn test_instance_to_coco() {
         bb,
         intensity: 0.5,
     };
-    let coco_anno = instance_to_coco_anno(&canvas, &shape, n_rot, false);
+    let coco_anno = instance_to_coco_anno(&canvas, shape, n_rot, false);
     assert!(coco_anno.is_err());
 
     let shape_im = ShapeI::new(20, 40);
@@ -1112,7 +1110,7 @@ fn test_instance_to_coco() {
     };
     let n_rotations = 1;
 
-    let (_, segmentation) = instance_to_coco_anno(&canvas, &shape_im, n_rotations, false).unwrap();
+    let (_, segmentation) = instance_to_coco_anno(&canvas, shape_im, n_rotations, false).unwrap();
 
     let coco_seg = canvas
         .rot90_with_image_ntimes(
@@ -1130,7 +1128,7 @@ fn test_instance_to_coco() {
 
     let n_rotations = 1;
 
-    let (bb_rot, segmentation) = instance_to_coco_anno(&geo, &shape_im, n_rotations, true).unwrap();
+    let (bb_rot, segmentation) = instance_to_coco_anno(&geo, shape_im, n_rotations, true).unwrap();
     println!("{bb_rot:?}");
     let coco_seg = geo
         .rot90_with_image_ntimes(

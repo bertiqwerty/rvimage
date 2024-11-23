@@ -96,7 +96,7 @@ macro_rules! tools_data_accessors_objects {
                 static ref TRACK_CHANGE_STR: String = $crate::tools::core::make_track_changes_str(ACTOR_NAME);
             };
             let track_changes =
-                get_options(world).map(|o| o.core_options.track_changes) == Some(true);
+                get_options(world).map(|o| o.core.track_changes) == Some(true);
             $crate::util::wrap_if(&TRACK_CHANGE_STR, track_changes)
         }
 
@@ -108,10 +108,10 @@ macro_rules! tools_data_accessors_objects {
         pub(super) struct DataAccessors;
         impl $crate::world::DataAccess for DataAccessors {
             fn get_core_options(world: &World) -> Option<&$crate::tools_data::Options> {
-                get_options(world).map(|o| &o.core_options)
+                get_options(world).map(|o| &o.core)
             }
             fn get_core_options_mut(world: &mut World) -> Option<&mut $crate::tools_data::Options> {
-                get_options_mut(world).map(|o| &mut o.core_options)
+                get_options_mut(world).map(|o| &mut o.core)
             }
             fn get_track_changes_str(world: &World) -> Option<&'static str> {
                 get_track_changes_str(world)
@@ -125,13 +125,13 @@ macro_rules! tools_data_accessors_objects {
         }
 
         pub(super) fn get_visible(world: &World) -> Visibility {
-            let visible = get_options(world).map(|o| o.core_options.visible) == Some(true);
+            let visible = get_options(world).map(|o| o.core.visible) == Some(true);
             vis_from_lfoption(get_label_info(world), visible)
         }
         pub(super) fn set_visible(world: &mut World) {
             let options_mut = get_options_mut(world);
             if let Some(options_mut) = options_mut {
-                options_mut.core_options.visible = true;
+                options_mut.core.visible = true;
             }
             let vis = get_visible(world);
             world.request_redraw_annotations($actor_name, vis);
@@ -386,14 +386,12 @@ impl World {
             {
                 let vli = self.data.tools_data_map.get(*tool_name_inactive).map(|td| {
                     match &td.specifics {
-                        tools_data::ToolSpecifics::Bbox(bbox_data) => (
-                            bbox_data.options.core_options.visible,
-                            bbox_data.label_info(),
-                        ),
-                        tools_data::ToolSpecifics::Brush(brush_data) => (
-                            brush_data.options.core_options.visible,
-                            brush_data.label_info(),
-                        ),
+                        tools_data::ToolSpecifics::Bbox(bbox_data) => {
+                            (bbox_data.options.core.visible, bbox_data.label_info())
+                        }
+                        tools_data::ToolSpecifics::Brush(brush_data) => {
+                            (brush_data.options.core.visible, brush_data.label_info())
+                        }
                         _ => {
                             panic!("tool {tool_name_inactive} does not redraw annotations ");
                         }

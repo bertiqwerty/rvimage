@@ -87,7 +87,7 @@ fn check_cocoexport(mut world: World) -> World {
         let rot90_data = get_rot90_data(&world);
         export_if_triggered(&world.data.meta_data, bbox_data, rot90_data);
         if let Some(o) = get_options_mut(&mut world) {
-            o.core_options.import_export_trigger.untrigger_export();
+            o.core.import_export_trigger.untrigger_export();
         }
     }
     world
@@ -195,7 +195,7 @@ impl Bbox {
         mut world: World,
         history: History,
     ) -> (World, History) {
-        if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
+        if get_options(&world).map(|o| o.core.erase) != Some(true) {
             if event.pressed(KeyCode::MouseRight) {
                 self.mover.move_mouse_pressed(event.mouse_pos_on_orig);
             } else {
@@ -366,7 +366,7 @@ impl Manipulate for Bbox {
         world
     }
     fn on_always_active_zoom(&mut self, mut world: World, history: History) -> (World, History) {
-        let visible = get_options(&world).map(|o| o.core_options.visible) == Some(true);
+        let visible = get_options(&world).map(|o| o.core.visible) == Some(true);
         let vis = vis_from_lfoption(get_label_info(&world), visible);
         world.request_redraw_annotations(BBOX_NAME, vis);
         (world, history)
@@ -379,7 +379,7 @@ impl Manipulate for Bbox {
             }
         }
 
-        let visible = get_options(&world).map(|o| o.core_options.visible) == Some(true);
+        let visible = get_options(&world).map(|o| o.core.visible) == Some(true);
         let vis = vis_from_lfoption(get_label_info(&world), visible);
         world.request_redraw_annotations(BBOX_NAME, vis);
 
@@ -555,10 +555,7 @@ fn test_coco_import_label_info() {
         conn: ExportPathConnection::Local,
     };
     let label_info_before = data.label_info.clone();
-    data.options
-        .core_options
-        .import_export_trigger
-        .trigger_import();
+    data.options.core.import_export_trigger.trigger_import();
     let mut bbox = Bbox::new();
     let events = Events::default();
     let (mut world, history) = bbox.events_tf(world, history, &events);
@@ -567,11 +564,7 @@ fn test_coco_import_label_info() {
     assert_eq!(label_info_before.cat_ids(), &[1, 2]);
     assert_eq!(data.label_info.labels(), &["first label", "second label"]);
     assert_eq!(data.label_info.cat_ids(), &[1, 2]);
-    assert!(!data
-        .options
-        .core_options
-        .import_export_trigger
-        .import_triggered());
+    assert!(!data.options.core.import_export_trigger.import_triggered());
 
     // now we import another coco file with different labels
     let data = get_specific_mut(&mut world).unwrap();
@@ -579,10 +572,7 @@ fn test_coco_import_label_info() {
         path: PathBuf::from(format!("{}catids_01_coco_3labels.json", TEST_DATA_FOLDER)),
         conn: ExportPathConnection::Local,
     };
-    data.options
-        .core_options
-        .import_export_trigger
-        .trigger_import();
+    data.options.core.import_export_trigger.trigger_import();
     let (world, _) = bbox.events_tf(world, history, &events);
     let data = get_specific(&world).unwrap();
     assert_eq!(

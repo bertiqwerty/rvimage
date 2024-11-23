@@ -131,7 +131,7 @@ fn check_selected_intensity_thickness(mut world: World) -> World {
     if let Some(options_mut) = options_mut {
         options_mut.is_selection_change_needed = false;
         if any_selected {
-            options_mut.core_options.is_redraw_annos_triggered = true;
+            options_mut.core.is_redraw_annos_triggered = true;
         }
     }
     world
@@ -141,7 +141,7 @@ fn check_export(mut world: World) -> World {
     let options = get_options(&world);
     let specifics = get_specific(&world);
 
-    if options.map(|o| o.core_options.import_export_trigger.export_triggered()) == Some(true) {
+    if options.map(|o| o.core.import_export_trigger.export_triggered()) == Some(true) {
         let rot90_data = get_rot90_data(&world).cloned();
         if let Some(data) = specifics {
             let meta_data = world.data.meta_data.clone();
@@ -163,10 +163,7 @@ fn check_export(mut world: World) -> World {
             thread::spawn(f_export);
         }
         if let Some(options_mut) = get_options_mut(&mut world) {
-            options_mut
-                .core_options
-                .import_export_trigger
-                .untrigger_export();
+            options_mut.core.import_export_trigger.untrigger_export();
         }
     }
     world
@@ -178,7 +175,7 @@ pub(super) fn on_mouse_held_right(
     mut world: World,
     history: History,
 ) -> (World, History) {
-    if get_options(&world).map(|o| o.core_options.erase) != Some(true) {
+    if get_options(&world).map(|o| o.core.erase) != Some(true) {
         let orig_shape = world.data.shape();
         let move_boxes = |mpo_from, mpo_to| {
             let annos = get_annos_mut(&mut world);
@@ -221,7 +218,7 @@ impl Brush {
                 let options = get_options(&world).cloned();
                 let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
                 if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
-                    let erase = options.core_options.erase;
+                    let erase = options.core.erase;
                     if !erase {
                         if let (Some(d), Some(cat_idx)) =
                             (get_specific_mut(&mut world), idx_current)
@@ -255,7 +252,7 @@ impl Brush {
             if !events.held_ctrl() {
                 let options = get_options(&world).cloned();
                 if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
-                    if options.core_options.erase {
+                    if options.core.erase {
                         world = draw_erase_circle(world, mp);
                     } else {
                         let line = if let Some((line, _)) =
@@ -328,7 +325,7 @@ impl Brush {
         } else if !(events.held_alt() || events.held_shift()) {
             // neither shift nor alt nor ctrl were held => a brushline has been finished
             // or a brush line has been deleted.
-            let erase = get_options(&world).map(|o| o.core_options.erase);
+            let erase = get_options(&world).map(|o| o.core.erase);
             let cat_idx = get_specific(&world).map(|o| o.label_info.cat_idx_current);
             if erase != Some(true) {
                 let shape_orig = world.shape_orig();
@@ -435,7 +432,7 @@ impl Brush {
             (*label_info, trigger_redraw) = label_change_key(released_key, mem::take(label_info));
         }
         if trigger_redraw {
-            let visible = get_options(&world).map(|o| o.core_options.visible) == Some(true);
+            let visible = get_options(&world).map(|o| o.core.visible) == Some(true);
             let vis = vis_from_lfoption(get_label_info(&world), visible);
             world.request_redraw_annotations(BRUSH_NAME, vis);
         }
@@ -443,7 +440,7 @@ impl Brush {
             ReleasedKey::H if events.held_ctrl() => {
                 // Hide all boxes (selected or not)
                 if let Some(options_mut) = get_options_mut(&mut world) {
-                    options_mut.core_options.visible = !options_mut.core_options.visible;
+                    options_mut.core.visible = !options_mut.core.visible;
                 }
                 let vis = get_visible(&world);
                 world.request_redraw_annotations(BRUSH_NAME, vis);
@@ -489,7 +486,7 @@ impl Manipulate for Brush {
         world
     }
     fn on_always_active_zoom(&mut self, mut world: World, history: History) -> (World, History) {
-        let visible = get_options(&world).map(|o| o.core_options.visible) == Some(true);
+        let visible = get_options(&world).map(|o| o.core.visible) == Some(true);
         let vis = vis_from_lfoption(get_label_info(&world), visible);
         world.request_redraw_annotations(BRUSH_NAME, vis);
         (world, history)

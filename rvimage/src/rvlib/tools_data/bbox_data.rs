@@ -26,7 +26,7 @@ pub type BboxAnnoMap = AnnotationsMap<GeoFig>;
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Options {
     #[serde(skip)]
-    pub core_options: core::Options,
+    pub core: core::Options,
     #[serde(skip)]
     pub is_anno_outoffolder_rm_triggered: bool,
     pub split_mode: SplitMode,
@@ -38,7 +38,7 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            core_options: core::Options::default(),
+            core: core::Options::default(),
             is_anno_outoffolder_rm_triggered: false,
             split_mode: SplitMode::default(),
             fill_alpha: 30,
@@ -74,7 +74,7 @@ impl BboxToolData {
             annotations_map: AnnotationsMap::new(),
             clipboard: None,
             options: Options {
-                core_options: core::Options {
+                core: core::Options {
                     visible: true,
                     ..Default::default()
                 },
@@ -108,7 +108,7 @@ impl BboxToolData {
             annotations_map: AnnotationsMap::new(),
             clipboard: None,
             options: Options {
-                core_options: core::Options {
+                core: core::Options {
                     visible: true,
                     ..Default::default()
                 },
@@ -151,7 +151,7 @@ impl ExportAsCoco<GeoFig> for BboxToolData {
     }
     fn separate_data(self) -> (core::Options, LabelInfo, AnnotationsMap<GeoFig>, ExportPath) {
         (
-            self.options.core_options,
+            self.options.core,
             self.label_info,
             self.annotations_map,
             self.coco_file,
@@ -165,7 +165,7 @@ impl ExportAsCoco<GeoFig> for BboxToolData {
         self.anno_iter()
     }
     fn core_options_mut(&mut self) -> &mut core::Options {
-        &mut self.options.core_options
+        &mut self.options.core
     }
     fn new(
         options: core::Options,
@@ -178,7 +178,7 @@ impl ExportAsCoco<GeoFig> for BboxToolData {
             annotations_map: anno_map,
             clipboard: None,
             options: Options {
-                core_options: options,
+                core: options,
                 ..Default::default()
             },
             coco_file: export_path,
