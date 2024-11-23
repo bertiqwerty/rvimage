@@ -153,7 +153,7 @@ fn check_export(mut world: World) -> World {
                     to_per_file_crowd(&mut data.annotations_map);
                 }
                 let coco_file_conn = data.cocofile_conn();
-                match tools_data::write_coco(&meta_data, data, rot90_data.as_ref(), coco_file_conn)
+                match tools_data::write_coco(&meta_data, data, rot90_data.as_ref(), &coco_file_conn)
                 {
                     Ok(p) => tracing::info!("export to {p:?} successful"),
                     Err(e) => tracing::error!("export failed due to {e:?}"),

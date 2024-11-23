@@ -322,7 +322,7 @@ fn test_canvas() {
     assert!(5.0 < dist && dist < 7.0);
     for y in canv.bb.y_range() {
         for x in canv.bb.x_range() {
-            access_mask_abs(&canv.mask, canv.bb, PtI { x, y });
+            _ = access_mask_abs(&canv.mask, canv.bb, PtI { x, y });
         }
     }
     let canv = Canvas::new(&bl, orig_shape).unwrap();

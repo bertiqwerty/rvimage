@@ -768,7 +768,7 @@ fn export_coco(
             &meta_data,
             tools_data.specifics.bbox()?.clone(),
             rot90,
-            export_path.clone(),
+            &export_path,
         )?;
         export_paths.push(export_path);
         handles.push(handle);
@@ -780,7 +780,7 @@ fn export_coco(
         if per_file_crowd {
             to_per_file_crowd(&mut brush_data.annotations_map);
         }
-        let (_, handle) = write_coco(&meta_data, brush_data, rot90, export_path.clone())?;
+        let (_, handle) = write_coco(&meta_data, brush_data, rot90, &export_path)?;
         handles.push(handle);
         export_paths.push(export_path);
     }

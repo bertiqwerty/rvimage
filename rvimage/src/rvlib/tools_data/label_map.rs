@@ -4,7 +4,7 @@ use rvimage_domain::ShapeI;
 use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 
 use crate::{
-    cfg::read_cfg,
+    cfg::{read_cfg, Cfg},
     file_util::{tf_to_annomap_key, PathPair},
     result::trace_ok_err,
 };
@@ -22,7 +22,7 @@ where
     data.iter()
         .map(|(k, (v, s))| {
             (
-                tf_to_annomap_key(k.clone(), cfg.as_ref().map(|cfg| cfg.current_prj_path())),
+                tf_to_annomap_key(k.clone(), cfg.as_ref().map(Cfg::current_prj_path)),
                 (v, *s),
             )
         })
@@ -45,7 +45,7 @@ where
         .into_iter()
         .map(|(k, (v, s))| {
             (
-                tf_to_annomap_key(k, cfg.as_ref().map(|cfg| cfg.current_prj_path())),
+                tf_to_annomap_key(k, cfg.as_ref().map(Cfg::current_prj_path)),
                 (v, s),
             )
         })

@@ -564,7 +564,7 @@ pub fn to_per_file_crowd(brush_annotations_map: &mut BrushAnnoMap) {
             let mut merged_canvases = vec![None; max_catidx + 1];
             for (cat_idx, canvas_idxes) in canvas_idxes_of_cats.iter().enumerate() {
                 let mut merged_canvas: Option<Canvas> = None;
-                for canvas_idx in canvas_idxes.iter() {
+                for canvas_idx in canvas_idxes {
                     let elt = &annos.elts()[*canvas_idx];
                     if let Some(merged_canvas) = &mut merged_canvas {
                         *merged_canvas = mem::take(merged_canvas).merge(elt);
@@ -578,7 +578,7 @@ pub fn to_per_file_crowd(brush_annotations_map: &mut BrushAnnoMap) {
             let elts = merged_canvases
                 .into_iter()
                 .enumerate()
-                .flat_map(|(i, cvs)| cvs.map(|cvs| (i, cvs)))
+                .filter_map(|(i, cvs)| cvs.map(|cvs| (i, cvs)))
                 .map(|(i, cvs)| {
                     cat_idxes.push(i);
                     cvs
@@ -600,18 +600,22 @@ pub fn to_per_file_crowd(brush_annotations_map: &mut BrushAnnoMap) {
 /// Serialize annotations in Coco format. Any orientations changes applied with the rotation tool
 /// are reverted, since the rotation tool does not change the image file. Hence, the Coco file contains the annotation
 /// relative to the image as it is found in memory ignoring any meta-data.
+///
+/// # Errors
+/// - outpath name cannot be created due to weird characters or the like
+/// - serde write-to-json fails
 pub fn write_coco<T, A>(
     meta_data: &MetaData,
     tools_data: T,
     rotation_data: Option<&Rot90ToolData>,
-    coco_file: ExportPath,
+    coco_file: &ExportPath,
 ) -> RvResult<(PathBuf, JoinHandle<RvResult<()>>)>
 where
     T: ExportAsCoco<A> + Send + 'static,
     A: InstanceAnnotate + 'static,
 {
     let meta_data = meta_data.clone();
-    let coco_out_path = get_cocofilepath(&meta_data, &coco_file)?;
+    let coco_out_path = get_cocofilepath(&meta_data, coco_file)?;
     let coco_out_path_for_thr = coco_out_path.clone();
     let rotation_data = rotation_data.cloned();
     let conn = coco_file.conn.clone();
@@ -636,6 +640,10 @@ where
 /// Import annotations in Coco format. Any orientations changes applied with the rotation tool
 /// to images that have annotations in the Coco file are applied to the annotations before importing. We expect, that
 /// the Coco file contains the annotations relative to the image as it is found in memory ignoring any meta-data.
+///
+/// # Errors
+/// - not a coco file
+/// - ssh connection problems
 pub fn read_coco(
     meta_data: &MetaData,
     coco_file: &ExportPath,
@@ -857,7 +865,7 @@ fn test_coco_export() {
         A: InstanceAnnotate + 'static,
     {
         let coco_file = tools_data.cocofile_conn();
-        let (coco_file, handle) = write_coco(&meta, tools_data, None, coco_file).unwrap();
+        let (coco_file, handle) = write_coco(&meta, tools_data, None, &coco_file).unwrap();
         handle.join().unwrap().unwrap();
         (
             read_coco(
@@ -921,7 +929,7 @@ fn test_coco_import_export() {
     };
 
     let (read, _) = read_coco(&meta, &export_path, None).unwrap();
-    let (_, handle) = write_coco(&meta, read.clone(), None, export_path.clone()).unwrap();
+    let (_, handle) = write_coco(&meta, read.clone(), None, &export_path.clone()).unwrap();
     handle.join().unwrap().unwrap();
     no_image_dups(&read.coco_file.path);
     let (read, _) = read_coco(&meta, &export_path, None).unwrap();
@@ -1023,7 +1031,7 @@ fn test_rotation_export_import() {
             &meta_data,
             bbox_specifics.clone(),
             Some(&rotation_data),
-            coco_file,
+            &coco_file,
         )
         .unwrap();
         handle.join().unwrap().unwrap();

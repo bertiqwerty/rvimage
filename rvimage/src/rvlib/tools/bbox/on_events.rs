@@ -99,7 +99,7 @@ pub(super) fn export_if_triggered(
             meta_data,
             bbox_data.clone(),
             rot90_data,
-            bbox_data.cocofile_conn(),
+            &bbox_data.cocofile_conn(),
         ) {
             Ok(p) => tracing::info!("export to {p:?} successful"),
             Err(e) => tracing::error!("export failed due to {e:?}"),

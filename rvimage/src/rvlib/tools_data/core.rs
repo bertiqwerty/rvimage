@@ -16,7 +16,7 @@ pub const OUTLINE_THICKNESS_CONVERSION: TPtF = 10.0;
 const DEFAULT_LABEL: &str = "rvimage_fg";
 
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
-    let square_d = |i| (c1[i] as f32 - c2[i] as f32).powi(2);
+    let square_d = |i| (f32::from(c1[i]) - f32::from(c2[i])).powi(2);
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
 }
 
@@ -34,13 +34,13 @@ pub struct ImportExportTrigger {
     import_mode: ImportMode,
 }
 impl ImportExportTrigger {
-    pub fn import_triggered(&self) -> bool {
+    pub fn import_triggered(self) -> bool {
         self.import_triggered
     }
-    pub fn import_mode(&self) -> ImportMode {
+    pub fn import_mode(self) -> ImportMode {
         self.import_mode
     }
-    pub fn export_triggered(&self) -> bool {
+    pub fn export_triggered(self) -> bool {
         self.export_triggered
     }
     pub fn untrigger_export(&mut self) {
@@ -61,7 +61,7 @@ impl ImportExportTrigger {
     pub fn use_replace_import(&mut self) {
         self.import_mode = ImportMode::Replace;
     }
-    pub fn merge_mode(&self) -> bool {
+    pub fn merge_mode(self) -> bool {
         self.import_mode == ImportMode::Merge
     }
     pub fn from_export_triggered(export_triggered: bool) -> Self {
@@ -74,6 +74,7 @@ impl ImportExportTrigger {
 
 pub type AnnotationsMap<T> = LabelMap<InstanceAnnotations<T>>;
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Options {
     pub visible: bool,
@@ -245,11 +246,11 @@ pub struct LabelInfo {
     pub show_only_current: bool,
 }
 impl LabelInfo {
-    /// Merges two LabelInfos. Returns the merged LabelInfo and a vector that maps
-    /// the indices of the second LabelInfo to the indices of the merged LabelInfo.
+    /// Merges two `LabelInfo`s. Returns the merged `LabelInfo` and a vector that maps
+    /// the indices of the second `LabelInfo` to the indices of the merged `LabelInfo`.
     pub fn merge(mut self, other: Self) -> (Self, Vec<usize>) {
         let mut idx_map = vec![];
-        for other_label in other.labels.into_iter() {
+        for other_label in other.labels {
             let self_cat_idx = self.labels.iter().position(|slab| slab == &other_label);
             if let Some(scidx) = self_cat_idx {
                 idx_map.push(scidx);
@@ -314,7 +315,7 @@ impl LabelInfo {
     pub fn from_iter(it: impl Iterator<Item = ((String, [u8; 3]), u32)>) -> RvResult<Self> {
         let mut info = Self::empty();
         for ((label, color), cat_id) in it {
-            info.push(label, Some(color), Some(cat_id))?
+            info.push(label, Some(color), Some(cat_id))?;
         }
         Ok(info)
     }
@@ -497,8 +498,12 @@ pub trait InstanceAnnotate:
     where
         P: Into<PtF>;
     fn dist_to_boundary(&self, p: PtF) -> TPtF;
+    /// # Errors
+    /// Can fail if a bounding box ends up with negative coordinates after rotation
     fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> RvResult<Self>;
     fn enclosing_bb(&self) -> BbF;
+    /// # Errors
+    /// Can fail if a bounding box is not on the image.
     fn to_cocoseg(
         &self,
         shape_im: ShapeI,

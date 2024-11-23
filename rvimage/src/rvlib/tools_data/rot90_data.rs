@@ -37,7 +37,8 @@ impl NRotations {
             other
         }
     }
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(self) -> bool {
         matches!(self, Self::Zero)
     }
 }
