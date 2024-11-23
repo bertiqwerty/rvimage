@@ -123,7 +123,7 @@ pub(super) fn check_trigger_redraw<DC>(mut world: World, name: &'static str) -> 
 where
     DC: DataAccess,
 {
-    let core_options = DC::get_core_options(&world).cloned();
+    let core_options = DC::get_core_options(&world).copied();
     let is_redraw_triggered = core_options.map(|o| o.is_redraw_annos_triggered);
     if is_redraw_triggered == Some(true) {
         let visibility = vis_from_lfoption(
@@ -147,7 +147,7 @@ pub(super) fn check_trigger_history_update<DC>(
 where
     DC: DataAccess,
 {
-    let core_options = DC::get_core_options_mut(&mut world).cloned();
+    let core_options = DC::get_core_options_mut(&mut world).copied();
     let is_history_update_triggered = core_options.map(|o| o.is_history_update_triggered);
     if is_history_update_triggered == Some(true) {
         let core_options_mut = DC::get_core_options_mut(&mut world);
@@ -255,9 +255,7 @@ where
     IA: InstanceAnnoAccess<T>,
 {
     let clipboard_data = IA::get_clipboard(&world).cloned();
-    let auto_paste = DA::get_core_options_mut(&mut world)
-        .map(|o| o.auto_paste)
-        .unwrap_or(false);
+    let auto_paste = DA::get_core_options_mut(&mut world).map_or(false, |o| o.auto_paste);
     if world.data.meta_data.flags.is_loading_screen_active == Some(false) && auto_paste {
         history.push(Record::new(world.clone(), actor));
         replace_annotations_with_clipboard::<T, DA, IA>(
@@ -366,7 +364,7 @@ where
                     cb_bbs.iter().cloned(),
                     clipboard.cat_idxs().iter().copied(),
                     shape_orig,
-                )
+                );
             };
             change_annos::<T, DA, IA>(&mut world, paste_annos);
         }
@@ -390,7 +388,7 @@ where
 {
     // Deselect all
     if let Some(a) = IA::get_annos_mut(&mut world) {
-        a.deselect_all()
+        a.deselect_all();
     };
     let vis = vis_from_lfoption(DA::get_label_info(&world), true);
     world.request_redraw_annotations(actor, vis);
@@ -433,7 +431,7 @@ where
                         .collect::<Vec<_>>();
                     a.select_multi(relevant_indices.into_iter());
                 } else if let Some(a) = IA::get_annos_mut(&mut world) {
-                    a.select_all()
+                    a.select_all();
                 };
                 let vis = vis_from_lfoption(DA::get_label_info(&world), true);
                 world.request_redraw_annotations(actor, vis);
@@ -539,15 +537,15 @@ impl Mover {
         mouse_pos: Option<PtF>,
     ) -> Option<T> {
         let res = if let (Some(mp_start), Some(mp)) = (self.mouse_pos_start, mouse_pos) {
-            if !self.mouse_pos_history.contains(&mouse_pos) {
+            if self.mouse_pos_history.contains(&mouse_pos) {
+                None
+            } else {
                 let mpo_from = Some(mp_start);
                 let mpo_to = Some(mp);
                 match (mpo_from, mpo_to) {
                     (Some(mp_from), Some(mp_to)) => Some(f_move(mp_from, mp_to)),
                     _ => None,
                 }
-            } else {
-                None
             }
         } else {
             None

@@ -26,12 +26,12 @@ where
     A: InstanceAnnotate + 'static,
     DA: DataAccess,
 {
-    let options = DA::get_core_options(&world);
-    let rot90_data = get_rot90_data(&world);
     enum IsImportTriggered {
         Yes,
         No,
     }
+    let options = DA::get_core_options(&world);
+    let rot90_data = get_rot90_data(&world);
     let import_info = options.and_then(|options| {
         let import_triggered = if options.import_export_trigger.import_triggered() {
             IsImportTriggered::Yes

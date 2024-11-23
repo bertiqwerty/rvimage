@@ -99,35 +99,10 @@ fn show_grab_ball(
     world: &mut World,
     last_proximal_circle_check: Option<Instant>,
     options: Option<&bbox_data::Options>,
-) -> Option<Instant> {
+) -> Instant {
     if last_proximal_circle_check.map(|lc| lc.elapsed().as_millis()) > Some(2) {
         if let Some(mp) = mp {
-            if !prev_pos.prev_pos.is_empty() {
-                let (c_idx, c_dist) = closest_corner(mp, prev_pos.prev_pos.iter().cloned());
-                let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
-                let tolerance = move_corner_tol(unscaled);
-                if c_dist < tolerance {
-                    let center = prev_pos.prev_pos[c_idx];
-                    let data = get_specific_mut(world);
-                    if let (Some(data), Some(options)) = (data, options) {
-                        data.highlight_circles = vec![Circle {
-                            center,
-                            radius: options.outline_thickness as TPtF
-                                / OUTLINE_THICKNESS_CONVERSION
-                                * 3.5,
-                        }];
-                        let vis = get_visible(world);
-                        world.request_redraw_annotations(BBOX_NAME, vis);
-                    }
-                } else {
-                    let data = get_specific_mut(world);
-                    if let Some(data) = data {
-                        data.highlight_circles = vec![];
-                    }
-                    let vis = get_visible(world);
-                    world.request_redraw_annotations(BBOX_NAME, vis);
-                }
-            } else {
+            if prev_pos.prev_pos.is_empty() {
                 let label_info = get_label_info(world);
                 let geos = get_annos_if_some(world).map(|a| {
                     (0..a.elts().len())
@@ -151,7 +126,7 @@ fn show_grab_ball(
                     {
                         data.highlight_circles = vec![Circle {
                             center: corner_point,
-                            radius: options.outline_thickness as TPtF
+                            radius: TPtF::from(options.outline_thickness)
                                 / OUTLINE_THICKNESS_CONVERSION
                                 * 2.5,
                         }];
@@ -160,10 +135,7 @@ fn show_grab_ball(
                     }
                 } else {
                     let data = get_specific_mut(world);
-                    let n_circles = data
-                        .as_ref()
-                        .map(|d| d.highlight_circles.len())
-                        .unwrap_or(0);
+                    let n_circles = data.as_ref().map_or(0, |d| d.highlight_circles.len());
                     if let Some(data) = data {
                         data.highlight_circles = vec![];
                     }
@@ -172,10 +144,35 @@ fn show_grab_ball(
                         world.request_redraw_annotations(BBOX_NAME, vis);
                     }
                 }
+            } else {
+                let (c_idx, c_dist) = closest_corner(mp, prev_pos.prev_pos.iter().copied());
+                let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
+                let tolerance = move_corner_tol(unscaled);
+                if c_dist < tolerance {
+                    let center = prev_pos.prev_pos[c_idx];
+                    let data = get_specific_mut(world);
+                    if let (Some(data), Some(options)) = (data, options) {
+                        data.highlight_circles = vec![Circle {
+                            center,
+                            radius: TPtF::from(options.outline_thickness)
+                                / OUTLINE_THICKNESS_CONVERSION
+                                * 3.5,
+                        }];
+                        let vis = get_visible(world);
+                        world.request_redraw_annotations(BBOX_NAME, vis);
+                    }
+                } else {
+                    let data = get_specific_mut(world);
+                    if let Some(data) = data {
+                        data.highlight_circles = vec![];
+                    }
+                    let vis = get_visible(world);
+                    world.request_redraw_annotations(BBOX_NAME, vis);
+                }
             }
         }
     }
-    Some(Instant::now())
+    Instant::now()
 }
 
 #[derive(Clone, Debug)]
@@ -225,11 +222,10 @@ impl Bbox {
                 is_alt_held: event.held_alt(),
                 is_shift_held: event.held_shift(),
                 is_ctrl_held: event.held_ctrl(),
-                distance: options.map(|o| o.drawing_distance).unwrap_or(2) as f64,
+                distance: f64::from(options.map_or(2, |o| o.drawing_distance)),
                 elapsed_millis_since_press: self
                     .start_press_time
-                    .map(|t| t.elapsed().as_millis())
-                    .unwrap_or(0),
+                    .map_or(0, |t| t.elapsed().as_millis()),
             };
             (world, history, self.prev_pos) =
                 on_mouse_held_left(event.mouse_pos_on_orig, params, world, history);
@@ -271,7 +267,7 @@ impl Bbox {
                 history,
             );
         } else {
-            history.push(Record::new(world.clone(), ACTOR_NAME))
+            history.push(Record::new(world.clone(), ACTOR_NAME));
         }
         (world, history)
     }
@@ -331,7 +327,7 @@ impl Bbox {
             released_key: map_released_key(events),
         };
         world = check_erase_mode::<DataAccessors>(params.released_key, set_visible, world);
-        (world, history) = on_key_released(world, history, events.mouse_pos_on_orig, params);
+        (world, history) = on_key_released(world, history, events.mouse_pos_on_orig, &params);
         (world, history)
     }
 }
@@ -412,15 +408,15 @@ impl Manipulate for Bbox {
             set_visible(&mut world);
         }
 
-        let options = get_options(&world).cloned();
+        let options = get_options(&world).copied();
 
-        self.last_proximal_circle_check = show_grab_ball(
+        self.last_proximal_circle_check = Some(show_grab_ball(
             events.mouse_pos_on_orig,
             &self.prev_pos,
             &mut world,
             self.last_proximal_circle_check,
             options.as_ref(),
-        );
+        ));
         if let Some(options) = options {
             world = check_trigger_redraw::<DataAccessors>(world, BBOX_NAME);
 
@@ -458,7 +454,7 @@ impl Manipulate for Bbox {
                             fill_alpha: 0,
                             outline: Stroke {
                                 color,
-                                thickness: options.outline_thickness as TPtF / 4.0,
+                                thickness: TPtF::from(options.outline_thickness) / 4.0,
                             },
                             outline_alpha: options.outline_alpha,
                             is_selected: None,

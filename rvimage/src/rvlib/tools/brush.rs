@@ -76,7 +76,7 @@ fn max_select_dist(shape: ShapeI) -> TPtF {
 
 fn draw_erase_circle(mut world: World, mp: PtF) -> World {
     let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
-    let options = get_options(&world).cloned();
+    let options = get_options(&world).copied();
     let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
     if let Some(options) = options {
         let erase = |annos: &mut BrushAnnotations| {
@@ -92,6 +92,38 @@ fn draw_erase_circle(mut world: World, mp: PtF) -> World {
         set_visible(&mut world);
     }
     world
+}
+fn key_released(events: &Events, mut world: World, mut history: History) -> (World, History) {
+    let released_key = map_released_key(events);
+    (world, history) = on_selection_keys::<_, DataAccessors, InstanceAnnoAccessors>(
+        world,
+        history,
+        released_key,
+        events.held_ctrl(),
+        BRUSH_NAME,
+    );
+    let mut trigger_redraw = false;
+    if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
+        (*label_info, trigger_redraw) = label_change_key(released_key, mem::take(label_info));
+    }
+    if trigger_redraw {
+        let visible = get_options(&world).map(|o| o.core.visible) == Some(true);
+        let vis = vis_from_lfoption(get_label_info(&world), visible);
+        world.request_redraw_annotations(BRUSH_NAME, vis);
+    }
+    match released_key {
+        ReleasedKey::H if events.held_ctrl() => {
+            // Hide all boxes (selected or not)
+            if let Some(options_mut) = get_options_mut(&mut world) {
+                options_mut.core.visible = !options_mut.core.visible;
+            }
+            let vis = get_visible(&world);
+            world.request_redraw_annotations(BRUSH_NAME, vis);
+        }
+        _ => (),
+    }
+    world = check_erase_mode::<DataAccessors>(released_key, set_visible, world);
+    (world, history)
 }
 fn find_closest_canvas(
     annos: &BrushAnnotations,
@@ -116,7 +148,7 @@ fn find_closest_canvas(
 }
 
 fn check_selected_intensity_thickness(mut world: World) -> World {
-    let options = get_options(&world).cloned();
+    let options = get_options(&world).copied();
     let annos = get_annos_mut(&mut world);
     let mut any_selected = false;
     if let (Some(annos), Some(options)) = (annos, options) {
@@ -215,7 +247,7 @@ impl Brush {
                 world = deselect_all::<_, DataAccessors, InstanceAnnoAccessors>(world, BRUSH_NAME);
             }
             if !events.held_ctrl() {
-                let options = get_options(&world).cloned();
+                let options = get_options(&world).copied();
                 let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
                 if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
                     let erase = options.core.erase;
@@ -250,7 +282,7 @@ impl Brush {
             on_mouse_held_right(events.mouse_pos_on_orig, &mut self.mover, world, history)
         } else {
             if !events.held_ctrl() {
-                let options = get_options(&world).cloned();
+                let options = get_options(&world).copied();
                 if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
                     if options.core.erase {
                         world = draw_erase_circle(world, mp);
@@ -364,15 +396,24 @@ impl Brush {
         }
         (world, history)
     }
+    #[allow(clippy::unused_self)]
+    fn key_released(
+        &mut self,
+        events: &Events,
+        world: World,
+        history: History,
+    ) -> (World, History) {
+        key_released(events, world, history)
+    }
     fn key_held(
         &mut self,
         events: &Events,
         mut world: World,
         history: History,
     ) -> (World, History) {
-        let held_key = map_held_key(events);
         const INTENSITY_STEP: f64 = MAX_INTENSITY / 20.0;
         const THICKNESS_STEP: f64 = MAX_THICKNESS / 20.0;
+        let held_key = map_held_key(events);
         let snap_to_step = |x: TPtF, step: TPtF| {
             if x < 2.0 * step {
                 (x.div_euclid(step)) * step
@@ -409,45 +450,8 @@ impl Brush {
                     o.is_selection_change_needed = true;
                 }
             }
-            _ => (),
+            HeldKey::None => (),
         }
-        (world, history)
-    }
-    fn key_released(
-        &mut self,
-        events: &Events,
-        mut world: World,
-        mut history: History,
-    ) -> (World, History) {
-        let released_key = map_released_key(events);
-        (world, history) = on_selection_keys::<_, DataAccessors, InstanceAnnoAccessors>(
-            world,
-            history,
-            released_key,
-            events.held_ctrl(),
-            BRUSH_NAME,
-        );
-        let mut trigger_redraw = false;
-        if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
-            (*label_info, trigger_redraw) = label_change_key(released_key, mem::take(label_info));
-        }
-        if trigger_redraw {
-            let visible = get_options(&world).map(|o| o.core.visible) == Some(true);
-            let vis = vis_from_lfoption(get_label_info(&world), visible);
-            world.request_redraw_annotations(BRUSH_NAME, vis);
-        }
-        match released_key {
-            ReleasedKey::H if events.held_ctrl() => {
-                // Hide all boxes (selected or not)
-                if let Some(options_mut) = get_options_mut(&mut world) {
-                    options_mut.core.visible = !options_mut.core.visible;
-                }
-                let vis = get_visible(&world);
-                world.request_redraw_annotations(BRUSH_NAME, vis);
-            }
-            _ => (),
-        }
-        world = check_erase_mode::<DataAccessors>(released_key, set_visible, world);
         (world, history)
     }
 }

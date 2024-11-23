@@ -112,7 +112,7 @@ fn shorter_path(
     move_corner_idx: usize,
     points: Vec<PtF>,
 ) -> RvResult<Vec<PtF>> {
-    if let Some(mp) = points.last().cloned() {
+    if let Some(mp) = points.last().copied() {
         if close_point_idx < move_corner_idx && move_corner_idx < points.len() {
             let path_forward = points[move_corner_idx..]
                 .iter()
@@ -122,7 +122,7 @@ fn shorter_path(
                 .rev()
                 .chain(points[..close_point_idx].iter());
 
-            let path_to_closest = points[..close_point_idx + 1].iter();
+            let path_to_closest = points[..=close_point_idx].iter();
             let path_from_closest = points[close_point_idx..].iter();
             let length_to_closest = path_to_closest
                 .clone()
@@ -136,7 +136,7 @@ fn shorter_path(
                 .sum::<TPtF>()
                 + mp.dist_square(&points[0]).sqrt();
             if length_from_closest > length_to_closest {
-                Ok(path_forward.cloned().collect::<Vec<_>>())
+                Ok(path_forward.copied().collect::<Vec<_>>())
             } else {
                 Ok(iter::once(mp)
                     .chain(path_backward.cloned())
@@ -159,12 +159,12 @@ fn close_polygon(
 ) -> Option<()> {
     if prev_pos.prev_pos.len() > 2 {
         let (c_idx, c_dist) = closest_corner(
-            prev_pos.prev_pos.last().cloned()?,
+            prev_pos.prev_pos.last().copied()?,
             prev_pos
                 .prev_pos
                 .iter()
                 .take(prev_pos.prev_pos.len() - 1)
-                .cloned(),
+                .copied(),
         );
         let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
         let tolerance = move_corner_tol(unscaled);
@@ -291,7 +291,7 @@ pub(super) fn on_mouse_released_right(
                         &mut history,
                     );
                 }
-                _ => (),
+                Ordering::Less => (),
             }
         }
         if mouse_pos.is_some() {
@@ -516,7 +516,7 @@ pub(super) fn on_mouse_released_left(
                         if let Some(mp) = mouse_pos {
                             let existing_bbs = || -> Box<dyn Iterator<Item = &BbF>> {
                                 if let Some(annos) = get_annos(&world) {
-                                    Box::new(annos.elts().iter().flat_map(|geo| match geo {
+                                    Box::new(annos.elts().iter().filter_map(|geo| match geo {
                                         GeoFig::BB(bb) => Some(bb),
                                         GeoFig::Poly(_) => None,
                                     }))
@@ -573,8 +573,10 @@ pub(super) fn on_mouse_released_left(
                                 }
                             };
                             let split_annos = |annos: &mut BboxAnnotations| {
-                                let removers =
-                                    new_bbs.iter().flat_map(|(i, _, _)| *i).collect::<Vec<_>>();
+                                let removers = new_bbs
+                                    .iter()
+                                    .filter_map(|(i, _, _)| *i)
+                                    .collect::<Vec<_>>();
                                 annos.remove_multiple(&removers);
                                 if let Some(selected) = in_menu_selected_label {
                                     for (_, bb1, bb2) in new_bbs {
@@ -605,7 +607,7 @@ pub(super) fn on_key_released(
     mut world: World,
     mut history: History,
     mouse_pos: Option<PtF>,
-    params: KeyReleasedParams,
+    params: &KeyReleasedParams,
 ) -> (World, History) {
     let mut trigger_redraw = false;
     if let Some(label_info) = get_specific_mut(&mut world).map(|s| &mut s.label_info) {
@@ -644,7 +646,7 @@ pub(super) fn on_key_released(
                     let selected_inds = true_indices(annos.selected_mask());
                     let first_selected_idx = true_indices(annos.selected_mask()).next();
                     if let Some(first_idx) = first_selected_idx {
-                        let translated = selected_inds.flat_map(|idx| {
+                        let translated = selected_inds.filter_map(|idx| {
                             let geo = annos.elts()[idx].clone();
                             let first = &annos.elts()[first_idx];
                             geo.translate(
@@ -746,15 +748,15 @@ fn test_key_released() {
 
     // select all boxes with ctrl+A
     let params = make_params(ReleasedKey::A, false);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     assert!(!get_annos(&world).unwrap().selected_mask()[0]);
     let params = make_params(ReleasedKey::A, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     assert!(get_annos(&world).unwrap().selected_mask()[0]);
 
     // copy and paste boxes to and from clipboard
     let params = make_params(ReleasedKey::C, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     assert!(get_annos(&world).unwrap().selected_mask()[0]);
     if let Some(clipboard) = get_specific(&world).and_then(|d| d.clipboard.clone()) {
         let mut annos = BboxAnnotations::default();
@@ -773,21 +775,21 @@ fn test_key_released() {
         assert!(false);
     }
     let params = make_params(ReleasedKey::V, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     assert!(get_specific(&world).unwrap().clipboard.is_some());
     assert_eq!(get_annos(&world).unwrap().elts(), annos_orig.elts());
     let params = make_params(ReleasedKey::C, true);
-    let (mut world, history) = on_key_released(world, history, None, params);
+    let (mut world, history) = on_key_released(world, history, None, &params);
     get_annos_mut(&mut world).unwrap().remove(0);
     let params = make_params(ReleasedKey::V, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     assert_eq!(get_annos(&world).unwrap().elts(), annos_orig.elts());
 
     // clone box
     let params = make_params(ReleasedKey::A, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     let params = make_params(ReleasedKey::C, false);
-    let (world, history) = on_key_released(world, history, Some((2.0, 2.0).into()), params);
+    let (world, history) = on_key_released(world, history, Some((2.0, 2.0).into()), &params);
     assert_eq!(get_annos(&world).unwrap().elts()[0], annos_orig.elts()[0]);
     assert_eq!(
         get_annos(&world).unwrap().elts()[1],
@@ -804,40 +806,40 @@ fn test_key_released() {
 
     // deselect all boxes with ctrl+D
     let params = make_params(ReleasedKey::A, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     let params = make_params(ReleasedKey::D, false);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     assert!(get_annos(&world).unwrap().selected_mask()[0]);
     let params = make_params(ReleasedKey::D, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     let flags = get_options(&world).unwrap();
     assert!(flags.core.visible);
     assert!(!get_annos(&world).unwrap().selected_mask()[0]);
 
     // hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     let flags = get_options(&world).unwrap();
     assert!(!flags.core.visible);
 
     // don't delete any box since they are hidden boxes with ctrl+Delete
     let params = make_params(ReleasedKey::Delete, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     assert!(!get_annos(&world).unwrap().selected_mask().is_empty());
     let params = make_params(ReleasedKey::A, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     let params = make_params(ReleasedKey::Delete, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     assert!(!get_annos(&world).unwrap().selected_mask().is_empty());
 
     // un-hide all boxes with ctrl+H
     let params = make_params(ReleasedKey::H, true);
-    let (world, history) = on_key_released(world, history, None, params);
+    let (world, history) = on_key_released(world, history, None, &params);
     let flags = get_options(&world).unwrap();
     assert!(flags.core.visible);
     // and now delete them
     let params = make_params(ReleasedKey::Delete, true);
-    let (world, _) = on_key_released(world, history, None, params);
+    let (world, _) = on_key_released(world, history, None, &params);
     assert!(!get_annos(&world).unwrap().selected_mask().is_empty());
 }
 

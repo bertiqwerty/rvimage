@@ -4,6 +4,7 @@ use super::Manipulate;
 use crate::{
     annotations_accessor, annotations_accessor_mut,
     events::Events,
+    file_util::PathPair,
     history::History,
     make_tool_transform,
     result::trace_ok_err,
@@ -97,7 +98,11 @@ impl Manipulate for Attributes {
 
             if let (Some(mut attr_map_tmp), Some(data)) = (attr_map_tmp, data) {
                 let new_attr_name = data.new_attr_name.clone();
-                if !data.attr_names().contains(&new_attr_name) {
+                if data.attr_names().contains(&new_attr_name) {
+                    tracing::error!(
+                        "New attribute {new_attr_name} could not be created, already exists"
+                    );
+                } else {
                     let new_attr_val = data.new_attr_val.clone();
                     for (_, (val_map, _)) in data.anno_iter_mut() {
                         set_attrmap_val(val_map, &new_attr_name, &new_attr_val);
@@ -110,10 +115,6 @@ impl Manipulate for Attributes {
                         data.current_attr_map = Some(attr_map_tmp);
                         data.push(new_attr_name, new_attr_val);
                     }
-                } else {
-                    tracing::error!(
-                        "New attribute {new_attr_name} could not be created, already exists"
-                    );
                 }
             }
             if let Some(is_add_triggered_out) =
@@ -171,7 +172,7 @@ impl Manipulate for Attributes {
                     .meta_data
                     .opened_folder
                     .as_ref()
-                    .map(|folder| folder.path_relative())
+                    .map(PathPair::path_relative)
             } else {
                 None
             };

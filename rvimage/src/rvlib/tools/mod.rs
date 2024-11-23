@@ -32,7 +32,7 @@ pub const ATTRIBUTES_NAME: &str = "Attributes";
 
 macro_rules! make_tools {
 ($(($tool:ident, $label:expr, $name:expr, $active:expr, $always_active:expr, $data_default:expr, $visible_inactive_names:expr)),+) => {
-        pub fn get_visible_inactive_names(name: &str) -> [&str; 1]{
+        #[must_use] pub fn get_visible_inactive_names(name: &str) -> [&str; 1]{
             $(if name == $name {
                 return $visible_inactive_names;
             })+
@@ -45,6 +45,7 @@ macro_rules! make_tools {
         pub enum ToolWrapper {
             $($tool($tool)),+
         }
+        #[must_use]
         pub fn make_tool_vec() -> Vec<ToolState> {
             vec![$(
                 ToolState {
