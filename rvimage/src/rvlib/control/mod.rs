@@ -692,14 +692,14 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
             a.add_bb(bb, 0);
         }
     }
-    let tools_data_map = HashMap::from([(
+
+    HashMap::from([(
         BBOX_NAME.to_string(),
         ToolsData::new(
             ToolSpecifics::Bbox(bbox_data),
             VisibleInactiveToolsState::default(),
         ),
-    )]);
-    tools_data_map
+    )])
 }
 
 #[test]

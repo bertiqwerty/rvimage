@@ -242,14 +242,14 @@ fn test_annos() {
     assert!(annos.elts().len() == make_test_bbs().len() - 2);
     assert!(annos.selected_mask().len() == make_test_bbs().len() - 2);
     assert!(annos.cat_idxs().len() == make_test_bbs().len() - 2);
-    annos.add_bb(make_test_bbs()[0].clone(), 0);
+    annos.add_bb(make_test_bbs()[0], 0);
     len_check(&annos);
-    annos.add_bb(make_test_bbs()[0].clone(), 123);
+    annos.add_bb(make_test_bbs()[0], 123);
     len_check(&annos);
     annos.clear();
     len_check(&annos);
-    assert!(annos.elts().len() == 0);
-    assert!(annos.selected_mask().len() == 0);
-    assert!(annos.cat_idxs().len() == 0);
-    assert!(annos.cat_idxs().len() == 0);
+    assert!(annos.elts().is_empty());
+    assert!(annos.selected_mask().is_empty());
+    assert!(annos.cat_idxs().is_empty());
+    assert!(annos.cat_idxs().is_empty());
 }

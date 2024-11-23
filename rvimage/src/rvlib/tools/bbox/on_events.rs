@@ -846,7 +846,7 @@ fn test_mouse_held() {
     let (mouse_pos, mut world, history) = test_data();
     let annos = get_annos_mut(&mut world);
     let bbs = make_test_bbs();
-    annos.unwrap().add_bb(bbs[0].clone(), 0);
+    annos.unwrap().add_bb(bbs[0], 0);
     {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some((12.0, 12.0).into()));
@@ -879,7 +879,7 @@ fn test_mouse_release() {
     let (mouse_pos, world, history) = test_data();
     let make_params = |prev_pos: Vec<PtF>, is_ctrl_held| {
         let is_pp_empty = prev_pos.is_empty();
-        let last = prev_pos.iter().last().map(|last| last.clone());
+        let last = prev_pos.iter().last().copied();
         MouseReleaseParams {
             prev_pos: PrevPos {
                 prev_pos,

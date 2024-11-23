@@ -265,7 +265,7 @@ fn test_file_cache() -> RvResult<()> {
             selected + cache.n_next_images
         };
         let reload = false;
-        cache.load_from_cache(selected, &files, reload)?;
+        cache.load_from_cache(selected, files, reload)?;
         let n_millis = (max_i - min_i) * 100;
         println!("waiting {} millis", n_millis);
         thread::sleep(Duration::from_millis(n_millis as u64));

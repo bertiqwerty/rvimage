@@ -142,22 +142,22 @@ pub fn restart_with_increased_port(
 #[test]
 fn test_handler() -> RvResult<()> {
     let buffer = b"garbage";
-    assert!(handle_connection(&buffer.as_slice()).is_err());
+    assert!(handle_connection(buffer.as_slice()).is_err());
 
     let buffer = b"GET /index.html HTTP/1.1\r\nHost:";
     assert_eq!(
-        handle_connection(&buffer.as_slice()),
+        handle_connection(buffer.as_slice()),
         Ok(HandleResult::Path("index.html".to_string()))
     );
 
     let buffer = b"GET /folder%20name/file%20name.png HTTP/1.1\r\nHost:";
     assert_eq!(
-        handle_connection(&buffer.as_slice()),
+        handle_connection(buffer.as_slice()),
         Ok(HandleResult::Path("folder name/file name.png".to_string()))
     );
     let buffer = b"GET /TERMINATE HTTP/1.1\r\nHost:";
     assert_eq!(
-        handle_connection(&buffer.as_slice()),
+        handle_connection(buffer.as_slice()),
         Ok(HandleResult::Terminate)
     );
 
@@ -182,11 +182,11 @@ fn test_launch() -> RvResult<()> {
     };
     println!("writing to stream...");
     let input_stream = b"GET /some_path.png HTTP/1.1\r\nHost:";
-    send_request(&input_stream.as_slice())?;
+    send_request(input_stream.as_slice())?;
     println!("...done");
     println!("writing to stream...");
     let input_stream = b"GET /some_other_path.png HTTP/1.1\r\nHost:";
-    send_request(&input_stream.as_slice())?;
+    send_request(input_stream.as_slice())?;
     println!("...done");
     thread::sleep(Duration::from_millis(1500));
     println!("checking results...");
@@ -197,7 +197,7 @@ fn test_launch() -> RvResult<()> {
     println!("...done");
     println!("terminate...");
     let terminate_stream = b"GET /TERMINATE HTTP/1.1\r\n";
-    send_request(&terminate_stream.as_slice())?;
+    send_request(terminate_stream.as_slice())?;
     thread::sleep(Duration::from_millis(500));
     assert!(handle.is_finished());
     println!("...done");

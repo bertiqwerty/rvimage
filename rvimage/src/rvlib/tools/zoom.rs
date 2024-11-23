@@ -245,7 +245,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let event = Events::default().mousepos_orig(mouse_pos);
     let (res, _) = z.mouse_pressed(&event, world, history);
     assert_eq!(res.data, im_orig_old);
-    assert_eq!(z.mouse_pressed_start_pos, mouse_pos.map(|mp| mp.into()));
+    assert_eq!(z.mouse_pressed_start_pos, mouse_pos);
     Ok(())
 }
 

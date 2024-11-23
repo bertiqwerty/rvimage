@@ -710,7 +710,7 @@ fn make_meta_data(opened_folder: Option<&Path>) -> (MetaData, PathBuf) {
             .unwrap()
             .to_string(),
         0,
-        &Path::new("egal"),
+        Path::new("egal"),
     );
     meta.opened_folder = Some(opened_folder);
     meta.export_folder = Some(test_export_folder.to_str().unwrap().to_string());
@@ -855,7 +855,7 @@ fn test_coco_export() {
             assert_eq!(name, read_name);
             assert_eq!(shape, read_shape);
         }
-        no_image_dups(&coco_file);
+        no_image_dups(coco_file);
     }
     fn write_read<T, A>(meta: &MetaData, tools_data: T) -> ((BboxToolData, BrushToolData), PathBuf)
     where
@@ -863,11 +863,11 @@ fn test_coco_export() {
         A: InstanceAnnotate + 'static,
     {
         let coco_file = tools_data.cocofile_conn();
-        let (coco_file, handle) = write_coco(&meta, tools_data, None, &coco_file).unwrap();
+        let (coco_file, handle) = write_coco(meta, tools_data, None, &coco_file).unwrap();
         handle.join().unwrap().unwrap();
         (
             read_coco(
-                &meta,
+                meta,
                 &ExportPath {
                     path: coco_file.clone(),
                     conn: ExportPathConnection::Local,
@@ -880,14 +880,14 @@ fn test_coco_export() {
     }
     fn test_br(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) {
         let (brush_data, meta, _, _) =
-            make_data_brush(&file_path, opened_folder, export_absolute, None);
+            make_data_brush(file_path, opened_folder, export_absolute, None);
         let ((_, read), coco_file) = write_read(&meta, brush_data.clone());
         defer_file_removal!(&coco_file);
         assert_coco_eq(brush_data, read, &coco_file);
     }
     fn test_bb(file_path: &Path, opened_folder: Option<&Path>, export_absolute: bool) {
         let (bbox_data, meta, _, _) =
-            make_data_bbox(&file_path, opened_folder, export_absolute, None);
+            make_data_bbox(file_path, opened_folder, export_absolute, None);
         let ((read, _), coco_file) = write_read(&meta, bbox_data.clone());
         defer_file_removal!(&coco_file);
         assert_coco_eq(bbox_data, read, &coco_file);
@@ -961,7 +961,7 @@ fn test_coco_import() -> RvResult<()> {
         );
         for (bb, file_path) in reference_bbs {
             let annos = read.get_annos(file_path);
-            println!("");
+            println!();
             println!("{file_path:?}");
             println!("{annos:?}");
             assert!(annos.unwrap().elts().contains(&GeoFig::BB((*bb).into())));
@@ -1122,7 +1122,7 @@ fn test_instance_to_coco() {
         .unwrap();
     assert_ne!(coco_seg, None);
     assert_eq!(segmentation, coco_seg);
-    let mut mask = vec![0; 4];
+    let mut mask = [0; 4];
     mask[2] = 1;
     let geo = GeoFig::BB(BbF::from_arr(&[1.0, 1.0, 2.0, 8.0]));
 

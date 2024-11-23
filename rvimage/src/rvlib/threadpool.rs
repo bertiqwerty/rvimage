@@ -426,14 +426,14 @@ fn test_submit() -> RvResult<()> {
     update_prio(13, Some(577), &mut jobs_queue);
     submit_job(n_threads, &mut jobs_running, &mut vec![], &mut tp)?;
     assert_eq!(jobs_running.len(), 0);
-    assert!(jobs_queue.iter().find(|j| j.job_id == 13).is_some());
+    assert!(jobs_queue.iter().any(|j| j.job_id == 13));
     submit_job(n_threads, &mut jobs_running, &mut jobs_queue, &mut tp)?;
-    assert!(jobs_running.iter().find(|j| **j == 13).is_some());
-    assert!(jobs_queue.iter().find(|j| j.job_id == 13).is_none());
-    assert!(jobs_queue.iter().find(|j| j.job_id == 0).is_some());
+    assert!(jobs_running.iter().any(|j| *j == 13));
+    assert!(!jobs_queue.iter().any(|j| j.job_id == 13));
+    assert!(jobs_queue.iter().any(|j| j.job_id == 0));
     submit_job(n_threads, &mut jobs_running, &mut jobs_queue, &mut tp)?;
-    assert!(jobs_running.iter().find(|j| **j == 0).is_some());
-    assert!(jobs_queue.iter().find(|j| j.job_id == 0).is_none());
+    assert!(jobs_running.iter().any(|j| *j == 0));
+    assert!(!jobs_queue.iter().any(|j| j.job_id == 0));
     let n_threads = 20;
     let mut tp = ThreadPool::<i32>::new(n_threads);
     let mut new_queue = make_test_queue();
@@ -443,8 +443,8 @@ fn test_submit() -> RvResult<()> {
         submit_job(n_threads, &mut jobs_running, &mut new_queue, &mut tp)?;
     }
     println!("{:?}", jobs_running);
-    assert!(jobs_running.iter().find(|jid| **jid == 0).is_none());
-    assert!(jobs_running.iter().find(|jid| **jid == 1).is_some());
+    assert!(!jobs_running.iter().any(|jid| *jid == 0));
+    assert!(jobs_running.iter().any(|jid| *jid == 1));
     Ok(())
 }
 #[test]

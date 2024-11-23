@@ -583,7 +583,7 @@ fn test_coco_import_label_info() {
     let all_occurring_cats = data
         .annotations_map
         .iter()
-        .flat_map(|(_, (v, _))| v.cat_idxs().into_iter().copied())
+        .flat_map(|(_, (v, _))| v.cat_idxs().iter().copied())
         .collect::<Vec<usize>>();
     assert!(all_occurring_cats.contains(&0));
     assert!(all_occurring_cats.contains(&1));
