@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, thread, time::Duration};
 
 use rvlib::{control::Control, defer_file_removal, world::ToolsDataMap};
 
@@ -19,7 +19,9 @@ fn prj_load(file: &str) -> ToolsDataMap {
     let test_file = get_test_folder().join("tmp-test.rvi");
     defer_file_removal!(&test_file);
     fs::copy(&test_file_src, &test_file).unwrap();
-    ctrl.load(test_file.clone()).unwrap()
+    let tdm = ctrl.load(test_file.clone()).unwrap();
+    thread::sleep(Duration::from_millis(5));
+    tdm
 }
 
 #[test]
