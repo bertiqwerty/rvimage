@@ -25,7 +25,7 @@ mod tools_data;
 pub mod tracing_setup;
 mod types;
 mod util;
-mod view;
+pub mod view;
 pub mod world;
 pub use cfg::read_darkmode;
 pub use drawme::{
@@ -42,7 +42,4 @@ pub use rvimage_domain::{
 pub use tools_data::{
     coco_io::{read_coco, to_per_file_crowd, write_coco},
     InstanceAnnotate, Rot90ToolData,
-};
-pub use view::{
-    orig_2_view, orig_pos_2_view_pos, project_on_bb, scale_coord, view_pos_2_orig_pos, ImageU8,
 };

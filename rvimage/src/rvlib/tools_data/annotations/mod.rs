@@ -34,6 +34,7 @@ macro_rules! implement_annotations_getters {
                 .get_mut(file_path)
                 .map(|(annos, _)| annos)
         }
+        #[must_use]
         pub fn get_annos(&self, file_path: &str) -> Option<&$tool_data_type> {
             let annos = self.annotations_map.get(file_path);
             annos.map(|(annos, _shape)| annos)

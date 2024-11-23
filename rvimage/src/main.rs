@@ -18,13 +18,15 @@ use rvlib::{
     color_with_intensity,
     control::Control,
     file_util::osstr_to_str,
-    orig_2_view, orig_pos_2_view_pos, project_on_bb, read_darkmode,
+    read_darkmode,
     result::trace_ok_err,
-    scale_coord, to_per_file_crowd,
+    to_per_file_crowd,
     tools::{self, BBOX_NAME, BRUSH_NAME},
-    tracing_setup, view_pos_2_orig_pos, write_coco, Annotation, BboxAnnotation, BrushAnnotation,
-    GeoFig, ImageU8, InstanceAnnotate, KeyCode, MainEventLoop, MetaData, Rot90ToolData, ShapeI,
-    UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox, ZoomAmount,
+    tracing_setup,
+    view::{self, ImageU8},
+    write_coco, Annotation, BboxAnnotation, BrushAnnotation, GeoFig, InstanceAnnotate, KeyCode,
+    MainEventLoop, MetaData, Rot90ToolData, ShapeI, UpdateImage, UpdatePermAnnos, UpdateTmpAnno,
+    UpdateZoomBox, ZoomAmount,
 };
 use std::{iter, ops::Deref, panic, path::Path, time::Instant};
 use tracing::error;
@@ -286,16 +288,16 @@ fn orig_pos_2_egui_rect(
     zoom_box: &Option<BbF>,
 ) -> Pos2 {
     let p = if let Some(zb) = zoom_box {
-        project_on_bb(p, zb)
+        view::project_on_bb(p, zb)
     } else {
         p
     };
-    let p_view: PtF = orig_pos_2_view_pos(p, shape_orig, shape_view, zoom_box)
+    let p_view: PtF = view::pos_from_orig_pos(p, shape_orig, shape_view, zoom_box)
         .expect("After projection to zoombox it should be inside");
     let p_egui_rect_x =
-        offset.x + scale_coord(p_view.x, shape_view.w.into(), TPtF::from(rect_size.x)) as f32;
+        offset.x + view::scale_coord(p_view.x, shape_view.w.into(), TPtF::from(rect_size.x)) as f32;
     let p_egui_rect_y =
-        offset.y + scale_coord(p_view.y, shape_view.h.into(), TPtF::from(rect_size.y)) as f32;
+        offset.y + view::scale_coord(p_view.y, shape_view.h.into(), TPtF::from(rect_size.y)) as f32;
     Pos2::new(p_egui_rect_x, p_egui_rect_y)
 }
 
@@ -390,7 +392,7 @@ impl RvImageApp {
                     .flatten()
                     .collect::<Vec<_>>()
             };
-            let thickness = scale_coord(tmp_line.thickness, size_from, size_to);
+            let thickness = view::scale_coord(tmp_line.thickness, size_from, size_to);
             let mut shape_vec = make_shape_vec(thickness, color_egui);
             let mut selected_shape_vec = if anno.is_selected == Some(true) {
                 make_shape_vec(thickness + 5.0, rgb_2_clr(Some([0, 0, 0]), 255))
@@ -527,14 +529,14 @@ impl RvImageApp {
             .map(|anno| self.update_bbox_anno(anno, image_rect));
         // update texture with brush canvas
         let shape_orig = self.shape_orig();
-        let mut im_view = orig_2_view(&self.im_orig, self.zoom_box);
+        let mut im_view = view::from_orig(&self.im_orig, self.zoom_box);
         for (canvas, (color, fill_alpha)) in canvases.flatten() {
             for y in canvas.bb.y_range() {
                 for x in canvas.bb.x_range() {
                     let p = PtI { x, y };
                     let is_fg = access_mask_abs(&canvas.mask, canvas.bb, p) > 0;
                     if is_fg {
-                        let p_view = orig_pos_2_view_pos(
+                        let p_view = view::pos_from_orig_pos(
                             p.into(),
                             shape_orig,
                             ShapeI::from_im(&im_view),
@@ -585,7 +587,7 @@ impl RvImageApp {
         let offset_y = image_response.rect.min.y;
         let mouse_pos_egui = image_response.hover_pos();
         let mouse_pos_on_view = mouse_pos_egui.map(|mp_egui| {
-            view_pos_2_orig_pos(
+            view::pos_2_orig_pos(
                 (
                     TPtF::from(mp_egui.x - offset_x),
                     TPtF::from(mp_egui.y - offset_y),
@@ -597,7 +599,7 @@ impl RvImageApp {
             )
         });
         let mouse_pos = mouse_pos_on_view.map(|mp_view| {
-            view_pos_2_orig_pos(
+            view::pos_2_orig_pos(
                 mp_view,
                 self.shape_orig(),
                 self.shape_view(),
@@ -627,7 +629,7 @@ impl RvImageApp {
         })
     }
     fn update_texture(&mut self, ctx: &Context) {
-        self.im_view = orig_2_view(&self.im_orig, self.zoom_box);
+        self.im_view = view::from_orig(&self.im_orig, self.zoom_box);
         self.texture = Some(clrim_2_handle(image_2_colorimage(&self.im_view), ctx));
     }
 }

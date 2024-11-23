@@ -10,6 +10,8 @@ use tracing_subscriber::{
 thread_local! {
     pub static BACKTRACE: RefCell<Option<Backtrace>> = const { RefCell::new(None) };
 }
+/// # Panics
+/// In case tracing cannot be setup properly.
 pub fn tracing_setup() -> WorkerGuard {
     let log_folder = get_log_folder().expect("no log folder");
     let file_appender = tracing_appender::rolling::daily(log_folder, "log");

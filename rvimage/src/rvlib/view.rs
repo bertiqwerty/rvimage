@@ -4,7 +4,7 @@ use rvimage_domain::{pos_transform, BbF, Calc, PtF, ShapeI, TPtF};
 
 pub type ImageU8 = ImageBuffer<Rgb<u8>, Vec<u8>>;
 
-/// Scales a coordinate from an axis of size_from to an axis of size_to
+/// Scales a coordinate from an axis of `size_from` to an axis of `size_to`
 pub fn scale_coord<T>(x: T, size_from: T, size_to: T) -> T
 where
     T: Calc,
@@ -17,7 +17,7 @@ fn coord_view_2_orig(x: TPtF, n_transformed: TPtF, n_orig: TPtF, off: TPtF) -> T
 }
 
 /// Converts the position of a pixel in the view to the coordinates of the original image
-pub fn view_pos_2_orig_pos(
+pub fn pos_2_orig_pos(
     view_pos: PtF,
     shape_orig: ShapeI,
     shape_win: ShapeI,
@@ -30,7 +30,7 @@ fn coord_orig_2_view(x: f64, n_transformed: f64, n_orig: f64, off: f64) -> f64 {
 }
 
 /// Converts the position of a pixel in the view to the coordinates of the original image
-pub fn orig_pos_2_view_pos(
+pub fn pos_from_orig_pos(
     orig_pos: PtF,
     shape_orig: ShapeI,
     shape_win: ShapeI,
@@ -49,7 +49,8 @@ pub fn orig_pos_2_view_pos(
         coord_orig_2_view,
     ))
 }
-pub fn orig_2_view(im_orig: &ImageU8, zoom_box: Option<BbF>) -> ImageU8 {
+#[must_use]
+pub fn from_orig(im_orig: &ImageU8, zoom_box: Option<BbF>) -> ImageU8 {
     if let Some(zoom_box) = zoom_box {
         im_orig
             .view(
@@ -64,6 +65,7 @@ pub fn orig_2_view(im_orig: &ImageU8, zoom_box: Option<BbF>) -> ImageU8 {
     }
 }
 
+#[must_use]
 pub fn project_on_bb(p: PtF, bb: &BbF) -> PtF {
     let x = p.x.max(bb.x).min(bb.x + bb.w - 1.0);
     let y = p.y.max(bb.y).min(bb.y + bb.h - 1.0);

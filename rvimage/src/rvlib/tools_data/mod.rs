@@ -137,7 +137,7 @@ impl ToolSpecifics {
                                 fill_alpha: bb_data.options.fill_alpha,
                                 label: Some(labels[*cat_idx].clone()),
                                 outline: Stroke {
-                                    thickness: bb_data.options.outline_thickness as TPtF
+                                    thickness: TPtF::from(bb_data.options.outline_thickness)
                                         / OUTLINE_THICKNESS_CONVERSION,
                                     color: colors[*cat_idx],
                                 },

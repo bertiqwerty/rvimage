@@ -255,6 +255,7 @@ pub struct DataRaw {
 }
 
 impl DataRaw {
+    #[must_use]
     pub fn new(
         im_background: DynamicImage,
         tools_data_map: ToolsDataMap,
@@ -271,10 +272,12 @@ impl DataRaw {
         }
     }
 
+    #[must_use]
     pub fn im_background(&self) -> &DynamicImage {
         &self.im_background
     }
 
+    #[must_use]
     pub fn shape_initial(&self) -> &ShapeI {
         &self.shape_initial
     }
@@ -290,10 +293,12 @@ impl DataRaw {
         self.im_background = f_i(mem::take(&mut self.im_background));
     }
 
+    #[must_use]
     pub fn shape(&self) -> ShapeI {
         ShapeI::from_im(&self.im_background)
     }
 
+    #[must_use]
     pub fn bg_to_uncropped_view(&self) -> ViewImage {
         image_util::orig_to_0_255(&self.im_background, &None)
     }
@@ -340,6 +345,7 @@ pub struct World {
 }
 
 impl World {
+    #[must_use]
     pub fn new(ims_raw: DataRaw, zoom_box: Option<BbF>) -> Self {
         let im = ims_raw.bg_to_uncropped_view();
         let world = Self {
@@ -356,10 +362,15 @@ impl World {
         add_tools_initial_data(world)
     }
 
+    #[must_use]
     pub fn ui_image_rect(&self) -> Option<ShapeF> {
         self.data.ui_image_rect
     }
 
+    /// Annotations shall be drawn again
+    ///
+    /// # Panics
+    /// Panics if a tool name is passed that does not have annotations to be redrawn.
     pub fn request_redraw_annotations(&mut self, tool_name: &str, visibility_active: Visibility) {
         let visible_inactive_tools = self
             .data
@@ -437,11 +448,12 @@ impl World {
 
     pub fn request_redraw_image(&mut self) {
         if self.data.meta_data.file_path_relative().is_some() {
-            self.update_view.image = UpdateImage::Yes(self.data.bg_to_uncropped_view())
+            self.update_view.image = UpdateImage::Yes(self.data.bg_to_uncropped_view());
         }
     }
 
     /// real image in contrast to the loading image
+    #[must_use]
     pub fn from_real_im(
         im: DynamicImage,
         tools_data: ToolsDataMap,
@@ -457,6 +469,7 @@ impl World {
         Self::new(DataRaw::new(im, tools_data, meta_data, ui_image_rect), None)
     }
 
+    #[must_use]
     pub fn shape_orig(&self) -> ShapeI {
         self.data.shape()
     }
@@ -477,6 +490,7 @@ impl World {
         }
     }
 
+    #[must_use]
     pub fn zoom_box(&self) -> &Option<BbF> {
         &self.zoom_box
     }

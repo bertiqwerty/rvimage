@@ -51,6 +51,7 @@ pub struct Rot90ToolData {
 }
 impl Rot90ToolData {
     implement_annotations_getters!(NRotations);
+    #[must_use]
     pub fn merge(mut self, other: Self) -> Self {
         for (filename, (nrot_other, shape)) in other.annotations_map {
             let nrot = if let Some((nrot_self, _)) = self.annotations_map.get(&filename) {

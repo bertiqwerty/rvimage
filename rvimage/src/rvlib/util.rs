@@ -58,7 +58,9 @@ pub fn version_label() -> String {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     const GIT_DESC: &str = env!("GIT_DESC");
     #[allow(clippy::const_is_empty)]
-    if !GIT_DESC.is_empty() {
+    if GIT_DESC.is_empty() {
+        format!("Version {VERSION}")
+    } else {
         const GIT_DIRTY: &str = env!("GIT_DIRTY");
         let is_dirty = GIT_DIRTY == "true";
         format!(
@@ -66,8 +68,6 @@ pub fn version_label() -> String {
             &GIT_DESC,
             if is_dirty { " DIRTY" } else { "" }
         )
-    } else {
-        format!("Version {VERSION}")
     }
 }
 
