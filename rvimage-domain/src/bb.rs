@@ -317,7 +317,7 @@ where
         }
     }
 
-    pub fn rot90_with_image_ntimes(&self, shape: &ShapeI, n: u8) -> Self
+    pub fn rot90_with_image_ntimes(&self, shape: ShapeI, n: u8) -> Self
     where
         T: Neg<Output = T>,
     {
@@ -505,7 +505,7 @@ use crate::PtS;
 
 #[test]
 fn test_rot() {
-    let shape = &Shape::new(150, 123);
+    let shape = Shape::new(150, 123);
     let p_min = PtS { x: 1, y: 3 };
     let p_max = PtS { x: 6, y: 15 };
     let bb = BB::from_points(p_min, p_max);
@@ -516,7 +516,7 @@ fn test_rot() {
         );
         assert_eq!(b_rotated, bb.rot90_with_image_ntimes(shape, n));
     }
-    let shape = &Shape::new(5, 10);
+    let shape = Shape::new(5, 10);
     let p_min = PtF { x: 1.0, y: 2.0 };
     let p_max = PtF { x: 2.0, y: 4.0 };
     let bb = BB::from_points(p_min, p_max);

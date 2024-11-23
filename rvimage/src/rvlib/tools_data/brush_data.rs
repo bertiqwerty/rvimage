@@ -200,7 +200,7 @@ impl InstanceAnnotate for Canvas {
     fn enclosing_bb(&self) -> BbF {
         self.bb.into()
     }
-    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> RvResult<Self> {
+    fn rot90_with_image_ntimes(self, shape: ShapeI, n: u8) -> RvResult<Self> {
         let bb = self.bb;
         let bb_s: BB<TPtS> = BB::from(self.bb);
         let bb_rot = bb_s.rot90_with_image_ntimes(shape, n);
@@ -326,15 +326,12 @@ fn test_canvas() {
         }
     }
     let canv = Canvas::new(&bl, orig_shape).unwrap();
-    let canv_rot = canv
-        .clone()
-        .rot90_with_image_ntimes(&orig_shape, 1)
-        .unwrap();
+    let canv_rot = canv.clone().rot90_with_image_ntimes(orig_shape, 1).unwrap();
     let bl_rot = BrushLine {
         line: Line {
             points: vec![
-                PtF { x: 5.0, y: 5.0 }.rot90_with_image_ntimes(&orig_shape, 1),
-                PtF { x: 15.0, y: 15.0 }.rot90_with_image_ntimes(&orig_shape, 1),
+                PtF { x: 5.0, y: 5.0 }.rot90_with_image_ntimes(orig_shape, 1),
+                PtF { x: 15.0, y: 15.0 }.rot90_with_image_ntimes(orig_shape, 1),
             ],
         },
         intensity: 0.5,
@@ -351,9 +348,7 @@ fn test_canvas() {
     let canv = Canvas::new(&bl, orig_shape).unwrap();
     assert_eq!(
         canv,
-        canv.clone()
-            .rot90_with_image_ntimes(&orig_shape, 0)
-            .unwrap()
+        canv.clone().rot90_with_image_ntimes(orig_shape, 0).unwrap()
     );
 }
 
@@ -366,7 +361,7 @@ fn test_canvas_rot() {
     };
     let canv_rot = canv
         .clone()
-        .rot90_with_image_ntimes(&ShapeI::new(4, 1), 1)
+        .rot90_with_image_ntimes(ShapeI::new(4, 1), 1)
         .unwrap();
     let canv_ref = Canvas {
         mask: vec![1, 0, 0, 0],

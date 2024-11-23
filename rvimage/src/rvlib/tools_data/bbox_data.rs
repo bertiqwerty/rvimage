@@ -194,7 +194,7 @@ impl ExportAsCoco<GeoFig> for BboxToolData {
 }
 
 impl InstanceAnnotate for GeoFig {
-    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> RvResult<Self> {
+    fn rot90_with_image_ntimes(self, shape: ShapeI, n: u8) -> RvResult<Self> {
         Ok(match self {
             Self::BB(bb) => Self::BB(bb.rot90_with_image_ntimes(shape, n)),
             Self::Poly(poly) => Self::Poly(poly.rot90_with_image_ntimes(shape, n)),
@@ -236,7 +236,7 @@ impl InstanceAnnotate for GeoFig {
             if is_export_absolute {
                 self.points()
             } else {
-                self.points_normalized(shape_im.w as TPtF, shape_im.h as TPtF)
+                self.points_normalized(TPtF::from(shape_im.w), TPtF::from(shape_im.h))
             }
             .iter()
             .flat_map(|p| iter::once(p.x).chain(iter::once(p.y)))

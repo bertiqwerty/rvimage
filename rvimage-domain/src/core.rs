@@ -386,13 +386,13 @@ where
     }
 
     /// Mathematically positively oriented, counter clockwise, like Rot90 tool, different from image crate
-    pub fn rot90_with_image(&self, shape: &ShapeI) -> Self
+    pub fn rot90_with_image(&self, shape: ShapeI) -> Self
     where
         T: Neg<Output = T> + CoordinateBox,
     {
         self.rot90(shape.w)
     }
-    pub fn rot90_with_image_ntimes(&self, shape: &ShapeI, n: u8) -> Self
+    pub fn rot90_with_image_ntimes(&self, shape: ShapeI, n: u8) -> Self
     where
         T: Neg<Output = T> + CoordinateBox,
     {
@@ -400,7 +400,7 @@ where
             let mut p = self.rot90_with_image(shape);
             for i in 1..n {
                 let shape = shape.rot90_with_image_ntimes(i);
-                p = p.rot90_with_image(&shape);
+                p = p.rot90_with_image(shape);
             }
             p
         } else {
@@ -610,12 +610,12 @@ where
 }
 #[test]
 fn test_rot() {
-    let shape = &Shape::new(5, 3);
+    let shape = Shape::new(5, 3);
     let p = PtS { x: 2, y: 1 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtS { x: 1, y: 2 }));
     let p_rot_2 = p.rot90_with_image_ntimes(shape, 2);
-    let p_rot_2_ = p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1));
+    let p_rot_2_ = p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1));
     assert_eq!(p_rot_2, p_rot_2_);
 
     let p = PtF { x: 2.5, y: 1.0 };
@@ -623,25 +623,25 @@ fn test_rot() {
     assert!(p_rot_1.is_close_to(PtF { x: 1.0, y: 2.5 }));
     assert!(p
         .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+        .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1))));
 
-    let shape = &Shape::new(5, 10);
+    let shape = Shape::new(5, 10);
     let p = PtS { x: 1, y: 2 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtS { x: 2, y: 3 }));
     assert!(p
         .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+        .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1))));
     let p = PtF { x: 1.0, y: 2.0 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtF { x: 2.0, y: 4.0 }));
     assert!(p
         .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+        .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1))));
     let p = PtF { x: 2.0, y: 4.0 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtF { x: 4.0, y: 3.0 }));
     assert!(p
         .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(&shape.rot90_with_image_ntimes(1))));
+        .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1))));
 }

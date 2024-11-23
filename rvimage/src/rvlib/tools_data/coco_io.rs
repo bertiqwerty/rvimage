@@ -96,7 +96,7 @@ fn insert_elt<A>(
     cat_idx: usize,
     n_rotations: u8,
     path_as_key: String,
-    shape_coco: &ShapeI,
+    shape_coco: ShapeI,
 ) where
     A: InstanceAnnotate,
 {
@@ -133,7 +133,7 @@ where
     let shape_rotated = shape_im_unrotated.rot90_with_image_ntimes(n_rotations);
     let inst_anno = inst_anno
         .clone()
-        .rot90_with_image_ntimes(&shape_rotated, n_rots_inverted)?;
+        .rot90_with_image_ntimes(shape_rotated, n_rots_inverted)?;
 
     let bb = inst_anno.enclosing_bb();
 
@@ -397,7 +397,7 @@ impl CocoExportData {
                     cat_idx,
                     n_rotations,
                     path_as_key.clone(),
-                    &shape_coco,
+                    shape_coco,
                 );
             };
 
@@ -481,7 +481,7 @@ impl CocoExportData {
                         cat_idx,
                         n_rotations,
                         path_as_key,
-                        &shape_coco,
+                        shape_coco,
                     );
                 }
                 _ => {
@@ -1114,7 +1114,7 @@ fn test_instance_to_coco() {
 
     let coco_seg = canvas
         .rot90_with_image_ntimes(
-            &shape_im.rot90_with_image_ntimes(n_rotations),
+            shape_im.rot90_with_image_ntimes(n_rotations),
             4 - n_rotations,
         )
         .unwrap()
@@ -1132,7 +1132,7 @@ fn test_instance_to_coco() {
     println!("{bb_rot:?}");
     let coco_seg = geo
         .rot90_with_image_ntimes(
-            &shape_im.rot90_with_image_ntimes(n_rotations),
+            shape_im.rot90_with_image_ntimes(n_rotations),
             4 - n_rotations,
         )
         .unwrap()

@@ -2,6 +2,7 @@ use crate::{tools_data::InstanceAnnotate, util::true_indices, ShapeI};
 use rvimage_domain::{rverr, BbF, RvResult};
 use serde::{Deserialize, Serialize};
 use std::mem;
+#[allow(clippy::module_name_repetitions)]
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]
 pub struct InstanceAnnotations<T> {
     elts: Vec<T>,
@@ -35,7 +36,7 @@ where
         let mut res = Self::default();
         for (elt, cat_idx) in elts.into_iter().zip(cat_idxs.into_iter()) {
             if !res.elts.contains(&elt) {
-                res.add_elt(elt, cat_idx)
+                res.add_elt(elt, cat_idx);
             }
         }
         res
@@ -76,7 +77,7 @@ where
     {
         for (elt, cat_idx) in elts.zip(cat_idxs) {
             if elt.is_contained_in_image(shape_image) && !self.elts.contains(&elt) {
-                self.add_elt(elt, cat_idx)
+                self.add_elt(elt, cat_idx);
             }
         }
     }
@@ -176,7 +177,7 @@ where
         self.cat_idxs.clear();
     }
     pub fn reduce_cat_idxs(&mut self, cat_idx: usize) {
-        for cid in self.cat_idxs.iter_mut() {
+        for cid in &mut self.cat_idxs {
             if *cid >= cat_idx && *cid > 0 {
                 *cid -= 1;
             }

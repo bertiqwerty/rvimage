@@ -230,7 +230,7 @@ impl Polygon {
         })
     }
     #[must_use]
-    pub fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
+    pub fn rot90_with_image_ntimes(self, shape: ShapeI, n: u8) -> Self {
         if n == 0 {
             self
         } else {

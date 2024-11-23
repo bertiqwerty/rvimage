@@ -24,9 +24,9 @@ fn shift(
                 bbs.push(*bb);
                 selected_bbs.push(*is_selected);
             }
-            _ => {
+            GeoFig::Poly(_) => {
                 if *is_selected {
-                    selected_others_indices.push(idx)
+                    selected_others_indices.push(idx);
                 }
             }
         }
@@ -57,7 +57,7 @@ fn shift(
 pub type BboxAnnotations = InstanceAnnotations<GeoFig>;
 
 impl BboxAnnotations {
-    pub fn from_bbs(bbs: Vec<BbF>, cat_id: usize) -> RvResult<BboxAnnotations> {
+    pub fn from_bbs(bbs: &[BbF], cat_id: usize) -> RvResult<BboxAnnotations> {
         let bbs_len = bbs.len();
         let elts = bbs.iter().map(|bb| GeoFig::BB(*bb)).collect();
         BboxAnnotations::new(elts, vec![cat_id; bbs_len], vec![false; bbs_len])
@@ -144,7 +144,7 @@ impl BboxAnnotations {
         for (geo, is_bb_selected) in elts.iter_mut().zip(selected_mask.iter()) {
             if *is_bb_selected {
                 (moved_somebody, *geo) =
-                    split_mode.geo_follow_movement(mem::take(geo), mpo_from, mpo_to, orig_shape)
+                    split_mode.geo_follow_movement(mem::take(geo), mpo_from, mpo_to, orig_shape);
             }
         }
         let x = Self::new(elts, cat_idxs, selected_mask)
@@ -204,7 +204,7 @@ fn test_annos() {
         assert_eq!(annos.selected_mask().len(), annos.elts().len());
         assert_eq!(annos.cat_idxs().len(), annos.elts().len());
     }
-    let mut annos = BboxAnnotations::from_bbs(make_test_bbs(), 0).unwrap();
+    let mut annos = BboxAnnotations::from_bbs(&make_test_bbs(), 0).unwrap();
     len_check(&annos);
     let idx = 1;
     assert!(!annos.selected_mask()[idx]);

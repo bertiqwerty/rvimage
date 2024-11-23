@@ -32,7 +32,7 @@ pub enum SplitMode {
     None,
 }
 impl SplitMode {
-    fn zero_direction(&self, x_shift: f64, y_shift: f64) -> (f64, f64) {
+    fn zero_direction(self, x_shift: f64, y_shift: f64) -> (f64, f64) {
         match self {
             Self::Horizontal => (0.0, y_shift),
             Self::Vertical => (x_shift, 0.0),
@@ -40,7 +40,7 @@ impl SplitMode {
         }
     }
     pub fn shift_min_bbs(
-        &self,
+        self,
         x_shift: f64,
         y_shift: f64,
         selected_bbs: &[bool],
@@ -70,7 +70,7 @@ impl SplitMode {
         })
     }
     pub fn shift_max_bbs(
-        &self,
+        self,
         x_shift: TPtF,
         y_shift: TPtF,
         selected_bbs: &[bool],
@@ -101,7 +101,7 @@ impl SplitMode {
         })
     }
     pub fn geo_follow_movement(
-        &self,
+        self,
         geo: GeoFig,
         mpo_from: PtF,
         mpo_to: PtF,

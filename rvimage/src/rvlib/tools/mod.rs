@@ -55,7 +55,8 @@ macro_rules! make_tools {
                     button_label: $label
                 }),+]
         }
-        pub fn add_tools_initial_data(mut world: World) -> World {
+        #[must_use] pub fn add_tools_initial_data(mut world: World) -> World {
+
             $(if world.data.tools_data_map.get_mut($name).is_none() {
                 world.data.tools_data_map.insert(
                     $name.to_string(),
@@ -162,9 +163,11 @@ impl ToolState {
         }
         world
     }
+    #[must_use]
     pub fn is_active(&self) -> bool {
         self.is_active
     }
+    #[must_use]
     pub fn is_always_active(&self) -> bool {
         self.is_always_active
     }

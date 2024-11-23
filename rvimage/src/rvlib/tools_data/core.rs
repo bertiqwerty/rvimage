@@ -500,7 +500,7 @@ pub trait InstanceAnnotate:
     fn dist_to_boundary(&self, p: PtF) -> TPtF;
     /// # Errors
     /// Can fail if a bounding box ends up with negative coordinates after rotation
-    fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> RvResult<Self>;
+    fn rot90_with_image_ntimes(self, shape: ShapeI, n: u8) -> RvResult<Self>;
     fn enclosing_bb(&self) -> BbF;
     /// # Errors
     /// Can fail if a bounding box is not on the image.

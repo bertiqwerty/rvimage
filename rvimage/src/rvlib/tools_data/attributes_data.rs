@@ -10,6 +10,7 @@ use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtS};
 
 use super::label_map::LabelMap;
 
+#[allow(clippy::needless_pass_by_value)]
 fn interval_check<T>(val: T, min: &str, max: &str) -> RvResult<bool>
 where
     T: PartialOrd + FromStr + Debug,
@@ -44,6 +45,7 @@ impl AttrVal {
             ))?,
         })
     }
+    #[allow(clippy::float_cmp)]
     pub fn corresponds_to_str(&self, attr_val: &str) -> RvResult<bool> {
         Ok(match self {
             AttrVal::Bool(b) => {
@@ -69,10 +71,10 @@ impl AttrVal {
 impl Display for AttrVal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AttrVal::Float(val) => write!(f, "{}", val),
-            AttrVal::Int(val) => write!(f, "{}", val),
-            AttrVal::Str(val) => write!(f, "{}", val),
-            AttrVal::Bool(val) => write!(f, "{}", val),
+            AttrVal::Float(val) => write!(f, "{val}"),
+            AttrVal::Int(val) => write!(f, "{val}"),
+            AttrVal::Str(val) => write!(f, "{val}"),
+            AttrVal::Bool(val) => write!(f, "{val}"),
         }
     }
 }
@@ -90,6 +92,7 @@ pub type AttrAnnotationsMap = LabelMap<AttrMap>;
 pub fn set_attrmap_val(attr_map: &mut AttrMap, attr_name: &str, attr_val: &AttrVal) {
     attr_map.insert(attr_name.to_string(), attr_val.clone());
 }
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct Options {
     pub is_addition_triggered: bool,
@@ -122,7 +125,7 @@ impl AttributesToolData {
     implement_annotations_getters!(AttrMap);
     pub fn rename(&mut self, from_name: &str, to_name: &str) {
         if self.attr_names().iter().any(|n| n == to_name) {
-            tracing::warn!("Cannot update to {to_name}. Already exists.")
+            tracing::warn!("Cannot update to {to_name}. Already exists.");
         } else {
             // better solution: use indices the attr_map hashmap keys instead of Strings
             // rename would then be not necessary anymore.
