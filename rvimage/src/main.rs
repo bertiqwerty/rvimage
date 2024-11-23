@@ -854,8 +854,8 @@ fn test_coco() {
         .unwrap()
         .map(|entry| {
             let entry = entry.unwrap();
-            let path = entry.path();
-            path
+
+            entry.path()
         })
         .collect::<Vec<_>>();
     files

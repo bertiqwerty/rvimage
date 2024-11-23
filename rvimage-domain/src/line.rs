@@ -24,6 +24,7 @@ impl Line {
     pub fn push(&mut self, p: PtF) {
         self.points.push(p);
     }
+    #[must_use]
     pub fn new() -> Self {
         Self { points: vec![] }
     }
@@ -31,6 +32,7 @@ impl Line {
     pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtF> + 'a + Clone {
         self.points.iter().copied()
     }
+    #[must_use]
     pub fn last_point(&self) -> Option<PtF> {
         self.points.last().copied()
     }
@@ -41,9 +43,10 @@ impl Line {
                     let ls: (PtF, PtF) = (self.points[i], self.points[i + 1]);
                     dist_lineseg_point(&ls, p)
                 })
-                .min_by(|x, y| match x.partial_cmp(y) {
-                    Some(o) => o,
-                    None => {
+                .min_by(|x, y| {
+                    if let Some(o) = x.partial_cmp(y) {
+                        o
+                    } else {
                         if let Some(nan_warn) = &nan_warn {
                             nan_warn("NaN appeared in distance to line computation.");
                         }
@@ -56,13 +59,14 @@ impl Line {
     }
     pub fn max_dist_squared(&self) -> Option<f64> {
         (0..self.points.len())
-            .flat_map(|i| {
+            .filter_map(|i| {
                 (0..self.points.len())
                     .map(|j| self.points[i].dist_square(&self.points[j]))
                     .max_by(max_from_partial)
             })
             .max_by(max_from_partial)
     }
+    #[must_use]
     pub fn mean(&self) -> Option<PtF> {
         let n_points = self.points.len() as u32;
         if n_points == 0 {
@@ -72,7 +76,7 @@ impl Line {
                 PtF::from(
                     self.points_iter()
                         .fold(Point { x: 0.0, y: 0.0 }, |p1, p2| p1 + p2),
-                ) / n_points as f64,
+                ) / f64::from(n_points),
             )
         }
     }
@@ -94,6 +98,7 @@ impl<CLR> RenderTargetOrShape<CLR>
 where
     CLR: Pixel<Subpixel = u8>,
 {
+    #[must_use]
     pub fn make_buffer(self) -> ImageBuffer<CLR, Vec<u8>> {
         match self {
             RenderTargetOrShape::Image(im) => im,

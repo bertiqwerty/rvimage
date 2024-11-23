@@ -9,11 +9,13 @@ pub struct RvError {
     msg: String,
 }
 impl RvError {
+    #[must_use]
     pub fn new(msg: &str) -> RvError {
         RvError {
             msg: msg.to_string(),
         }
     }
+    #[must_use]
     pub fn msg(&self) -> &str {
         &self.msg
     }

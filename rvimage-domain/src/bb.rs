@@ -97,6 +97,7 @@ where
         let right = BB::from_arr(&[x, self.y, self.x_max() - x, self.h]);
         (left, right)
     }
+    #[must_use]
     pub fn from_shape_int(shape: ShapeI) -> Self {
         BB {
             x: T::from(0),
@@ -327,6 +328,7 @@ where
 }
 
 impl BbF {
+    #[must_use]
     pub fn translate(
         self,
         x_shift: f64,
@@ -338,6 +340,7 @@ impl BbF {
         let y = self.y + y_shift;
         Self::new_shape_checked(x, y, self.w, self.h, shape, oob_mode)
     }
+    #[must_use]
     pub fn follow_movement(
         &self,
         from: PtF,
@@ -350,6 +353,7 @@ impl BbF {
         self.translate(x_shift, y_shift, shape, oob_mode)
     }
 
+    #[must_use]
     pub fn new_fit_to_image(x: f64, y: f64, w: f64, h: f64, shape: ShapeI) -> Self {
         let clip = |var: f64, size_bx: f64, size_im: f64| {
             if var < 0.0 {
@@ -365,6 +369,7 @@ impl BbF {
         Self::from_arr(&[x, y, w, h])
     }
 
+    #[must_use]
     pub fn center_scale(
         &self,
         x_factor: f64,
@@ -395,17 +400,20 @@ impl BbF {
         Self::new_fit_to_image(x, y, w, h, shape)
     }
 
+    #[must_use]
     pub fn shift_max(&self, x_shift: f64, y_shift: f64, shape: ShapeI) -> Option<Self> {
         let (w, h) = (self.w + x_shift, self.h + y_shift);
         Self::new_shape_checked(self.x, self.y, w, h, shape, OutOfBoundsMode::Deny)
     }
 
+    #[must_use]
     pub fn shift_min(&self, x_shift: f64, y_shift: f64, shape: ShapeI) -> Option<Self> {
         let (x, y) = (self.x + x_shift, self.y + y_shift);
         let (w, h) = (self.w - x_shift, self.h - y_shift);
         Self::new_shape_checked(x, y, w, h, shape, OutOfBoundsMode::Deny)
     }
 
+    #[must_use]
     pub fn all_corners_close(&self, other: BbF) -> bool {
         fn close_floats(a: f64, b: f64) -> bool {
             (a - b).abs() < 1e-8
@@ -450,6 +458,7 @@ impl From<BbS> for BbI {
 }
 
 impl BbI {
+    #[must_use]
     pub fn expand(&self, x_expand: TPtI, y_expand: TPtI, shape: ShapeI) -> Self {
         let (x, y) = (
             self.x.saturating_sub(x_expand),

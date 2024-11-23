@@ -25,6 +25,7 @@ pub enum GeoFig {
 }
 
 impl GeoFig {
+    #[must_use]
     pub fn max_squaredist(&self, other: &Self) -> (PtF, PtF, TPtF) {
         match self {
             Self::BB(bb) => match other {
@@ -37,6 +38,7 @@ impl GeoFig {
             },
         }
     }
+    #[must_use]
     pub fn has_overlap(&self, other: &BbF) -> bool {
         match self {
             Self::BB(bb) => bb.has_overlap(other),
@@ -54,12 +56,14 @@ impl GeoFig {
             Self::Poly(poly) => poly.translate(p.x, p.y, shape, oob_mode).map(GeoFig::Poly),
         }
     }
+    #[must_use]
     pub fn point(&self, idx: usize) -> PtF {
         match &self {
             GeoFig::BB(bb) => bb.corner(idx),
             GeoFig::Poly(p) => p.points()[idx],
         }
     }
+    #[must_use]
     pub fn follow_movement(
         self,
         from: PtF,
@@ -79,6 +83,7 @@ impl GeoFig {
         )
     }
 
+    #[must_use]
     pub fn points(&self) -> Vec<PtF> {
         match self {
             GeoFig::BB(bb) => bb.points_iter().collect(),
@@ -86,6 +91,7 @@ impl GeoFig {
         }
     }
 
+    #[must_use]
     pub fn points_normalized(&self, w: f64, h: f64) -> Vec<PtF> {
         fn convert(iter: impl Iterator<Item = PtF>, w: f64, h: f64) -> Vec<PtF> {
             iter.map(|p| Point {
@@ -107,15 +113,17 @@ impl Default for GeoFig {
 }
 
 /// shape of the image that fits into the window
+#[must_use]
 pub fn shape_scaled(shape_unscaled: ShapeF, shape_win: ShapeI) -> (TPtF, TPtF) {
-    let w_ratio = shape_unscaled.w / shape_win.w as TPtF;
-    let h_ratio = shape_unscaled.h / shape_win.h as TPtF;
+    let w_ratio = shape_unscaled.w / TPtF::from(shape_win.w);
+    let h_ratio = shape_unscaled.h / TPtF::from(shape_win.h);
     let ratio = w_ratio.max(h_ratio);
     let w_new = shape_unscaled.w as TPtF / ratio;
     let h_new = shape_unscaled.h as TPtF / ratio;
     (w_new, h_new)
 }
 /// shape without scaling to window
+#[must_use]
 pub fn shape_unscaled(zoom_box: &Option<BbF>, shape_orig: ShapeI) -> ShapeF {
     zoom_box.map_or(shape_orig.into(), |z| z.shape())
 }
@@ -143,6 +151,7 @@ where
     (x_tf, y_tf).into()
 }
 
+#[must_use]
 pub fn make_test_bbs() -> Vec<BbF> {
     let boxes = [
         BbI {
@@ -334,6 +343,6 @@ fn test_into() {
     {
         let box_f = BbF::from_arr(&[23.0, 2.0, 15., 31.]);
         let box_int: BbI = box_f.into();
-        assert_eq!(box_int, box_f.into())
+        assert_eq!(box_int, box_f.into());
     }
 }

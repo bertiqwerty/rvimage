@@ -43,6 +43,7 @@ pub struct Polygon {
     enclosing_bb: BbF,
 }
 impl Polygon {
+    #[must_use]
     pub fn shape_check(self, orig_im_shape: ShapeI, mode: OutOfBoundsMode<TPtF>) -> Option<Self> {
         let shape_bb = BbF::from_shape_int(orig_im_shape);
         if shape_bb.contains_bb(self.enclosing_bb) {
@@ -67,9 +68,11 @@ impl Polygon {
             }
         }
     }
+    #[must_use]
     pub fn min_enclosing_bb(&self) -> PtF {
         self.enclosing_bb.min()
     }
+    #[must_use]
     pub fn translate(
         mut self,
         x: f64,
@@ -90,11 +93,13 @@ impl Polygon {
     pub fn points_iter<'a>(&'a self) -> impl Iterator<Item = PtF> + 'a + Clone {
         self.points.iter().copied()
     }
+    #[must_use]
     pub fn has_overlap(&self, other: &BbF) -> bool {
         self.enclosing_bb.has_overlap(other)
             && (other.contains_bb(self.enclosing_bb)
                 || other.points_iter().any(|p| self.contains(p)))
     }
+    #[must_use]
     pub fn distance_to_boundary(&self, point: PtF) -> TPtF {
         self.lineseg_iter()
             .map(|ls| {
@@ -110,7 +115,7 @@ impl Polygon {
 
     /// Intersects the polygon with a bounding box for rendering and cut with the zoom box.
     /// Sutherland-Hodgman algorithm where the clipping polygon is a box.
-    /// https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
+    /// <https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm>
     pub fn intersect(self, bb: BbF) -> RvResult<Self> {
         let mut in_vertices = self.points;
         let mut out_vertices = vec![];
@@ -204,12 +209,15 @@ impl Polygon {
             .count();
         n_cuts % 2 == 1
     }
+    #[must_use]
     pub fn is_contained_in_image(&self, shape: ShapeI) -> bool {
         self.enclosing_bb.is_contained_in_image(shape)
     }
+    #[must_use]
     pub fn enclosing_bb(&self) -> BbF {
         self.enclosing_bb
     }
+    #[must_use]
     pub fn points(&self) -> &Vec<PtF> {
         &self.points
     }
@@ -221,6 +229,7 @@ impl Polygon {
             enclosing_bb,
         })
     }
+    #[must_use]
     pub fn rot90_with_image_ntimes(self, shape: &ShapeI, n: u8) -> Self {
         if n == 0 {
             self
@@ -255,7 +264,7 @@ fn test_intersect() {
         assert!((ip.x - 5.0).abs() < 1e-8);
         assert!((ip.y - 8.0).abs() < 1e-8);
     } else {
-        assert!(false)
+        assert!(false);
     }
 }
 

@@ -91,9 +91,11 @@ pub trait Calc:
     + Clone
     + Copy
 {
+    #[must_use]
     fn one() -> Self {
         Self::from(1)
     }
+    #[must_use]
     fn zero() -> Self {
         Self::from(0)
     }
@@ -160,8 +162,8 @@ pub type ShapeF = Shape<f64>;
 impl From<ShapeI> for ShapeF {
     fn from(value: ShapeI) -> Self {
         Self {
-            w: value.w as f64,
-            h: value.h as f64,
+            w: f64::from(value.w),
+            h: f64::from(value.h),
         }
     }
 }
@@ -240,6 +242,7 @@ where
     Resize(Shape<T>), // minimal area the box needs to keep
 }
 
+#[must_use]
 pub fn dist_lineseg_point(ls: &(PtF, PtF), p: PtF) -> f64 {
     let (p1, p2) = ls;
     let p1 = *p1;
@@ -287,7 +290,7 @@ macro_rules! point {
         if $x < 0.0 || $y < 0.0 {
             panic!("cannot create point from negative coords, {}, {}", $x, $y);
         }
-        crate::domain::PtF { x: $x, y: $y }
+        $crate::domain::PtF { x: $x, y: $y }
     }};
 }
 
@@ -515,6 +518,7 @@ pub type PtI = Point<TPtI>;
 pub type PtS = Point<TPtS>;
 
 impl PtF {
+    #[must_use]
     pub fn round_signed(&self) -> Point<i32> {
         Point {
             x: self.x.round() as i32,
@@ -548,12 +552,12 @@ impl PtI {
 
 impl From<PtI> for PtF {
     fn from(p: PtI) -> Self {
-        ((p.x as f64), (p.y as f64)).into()
+        (f64::from(p.x), f64::from(p.y)).into()
     }
 }
 impl From<PtI> for PtS {
     fn from(p: PtI) -> Self {
-        ((p.x as TPtS), (p.y as TPtS)).into()
+        (TPtS::from(p.x), TPtS::from(p.y)).into()
     }
 }
 impl From<PtS> for PtI {
@@ -568,7 +572,7 @@ impl From<PtF> for PtI {
 }
 impl From<(u32, u32)> for PtF {
     fn from(x: (u32, u32)) -> Self {
-        ((x.0 as f64), (x.1 as f64)).into()
+        (f64::from(x.0), f64::from(x.1)).into()
     }
 }
 impl From<(f32, f32)> for PtI {
@@ -600,7 +604,7 @@ where
 {
     let channels = color.channels_mut();
     for channel in channels {
-        *channel = (*channel as f64 * intensity) as u8;
+        *channel = (f64::from(*channel) * intensity) as u8;
     }
     color
 }

@@ -74,6 +74,7 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
     Ok((im.to_vec(), bbi))
 }
 
+#[must_use]
 pub fn mask_to_rle(mask: &[u8], mask_w: u32, mask_h: u32) -> Vec<u32> {
     let mut rle = Vec::new();
     let mut current_run = 0;
@@ -109,6 +110,7 @@ pub fn rle_to_mask_inplace(rle: &[u32], mask: &mut [u8], w: u32) {
     }
 }
 
+#[must_use]
 pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
     let mut mask = vec![0; (w * h) as usize];
     rle_to_mask_inplace(rle, &mut mask, w);
@@ -280,6 +282,7 @@ pub fn access_bb_idx(bb: BbI, p: PtI) -> usize {
 }
 
 /// Access a mask with coordinates for the image containing the mask
+#[must_use]
 pub fn access_mask_abs(mask: &[u8], bb: BbI, p: PtI) -> u8 {
     if bb.contains(p) {
         mask[access_bb_idx(bb, p)]
@@ -287,6 +290,7 @@ pub fn access_mask_abs(mask: &[u8], bb: BbI, p: PtI) -> u8 {
         0
     }
 }
+#[must_use]
 pub fn access_mask_rel(mask: &[u8], x: u32, y: u32, w: u32, h: u32) -> u8 {
     if x < w && y < h {
         mask[(y * w + x) as usize]
@@ -311,6 +315,7 @@ impl Canvas {
             intensity: line.intensity,
         })
     }
+    #[must_use]
     pub fn merge(mut self, other: &Canvas) -> Self {
         let old_self_bb = self.bb;
         self.bb = self.bb.merge(other.bb);
@@ -348,8 +353,8 @@ impl Canvas {
         if let Some(mut im) = im {
             let color = Luma([color]);
             let center = Point {
-                x: (center.x - self.bb.x as TPtF) as i32,
-                y: (center.y - self.bb.y as TPtF) as i32,
+                x: (center.x - TPtF::from(self.bb.x)) as i32,
+                y: (center.y - TPtF::from(self.bb.y)) as i32,
             };
 
             if thickness <= 1.1 {
@@ -474,13 +479,13 @@ fn test_canvas_single() {
         thickness: 3.0,
     };
     let cv = Canvas::new(&bl, orig_shape).unwrap();
-    assert!(cv.mask.iter().sum::<u8>() > 0)
+    assert!(cv.mask.iter().sum::<u8>() > 0);
 }
 
 #[test]
 fn test_rle() {
     fn test(bb: BbI, shape: ShapeI, rle_bb: &[u32], rle_im_ref: &[u32], skip_rec: bool) {
-        let rle_im = rle_bb_to_image(&rle_bb, bb, shape).unwrap();
+        let rle_im = rle_bb_to_image(rle_bb, bb, shape).unwrap();
         assert_eq!(rle_im, rle_im_ref);
         assert_eq!(rle_im.iter().sum::<u32>(), shape.w * shape.h);
         let rle_bb_rec = rle_image_to_bb(&rle_im, bb, shape).unwrap();
