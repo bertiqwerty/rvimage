@@ -3844,7 +3844,7 @@ dependencies = [
 
 [[package]]
 name = "rvimage"
-version = "0.4.18"
+version = "0.4.19"
 dependencies = [
  "azure_storage",
  "azure_storage_blobs",
@@ -3869,7 +3869,7 @@ dependencies = [
  "reqwest",
  "rfd",
  "rusttype",
- "rvimage-domain 0.4.6",
+ "rvimage-domain 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "ssh2",
@@ -3886,9 +3886,7 @@ dependencies = [
 
 [[package]]
 name = "rvimage-domain"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8258ad2067cef59fd70c20c05cdb4987b1249f78af704a02246e47e92738d2a"
+version = "0.4.7"
 dependencies = [
  "image",
  "imageproc",
@@ -3899,6 +3897,8 @@ dependencies = [
 [[package]]
 name = "rvimage-domain"
 version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57e6493d6441bb9639159771eba99666272516447d45e32fd3a3dfe6f5e6c2db"
 dependencies = [
  "image",
  "imageproc",
