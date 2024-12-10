@@ -143,12 +143,6 @@ impl Default for ToolSelectMenu {
     }
 }
 
-#[derive(Default)]
-struct PopupBtnResp {
-    pub resp: Option<Response>,
-    pub popup_open: bool,
-}
-
 struct Help<'a> {
     id: Id,
     show_help: &'a mut bool,
@@ -225,7 +219,6 @@ pub struct Menu {
     are_tools_active: bool,
     scroll_offset: f32,
     open_folder_popup_open: bool,
-    load_button_resp: PopupBtnResp,
     stats: Stats,
     show_about: bool,
     text_buffers: TextBuffers,
@@ -245,7 +238,6 @@ impl Menu {
             are_tools_active: true,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
-            load_button_resp: PopupBtnResp::default(),
             stats: Stats::default(),
             show_about: false,
             text_buffers,
@@ -283,6 +275,7 @@ impl Menu {
         tools_data_map: &mut ToolsDataMap,
         active_tool_name: Option<&str>,
     ) -> bool {
+        let mut projected_loaded = false;
         egui::TopBottomPanel::top("top-menu-bar").show(ctx, |ui| {
             // Top row with open folder and settings button
             egui::menu::bar(ui, |ui| {
@@ -296,8 +289,21 @@ impl Menu {
                     self
                 );
 
-                self.load_button_resp.resp = Some(ui.button("Load Project"));
-
+                if ui.button("Load Project").clicked() {
+                    let prj_path = rfd::FileDialog::new()
+                        .add_filter("project files", &["json", "rvi"])
+                        .pick_file();
+                    if let Some(prj_path) = prj_path {
+                        handle_error!(
+                            |tdm| {
+                                *tools_data_map = tdm;
+                                projected_loaded = true;
+                            },
+                            ctrl.load(prj_path),
+                            self
+                        );
+                    }
+                }
                 let filename =
                     get_prj_name(ctrl.cfg.current_prj_path(), ctrl.opened_folder_label());
 
@@ -323,30 +329,7 @@ impl Menu {
                 ));
             });
         });
-        let mut projected_loaded = false;
         egui::SidePanel::left("left-main-menu").show(ctx, |ui| {
-            if let Some(load_btn_resp) = &self.load_button_resp.resp {
-                if load_btn_resp.clicked() {
-                    self.load_button_resp.popup_open = true;
-                }
-                if self.load_button_resp.popup_open {
-                    let prj_path = rfd::FileDialog::new()
-                        .add_filter("project files", &["json", "rvi"])
-                        .pick_file();
-                    if let Some(prj_path) = prj_path {
-                        handle_error!(
-                            |tdm| {
-                                *tools_data_map = tdm;
-                                projected_loaded = true;
-                            },
-                            ctrl.load(prj_path),
-                            self
-                        );
-                    }
-                    self.load_button_resp.resp = None;
-                    self.load_button_resp.popup_open = false;
-                }
-            }
             let mut connected = false;
             handle_error!(
                 |con| {
