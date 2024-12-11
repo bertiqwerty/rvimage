@@ -29,7 +29,7 @@ use tracing::{info, warn};
 use walkdir::WalkDir;
 
 mod detail {
-    use std::path::Path;
+    use std::{mem, path::Path};
 
     use image::{DynamicImage, ImageBuffer};
     use serde::{Deserialize, Serialize, Serializer};
@@ -39,6 +39,7 @@ mod detail {
         control::{LastTimePrjOpened, SavePrjData},
         file_util::{self, tf_to_annomap_key, SavedCfg},
         result::trace_ok_err,
+        tools_data::{merge, ToolSpecifics},
         util::version_label,
         world::{ToolsDataMap, World},
     };
@@ -163,6 +164,41 @@ mod detail {
             SavedCfg::CfgPrj(cfg_prj) => cfg_prj,
         };
         Ok((save_data.tools_data_map, save_data.opened_folder, cfg_prj))
+    }
+    pub fn import(cur_tdm: &mut ToolsDataMap, file_path: &Path) -> RvResult<ToolsDataMap> {
+        let (mut loaded_tdm, _, _) = load(file_path)?;
+        for ((_, cur_data), (_, loaded_data)) in cur_tdm.iter_mut().zip(loaded_tdm.iter_mut()) {
+            match (&mut cur_data.specifics, &mut loaded_data.specifics) {
+                (ToolSpecifics::Bbox(cur_bbox), ToolSpecifics::Bbox(loaded_bbox)) => {
+                    let cur_annos = mem::take(&mut cur_bbox.annotations_map);
+                    let cur_li = mem::take(&mut cur_bbox.label_info);
+                    let loaded_annos = mem::take(&mut loaded_bbox.annotations_map);
+                    let loaded_li = mem::take(&mut loaded_bbox.label_info);
+                    let (merged_annos, merged_li) =
+                        merge(cur_annos, cur_li, loaded_annos, loaded_li);
+                    cur_bbox.annotations_map = merged_annos;
+                    cur_bbox.label_info = merged_li;
+                }
+                (ToolSpecifics::Brush(cur_brush), ToolSpecifics::Brush(loaded_brush)) => {
+                    let cur_annos = mem::take(&mut cur_brush.annotations_map);
+                    let cur_li = mem::take(&mut cur_brush.label_info);
+                    let loaded_annos = mem::take(&mut loaded_brush.annotations_map);
+                    let loaded_li = mem::take(&mut loaded_brush.label_info);
+                    let (merged_annos, merged_li) =
+                        merge(cur_annos, cur_li, loaded_annos, loaded_li);
+                    cur_brush.annotations_map = merged_annos;
+                    cur_brush.label_info = merged_li;
+                }
+                (ToolSpecifics::Rot90(cur_rot90), ToolSpecifics::Rot90(loaded_rot90)) => {
+                    *cur_rot90 = mem::take(cur_rot90).merge(mem::take(loaded_rot90));
+                }
+                (ToolSpecifics::Attributes(cur_attr), ToolSpecifics::Attributes(loaded_attr)) => {
+                    *cur_attr = mem::take(cur_attr).merge(mem::take(loaded_attr));
+                }
+                _ => {}
+            };
+        }
+        Ok(ToolsDataMap::new())
     }
 }
 const LOAD_ACTOR_NAME: &str = "Load";
@@ -292,6 +328,13 @@ impl Control {
         if self.save_handle.is_some() {
             mem::take(&mut self.save_handle).map(|h| trace_ok_err(h.join().map_err(to_rv)));
         }
+    }
+    pub fn import(
+        &self,
+        file_path: PathBuf,
+        tools_data_map: &mut ToolsDataMap,
+    ) -> RvResult<ToolsDataMap> {
+        detail::import(tools_data_map, &file_path)
     }
 
     pub fn write_lasttimeprjopened(&mut self) {

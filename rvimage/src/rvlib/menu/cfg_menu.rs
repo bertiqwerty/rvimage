@@ -189,7 +189,7 @@ impl<'a> CfgMenu<'a> {
         }
     }
 }
-impl<'a> Widget for CfgMenu<'a> {
+impl Widget for CfgMenu<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let edit_cfg_btn_resp = ui.button("Settings");
         if edit_cfg_btn_resp.clicked() {

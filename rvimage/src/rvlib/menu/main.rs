@@ -157,7 +157,7 @@ impl<'a> Help<'a> {
         }
     }
 }
-impl<'a> Widget for Help<'a> {
+impl Widget for Help<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let help_btn = ui.button("Help");
         if help_btn.clicked() {
@@ -199,12 +199,18 @@ impl<'a> Widget for Help<'a> {
     }
 }
 
-fn dialog_in_prjfolder(prj_path: &Path, dialog: rfd::FileDialog) -> rfd::FileDialog {
-    if let Some(folder) = prj_path.parent() {
+fn save_dialog_in_prjfolder(prj_path: &Path, opened_folder: Option<&str>) -> Option<PathBuf> {
+    let filename = get_prj_name(prj_path, opened_folder);
+    let dialog = rfd::FileDialog::new();
+    let dialog = if let Some(folder) = prj_path.parent() {
         dialog.set_directory(folder)
     } else {
         dialog
-    }
+    };
+    dialog
+        .add_filter("project files", &["json", "rvi"])
+        .set_file_name(filename)
+        .save_file()
 }
 
 pub struct TextBuffers {
@@ -304,15 +310,27 @@ impl Menu {
                         );
                     }
                 }
-                let filename =
-                    get_prj_name(ctrl.cfg.current_prj_path(), ctrl.opened_folder_label());
+                if ui.button("Import Project").clicked() {
+                    let prj_path = rfd::FileDialog::new()
+                        .add_filter("project files", &["json", "rvi"])
+                        .pick_file();
+                    if let Some(prj_path) = prj_path {
+                        handle_error!(
+                            |tdm| {
+                                *tools_data_map = tdm;
+                                projected_loaded = true;
+                            },
+                            ctrl.import(prj_path, tools_data_map),
+                            self
+                        );
+                    }
+                }
 
                 if ui.button("Save Project").clicked() {
-                    let prj_path =
-                        dialog_in_prjfolder(ctrl.cfg.current_prj_path(), rfd::FileDialog::new())
-                            .add_filter("project files", &["json", "rvi"])
-                            .set_file_name(filename)
-                            .save_file();
+                    let prj_path = save_dialog_in_prjfolder(
+                        ctrl.cfg.current_prj_path(),
+                        ctrl.opened_folder_label(),
+                    );
 
                     if let Some(prj_path) = prj_path {
                         handle_error!(ctrl.save(prj_path, tools_data_map, true), self);

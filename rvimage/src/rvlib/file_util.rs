@@ -280,7 +280,7 @@ pub struct LastPartOfPath<'a> {
     pub n_removed_separators: usize,
 }
 
-impl<'a> LastPartOfPath<'a> {
+impl LastPartOfPath<'_> {
     pub fn name(&self) -> String {
         format!(
             "{}{}{}",

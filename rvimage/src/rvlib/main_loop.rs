@@ -177,14 +177,14 @@ impl MainEventLoop {
         ctx: &Context,
     ) -> RvResult<UpdateView> {
         self.world.set_image_rect(ui_image_rect);
-        let project_loaded = self.menu.ui(
+        let project_loaded_in_curr_iter = self.menu.ui(
             ctx,
             &mut self.ctrl,
             &mut self.world.data.tools_data_map,
             find_active_tool(&self.tools),
         );
         self.world.data.meta_data.ssh_cfg = Some(self.ctrl.cfg.ssh_cfg());
-        if project_loaded {
+        if project_loaded_in_curr_iter {
             for t in &mut self.tools {
                 self.world = t.deactivate(mem::take(&mut self.world));
             }
