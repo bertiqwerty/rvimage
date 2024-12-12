@@ -141,4 +141,10 @@ where
     pub fn remove_pp(&mut self, key: &PathPair) {
         self.remove(key.path_relative());
     }
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+    pub fn keys(&self) -> impl Iterator<Item = &String> {
+        self.map.keys()
+    }
 }

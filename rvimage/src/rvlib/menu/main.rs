@@ -316,8 +316,7 @@ impl Menu {
                         .pick_file();
                     if let Some(prj_path) = prj_path {
                         handle_error!(
-                            |tdm| {
-                                *tools_data_map = tdm;
+                            |()| {
                                 projected_loaded = true;
                             },
                             ctrl.import(prj_path, tools_data_map),

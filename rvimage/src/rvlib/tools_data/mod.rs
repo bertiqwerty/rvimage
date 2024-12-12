@@ -224,3 +224,13 @@ impl ToolsData {
         }
     }
 }
+
+#[macro_export]
+macro_rules! toolsdata_by_name {
+    ($name:expr, $acc:ident, $tdm:expr) => {
+        $tdm.get_mut($name)
+            .ok_or(rvimage_domain::rverr!("{} is not a tool", $name))?
+            .specifics
+            .$acc()?
+    };
+}
