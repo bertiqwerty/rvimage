@@ -294,47 +294,51 @@ impl Menu {
                     button_resp,
                     self
                 );
+                ui.menu_button("Project", |ui| {
+                    if ui.button("Load").clicked() {
+                        let prj_path = rfd::FileDialog::new()
+                            .add_filter("project files", &["json", "rvi"])
+                            .pick_file();
+                        if let Some(prj_path) = prj_path {
+                            handle_error!(
+                                |tdm| {
+                                    *tools_data_map = tdm;
+                                    projected_loaded = true;
+                                },
+                                ctrl.load(prj_path),
+                                self
+                            );
+                        }
+                        ui.close_menu();
+                    }
+                    if ui.button("Import").clicked() {
+                        let prj_path = rfd::FileDialog::new()
+                            .add_filter("project files", &["json", "rvi"])
+                            .pick_file();
+                        if let Some(prj_path) = prj_path {
+                            handle_error!(
+                                |()| {
+                                    projected_loaded = true;
+                                },
+                                ctrl.import(prj_path, tools_data_map),
+                                self
+                            );
+                        }
+                        ui.close_menu();
+                    }
 
-                if ui.button("Load Project").clicked() {
-                    let prj_path = rfd::FileDialog::new()
-                        .add_filter("project files", &["json", "rvi"])
-                        .pick_file();
-                    if let Some(prj_path) = prj_path {
-                        handle_error!(
-                            |tdm| {
-                                *tools_data_map = tdm;
-                                projected_loaded = true;
-                            },
-                            ctrl.load(prj_path),
-                            self
+                    if ui.button("Save").clicked() {
+                        let prj_path = save_dialog_in_prjfolder(
+                            ctrl.cfg.current_prj_path(),
+                            ctrl.opened_folder_label(),
                         );
-                    }
-                }
-                if ui.button("Import Project").clicked() {
-                    let prj_path = rfd::FileDialog::new()
-                        .add_filter("project files", &["json", "rvi"])
-                        .pick_file();
-                    if let Some(prj_path) = prj_path {
-                        handle_error!(
-                            |()| {
-                                projected_loaded = true;
-                            },
-                            ctrl.import(prj_path, tools_data_map),
-                            self
-                        );
-                    }
-                }
 
-                if ui.button("Save Project").clicked() {
-                    let prj_path = save_dialog_in_prjfolder(
-                        ctrl.cfg.current_prj_path(),
-                        ctrl.opened_folder_label(),
-                    );
-
-                    if let Some(prj_path) = prj_path {
-                        handle_error!(ctrl.save(prj_path, tools_data_map, true), self);
+                        if let Some(prj_path) = prj_path {
+                            handle_error!(ctrl.save(prj_path, tools_data_map, true), self);
+                        }
+                        ui.close_menu();
                     }
-                }
+                });
                 let popup_id = ui.make_persistent_id("cfg-popup");
                 let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.are_tools_active);
                 ui.add(cfg_gui);
