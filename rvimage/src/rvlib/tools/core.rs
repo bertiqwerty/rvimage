@@ -73,7 +73,7 @@ pub(super) fn insert_attribute(
         trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
             d.options = attr_options;
             let attr_map = if let Some(filepath) = filepath {
-                d.attr_map(filepath)
+                d.attr_map_mut(filepath)
             } else {
                 d.current_attr_map.as_mut()
             };

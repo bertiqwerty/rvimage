@@ -1,14 +1,9 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    thread,
-    time::Duration,
-};
+use std::{fs, path::PathBuf, thread, time::Duration};
 
 use rvlib::{
     control::Control,
     defer_file_removal,
-    tools::{BBOX_NAME, BRUSH_NAME},
+    tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
     world::ToolsDataMap,
 };
 
@@ -51,52 +46,62 @@ fn test_prj_v4_0() {
 
 #[test]
 fn test_import() {
-    let mut ctrl = get_ctrl();
+    fn test(src1: PathBuf, src2: PathBuf, reference: PathBuf) {
+        let mut ctrl = get_ctrl();
+        let mut tdm_merged = ctrl.load(src1).unwrap();
+        thread::sleep(Duration::from_millis(5));
+        ctrl.import(src2, &mut tdm_merged).unwrap();
+        thread::sleep(Duration::from_millis(5));
+
+        let tdm_ref = ctrl.load(reference).unwrap();
+        thread::sleep(Duration::from_millis(5));
+
+        macro_rules! tst {
+            ($name:expr, $acc:ident) => {
+                let merged_map = tdm_merged[$name]
+                    .specifics
+                    .$acc()
+                    .unwrap()
+                    .annotations_map
+                    .clone();
+                let ref_map = tdm_ref[$name]
+                    .specifics
+                    .$acc()
+                    .unwrap()
+                    .annotations_map
+                    .clone();
+                for k in merged_map.keys() {
+                    let (merged_annos, merged_shape) = merged_map.get(k).unwrap();
+                    let (ref_annos, ref_shape) = ref_map.get(k).unwrap();
+                    for elt in merged_annos.elts() {
+                        assert!(ref_annos.elts().contains(elt));
+                    }
+                    for elt in ref_annos.elts() {
+                        assert!(merged_annos.elts().contains(elt));
+                    }
+                    assert_eq!(merged_annos, ref_annos);
+                    assert_eq!(merged_shape, ref_shape);
+                }
+            };
+        }
+        tst!(BBOX_NAME, bbox);
+        tst!(BRUSH_NAME, brush);
+
+        let rot90_merged = tdm_merged[ROT90_NAME].specifics.rot90().unwrap();
+        let rot90_ref = tdm_ref[ROT90_NAME].specifics.rot90().unwrap();
+        for (file, rot_merged) in rot90_merged.anno_iter() {
+            assert_eq!(*rot_merged, rot90_ref.annotations_map()[file]);
+        }
+        let attr_merged = tdm_merged[ATTRIBUTES_NAME].specifics.attributes().unwrap();
+        let attr_ref = tdm_ref[ATTRIBUTES_NAME].specifics.attributes().unwrap();
+        for (file, (attr, _)) in attr_merged.anno_iter() {
+            assert_eq!(*attr, attr_ref.attr_map(file).cloned().unwrap());
+        }
+    }
     let test_file_src_1 =
         get_test_folder().join(get_test_folder().join("import-test-src-flowerlabel.json"));
     let test_file_src_2 =
         get_test_folder().join(get_test_folder().join("import-test-src-treelabel.json"));
     let test_file_src_ref = get_test_folder().join(get_test_folder().join("import-test.json"));
-    let mut tdm_merged = ctrl.load(test_file_src_1.clone()).unwrap();
-    thread::sleep(Duration::from_millis(5));
-    ctrl.import(test_file_src_2, &mut tdm_merged).unwrap();
-    thread::sleep(Duration::from_millis(5));
-    ctrl.save(Path::new("tmp_prj.json").to_path_buf(), &tdm_merged, false)
-        .unwrap();
-
-    let tdm_ref = ctrl.load(test_file_src_ref.clone()).unwrap();
-    thread::sleep(Duration::from_millis(5));
-
-    macro_rules! tst {
-        ($name:expr, $acc:ident) => {
-            let merged_map = tdm_merged[$name]
-                .specifics
-                .$acc()
-                .unwrap()
-                .annotations_map
-                .clone();
-            let ref_map = tdm_ref[$name]
-                .specifics
-                .$acc()
-                .unwrap()
-                .annotations_map
-                .clone();
-            for k in merged_map.keys() {
-                let (merged_annos, merged_shape) = merged_map.get(k).unwrap();
-                let (ref_annos, ref_shape) = ref_map.get(k).unwrap();
-                for elt in merged_annos.elts() {
-                    assert!(ref_annos.elts().contains(elt));
-                }
-                for elt in ref_annos.elts() {
-                    assert!(merged_annos.elts().contains(elt));
-                }
-                assert_eq!(merged_annos, ref_annos);
-                assert_eq!(merged_shape, ref_shape);
-            }
-            println!("{:?}", merged_map.keys().collect::<Vec<_>>());
-            println!("{:?}", ref_map.keys().collect::<Vec<_>>());
-        };
-    }
-    tst!(BBOX_NAME, bbox);
-    tst!(BRUSH_NAME, brush);
+    test(test_file_src_1, test_file_src_2, test_file_src_ref);
 }

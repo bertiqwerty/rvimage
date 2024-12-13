@@ -212,7 +212,12 @@ impl AttributesToolData {
         self.annotations_map = map;
         Ok(())
     }
-    pub fn attr_map(&mut self, filename: &str) -> Option<&mut AttrMap> {
+    pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {
+        self.annotations_map
+            .get(filename)
+            .map(|(attr_map, _)| attr_map)
+    }
+    pub fn attr_map_mut(&mut self, filename: &str) -> Option<&mut AttrMap> {
         self.annotations_map
             .get_mut(filename)
             .map(|(attr_map, _)| attr_map)
