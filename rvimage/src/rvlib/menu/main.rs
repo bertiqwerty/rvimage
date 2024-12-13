@@ -10,7 +10,7 @@ use crate::{
     util::version_label,
     world::ToolsDataMap,
 };
-use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
+use egui::{Context, Id, Response, RichText, Ui};
 use rvimage_domain::RvResult;
 use std::{
     mem,
@@ -143,62 +143,6 @@ impl Default for ToolSelectMenu {
     }
 }
 
-struct Help<'a> {
-    id: Id,
-    show_help: &'a mut bool,
-    export_logs: &'a mut Option<PathBuf>,
-}
-impl<'a> Help<'a> {
-    pub fn new(id: Id, show_help: &'a mut bool, export_logs: &'a mut Option<PathBuf>) -> Self {
-        Self {
-            id,
-            show_help,
-            export_logs,
-        }
-    }
-}
-impl Widget for Help<'_> {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let help_btn = ui.button("Help");
-        if help_btn.clicked() {
-            *self.show_help = true;
-        }
-        if *self.show_help {
-            ui.memory_mut(|m| m.open_popup(self.id));
-            if ui.memory(|m| m.is_popup_open(self.id)) {
-                let area = Area::new(self.id)
-                    .order(Order::Foreground)
-                    .default_pos(help_btn.rect.left_bottom());
-                area.show(ui.ctx(), |ui| {
-                    Frame::popup(ui.style()).show(ui, |ui| {
-                        ui.label("RV Image\n");
-                        const CODE: &str = env!("CARGO_PKG_REPOSITORY");
-                        let version_label = version_label();
-                        ui.label(version_label);
-                        ui.hyperlink_to("Docs, License, and Code", CODE);
-                        if ui.button("Export Logs").clicked() {
-                            let log_export_dst = rfd::FileDialog::new()
-                                .add_filter("zip", &["zip"])
-                                .set_file_name("logs.zip")
-                                .save_file();
-
-                            *self.export_logs = log_export_dst;
-                            ui.memory_mut(|m| m.close_popup());
-                            *self.show_help = false;
-                        }
-                        let resp_close = ui.button("Close");
-                        if resp_close.clicked() {
-                            ui.memory_mut(|m| m.close_popup());
-                            *self.show_help = false;
-                        }
-                    });
-                });
-            }
-        }
-        help_btn
-    }
-}
-
 fn save_dialog_in_prjfolder(prj_path: &Path, opened_folder: Option<&str>) -> Option<PathBuf> {
     let filename = get_prj_name(prj_path, opened_folder);
     let dialog = rfd::FileDialog::new();
@@ -226,7 +170,6 @@ pub struct Menu {
     scroll_offset: f32,
     open_folder_popup_open: bool,
     stats: Stats,
-    show_about: bool,
     text_buffers: TextBuffers,
     show_file_idx: bool,
 }
@@ -245,7 +188,6 @@ impl Menu {
             scroll_offset: 0.0,
             open_folder_popup_open: false,
             stats: Stats::default(),
-            show_about: false,
             text_buffers,
             show_file_idx: true,
         }
@@ -341,13 +283,28 @@ impl Menu {
                 });
                 let popup_id = ui.make_persistent_id("cfg-popup");
                 let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.are_tools_active);
+
                 ui.add(cfg_gui);
-                let about_popup_id = ui.make_persistent_id("about-popup");
-                ui.add(Help::new(
-                    about_popup_id,
-                    &mut self.show_about,
-                    &mut ctrl.log_export_path,
-                ));
+                ui.menu_button("Help", |ui| {
+                    ui.label("RV Image\n");
+                    const CODE: &str = env!("CARGO_PKG_REPOSITORY");
+                    let version_label = version_label();
+                    ui.label(version_label);
+                    ui.hyperlink_to("Docs, License, and Code", CODE);
+                    if ui.button("Export Logs").clicked() {
+                        let log_export_dst = rfd::FileDialog::new()
+                            .add_filter("zip", &["zip"])
+                            .set_file_name("logs.zip")
+                            .save_file();
+
+                        ctrl.log_export_path = log_export_dst;
+                        ui.close_menu();
+                    }
+                    let resp_close = ui.button("Close");
+                    if resp_close.clicked() {
+                        ui.close_menu();
+                    }
+                });
             });
         });
         egui::SidePanel::left("left-main-menu").show(ctx, |ui| {
