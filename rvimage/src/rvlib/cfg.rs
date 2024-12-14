@@ -394,6 +394,9 @@ impl Cfg {
     pub fn set_current_prj_path(&mut self, pp: PathBuf) {
         self.usr.current_prj_path = Some(pp);
     }
+    pub fn unset_current_prj_path(&mut self) {
+        self.usr.current_prj_path = None;
+    }
 }
 
 #[test]

@@ -237,6 +237,10 @@ impl Menu {
                     self
                 );
                 ui.menu_button("Project", |ui| {
+                    if ui.button("New").clicked() {
+                        (*ctrl, *tools_data_map) = Control::new_prj();
+                        ui.close_menu();
+                    }
                     if ui.button("Load").clicked() {
                         let prj_path = rfd::FileDialog::new()
                             .add_filter("project files", &["json", "rvi"])

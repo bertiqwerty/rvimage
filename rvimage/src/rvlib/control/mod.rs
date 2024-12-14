@@ -13,13 +13,13 @@ use crate::{
 use chrono::{DateTime, Utc};
 use rvimage_domain::{to_rv, RvError, RvResult};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs;
 use std::io::Write;
-use std::mem;
 use std::path::{Path, PathBuf};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
+use std::{fs, mem};
 use zip::write::ExtendedFileOptions;
 mod filter;
 pub mod paths_navigator;
@@ -396,6 +396,20 @@ impl Control {
             ..Default::default()
         }
     }
+    pub fn new_prj() -> (Self, ToolsDataMap) {
+        let mut cfg = cfg::read_cfg().unwrap_or_else(|e| {
+            warn!("could not read cfg due to {e:?}, returning default");
+            cfg::get_default_cfg()
+        });
+        cfg.unset_current_prj_path();
+        (
+            Self {
+                cfg,
+                ..Default::default()
+            },
+            HashMap::new(),
+        )
+    }
 
     pub fn reader(&self) -> Option<&ReaderFromCfg> {
         self.reader.as_ref()
@@ -689,7 +703,7 @@ use {
         tools_data::{BboxToolData, ToolSpecifics, ToolsData},
     },
     rvimage_domain::{make_test_bbs, ShapeI},
-    std::{collections::HashMap, str::FromStr},
+    std::str::FromStr,
 };
 #[cfg(test)]
 pub fn make_data(image_file: &Path) -> ToolsDataMap {
