@@ -1,4 +1,9 @@
-use std::{fs, path::PathBuf, thread, time::Duration};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    thread,
+    time::Duration,
+};
 
 use rvlib::{
     control::Control,
@@ -18,12 +23,18 @@ fn get_ctrl() -> Control {
     ctrl
 }
 
+fn tmp_copy(src: &Path) -> PathBuf {
+    let tmp_file_stem = src.file_stem().unwrap();
+    let tmp_file = get_test_folder().join(format!("tmp-{:?}", tmp_file_stem));
+    fs::copy(src, &tmp_file).unwrap();
+    tmp_file
+}
+
 fn prj_load(file: &str) -> ToolsDataMap {
     let mut ctrl = get_ctrl();
     let test_file_src = get_test_folder().join(get_test_folder().join(file));
-    let test_file = get_test_folder().join("tmp-test.rvi");
+    let test_file = tmp_copy(&test_file_src);
     defer_file_removal!(&test_file);
-    fs::copy(&test_file_src, &test_file).unwrap();
     let tdm = ctrl.load(test_file.clone()).unwrap();
     thread::sleep(Duration::from_millis(5));
     tdm
@@ -48,12 +59,16 @@ fn test_prj_v4_0() {
 fn test_import() {
     fn test(src1: PathBuf, src2: PathBuf, reference: PathBuf) {
         let mut ctrl = get_ctrl();
-        let mut tdm_merged = ctrl.load(src1).unwrap();
+        let src1 = tmp_copy(&src1);
+        defer_file_removal!(&src1);
+        let mut tdm_merged = ctrl.load(src1.clone()).unwrap();
         thread::sleep(Duration::from_millis(5));
         ctrl.import(src2, &mut tdm_merged).unwrap();
         thread::sleep(Duration::from_millis(5));
 
-        let tdm_ref = ctrl.load(reference).unwrap();
+        let reference = tmp_copy(&reference);
+        defer_file_removal!(&reference);
+        let tdm_ref = ctrl.load(reference.clone()).unwrap();
         thread::sleep(Duration::from_millis(5));
 
         macro_rules! tst {
