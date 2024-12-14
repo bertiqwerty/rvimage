@@ -237,7 +237,13 @@ impl Menu {
                     self
                 );
                 ui.menu_button("Project", |ui| {
-                    if ui.button("New").clicked() {
+                    if ui
+                        .button("New")
+                        .on_hover_text(
+                            "Double click, old project will be closed, unsaved data will get lost",
+                        )
+                        .double_clicked()
+                    {
                         (*ctrl, *tools_data_map) = Control::new_prj();
                         ui.close_menu();
                     }
