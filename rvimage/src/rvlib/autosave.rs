@@ -3,7 +3,6 @@ use regex::Regex;
 use std::{
     fs,
     path::{Path, PathBuf},
-    thread,
 };
 
 use lazy_static::lazy_static;
@@ -14,7 +13,7 @@ use crate::{file_util::osstr_to_str, result::trace_ok_err};
 const DATE_FORMAT: &str = "%y%m%d";
 
 pub const AUTOSAVE_KEEP_N_DAYS: i64 = 30;
-pub const AUTOSAVE_INTERVAL_S: u64 = 30;
+pub const AUTOSAVE_INTERVAL_S: u64 = 120;
 
 fn extract_date(filename: &str) -> Option<NaiveDate> {
     lazy_static! {
@@ -61,14 +60,14 @@ pub fn autosave(
     current_prj_path: &Path,
     homefolder: Option<String>,
     n_autosaves: u8,
-    mut save_prj: impl FnMut(PathBuf) -> RvResult<()>,
+    mut save_prj: impl FnMut(PathBuf) -> RvResult<()> + Send,
 ) -> RvResult<()> {
     let prj_stem = osstr_to_str(current_prj_path.file_stem())
         .map_err(to_rv)?
         .to_string();
     let homefolder = homefolder.map(PathBuf::from);
 
-    let (today, date_n_days_ago) = make_timespan(AUTOSAVE_KEEP_N_DAYS);
+    let (now, date_n_days_ago) = make_timespan(AUTOSAVE_KEEP_N_DAYS);
 
     // remove too old files
     let files = list_files(homefolder.as_deref(), None, Some(date_n_days_ago))?;
@@ -77,7 +76,7 @@ pub fn autosave(
         trace_ok_err(fs::remove_file(p));
     }
 
-    let today_str = today.format(DATE_FORMAT).to_string();
+    let today_str = now.format(DATE_FORMAT).to_string();
 
     let make_filepath = move |n| {
         homefolder
@@ -85,16 +84,14 @@ pub fn autosave(
             .map(|hf| hf.join(format!("{prj_stem}-autosave_d{today_str}_{n}.json")))
     };
     let mf_th = make_filepath.clone();
-    thread::spawn(move || {
-        for i in 0..(n_autosaves - 1) {
-            if let (Some(from), Some(to)) = (mf_th(i), mf_th(i + 1)) {
-                if from.exists() {
-                    trace_ok_err(fs::copy(from, to));
-                }
+    for i in 1..(n_autosaves) {
+        if let (Some(from), Some(to)) = (mf_th(i), mf_th(i - 1)) {
+            if from.exists() {
+                trace_ok_err(fs::copy(from, to));
             }
         }
-    });
-    let prj_path = make_filepath(0);
+    }
+    let prj_path = make_filepath(n_autosaves - 1);
     if let Some(prj_path) = prj_path {
         if trace_ok_err(save_prj(prj_path)).is_some() {
             tracing::info!("autosaved");

@@ -297,7 +297,8 @@ impl Menu {
                 ui.add(cfg_gui);
 
                 let popup_id = ui.make_persistent_id("autosave-popup");
-                let autosave_gui = AutosaveMenu::new(popup_id, ctrl);
+                let autosave_gui =
+                    AutosaveMenu::new(popup_id, ctrl, tools_data_map, &mut projected_loaded);
                 ui.add(autosave_gui);
 
                 ui.menu_button("Help", |ui| {

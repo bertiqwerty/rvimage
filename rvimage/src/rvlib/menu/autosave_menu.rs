@@ -1,11 +1,13 @@
-use std::path::Path;
+use std::{fs, path::Path};
 
+use chrono::{DateTime, Local};
 use egui::{Area, Frame, Id, Order, Response, Ui, Widget};
 
 use crate::{
     autosave::{list_files, make_timespan, AUTOSAVE_KEEP_N_DAYS},
     control::Control,
     result::trace_ok_err,
+    world::ToolsDataMap,
 };
 
 enum Close {
@@ -13,47 +15,76 @@ enum Close {
     No,
 }
 
-fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> Close {
+fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
     let mut close = Close::No;
-
+    let mut tdm = None;
     Frame::popup(ui.style()).show(ui, |ui| {
         let (today, date_n_days_ago) = make_timespan(AUTOSAVE_KEEP_N_DAYS);
         let folder = trace_ok_err(ctrl.cfg.home_folder());
         let folder = folder.map(Path::new);
         let files = trace_ok_err(list_files(folder, Some(date_n_days_ago), Some(today)));
-        if let Some(files) = files {
-            for p in files {
-                if let Some(p_) = p.to_str() {
-                    if ui
-                        .button(p_)
-                        .on_hover_text("double click to switch, loss of unsaved data")
-                        .double_clicked()
-                    {
-                        trace_ok_err(ctrl.replace_with_autosave(p.clone()));
+        egui::Grid::new("autosave-menu-grid").show(ui, |ui| {
+            if let Some(files) = files {
+                for path in files {
+                    if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
+                        if ui
+                            .button(egui::RichText::new(file_name).monospace())
+                            .on_hover_text("double click to apply, LOSS(💀) of unsaved data")
+                            .double_clicked()
+                        {
+                            tdm = trace_ok_err(ctrl.replace_with_autosave(&path));
+                            close = Close::Yes;
+                        }
+                        if let Some(metadata) = trace_ok_err(fs::metadata(&path)) {
+                            let n_bytes = metadata.len();
+                            let mb = n_bytes as f64 / (1024.0f64).powi(2);
+                            let mb = format!("{mb:0.3}mb");
+                            ui.label(egui::RichText::new(mb).monospace());
+
+                            if let Ok(modified) = metadata.modified() {
+                                let datetime: DateTime<Local> = modified.into();
+                                let datetime = datetime.format("%b %d %Y - %H:%M:%S").to_string();
+                                ui.label(egui::RichText::new(datetime).monospace());
+                            }
+                        }
+                        ui.end_row();
                     }
                 }
             }
-        }
+        });
         ui.horizontal(|ui| {
             if ui.button("Close").clicked() {
                 close = Close::Yes;
             }
         })
     });
-    close
+    (close, tdm)
 }
 
 pub struct AutosaveMenu<'a> {
     id: Id,
     ctrl: &'a mut Control,
+    tdm: &'a mut ToolsDataMap,
+    project_loaded: &'a mut bool,
 }
 impl<'a> AutosaveMenu<'a> {
-    pub fn new(id: Id, ctrl: &'a mut Control) -> AutosaveMenu<'a> {
-        Self { id, ctrl }
+    pub fn new(
+        id: Id,
+        ctrl: &'a mut Control,
+        tools_data_map: &'a mut ToolsDataMap,
+        project_loaded: &'a mut bool,
+    ) -> AutosaveMenu<'a> {
+        Self {
+            id,
+            ctrl,
+            tdm: tools_data_map,
+            project_loaded,
+        }
     }
 }
 impl Widget for AutosaveMenu<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        *self.project_loaded = false;
         let autosaves_btn_resp = ui.button("Show Autosaves");
         if autosaves_btn_resp.clicked() {
             ui.memory_mut(|m| m.toggle_popup(self.id));
@@ -66,7 +97,12 @@ impl Widget for AutosaveMenu<'_> {
             let mut close = Close::No;
             let area_response = area
                 .show(ui.ctx(), |ui| {
-                    close = autosave_popup(ui, self.ctrl);
+                    let (close_, tdm) = autosave_popup(ui, self.ctrl);
+                    close = close_;
+                    if let Some(tdm) = tdm {
+                        *self.tdm = tdm;
+                        *self.project_loaded = true;
+                    }
                 })
                 .response;
             if let Close::Yes = close {

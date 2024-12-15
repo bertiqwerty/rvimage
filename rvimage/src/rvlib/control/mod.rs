@@ -303,7 +303,7 @@ impl Control {
         Ok(())
     }
 
-    pub fn replace_with_autosave(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
+    pub fn replace_with_autosave(&mut self, file_path: &Path) -> RvResult<ToolsDataMap> {
         let cur_prj_path = self.cfg.current_prj_path().to_path_buf();
         if let Some(cpp) = cur_prj_path.parent() {
             let new_prj_path = cpp.join(
@@ -312,7 +312,7 @@ impl Control {
                     .ok_or_else(|| rverr!("could not get filename to copy to"))?,
             );
             defer_file_removal!(&new_prj_path);
-            trace_ok_err(fs::copy(&file_path, &new_prj_path));
+            trace_ok_err(fs::copy(file_path, &new_prj_path));
             let loaded = self.load(new_prj_path.clone())?;
             self.cfg.set_current_prj_path(cur_prj_path);
             cfg::write_cfg(&self.cfg)?;

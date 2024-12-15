@@ -483,8 +483,8 @@ impl Manipulate for Brush {
         world
     }
     fn on_deactivate(&mut self, mut world: World) -> World {
-        if let Some(td) = world.data.tools_data_map.get_mut(BRUSH_NAME) {
-            td.menu_active = false;
+        if let Some(data) = trace_ok_err(get_data_mut(&mut world)) {
+            data.menu_active = false;
         }
         world.request_redraw_annotations(BRUSH_NAME, Visibility::None);
         world
