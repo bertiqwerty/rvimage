@@ -1,4 +1,5 @@
 use crate::cfg::{self, get_log_folder, Connection};
+use crate::defer_file_removal;
 use crate::file_util::{
     self, osstr_to_str, PathPair, SavedCfg, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
 };
@@ -11,7 +12,7 @@ use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
 use chrono::{DateTime, Utc};
-use rvimage_domain::{to_rv, RvError, RvResult};
+use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -302,6 +303,24 @@ impl Control {
         Ok(())
     }
 
+    pub fn replace_with_autosave(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
+        let cur_prj_path = self.cfg.current_prj_path().to_path_buf();
+        if let Some(cpp) = cur_prj_path.parent() {
+            let new_prj_path = cpp.join(
+                file_path
+                    .file_name()
+                    .ok_or_else(|| rverr!("could not get filename to copy to"))?,
+            );
+            defer_file_removal!(&new_prj_path);
+            trace_ok_err(fs::copy(&file_path, &new_prj_path));
+            let loaded = self.load(new_prj_path.clone())?;
+            self.cfg.set_current_prj_path(cur_prj_path);
+            cfg::write_cfg(&self.cfg)?;
+            Ok(loaded)
+        } else {
+            Err(rverr!("{cur_prj_path:?} does not have a parent folder"))
+        }
+    }
     pub fn load(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
         // we need the project path before reading the annotations to map
         // their path correctly
@@ -697,7 +716,6 @@ impl Control {
 #[cfg(test)]
 use {
     crate::{
-        defer_file_removal,
         file_util::DEFAULT_TMPDIR,
         tools::BBOX_NAME,
         tools_data::{BboxToolData, ToolSpecifics, ToolsData},

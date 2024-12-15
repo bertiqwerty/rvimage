@@ -1,6 +1,6 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
-use crate::autosave::autosave;
+use crate::autosave::{autosave, AUTOSAVE_INTERVAL_S};
 use crate::control::{Control, Info};
 use crate::drawme::ImageInfo;
 use crate::events::{Events, KeyCode};
@@ -29,8 +29,6 @@ use tracing::{error, info, warn};
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 
-const AUTOSAVE_INTERVAL_S: u64 = 30;
-const AUTOSAVE_KEEP_N_DAYS: i64 = 30;
 const DEAD_MANS_SWITCH_S: u64 = 60;
 
 fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
@@ -415,7 +413,6 @@ impl MainEventLoop {
                     &current_prj_path,
                     homefolder,
                     n_autosaves,
-                    AUTOSAVE_KEEP_N_DAYS,
                     save_prj,
                 ));
             }

@@ -2,8 +2,8 @@ use crate::{
     control::{Control, Info},
     file_util::get_prj_name,
     menu::{
-        self, cfg_menu::CfgMenu, label_delpropstats::labels_and_sorting, open_folder,
-        ui_util::text_edit_singleline,
+        self, autosave_menu::AutosaveMenu, cfg_menu::CfgMenu,
+        label_delpropstats::labels_and_sorting, open_folder, ui_util::text_edit_singleline,
     },
     tools::ToolState,
     tools_data::ToolSpecifics,
@@ -291,10 +291,15 @@ impl Menu {
                         ui.close_menu();
                     }
                 });
+
                 let popup_id = ui.make_persistent_id("cfg-popup");
                 let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.are_tools_active);
-
                 ui.add(cfg_gui);
+
+                let popup_id = ui.make_persistent_id("autosave-popup");
+                let autosave_gui = AutosaveMenu::new(popup_id, ctrl);
+                ui.add(autosave_gui);
+
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");
                     const CODE: &str = env!("CARGO_PKG_REPOSITORY");

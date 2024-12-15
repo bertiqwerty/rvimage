@@ -13,6 +13,9 @@ use crate::{file_util::osstr_to_str, result::trace_ok_err};
 
 const DATE_FORMAT: &str = "%y%m%d";
 
+pub const AUTOSAVE_KEEP_N_DAYS: i64 = 30;
+pub const AUTOSAVE_INTERVAL_S: u64 = 30;
+
 fn extract_date(filename: &str) -> Option<NaiveDate> {
     lazy_static! {
         static ref DATE_REGEX: Regex = Regex::new(r"_d[0-9]{6}_").expect("Failed to compile regex");
@@ -24,7 +27,11 @@ fn extract_date(filename: &str) -> Option<NaiveDate> {
     None
 }
 
-fn list_files(homefolder: Option<&Path>, date_n_days_ago: NaiveDate) -> RvResult<Vec<PathBuf>> {
+pub fn list_files(
+    homefolder: Option<&Path>,
+    start_date: Option<NaiveDate>,
+    end_date: Option<NaiveDate>,
+) -> RvResult<Vec<PathBuf>> {
     let mut res = vec![];
     if let Some(homefolder) = &homefolder {
         for entry in fs::read_dir(homefolder).map_err(to_rv)? {
@@ -32,7 +39,9 @@ fn list_files(homefolder: Option<&Path>, date_n_days_ago: NaiveDate) -> RvResult
             let path = entry.path();
             if let Some(filename) = path.file_name().and_then(|name| name.to_str()) {
                 if let Some(date) = extract_date(filename) {
-                    if date < date_n_days_ago {
+                    if start_date.map(|sd| date >= sd) != Some(false)
+                        && end_date.map(|ed| date <= ed) != Some(false)
+                    {
                         res.push(path);
                     }
                 }
@@ -42,22 +51,27 @@ fn list_files(homefolder: Option<&Path>, date_n_days_ago: NaiveDate) -> RvResult
     Ok(res)
 }
 
+pub fn make_timespan(n_days: i64) -> (NaiveDate, NaiveDate) {
+    let today = Local::now().date_naive();
+    let date_n_days_ago = today - Duration::days(n_days);
+    (today, date_n_days_ago)
+}
+
 pub fn autosave(
     current_prj_path: &Path,
     homefolder: Option<String>,
     n_autosaves: u8,
-    n_days: i64,
     mut save_prj: impl FnMut(PathBuf) -> RvResult<()>,
 ) -> RvResult<()> {
     let prj_stem = osstr_to_str(current_prj_path.file_stem())
         .map_err(to_rv)?
         .to_string();
     let homefolder = homefolder.map(PathBuf::from);
-    let today = Local::now().date_naive();
+
+    let (today, date_n_days_ago) = make_timespan(AUTOSAVE_KEEP_N_DAYS);
 
     // remove too old files
-    let n_days_ago = today - Duration::days(n_days);
-    let files = list_files(homefolder.as_deref(), n_days_ago)?;
+    let files = list_files(homefolder.as_deref(), None, Some(date_n_days_ago))?;
     for p in files {
         tracing::info!("deleting {p:?}");
         trace_ok_err(fs::remove_file(p));
@@ -113,7 +127,8 @@ fn test_list_files() {
     init_tracing_for_tests();
     let files = list_files(
         Some(&get_test_folder()),
-        NaiveDate::parse_from_str("241216", DATE_FORMAT).unwrap(),
+        None,
+        NaiveDate::parse_from_str("241216", DATE_FORMAT).ok(),
     );
     assert_eq!(
         files.unwrap()[0].file_name().unwrap(),
