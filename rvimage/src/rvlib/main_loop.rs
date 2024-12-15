@@ -1,5 +1,6 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
+use crate::autosave::autosave;
 use crate::control::{Control, Info};
 use crate::drawme::ImageInfo;
 use crate::events::{Events, KeyCode};
@@ -19,16 +20,17 @@ use image::{ImageBuffer, Rgb};
 use rvimage_domain::{PtI, RvResult, ShapeF};
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::time::Instant;
-use std::{fs, mem, thread};
 use tracing::{error, info, warn};
 
 const START_WIDTH: u32 = 640;
 const START_HEIGHT: u32 = 480;
 
-const AUTOSAVE_INTERVAL_S: u64 = 120;
+const AUTOSAVE_INTERVAL_S: u64 = 30;
+const AUTOSAVE_KEEP_N_DAYS: i64 = 30;
 const DEAD_MANS_SWITCH_S: u64 = 60;
 
 fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
@@ -403,37 +405,19 @@ impl MainEventLoop {
         if let Some(n_autosaves) = self.ctrl.cfg.usr.n_autosaves {
             if self.autosave_timer.elapsed().as_secs() > AUTOSAVE_INTERVAL_S {
                 self.autosave_timer = Instant::now();
-
-                let homefolder = self.ctrl.cfg.home_folder().map(PathBuf::from);
-                let make_filepath = move |n| {
-                    trace_ok_err(
-                        homefolder
-                            .clone()
-                            .map(|hf| hf.join(format!("autosave_{n}.json", n = n))),
-                    )
+                let homefolder = trace_ok_err(self.ctrl.cfg.home_folder()).map(String::from);
+                let current_prj_path = self.ctrl.cfg.current_prj_path().to_path_buf();
+                let save_prj = |prj_path| {
+                    self.ctrl
+                        .save(prj_path, &self.world.data.tools_data_map, false)
                 };
-                let mf_th = make_filepath.clone();
-                thread::spawn(move || {
-                    for i in 1..(n_autosaves) {
-                        if let (Some(from), Some(to)) = (mf_th(i), mf_th(i - 1)) {
-                            if from.exists() {
-                                trace_ok_err(fs::copy(from, to));
-                            }
-                        }
-                    }
-                });
-                let prj_path = make_filepath(n_autosaves - 1);
-                if let Some(prj_path) = prj_path {
-                    if trace_ok_err(self.ctrl.save(
-                        prj_path,
-                        &self.world.data.tools_data_map,
-                        false,
-                    ))
-                    .is_some()
-                    {
-                        info!("autosaved");
-                    }
-                }
+                trace_ok_err(autosave(
+                    &current_prj_path,
+                    homefolder,
+                    n_autosaves,
+                    AUTOSAVE_KEEP_N_DAYS,
+                    save_prj,
+                ));
             }
         }
 

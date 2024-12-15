@@ -7,6 +7,7 @@ use tracing_subscriber::{
     fmt::{writer::MakeWriterExt, Layer},
     prelude::*,
 };
+
 thread_local! {
     pub static BACKTRACE: RefCell<Option<Backtrace>> = const { RefCell::new(None) };
 }
@@ -35,4 +36,19 @@ pub fn tracing_setup() -> WorkerGuard {
         BACKTRACE.with(move |b| b.borrow_mut().replace(trace));
     }));
     guard_flush_file
+}
+
+#[cfg(test)]
+use std::sync::Once;
+#[cfg(test)]
+static INIT: Once = Once::new();
+
+#[test]
+pub fn init_tracing_for_tests() {
+    INIT.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_test_writer()
+            .init();
+    });
 }
