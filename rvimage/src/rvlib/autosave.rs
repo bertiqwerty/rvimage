@@ -72,8 +72,8 @@ pub fn autosave(
     };
     let mf_th = make_filepath.clone();
     thread::spawn(move || {
-        for i in 1..(n_autosaves) {
-            if let (Some(from), Some(to)) = (mf_th(i), mf_th(i - 1)) {
+        for i in 0..(n_autosaves - 1) {
+            if let (Some(from), Some(to)) = (mf_th(i), mf_th(i + 1)) {
                 if from.exists() {
                     trace_ok_err(fs::copy(from, to));
                 }
