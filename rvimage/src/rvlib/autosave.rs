@@ -94,7 +94,7 @@ pub fn autosave(
             }
         }
     });
-    let prj_path = make_filepath(n_autosaves - 1);
+    let prj_path = make_filepath(0);
     if let Some(prj_path) = prj_path {
         if trace_ok_err(save_prj(prj_path)).is_some() {
             tracing::info!("autosaved");
