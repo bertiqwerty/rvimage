@@ -74,3 +74,5 @@ rvimage-domain = "0.4.7"
 clap = { version = "4.5.23", features = ["derive"] }
 chrono = { version = "0.4.39", features = ["serde"] }
 whoami = "1.5.2"
+# temporary pin
+url = "2.5.4"
