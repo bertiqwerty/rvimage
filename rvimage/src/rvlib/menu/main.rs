@@ -244,7 +244,7 @@ impl Menu {
                         )
                         .double_clicked()
                     {
-                        (*ctrl, *tools_data_map) = Control::new_prj();
+                        *tools_data_map = ctrl.new_prj();
                         ui.close_menu();
                     }
                     if ui.button("Load").clicked() {

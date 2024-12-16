@@ -5,7 +5,7 @@ use crate::file_util::{
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
-use crate::result::trace_ok_err;
+use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::world::{DataRaw, ToolsDataMap, World};
 use crate::{
@@ -30,14 +30,18 @@ use tracing::{info, warn};
 use walkdir::WalkDir;
 
 mod detail {
-    use std::{mem, path::Path};
+    use std::{
+        mem,
+        path::{Path, PathBuf},
+    };
 
     use image::{DynamicImage, ImageBuffer};
     use serde::{Deserialize, Serialize, Serializer};
 
     use crate::{
         cfg::{read_cfg, write_cfg, Cfg, CfgPrj},
-        control::{LastTimePrjOpened, SavePrjData},
+        control::SavePrjData,
+        defer_file_removal,
         file_util::{self, tf_to_annomap_key, SavedCfg},
         result::trace_ok_err,
         tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
@@ -46,10 +50,10 @@ mod detail {
         util::version_label,
         world::{ToolsDataMap, World},
     };
-    use rvimage_domain::result::RvResult;
     use rvimage_domain::ShapeI;
+    use rvimage_domain::{result::RvResult, to_rv};
 
-    use super::load_prj;
+    use super::{load_prj, UserPrjOpened};
 
     pub fn serialize_opened_folder<S>(
         folder: &Option<String>,
@@ -74,6 +78,24 @@ mod detail {
         let folder: Option<String> = Option::deserialize(deserializer)?;
 
         Ok(folder.map(|p| tf_to_annomap_key(p, prj_path)))
+    }
+
+    fn lock_file_path(file_path: &Path) -> RvResult<PathBuf> {
+        let stem = file_util::osstr_to_str(file_path.file_stem()).map_err(to_rv)?;
+        Ok(file_path.with_file_name(format!(".{stem}.lock")))
+    }
+    pub(super) fn create_lock_file(file_path: &Path) -> RvResult<()> {
+        let lock_file = lock_file_path(file_path)?;
+        let upo = UserPrjOpened::new();
+        let s = serde_json::to_string(&upo).map_err(to_rv)?;
+        file_util::save(&lock_file, s)
+    }
+    pub(super) fn remove_lock_file(file_path: &Path) -> RvResult<()> {
+        if file_path.exists() {
+            let lock_file = lock_file_path(file_path)?;
+            defer_file_removal!(&lock_file);
+        }
+        Ok(())
     }
 
     pub(super) fn idx_change_check(
@@ -123,7 +145,6 @@ mod detail {
             opened_folder: opened_folder.map(|of| of.to_string()),
             tools_data_map: tdm.clone(),
             cfg: SavedCfg::CfgPrj(cfg.prj.clone()),
-            last_time_prj_opened: LastTimePrjOpened::new(),
         };
         tracing::info!("saved to {file_path:?}");
         write(tools_data_map, make_data, file_path)?;
@@ -208,21 +229,21 @@ pub fn load_prj(file_path: &Path) -> RvResult<SavePrjData> {
     serde_json::from_str::<SavePrjData>(s.as_str()).map_err(to_rv)
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-pub struct LastTimePrjOpened {
+pub struct UserPrjOpened {
     time: DateTime<Utc>,
     username: String,
     realname: String,
 }
-impl LastTimePrjOpened {
+impl UserPrjOpened {
     pub fn new() -> Self {
-        LastTimePrjOpened {
+        UserPrjOpened {
             time: Utc::now(),
             username: whoami::username(),
             realname: whoami::realname(),
         }
     }
 }
-impl Default for LastTimePrjOpened {
+impl Default for UserPrjOpened {
     fn default() -> Self {
         Self::new()
     }
@@ -235,8 +256,6 @@ pub struct SavePrjData {
     pub opened_folder: Option<String>,
     pub tools_data_map: ToolsDataMap,
     pub cfg: SavedCfg,
-    #[serde(default = "LastTimePrjOpened::new")]
-    pub last_time_prj_opened: LastTimePrjOpened,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -322,7 +341,7 @@ impl Control {
                 let (tdm, _, _) = detail::load(file_path)?;
                 tdm
             };
-            self.cfg.set_current_prj_path(cur_prj_path);
+            self.set_current_prj_path(cur_prj_path)?;
             cfg::write_cfg(&self.cfg)?;
             Ok(loaded)
         } else {
@@ -332,7 +351,7 @@ impl Control {
     pub fn load(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
         // we need the project path before reading the annotations to map
         // their path correctly
-        self.cfg.set_current_prj_path(file_path.clone());
+        self.set_current_prj_path(file_path.clone())?;
         cfg::write_cfg(&self.cfg)?;
 
         let (tools_data_map, to_be_opened_folder, read_cfg) = detail::load(&file_path)?;
@@ -343,9 +362,6 @@ impl Control {
 
         // save cfg of loaded project
         trace_ok_err(cfg::write_cfg(&self.cfg));
-
-        // write time stamp to indicate that the project is currently open
-        self.write_lasttimeprjopened();
 
         Ok(tools_data_map)
     }
@@ -359,21 +375,11 @@ impl Control {
         detail::import(tools_data_map, &file_path)
     }
 
-    pub fn write_lasttimeprjopened(&mut self) {
-        if self.save_handle.as_ref().map(|h| h.is_finished()) != Some(false) {
-            self.wait_for_save(); // paranoia check
-            let prj_path = self.cfg.current_prj_path().to_path_buf();
-            let handle = thread::spawn(move || {
-                tracing::info!("writing now as last time the project has been opened...");
-                let prj_data = trace_ok_err(load_prj(&prj_path));
-                if let Some(mut prj_data) = prj_data {
-                    prj_data.last_time_prj_opened = LastTimePrjOpened::new();
-                    trace_ok_err(file_util::save(&prj_path, prj_data));
-                }
-                tracing::info!("writing now as ... done!");
-            });
-            self.save_handle = Some(handle);
-        }
+    fn set_current_prj_path(&mut self, prj_path: PathBuf) -> RvResult<()> {
+        trace_ok_warn(detail::create_lock_file(&prj_path));
+        trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
+        self.cfg.set_current_prj_path(prj_path);
+        Ok(())
     }
 
     pub fn save(
@@ -393,7 +399,7 @@ impl Control {
         };
 
         if set_cur_prj {
-            self.cfg.set_current_prj_path(path.clone());
+            self.set_current_prj_path(path.clone())?;
             // update prj name in cfg
             trace_ok_err(cfg::write_cfg(&self.cfg));
         }
@@ -418,24 +424,23 @@ impl Control {
             warn!("could not read cfg due to {e:?}, returning default");
             cfg::get_default_cfg()
         });
-        Self {
-            cfg,
-            ..Default::default()
+        if cfg.current_prj_path().exists() {
+            trace_ok_warn(detail::create_lock_file(cfg.current_prj_path()));
         }
+        let mut tmp = Self::default();
+        tmp.cfg = cfg;
+        return tmp
     }
-    pub fn new_prj() -> (Self, ToolsDataMap) {
+    pub fn new_prj(&mut self) -> ToolsDataMap {
         let mut cfg = cfg::read_cfg().unwrap_or_else(|e| {
             warn!("could not read cfg due to {e:?}, returning default");
             cfg::get_default_cfg()
         });
+        trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
         cfg.unset_current_prj_path();
-        (
-            Self {
-                cfg,
-                ..Default::default()
-            },
-            HashMap::new(),
-        )
+        *self = Control::default();
+        self.cfg = cfg;
+        HashMap::new()
     }
 
     pub fn reader(&self) -> Option<&ReaderFromCfg> {
@@ -778,6 +783,14 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
             VisibleInactiveToolsState::default(),
         ),
     )])
+}
+
+impl Drop for Control {
+    fn drop(&mut self) {
+        if self.cfg.current_prj_path().exists() {
+            trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
+        }
+    }
 }
 
 #[test]
