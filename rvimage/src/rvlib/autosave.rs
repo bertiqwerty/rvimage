@@ -17,10 +17,11 @@ pub const AUTOSAVE_INTERVAL_S: u64 = 120;
 
 fn extract_date(filename: &str) -> Option<NaiveDate> {
     lazy_static! {
-        static ref DATE_REGEX: Regex = Regex::new(r"_d[0-9]{6}_").expect("Failed to compile regex");
+        static ref DATE_REGEX: Regex = Regex::new(r"autosave_d[0-9]{6}_").expect("Failed to compile regex");
     }
     if let Some(m) = DATE_REGEX.find(filename) {
-        let to_be_parsed = m.as_str().trim_matches('_').trim_start_matches('d');
+        let m_str = m.as_str();
+        let to_be_parsed = &m_str[10..m_str.len()-1];
         return NaiveDate::parse_from_str(to_be_parsed, DATE_FORMAT).ok();
     }
     None
@@ -56,6 +57,15 @@ pub fn make_timespan(n_days: i64) -> (NaiveDate, NaiveDate) {
     (today, date_n_days_ago)
 }
 
+fn make_filepath(
+    homefolder: Option<&Path>,
+    prj_stem: &str,
+    today_str: &str,
+    n: u8,
+) -> Option<PathBuf> {
+    homefolder.map(|hf| hf.join(format!("{prj_stem}-autosave_d{today_str}_{n}.json")))
+}
+
 pub fn autosave(
     current_prj_path: &Path,
     homefolder: Option<String>,
@@ -78,20 +88,15 @@ pub fn autosave(
 
     let today_str = now.format(DATE_FORMAT).to_string();
 
-    let make_filepath = move |n| {
-        homefolder
-            .clone()
-            .map(|hf| hf.join(format!("{prj_stem}-autosave_d{today_str}_{n}.json")))
-    };
-    let mf_th = make_filepath.clone();
+    let mf = |n| make_filepath(homefolder.as_deref(), &prj_stem, &today_str, n);
     for i in 1..(n_autosaves) {
-        if let (Some(from), Some(to)) = (mf_th(i), mf_th(i - 1)) {
+        if let (Some(from), Some(to)) = (mf(i), mf(i - 1)) {
             if from.exists() {
                 trace_ok_err(fs::copy(from, to));
             }
         }
     }
-    let prj_path = make_filepath(n_autosaves - 1);
+    let prj_path = mf(n_autosaves - 1);
     if let Some(prj_path) = prj_path {
         if trace_ok_err(save_prj(prj_path)).is_some() {
             tracing::info!("autosaved");
@@ -107,12 +112,13 @@ use crate::{get_test_folder, tracing_setup::init_tracing_for_tests};
 fn test_extract_date() {
     init_tracing_for_tests();
     assert_eq!(
-        extract_date("filename_d131214_0.json")
+        extract_date("filename-autosave_d131214_0.json")
             .unwrap()
             .format("%y%m%d")
             .to_string(),
         "131214"
     );
+    assert_eq!(extract_date("filename_d131214_0.json"), None);
     assert_eq!(extract_date("filename_123456.json"), None);
     assert_eq!(extract_date("filename_d123456.json"), None);
     assert_eq!(extract_date("filename_d123456_1.json"), None);

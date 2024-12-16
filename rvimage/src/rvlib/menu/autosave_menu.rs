@@ -24,6 +24,10 @@ fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMa
         let folder = folder.map(Path::new);
         let files = trace_ok_err(list_files(folder, Some(date_n_days_ago), Some(today)));
         egui::Grid::new("autosave-menu-grid").show(ui, |ui| {
+            ui.label(egui::RichText::new("name").monospace());
+            ui.label(egui::RichText::new("size").monospace());
+            ui.label(egui::RichText::new("modified").monospace());
+            ui.end_row();
             if let Some(files) = files {
                 for path in files {
                     if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
@@ -85,7 +89,7 @@ impl<'a> AutosaveMenu<'a> {
 impl Widget for AutosaveMenu<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         *self.project_loaded = false;
-        let autosaves_btn_resp = ui.button("Show Autosaves");
+        let autosaves_btn_resp = ui.button("Show Autosaved Projects");
         if autosaves_btn_resp.clicked() {
             ui.memory_mut(|m| m.toggle_popup(self.id));
         }
