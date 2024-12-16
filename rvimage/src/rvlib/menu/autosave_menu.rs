@@ -61,7 +61,7 @@ fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMa
                             .on_hover_text("double click to apply, LOSS(💀) of unsaved data")
                             .double_clicked()
                         {
-                            tdm = trace_ok_err(ctrl.replace_with_autosave(path));
+                            tdm = trace_ok_err(ctrl.replace_with_save(path));
                             close = Close::Yes;
                         }
                         ui.label(egui::RichText::new(mb).monospace());

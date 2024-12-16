@@ -303,17 +303,25 @@ impl Control {
         Ok(())
     }
 
-    pub fn replace_with_autosave(&mut self, file_path: &Path) -> RvResult<ToolsDataMap> {
+    pub fn replace_with_save(&mut self, file_path: &Path) -> RvResult<ToolsDataMap> {
         let cur_prj_path = self.cfg.current_prj_path().to_path_buf();
-        if let Some(cpp) = cur_prj_path.parent() {
-            let new_prj_path = cpp.join(
-                file_path
-                    .file_name()
-                    .ok_or_else(|| rverr!("could not get filename to copy to"))?,
-            );
-            defer_file_removal!(&new_prj_path);
-            trace_ok_err(fs::copy(file_path, &new_prj_path));
-            let loaded = self.load(new_prj_path.clone())?;
+        if let Some(cpp_parent) = cur_prj_path.parent() {
+            let loaded = if file_path != cur_prj_path {
+                // the paths are not identical, i.e., we replace with an autosave
+                let new_prj_path = cpp_parent.join(
+                    file_path
+                        .file_name()
+                        .ok_or_else(|| rverr!("could not get filename to copy to"))?,
+                );
+                defer_file_removal!(&new_prj_path);
+                trace_ok_err(fs::copy(file_path, &new_prj_path));
+                let (tdm, _, _) = detail::load(file_path)?;
+                tdm
+            } else {
+                // the paths are identical, i.e., we replace with the last manual save
+                let (tdm, _, _) = detail::load(file_path)?;
+                tdm
+            };
             self.cfg.set_current_prj_path(cur_prj_path);
             cfg::write_cfg(&self.cfg)?;
             Ok(loaded)
