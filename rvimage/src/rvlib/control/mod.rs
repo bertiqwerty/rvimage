@@ -379,7 +379,7 @@ impl Control {
 
     fn set_current_prj_path(&mut self, prj_path: PathBuf) -> RvResult<()> {
         trace_ok_warn(detail::create_lock_file(&prj_path));
-        if &prj_path != self.cfg.current_prj_path() {
+        if prj_path != self.cfg.current_prj_path() {
             trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
         }
         self.cfg.set_current_prj_path(prj_path);
