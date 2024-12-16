@@ -104,7 +104,7 @@ impl<'a> AutosaveMenu<'a> {
 impl Widget for AutosaveMenu<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         *self.project_loaded = false;
-        let autosaves_btn_resp = ui.button("Show Autosaves");
+        let autosaves_btn_resp = ui.button("Autosaved Annotations");
         if autosaves_btn_resp.clicked() {
             ui.memory_mut(|m| m.toggle_popup(self.id));
         }

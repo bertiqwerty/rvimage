@@ -12,6 +12,7 @@ use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
 use chrono::{DateTime, Utc};
+use detail::create_lock_file;
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -82,17 +83,18 @@ mod detail {
 
     fn lock_file_path(file_path: &Path) -> RvResult<PathBuf> {
         let stem = file_util::osstr_to_str(file_path.file_stem()).map_err(to_rv)?;
-        Ok(file_path.with_file_name(format!(".{stem}.lock")))
+        Ok(file_path.with_file_name(format!(".{stem}_lock.json")))
     }
     pub(super) fn create_lock_file(file_path: &Path) -> RvResult<()> {
         let lock_file = lock_file_path(file_path)?;
+        tracing::info!("creating lock file {lock_file:?}");
         let upo = UserPrjOpened::new();
-        let s = serde_json::to_string(&upo).map_err(to_rv)?;
-        file_util::save(&lock_file, s)
+        file_util::save(&lock_file, upo)
     }
     pub(super) fn remove_lock_file(file_path: &Path) -> RvResult<()> {
         if file_path.exists() {
             let lock_file = lock_file_path(file_path)?;
+            tracing::info!("removing lock file {lock_file:?}");
             defer_file_removal!(&lock_file);
         }
         Ok(())
@@ -377,7 +379,9 @@ impl Control {
 
     fn set_current_prj_path(&mut self, prj_path: PathBuf) -> RvResult<()> {
         trace_ok_warn(detail::create_lock_file(&prj_path));
-        trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
+        if &prj_path != self.cfg.current_prj_path() {
+            trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
+        }
         self.cfg.set_current_prj_path(prj_path);
         Ok(())
     }
@@ -427,9 +431,10 @@ impl Control {
         if cfg.current_prj_path().exists() {
             trace_ok_warn(detail::create_lock_file(cfg.current_prj_path()));
         }
+        trace_ok_warn(create_lock_file(cfg.current_prj_path()));
         let mut tmp = Self::default();
         tmp.cfg = cfg;
-        return tmp
+        tmp
     }
     pub fn new_prj(&mut self) -> ToolsDataMap {
         let mut cfg = cfg::read_cfg().unwrap_or_else(|e| {
