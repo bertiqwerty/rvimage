@@ -44,7 +44,7 @@ fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMa
             ui.end_row();
             if let Some(autosaves) = files {
                 let cur_prj_path = ctrl.cfg.current_prj_path().to_path_buf();
-                let files = iter::once(cur_prj_path).chain(autosaves.into_iter());
+                let files = iter::once(cur_prj_path).chain(autosaves);
                 let fileinfos = files.clone().map(|path| fileinfo(&path));
 
                 let mut combined: Vec<_> = files
@@ -52,7 +52,7 @@ fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMa
                     .flat_map(|(file, info)| info.map(|i| (file, i)))
                     .collect();
                 combined
-                    .sort_by(|(_, (_, datetime1)), (_, (_, datetime2))| datetime1.cmp(&datetime2));
+                    .sort_by(|(_, (_, datetime1)), (_, (_, datetime2))| datetime1.cmp(datetime2));
 
                 for (path, (mb, datetime)) in combined.iter().rev() {
                     if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
@@ -61,7 +61,7 @@ fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMa
                             .on_hover_text("double click to apply, LOSS(💀) of unsaved data")
                             .double_clicked()
                         {
-                            tdm = trace_ok_err(ctrl.replace_with_autosave(&path));
+                            tdm = trace_ok_err(ctrl.replace_with_autosave(path));
                             close = Close::Yes;
                         }
                         ui.label(egui::RichText::new(mb).monospace());

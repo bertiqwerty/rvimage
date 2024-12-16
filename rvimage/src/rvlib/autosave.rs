@@ -17,11 +17,12 @@ pub const AUTOSAVE_INTERVAL_S: u64 = 120;
 
 fn extract_date(filename: &str) -> Option<NaiveDate> {
     lazy_static! {
-        static ref DATE_REGEX: Regex = Regex::new(r"autosave_d[0-9]{6}_").expect("Failed to compile regex");
+        static ref DATE_REGEX: Regex =
+            Regex::new(r"autosave_d[0-9]{6}_").expect("Failed to compile regex");
     }
     if let Some(m) = DATE_REGEX.find(filename) {
         let m_str = m.as_str();
-        let to_be_parsed = &m_str[10..m_str.len()-1];
+        let to_be_parsed = &m_str[10..m_str.len() - 1];
         return NaiveDate::parse_from_str(to_be_parsed, DATE_FORMAT).ok();
     }
     None
