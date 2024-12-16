@@ -1,7 +1,8 @@
-use std::{fs, path::Path};
+use std::{fs, iter, path::Path};
 
 use chrono::{DateTime, Local};
 use egui::{Area, Frame, Id, Order, Response, Ui, Widget};
+use rvimage_domain::{to_rv, RvResult};
 
 use crate::{
     autosave::{list_files, make_timespan, AUTOSAVE_KEEP_N_DAYS},
@@ -15,6 +16,18 @@ enum Close {
     No,
 }
 
+fn fileinfo(path: &Path) -> RvResult<(String, String)> {
+    let metadata = fs::metadata(path).map_err(to_rv)?;
+    let n_bytes = metadata.len();
+    let mb = n_bytes as f64 / (1024.0f64).powi(2);
+    let mb = format!("{mb:0.3}mb");
+
+    let modified = metadata.modified().map_err(to_rv)?;
+    let datetime: DateTime<Local> = modified.into();
+    let datetime = datetime.format("%b %d %Y - %H:%M:%S").to_string();
+    Ok((mb, datetime))
+}
+
 fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
     let mut close = Close::No;
     let mut tdm = None;
@@ -23,13 +36,25 @@ fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMa
         let folder = trace_ok_err(ctrl.cfg.home_folder());
         let folder = folder.map(Path::new);
         let files = trace_ok_err(list_files(folder, Some(date_n_days_ago), Some(today)));
+
         egui::Grid::new("autosave-menu-grid").show(ui, |ui| {
             ui.label(egui::RichText::new("name").monospace());
             ui.label(egui::RichText::new("size").monospace());
             ui.label(egui::RichText::new("modified").monospace());
             ui.end_row();
-            if let Some(files) = files {
-                for path in files {
+            if let Some(autosaves) = files {
+                let cur_prj_path = ctrl.cfg.current_prj_path().to_path_buf();
+                let files = iter::once(cur_prj_path).chain(autosaves.into_iter());
+                let fileinfos = files.clone().map(|path| fileinfo(&path));
+
+                let mut combined: Vec<_> = files
+                    .zip(fileinfos)
+                    .flat_map(|(file, info)| info.map(|i| (file, i)))
+                    .collect();
+                combined
+                    .sort_by(|(_, (_, datetime1)), (_, (_, datetime2))| datetime1.cmp(&datetime2));
+
+                for (path, (mb, datetime)) in combined.iter().rev() {
                     if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
                         if ui
                             .button(egui::RichText::new(file_name).monospace())
@@ -39,18 +64,8 @@ fn autosave_popup(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMa
                             tdm = trace_ok_err(ctrl.replace_with_autosave(&path));
                             close = Close::Yes;
                         }
-                        if let Some(metadata) = trace_ok_err(fs::metadata(&path)) {
-                            let n_bytes = metadata.len();
-                            let mb = n_bytes as f64 / (1024.0f64).powi(2);
-                            let mb = format!("{mb:0.3}mb");
-                            ui.label(egui::RichText::new(mb).monospace());
-
-                            if let Ok(modified) = metadata.modified() {
-                                let datetime: DateTime<Local> = modified.into();
-                                let datetime = datetime.format("%b %d %Y - %H:%M:%S").to_string();
-                                ui.label(egui::RichText::new(datetime).monospace());
-                            }
-                        }
+                        ui.label(egui::RichText::new(mb).monospace());
+                        ui.label(egui::RichText::new(datetime).monospace());
                         ui.end_row();
                     }
                 }
@@ -89,7 +104,7 @@ impl<'a> AutosaveMenu<'a> {
 impl Widget for AutosaveMenu<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         *self.project_loaded = false;
-        let autosaves_btn_resp = ui.button("Show Autosaved Projects");
+        let autosaves_btn_resp = ui.button("Show Autosaves");
         if autosaves_btn_resp.clicked() {
             ui.memory_mut(|m| m.toggle_popup(self.id));
         }
