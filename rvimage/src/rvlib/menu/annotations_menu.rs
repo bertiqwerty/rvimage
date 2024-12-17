@@ -31,7 +31,7 @@ fn fileinfo(path: &Path) -> RvResult<(String, String)> {
 }
 
 macro_rules! tdm_instance_annos {
-    ($name:expr, $func:ident, $func_mut:ident, $tdm:expr, $ui:expr, $cpp_parent:expr) => {
+    ($name:expr, $func:ident, $func_mut:ident, $tdm:expr, $ui:expr, $cpp_parent:expr, $max_n_folders:expr) => {
         let brush_annos = trace_ok_err($tdm[$name].specifics.$func());
         let mut num_annos = 0;
         let mut parents = vec![];
@@ -61,7 +61,7 @@ macro_rules! tdm_instance_annos {
                 }
             ));
             $ui.end_row();
-            for p in parents {
+            for p in &parents[0..$max_n_folders] {
                 let p_label = egui::RichText::new(
                     p.to_str()
                         .map(|p| if p.is_empty() { $cpp_parent } else { p })
@@ -87,6 +87,11 @@ macro_rules! tdm_instance_annos {
 
                 $ui.end_row();
             }
+            if parents.len() > $max_n_folders {
+                $ui.label(" ");
+                $ui.label(egui::RichText::new("...").monospace());
+                $ui.end_row();
+            }
         }
     };
 }
@@ -101,9 +106,26 @@ fn annotations(ui: &mut Ui, tdm: &mut ToolsDataMap, cur_prj_path: &Path) {
         .parent()
         .and_then(|p| p.to_str())
         .unwrap_or(".");
+    let max_n_folders = 5;
     egui::Grid::new("annotations-menu-grid").show(ui, |ui| {
-        tdm_instance_annos!(BRUSH_NAME, brush, brush_mut, tdm, ui, cpp_parent);
-        tdm_instance_annos!(BBOX_NAME, bbox, bbox_mut, tdm, ui, cpp_parent);
+        tdm_instance_annos!(
+            BRUSH_NAME,
+            brush,
+            brush_mut,
+            tdm,
+            ui,
+            cpp_parent,
+            max_n_folders
+        );
+        tdm_instance_annos!(
+            BBOX_NAME,
+            bbox,
+            bbox_mut,
+            tdm,
+            ui,
+            cpp_parent,
+            max_n_folders
+        );
     });
 }
 
@@ -114,7 +136,6 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
     let folder = trace_ok_err(ctrl.cfg.home_folder());
     let folder = folder.map(Path::new);
     let files = trace_ok_err(list_files(folder, Some(date_n_days_ago), Some(today)));
-    ui.separator();
     ui.heading("Reset Annotations to Autsave");
     egui::Grid::new("autosaves-menu-grid").show(ui, |ui| {
         ui.label(egui::RichText::new("name").monospace());
@@ -168,8 +189,9 @@ fn annotations_popup(
     let mut close = Close::No;
     let mut tdm = None;
     Frame::popup(ui.style()).show(ui, |ui| {
-        annotations(ui, in_tdm, ctrl.cfg.current_prj_path());
         (close, tdm) = autosaves(ui, ctrl);
+        ui.separator();
+        annotations(ui, in_tdm, ctrl.cfg.current_prj_path());
         ui.separator();
         ui.horizontal(|ui| {
             if ui.button("Close").clicked() {
