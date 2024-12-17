@@ -292,14 +292,14 @@ impl Menu {
                     }
                 });
 
-                let popup_id = ui.make_persistent_id("cfg-popup");
-                let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.are_tools_active);
-                ui.add(cfg_gui);
-
                 let popup_id = ui.make_persistent_id("autosave-popup");
                 let autosave_gui =
                     AutosaveMenu::new(popup_id, ctrl, tools_data_map, &mut projected_loaded);
                 ui.add(autosave_gui);
+
+                let popup_id = ui.make_persistent_id("cfg-popup");
+                let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.are_tools_active);
+                ui.add(cfg_gui);
 
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");
