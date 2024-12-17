@@ -30,21 +30,26 @@ fn fileinfo(path: &Path) -> RvResult<(String, String)> {
 }
 
 macro_rules! tdm_instance_annos {
-    ($name:expr, $func:ident, $tdm:expr, $ui:expr, $cpp_parent:expr) => {
+    ($name:expr, $func:ident, $func_mut:ident, $tdm:expr, $ui:expr, $cpp_parent:expr) => {
         let brush_annos = trace_ok_err($tdm[$name].specifics.$func());
+        let mut num_annos = 0;
+        let mut parents = vec![];
         if let Some(brush_annos) = brush_annos {
-            let mut num_annos = 0;
-            let parents = brush_annos
+            let parents_set = brush_annos
                 .annotations_map
                 .iter()
                 .flat_map(|(k, (annos, _))| {
                     num_annos += annos.len();
-                    Path::new(k).parent()
+                    Path::new(k).parent().map(Path::to_path_buf)
                 })
                 .collect::<HashSet<_>>();
-            let mut parents = parents.into_iter().collect::<Vec<_>>();
+            parents = parents_set.into_iter().collect::<Vec<_>>();
             parents.sort();
+        }
+        let brush_annos_mut = trace_ok_err($tdm.get_mut($name).unwrap().specifics.$func_mut());
 
+        if let Some(brush_annos_mut) = brush_annos_mut {
+            $ui.label(" ");
             $ui.label(format!(
                 "There are {num_annos} {}-annotations{}.",
                 $name,
@@ -56,28 +61,44 @@ macro_rules! tdm_instance_annos {
             ));
             $ui.end_row();
             for p in parents {
-                let p = p
+                let p_label = egui::RichText::new(p
                     .to_str()
                     .map(|p| if p.is_empty() { $cpp_parent } else { p })
-                    .unwrap_or($cpp_parent);
-                $ui.label(egui::RichText::new(p).monospace());
+                    .unwrap_or($cpp_parent)).monospace();
+                if $ui
+                    .button("x")
+                    .on_hover_text("double-click to delete all annotations in this folder")
+                    .double_clicked()
+                {
+                    let to_del = brush_annos_mut
+                        .annotations_map
+                        .keys()
+                        .filter(|k| Path::new(k).parent() == Some(&p))
+                        .map(|k| k.to_string())
+                        .collect::<Vec<_>>();
+                    for k in to_del {
+                        brush_annos_mut.annotations_map.remove(&k);
+                    }
+                }
+                $ui.label(p_label);
+
                 $ui.end_row();
             }
         }
     };
 }
 
-fn annotations(ui: &mut Ui, tdm: &ToolsDataMap, cur_prj_path: &Path) {
+fn annotations(ui: &mut Ui, tdm: &mut ToolsDataMap, cur_prj_path: &Path) {
     ui.heading("Annotations");
-    ui.label(egui::RichText::new("Your project's content is shown below.").italics());
+    ui.label(egui::RichText::new("Your project's content is shown below."));
 
     let cpp_parent = cur_prj_path
         .parent()
         .and_then(|p| p.to_str())
         .unwrap_or(".");
     egui::Grid::new("annotations-menu-grid").show(ui, |ui| {
-        tdm_instance_annos!(BRUSH_NAME, brush, tdm, ui, cpp_parent);
-        tdm_instance_annos!(BBOX_NAME, bbox, tdm, ui, cpp_parent);
+        tdm_instance_annos!(BRUSH_NAME, brush, brush_mut, tdm, ui, cpp_parent);
+        tdm_instance_annos!(BBOX_NAME, bbox, bbox_mut, tdm, ui, cpp_parent);
     });
 }
 
@@ -89,7 +110,7 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
     let folder = folder.map(Path::new);
     let files = trace_ok_err(list_files(folder, Some(date_n_days_ago), Some(today)));
     ui.separator();
-    ui.heading("Restore Annotations from Saved Files");
+    ui.heading("Reset Annotations to Autsave");
     egui::Grid::new("autosaves-menu-grid").show(ui, |ui| {
         ui.label(egui::RichText::new("name").monospace());
         ui.label(egui::RichText::new("size").monospace());
@@ -129,7 +150,7 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
 fn annotations_popup(
     ui: &mut Ui,
     ctrl: &mut Control,
-    in_tdm: &ToolsDataMap,
+    in_tdm: &mut ToolsDataMap,
 ) -> (Close, Option<ToolsDataMap>) {
     let mut close = Close::No;
     let mut tdm = None;
