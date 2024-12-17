@@ -1,4 +1,4 @@
-mod autosave_menu;
+mod annotations_menu;
 mod cfg_menu;
 mod label_delpropstats;
 mod main;

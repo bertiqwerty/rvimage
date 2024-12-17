@@ -2,7 +2,7 @@ use crate::{
     control::{Control, Info},
     file_util::get_prj_name,
     menu::{
-        self, autosave_menu::AutosaveMenu, cfg_menu::CfgMenu,
+        self, annotations_menu::AutosaveMenu, cfg_menu::CfgMenu,
         label_delpropstats::labels_and_sorting, open_folder, ui_util::text_edit_singleline,
     },
     tools::ToolState,
