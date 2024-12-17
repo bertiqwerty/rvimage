@@ -326,8 +326,9 @@ impl Control {
 
     pub fn replace_with_save(&mut self, input_file_path: &Path) -> RvResult<ToolsDataMap> {
         let cur_prj_path = self.cfg.current_prj_path().to_path_buf();
-        if let (Some(ifp_parent), Some(cpp_parent)) = (input_file_path.parent(), cur_prj_path.parent()) {
-            
+        if let (Some(ifp_parent), Some(cpp_parent)) =
+            (input_file_path.parent(), cur_prj_path.parent())
+        {
             let loaded = if ifp_parent != cpp_parent {
                 // we need projects to be in the same folder for the correct resolution of relative paths
                 let copied_file_path = cpp_parent.join(
