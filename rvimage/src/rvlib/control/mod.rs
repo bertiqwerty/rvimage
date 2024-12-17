@@ -91,9 +91,9 @@ mod detail {
         let upo = UserPrjOpened::new();
         file_util::save(&lock_file, upo)
     }
-    pub(super) fn remove_lock_file(file_path: &Path) -> RvResult<()> {
-        if file_path.exists() {
-            let lock_file = lock_file_path(file_path)?;
+    pub(super) fn remove_lock_file(prj_file_path: &Path) -> RvResult<()> {
+        let lock_file = lock_file_path(prj_file_path)?;
+        if lock_file.exists() {
             tracing::info!("removing lock file {lock_file:?}");
             defer_file_removal!(&lock_file);
         }
@@ -324,23 +324,24 @@ impl Control {
         Ok(())
     }
 
-    pub fn replace_with_save(&mut self, file_path: &Path) -> RvResult<ToolsDataMap> {
+    pub fn replace_with_save(&mut self, input_file_path: &Path) -> RvResult<ToolsDataMap> {
         let cur_prj_path = self.cfg.current_prj_path().to_path_buf();
-        if let Some(cpp_parent) = cur_prj_path.parent() {
-            let loaded = if file_path != cur_prj_path {
-                // the paths are not identical, i.e., we replace with an autosave
-                let new_prj_path = cpp_parent.join(
-                    file_path
+        if let (Some(ifp_parent), Some(cpp_parent)) = (input_file_path.parent(), cur_prj_path.parent()) {
+            
+            let loaded = if ifp_parent != cpp_parent {
+                // we need projects to be in the same folder for the correct resolution of relative paths
+                let copied_file_path = cpp_parent.join(
+                    input_file_path
                         .file_name()
                         .ok_or_else(|| rverr!("could not get filename to copy to"))?,
                 );
-                defer_file_removal!(&new_prj_path);
-                trace_ok_err(fs::copy(file_path, &new_prj_path));
-                let (tdm, _, _) = detail::load(file_path)?;
+                defer_file_removal!(&copied_file_path);
+                trace_ok_err(fs::copy(input_file_path, &copied_file_path));
+                let (tdm, _, _) = detail::load(input_file_path)?;
                 tdm
             } else {
-                // the paths are identical, i.e., we replace with the last manual save
-                let (tdm, _, _) = detail::load(file_path)?;
+                // are in the same parent folder, i.e., we replace with the last manual save
+                let (tdm, _, _) = detail::load(input_file_path)?;
                 tdm
             };
             self.set_current_prj_path(cur_prj_path)?;
@@ -792,9 +793,7 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
 
 impl Drop for Control {
     fn drop(&mut self) {
-        if self.cfg.current_prj_path().exists() {
-            trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
-        }
+        trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
     }
 }
 

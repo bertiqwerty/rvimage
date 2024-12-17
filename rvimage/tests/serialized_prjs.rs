@@ -1,21 +1,21 @@
+#[cfg(test)]
 use std::{
     fs,
     path::{Path, PathBuf},
     thread,
     time::Duration,
 };
-
+#[cfg(test)]
 use rvlib::{
-    control::Control,
-    defer_file_removal,
-    tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
-    world::ToolsDataMap,
+    control::Control, defer_file_removal, tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME}, tracing_setup::init_tracing_for_tests, world::ToolsDataMap
 };
 
+#[cfg(test)]
 fn get_test_folder() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
 }
 
+#[cfg(test)]
 fn get_ctrl() -> Control {
     let mut ctrl = Control::default();
     let test_folder = get_test_folder();
@@ -23,14 +23,18 @@ fn get_ctrl() -> Control {
     ctrl
 }
 
+#[cfg(test)]
 fn tmp_copy(src: &Path) -> PathBuf {
-    let tmp_file_stem = src.file_stem().unwrap();
-    let tmp_file = get_test_folder().join(format!("tmp-{:?}", tmp_file_stem));
+    let tmp_file_stem = src.file_stem().unwrap().to_str().unwrap();
+    let tmp_file = get_test_folder().join(format!("tmp-{tmp_file_stem}"));
+    tracing::debug!("Copying {src:?} to {tmp_file:?}");
     fs::copy(src, &tmp_file).unwrap();
     tmp_file
 }
 
+#[cfg(test)]
 fn prj_load(file: &str) -> ToolsDataMap {
+    init_tracing_for_tests();
     let mut ctrl = get_ctrl();
     let test_file_src = get_test_folder().join(get_test_folder().join(file));
     let test_file = tmp_copy(&test_file_src);
@@ -57,6 +61,7 @@ fn test_prj_v4_0() {
 
 #[test]
 fn test_import() {
+    init_tracing_for_tests();
     fn test(src1: &Path, src2: &Path, reference: &Path) {
         let mut ctrl = get_ctrl();
         let src1 = tmp_copy(&src1);

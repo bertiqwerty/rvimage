@@ -439,4 +439,9 @@ impl MainEventLoop {
         }
         Ok(())
     }
+    pub fn import_prj(&mut self, file_path: &Path) -> RvResult<()> {
+        info!("loaded project {file_path:?}");
+        self.world.data.tools_data_map = self.ctrl.replace_with_save(file_path)?;
+        Ok(())
+    }
 }

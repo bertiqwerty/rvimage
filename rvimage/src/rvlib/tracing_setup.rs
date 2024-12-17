@@ -38,12 +38,9 @@ pub fn tracing_setup() -> WorkerGuard {
     guard_flush_file
 }
 
-#[cfg(test)]
 use std::sync::Once;
-#[cfg(test)]
 static INIT: Once = Once::new();
 
-#[test]
 pub fn init_tracing_for_tests() {
     INIT.call_once(|| {
         tracing_subscriber::fmt()
