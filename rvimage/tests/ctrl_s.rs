@@ -1,4 +1,3 @@
-use std::os::windows::fs::MetadataExt;
 #[cfg(test)]
 use std::{fs, thread, time::Duration};
 
@@ -17,7 +16,7 @@ fn test_main() {
     let test_file_2 = get_test_folder().join("tmp-test-2.rvi");
     fs::copy(&test_file_src, &test_file).unwrap();
     fs::copy(&test_file_src_2, &test_file_2).unwrap();
-    let size_before = fs::metadata(test_file.as_path()).unwrap().file_size();
+    let size_before = fs::read(&test_file).unwrap().len();
     tracing::debug!("Size of {test_file:?} is {size_before} bytes");
 
     defer_file_removal!(&test_file);
@@ -45,7 +44,7 @@ fn test_main() {
     });
     // lets wait for the file being written
     thread::sleep(Duration::from_millis(2000));
-    let size_after = fs::metadata(test_file.as_path()).unwrap().file_size();
+    let size_after = fs::read(&test_file).unwrap().len();
     tracing::debug!("Size of {test_file:?} is {size_after} bytes");
     assert!(size_before != size_after);
 }
