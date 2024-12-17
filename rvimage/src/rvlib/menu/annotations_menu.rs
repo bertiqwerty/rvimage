@@ -7,6 +7,7 @@ use rvimage_domain::{to_rv, RvResult};
 use crate::{
     autosave::{list_files, make_timespan, AUTOSAVE_KEEP_N_DAYS},
     control::Control,
+    file_util,
     result::trace_ok_err,
     tools::{BBOX_NAME, BRUSH_NAME},
     world::ToolsDataMap,
@@ -122,7 +123,15 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
         ui.end_row();
         if let Some(autosaves) = files {
             let cur_prj_path = ctrl.cfg.current_prj_path().to_path_buf();
-            let files = iter::once(cur_prj_path).chain(autosaves);
+            let stem = trace_ok_err(file_util::to_stem_str(&cur_prj_path))
+                .unwrap_or("default")
+                .to_string();
+            let files = iter::once(cur_prj_path).chain(autosaves.into_iter().filter(|p| {
+                p.file_name()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.starts_with(&stem))
+                    == Some(true)
+            }));
             let fileinfos = files.clone().map(|path| fileinfo(&path));
 
             let mut combined: Vec<_> = files
