@@ -61,10 +61,12 @@ macro_rules! tdm_instance_annos {
             ));
             $ui.end_row();
             for p in parents {
-                let p_label = egui::RichText::new(p
-                    .to_str()
-                    .map(|p| if p.is_empty() { $cpp_parent } else { p })
-                    .unwrap_or($cpp_parent)).monospace();
+                let p_label = egui::RichText::new(
+                    p.to_str()
+                        .map(|p| if p.is_empty() { $cpp_parent } else { p })
+                        .unwrap_or($cpp_parent),
+                )
+                .monospace();
                 if $ui
                     .button("x")
                     .on_hover_text("double-click to delete all annotations in this folder")
@@ -90,7 +92,9 @@ macro_rules! tdm_instance_annos {
 
 fn annotations(ui: &mut Ui, tdm: &mut ToolsDataMap, cur_prj_path: &Path) {
     ui.heading("Annotations");
-    ui.label(egui::RichText::new("Your project's content is shown below."));
+    ui.label(egui::RichText::new(
+        "Your project's content is shown below.",
+    ));
 
     let cpp_parent = cur_prj_path
         .parent()
