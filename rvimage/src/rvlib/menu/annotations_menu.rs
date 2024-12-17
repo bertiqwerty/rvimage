@@ -49,7 +49,7 @@ macro_rules! tdm_instance_annos {
                 "There are {num_annos} {}-annotations{}.",
                 $name,
                 if num_annos > 0 {
-                    "of images in the following folders"
+                    " of images in the following folders"
                 } else {
                     ""
                 }
