@@ -28,7 +28,7 @@ use rvlib::{
     MainEventLoop, MetaData, Rot90ToolData, ShapeI, UpdateImage, UpdatePermAnnos, UpdateTmpAnno,
     UpdateZoomBox, ZoomAmount,
 };
-use std::{iter, ops::Deref, panic, path::Path, time::Instant};
+use std::{iter, ops::Deref, panic, path::Path, sync::Arc, time::Instant};
 use tracing::error;
 
 fn map_key(egui_key: egui::Key) -> Option<rvlib::KeyCode> {
@@ -83,11 +83,15 @@ fn setup_custom_fonts(ctx: &egui::Context) {
     // .ttf and .otf files supported.
     fonts.font_data.insert(
         "roboto_mono".to_owned(),
-        egui::FontData::from_static(include_bytes!("../resources/Roboto/RobotoMono-Regular.ttf")),
+        Arc::new(egui::FontData::from_static(include_bytes!(
+            "../resources/Roboto/RobotoMono-Regular.ttf"
+        ))),
     );
     fonts.font_data.insert(
         "roboto".to_owned(),
-        egui::FontData::from_static(include_bytes!("../resources/Roboto/Roboto-Regular.ttf")),
+        Arc::new(egui::FontData::from_static(include_bytes!(
+            "../resources/Roboto/Roboto-Regular.ttf"
+        ))),
     );
 
     // Put my font first (highest priority) for proportional text:

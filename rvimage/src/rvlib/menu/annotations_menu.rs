@@ -132,7 +132,13 @@ fn annotations(
         "Your project's content is shown below.",
     ));
 
-    slider(ui, are_tools_active, parents_depth, 1..=5u8, "# subfolders to aggregate");
+    slider(
+        ui,
+        are_tools_active,
+        parents_depth,
+        1..=5u8,
+        "# subfolders to aggregate",
+    );
     let cpp_parent = cur_prj_path
         .parent()
         .and_then(|p| p.to_str())
