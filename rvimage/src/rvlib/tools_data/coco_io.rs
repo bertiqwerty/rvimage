@@ -123,6 +123,7 @@ fn instance_to_coco_anno<A>(
     shape_im_unrotated: ShapeI,
     n_rotations: u8,
     is_export_coords_absolute: bool,
+    file_path: &str,
 ) -> RvResult<([f64; 4], Option<CocoSegmentation>)>
 where
     A: InstanceAnnotate,
@@ -149,7 +150,7 @@ where
 
     let bb_f = [bb.x / imw, bb.y / imh, bb.w / imw, bb.h / imh];
     if bb_f[1] * bb_f[2] < 1e-6 {
-        tracing::warn!("annotation has no area {bb:?}.");
+        tracing::warn!("annotation in {file_path} has no area {bb:?}.");
     }
     Ok((bb_f, segmentation))
 }
@@ -278,6 +279,7 @@ impl CocoExportData {
                         shape,
                         n_rotations,
                         options.is_export_absolute,
+                        file_path
                     ))
                     .map(|(bb_f, segmentation)| {
                         box_id += 1;
@@ -1097,7 +1099,7 @@ fn test_instance_to_coco() {
         bb,
         intensity: 0.5,
     };
-    let coco_anno = instance_to_coco_anno(&canvas, shape, n_rot, false);
+    let coco_anno = instance_to_coco_anno(&canvas, shape, n_rot, false, "");
     assert!(coco_anno.is_err());
 
     let shape_im = ShapeI::new(20, 40);
@@ -1110,7 +1112,7 @@ fn test_instance_to_coco() {
     };
     let n_rotations = 1;
 
-    let (_, segmentation) = instance_to_coco_anno(&canvas, shape_im, n_rotations, false).unwrap();
+    let (_, segmentation) = instance_to_coco_anno(&canvas, shape_im, n_rotations, false, "").unwrap();
 
     let coco_seg = canvas
         .rot90_with_image_ntimes(
@@ -1128,7 +1130,7 @@ fn test_instance_to_coco() {
 
     let n_rotations = 1;
 
-    let (bb_rot, segmentation) = instance_to_coco_anno(&geo, shape_im, n_rotations, true).unwrap();
+    let (bb_rot, segmentation) = instance_to_coco_anno(&geo, shape_im, n_rotations, true, "").unwrap();
     println!("{bb_rot:?}");
     let coco_seg = geo
         .rot90_with_image_ntimes(
