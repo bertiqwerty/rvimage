@@ -55,13 +55,13 @@ fn tdm_instance_annos<T>(
         parents_depth,
     } = folder_params;
     let anno_map = trace_ok_err(unwrap_specifics(&tdm[name].specifics));
-    let mut num_annos = 0;
+    let mut n_annos_allfolders = 0;
     let mut parents = vec![];
     if let Some(brush_annos) = anno_map {
         let parents_set = brush_annos
             .iter()
             .flat_map(|(k, (annos, _))| {
-                num_annos += annos.len();
+                n_annos_allfolders += annos.len();
                 Path::new(k)
                     .ancestors()
                     .nth(parents_depth.into())
@@ -76,47 +76,59 @@ fn tdm_instance_annos<T>(
     ));
 
     if let Some(annos_map_mut) = anno_map_mut {
-        ui.label(" ");
         ui.label(format!(
-            "There are {num_annos} {}-annotations{}.",
+            "There are {n_annos_allfolders} {}-annotations{}.",
             name,
-            if num_annos > 0 {
+            if n_annos_allfolders > 0 {
                 " of images in the following folders"
             } else {
                 ""
             }
         ));
-        ui.end_row();
-        for p in &parents[0..max_n_folders.min(parents.len())] {
-            let p_label = egui::RichText::new(
-                p.to_str()
-                    .map(|p| if p.is_empty() { cpp_parent } else { p })
-                    .unwrap_or(cpp_parent),
-            )
-            .monospace();
-            if ui
-                .button("x")
-                .on_hover_text("double-click to delete all annotations in this folder")
-                .double_clicked()
-            {
-                let to_del = annos_map_mut
-                    .keys()
-                    .filter(|k| Path::new(k).ancestors().nth(parents_depth.into()) == Some(p))
-                    .map(|k| k.to_string())
-                    .collect::<Vec<_>>();
-                for k in to_del {
-                    annos_map_mut.remove(&k);
+        egui::Grid::new("annotations-menu-grid").show(ui, |ui| {
+            for p in &parents[0..max_n_folders.min(parents.len())] {
+                let p_label = egui::RichText::new(
+                    p.to_str()
+                        .map(|p| if p.is_empty() { cpp_parent } else { p })
+                        .unwrap_or(cpp_parent),
+                )
+                .monospace();
+                let n_annos_of_subfolders = egui::RichText::new(format!(
+                    "{}",
+                    annos_map_mut
+                        .iter()
+                        .filter(
+                            |(k, _)| Path::new(k).ancestors().nth(parents_depth.into()) == Some(p)
+                        )
+                        .map(|(_, (anno_map, _))| anno_map.len())
+                        .sum::<usize>()
+                ))
+                .monospace();
+                if ui
+                    .button("x")
+                    .on_hover_text("double-click to delete all annotations in this folder")
+                    .double_clicked()
+                {
+                    let to_del = annos_map_mut
+                        .keys()
+                        .filter(|k| Path::new(k).ancestors().nth(parents_depth.into()) == Some(p))
+                        .map(|k| k.to_string())
+                        .collect::<Vec<_>>();
+                    for k in to_del {
+                        annos_map_mut.remove(&k);
+                    }
                 }
-            }
-            ui.label(p_label);
+                ui.label(n_annos_of_subfolders);
+                ui.label(p_label);
 
-            ui.end_row();
-        }
-        if parents.len() > max_n_folders {
-            ui.label(" ");
-            ui.label(egui::RichText::new("...").monospace());
-            ui.end_row();
-        }
+                ui.end_row();
+            }
+            if parents.len() > max_n_folders {
+                ui.label(" ");
+                ui.label(egui::RichText::new("...").monospace());
+                ui.end_row();
+            }
+        });
     }
 }
 
@@ -144,32 +156,30 @@ fn annotations(
         .and_then(|p| p.to_str())
         .unwrap_or(".");
     let max_n_folders = 5;
-    egui::Grid::new("annotations-menu-grid").show(ui, |ui| {
-        tdm_instance_annos(
-            BRUSH_NAME,
-            tdm,
-            ui,
-            cpp_parent,
-            FolderParams {
-                max_n_folders,
-                parents_depth: *parents_depth,
-            },
-            |ts| ts.brush().map(|d| &d.annotations_map),
-            |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
-        );
-        tdm_instance_annos(
-            BBOX_NAME,
-            tdm,
-            ui,
-            cpp_parent,
-            FolderParams {
-                max_n_folders,
-                parents_depth: *parents_depth,
-            },
-            |ts| ts.bbox().map(|d| &d.annotations_map),
-            |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
-        );
-    });
+    tdm_instance_annos(
+        BRUSH_NAME,
+        tdm,
+        ui,
+        cpp_parent,
+        FolderParams {
+            max_n_folders,
+            parents_depth: *parents_depth,
+        },
+        |ts| ts.brush().map(|d| &d.annotations_map),
+        |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
+    );
+    tdm_instance_annos(
+        BBOX_NAME,
+        tdm,
+        ui,
+        cpp_parent,
+        FolderParams {
+            max_n_folders,
+            parents_depth: *parents_depth,
+        },
+        |ts| ts.bbox().map(|d| &d.annotations_map),
+        |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
+    );
 }
 
 fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
