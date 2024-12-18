@@ -34,18 +34,26 @@ fn fileinfo(path: &Path) -> RvResult<(String, String)> {
     Ok((mb, datetime))
 }
 
+struct FolderParams {
+    max_n_folders: usize,
+    parents_depth: u8,
+}
+
 fn tdm_instance_annos<T>(
     name: &str,
     tdm: &mut ToolsDataMap,
     ui: &mut Ui,
     cpp_parent: &str,
-    max_n_folders: usize,
+    folder_params: FolderParams,
     unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
     unwrap_specifics_mut: impl Fn(&mut ToolSpecifics) -> RvResult<&mut AnnotationsMap<T>>,
-    parents_depth: u8
 ) where
     T: InstanceAnnotate,
 {
+    let FolderParams {
+        max_n_folders,
+        parents_depth,
+    } = folder_params;
     let anno_map = trace_ok_err(unwrap_specifics(&tdm[name].specifics));
     let mut num_annos = 0;
     let mut parents = vec![];
@@ -54,7 +62,10 @@ fn tdm_instance_annos<T>(
             .iter()
             .flat_map(|(k, (annos, _))| {
                 num_annos += annos.len();
-                Path::new(k).ancestors().nth(parents_depth.into()).map(Path::to_path_buf)
+                Path::new(k)
+                    .ancestors()
+                    .nth(parents_depth.into())
+                    .map(Path::to_path_buf)
             })
             .collect::<HashSet<_>>();
         parents = parents_set.into_iter().collect::<Vec<_>>();
@@ -90,7 +101,7 @@ fn tdm_instance_annos<T>(
             {
                 let to_del = annos_map_mut
                     .keys()
-                    .filter(|k| Path::new(k).ancestors().nth(parents_depth.into()) == Some(&p))
+                    .filter(|k| Path::new(k).ancestors().nth(parents_depth.into()) == Some(p))
                     .map(|k| k.to_string())
                     .collect::<Vec<_>>();
                 for k in to_del {
@@ -121,7 +132,7 @@ fn annotations(
         "Your project's content is shown below.",
     ));
 
-    slider(ui, are_tools_active, parents_depth, 1..=5u8, "folder depth");
+    slider(ui, are_tools_active, parents_depth, 1..=5u8, "# subfolders to aggregate");
     let cpp_parent = cur_prj_path
         .parent()
         .and_then(|p| p.to_str())
@@ -133,20 +144,24 @@ fn annotations(
             tdm,
             ui,
             cpp_parent,
-            max_n_folders,
+            FolderParams {
+                max_n_folders,
+                parents_depth: *parents_depth,
+            },
             |ts| ts.brush().map(|d| &d.annotations_map),
             |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
-            *parents_depth
         );
         tdm_instance_annos(
             BBOX_NAME,
             tdm,
             ui,
             cpp_parent,
-            max_n_folders,
+            FolderParams {
+                max_n_folders,
+                parents_depth: *parents_depth,
+            },
             |ts| ts.bbox().map(|d| &d.annotations_map),
             |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
-            *parents_depth
         );
     });
 }
@@ -260,7 +275,7 @@ impl<'a> AutosaveMenu<'a> {
     }
 }
 impl Widget for AutosaveMenu<'_> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui) -> Response {
         *self.project_loaded = false;
         let autosaves_btn_resp = ui.button("Annotations");
         if autosaves_btn_resp.clicked() {
@@ -274,7 +289,13 @@ impl Widget for AutosaveMenu<'_> {
             let mut close = Close::No;
             let area_response = area
                 .show(ui.ctx(), |ui| {
-                    let (close_, tdm) = annotations_popup(ui, self.ctrl, self.tdm, self.are_tools_active, &mut self.parents_depth);
+                    let (close_, tdm) = annotations_popup(
+                        ui,
+                        self.ctrl,
+                        self.tdm,
+                        self.are_tools_active,
+                        self.parents_depth,
+                    );
                     close = close_;
                     if let Some(tdm) = tdm {
                         *self.tdm = tdm;

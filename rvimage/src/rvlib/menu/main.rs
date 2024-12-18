@@ -172,7 +172,7 @@ pub struct Menu {
     stats: Stats,
     text_buffers: TextBuffers,
     show_file_idx: bool,
-    annotations_menu_parents_depth: u8
+    annotations_menu_parents_depth: u8,
 }
 
 impl Menu {
@@ -301,7 +301,7 @@ impl Menu {
                     tools_data_map,
                     &mut projected_loaded,
                     &mut self.are_tools_active,
-                    &mut self.annotations_menu_parents_depth
+                    &mut self.annotations_menu_parents_depth,
                 );
                 ui.add(autosave_gui);
 
