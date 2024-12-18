@@ -61,7 +61,7 @@ macro_rules! tdm_instance_annos {
                 }
             ));
             $ui.end_row();
-            for p in &parents[0..$max_n_folders] {
+            for p in &parents[0..$max_n_folders.min(parents.len())] {
                 let p_label = egui::RichText::new(
                     p.to_str()
                         .map(|p| if p.is_empty() { $cpp_parent } else { p })

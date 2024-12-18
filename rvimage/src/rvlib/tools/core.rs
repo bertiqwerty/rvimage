@@ -13,7 +13,7 @@ use crate::{
     events::Events,
     history::History,
     world,
-    world::{DataAccess, World},
+    world::{MetaDataAccess, World},
 };
 use rvimage_domain::PtF;
 use std::mem;
@@ -102,7 +102,7 @@ pub(super) fn change_annos<T, DA, IA>(
     f_change: impl FnOnce(&mut InstanceAnnotations<T>),
 ) where
     T: InstanceAnnotate,
-    DA: DataAccess,
+    DA: MetaDataAccess,
     IA: InstanceAnnoAccess<T>,
 {
     if let Some(annos) = IA::get_annos_mut(world) {
@@ -121,7 +121,7 @@ pub(super) fn change_annos<T, DA, IA>(
 }
 pub(super) fn check_trigger_redraw<DC>(mut world: World, name: &'static str) -> World
 where
-    DC: DataAccess,
+    DC: MetaDataAccess,
 {
     let core_options = DC::get_core_options(&world).copied();
     let is_redraw_triggered = core_options.map(|o| o.is_redraw_annos_triggered);
@@ -145,7 +145,7 @@ pub(super) fn check_trigger_history_update<DC>(
     name: &'static str,
 ) -> (World, History)
 where
-    DC: DataAccess,
+    DC: MetaDataAccess,
 {
     let core_options = DC::get_core_options_mut(&mut world).copied();
     let is_history_update_triggered = core_options.map(|o| o.is_history_update_triggered);
@@ -234,7 +234,7 @@ fn replace_annotations_with_clipboard<T, DA, IA>(
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    DA: DataAccess,
+    DA: MetaDataAccess,
     IA: InstanceAnnoAccess<T>,
 {
     let annos = IA::get_annos_mut(&mut world);
@@ -251,7 +251,7 @@ pub(super) fn check_autopaste<T, DA, IA>(
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    DA: DataAccess,
+    DA: MetaDataAccess,
     IA: InstanceAnnoAccess<T>,
 {
     let clipboard_data = IA::get_clipboard(&world).cloned();
@@ -274,7 +274,7 @@ pub fn check_erase_mode<AC>(
     mut world: World,
 ) -> World
 where
-    AC: DataAccess,
+    AC: MetaDataAccess,
 {
     if let (ReleasedKey::E, Some(core_options)) =
         (released_key, AC::get_core_options_mut(&mut world))
@@ -293,7 +293,7 @@ where
 
 pub fn check_recolorboxes<AC>(mut world: World, actor: &'static str) -> World
 where
-    AC: DataAccess,
+    AC: MetaDataAccess,
 {
     let is_colorchange_triggered =
         AC::get_core_options_mut(&mut world).map(|o| o.is_colorchange_triggered);
@@ -352,7 +352,7 @@ pub(super) fn paste<T, DA, IA>(
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    DA: DataAccess,
+    DA: MetaDataAccess,
     IA: InstanceAnnoAccess<T>,
 {
     if let Some(clipboard) = clipboard {
@@ -383,7 +383,7 @@ where
 pub fn deselect_all<T, DA, IA>(mut world: World, actor: &'static str) -> World
 where
     T: InstanceAnnotate,
-    DA: DataAccess,
+    DA: MetaDataAccess,
     IA: InstanceAnnoAccess<T>,
 {
     // Deselect all
@@ -404,7 +404,7 @@ pub(super) fn on_selection_keys<T, DA, IA>(
 ) -> (World, History)
 where
     T: InstanceAnnotate,
-    DA: DataAccess,
+    DA: MetaDataAccess,
     IA: InstanceAnnoAccess<T>,
 {
     match key {

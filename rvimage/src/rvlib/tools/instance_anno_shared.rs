@@ -3,7 +3,7 @@ use crate::{
     meta_data::MetaData,
     result::trace_ok_err,
     tools_data::{merge, ExportAsCoco, ImportMode, Rot90ToolData},
-    world::{self, DataAccess, World},
+    world::{self, MetaDataAccess, World},
     InstanceAnnotate,
 };
 use std::mem;
@@ -24,7 +24,7 @@ pub fn check_cocoimport<T, A, DA>(
 where
     T: ExportAsCoco<A> + Default,
     A: InstanceAnnotate + 'static,
-    DA: DataAccess,
+    DA: MetaDataAccess,
 {
     enum IsImportTriggered {
         Yes,
