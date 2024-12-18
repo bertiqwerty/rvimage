@@ -172,6 +172,7 @@ pub struct Menu {
     stats: Stats,
     text_buffers: TextBuffers,
     show_file_idx: bool,
+    annotations_menu_parents_depth: u8
 }
 
 impl Menu {
@@ -190,6 +191,7 @@ impl Menu {
             stats: Stats::default(),
             text_buffers,
             show_file_idx: true,
+            annotations_menu_parents_depth: 1,
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -293,8 +295,14 @@ impl Menu {
                 });
 
                 let popup_id = ui.make_persistent_id("autosave-popup");
-                let autosave_gui =
-                    AutosaveMenu::new(popup_id, ctrl, tools_data_map, &mut projected_loaded);
+                let autosave_gui = AutosaveMenu::new(
+                    popup_id,
+                    ctrl,
+                    tools_data_map,
+                    &mut projected_loaded,
+                    &mut self.are_tools_active,
+                    &mut self.annotations_menu_parents_depth
+                );
                 ui.add(autosave_gui);
 
                 let popup_id = ui.make_persistent_id("cfg-popup");
