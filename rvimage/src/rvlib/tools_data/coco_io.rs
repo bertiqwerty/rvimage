@@ -279,7 +279,7 @@ impl CocoExportData {
                         shape,
                         n_rotations,
                         options.is_export_absolute,
-                        file_path
+                        file_path,
                     ))
                     .map(|(bb_f, segmentation)| {
                         box_id += 1;
@@ -1112,7 +1112,8 @@ fn test_instance_to_coco() {
     };
     let n_rotations = 1;
 
-    let (_, segmentation) = instance_to_coco_anno(&canvas, shape_im, n_rotations, false, "").unwrap();
+    let (_, segmentation) =
+        instance_to_coco_anno(&canvas, shape_im, n_rotations, false, "").unwrap();
 
     let coco_seg = canvas
         .rot90_with_image_ntimes(
@@ -1130,7 +1131,8 @@ fn test_instance_to_coco() {
 
     let n_rotations = 1;
 
-    let (bb_rot, segmentation) = instance_to_coco_anno(&geo, shape_im, n_rotations, true, "").unwrap();
+    let (bb_rot, segmentation) =
+        instance_to_coco_anno(&geo, shape_im, n_rotations, true, "").unwrap();
     println!("{bb_rot:?}");
     let coco_seg = geo
         .rot90_with_image_ntimes(
