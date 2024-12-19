@@ -39,11 +39,17 @@ struct FolderParams {
     parents_depth: u8,
 }
 
+fn ancestor(path: &String, depth: u8) -> &Path {
+    Path::new(path)
+        .ancestors()
+        .nth(depth.into())
+        .unwrap_or(Path::new(""))
+}
+
 fn tdm_instance_annos<T>(
     name: &str,
     tdm: &mut ToolsDataMap,
     ui: &mut Ui,
-    cpp_parent: &str,
     folder_params: FolderParams,
     unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
     unwrap_specifics_mut: impl Fn(&mut ToolSpecifics) -> RvResult<&mut AnnotationsMap<T>>,
@@ -61,12 +67,9 @@ fn tdm_instance_annos<T>(
         if let Some(brush_annos) = anno_map {
             let parents_set = brush_annos
                 .iter()
-                .flat_map(|(k, (annos, _))| {
+                .map(|(k, (annos, _))| {
                     n_annos_allfolders += annos.len();
-                    Path::new(k)
-                        .ancestors()
-                        .nth(parents_depth.into())
-                        .map(Path::to_path_buf)
+                    ancestor(k, parents_depth).to_path_buf()
                 })
                 .collect::<HashSet<_>>();
             parents = parents_set.into_iter().collect::<Vec<_>>();
@@ -88,18 +91,12 @@ fn tdm_instance_annos<T>(
             ));
             egui::Grid::new("annotations-menu-grid").show(ui, |ui| {
                 for p in &parents[0..max_n_folders.min(parents.len())] {
-                    let p_label = egui::RichText::new(
-                        p.to_str()
-                            .map(|p| if p.is_empty() { cpp_parent } else { p })
-                            .unwrap_or(cpp_parent),
-                    )
-                    .monospace();
+                    let p_label = egui::RichText::new(p.to_str().unwrap_or("")).monospace();
                     let n_annos_of_subfolders = egui::RichText::new(format!(
                         "{}",
                         annos_map_mut
                             .iter()
-                            .filter(|(k, _)| Path::new(k).ancestors().nth(parents_depth.into())
-                                == Some(p))
+                            .filter(|(k, _)| ancestor(k, parents_depth) == p)
                             .map(|(_, (anno_map, _))| anno_map.len())
                             .sum::<usize>()
                     ))
@@ -111,9 +108,7 @@ fn tdm_instance_annos<T>(
                     {
                         let to_del = annos_map_mut
                             .keys()
-                            .filter(|k| {
-                                Path::new(k).ancestors().nth(parents_depth.into()) == Some(p)
-                            })
+                            .filter(|k| ancestor(k, parents_depth) == p)
                             .map(|k| k.to_string())
                             .collect::<Vec<_>>();
                         for k in to_del {
@@ -138,7 +133,6 @@ fn tdm_instance_annos<T>(
 fn annotations(
     ui: &mut Ui,
     tdm: &mut ToolsDataMap,
-    cur_prj_path: &Path,
     are_tools_active: &mut bool,
     parents_depth: &mut u8,
 ) {
@@ -154,16 +148,11 @@ fn annotations(
         1..=5u8,
         "# subfolders to aggregate",
     );
-    let cpp_parent = cur_prj_path
-        .parent()
-        .and_then(|p| p.to_str())
-        .unwrap_or(".");
     let max_n_folders = 5;
     tdm_instance_annos(
         BRUSH_NAME,
         tdm,
         ui,
-        cpp_parent,
         FolderParams {
             max_n_folders,
             parents_depth: *parents_depth,
@@ -175,7 +164,6 @@ fn annotations(
         BBOX_NAME,
         tdm,
         ui,
-        cpp_parent,
         FolderParams {
             max_n_folders,
             parents_depth: *parents_depth,
@@ -249,13 +237,7 @@ fn annotations_popup(
     Frame::popup(ui.style()).show(ui, |ui| {
         (close, tdm) = autosaves(ui, ctrl);
         ui.separator();
-        annotations(
-            ui,
-            in_tdm,
-            ctrl.cfg.current_prj_path(),
-            are_tools_active,
-            parent_depth,
-        );
+        annotations(ui, in_tdm, are_tools_active, parent_depth);
         ui.separator();
         ui.horizontal(|ui| {
             if ui.button("Close").clicked() {
