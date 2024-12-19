@@ -132,7 +132,6 @@ impl Default for MainEventLoop {
     }
 }
 
-
 impl MainEventLoop {
     pub fn new(prj_file_path: Option<PathBuf>) -> Self {
         let ctrl = Control::new();
@@ -411,7 +410,10 @@ impl MainEventLoop {
             }
         }
 
-        Ok((mem::take(&mut self.world.update_view), get_prj_name(self.ctrl.cfg.current_prj_path(), None)))
+        Ok((
+            mem::take(&mut self.world.update_view),
+            get_prj_name(self.ctrl.cfg.current_prj_path(), None),
+        ))
     }
     pub fn load_prj(&mut self, file_path: Option<PathBuf>) -> RvResult<()> {
         if let Some(file_path) = file_path {
