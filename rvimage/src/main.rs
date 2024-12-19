@@ -5,10 +5,11 @@
 #![forbid(unsafe_code)]
 
 use clap::Parser;
+
 use egui::{
     epaint::{CircleShape, PathShape, RectShape},
     Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
-    Sense, Shape, Stroke, Style, TextureHandle, TextureOptions, Ui, Vec2, Visuals,
+    Sense, Shape, Stroke, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportCommand, Visuals,
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
@@ -644,14 +645,15 @@ impl eframe::App for RvImageApp {
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;
         });
-        let update_view = self.event_loop.one_iteration(
+        let res = self.event_loop.one_iteration(
             &self.events,
             self.image_rect
                 .map(|ir| ShapeF::new(ir.width().into(), ir.height().into())),
             ctx,
         );
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if let Ok(update_view) = update_view {
+        if let Ok((update_view, prj_name)) = res {
+            ctx.send_viewport_cmd(ViewportCommand::Title(format!("RV Image - {prj_name}")));
+            egui::CentralPanel::default().show(ctx, |ui| {
                 if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
                     self.zoom_box = zb;
                     self.update_texture(ctx);
@@ -722,8 +724,8 @@ impl eframe::App for RvImageApp {
                         self.draw_annos(ui, update_texture);
                     };
                 }
-            }
-        });
+            });
+        }
         let n_millis = self.t_last_iterations.len();
         for i in 0..(n_millis - 1) {
             self.t_last_iterations[i] = self.t_last_iterations[i + 1];

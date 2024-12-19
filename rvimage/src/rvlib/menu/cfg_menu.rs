@@ -99,7 +99,13 @@ fn settings_popup(ui: &mut Ui, cfg: &mut Cfg, are_tools_active: &mut bool) -> Cl
         ui.horizontal(|ui| {
             let name = get_prj_name(cfg.current_prj_path(), None);
             ui.label("Project Name");
-            ui.label(RichText::from(name).text_style(egui::TextStyle::Monospace));
+            ui.label(RichText::from(name).text_style(egui::TextStyle::Monospace))
+                .on_hover_text(
+                    cfg.current_prj_path()
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string(),
+                );
         });
         ui.separator();
         ui.horizontal(|ui| {

@@ -4,7 +4,7 @@ use crate::autosave::{autosave, AUTOSAVE_INTERVAL_S};
 use crate::control::{Control, Info};
 use crate::drawme::ImageInfo;
 use crate::events::{Events, KeyCode};
-use crate::file_util::DEFAULT_PRJ_PATH;
+use crate::file_util::{get_prj_name, DEFAULT_PRJ_PATH};
 use crate::history::{History, Record};
 use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
 use crate::result::trace_ok_err;
@@ -131,6 +131,8 @@ impl Default for MainEventLoop {
         Self::new(file_path)
     }
 }
+
+
 impl MainEventLoop {
     pub fn new(prj_file_path: Option<PathBuf>) -> Self {
         let ctrl = Control::new();
@@ -170,7 +172,7 @@ impl MainEventLoop {
         e: &Events,
         ui_image_rect: Option<ShapeF>,
         ctx: &Context,
-    ) -> RvResult<UpdateView> {
+    ) -> RvResult<(UpdateView, &str)> {
         self.world.set_image_rect(ui_image_rect);
         let project_loaded_in_curr_iter = self.menu.ui(
             ctx,
@@ -409,7 +411,7 @@ impl MainEventLoop {
             }
         }
 
-        Ok(mem::take(&mut self.world.update_view))
+        Ok((mem::take(&mut self.world.update_view), get_prj_name(self.ctrl.cfg.current_prj_path(), None)))
     }
     pub fn load_prj(&mut self, file_path: Option<PathBuf>) -> RvResult<()> {
         if let Some(file_path) = file_path {
