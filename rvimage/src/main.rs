@@ -652,7 +652,12 @@ impl eframe::App for RvImageApp {
             ctx,
         );
         if let Ok((update_view, prj_name)) = res {
-            ctx.send_viewport_cmd(ViewportCommand::Title(format!("RV Image - {prj_name}")));
+            let title = if prj_name.is_empty() {
+                "RV Image".to_string()
+            } else {
+                format!("RV Image - {prj_name}")
+            };
+            ctx.send_viewport_cmd(ViewportCommand::Title(title));
             egui::CentralPanel::default().show(ctx, |ui| {
                 if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
                     self.zoom_box = zb;
