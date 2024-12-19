@@ -39,8 +39,9 @@ egui = "0.30.0"
 eframe = { version = "0.30.0", default-features = false, features = [
     # "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
-    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
+    "wgpu",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",   # Enable restoring app state when restarting the app.
+    "wayland",
 ] }
 futures = { version = "0.3.31", optional = true }
 httparse = "1.9.5"
@@ -72,7 +73,11 @@ backtrace = "0.3.74"
 zip = "2.2.1"
 rvimage-domain = "0.4.7"
 clap = { version = "4.5.23", features = ["derive"] }
-chrono = { version = "0.4.39", features = ["serde"] }
+chrono = { version = "0.4.39", default-features = false, features = [
+    "std",
+    "clock",
+    "serde",
+] }
 whoami = "1.5.2"
 # temporary pin
 url = "2.5.4"
