@@ -671,8 +671,8 @@ impl eframe::App for RvImageApp {
                 let it_per_s = 1.0
                     / (self.t_last_iterations.iter().sum::<f64>()
                         / self.t_last_iterations.len() as f64);
-                let it_str = if it_per_s > 1000.0 {
-                    "1000+".to_string()
+                let it_str = if it_per_s > 200.0 {
+                    "200+".to_string()
                 } else {
                     format!("{}", it_per_s.round())
                 };
