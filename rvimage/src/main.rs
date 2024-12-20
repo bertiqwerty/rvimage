@@ -7,7 +7,10 @@
 use clap::Parser;
 
 use egui::{
-    epaint::{CircleShape, PathShape, RectShape}, Color32, ColorImage, Context, IconData, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding, Sense, Shape, Stroke, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportBuilder, ViewportCommand, Visuals
+    epaint::{CircleShape, PathShape, RectShape},
+    Color32, ColorImage, Context, IconData, Image, Modifiers, PointerButton, Pos2, Rect, Response,
+    Rounding, Sense, Shape, Stroke, Style, TextureHandle, TextureOptions, Ui, Vec2,
+    ViewportBuilder, ViewportCommand, Visuals,
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
