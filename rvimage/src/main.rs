@@ -7,9 +7,7 @@
 use clap::Parser;
 
 use egui::{
-    epaint::{CircleShape, PathShape, RectShape},
-    Color32, ColorImage, Context, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding,
-    Sense, Shape, Stroke, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportCommand, Visuals,
+    epaint::{CircleShape, PathShape, RectShape}, Color32, ColorImage, Context, IconData, Image, Modifiers, PointerButton, Pos2, Rect, Response, Rounding, Sense, Shape, Stroke, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportBuilder, ViewportCommand, Visuals
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
@@ -807,7 +805,19 @@ fn main() {
         if let (Some(in_prj_path), Some(out_folder)) = (cli.in_prj_path, cli.out_folder) {
             trace_ok_err(export_coco(&in_prj_path, &out_folder, cli.per_file_crowd));
         } else {
-            let native_options = eframe::NativeOptions::default();
+            let icon_bytes = include_bytes!("../resources/rvimage-logo.png");
+            let icon_image = image::load_from_memory(icon_bytes).unwrap();
+            let icon_image = icon_image.to_rgba8();
+            let icon_image_raw: &[u8] = icon_image.as_ref();
+            let icon = IconData {
+                width: icon_image.width() as u32,
+                height: icon_image.height() as u32,
+                rgba: icon_image_raw.to_vec(),
+            };
+            let native_options = eframe::NativeOptions {
+                viewport: ViewportBuilder::default().with_icon(icon),
+                ..Default::default()
+            };
             if let Err(e) = eframe::run_native(
                 "RV Image",
                 native_options,
