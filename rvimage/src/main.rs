@@ -519,7 +519,9 @@ impl RvImageApp {
                 Annotation::Bbox(bbox) => {
                     // hide out of zoombox geos
                     if self.zoom_box.map(|zb| {
-                        (0..3)
+                        (0..3).any(|corner_idx| {
+                            bbox.geofig.enclosing_bb().contains(zb.corner(corner_idx))
+                        }) || (0..3)
                             .map(|corner_idx| bbox.geofig.enclosing_bb().corner(corner_idx))
                             .chain(iter::once(bbox.geofig.enclosing_bb().center_f().into()))
                             .any(|p| zb.contains(p))
