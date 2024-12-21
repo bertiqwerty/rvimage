@@ -453,21 +453,23 @@ impl RvImageApp {
                 );
                 let poly = if let Some(zb) = self.zoom_box {
                     if let Ok(poly_) = poly.clone().intersect(zb) {
-                        poly_
+                        Some(poly_)
                     } else {
-                        poly.clone()
+                        None
                     }
                 } else {
-                    poly.clone()
+                    Some(poly.clone())
                 };
-                let egui_rect_points = poly
-                    .points_iter()
-                    .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
-                    .collect::<Vec<_>>();
-                draw_vec.push(Shape::Path(PathShape::closed_line(
-                    egui_rect_points,
-                    stroke,
-                )));
+                if let Some(poly) = poly {
+                    let egui_rect_points = poly
+                        .points_iter()
+                        .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
+                        .collect::<Vec<_>>();
+                    draw_vec.push(Shape::Path(PathShape::closed_line(
+                        egui_rect_points,
+                        stroke,
+                    )));
+                }
             }
         }
         Shape::Vec(draw_vec)
