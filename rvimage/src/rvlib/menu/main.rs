@@ -1,6 +1,7 @@
 use crate::{
     control::{Control, Info},
     file_util::get_prj_name,
+    image_reader::LoadImageForGui,
     menu::{
         self, annotations_menu::AutosaveMenu, cfg_menu::CfgMenu,
         label_delpropstats::labels_and_sorting, open_folder, ui_util::text_edit_singleline,
@@ -314,6 +315,14 @@ impl Menu {
                     const CODE: &str = env!("CARGO_PKG_REPOSITORY");
                     let version_label = version_label();
                     ui.label(version_label);
+                    if let Some(reader) = &ctrl.reader {
+                        ui.label("cache size in mb");
+                        ui.label(
+                            egui::RichText::new(format!("{:.3}", reader.cache_size_in_mb()))
+                                .monospace(),
+                        );
+                        ui.label("");
+                    }
                     ui.hyperlink_to("Docs, License, and Code", CODE);
                     if ui.button("Export Logs").clicked() {
                         let log_export_dst = rfd::FileDialog::new()

@@ -156,4 +156,7 @@ impl LoadImageForGui for ReaderFromCfg {
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector> {
         self.reader.open_folder(abs_folder_path, prj_path)
     }
+    fn cache_size_in_mb(&self) -> f64 {
+        self.reader.cache_size_in_mb()
+    }
 }

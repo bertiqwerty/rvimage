@@ -207,6 +207,18 @@ where
             reader_args_phantom: PhantomData {},
         })
     }
+    fn size_in_mb(&self) -> f64 {
+        let n_bytes: u64 = self
+            .cached_paths
+            .values()
+            .filter_map(|cp| match cp {
+                ThreadResult::Ok(local_path) => Some(fs::metadata(&local_path.path).ok()?.len()),
+                _ => None,
+            })
+            .sum();
+        let mb_denominator: f64 = 1024f64.powi(2);
+        n_bytes as f64 / mb_denominator
+    }
 }
 
 #[cfg(test)]

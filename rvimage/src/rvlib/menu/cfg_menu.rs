@@ -165,7 +165,6 @@ fn settings_popup(ui: &mut Ui, cfg: &mut Cfg, are_tools_active: &mut bool) -> Cl
             ui.radio_value(&mut cfg.usr.cache, Cache::NoCache, "No Cache");
         });
         ui.separator();
-        ui.separator();
         ui.horizontal(|ui| {
             if ui.button("OK").clicked() {
                 close = Close::Yes(true);

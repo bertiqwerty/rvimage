@@ -21,4 +21,5 @@ pub trait Cache<A> {
     fn new(args: A) -> RvResult<Self>
     where
         Self: Sized;
+    fn size_in_mb(&self) -> f64;
 }
