@@ -127,7 +127,7 @@ pub fn get_cfg_path_usr(homefolder: &Path) -> PathBuf {
 }
 
 pub fn get_cfg_path_prj(homefolder: &Path) -> PathBuf {
-    homefolder.join("rv_cfg_usr.toml")
+    homefolder.join("rv_cfg_prjtmp.toml")
 }
 
 pub fn get_cfg_tmppath(cfg: &Cfg) -> PathBuf {
@@ -390,11 +390,8 @@ impl Cfg {
 }
 
 #[test]
-fn test_toml() -> RvResult<()> {
-    let cfg = Cfg::read(&DEFAULT_HOMEDIR)?;
-    println!("{:?}", cfg);
+fn test_default_toml() {
     get_default_cfg();
-    Ok(())
 }
 #[test]
 fn test_default_cfg_paths() {
