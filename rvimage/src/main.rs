@@ -16,11 +16,10 @@ use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
 use rvimage_domain::{access_mask_abs, to_rv, BbF, Canvas, PtF, PtI, RvResult, ShapeF, TPtF, TPtI};
 use rvlib::{
-    cfg::{ExportPath, ExportPathConnection},
+    cfg::{Cfg, ExportPath, ExportPathConnection},
     color_with_intensity,
     control::Control,
-    file_util::osstr_to_str,
-    read_darkmode,
+    file_util::{osstr_to_str, DEFAULT_HOMEDIR},
     result::trace_ok_err,
     to_per_file_crowd,
     tools::{self, BBOX_NAME, BRUSH_NAME},
@@ -829,8 +828,8 @@ fn main() {
                 "RV Image",
                 native_options,
                 Box::new(|cc| {
-                    if let Some(dm) = read_darkmode() {
-                        let viz = if dm {
+                    if let Ok(cfg) = Cfg::read(&DEFAULT_HOMEDIR) {
+                        let viz = if cfg.usr.darkmode == Some(true) {
                             Visuals::dark()
                         } else {
                             Visuals::light()

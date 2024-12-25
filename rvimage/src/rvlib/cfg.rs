@@ -118,19 +118,16 @@ pub fn get_default_cfg() -> Cfg {
     cfg
 }
 
-fn get_cfg_path(filename: &str) -> PathBuf {
-    DEFAULT_HOMEDIR.join(filename)
-}
-pub fn get_cfg_path_legacy() -> PathBuf {
-    get_cfg_path("rv_cfg.toml")
+pub fn get_cfg_path_legacy(homefolder: &Path) -> PathBuf {
+    homefolder.join("rv_cfg.toml")
 }
 
-pub fn get_cfg_path_usr() -> PathBuf {
-    get_cfg_path("rv_cfg_usr.toml")
+pub fn get_cfg_path_usr(homefolder: &Path) -> PathBuf {
+    homefolder.join("rv_cfg_usr.toml")
 }
 
-pub fn get_cfg_path_prj() -> PathBuf {
-    get_cfg_path("rv_cfg_prjtmp.toml")
+pub fn get_cfg_path_prj(homefolder: &Path) -> PathBuf {
+    homefolder.join("rv_cfg_usr.toml")
 }
 
 pub fn get_cfg_tmppath(cfg: &Cfg) -> PathBuf {
@@ -139,11 +136,8 @@ pub fn get_cfg_tmppath(cfg: &Cfg) -> PathBuf {
         .join("rv_cfg_tmp.toml")
 }
 
-pub fn get_log_folder() -> RvResult<PathBuf> {
-    Ok(get_cfg_path_usr()
-        .parent()
-        .ok_or_else(|| RvError::new("the cfg file needs a parent"))?
-        .join("logs"))
+pub fn get_log_folder(homefolder: &Path) -> PathBuf {
+    homefolder.join("logs")
 }
 
 pub fn read_cfg_gen<CFG: Debug + DeserializeOwned + Default>(
@@ -177,41 +171,12 @@ fn read_cfg_from_paths(
     }
 }
 
-pub fn read_cfg() -> RvResult<Cfg> {
-    let cfg_toml_path_usr = get_cfg_path_usr();
-    let cfg_toml_path_prj = get_cfg_path_prj();
-    let cfg_toml_path_legacy = get_cfg_path_legacy();
-    read_cfg_from_paths(
-        &cfg_toml_path_usr,
-        &cfg_toml_path_prj,
-        &cfg_toml_path_legacy,
-    )
-}
-
 pub fn write_cfg_str(cfg_str: &str, p: &Path, log: bool) -> RvResult<()> {
     file_util::write(p, cfg_str)?;
     if log {
         info!("wrote cfg to {p:?}");
     }
     Ok(())
-}
-
-pub fn write_cfg(cfg: &Cfg) -> RvResult<()> {
-    let cfg_usr_path = get_cfg_path_usr();
-    if let Some(cfg_parent) = cfg_usr_path.parent() {
-        fs::create_dir_all(cfg_parent).map_err(to_rv)?;
-    }
-    let cfg_usr_str = toml::to_string_pretty(&cfg.usr).map_err(to_rv)?;
-    let log = true;
-    write_cfg_str(&cfg_usr_str, &cfg_usr_path, log).and_then(|_| {
-        let cfg_prj_path = get_cfg_path_prj();
-        let cfg_prj_str = toml::to_string_pretty(&cfg.prj).map_err(to_rv)?;
-        write_cfg_str(&cfg_prj_str, &cfg_prj_path, log)
-    })
-}
-
-pub fn read_darkmode() -> Option<bool> {
-    read_cfg().ok().and_then(|cfg| cfg.usr.darkmode)
 }
 
 #[derive(Deserialize, Serialize, Debug, Eq, PartialEq, Clone, Copy, Default)]
@@ -397,11 +362,36 @@ impl Cfg {
     pub fn unset_current_prj_path(&mut self) {
         self.usr.current_prj_path = None;
     }
+
+    pub fn write(&self) -> RvResult<()> {
+        let homefolder = Path::new(self.home_folder()?);
+        let cfg_usr_path = get_cfg_path_usr(homefolder);
+        if let Some(cfg_parent) = cfg_usr_path.parent() {
+            fs::create_dir_all(cfg_parent).map_err(to_rv)?;
+        }
+        let cfg_usr_str = toml::to_string_pretty(&self.usr).map_err(to_rv)?;
+        let log = true;
+        write_cfg_str(&cfg_usr_str, &cfg_usr_path, log).and_then(|_| {
+            let cfg_prj_path = get_cfg_path_prj(homefolder);
+            let cfg_prj_str = toml::to_string_pretty(&self.prj).map_err(to_rv)?;
+            write_cfg_str(&cfg_prj_str, &cfg_prj_path, log)
+        })
+    }
+    pub fn read(homefolder: &Path) -> RvResult<Self> {
+        let cfg_toml_path_usr = get_cfg_path_usr(homefolder);
+        let cfg_toml_path_prj = get_cfg_path_prj(homefolder);
+        let cfg_toml_path_legacy = get_cfg_path_legacy(homefolder);
+        read_cfg_from_paths(
+            &cfg_toml_path_usr,
+            &cfg_toml_path_prj,
+            &cfg_toml_path_legacy,
+        )
+    }
 }
 
 #[test]
 fn test_toml() -> RvResult<()> {
-    let cfg: Cfg = read_cfg()?;
+    let cfg = Cfg::read(&DEFAULT_HOMEDIR)?;
     println!("{:?}", cfg);
     get_default_cfg();
     Ok(())

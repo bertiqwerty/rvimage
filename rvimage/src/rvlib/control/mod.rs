@@ -1,7 +1,7 @@
 use crate::cfg::{self, get_log_folder, Connection};
 use crate::defer_file_removal;
 use crate::file_util::{
-    self, osstr_to_str, PathPair, SavedCfg, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
+    self, osstr_to_str, PathPair, SavedCfg, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
@@ -40,10 +40,10 @@ mod detail {
     use serde::{Deserialize, Serialize, Serializer};
 
     use crate::{
-        cfg::{read_cfg, write_cfg, Cfg, CfgPrj},
+        cfg::{Cfg, CfgPrj},
         control::SavePrjData,
         defer_file_removal,
-        file_util::{self, tf_to_annomap_key, SavedCfg},
+        file_util::{self, tf_to_annomap_key, SavedCfg, DEFAULT_HOMEDIR},
         result::trace_ok_err,
         tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
         tools_data::merge,
@@ -63,7 +63,7 @@ mod detail {
     where
         S: Serializer,
     {
-        let cfg = trace_ok_err(read_cfg());
+        let cfg = trace_ok_err(Cfg::read(&DEFAULT_HOMEDIR));
         let prj_path = cfg.as_ref().map(|cfg| cfg.current_prj_path());
         let folder = folder
             .clone()
@@ -74,7 +74,7 @@ mod detail {
     where
         D: serde::Deserializer<'de>,
     {
-        let cfg = trace_ok_err(read_cfg());
+        let cfg = trace_ok_err(Cfg::read(&DEFAULT_HOMEDIR));
         let prj_path = cfg.as_ref().map(|cfg| cfg.current_prj_path());
         let folder: Option<String> = Option::deserialize(deserializer)?;
 
@@ -141,7 +141,7 @@ mod detail {
     ) -> RvResult<()> {
         // we need to write the cfg for correct prj-path mapping during serialization
         // of annotations
-        trace_ok_err(write_cfg(cfg));
+        trace_ok_err(cfg.write());
         let make_data = |tdm: &ToolsDataMap| SavePrjData {
             version: Some(version_label()),
             opened_folder: opened_folder.map(|of| of.to_string()),
@@ -346,7 +346,7 @@ impl Control {
                 tdm
             };
             self.set_current_prj_path(cur_prj_path)?;
-            cfg::write_cfg(&self.cfg)?;
+            self.cfg.write()?;
             Ok(loaded)
         } else {
             Err(rverr!("{cur_prj_path:?} does not have a parent folder"))
@@ -356,8 +356,7 @@ impl Control {
         // we need the project path before reading the annotations to map
         // their path correctly
         self.set_current_prj_path(file_path.clone())?;
-        cfg::write_cfg(&self.cfg)?;
-
+        self.cfg.write()?;
         let (tools_data_map, to_be_opened_folder, read_cfg) = detail::load(&file_path)?;
         if let Some(of) = to_be_opened_folder {
             self.open_relative_folder(of)?;
@@ -365,7 +364,7 @@ impl Control {
         self.cfg.prj = read_cfg;
 
         // save cfg of loaded project
-        trace_ok_err(cfg::write_cfg(&self.cfg));
+        trace_ok_err(self.cfg.write());
 
         Ok(tools_data_map)
     }
@@ -407,7 +406,7 @@ impl Control {
         if set_cur_prj {
             self.set_current_prj_path(path.clone())?;
             // update prj name in cfg
-            trace_ok_err(cfg::write_cfg(&self.cfg));
+            trace_ok_err(self.cfg.write());
         }
         let opened_folder = self.opened_folder().cloned();
         let tdm = tools_data_map.clone();
@@ -426,7 +425,7 @@ impl Control {
     }
 
     pub fn new() -> Self {
-        let cfg = cfg::read_cfg().unwrap_or_else(|e| {
+        let cfg = Cfg::read(&DEFAULT_HOMEDIR).unwrap_or_else(|e| {
             warn!("could not read cfg due to {e:?}, returning default");
             cfg::get_default_cfg()
         });
@@ -439,7 +438,7 @@ impl Control {
         tmp
     }
     pub fn new_prj(&mut self) -> ToolsDataMap {
-        let mut cfg = cfg::read_cfg().unwrap_or_else(|e| {
+        let mut cfg = Cfg::read(&DEFAULT_HOMEDIR).unwrap_or_else(|e| {
             warn!("could not read cfg due to {e:?}, returning default");
             cfg::get_default_cfg()
         });
@@ -476,37 +475,36 @@ impl Control {
         Ok(())
     }
 
-    pub fn export_logs(&self, dst: &Path) {
-        if let Ok(log_folder) = get_log_folder() {
-            tracing::info!("exporting logs from {log_folder:?} to {dst:?}");
-            let elf = log_folder.clone();
-            let dst = dst.to_path_buf();
-            thread::spawn(move || {
-                // zip log folder
-                let mut zip = zip::ZipWriter::new(fs::File::create(&dst).unwrap());
+    pub fn export_logs(&self, dst: &Path) -> RvResult<()> {
+        let homefolder = self.cfg.home_folder()?;
+        let log_folder = get_log_folder(Path::new(homefolder));
+        tracing::info!("exporting logs from {log_folder:?} to {dst:?}");
+        let elf = log_folder.clone();
+        let dst = dst.to_path_buf();
+        thread::spawn(move || {
+            // zip log folder
+            let mut zip = zip::ZipWriter::new(fs::File::create(&dst).unwrap());
 
-                let walkdir = WalkDir::new(elf);
-                let iter_log = walkdir.into_iter();
-                for entry in iter_log {
-                    if let Some(entry) = trace_ok_err(entry) {
-                        let path = entry.path();
-                        if path.is_file() {
-                            let file_name = osstr_to_str(path.file_name());
-                            trace_ok_err(file_name).and_then(|file_name| {
-                                trace_ok_err(zip.start_file::<&str, ExtendedFileOptions>(
-                                    file_name,
-                                    zip::write::FileOptions::default(),
-                                ));
-                                trace_ok_err(fs::read(path))
-                                    .and_then(|buf| trace_ok_err(zip.write_all(&buf)))
-                            });
-                        }
+            let walkdir = WalkDir::new(elf);
+            let iter_log = walkdir.into_iter();
+            for entry in iter_log {
+                if let Some(entry) = trace_ok_err(entry) {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let file_name = osstr_to_str(path.file_name());
+                        trace_ok_err(file_name).and_then(|file_name| {
+                            trace_ok_err(zip.start_file::<&str, ExtendedFileOptions>(
+                                file_name,
+                                zip::write::FileOptions::default(),
+                            ));
+                            trace_ok_err(fs::read(path))
+                                .and_then(|buf| trace_ok_err(zip.write_all(&buf)))
+                        });
                     }
                 }
-            });
-        } else {
-            tracing::error!("could not get log folder");
-        }
+            }
+        });
+        Ok(())
     }
 
     pub fn open_relative_folder(&mut self, new_folder: String) -> RvResult<()> {

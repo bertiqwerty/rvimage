@@ -85,7 +85,7 @@ fn settings_popup(ui: &mut Ui, cfg: &mut Cfg, are_tools_active: &mut bool) -> Cl
                     tracing::info!("config updated with new settings");
                     *cfg = cfg_;
                 }
-                if let Err(e) = cfg::write_cfg(cfg) {
+                if let Err(e) = cfg.write() {
                     tracing::error!("could not save cfg {e:?}");
                 }
             }
@@ -213,7 +213,7 @@ impl Widget for CfgMenu<'_> {
                 .response;
             if let Close::Yes(save) = close {
                 if save {
-                    if let Err(e) = cfg::write_cfg(self.cfg) {
+                    if let Err(e) = self.cfg.write() {
                         tracing::error!("could not write config,\n{e:#?}");
                         tracing::error!("{:?}", self.cfg);
                     }

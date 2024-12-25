@@ -28,7 +28,6 @@ mod types;
 mod util;
 pub mod view;
 pub mod world;
-pub use cfg::read_darkmode;
 pub use drawme::{
     Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateImage, UpdatePermAnnos,
     UpdateTmpAnno, UpdateView, UpdateZoomBox,

@@ -1,4 +1,4 @@
-use crate::cfg::get_log_folder;
+use crate::{cfg::get_log_folder, file_util::DEFAULT_HOMEDIR};
 use backtrace::Backtrace;
 use std::{cell::RefCell, io};
 use tracing::Level;
@@ -14,7 +14,7 @@ thread_local! {
 /// # Panics
 /// In case tracing cannot be setup properly.
 pub fn tracing_setup() -> WorkerGuard {
-    let log_folder = get_log_folder().expect("no log folder");
+    let log_folder = get_log_folder(&DEFAULT_HOMEDIR);
     let file_appender = tracing_appender::rolling::daily(log_folder, "log");
     let (file_appender, guard_flush_file) = tracing_appender::non_blocking(file_appender);
     let file_appender = Layer::new()

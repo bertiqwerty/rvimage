@@ -186,7 +186,7 @@ impl MainEventLoop {
             }
         }
         if let Some(elf) = &self.ctrl.log_export_path {
-            self.ctrl.export_logs(elf);
+            trace_ok_err(self.ctrl.export_logs(elf));
         }
         if self.ctrl.log_export_path.is_some() {
             self.ctrl.log_export_path = None;

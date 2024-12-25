@@ -4,8 +4,8 @@ use rvimage_domain::ShapeI;
 use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 
 use crate::{
-    cfg::{read_cfg, Cfg},
-    file_util::{tf_to_annomap_key, PathPair},
+    cfg::Cfg,
+    file_util::{tf_to_annomap_key, PathPair, DEFAULT_HOMEDIR},
     result::trace_ok_err,
 };
 
@@ -17,7 +17,7 @@ where
     T: Serialize,
     S: Serializer,
 {
-    let cfg = trace_ok_err(read_cfg());
+    let cfg = trace_ok_err(Cfg::read(&DEFAULT_HOMEDIR));
 
     data.iter()
         .map(|(k, (v, s))| {
@@ -37,7 +37,7 @@ where
     D: serde::Deserializer<'de>,
     T: DeserializeOwned,
 {
-    let cfg = trace_ok_err(read_cfg());
+    let cfg = trace_ok_err(Cfg::read(&DEFAULT_HOMEDIR));
 
     let map: HashMap<String, (T, ShapeI)> = HashMap::deserialize(deserializer)?;
 
