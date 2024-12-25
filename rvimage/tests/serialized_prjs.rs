@@ -22,8 +22,7 @@ fn get_test_folder() -> PathBuf {
 #[cfg(test)]
 fn get_ctrl() -> Control {
     let mut ctrl = Control::default();
-    let test_folder = get_test_folder();
-    ctrl.cfg.usr.home_folder = Some(test_folder.to_str().unwrap().to_string());
+    ctrl.cfg.usr.home_folder = Some(ctrl.cfg.tmpdir().to_string());
     ctrl
 }
 
