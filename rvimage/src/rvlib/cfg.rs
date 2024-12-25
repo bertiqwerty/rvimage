@@ -287,7 +287,11 @@ pub struct CfgUsr {
     pub darkmode: Option<bool>,
     #[serde(default = "get_default_n_autosaves")]
     pub n_autosaves: Option<u8>,
+
+    // This is only variable to make tests not override your config.
+    // You shall not change this when actually running RV Image.
     pub home_folder: Option<String>,
+
     pub cache: Cache,
     tmpdir: Option<String>,
     current_prj_path: Option<PathBuf>,
