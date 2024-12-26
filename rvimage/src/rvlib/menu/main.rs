@@ -46,7 +46,8 @@ fn show_popup(
             } else {
                 msg
             };
-            ui.label(format!("{icon} {shortened_msg}"));
+            let mut txt = format!("{icon} {shortened_msg}");
+            ui.text_edit_multiline(&mut txt);
             new_msg = if ui.button("Close").clicked() {
                 Info::None
             } else {
