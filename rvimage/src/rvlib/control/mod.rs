@@ -12,7 +12,7 @@ use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
 use chrono::{DateTime, Utc};
-use detail::create_lock_file;
+use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -81,7 +81,7 @@ mod detail {
         Ok(folder.map(|p| tf_to_annomap_key(p, prj_path)))
     }
 
-    fn lock_file_path(file_path: &Path) -> RvResult<PathBuf> {
+    pub(super) fn lock_file_path(file_path: &Path) -> RvResult<PathBuf> {
         let stem = file_util::osstr_to_str(file_path.file_stem()).map_err(to_rv)?;
         Ok(file_path.with_file_name(format!(".{stem}_lock.json")))
     }
@@ -98,6 +98,13 @@ mod detail {
             defer_file_removal!(&lock_file);
         }
         Ok(())
+    }
+    pub(super) fn read_user_from_lockfile(prj_file_path: &Path) -> RvResult<Option<UserPrjOpened>> {
+        let lock_file = lock_file_path(prj_file_path)?;
+        let lock_file_content = file_util::read_to_string(lock_file).ok();
+        lock_file_content
+            .map(|lfc| serde_json::from_str(&lfc).map_err(to_rv))
+            .transpose()
     }
 
     pub(super) fn idx_change_check(
@@ -353,6 +360,26 @@ impl Control {
         }
     }
     pub fn load(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
+        // check if project is already opened by someone
+        let lockusr = read_user_from_lockfile(&file_path)?;
+        if let Some(lockusr) = lockusr {
+            let usr = UserPrjOpened::new();
+            if usr.username != lockusr.username || usr.realname != lockusr.realname {
+                let lock_file_path = lock_file_path(&file_path)?;
+                let err = rverr!(
+                    "The project is opened by {} ({}). Delete {:?} to unlock.",
+                    lockusr.username,
+                    lockusr.realname,
+                    lock_file_path
+                );
+                Err(err)
+            } else {
+                Ok(())
+            }
+        } else {
+            Ok(())
+        }?;
+
         // we need the project path before reading the annotations to map
         // their path correctly
         self.set_current_prj_path(file_path.clone())?;
