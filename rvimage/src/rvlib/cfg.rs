@@ -55,7 +55,7 @@ impl CfgLegacy {
             cache: self.cache,
             tmpdir: self.tmpdir,
             current_prj_path: self.current_prj_path,
-            file_cache_args: self.file_cache_args,
+            file_cache_args: self.file_cache_args.unwrap_or_default(),
             ssh: SshCfgUsr {
                 user: self.ssh_cfg.user,
                 ssh_identity_file_path: self.ssh_cfg.ssh_identity_file_path,
@@ -79,43 +79,6 @@ impl CfgLegacy {
         };
         Cfg { usr, prj }
     }
-}
-
-const CFG_DEFAULT_USR: &str = r#"
-    cache = "FileCache"  # "NoCache" or "FileCache" 
-    current_prj_path = "default.rvi"
-    n_autosaves = 2
-    [file_cache_args]
-    n_prev_images = 2
-    n_next_images = 8
-    n_threads = 2 
-    # tmpdir = 
-    [ssh]
-    user = "someuser"
-    ssh_identity_file_path = "local/path"
-    "#;
-
-const CFG_DEFAULT_PRJ: &str = r#"
-    connection = "Local" # "Local" or "Ssh"
-    [ssh]
-    remote_folder_paths = ["a/b/c"]
-    address = "73.42.73.42"
-    "#;
-
-pub fn get_default_cfg_usr() -> CfgUsr {
-    toml::from_str(CFG_DEFAULT_USR).expect("default user config broken")
-}
-
-fn get_default_cfg_prj() -> CfgPrj {
-    toml::from_str(CFG_DEFAULT_PRJ).expect("default prj config broken")
-}
-
-pub fn get_default_cfg() -> Cfg {
-    let usr = get_default_cfg_usr();
-    let prj = get_default_cfg_prj();
-    let mut cfg = Cfg { usr, prj };
-    cfg.usr.current_prj_path = Some(DEFAULT_PRJ_PATH.to_path_buf());
-    cfg
 }
 
 pub fn get_cfg_path_legacy(homefolder: &Path) -> PathBuf {
@@ -167,7 +130,7 @@ fn read_cfg_from_paths(
         Ok(legacy.to_cfg())
     } else {
         tracing::info!("no cfg file found. using default cfg");
-        Ok(get_default_cfg())
+        Ok(Cfg::default())
     }
 }
 
@@ -295,7 +258,8 @@ pub struct CfgUsr {
     pub cache: Cache,
     tmpdir: Option<String>,
     current_prj_path: Option<PathBuf>,
-    pub file_cache_args: Option<FileCacheCfgArgs>,
+    #[serde(default)]
+    pub file_cache_args: FileCacheCfgArgs,
     pub ssh: SshCfgUsr,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
@@ -309,7 +273,7 @@ pub struct CfgPrj {
     #[serde(default)]
     pub sort_params: SortParams,
 }
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Cfg {
     pub usr: CfgUsr,
     pub prj: CfgPrj,
@@ -392,11 +356,16 @@ impl Cfg {
         )
     }
 }
-
-#[test]
-fn test_default_toml() {
-    get_default_cfg();
+impl Default for Cfg {
+    fn default() -> Self {
+        let usr = CfgUsr::default();
+        let prj = CfgPrj::default();
+        let mut cfg = Cfg { usr, prj };
+        cfg.usr.current_prj_path = Some(DEFAULT_PRJ_PATH.to_path_buf());
+        cfg
+    }
 }
+
 #[test]
 fn test_default_cfg_paths() {
     DEFAULT_HOMEDIR.to_str().unwrap();

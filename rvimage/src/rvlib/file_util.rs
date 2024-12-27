@@ -5,14 +5,10 @@ use crate::{
 use lazy_static::lazy_static;
 use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use std::{
-    collections::hash_map::DefaultHasher,
     ffi::OsStr,
     fmt::Debug,
-    fs,
-    hash::{Hash, Hasher},
-    io,
+    fs, io,
     path::{Path, PathBuf},
 };
 use tracing::{error, info};
@@ -108,12 +104,6 @@ impl PathPair {
     }
 }
 
-fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
-}
-
 pub fn read_to_string<P>(p: P) -> RvResult<String>
 where
     P: AsRef<Path> + Debug,
@@ -122,19 +112,6 @@ where
 }
 pub trait PixelEffect: FnMut(u32, u32) {}
 impl<T: FnMut(u32, u32)> PixelEffect for T {}
-pub fn filename_in_tmpdir(path: &str, tmpdir: &str) -> RvResult<String> {
-    let path_hash = calculate_hash(&path);
-    let path = PathBuf::from_str(path).unwrap();
-    let fname = format!(
-        "{path_hash}_{}",
-        osstr_to_str(path.file_name()).map_err(to_rv)?
-    );
-    Path::new(tmpdir)
-        .join(&fname)
-        .to_str()
-        .map(|s| s.replace('\\', "/"))
-        .ok_or_else(|| rverr!("filename_in_tmpdir could not transform {:?} to &str", fname))
-}
 
 pub fn path_to_str(p: &Path) -> RvResult<&str> {
     osstr_to_str(Some(p.as_os_str()))

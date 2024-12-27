@@ -15,11 +15,11 @@ pub trait Cache<A> {
         &mut self,
         selected_file_idx: usize,
         abs_file_paths: &[&str],
-        reload: bool,
     ) -> AsyncResultImage;
     fn ls(&self, abs_folder_path: &str) -> RvResult<Vec<String>>;
     fn new(args: A) -> RvResult<Self>
     where
         Self: Sized;
     fn size_in_mb(&self) -> f64;
+    fn clear(&mut self) -> RvResult<()>;
 }

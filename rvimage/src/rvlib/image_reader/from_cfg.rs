@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    cache::{FileCache, FileCacheArgs, FileCacheCfgArgs, NoCache},
-    cfg::{get_default_cfg_usr, Cache, Cfg, Connection},
+    cache::{FileCache, FileCacheArgs, NoCache},
+    cfg::{Cache, Cfg, Connection},
     paths_selector::PathsSelector,
     types::AsyncResultImage,
 };
@@ -20,14 +20,6 @@ use super::{
     ssh_reader::ReadImageFromSsh,
 };
 
-fn unwrap_file_cache_args(args: Option<FileCacheCfgArgs>) -> FileCacheCfgArgs {
-    args.unwrap_or_else(|| {
-        get_default_cfg_usr()
-            .file_cache_args
-            .expect("default usr cfg needs file_cache_args")
-    })
-}
-
 pub struct ReaderFromCfg {
     cfg: Cfg,
     reader: Box<dyn LoadImageForGui + Send>,
@@ -43,7 +35,7 @@ impl ReaderFromCfg {
         Ok(Self {
             reader: match (&cfg.prj.connection, &cfg.usr.cache) {
                 (Connection::Local, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
+                    let args = cfg.usr.file_cache_args.clone();
                     Box::new(Loader::<FileCache<ReadImageFromPath, _>, _>::new(
                         FileCacheArgs {
                             cfg_args: args,
@@ -54,7 +46,7 @@ impl ReaderFromCfg {
                     )?)
                 }
                 (Connection::Ssh, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
+                    let args = cfg.usr.file_cache_args.clone();
 
                     Box::new(
                         Loader::<FileCache<ReadImageFromSsh, _>, FileCacheArgs<_>>::new(
@@ -80,7 +72,7 @@ impl ReaderFromCfg {
                     )?)
                 }
                 (Connection::PyHttp, Cache::FileCache) => {
-                    let args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
+                    let args = cfg.usr.file_cache_args.clone();
 
                     Box::new(
                         Loader::<FileCache<ReadImageFromPyHttp, _>, FileCacheArgs<_>>::new(
@@ -98,7 +90,7 @@ impl ReaderFromCfg {
                 }
                 #[cfg(feature = "azure_blob")]
                 (Connection::AzureBlob, Cache::FileCache) => {
-                    let cache_args = unwrap_file_cache_args(cfg.usr.file_cache_args.clone());
+                    let cache_args = cfg.usr.file_cache_args.clone();
                     let azure_cfg_prj = cfg
                         .prj
                         .azure_blob
@@ -143,14 +135,15 @@ impl ReaderFromCfg {
     }
 }
 impl LoadImageForGui for ReaderFromCfg {
+    fn clear_cache(&mut self) -> RvResult<()> {
+        self.reader.clear_cache()
+    }
     fn read_image(
         &mut self,
         file_selected_idx: usize,
         abs_file_paths: &[&str],
-        reload: bool,
     ) -> AsyncResultImage {
-        self.reader
-            .read_image(file_selected_idx, abs_file_paths, reload)
+        self.reader.read_image(file_selected_idx, abs_file_paths)
     }
 
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector> {

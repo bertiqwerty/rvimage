@@ -13,12 +13,7 @@ where
     reader_args_phantom: PhantomData<RA>,
 }
 impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
-    fn load_from_cache(
-        &mut self,
-        selected_file_idx: usize,
-        files: &[&str],
-        _reload: bool,
-    ) -> AsyncResultImage {
+    fn load_from_cache(&mut self, selected_file_idx: usize, files: &[&str]) -> AsyncResultImage {
         let path = &files[selected_file_idx];
         self.reader.read(path).map(|im| {
             Some(ImageInfoPair {
@@ -41,5 +36,8 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
     }
     fn size_in_mb(&self) -> f64 {
         0.0
+    }
+    fn clear(&mut self) -> RvResult<()> {
+        Ok(())
     }
 }

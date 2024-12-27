@@ -5,6 +5,7 @@ use std::time::Duration;
 use crate::cache::Cache;
 use crate::file_util::PathPair;
 use crate::paths_selector::PathsSelector;
+use crate::result::trace_ok_err;
 use crate::types::AsyncResultImage;
 use rvimage_domain::RvResult;
 
@@ -19,15 +20,12 @@ pub struct CloneDummy;
 /// such that the loader can be created dynamically based on the config.
 pub trait LoadImageForGui {
     /// read image with index file_selected_idx  
-    fn read_image(
-        &mut self,
-        file_selected_idx: usize,
-        abs_file_paths: &[&str],
-        reload: bool,
-    ) -> AsyncResultImage;
+    fn read_image(&mut self, file_selected_idx: usize, abs_file_paths: &[&str])
+        -> AsyncResultImage;
     /// get the user input of a new folder and open it
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector>;
     fn cache_size_in_mb(&self) -> f64;
+    fn clear_cache(&mut self) -> RvResult<()>;
 }
 
 pub struct Loader<C, CA>
@@ -58,15 +56,17 @@ where
     C: Cache<CA>,
     CA: Clone,
 {
+    fn clear_cache(&mut self) -> RvResult<()> {
+        self.cache.clear()
+    }
     fn read_image(
         &mut self,
         selected_file_idx: usize,
         abs_file_paths: &[&str],
-        reload: bool,
     ) -> AsyncResultImage {
         let mut loaded = self
             .cache
-            .load_from_cache(selected_file_idx, abs_file_paths, reload);
+            .load_from_cache(selected_file_idx, abs_file_paths);
         let mut counter = 0usize;
         while let Err(e) = loaded {
             tracing::info!(
@@ -75,11 +75,12 @@ where
                 self.n_cache_recreations,
                 e
             );
+            trace_ok_err(self.cache.clear());
             thread::sleep(Duration::from_millis(500));
             self.cache = C::new(self.cache_args.clone())?;
             loaded = self
                 .cache
-                .load_from_cache(selected_file_idx, abs_file_paths, reload);
+                .load_from_cache(selected_file_idx, abs_file_paths);
             if counter == self.n_cache_recreations {
                 tracing::info!("max recreations (={counter}) reached.");
                 return loaded;

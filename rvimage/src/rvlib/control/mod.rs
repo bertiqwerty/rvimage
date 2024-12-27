@@ -1,4 +1,4 @@
-use crate::cfg::{self, get_log_folder, Connection};
+use crate::cfg::{get_log_folder, Connection};
 use crate::defer_file_removal;
 use crate::file_util::{
     self, osstr_to_str, PathPair, SavedCfg, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
@@ -279,7 +279,6 @@ pub enum Info {
 pub struct ControlFlags {
     pub undo_redo_load: bool,
     pub is_loading_screen_active: bool,
-    pub reload_cached_images: bool,
 }
 
 #[derive(Default)]
@@ -308,6 +307,9 @@ impl Control {
         &self.flags
     }
     pub fn reload(&mut self, sort_params: Option<SortParams>) -> RvResult<()> {
+        if let Some(reader) = &mut self.reader {
+            reader.clear_cache()?;
+        }
         if let Some(sort_params) = sort_params {
             self.cfg.prj.sort_params = sort_params;
         }
@@ -321,7 +323,6 @@ impl Control {
             })
         });
         self.load_opened_folder_content(self.cfg.prj.sort_params)?;
-        self.flags.reload_cached_images = true;
         if let Some(label_selected) = label_selected {
             self.paths_navigator
                 .select_file_label(label_selected.as_str());
@@ -454,7 +455,7 @@ impl Control {
     pub fn new() -> Self {
         let cfg = Cfg::read(&DEFAULT_HOMEDIR).unwrap_or_else(|e| {
             warn!("could not read cfg due to {e:?}, returning default");
-            cfg::get_default_cfg()
+            Cfg::default()
         });
         if cfg.current_prj_path().exists() {
             trace_ok_warn(detail::create_lock_file(cfg.current_prj_path()));
@@ -467,7 +468,7 @@ impl Control {
     pub fn new_prj(&mut self) -> ToolsDataMap {
         let mut cfg = Cfg::read(&DEFAULT_HOMEDIR).unwrap_or_else(|e| {
             warn!("could not read cfg due to {e:?}, returning default");
-            cfg::get_default_cfg()
+            Cfg::default()
         });
         trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
         cfg.unset_current_prj_path();
@@ -480,11 +481,11 @@ impl Control {
         self.reader.as_ref()
     }
 
-    pub fn read_image(&mut self, file_label_selected_idx: usize, reload: bool) -> AsyncResultImage {
+    pub fn read_image(&mut self, file_label_selected_idx: usize) -> AsyncResultImage {
         let wrapped_image = self.reader.as_mut().and_then(|r| {
             self.paths_navigator.paths_selector().as_ref().map(|ps| {
                 let ffp = ps.filtered_abs_file_paths();
-                r.read_image(file_label_selected_idx, &ffp, reload)
+                r.read_image(file_label_selected_idx, &ffp)
             })
         });
         match wrapped_image {
@@ -687,7 +688,7 @@ impl Control {
                             .replace('\\', "/"),
                     )
                 });
-                let im_read = self.read_image(*selected, self.flags.reload_cached_images)?;
+                let im_read = self.read_image(*selected)?;
                 let read_image_and_idx = match (abs_file_path, menu_file_selected, im_read) {
                     (Some(fp), Some(fidx), Some(ri)) => {
                         info!("loading {} from {}", ri.info, fp);
@@ -742,7 +743,6 @@ impl Control {
                         )
                     }
                 };
-                self.flags.reload_cached_images = false;
                 Some(read_image_and_idx)
             } else {
                 None
@@ -827,7 +827,7 @@ impl Drop for Control {
 fn test_save_load() {
     let tdm = make_data(&PathBuf::from_str("dummyfile").unwrap());
     let cfg = {
-        let mut tmp = cfg::get_default_cfg();
+        let mut tmp = Cfg::default();
         tmp.usr.n_autosaves = Some(59);
         tmp
     };
