@@ -145,7 +145,7 @@ Besides based on the pathname, you can also filter based on the labels and attri
 
 Filter strings can be combined with `&&`, `||`, and `!`. For instance
 - `!nolabel` corresponds to `anylabel`
-- `1055.png || label(cat)` reveals all iamges that either have a `1055.png` as part of their full pathname or contain 
+- `1055.png || label(cat)` reveals all images that either have a `1055.png` as part of their full pathname or contain 
   the label `cat` from the currently active labeling tool. 
 
 ### Bounding Boxes and Polygons
