@@ -53,7 +53,7 @@ For SSH currently, only authorization with key-files without passphrase is suppo
 [usr]
 n_autosave = 2
 current_pjr_path = "prjpath.json"
-# "NoCache" for not caching at all or "FileCache" for caching files in a temp dir.
+# "NoCache" for not caching at all or "FileCache" for caching files in a configurable folder.
 cache = "FileCache"  
 
 # Address of the http control server, default is 127.0.0.1:5432
@@ -66,6 +66,9 @@ cache = "FileCache"
 n_prev_images = 2  # number of images to be cached previous to the selected one
 n_next_images = 8  # number of images to be cached following the selected one
 n_threads = 4  # number of threads to be used for background file caching
+clear_on_close = true  # clear the cache when RV Image is closed
+cachedir = "somefolder"  # folder where cached files are stored
+
 [usr.ssh]
 user = "your username"
 ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
