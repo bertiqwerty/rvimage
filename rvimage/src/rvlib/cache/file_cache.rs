@@ -364,16 +364,18 @@ where
 use {
     crate::defer_folder_removal,
     crate::file_util::{path_to_str, DEFAULT_TMPDIR},
+    crate::tracing_setup::init_tracing_for_tests,
     image::DynamicImage,
     image::{ImageBuffer, Rgb},
     std::{thread, time::Duration},
 };
 
 #[test]
-fn test_file_cache() -> RvResult<()> {
+fn test_file_cache() {
+    init_tracing_for_tests();
     let tmpdir_str = path_to_str(&DEFAULT_TMPDIR).unwrap();
     let tmpdir = DEFAULT_TMPDIR.clone();
-    fs::create_dir_all(&tmpdir).map_err(to_rv)?;
+    fs::create_dir_all(&tmpdir).map_err(to_rv).unwrap();
     defer_folder_removal!(&tmpdir);
     let test = |files: &[&str], selected: usize| -> RvResult<()> {
         #[derive(Clone)]
@@ -400,8 +402,8 @@ fn test_file_cache() -> RvResult<()> {
                 n_prev_images: 2,
                 n_next_images: 8,
                 n_threads: 2,
-                clear_on_close: true,
-                cachedir: get_default_cachedir(),
+                clear_on_close: false,
+                cachedir: tmpdir_str.to_string(),
             },
             reader_args: (),
         };
@@ -418,7 +420,7 @@ fn test_file_cache() -> RvResult<()> {
         };
         cache.load_from_cache(selected, files)?;
         let n_millis = (max_i - min_i) * 100;
-        println!("waiting {} millis", n_millis);
+        tracing::debug!("waiting {} millis", n_millis);
         thread::sleep(Duration::from_millis(n_millis as u64));
 
         for (_, file) in files
@@ -426,7 +428,7 @@ fn test_file_cache() -> RvResult<()> {
             .enumerate()
             .filter(|(i, _)| min_i <= *i && *i < max_i)
         {
-            println!(
+            tracing::debug!(
                 "filename in tmpdir {:?}",
                 Path::new(detail::filename_in_tmpdir(file, tmpdir_str)?.as_str())
             );
@@ -435,17 +437,21 @@ fn test_file_cache() -> RvResult<()> {
         Ok(())
     };
     assert!(test(&[], 0).is_err());
-    test(&["1.png", "2.png", "3.png", "4.png"], 0)?;
-    test(&["1.png", "2.png", "3.png", "4.png"], 1)?;
-    test(&["1.png", "2.png", "3.png", "4.png"], 2)?;
-    test(&["1.png", "2.png", "3.png", "4.png"], 3)?;
+    test(&["1.png", "2.png", "3.png", "4.png"], 0).unwrap();
+    test(&["1.png", "2.png", "3.png", "4.png"], 1).unwrap();
+    test(&["1.png", "2.png", "3.png", "4.png"], 2).unwrap();
+    test(&["1.png", "2.png", "3.png", "4.png"], 3).unwrap();
     let files = (0..50).map(|i| format!("{}.png", i)).collect::<Vec<_>>();
     let files_str = files.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-    test(&files_str, 16)?;
-    test(&files_str, 36)?;
+    test(&files_str, 16).unwrap();
+    test(&files_str, 36).unwrap();
     for i in (14..25).chain(34..45) {
         let f = format!("{}.png", i);
-        assert!(Path::new(detail::filename_in_tmpdir(f.as_str(), tmpdir_str)?.as_str()).exists());
+        assert!(Path::new(
+            detail::filename_in_tmpdir(f.as_str(), tmpdir_str)
+                .unwrap()
+                .as_str()
+        )
+        .exists());
     }
-    Ok(())
 }
