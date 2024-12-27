@@ -1,6 +1,6 @@
 use crate::{
     cache::FileCacheCfgArgs,
-    file_util::{self, DEFAULT_HOMEDIR, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR},
+    file_util::{self, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR},
     sort_params::SortParams,
     ssh,
 };
@@ -296,9 +296,7 @@ impl Cfg {
     pub fn home_folder(&self) -> &str {
         let ef = self.usr.home_folder.as_deref();
         match ef {
-            None => DEFAULT_HOMEDIR
-                .to_str()
-                .expect("could not get default homedir. cannot work without."),
+            None => file_util::get_default_homedir(),
             Some(ef) => ef,
         }
     }
@@ -365,10 +363,12 @@ impl Default for Cfg {
         cfg
     }
 }
+#[cfg(test)]
+use file_util::get_default_homedir;
 
 #[test]
 fn test_default_cfg_paths() {
-    DEFAULT_HOMEDIR.to_str().unwrap();
+    get_default_homedir();
     DEFAULT_PRJ_PATH.to_str().unwrap();
     DEFAULT_TMPDIR.to_str().unwrap();
 }

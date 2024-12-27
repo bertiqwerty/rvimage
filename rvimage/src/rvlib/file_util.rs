@@ -27,6 +27,12 @@ lazy_static! {
         DEFAULT_HOMEDIR.join(DEFAULT_PRJ_NAME).join("default.rvi");
 }
 
+pub fn get_default_homedir() -> &'static str {
+    DEFAULT_HOMEDIR
+        .to_str()
+        .expect("could not get default homedir. cannot work without.")
+}
+
 /// Keys of the annotation maps are the relative paths of the corresponding image files to the project folder.
 pub fn tf_to_annomap_key(path: String, curr_prj_path: Option<&Path>) -> String {
     let path = path.replace('\\', "/");

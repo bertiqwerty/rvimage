@@ -31,7 +31,6 @@ impl ReaderFromCfg {
 
     pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
         let n_ssh_reconnections = cfg.ssh_cfg().n_reconnection_attempts();
-        let tmpdir = format!("{}/cache", cfg.home_folder());
         Ok(Self {
             reader: match (&cfg.prj.connection, &cfg.usr.cache) {
                 (Connection::Local, Cache::FileCache) => {
@@ -40,7 +39,6 @@ impl ReaderFromCfg {
                         FileCacheArgs {
                             cfg_args: args,
                             reader_args: CloneDummy {},
-                            tmpdir,
                         },
                         0,
                     )?)
@@ -53,7 +51,6 @@ impl ReaderFromCfg {
                             FileCacheArgs {
                                 cfg_args: args,
                                 reader_args: cfg.ssh_cfg(),
-                                tmpdir,
                             },
                             n_ssh_reconnections,
                         )?,
@@ -79,7 +76,6 @@ impl ReaderFromCfg {
                             FileCacheArgs {
                                 cfg_args: args,
                                 reader_args: (),
-                                tmpdir,
                             },
                             n_ssh_reconnections,
                         )?,
@@ -111,7 +107,6 @@ impl ReaderFromCfg {
                                 connection_string_path,
                                 container_name,
                             },
-                            tmpdir,
                         },
                         n_ssh_reconnections,
                     )?)

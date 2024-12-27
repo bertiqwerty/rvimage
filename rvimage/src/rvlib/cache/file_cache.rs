@@ -101,6 +101,10 @@ enum ThreadResult {
     Ok(LocalImagePathInfoPair),
 }
 
+fn get_default_cachedir() -> String {
+    format!("{}/cache", file_util::get_default_homedir())
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct FileCacheCfgArgs {
     pub n_prev_images: usize,
@@ -108,6 +112,8 @@ pub struct FileCacheCfgArgs {
     pub n_threads: usize,
     #[serde(default)]
     pub clear_on_close: bool,
+    #[serde(default = "get_default_cachedir")]
+    pub cachedir: String,
 }
 impl Default for FileCacheCfgArgs {
     fn default() -> Self {
@@ -116,6 +122,7 @@ impl Default for FileCacheCfgArgs {
             n_next_images: 8,
             n_threads: 2,
             clear_on_close: true,
+            cachedir: get_default_cachedir(),
         }
     }
 }
@@ -123,7 +130,6 @@ impl Default for FileCacheCfgArgs {
 pub struct FileCacheArgs<RA> {
     pub cfg_args: FileCacheCfgArgs,
     pub reader_args: RA,
-    pub tmpdir: String,
 }
 
 pub struct FileCache<RTC, RA>
@@ -135,7 +141,7 @@ where
     n_next_images: usize,
     clear_on_close: bool,
     tpq: ThreadPoolQueued<RvResult<String>>,
-    tmpdir: String,
+    cachedir: String,
     reader: RTC,
     reader_args_phantom: PhantomData<RA>,
 }
@@ -214,7 +220,7 @@ where
             files_not_in_cache,
             &mut self.tpq,
             &self.reader,
-            &self.tmpdir,
+            &self.cachedir,
         )?;
         // update cache
         for elt in cache.into_iter() {
@@ -250,6 +256,7 @@ where
             n_next_images,
             n_threads,
             clear_on_close,
+            cachedir,
         } = args.cfg_args;
         let tp = ThreadPoolQueued::new(n_threads);
         Ok(Self {
@@ -258,7 +265,7 @@ where
             n_next_images,
             clear_on_close,
             tpq: tp,
-            tmpdir: args.tmpdir,
+            cachedir,
             reader: RTC::new(args.reader_args)?,
             reader_args_phantom: PhantomData {},
         })
@@ -266,7 +273,7 @@ where
     fn clear(&mut self) -> RvResult<()> {
         tracing::info!("clearing cache");
         self.cached_paths.clear();
-        let tmp_path = Path::new(&self.tmpdir);
+        let tmp_path = Path::new(&self.cachedir);
         if tmp_path.exists() {
             fs::remove_dir_all(tmp_path).map_err(to_rv)?;
         }
@@ -348,9 +355,9 @@ fn test_file_cache() -> RvResult<()> {
                 n_next_images: 8,
                 n_threads: 2,
                 clear_on_close: true,
+                cachedir: get_default_cachedir(),
             },
             reader_args: (),
-            tmpdir: tmpdir_str.to_string(),
         };
         let mut cache = FileCache::<DummyRead, ()>::new(file_cache_args)?;
         let min_i = if selected > cache.n_prev_images {
