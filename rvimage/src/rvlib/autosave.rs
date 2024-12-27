@@ -29,22 +29,20 @@ fn extract_date(filename: &str) -> Option<NaiveDate> {
 }
 
 pub fn list_files(
-    homefolder: Option<&Path>,
+    homefolder: &Path,
     start_date: Option<NaiveDate>,
     end_date: Option<NaiveDate>,
 ) -> RvResult<Vec<PathBuf>> {
     let mut res = vec![];
-    if let Some(homefolder) = &homefolder {
-        for entry in fs::read_dir(homefolder).map_err(to_rv)? {
-            let entry = entry.map_err(to_rv)?;
-            let path = entry.path();
-            if let Some(filename) = path.file_name().and_then(|name| name.to_str()) {
-                if let Some(date) = extract_date(filename) {
-                    if start_date.map(|sd| date >= sd) != Some(false)
-                        && end_date.map(|ed| date <= ed) != Some(false)
-                    {
-                        res.push(path);
-                    }
+    for entry in fs::read_dir(homefolder).map_err(to_rv)? {
+        let entry = entry.map_err(to_rv)?;
+        let path = entry.path();
+        if let Some(filename) = path.file_name().and_then(|name| name.to_str()) {
+            if let Some(date) = extract_date(filename) {
+                if start_date.map(|sd| date >= sd) != Some(false)
+                    && end_date.map(|ed| date <= ed) != Some(false)
+                {
+                    res.push(path);
                 }
             }
         }
@@ -58,30 +56,25 @@ pub fn make_timespan(n_days: i64) -> (NaiveDate, NaiveDate) {
     (today, date_n_days_ago)
 }
 
-fn make_filepath(
-    homefolder: Option<&Path>,
-    prj_stem: &str,
-    today_str: &str,
-    n: u8,
-) -> Option<PathBuf> {
-    homefolder.map(|hf| hf.join(format!("{prj_stem}-autosave_d{today_str}_{n}.json")))
+fn make_filepath(homefolder: &Path, prj_stem: &str, today_str: &str, n: u8) -> PathBuf {
+    homefolder.join(format!("{prj_stem}-autosave_d{today_str}_{n}.json"))
 }
 
 pub fn autosave(
     current_prj_path: &Path,
-    homefolder: Option<String>,
+    homefolder: String,
     n_autosaves: u8,
     mut save_prj: impl FnMut(PathBuf) -> RvResult<()> + Send,
 ) -> RvResult<()> {
     let prj_stem = osstr_to_str(current_prj_path.file_stem())
         .map_err(to_rv)?
         .to_string();
-    let homefolder = homefolder.map(PathBuf::from);
+    let homefolder = PathBuf::from(homefolder);
 
     let (now, date_n_days_ago) = make_timespan(AUTOSAVE_KEEP_N_DAYS);
 
     // remove too old files
-    let files = list_files(homefolder.as_deref(), None, Some(date_n_days_ago))?;
+    let files = list_files(&homefolder, None, Some(date_n_days_ago))?;
     for p in files {
         tracing::info!("deleting {p:?}");
         trace_ok_err(fs::remove_file(p));
@@ -89,19 +82,17 @@ pub fn autosave(
 
     let today_str = now.format(DATE_FORMAT).to_string();
 
-    let mf = |n| make_filepath(homefolder.as_deref(), &prj_stem, &today_str, n);
+    let mf = |n| make_filepath(&homefolder, &prj_stem, &today_str, n);
     for i in 1..(n_autosaves) {
-        if let (Some(from), Some(to)) = (mf(i), mf(i - 1)) {
-            if from.exists() {
-                trace_ok_err(fs::copy(from, to));
-            }
+        let from = mf(i);
+        let to = mf(i - 1);
+        if from.exists() {
+            trace_ok_err(fs::copy(from, to));
         }
     }
     let prj_path = mf(n_autosaves - 1);
-    if let Some(prj_path) = prj_path {
-        if trace_ok_err(save_prj(prj_path)).is_some() {
-            tracing::info!("autosaved");
-        }
+    if trace_ok_err(save_prj(prj_path)).is_some() {
+        tracing::info!("autosaved");
     }
     Ok(())
 }
@@ -130,7 +121,7 @@ fn test_extract_date() {
 fn test_list_files() {
     init_tracing_for_tests();
     let files = list_files(
-        Some(&get_test_folder()),
+        &get_test_folder(),
         None,
         NaiveDate::parse_from_str("241216", DATE_FORMAT).ok(),
     );

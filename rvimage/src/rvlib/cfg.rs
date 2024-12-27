@@ -4,7 +4,7 @@ use crate::{
     sort_params::SortParams,
     ssh,
 };
-use rvimage_domain::{rverr, to_rv, RvError, RvResult};
+use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     fmt::Debug,
@@ -293,13 +293,13 @@ impl Cfg {
             .as_ref()
             .map(|prj| AzureBlobCfg { prj: prj.clone() })
     }
-    pub fn home_folder(&self) -> RvResult<&str> {
+    pub fn home_folder(&self) -> &str {
         let ef = self.usr.home_folder.as_deref();
         match ef {
             None => DEFAULT_HOMEDIR
                 .to_str()
-                .ok_or_else(|| RvError::new("could not get homedir")),
-            Some(ef) => Ok(ef),
+                .expect("could not get default homedir. cannot work without."),
+            Some(ef) => ef,
         }
     }
 
@@ -332,7 +332,7 @@ impl Cfg {
     }
 
     pub fn write(&self) -> RvResult<()> {
-        let homefolder = Path::new(self.home_folder()?);
+        let homefolder = Path::new(self.home_folder());
         let cfg_usr_path = get_cfg_path_usr(homefolder);
         if let Some(cfg_parent) = cfg_usr_path.parent() {
             fs::create_dir_all(cfg_parent).map_err(to_rv)?;

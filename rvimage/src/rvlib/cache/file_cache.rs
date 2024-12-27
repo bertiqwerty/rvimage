@@ -89,13 +89,13 @@ mod detail {
             .collect::<RvResult<HashMap<_, _>>>()
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct LocalImagePathInfoPair {
     path: String,
     info: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ThreadResult {
     Running(u128),
     Ok(LocalImagePathInfoPair),
@@ -138,6 +138,34 @@ where
     tmpdir: String,
     reader: RTC,
     reader_args_phantom: PhantomData<RA>,
+}
+impl<RTC, RA> FileCache<RTC, RA>
+where
+    RTC: ReadImageToCache<RA> + Send + Clone + 'static,
+{
+    fn check_running_thread(
+        &mut self,
+        job_id: u128,
+        selected_file: &str,
+    ) -> RvResult<Option<LocalImagePathInfoPair>> {
+        let path_in_cache = self.tpq.result(job_id);
+        match path_in_cache {
+            Some(pic) => {
+                let pic = pic?;
+                let info = self
+                    .reader
+                    .file_info(selected_file)
+                    .unwrap_or_else(|_| file_util::local_file_info(&pic));
+                let res = LocalImagePathInfoPair {
+                    path: pic,
+                    info: info.clone(),
+                };
+                *self.cached_paths.get_mut(selected_file).unwrap() = ThreadResult::Ok(res.clone());
+                Ok(Some(res))
+            }
+            None => Ok(None),
+        }
+    }
 }
 impl<RTC, RA> Cache<FileCacheArgs<RA>> for FileCache<RTC, RA>
 where
@@ -206,23 +234,12 @@ where
                 })
             }
             ThreadResult::Running(job_id) => {
-                let path_in_cache = self.tpq.result(*job_id);
-                match path_in_cache {
-                    Some(pic) => {
-                        let pic = pic?;
-                        let res = image_util::read_image(&pic);
-                        let info = self
-                            .reader
-                            .file_info(selected_file)
-                            .unwrap_or_else(|_| file_util::local_file_info(&pic));
-                        *self.cached_paths.get_mut(*selected_file).unwrap() =
-                            ThreadResult::Ok(LocalImagePathInfoPair {
-                                path: pic,
-                                info: info.clone(),
-                            });
-                        res.map(|im| Some(ImageInfoPair { im, info }))
-                    }
-                    None => Ok(None),
+                let checked = self.check_running_thread(*job_id, selected_file)?;
+                if let Some(checked) = checked {
+                    let LocalImagePathInfoPair { path, info } = checked;
+                    image_util::read_image(&path).map(|im| Some(ImageInfoPair { im, info }))
+                } else {
+                    Ok(None)
                 }
             }
         }
@@ -255,16 +272,27 @@ where
         }
         Ok(())
     }
-    fn size_in_mb(&self) -> f64 {
+    fn size_in_mb(&mut self) -> f64 {
         let n_bytes: u64 = self
             .cached_paths
-            .values()
-            .filter_map(|cp| match cp {
+            .clone()
+            .iter()
+            .filter_map(|(selected_file, cp)| match cp {
                 ThreadResult::Ok(local_path) => Some(fs::metadata(&local_path.path).ok()?.len()),
-                _ => None,
+                ThreadResult::Running(job_id) => {
+                    if let Some(LocalImagePathInfoPair { path, info: _ }) =
+                        self.check_running_thread(*job_id, selected_file).ok()?
+                    {
+                        Some(fs::metadata(&path).ok()?.len())
+                    } else {
+                        None
+                    }
+                }
             })
             .sum();
         const MB_DENOMINATOR: f64 = 1024.0 * 1024.0;
+        tracing::info!("n bytes {n_bytes}");
+        tracing::info!("n bytes {:?}", self.cached_paths);
         n_bytes as f64 / MB_DENOMINATOR
     }
 }

@@ -177,8 +177,7 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
     let mut tdm = None;
     let mut close = Close::No;
     let (today, date_n_days_ago) = make_timespan(AUTOSAVE_KEEP_N_DAYS);
-    let folder = trace_ok_err(ctrl.cfg.home_folder());
-    let folder = folder.map(Path::new);
+    let folder = Path::new(ctrl.cfg.home_folder());
     let files = trace_ok_err(list_files(folder, Some(date_n_days_ago), Some(today)));
     ui.heading("Reset Annotations to Autsave");
     egui::Grid::new("autosaves-menu-grid").show(ui, |ui| {

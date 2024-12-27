@@ -31,7 +31,7 @@ impl ReaderFromCfg {
 
     pub fn from_cfg(cfg: Cfg) -> RvResult<Self> {
         let n_ssh_reconnections = cfg.ssh_cfg().n_reconnection_attempts();
-        let tmpdir = format!("{}/{}", cfg.tmpdir(), uuid::Uuid::new_v4());
+        let tmpdir = format!("{}/cache", cfg.home_folder());
         Ok(Self {
             reader: match (&cfg.prj.connection, &cfg.usr.cache) {
                 (Connection::Local, Cache::FileCache) => {
@@ -149,7 +149,7 @@ impl LoadImageForGui for ReaderFromCfg {
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector> {
         self.reader.open_folder(abs_folder_path, prj_path)
     }
-    fn cache_size_in_mb(&self) -> f64 {
+    fn cache_size_in_mb(&mut self) -> f64 {
         self.reader.cache_size_in_mb()
     }
 }

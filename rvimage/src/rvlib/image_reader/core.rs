@@ -24,7 +24,7 @@ pub trait LoadImageForGui {
         -> AsyncResultImage;
     /// get the user input of a new folder and open it
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector>;
-    fn cache_size_in_mb(&self) -> f64;
+    fn cache_size_in_mb(&mut self) -> f64;
     fn clear_cache(&mut self) -> RvResult<()>;
 }
 
@@ -100,7 +100,7 @@ where
 
         PathsSelector::new(file_paths, Some(abs_folder_path.to_string()))
     }
-    fn cache_size_in_mb(&self) -> f64 {
+    fn cache_size_in_mb(&mut self) -> f64 {
         self.cache.size_in_mb()
     }
 }

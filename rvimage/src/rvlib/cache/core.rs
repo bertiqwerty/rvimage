@@ -20,6 +20,6 @@ pub trait Cache<A> {
     fn new(args: A) -> RvResult<Self>
     where
         Self: Sized;
-    fn size_in_mb(&self) -> f64;
+    fn size_in_mb(&mut self) -> f64;
     fn clear(&mut self) -> RvResult<()>;
 }

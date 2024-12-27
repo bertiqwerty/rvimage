@@ -316,7 +316,7 @@ impl Menu {
                     const CODE: &str = env!("CARGO_PKG_REPOSITORY");
                     let version_label = version_label();
                     ui.label(version_label);
-                    if let Some(reader) = &ctrl.reader {
+                    if let Some(reader) = &mut ctrl.reader {
                         ui.label("cache size in mb");
                         ui.label(
                             egui::RichText::new(format!("{:.3}", reader.cache_size_in_mb()))

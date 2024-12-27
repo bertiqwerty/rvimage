@@ -34,7 +34,7 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
             reader_args_phantom: PhantomData,
         })
     }
-    fn size_in_mb(&self) -> f64 {
+    fn size_in_mb(&mut self) -> f64 {
         0.0
     }
     fn clear(&mut self) -> RvResult<()> {

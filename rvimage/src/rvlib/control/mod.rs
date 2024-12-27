@@ -504,7 +504,7 @@ impl Control {
     }
 
     pub fn export_logs(&self, dst: &Path) -> RvResult<()> {
-        let homefolder = self.cfg.home_folder()?;
+        let homefolder = self.cfg.home_folder();
         let log_folder = get_log_folder(Path::new(homefolder));
         tracing::info!("exporting logs from {log_folder:?} to {dst:?}");
         let elf = log_folder.clone();
@@ -636,7 +636,7 @@ impl Control {
         };
         let export_folder = self
             .cfg_of_opened_folder()
-            .map(|cfg| cfg.home_folder().map(|ef| ef.to_string()).unwrap());
+            .map(|cfg| cfg.home_folder().to_string());
         let is_file_list_empty = Some(file_path.is_none());
         let prj_path = self.cfg.current_prj_path();
         MetaData::new(

@@ -395,7 +395,7 @@ impl MainEventLoop {
         if let Some(n_autosaves) = self.ctrl.cfg.usr.n_autosaves {
             if self.autosave_timer.elapsed().as_secs() > AUTOSAVE_INTERVAL_S {
                 self.autosave_timer = Instant::now();
-                let homefolder = trace_ok_err(self.ctrl.cfg.home_folder()).map(String::from);
+                let homefolder = self.ctrl.cfg.home_folder().to_string();
                 let current_prj_path = self.ctrl.cfg.current_prj_path().to_path_buf();
                 let save_prj = |prj_path| {
                     self.ctrl
