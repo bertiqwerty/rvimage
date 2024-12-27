@@ -27,7 +27,7 @@ use rvlib::{
     MainEventLoop, MetaData, Rot90ToolData, UpdateImage, UpdatePermAnnos, UpdateTmpAnno,
     UpdateZoomBox,
 };
-use std::{iter, mem, ops::Deref, panic, path::Path, time::Instant};
+use std::{iter, ops::Deref, panic, path::Path, time::Instant};
 use tracing::error;
 
 mod detail {
@@ -394,7 +394,7 @@ impl RvImageApp {
         self.egui_perm_shapes = bbox_annos.collect::<Vec<Shape>>();
         // update texture with brush canvas
         let shape_orig = self.shape_orig();
-        let mut im_view = mem::take(&mut self.im_view); //view::from_orig(&self.im_orig, self.zoom_box);
+        let mut im_view = view::from_orig(&self.im_orig, self.zoom_box);
         for (canvas, (color, fill_alpha)) in canvases.flatten() {
             detail::canvas_to_view(
                 &canvas,
