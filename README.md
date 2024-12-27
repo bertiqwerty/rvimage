@@ -52,14 +52,16 @@ For SSH currently, only authorization with key-files without passphrase is suppo
 ```
 [usr]
 n_autosave = 2
-current_pjr_path = "prjpath.json"
-# "NoCache" for not caching at all or "FileCache" for caching files in a configurable folder.
+current_prj_path = "prjpath.json"
+# "NoCache" for not caching at all or "FileCache" for caching files
+# in a configurable folder.
 cache = "FileCache"  
 
 # Address of the http control server, default is 127.0.0.1:5432
 # http_address = address:port
 
-# If you do not want to use the temporary directory of your OS, you can add something else.
+# If you do not want to use the temporary directory of your OS,
+# you can add something else.
 # tmpdir = 
 
 [usr.file_cache_args]
@@ -77,7 +79,8 @@ ssh_identity_file_path = "somepath/.ssh/id_file_with_private_key"
 # We support the connections "Local", "Ssh", "PyHttp", or "AzureBlob"
 connection = "Ssh"
 [prj.ssh]             
-# Local folders can interactively be chosen via file dialog. Remote folders are restricted to one of the following list. 
+# Local folders can interactively be chosen via file dialog.
+# Remote folders are restricted to one of the following list. 
 remote_folder_paths = [
     "folder on your server", 
     "another folder"
@@ -85,14 +88,15 @@ remote_folder_paths = [
 address = "address:port"  # port is usually 22
 
 [prj.py_http_reader_cfg]
-# The server is expected to be started via `python -m http.server` in some folder.
-# The content of this folder is then accessible.  
+# The server is expected to be started via `python -m http.server` in 
+# some folder. The content of this folder is then accessible.  
 server_addresses = ['http://localhost:8000/']
 
 [prj.azure_blob]
 # With a connection string you can view the images inside a blob storage.
 # The connection_string_path should point to file that contains just the 
-# connection string or a line with `CONNECTION_STRING = ` or `AZURE_CONNECTION_STRING = `.
+# connection string or a line with 
+# `CONNECTION_STRING = ` or `AZURE_CONNECTION_STRING = `.
 connection_string_path = "connection_str.txt"
 container_name = "images"
 # The prefix is also called folder in the Microsoft Azure Storage Explorer.
