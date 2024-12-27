@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path}
 
 use crate::{
     cache::core::Cache,
-    file_util, image_util,
+    defer_file_removal, file_util, image_util,
     result::trace_ok_err,
     threadpool::ThreadPoolQueued,
     types::{AsyncResultImage, ImageInfoPair},
@@ -89,13 +89,18 @@ mod detail {
             .collect::<RvResult<HashMap<_, _>>>()
     }
 }
-#[derive(Debug, Clone)]
+
+fn serialized_paths_path(cachedir: &str) -> String {
+    const CACHEDPATHS_SERIALIZED_FILE: &str = "cached_paths.json";
+    format!("{}/{}", cachedir, CACHEDPATHS_SERIALIZED_FILE)
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct LocalImagePathInfoPair {
     path: String,
     info: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 enum ThreadResult {
     Running(u128),
     Ok(LocalImagePathInfoPair),
@@ -105,6 +110,33 @@ fn get_default_cachedir() -> String {
     format!("{}/cache", file_util::get_default_homedir())
 }
 
+fn read_serialized_paths(cachedir: &str) -> HashMap<String, ThreadResult> {
+    let serialized_paths_path = serialized_paths_path(cachedir);
+    let serialized_paths_path = Path::new(&serialized_paths_path);
+    if serialized_paths_path.exists() {
+        defer_file_removal!(&serialized_paths_path);
+        let serialized_paths = trace_ok_err(file_util::read_to_string(serialized_paths_path));
+        if let Some(serialized_paths) = serialized_paths {
+            tracing::info!("restore cache");
+            let cached_paths =
+                serde_json::from_str::<HashMap<String, ThreadResult>>(&serialized_paths)
+                    .unwrap_or_default();
+            cached_paths
+                .into_iter()
+                .filter(|(_, tr)| match tr {
+                    ThreadResult::Ok(LocalImagePathInfoPair { path, info: _ }) => {
+                        Path::new(path).exists()
+                    }
+                    _ => false,
+                })
+                .collect::<HashMap<_, _>>()
+        } else {
+            HashMap::new()
+        }
+    } else {
+        HashMap::new()
+    }
+}
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct FileCacheCfgArgs {
     pub n_prev_images: usize,
@@ -258,13 +290,14 @@ where
             clear_on_close,
             cachedir,
         } = args.cfg_args;
-        let tp = ThreadPoolQueued::new(n_threads);
+        let tpq = ThreadPoolQueued::new(n_threads);
+        let cached_paths = read_serialized_paths(&cachedir);
         Ok(Self {
-            cached_paths: HashMap::new(),
+            cached_paths,
             n_prev_images,
             n_next_images,
             clear_on_close,
-            tpq: tp,
+            tpq,
             cachedir,
             reader: RTC::new(args.reader_args)?,
             reader_args_phantom: PhantomData {},
@@ -298,8 +331,6 @@ where
             })
             .sum();
         const MB_DENOMINATOR: f64 = 1024.0 * 1024.0;
-        tracing::info!("n bytes {n_bytes}");
-        tracing::info!("n bytes {:?}", self.cached_paths);
         n_bytes as f64 / MB_DENOMINATOR
     }
 }
@@ -310,6 +341,18 @@ where
     fn drop(&mut self) {
         if self.clear_on_close {
             trace_ok_err(self.clear());
+        } else {
+            // make running threads that are finished update data
+            self.size_in_mb();
+
+            tracing::info!("write cache metadata to restore cache next time");
+
+            trace_ok_err(serde_json::to_string(&self.cached_paths)).map(|serialized_paths| {
+                trace_ok_err(file_util::write(
+                    serialized_paths_path(&self.cachedir),
+                    serialized_paths,
+                ))
+            });
         }
     }
 }
