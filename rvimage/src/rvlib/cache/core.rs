@@ -22,4 +22,5 @@ pub trait Cache<A> {
         Self: Sized;
     fn size_in_mb(&mut self) -> f64;
     fn clear(&mut self) -> RvResult<()>;
+    fn toggle_clear_on_close(&mut self);
 }

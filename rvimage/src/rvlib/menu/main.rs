@@ -169,6 +169,7 @@ pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
     are_tools_active: bool,
+    toggle_clear_cache_on_close: bool,
     scroll_offset: f32,
     open_folder_popup_open: bool,
     stats: Stats,
@@ -188,6 +189,7 @@ impl Menu {
             window_open: true,
             info_message: Info::None,
             are_tools_active: true,
+            toggle_clear_cache_on_close: false,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
             stats: Stats::default(),
@@ -308,8 +310,19 @@ impl Menu {
                 ui.add(autosave_gui);
 
                 let popup_id = ui.make_persistent_id("cfg-popup");
-                let cfg_gui = CfgMenu::new(popup_id, &mut ctrl.cfg, &mut self.are_tools_active);
+                let cfg_gui = CfgMenu::new(
+                    popup_id,
+                    &mut ctrl.cfg,
+                    &mut self.are_tools_active,
+                    &mut self.toggle_clear_cache_on_close,
+                );
                 ui.add(cfg_gui);
+                if self.toggle_clear_cache_on_close {
+                    if let Some(reader) = &mut ctrl.reader {
+                        reader.toggle_clear_cache_on_close();
+                    }
+                    self.toggle_clear_cache_on_close = false;
+                }
 
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");
@@ -322,6 +335,7 @@ impl Menu {
                             egui::RichText::new(format!("{:.3}", reader.cache_size_in_mb()))
                                 .monospace(),
                         );
+                        ui.label("Hit F5 to clear the cache.");
                         ui.label("");
                     }
                     ui.hyperlink_to("Docs, License, and Code", CODE);

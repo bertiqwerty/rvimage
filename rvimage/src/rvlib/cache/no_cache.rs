@@ -40,4 +40,5 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
     fn clear(&mut self) -> RvResult<()> {
         Ok(())
     }
+    fn toggle_clear_on_close(&mut self) {}
 }

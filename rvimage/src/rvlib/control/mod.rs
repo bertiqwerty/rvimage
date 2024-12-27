@@ -503,6 +503,15 @@ impl Control {
         Ok(())
     }
 
+    pub fn remake_reader(&mut self) -> RvResult<()> {
+        let cfg = self.cfg.clone();
+        self.last_open_folder_job_id = Some(
+            self.tp
+                .apply(Box::new(move || ReaderFromCfg::from_cfg(cfg)))?,
+        );
+        Ok(())
+    }
+
     pub fn export_logs(&self, dst: &Path) -> RvResult<()> {
         let homefolder = self.cfg.home_folder();
         let log_folder = get_log_folder(Path::new(homefolder));

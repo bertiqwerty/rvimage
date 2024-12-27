@@ -209,6 +209,9 @@ impl<RTC, RA> Cache<FileCacheArgs<RA>> for FileCache<RTC, RA>
 where
     RTC: ReadImageToCache<RA> + Send + Clone + 'static,
 {
+    fn toggle_clear_on_close(&mut self) {
+        self.clear_on_close = !self.clear_on_close;
+    }
     fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
         self.reader.ls(folder_path)
     }

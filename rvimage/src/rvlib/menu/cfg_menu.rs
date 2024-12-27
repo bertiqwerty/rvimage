@@ -54,7 +54,12 @@ enum Close {
     No,
 }
 
-fn settings_popup(ui: &mut Ui, cfg: &mut Cfg, are_tools_active: &mut bool) -> Close {
+fn settings_popup(
+    ui: &mut Ui,
+    cfg: &mut Cfg,
+    are_tools_active: &mut bool,
+    toggle_cache_clear_on_close: &mut bool,
+) -> Close {
     let mut close = Close::No;
     Frame::popup(ui.style()).show(ui, |ui| {
         ui.horizontal(|ui| {
@@ -121,6 +126,16 @@ fn settings_popup(ui: &mut Ui, cfg: &mut Cfg, are_tools_active: &mut bool) -> Cl
             }
         });
         ui.separator();
+        if ui
+            .checkbox(
+                &mut cfg.usr.file_cache_args.clear_on_close,
+                "Clear cache on close",
+            )
+            .changed()
+        {
+            *toggle_cache_clear_on_close = true;
+        }
+        ui.separator();
         ui.horizontal(|ui| {
             let mut autosave = cfg.usr.n_autosaves.unwrap_or(0);
             ui.label("Autosave versions");
@@ -182,15 +197,22 @@ pub struct CfgMenu<'a> {
     cfg: &'a mut Cfg,
     cfg_orig: Cfg,
     are_tools_active: &'a mut bool,
+    toggle_clear_cache_on_close: &'a mut bool,
 }
 impl<'a> CfgMenu<'a> {
-    pub fn new(id: Id, cfg: &'a mut Cfg, are_tools_active: &'a mut bool) -> CfgMenu<'a> {
+    pub fn new(
+        id: Id,
+        cfg: &'a mut Cfg,
+        are_tools_active: &'a mut bool,
+        reload: &'a mut bool,
+    ) -> CfgMenu<'a> {
         let cfg_orig = cfg.clone();
         Self {
             id,
             cfg,
             cfg_orig,
             are_tools_active,
+            toggle_clear_cache_on_close: reload,
         }
     }
 }
@@ -208,7 +230,12 @@ impl Widget for CfgMenu<'_> {
             let mut close = Close::No;
             let area_response = area
                 .show(ui.ctx(), |ui| {
-                    close = settings_popup(ui, self.cfg, self.are_tools_active);
+                    close = settings_popup(
+                        ui,
+                        self.cfg,
+                        self.are_tools_active,
+                        self.toggle_clear_cache_on_close,
+                    );
                 })
                 .response;
             if let Close::Yes(save) = close {

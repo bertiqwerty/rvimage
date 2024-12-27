@@ -26,6 +26,7 @@ pub trait LoadImageForGui {
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector>;
     fn cache_size_in_mb(&mut self) -> f64;
     fn clear_cache(&mut self) -> RvResult<()>;
+    fn toggle_clear_cache_on_close(&mut self);
 }
 
 pub struct Loader<C, CA>
@@ -58,6 +59,9 @@ where
 {
     fn clear_cache(&mut self) -> RvResult<()> {
         self.cache.clear()
+    }
+    fn toggle_clear_cache_on_close(&mut self) {
+        self.cache.toggle_clear_on_close();
     }
     fn read_image(
         &mut self,

@@ -133,6 +133,9 @@ impl LoadImageForGui for ReaderFromCfg {
     fn clear_cache(&mut self) -> RvResult<()> {
         self.reader.clear_cache()
     }
+    fn toggle_clear_cache_on_close(&mut self) {
+        self.reader.toggle_clear_cache_on_close();
+    }
     fn read_image(
         &mut self,
         file_selected_idx: usize,
