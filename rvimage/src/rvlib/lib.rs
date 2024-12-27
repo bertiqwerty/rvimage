@@ -7,6 +7,7 @@ mod cache;
 pub mod cfg;
 pub mod control;
 mod drawme;
+mod egui_mappers;
 mod events;
 pub mod file_util;
 pub mod history;
@@ -32,6 +33,7 @@ pub use drawme::{
     Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateImage, UpdatePermAnnos,
     UpdateTmpAnno, UpdateView, UpdateZoomBox,
 };
+pub use egui_mappers::{map_key, map_key_events, map_mouse_events, LastSensedBtns};
 pub use events::{Event, Events, KeyCode, ZoomAmount};
 pub use file_util::get_test_folder;
 pub use main_loop::MainEventLoop;
