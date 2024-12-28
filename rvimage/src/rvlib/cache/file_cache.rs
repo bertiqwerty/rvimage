@@ -316,23 +316,13 @@ where
         Ok(())
     }
     fn size_in_mb(&mut self) -> f64 {
-        let n_bytes: u64 = self
-            .cached_paths
-            .clone()
-            .iter()
-            .filter_map(|(selected_file, cp)| match cp {
-                ThreadResult::Ok(local_path) => Some(fs::metadata(&local_path.path).ok()?.len()),
-                ThreadResult::Running(job_id) => {
-                    if let Some(LocalImagePathInfoPair { path, info: _ }) =
-                        self.check_running_thread(*job_id, selected_file).ok()?
-                    {
-                        Some(fs::metadata(&path).ok()?.len())
-                    } else {
-                        None
-                    }
-                }
-            })
-            .sum();
+        let n_bytes = match fs::read_dir(&self.cachedir) {
+            Ok(paths) => paths
+                .flatten()
+                .map(|dir_entry| dir_entry.metadata().map(|m| m.len() as f64).unwrap_or(0.0))
+                .sum::<f64>(),
+            _ => 0.0,
+        };
         const MB_DENOMINATOR: f64 = 1024.0 * 1024.0;
         n_bytes as f64 / MB_DENOMINATOR
     }

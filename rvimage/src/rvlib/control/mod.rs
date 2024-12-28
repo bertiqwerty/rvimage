@@ -1,7 +1,7 @@
 use crate::cfg::{get_log_folder, Connection};
 use crate::defer_file_removal;
 use crate::file_util::{
-    self, osstr_to_str, PathPair, SavedCfg, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
+    osstr_to_str, PathPair, SavedCfg, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
@@ -54,7 +54,7 @@ mod detail {
     use rvimage_domain::ShapeI;
     use rvimage_domain::{result::RvResult, to_rv};
 
-    use super::{load_prj, UserPrjOpened};
+    use super::UserPrjOpened;
 
     pub fn serialize_opened_folder<S>(
         folder: &Option<String>,
@@ -191,7 +191,8 @@ mod detail {
         }))
     }
     pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, CfgPrj)> {
-        let save_data = load_prj(file_path)?;
+        let s = file_util::read_to_string(file_path)?;
+        let save_data = serde_json::from_str::<SavePrjData>(s.as_str()).map_err(to_rv)?;
         let cfg_prj = match save_data.cfg {
             SavedCfg::CfgLegacy(cfg) => cfg.to_cfg().prj,
             SavedCfg::CfgPrj(cfg_prj) => cfg_prj,
@@ -233,10 +234,6 @@ mod detail {
 }
 const LOAD_ACTOR_NAME: &str = "Load";
 
-pub fn load_prj(file_path: &Path) -> RvResult<SavePrjData> {
-    let s = file_util::read_to_string(file_path)?;
-    serde_json::from_str::<SavePrjData>(s.as_str()).map_err(to_rv)
-}
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct UserPrjOpened {
     time: DateTime<Utc>,
