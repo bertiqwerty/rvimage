@@ -319,9 +319,9 @@ where
         let n_bytes = match fs::read_dir(&self.cachedir) {
             Ok(paths) => paths
                 .flatten()
-                .map(|dir_entry| dir_entry.metadata().map(|m| m.len() as f64).unwrap_or(0.0))
-                .sum::<f64>(),
-            _ => 0.0,
+                .map(|dir_entry| dir_entry.metadata().map(|m| m.len()).unwrap_or(0))
+                .sum::<u64>(),
+            _ => 0,
         };
         const MB_DENOMINATOR: f64 = 1024.0 * 1024.0;
         n_bytes as f64 / MB_DENOMINATOR
