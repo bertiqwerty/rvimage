@@ -170,19 +170,8 @@ impl ToolSpecifics {
                             }
                         })
                         .map(|((brush_line, cat_idx), is_selected)| {
-                            let tmp_line = if let Some((tmp_line, tmp_cat_idx)) = &br_data.tmp_line
-                            {
-                                if tmp_cat_idx == cat_idx {
-                                    Some(tmp_line)
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            };
                             Annotation::Brush(BrushAnnotation {
                                 canvas: brush_line.clone(),
-                                tmp_line: tmp_line.cloned(),
                                 color: colors[*cat_idx],
                                 label: None,
                                 is_selected: Some(*is_selected),

@@ -217,55 +217,17 @@ impl RvImageApp {
             &self.zoom_box,
         )
     }
-    fn update_brush_anno_tmp(
-        &self,
-        anno: &BrushAnnotation,
-        image_rect: &Rect,
-    ) -> Option<egui::epaint::Shape> {
-        let size_from = self.shape_view().w.into();
-        let size_to = TPtF::from(image_rect.size().x);
-        let (_, color_egui) = detail::color_tf(anno.canvas.intensity, anno.color, anno.fill_alpha);
-        if let Some(tmp_line) = &anno.tmp_line {
-            let make_shape_vec = |thickness, color| {
-                let egui_rect_points = tmp_line
-                    .line
-                    .points_iter()
-                    .map(|p| self.orig_pos_2_egui_rect(p, image_rect.min, image_rect.size()))
-                    .collect::<Vec<_>>();
-                let stroke = Stroke::new(thickness as f32, color);
-                let start_circle = egui_rect_points
-                    .first()
-                    .map(|p| Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color)));
-                let end_circle = egui_rect_points
-                    .last()
-                    .map(|p| Shape::Circle(CircleShape::filled(*p, thickness as f32 * 0.5, color)));
-                let end_circle = if egui_rect_points.len() > 1 {
-                    end_circle
-                } else {
-                    None
-                };
-                let line = if egui_rect_points.len() > 2 {
-                    Some(Shape::Path(PathShape::line(egui_rect_points, stroke)))
-                } else {
-                    None
-                };
-                [start_circle, line, end_circle]
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<_>>()
-            };
-            let thickness = view::scale_coord(tmp_line.thickness, size_from, size_to);
-            let mut shape_vec = make_shape_vec(thickness, color_egui);
-            let mut selected_shape_vec = if anno.is_selected == Some(true) {
-                make_shape_vec(thickness + 5.0, detail::rgb_2_clr(Some([0, 0, 0]), 255))
-            } else {
-                vec![]
-            };
-            selected_shape_vec.append(&mut shape_vec);
-            Some(Shape::Vec(selected_shape_vec))
-        } else {
-            None
-        }
+    fn update_brush_anno_tmp(&mut self, anno: &BrushAnnotation) {
+        let (color_rgb, _) = detail::color_tf(anno.canvas.intensity, anno.color, anno.fill_alpha);
+        let shape_orig = self.shape_orig();
+        detail::canvas_to_view(
+            &anno.canvas,
+            &mut self.im_view,
+            &self.zoom_box,
+            shape_orig,
+            anno.fill_alpha,
+            color_rgb,
+        );
     }
     fn update_bbox_anno(&self, anno: &BboxAnnotation, image_rect: &Rect) -> egui::epaint::Shape {
         let (fill_alpha, outline_thickness) = if anno.is_selected == Some(true) {
@@ -551,11 +513,8 @@ impl eframe::App for RvImageApp {
                                 self.egui_tmp_shapes = [None, None];
                                 match anno {
                                     Annotation::Brush(brush) => {
-                                        if let Some(shape) =
-                                            self.update_brush_anno_tmp(&brush, &ir.rect)
-                                        {
-                                            self.egui_tmp_shapes[0] = Some(shape);
-                                        }
+                                        self.update_brush_anno_tmp(&brush);
+                                        update_texture = true;
                                     }
                                     Annotation::Bbox(bbox) => {
                                         self.egui_tmp_shapes[1] =

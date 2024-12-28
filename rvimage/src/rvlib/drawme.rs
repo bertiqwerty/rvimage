@@ -1,4 +1,4 @@
-use crate::{types::ViewImage, BrushLine, GeoFig};
+use crate::{types::ViewImage, GeoFig};
 use rvimage_domain::{BbF, Canvas, Circle, TPtF};
 use std::default::Default;
 
@@ -32,7 +32,6 @@ pub struct BboxAnnotation {
 #[derive(Clone, Debug)]
 pub struct BrushAnnotation {
     pub canvas: Canvas,
-    pub tmp_line: Option<BrushLine>,
     pub color: [u8; 3],
     pub label: Option<String>,
     pub is_selected: Option<bool>,
