@@ -40,8 +40,8 @@ fn line_to_mask(
     };
     let im = if line.line.points.len() == 1 {
         let center = Point {
-            x: (line.line.points[0].x - bbi.x as f64) as i32,
-            y: (line.line.points[0].y - bbi.y as f64) as i32,
+            x: (line.line.points[0].x - bb.x) as i32,
+            y: (line.line.points[0].y - bb.y) as i32,
         };
 
         let thickness_half = line.thickness * 0.5;
