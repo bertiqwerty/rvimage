@@ -4013,7 +4013,7 @@ dependencies = [
 
 [[package]]
 name = "rvimage-domain"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "image",
  "imageproc",
