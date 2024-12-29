@@ -113,7 +113,9 @@ macro_rules! defer {
 macro_rules! time_scope {
     ($name:expr) => {
         let now = std::time::Instant::now();
-        // let f = || eprintln!("{} {}", $name, now.elapsed().as_micros());
+        #[cfg(feature = "print_timings")]
+        let f = || eprintln!("{} {}", $name, now.elapsed().as_micros());
+        #[cfg(not(feature = "print_timings"))]
         let f = || ();
         $crate::defer!(f);
     };

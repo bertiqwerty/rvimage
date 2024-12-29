@@ -509,7 +509,6 @@ impl eframe::App for RvImageApp {
                             self.prev_image_rect_size = Some(ir.rect.size());
 
                             time_scope!("update_perm_annos_resize");
-                            tracing::warn!("HERE");
 
                             self.update_perm_annos(&ir.rect);
 
