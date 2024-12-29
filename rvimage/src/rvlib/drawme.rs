@@ -79,6 +79,9 @@ pub struct UpdateView {
     pub tmp_annos: UpdateTmpAnno,
     pub zoom_box: UpdateZoomBox,
     pub image_info: Option<ImageInfo>,
+
+    // to enable memory re-use.
+    pub tmp_anno_buffer: Option<Annotation>,
 }
 
 impl UpdateView {
@@ -89,6 +92,7 @@ impl UpdateView {
             tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
             image_info: None,
+            tmp_anno_buffer: None,
         }
     }
 }

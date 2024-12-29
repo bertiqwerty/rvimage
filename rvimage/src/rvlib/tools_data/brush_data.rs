@@ -310,7 +310,7 @@ fn test_canvas() {
         intensity: 0.5,
         thickness: 3.0,
     };
-    let canv = Canvas::new(&bl, orig_shape).unwrap();
+    let canv = Canvas::new(&bl, orig_shape, None).unwrap();
     assert!(canv.contains(PtF { x: 5.0, y: 5.0 }));
     assert!(!canv.contains(PtF { x: 0.0, y: 0.0 }));
     assert!(canv.contains(PtF { x: 14.9, y: 14.9 }));
@@ -325,7 +325,7 @@ fn test_canvas() {
             _ = access_mask_abs(&canv.mask, canv.bb, PtI { x, y });
         }
     }
-    let canv = Canvas::new(&bl, orig_shape).unwrap();
+    let canv = Canvas::new(&bl, orig_shape, None).unwrap();
     let canv_rot = canv.clone().rot90_with_image_ntimes(orig_shape, 1).unwrap();
     let bl_rot = BrushLine {
         line: Line {
@@ -337,7 +337,7 @@ fn test_canvas() {
         intensity: 0.5,
         thickness: 3.0,
     };
-    let canv_rot_ref = Canvas::new(&bl_rot, orig_shape).unwrap();
+    let canv_rot_ref = Canvas::new(&bl_rot, orig_shape, None).unwrap();
     let inter = canv_rot
         .enclosing_bb()
         .intersect(canv_rot_ref.enclosing_bb());
@@ -345,7 +345,7 @@ fn test_canvas() {
         (inter.w - canv_rot.enclosing_bb().w).abs() <= 1.0
             && (inter.h - canv_rot.enclosing_bb().h).abs() <= 1.0
     );
-    let canv = Canvas::new(&bl, orig_shape).unwrap();
+    let canv = Canvas::new(&bl, orig_shape, None).unwrap();
     assert_eq!(
         canv,
         canv.clone().rot90_with_image_ntimes(orig_shape, 0).unwrap()

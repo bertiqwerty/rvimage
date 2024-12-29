@@ -308,13 +308,47 @@ impl Brush {
                             get_specific(&world)
                                 .map(|d| d.label_info.colors()[d.label_info.cat_idx_current]),
                         ) {
-                            world.request_redraw_tmp_anno(Annotation::Brush(BrushAnnotation {
-                                canvas: Canvas::new(&line, world.shape_orig()).unwrap(),
-                                color,
-                                label: None,
-                                is_selected: None,
-                                fill_alpha: options.fill_alpha,
-                            }));
+                            let orig_shape = world.shape_orig();
+                            let canvas_with_new_buffer = || {
+                                let lower_buffer_bound = 100;
+                                let extension_factor = if line.line.points.len() < 10 {
+                                    4.0
+                                } else if line.line.points.len() < 50 {
+                                    3.0
+                                } else {
+                                    2.0
+                                };
+                                Canvas::from_line_extended(
+                                    &line,
+                                    orig_shape,
+                                    extension_factor,
+                                    lower_buffer_bound,
+                                )
+                            };
+                            let canvas = if let Some(buffer) =
+                                mem::take(&mut world.update_view.tmp_anno_buffer)
+                            {
+                                match buffer {
+                                    Annotation::Brush(brush_anno) => {
+                                        tracing::debug!("found buffer for tmp anno");
+                                        Canvas::new(&line, orig_shape, Some(brush_anno.canvas.mask))
+                                    }
+                                    _ => canvas_with_new_buffer(),
+                                }
+                            } else {
+                                canvas_with_new_buffer()
+                            };
+
+                            let canvas = trace_ok_err(canvas);
+                            if let Some(canvas) = canvas {
+                                world.request_redraw_tmp_anno(Annotation::Brush(BrushAnnotation {
+                                    canvas,
+                                    color,
+                                    label: None,
+                                    is_selected: None,
+                                    fill_alpha: options.fill_alpha,
+                                }));
+                            }
                         }
                     }
                 }
@@ -377,7 +411,7 @@ impl Brush {
 
                 let change_annos = |annos: &mut BrushAnnotations| {
                     if let (Some(line), Some(cat_idx)) = (line, cat_idx) {
-                        let canvas = Canvas::new(&line, shape_orig);
+                        let canvas = Canvas::new(&line, shape_orig, None);
                         if let Ok(canvas) = canvas {
                             annos.add_elt(canvas, cat_idx);
                         }

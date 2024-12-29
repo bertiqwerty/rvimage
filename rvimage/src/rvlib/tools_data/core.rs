@@ -649,6 +649,7 @@ fn test_merge_annos() {
             intensity: 1.0,
         },
         orig_shape,
+        None,
     )
     .unwrap();
     annos_map1.insert(
@@ -666,6 +667,7 @@ fn test_merge_annos() {
             intensity: 2.0,
         },
         orig_shape,
+        None,
     )
     .unwrap();
 

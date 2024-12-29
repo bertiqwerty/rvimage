@@ -3,6 +3,8 @@ use imageproc::drawing::{draw_filled_circle_mut, BresenhamLineIter};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
+use crate::{rverr, BbF, OutOfBoundsMode, RvResult, BB};
+
 use super::core::{
     color_with_intensity, dist_lineseg_point, max_from_partial, Point, PtF, ShapeI, TPtF,
 };
@@ -15,6 +17,32 @@ pub struct BrushLine {
 }
 impl Eq for BrushLine {}
 
+impl BrushLine {
+    pub fn bb(&self, orig_shape: Option<ShapeI>) -> RvResult<BbF> {
+        let thickness = self.thickness;
+        let thickness_half = thickness * 0.5;
+        let bb = BB::from_points_iter(self.line.points_iter())?;
+
+        let bb_x = bb.x - if thickness > 1.0 { thickness_half } else { 0.0 };
+        let bb_y = bb.y - if thickness > 1.0 { thickness_half } else { 0.0 };
+        let w = bb.w + thickness;
+        let h = bb.h + thickness;
+        let xywh = [bb_x, bb_y, w, h];
+        let bb = match orig_shape {
+            Some(orig_shape) => BB::new_shape_checked(
+                xywh[0],
+                xywh[1],
+                xywh[2],
+                xywh[3],
+                orig_shape,
+                OutOfBoundsMode::Resize((xywh[2], xywh[3]).into()),
+            )
+            .ok_or_else(|| rverr!("Could not create bounding box for line"))?,
+            None => BB::from_arr(&xywh),
+        };
+        Ok(bb)
+    }
+}
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct Line {
     pub points: Vec<PtF>,

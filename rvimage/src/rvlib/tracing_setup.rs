@@ -23,8 +23,14 @@ pub fn tracing_setup() -> WorkerGuard {
         .compact()
         .with_ansi(false)
         .with_file(true);
+    #[cfg(not(feature = "print_debug"))]
     let stdout = Layer::new()
         .with_writer(io::stdout.with_max_level(Level::INFO))
+        .with_file(true)
+        .with_line_number(true);
+    #[cfg(feature = "print_debug")]
+    let stdout = Layer::new()
+        .with_writer(io::stdout.with_max_level(Level::DEBUG))
         .with_file(true)
         .with_line_number(true);
     tracing_subscriber::registry()

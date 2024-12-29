@@ -17,3 +17,4 @@ serde = { version = "1.0.214", features = ["derive"] }
 serde_json = "1.0.132"
 image = "0.25.4"
 imageproc = "0.25"
+tracing = "0.1.41"

@@ -27,7 +27,7 @@ use rvlib::{
     MainEventLoop, MetaData, Rot90ToolData, UpdateImage, UpdatePermAnnos, UpdateTmpAnno,
     UpdateZoomBox,
 };
-use std::{iter, ops::Deref, panic, path::Path, time::Instant};
+use std::{iter, mem, ops::Deref, panic, path::Path, time::Instant};
 use tracing::error;
 
 mod detail {
@@ -177,7 +177,8 @@ mod detail {
 struct RvImageApp {
     event_loop: MainEventLoop,
     texture: Option<TextureHandle>,
-    annos: Vec<Annotation>,
+    perm_annos: Vec<Annotation>,
+    tmp_anno: Option<Annotation>,
     zoom_box: Option<BbF>,
     im_orig: ImageU8,
     im_view: ImageU8,
@@ -296,7 +297,7 @@ impl RvImageApp {
     fn update_perm_annos(&mut self, image_rect: &Rect) {
         let shape_orig = self.shape_orig();
         let canvases = self
-            .annos
+            .perm_annos
             .iter()
             .filter_map(|anno| match anno {
                 Annotation::Brush(brush) => Some(brush),
@@ -332,7 +333,7 @@ impl RvImageApp {
                 res
             });
         let bbox_annos = self
-            .annos
+            .perm_annos
             .iter()
             .filter_map(|anno| match anno {
                 Annotation::Bbox(bbox) => {
@@ -455,6 +456,7 @@ impl eframe::App for RvImageApp {
                 &self.events,
                 self.image_rect
                     .map(|ir| ShapeF::new(ir.width().into(), ir.height().into())),
+                mem::take(&mut self.tmp_anno),
                 ctx,
             )
         };
@@ -517,7 +519,7 @@ impl eframe::App for RvImageApp {
                         self.events = self.collect_events(ui, &ir);
                         if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {
                             time_scope!("update_perm_annos_new");
-                            self.annos = perm_annos;
+                            self.perm_annos = perm_annos;
                             self.update_perm_annos(&ir.rect);
                             update_texture = true;
                         }
@@ -525,16 +527,17 @@ impl eframe::App for RvImageApp {
                             UpdateTmpAnno::Yes(anno) => {
                                 time_scope!("update_tmp_annos");
                                 self.egui_tmp_shapes = [None, None];
-                                match anno {
+                                match &anno {
                                     Annotation::Brush(brush) => {
-                                        self.update_brush_anno_tmp(&brush);
+                                        self.update_brush_anno_tmp(brush);
                                         update_texture = true;
                                     }
                                     Annotation::Bbox(bbox) => {
                                         self.egui_tmp_shapes[1] =
-                                            Some(self.update_bbox_anno(&bbox, &ir.rect));
+                                            Some(self.update_bbox_anno(bbox, &ir.rect));
                                     }
                                 }
+                                self.tmp_anno = Some(anno);
                             }
                             UpdateTmpAnno::No => {
                                 self.egui_tmp_shapes = [None, None];

@@ -13,7 +13,7 @@ use crate::tools::{
 };
 use crate::util::Visibility;
 use crate::world::World;
-use crate::{apply_tool_method_mut, httpserver, image_util, UpdateView};
+use crate::{apply_tool_method_mut, httpserver, image_util, Annotation, UpdateView};
 use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
@@ -170,9 +170,11 @@ impl MainEventLoop {
         &mut self,
         e: &Events,
         ui_image_rect: Option<ShapeF>,
+        tmp_anno_buffer: Option<Annotation>,
         ctx: &Context,
     ) -> RvResult<(UpdateView, &str)> {
         self.world.set_image_rect(ui_image_rect);
+        self.world.update_view.tmp_anno_buffer = tmp_anno_buffer;
         let project_loaded_in_curr_iter = self.menu.ui(
             ctx,
             &mut self.ctrl,

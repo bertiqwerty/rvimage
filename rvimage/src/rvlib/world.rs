@@ -357,6 +357,7 @@ impl World {
                 tmp_annos: UpdateTmpAnno::No,
                 zoom_box: UpdateZoomBox::Yes(zoom_box),
                 image_info: None,
+                tmp_anno_buffer: None,
             },
         };
         add_tools_initial_data(world)

@@ -6,31 +6,15 @@ use std::mem;
 use crate::{color_with_intensity, result::RvResult, rverr, OutOfBoundsMode, ShapeI};
 
 use super::{
-    bb::BB, line::render_line, BbF, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF,
-    TPtI,
+    line::render_line, BbF, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF, TPtI,
 };
 
-fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u8>, BbI)> {
-    let thickness = line.thickness;
-    let thickness_half = thickness * 0.5;
-    let bb = BB::from_points_iter(line.line.points_iter())?;
-
-    let bb_x = bb.x - if thickness > 1.0 { thickness_half } else { 0.0 };
-    let bb_y = bb.y - if thickness > 1.0 { thickness_half } else { 0.0 };
-    let xywh = [bb_x, bb_y, bb.w + thickness, bb.h + thickness];
-    let bb = match orig_shape {
-        Some(orig_shape) => BB::new_shape_checked(
-            xywh[0],
-            xywh[1],
-            xywh[2],
-            xywh[3],
-            orig_shape,
-            OutOfBoundsMode::Resize((xywh[2], xywh[3]).into()),
-        )
-        .ok_or_else(|| rverr!("Could not create bounding box for line"))?,
-        None => BB::from_arr(&xywh),
-    };
-
+fn line_to_mask(
+    line: &BrushLine,
+    orig_shape: Option<ShapeI>,
+    buffer: Option<Vec<u8>>,
+) -> RvResult<(Vec<u8>, BbI)> {
+    let bb = line.bb(orig_shape)?;
     let color = Luma([1]);
     let bbi = BbI::from_arr(&[
         bb.x as u32,
@@ -38,24 +22,40 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
         bb.w.ceil() as u32,
         bb.h.ceil() as u32,
     ]);
+    let is_none = buffer.is_none();
+    let mut buffer = if let Some(mut buffer) =
+        buffer.filter(|buffer| buffer.len() >= (bbi.w * bbi.h) as usize)
+    {
+        for elt in &mut buffer {
+            *elt = 0;
+        }
+        ImageBuffer::from_vec(bbi.w, bbi.h, buffer)
+            .unwrap_or_else(|| RenderTargetOrShape::Shape(bbi.shape()).make_buffer())
+    } else {
+        tracing::debug!(
+            "(re-)creating buffer, buffer is {}",
+            if is_none { "None" } else { "Some" }
+        );
+        RenderTargetOrShape::Shape(bbi.shape()).make_buffer()
+    };
     let im = if line.line.points.len() == 1 {
-        let mut im = RenderTargetOrShape::Shape(bbi.shape()).make_buffer();
         let center = Point {
-            x: (line.line.points[0].x - bb.x) as i32,
-            y: (line.line.points[0].y - bb.y) as i32,
+            x: (line.line.points[0].x - bbi.x as f64) as i32,
+            y: (line.line.points[0].y - bbi.y as f64) as i32,
         };
 
-        if thickness <= 1.1 {
-            im.put_pixel(center.x as u32, center.y as u32, color);
+        let thickness_half = line.thickness * 0.5;
+        if line.thickness <= 1.1 {
+            buffer.put_pixel(center.x as u32, center.y as u32, color);
         } else {
             let r = if thickness_half.floor() == thickness_half {
                 (thickness_half - 1.0) as i32
             } else {
                 thickness_half as i32
             };
-            draw_filled_circle_mut(&mut im, (center.x, center.y), r, color);
+            draw_filled_circle_mut(&mut buffer, (center.x, center.y), r, color);
         }
-        im
+        buffer
     } else {
         render_line(
             line.line
@@ -67,7 +67,7 @@ fn line_to_mask(line: &BrushLine, orig_shape: Option<ShapeI>) -> RvResult<(Vec<u
                 }),
             1.0,
             line.thickness,
-            RenderTargetOrShape::Shape(bbi.shape()),
+            RenderTargetOrShape::Image(buffer),
             color,
         )
     };
@@ -307,8 +307,26 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(line: &BrushLine, orig_shape: ShapeI) -> RvResult<Self> {
-        let (mask, bb) = line_to_mask(line, Some(orig_shape))?;
+    pub fn from_line_extended(
+        line: &BrushLine,
+        orig_shape: ShapeI,
+        extension_factor: f64,
+        lower_buffer_bound: usize,
+    ) -> RvResult<Self> {
+        if extension_factor < 1.0 {
+            return Err(rverr!("extension factor {extension_factor} smaller 1"));
+        }
+        let bb = line.bb(Some(orig_shape))?;
+        let new_w = (bb.w * extension_factor).ceil() as usize;
+        let new_h = (bb.h * extension_factor).ceil() as usize;
+        let new_size = (new_w * new_h)
+            .min(orig_shape.w as usize * orig_shape.h as usize)
+            .max(lower_buffer_bound);
+        let buffer = vec![0; new_size];
+        Self::new(line, orig_shape, Some(buffer))
+    }
+    pub fn new(line: &BrushLine, orig_shape: ShapeI, buffer: Option<Vec<u8>>) -> RvResult<Self> {
+        let (mask, bb) = line_to_mask(line, Some(orig_shape), buffer)?;
         Ok(Self {
             mask,
             bb,
@@ -378,7 +396,7 @@ impl Canvas {
     }
     /// This function does check the for out of bounds. We assume valid data has been serialized.
     pub fn from_serialized_brush_line(bl: &BrushLine) -> RvResult<Self> {
-        let (mask, bb) = line_to_mask(bl, None)?;
+        let (mask, bb) = line_to_mask(bl, None, None)?;
         Ok(Self {
             mask,
             bb,
@@ -467,7 +485,7 @@ where
 }
 
 #[cfg(test)]
-use super::Line;
+use super::{Line, BB};
 #[test]
 fn test_canvas_single() {
     let orig_shape = ShapeI::new(30, 30);
@@ -478,8 +496,19 @@ fn test_canvas_single() {
         intensity: 0.5,
         thickness: 3.0,
     };
-    let cv = Canvas::new(&bl, orig_shape).unwrap();
+    let cv = Canvas::new(&bl, orig_shape, None).unwrap();
     assert!(cv.mask.iter().sum::<u8>() > 0);
+    let buffer = vec![43; 100];
+    let orig_shape = ShapeI::new(30, 30);
+    let bl = BrushLine {
+        line: Line {
+            points: vec![PtF { x: 5.0, y: 5.0 }],
+        },
+        intensity: 0.5,
+        thickness: 3.0,
+    };
+    let cv2 = Canvas::new(&bl, orig_shape, Some(buffer)).unwrap();
+    assert_eq!(cv.mask.iter().sum::<u8>(), cv2.mask.iter().sum::<u8>());
 }
 
 #[test]
@@ -595,7 +624,7 @@ fn test_canvas_serde() {
         intensity: 0.5,
         thickness: 3.0,
     };
-    let cv = Canvas::new(&bl, orig_shape).unwrap();
+    let cv = Canvas::new(&bl, orig_shape, None).unwrap();
     let s = serde_json::to_string(&cv).unwrap();
     let cv_read: Canvas = serde_json::from_str(&s).unwrap();
     assert_eq!(cv, cv_read);
@@ -604,7 +633,7 @@ fn test_canvas_serde() {
 #[test]
 fn test_line_to_mask() {
     fn test(mask_zeros: &[u8], mask_sum: u8, bb: BbI, bl: &BrushLine) {
-        let (mask2, bb2) = line_to_mask(bl, None).unwrap();
+        let (mask2, bb2) = line_to_mask(bl, None, None).unwrap();
 
         assert_eq!(bb, bb2);
         assert_eq!(mask2.iter().sum::<u8>(), mask_sum);
@@ -647,7 +676,7 @@ fn test_line_to_mask() {
         thickness: 5.0,
     };
     test(&[], 21, BB::from_arr(&[2, 2, 5, 5]), &bl);
-    let mut canvas = Canvas::new(&bl, ShapeI::new(30, 30)).unwrap();
+    let mut canvas = Canvas::new(&bl, ShapeI::new(30, 30), None).unwrap();
     canvas.draw_circle(center, 5.0, 0).unwrap();
     // maybe we didn't delete all but a significant portion due to rounding errors
     assert!(canvas.mask.iter().sum::<u8>() < 21 / 2);
