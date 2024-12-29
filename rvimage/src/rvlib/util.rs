@@ -94,3 +94,27 @@ fn test_natural_sort() {
         Ordering::Greater
     );
 }
+
+pub struct Defer<F: FnMut()> {
+    pub func: F,
+}
+impl<F: FnMut()> Drop for Defer<F> {
+    fn drop(&mut self) {
+        (self.func)();
+    }
+}
+#[macro_export]
+macro_rules! defer {
+    ($f:expr) => {
+        let _dfr = $crate::Defer { func: $f };
+    };
+}
+#[macro_export]
+macro_rules! time_scope {
+    ($name:expr) => {
+        let now = std::time::Instant::now();
+        // let f = || eprintln!("{} {}", $name, now.elapsed().as_micros());
+        let f = || ();
+        $crate::defer!(f);
+    };
+}

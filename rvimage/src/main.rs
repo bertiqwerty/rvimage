@@ -19,7 +19,7 @@ use rvlib::{
     control::Control,
     file_util::{osstr_to_str, DEFAULT_HOMEDIR},
     result::trace_ok_err,
-    to_per_file_crowd,
+    time_scope, to_per_file_crowd,
     tools::{self, BBOX_NAME, BRUSH_NAME},
     tracing_setup,
     view::{self, ImageU8},
@@ -187,6 +187,7 @@ struct RvImageApp {
     egui_perm_shapes: Vec<Shape>,
     egui_tmp_shapes: [Option<Shape>; 2],
     image_rect: Option<Rect>,
+    prev_image_rect_size: Option<Vec2>,
 }
 
 impl RvImageApp {
@@ -448,12 +449,15 @@ impl eframe::App for RvImageApp {
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;
         });
-        let res = self.event_loop.one_iteration(
-            &self.events,
-            self.image_rect
-                .map(|ir| ShapeF::new(ir.width().into(), ir.height().into())),
-            ctx,
-        );
+        let res = {
+            time_scope!("one_iteration");
+            self.event_loop.one_iteration(
+                &self.events,
+                self.image_rect
+                    .map(|ir| ShapeF::new(ir.width().into(), ir.height().into())),
+                ctx,
+            )
+        };
         if let Ok((update_view, prj_name)) = res {
             let title = if prj_name.is_empty() {
                 "RV Image".to_string()
@@ -461,12 +465,16 @@ impl eframe::App for RvImageApp {
                 format!("RV Image - {prj_name}")
             };
             ctx.send_viewport_cmd(ViewportCommand::Title(title));
+            let mut zoom_box_update = false;
             egui::CentralPanel::default().show(ctx, |ui| {
                 if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
+                    time_scope!("update_texture_zb");
                     self.zoom_box = zb;
                     self.update_texture(ctx);
+                    zoom_box_update = true;
                 }
                 if let UpdateImage::Yes(im) = update_view.image {
+                    time_scope!("update_texture_image");
                     self.im_orig = im;
                     self.update_texture(ctx);
                 }
@@ -497,19 +505,26 @@ impl eframe::App for RvImageApp {
                     let mut update_texture = false;
                     if let Some(ir) = image_response {
                         // react to resizing the image rect
-                        if self.image_rect != Some(ir.rect) {
+                        if self.prev_image_rect_size != Some(ir.rect.size()) || zoom_box_update {
+                            self.prev_image_rect_size = Some(ir.rect.size());
+
+                            time_scope!("update_perm_annos_resize");
+                            tracing::warn!("HERE");
+
                             self.update_perm_annos(&ir.rect);
 
                             self.image_rect = Some(image_surrounding_rect);
                         }
                         self.events = self.collect_events(ui, &ir);
                         if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {
+                            time_scope!("update_perm_annos_new");
                             self.annos = perm_annos;
                             self.update_perm_annos(&ir.rect);
                             update_texture = true;
                         }
                         match update_view.tmp_annos {
                             UpdateTmpAnno::Yes(anno) => {
+                                time_scope!("update_tmp_annos");
                                 self.egui_tmp_shapes = [None, None];
                                 match anno {
                                     Annotation::Brush(brush) => {
@@ -526,7 +541,10 @@ impl eframe::App for RvImageApp {
                                 self.egui_tmp_shapes = [None, None];
                             }
                         }
-                        self.draw_annos(ui, update_texture);
+                        {
+                            time_scope!("draw_annos");
+                            self.draw_annos(ui, update_texture);
+                        }
                     };
                 }
             });

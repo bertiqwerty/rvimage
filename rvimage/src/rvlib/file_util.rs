@@ -176,20 +176,6 @@ where
     let data_str = serde_json::to_string(&data).map_err(to_rv)?;
     write(file_path, data_str)
 }
-pub struct Defer<F: FnMut()> {
-    pub func: F,
-}
-impl<F: FnMut()> Drop for Defer<F> {
-    fn drop(&mut self) {
-        (self.func)();
-    }
-}
-#[macro_export]
-macro_rules! defer {
-    ($f:expr) => {
-        let _dfr = $crate::file_util::Defer { func: $f };
-    };
-}
 pub fn checked_remove<'a, P: AsRef<Path> + Debug>(
     path: &'a P,
     func: fn(p: &'a P) -> io::Result<()>,
