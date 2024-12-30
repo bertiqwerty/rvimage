@@ -27,7 +27,6 @@ mod filter;
 pub mod paths_navigator;
 use crate::image_reader::LoadImageForGui;
 use paths_navigator::PathsNavigator;
-use tracing::{info, warn};
 use walkdir::WalkDir;
 
 mod detail {
@@ -192,6 +191,7 @@ mod detail {
     }
     pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, CfgPrj)> {
         let s = file_util::read_to_string(file_path)?;
+
         let save_data = serde_json::from_str::<SavePrjData>(s.as_str()).map_err(to_rv)?;
         let cfg_prj = match save_data.cfg {
             SavedCfg::CfgLegacy(cfg) => cfg.to_cfg().prj,
@@ -199,36 +199,69 @@ mod detail {
         };
         Ok((save_data.tools_data_map, save_data.opened_folder, cfg_prj))
     }
+
+    #[derive(PartialEq)]
+    enum FillResult {
+        FilledCurWithLoaded,
+        LoadedEmpty,
+        BothNotEmpty,
+        BothEmpty,
+    }
+    fn fill_empty_curtdm(
+        tool: &str,
+        cur_tdm: &mut ToolsDataMap,
+        loaded_tdm: &mut ToolsDataMap,
+    ) -> FillResult {
+        if !cur_tdm.contains_key(tool) && loaded_tdm.contains_key(tool) {
+            cur_tdm.insert(tool.to_string(), loaded_tdm[tool].clone());
+            FillResult::FilledCurWithLoaded
+        } else if !loaded_tdm.contains_key(tool) {
+            FillResult::LoadedEmpty
+        } else if cur_tdm.contains_key(tool) {
+            FillResult::BothNotEmpty
+        } else {
+            FillResult::BothEmpty
+        }
+    }
     pub fn import(cur_tdm: &mut ToolsDataMap, file_path: &Path) -> RvResult<()> {
         let (mut loaded_tdm, _, _) = load(file_path)?;
 
-        let cur_bbox = toolsdata_by_name!(BBOX_NAME, bbox_mut, cur_tdm);
-        let loaded_bbox = toolsdata_by_name!(BBOX_NAME, bbox_mut, loaded_tdm);
-        let cur_annos = mem::take(&mut cur_bbox.annotations_map);
-        let cur_li = mem::take(&mut cur_bbox.label_info);
-        let loaded_annos = mem::take(&mut loaded_bbox.annotations_map);
-        let loaded_li = mem::take(&mut loaded_bbox.label_info);
-        let (merged_annos, merged_li) = merge(cur_annos, cur_li, loaded_annos, loaded_li);
-        cur_bbox.annotations_map = merged_annos;
-        cur_bbox.label_info = merged_li;
+        if fill_empty_curtdm(BBOX_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty {
+            let cur_bbox = toolsdata_by_name!(BBOX_NAME, bbox_mut, cur_tdm);
+            let loaded_bbox = toolsdata_by_name!(BBOX_NAME, bbox_mut, loaded_tdm);
+            let cur_annos = mem::take(&mut cur_bbox.annotations_map);
+            let cur_li = mem::take(&mut cur_bbox.label_info);
+            let loaded_annos = mem::take(&mut loaded_bbox.annotations_map);
+            let loaded_li = mem::take(&mut loaded_bbox.label_info);
+            let (merged_annos, merged_li) = merge(cur_annos, cur_li, loaded_annos, loaded_li);
+            cur_bbox.annotations_map = merged_annos;
+            cur_bbox.label_info = merged_li;
+        }
 
-        let cur_brush = toolsdata_by_name!(BRUSH_NAME, brush_mut, cur_tdm);
-        let loaded_brush = toolsdata_by_name!(BRUSH_NAME, brush_mut, loaded_tdm);
-        let cur_annos = mem::take(&mut cur_brush.annotations_map);
-        let cur_li = mem::take(&mut cur_brush.label_info);
-        let loaded_annos = mem::take(&mut loaded_brush.annotations_map);
-        let loaded_li = mem::take(&mut loaded_brush.label_info);
-        let (merged_annos, merged_li) = merge(cur_annos, cur_li, loaded_annos, loaded_li);
-        cur_brush.annotations_map = merged_annos;
-        cur_brush.label_info = merged_li;
+        if fill_empty_curtdm(BRUSH_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty {
+            let cur_brush = toolsdata_by_name!(BRUSH_NAME, brush_mut, cur_tdm);
+            let loaded_brush = toolsdata_by_name!(BRUSH_NAME, brush_mut, loaded_tdm);
+            let cur_annos = mem::take(&mut cur_brush.annotations_map);
+            let cur_li = mem::take(&mut cur_brush.label_info);
+            let loaded_annos = mem::take(&mut loaded_brush.annotations_map);
+            let loaded_li = mem::take(&mut loaded_brush.label_info);
+            let (merged_annos, merged_li) = merge(cur_annos, cur_li, loaded_annos, loaded_li);
+            cur_brush.annotations_map = merged_annos;
+            cur_brush.label_info = merged_li;
+        }
 
-        let cur_rot90 = toolsdata_by_name!(ROT90_NAME, rot90_mut, cur_tdm);
-        let loaded_rot90 = toolsdata_by_name!(ROT90_NAME, rot90_mut, loaded_tdm);
-        *cur_rot90 = mem::take(cur_rot90).merge(mem::take(loaded_rot90));
+        if fill_empty_curtdm(ROT90_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty {
+            let cur_rot90 = toolsdata_by_name!(ROT90_NAME, rot90_mut, cur_tdm);
+            let loaded_rot90 = toolsdata_by_name!(ROT90_NAME, rot90_mut, loaded_tdm);
+            *cur_rot90 = mem::take(cur_rot90).merge(mem::take(loaded_rot90));
+        }
 
-        let cur_attr = toolsdata_by_name!(ATTRIBUTES_NAME, attributes_mut, cur_tdm);
-        let loaded_attr = toolsdata_by_name!(ATTRIBUTES_NAME, attributes_mut, loaded_tdm);
-        *cur_attr = mem::take(cur_attr).merge(mem::take(loaded_attr));
+        if fill_empty_curtdm(ATTRIBUTES_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty
+        {
+            let cur_attr = toolsdata_by_name!(ATTRIBUTES_NAME, attributes_mut, cur_tdm);
+            let loaded_attr = toolsdata_by_name!(ATTRIBUTES_NAME, attributes_mut, loaded_tdm);
+            *cur_attr = mem::take(cur_attr).merge(mem::take(loaded_attr));
+        }
         Ok(())
     }
 }
@@ -451,7 +484,7 @@ impl Control {
 
     pub fn new() -> Self {
         let cfg = Cfg::read(&DEFAULT_HOMEDIR).unwrap_or_else(|e| {
-            warn!("could not read cfg due to {e:?}, returning default");
+            tracing::warn!("could not read cfg due to {e:?}, returning default");
             Cfg::default()
         });
         if cfg.current_prj_path().exists() {
@@ -464,7 +497,7 @@ impl Control {
     }
     pub fn new_prj(&mut self) -> ToolsDataMap {
         let mut cfg = Cfg::read(&DEFAULT_HOMEDIR).unwrap_or_else(|e| {
-            warn!("could not read cfg due to {e:?}, returning default");
+            tracing::warn!("could not read cfg due to {e:?}, returning default");
             Cfg::default()
         });
         trace_ok_warn(detail::remove_lock_file(self.cfg.current_prj_path()));
@@ -697,7 +730,7 @@ impl Control {
                 let im_read = self.read_image(*selected)?;
                 let read_image_and_idx = match (abs_file_path, menu_file_selected, im_read) {
                     (Some(fp), Some(fidx), Some(ri)) => {
-                        info!("loading {} from {}", ri.info, fp);
+                        tracing::info!("loading {} from {}", ri.info, fp);
                         self.file_selected_idx = menu_file_selected;
                         self.file_info_selected = Some(ri.info);
                         let ims_raw = DataRaw::new(

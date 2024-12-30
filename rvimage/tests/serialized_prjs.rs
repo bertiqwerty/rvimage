@@ -42,8 +42,11 @@ fn prj_load(file: &str) -> ToolsDataMap {
     let test_file_src = get_test_folder().join(get_test_folder().join(file));
     let test_file = tmp_copy(&test_file_src);
     defer_file_removal!(&test_file);
-    let tdm = ctrl.load(test_file.clone()).unwrap();
+    let mut tdm = ctrl.load(test_file.clone()).unwrap();
+    let pre_tdm = tdm.clone();
+    ctrl.import(test_file.clone(), &mut tdm).unwrap();
     thread::sleep(Duration::from_millis(5));
+    assert_eq!(tdm, pre_tdm);
     tdm
 }
 
