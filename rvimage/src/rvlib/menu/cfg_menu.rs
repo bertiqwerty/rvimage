@@ -159,7 +159,7 @@ fn settings_popup(
         ui.radio_value(
             &mut cfg.prj.connection,
             Connection::AzureBlob,
-            "Azure blob experimental",
+            "Azure blob storage",
         );
         #[cfg(feature = "azure_blob")]
         if cfg.prj.connection == Connection::AzureBlob {
