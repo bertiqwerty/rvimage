@@ -269,22 +269,6 @@ impl Menu {
                         }
                         ui.close_menu();
                     }
-                    if ui.button("Import").clicked() {
-                        let prj_path = rfd::FileDialog::new()
-                            .add_filter("project files", &["json", "rvi"])
-                            .pick_file();
-                        if let Some(prj_path) = prj_path {
-                            handle_error!(
-                                |()| {
-                                    projected_loaded = true;
-                                },
-                                ctrl.import(prj_path, tools_data_map),
-                                self
-                            );
-                        }
-                        ui.close_menu();
-                    }
-
                     if ui.button("Save").clicked() {
                         let prj_path = save_dialog_in_prjfolder(
                             ctrl.cfg.current_prj_path(),
@@ -296,6 +280,57 @@ impl Menu {
                         }
                         ui.close_menu();
                     }
+                    ui.separator();
+                    ui.label("Import ...");
+                    if ui.button("... Annotations").clicked() {
+                        let prj_path = rfd::FileDialog::new()
+                            .set_title("Import Annotations from Project")
+                            .add_filter("project files", &["json", "rvi"])
+                            .pick_file();
+                        if let Some(prj_path) = prj_path {
+                            handle_error!(
+                                |()| {
+                                    projected_loaded = true;
+                                },
+                                ctrl.import_annos(&prj_path, tools_data_map),
+                                self
+                            );
+                        }
+                        ui.close_menu();
+                    }
+                    if ui.button("... Settings").clicked() {
+                        let prj_path = rfd::FileDialog::new()
+                            .set_title("Import Settings from Project")
+                            .add_filter("project files", &["json", "rvi"])
+                            .pick_file();
+                        if let Some(prj_path) = prj_path {
+                            handle_error!(
+                                |()| {
+                                    projected_loaded = true;
+                                },
+                                ctrl.import_settings(&prj_path),
+                                self
+                            );
+                        }
+                        ui.close_menu();
+                    }
+                    if ui.button("... Annotations and Settings").clicked() {
+                        let prj_path = rfd::FileDialog::new()
+                            .set_title("Import Annotations and Settings from Project")
+                            .add_filter("project files", &["json", "rvi"])
+                            .pick_file();
+                        if let Some(prj_path) = prj_path {
+                            handle_error!(
+                                |()| {
+                                    projected_loaded = true;
+                                },
+                                ctrl.import_both(&prj_path, tools_data_map),
+                                self
+                            );
+                        }
+                        ui.close_menu();
+                    }
+
                 });
 
                 let popup_id = ui.make_persistent_id("autosave-popup");

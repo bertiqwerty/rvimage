@@ -223,7 +223,7 @@ mod detail {
             FillResult::BothEmpty
         }
     }
-    pub fn import(cur_tdm: &mut ToolsDataMap, file_path: &Path) -> RvResult<()> {
+    pub fn import_annos(cur_tdm: &mut ToolsDataMap, file_path: &Path) -> RvResult<()> {
         let (mut loaded_tdm, _, _) = load(file_path)?;
 
         if fill_empty_curtdm(BBOX_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty {
@@ -432,8 +432,30 @@ impl Control {
             mem::take(&mut self.save_handle).map(|h| trace_ok_err(h.join().map_err(to_rv)));
         }
     }
-    pub fn import(&self, file_path: PathBuf, tools_data_map: &mut ToolsDataMap) -> RvResult<()> {
-        detail::import(tools_data_map, &file_path)
+    pub fn import_annos(
+        &self,
+        file_path: &Path,
+        tools_data_map: &mut ToolsDataMap,
+    ) -> RvResult<()> {
+        detail::import_annos(tools_data_map, &file_path)
+    }
+    pub fn import_settings(&mut self, file_path: &Path) -> RvResult<()> {
+        let (_, opened_folder, prj_cfg) = detail::load(&file_path)?;
+
+        self.cfg.prj = prj_cfg;
+        if let Some(of) = opened_folder {
+            self.open_relative_folder(of)?;
+        }
+        Ok(())
+    }
+    pub fn import_both(
+        &mut self,
+        file_path: &Path,
+        tools_data_map: &mut ToolsDataMap,
+    ) -> RvResult<()> {
+        self.import_annos(file_path, tools_data_map)?;
+        self.import_settings(file_path)?;
+        Ok(())
     }
 
     fn set_current_prj_path(&mut self, prj_path: PathBuf) -> RvResult<()> {
