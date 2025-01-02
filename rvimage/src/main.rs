@@ -650,10 +650,11 @@ fn main() {
                         } else {
                             Visuals::light()
                         };
-                        let style = Style {
+                        let mut style = Style {
                             visuals: viz,
                             ..Style::default()
                         };
+                        style.interaction.tooltip_delay = 0.01;
                         cc.egui_ctx.set_style(style);
                     }
                     Ok(Box::new(RvImageApp::new(cc)))
