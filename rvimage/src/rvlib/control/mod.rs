@@ -1,7 +1,8 @@
 use crate::cfg::{get_log_folder, Connection};
 use crate::defer_file_removal;
 use crate::file_util::{
-    osstr_to_str, PathPair, SavedCfg, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH,
+    osstr_to_str, to_stem_str, PathPair, SavedCfg, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME,
+    DEFAULT_PRJ_PATH,
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
@@ -16,7 +17,7 @@ use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::thread::{self, JoinHandle};
@@ -282,6 +283,17 @@ impl UserPrjOpened {
         }
     }
 }
+impl Display for UserPrjOpened {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = format!(
+            "{}-{}_{}",
+            self.username,
+            self.realname,
+            self.time.format("%y%m%d-%H%M%S")
+        );
+        f.write_str(&s)
+    }
+}
 impl Default for UserPrjOpened {
     fn default() -> Self {
         Self::new()
@@ -443,6 +455,13 @@ impl Control {
         let (_, opened_folder, prj_cfg) = detail::load(file_path)?;
 
         self.cfg.prj = prj_cfg;
+        let info = UserPrjOpened::new();
+        let filename = format!("{}_{info}_imported.rvi", to_stem_str(file_path)?,);
+        let prj_path = file_path
+            .parent()
+            .ok_or_else(|| rverr!("prj path needs parent folder"))?
+            .join(filename);
+        self.cfg.set_current_prj_path(prj_path);
         if let Some(of) = opened_folder {
             self.open_relative_folder(of)?;
         }
