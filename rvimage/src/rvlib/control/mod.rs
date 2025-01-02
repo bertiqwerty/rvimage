@@ -437,10 +437,10 @@ impl Control {
         file_path: &Path,
         tools_data_map: &mut ToolsDataMap,
     ) -> RvResult<()> {
-        detail::import_annos(tools_data_map, &file_path)
+        detail::import_annos(tools_data_map, file_path)
     }
     pub fn import_settings(&mut self, file_path: &Path) -> RvResult<()> {
-        let (_, opened_folder, prj_cfg) = detail::load(&file_path)?;
+        let (_, opened_folder, prj_cfg) = detail::load(file_path)?;
 
         self.cfg.prj = prj_cfg;
         if let Some(of) = opened_folder {

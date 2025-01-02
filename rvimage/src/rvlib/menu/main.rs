@@ -330,7 +330,6 @@ impl Menu {
                         }
                         ui.close_menu();
                     }
-
                 });
 
                 let popup_id = ui.make_persistent_id("autosave-popup");
