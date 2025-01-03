@@ -431,12 +431,11 @@ impl Control {
         // their path correctly
         self.set_current_prj_path(prj_path.clone())?;
         self.cfg.write()?;
-        let loaded = detail::load(&prj_path);
-        if loaded.is_err() {
-            self.cfg.unset_current_prj_path();
-            self.cfg.write()?;
-        }
-        let (tools_data_map, to_be_opened_folder, read_cfg) = loaded?;
+        let (tools_data_map, to_be_opened_folder, read_cfg) =
+            detail::load(&prj_path).inspect_err(|_| {
+                self.cfg.unset_current_prj_path();
+                trace_ok_err(self.cfg.write());
+            })?;
         if let Some(of) = to_be_opened_folder {
             self.open_relative_folder(of)?;
         }
