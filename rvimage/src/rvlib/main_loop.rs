@@ -163,7 +163,7 @@ impl MainEventLoop {
             autosave_timer: Instant::now(),
         };
 
-        trace_ok_err(self_.load_prj(prj_file_path));
+        trace_ok_err(self_.load_prj_during_startup(prj_file_path));
         self_
     }
     pub fn one_iteration(
@@ -417,7 +417,7 @@ impl MainEventLoop {
             get_prj_name(self.ctrl.cfg.current_prj_path(), None),
         ))
     }
-    pub fn load_prj(&mut self, file_path: Option<PathBuf>) -> RvResult<()> {
+    pub fn load_prj_during_startup(&mut self, file_path: Option<PathBuf>) -> RvResult<()> {
         if let Some(file_path) = file_path {
             info!("loaded project {file_path:?}");
             self.world.data.tools_data_map = self.ctrl.load(file_path)?;
