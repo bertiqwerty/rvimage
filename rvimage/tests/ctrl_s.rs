@@ -26,7 +26,9 @@ fn test_main() {
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, None, None, ctx).unwrap();
     });
-    main_loop.load_prj_during_startup(Some(test_file.clone())).unwrap();
+    main_loop
+        .load_prj_during_startup(Some(test_file.clone()))
+        .unwrap();
     thread::sleep(Duration::from_millis(1));
     egui::__run_test_ctx(|ctx| {
         main_loop.one_iteration(&events, None, None, ctx).unwrap();

@@ -625,7 +625,11 @@ fn main() {
     if let Err(e) = panic::catch_unwind(|| {
         let cli = Cli::parse();
         if let (Some(in_prj_path), Some(out_folder)) = (cli.in_prj_path, cli.out_folder) {
-            trace_ok_err(export_coco_via_cli(&in_prj_path, &out_folder, cli.per_file_crowd));
+            trace_ok_err(export_coco_via_cli(
+                &in_prj_path,
+                &out_folder,
+                cli.per_file_crowd,
+            ));
         } else {
             let icon_bytes = include_bytes!("../resources/rvimage-logo.png");
             let icon_image = image::load_from_memory(icon_bytes).unwrap();
@@ -692,7 +696,8 @@ fn test_coco() {
     let tmp_folder = DEFAULT_TMPDIR.join("convertcocotest");
     std::fs::create_dir_all(&tmp_folder).unwrap();
     defer_folder_removal!(&tmp_folder);
-    let (export_path, meta_data, rot90) = export_coco_via_cli(&test_file, &tmp_folder, true).unwrap();
+    let (export_path, meta_data, rot90) =
+        export_coco_via_cli(&test_file, &tmp_folder, true).unwrap();
     let files = tmp_folder
         .read_dir()
         .unwrap()
