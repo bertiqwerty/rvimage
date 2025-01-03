@@ -349,6 +349,7 @@ impl Control {
         &self.flags
     }
     pub fn reload(&mut self, sort_params: Option<SortParams>) -> RvResult<()> {
+        tracing::info!("reload");
         if let Some(reader) = &mut self.reader {
             reader.clear_cache()?;
         }
@@ -374,25 +375,26 @@ impl Control {
         Ok(())
     }
 
-    pub fn replace_with_save(&mut self, input_file_path: &Path) -> RvResult<ToolsDataMap> {
+    pub fn replace_with_save(&mut self, input_prj_path: &Path) -> RvResult<ToolsDataMap> {
+        tracing::info!("replacing annotations with save from {input_prj_path:?}");
         let cur_prj_path = self.cfg.current_prj_path().to_path_buf();
         if let (Some(ifp_parent), Some(cpp_parent)) =
-            (input_file_path.parent(), cur_prj_path.parent())
+            (input_prj_path.parent(), cur_prj_path.parent())
         {
             let loaded = if ifp_parent != cpp_parent {
                 // we need projects to be in the same folder for the correct resolution of relative paths
                 let copied_file_path = cpp_parent.join(
-                    input_file_path
+                    input_prj_path
                         .file_name()
                         .ok_or_else(|| rverr!("could not get filename to copy to"))?,
                 );
                 defer_file_removal!(&copied_file_path);
-                trace_ok_err(fs::copy(input_file_path, &copied_file_path));
-                let (tdm, _, _) = detail::load(input_file_path)?;
+                trace_ok_err(fs::copy(input_prj_path, &copied_file_path));
+                let (tdm, _, _) = detail::load(input_prj_path)?;
                 tdm
             } else {
                 // are in the same parent folder, i.e., we replace with the last manual save
-                let (tdm, _, _) = detail::load(input_file_path)?;
+                let (tdm, _, _) = detail::load(input_prj_path)?;
                 tdm
             };
             self.set_current_prj_path(cur_prj_path)?;
@@ -402,13 +404,15 @@ impl Control {
             Err(rverr!("{cur_prj_path:?} does not have a parent folder"))
         }
     }
-    pub fn load(&mut self, file_path: PathBuf) -> RvResult<ToolsDataMap> {
+    pub fn load(&mut self, prj_path: PathBuf) -> RvResult<ToolsDataMap> {
+        tracing::info!("loading project from {prj_path:?}");
+
         // check if project is already opened by someone
-        let lockusr = read_user_from_lockfile(&file_path)?;
+        let lockusr = read_user_from_lockfile(&prj_path)?;
         if let Some(lockusr) = lockusr {
             let usr = UserPrjOpened::new();
             if usr.username != lockusr.username || usr.realname != lockusr.realname {
-                let lock_file_path = lock_file_path(&file_path)?;
+                let lock_file_path = lock_file_path(&prj_path)?;
                 let err = rverr!(
                     "The project is opened by {} ({}). Delete {:?} to unlock.",
                     lockusr.username,
@@ -425,17 +429,20 @@ impl Control {
 
         // we need the project path before reading the annotations to map
         // their path correctly
-        self.set_current_prj_path(file_path.clone())?;
+        self.set_current_prj_path(prj_path.clone())?;
         self.cfg.write()?;
-        let (tools_data_map, to_be_opened_folder, read_cfg) = detail::load(&file_path)?;
+        let loaded = detail::load(&prj_path);
+        if loaded.is_err() {
+            self.cfg.unset_current_prj_path();
+            self.cfg.write()?;
+        }
+        let (tools_data_map, to_be_opened_folder, read_cfg) = loaded?;
         if let Some(of) = to_be_opened_folder {
             self.open_relative_folder(of)?;
         }
         self.cfg.prj = read_cfg;
-
         // save cfg of loaded project
         trace_ok_err(self.cfg.write());
-
         Ok(tools_data_map)
     }
 
@@ -444,24 +451,22 @@ impl Control {
             mem::take(&mut self.save_handle).map(|h| trace_ok_err(h.join().map_err(to_rv)));
         }
     }
-    pub fn import_annos(
-        &self,
-        file_path: &Path,
-        tools_data_map: &mut ToolsDataMap,
-    ) -> RvResult<()> {
-        detail::import_annos(tools_data_map, file_path)
+    pub fn import_annos(&self, prj_path: &Path, tools_data_map: &mut ToolsDataMap) -> RvResult<()> {
+        tracing::info!("importing annotations from {prj_path:?}");
+        detail::import_annos(tools_data_map, prj_path)
     }
-    pub fn import_settings(&mut self, file_path: &Path) -> RvResult<()> {
-        let (_, opened_folder, prj_cfg) = detail::load(file_path)?;
+    pub fn import_settings(&mut self, prj_path: &Path) -> RvResult<()> {
+        tracing::info!("importing settings from {prj_path:?}");
+        let (_, opened_folder, prj_cfg) = detail::load(prj_path)?;
 
         self.cfg.prj = prj_cfg;
         let info = UserPrjOpened::new();
-        let filename = format!("{}_{info}_imported.rvi", to_stem_str(file_path)?,);
-        let prj_path = file_path
+        let filename = format!("{}_{info}_imported.rvi", to_stem_str(prj_path)?);
+        let prj_path_imported = prj_path
             .parent()
             .ok_or_else(|| rverr!("prj path needs parent folder"))?
             .join(filename);
-        self.cfg.set_current_prj_path(prj_path);
+        self.cfg.set_current_prj_path(prj_path_imported);
         if let Some(of) = opened_folder {
             self.open_relative_folder(of)?;
         }
@@ -469,11 +474,11 @@ impl Control {
     }
     pub fn import_both(
         &mut self,
-        file_path: &Path,
+        prj_path: &Path,
         tools_data_map: &mut ToolsDataMap,
     ) -> RvResult<()> {
-        self.import_annos(file_path, tools_data_map)?;
-        self.import_settings(file_path)?;
+        self.import_annos(prj_path, tools_data_map)?;
+        self.import_settings(prj_path)?;
         Ok(())
     }
 
@@ -492,6 +497,7 @@ impl Control {
         tools_data_map: &ToolsDataMap,
         set_cur_prj: bool,
     ) -> RvResult<()> {
+        tracing::info!("saving project to {prj_path:?}");
         let path = if let Some(of) = self.opened_folder() {
             if DEFAULT_PRJ_PATH.as_os_str() == prj_path.as_os_str() {
                 PathBuf::from(of.path_relative()).join(DEFAULT_PRJ_NAME)

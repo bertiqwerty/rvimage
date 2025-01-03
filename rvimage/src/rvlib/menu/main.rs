@@ -291,7 +291,6 @@ impl Menu {
                             handle_error!(
                                 |()| {
                                     projected_loaded = true;
-                                    tracing::info!("Annotations imported from {prj_path:?}");
                                 },
                                 ctrl.import_annos(&prj_path, tools_data_map),
                                 self
@@ -308,7 +307,6 @@ impl Menu {
                             handle_error!(
                                 |()| {
                                     projected_loaded = true;
-                                    tracing::info!("Settings imported from {prj_path:?}");
                                 },
                                 ctrl.import_settings(&prj_path),
                                 self
@@ -325,9 +323,6 @@ impl Menu {
                             handle_error!(
                                 |()| {
                                     projected_loaded = true;
-                                    tracing::info!(
-                                        "Annotations and settings imported from {prj_path:?}"
-                                    );
                                 },
                                 ctrl.import_both(&prj_path, tools_data_map),
                                 self

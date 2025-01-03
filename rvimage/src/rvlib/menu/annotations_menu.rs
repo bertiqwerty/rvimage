@@ -212,7 +212,6 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
                         .double_clicked()
                     {
                         tdm = trace_ok_err(ctrl.replace_with_save(path));
-                        tracing::info!("replaced current tool's data with {path:?}");
                         close = Close::Yes;
                     }
                     ui.label(egui::RichText::new(mb).monospace());
