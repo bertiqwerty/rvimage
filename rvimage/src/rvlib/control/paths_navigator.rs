@@ -109,8 +109,8 @@ impl PathsNavigator {
         self.select_label_idx(self.idx_of_file_label(file_label));
     }
 
-    pub fn paths_selector(&self) -> &Option<PathsSelector> {
-        &self.paths_selector
+    pub fn paths_selector(&self) -> Option<&PathsSelector> {
+        self.paths_selector.as_ref()
     }
 
     fn filter_by_pred(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {

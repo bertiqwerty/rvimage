@@ -7,7 +7,7 @@ use rvimage_domain::{to_rv, RvResult};
 use crate::{
     autosave::{list_files, make_timespan, AUTOSAVE_KEEP_N_DAYS},
     control::Control,
-    file_util,
+    file_util::{self, PathPair},
     result::trace_ok_err,
     tools::{BBOX_NAME, BRUSH_NAME},
     tools_data::{AnnotationsMap, ToolSpecifics},
@@ -44,6 +44,50 @@ fn ancestor(path: &String, depth: u8) -> &Path {
         .ancestors()
         .nth(depth.into())
         .unwrap_or(Path::new(""))
+}
+
+fn get_absent_files<'a, T>(
+    tool_name: &str,
+    unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
+    tdm: &'a ToolsDataMap,
+    filepaths: &[&PathPair],
+) -> RvResult<Vec<&'a str>>
+where
+    T: InstanceAnnotate + 'a,
+{
+    if tdm.contains_key(tool_name) {
+        let datamap = unwrap_specifics(&tdm[tool_name].specifics)?;
+        Ok(datamap
+            .keys()
+            .filter(|k| !filepaths.iter().any(|fp| fp.path_relative() == *k))
+            .map(String::as_str)
+            .collect::<Vec<_>>())
+    } else {
+        Ok(vec![])
+    }
+}
+
+fn get_all_absent_files<'a>(tdm: &'a ToolsDataMap, filepaths: &[&PathPair]) -> Vec<&'a str> {
+    let mut all_absent_files = vec![];
+    let afs = trace_ok_err(get_absent_files(
+        BBOX_NAME,
+        |ts| ts.bbox().map(|d| &d.annotations_map),
+        tdm,
+        filepaths,
+    ));
+    if let Some(mut afs) = afs {
+        all_absent_files.append(&mut afs);
+    }
+    let afs = trace_ok_err(get_absent_files(
+        BRUSH_NAME,
+        |ts| ts.brush().map(|d| &d.annotations_map),
+        tdm,
+        filepaths,
+    ));
+    if let Some(mut afs) = afs {
+        all_absent_files.append(&mut afs);
+    }
+    all_absent_files
 }
 
 fn tdm_instance_annos<T>(
@@ -130,11 +174,12 @@ fn tdm_instance_annos<T>(
     }
 }
 
-fn annotations(
+fn annotations<'a>(
     ui: &mut Ui,
     tdm: &mut ToolsDataMap,
     are_tools_active: &mut bool,
     parents_depth: &mut u8,
+    get_filtered_filespaths: impl Fn() -> Option<Vec<&'a PathPair>>,
 ) {
     ui.heading("Annotations");
     ui.label(egui::RichText::new(
@@ -149,28 +194,62 @@ fn annotations(
         "# subfolders to aggregate",
     );
     let max_n_folders = 5;
-    tdm_instance_annos(
-        BRUSH_NAME,
-        tdm,
-        ui,
-        FolderParams {
-            max_n_folders,
-            parents_depth: *parents_depth,
-        },
-        |ts| ts.brush().map(|d| &d.annotations_map),
-        |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
-    );
-    tdm_instance_annos(
-        BBOX_NAME,
-        tdm,
-        ui,
-        FolderParams {
-            max_n_folders,
-            parents_depth: *parents_depth,
-        },
-        |ts| ts.bbox().map(|d| &d.annotations_map),
-        |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
-    );
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        tdm_instance_annos(
+            BRUSH_NAME,
+            tdm,
+            ui,
+            FolderParams {
+                max_n_folders,
+                parents_depth: *parents_depth,
+            },
+            |ts| ts.brush().map(|d| &d.annotations_map),
+            |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
+        );
+        tdm_instance_annos(
+            BBOX_NAME,
+            tdm,
+            ui,
+            FolderParams {
+                max_n_folders,
+                parents_depth: *parents_depth,
+            },
+            |ts| ts.bbox().map(|d| &d.annotations_map),
+            |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
+        );
+    });
+    if ui
+        .button("Log annotated files not in the filelist")
+        .clicked()
+    {
+        let filepaths = get_filtered_filespaths();
+        if let Some(filepaths) = filepaths {
+            let absent_files = get_all_absent_files(tdm, &filepaths);
+            if absent_files.is_empty() {
+                tracing::info!("no absent files with annotations found");
+            }
+            for af in absent_files {
+                tracing::info!("absent file {af}");
+            }
+        }
+    }
+    if ui
+        .button("Delete annotations of files not in the filelist")
+        .clicked()
+    {
+        let filepaths = get_filtered_filespaths();
+        if let Some(filepaths) = filepaths {
+            let absent_files = get_all_absent_files(tdm, &filepaths);
+            let absent_files = absent_files
+                .into_iter()
+                .map(str::to_string)
+                .collect::<Vec<_>>();
+            for af in absent_files {
+                tracing::info!("deleting annotations of {af}");
+                tdm.remove(&af);
+            }
+        }
+    }
 }
 
 fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
@@ -236,7 +315,14 @@ fn annotations_popup(
     Frame::popup(ui.style()).show(ui, |ui| {
         (close, tdm) = autosaves(ui, ctrl);
         ui.separator();
-        annotations(ui, in_tdm, are_tools_active, parent_depth);
+        let get_filelist = || {
+            let filelist = ctrl
+                .paths_navigator
+                .paths_selector()
+                .map(|ps| ps.filtered_file_paths());
+            filelist
+        };
+        annotations(ui, in_tdm, are_tools_active, parent_depth, get_filelist);
         ui.separator();
         ui.horizontal(|ui| {
             if ui.button("Close").clicked() {
