@@ -202,11 +202,11 @@ fn export_file_menu(
     }
     ui.horizontal(|ui| {
         if ui.button("export").clicked() {
-            tracing::info!("export triggered");
+            tracing::info!("clicked on export trigger");
             import_export_trigger.trigger_export();
         }
         if ui.button("import").clicked() {
-            tracing::info!("import triggered");
+            tracing::info!("clicked on import trigger");
             import_export_trigger.trigger_import();
         }
         if skip_import_mode {
@@ -349,9 +349,6 @@ pub fn bbox_menu(
         ui.separator();
         if ui.button("new random colors").clicked() {
             data.options.core.is_colorchange_triggered = true;
-        }
-        if ui.button("clear out of folder annotations").clicked() {
-            data.options.is_anno_outoffolder_rm_triggered = true;
         }
     });
     export_file_menu_result?;

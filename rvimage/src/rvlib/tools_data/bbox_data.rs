@@ -27,8 +27,6 @@ pub type BboxAnnoMap = AnnotationsMap<GeoFig>;
 pub struct Options {
     #[serde(skip)]
     pub core: core::Options,
-    #[serde(skip)]
-    pub is_anno_outoffolder_rm_triggered: bool,
     pub split_mode: SplitMode,
     pub fill_alpha: u8,
     pub outline_alpha: u8,
@@ -39,7 +37,6 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             core: core::Options::default(),
-            is_anno_outoffolder_rm_triggered: false,
             split_mode: SplitMode::default(),
             fill_alpha: 30,
             outline_alpha: 255,

@@ -2,7 +2,6 @@ use crate::{
     annotations_accessor, annotations_accessor_mut,
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
-    file_util,
     history::{History, Record},
     instance_annotations_accessor, make_tool_transform,
     result::trace_ok_err,
@@ -57,27 +56,6 @@ tools_data_accessors_objects!(
 
 pub(super) fn current_cat_idx(world: &World) -> Option<usize> {
     get_specific(world).map(|d| d.label_info.cat_idx_current)
-}
-
-fn check_anno_outoffolder_remove(mut world: World) -> World {
-    let is_anno_rm_triggered = get_options(&world).map(|o| o.is_anno_outoffolder_rm_triggered);
-    if is_anno_rm_triggered == Some(true) {
-        let opened_folder = world
-            .data
-            .meta_data
-            .opened_folder
-            .as_ref()
-            .map(|of| file_util::url_encode(of.path_absolute()));
-
-        // we show annotations after recoloring
-        let data = get_specific_mut(&mut world);
-        if let (Some(data), Some(opened_folder)) = (data, &opened_folder) {
-            data.retain_fileannos_in_folder(opened_folder);
-            data.options.is_anno_outoffolder_rm_triggered = false;
-        }
-        set_visible(&mut world);
-    }
-    world
 }
 
 fn check_cocoexport(mut world: World) -> World {
@@ -394,7 +372,6 @@ impl Manipulate for Bbox {
         world = check_recolorboxes::<DataAccessors>(world, BBOX_NAME);
 
         (world, history) = check_trigger_history_update::<DataAccessors>(world, history, BBOX_NAME);
-        world = check_anno_outoffolder_remove(world);
 
         world = check_cocoexport(world);
         let imported;

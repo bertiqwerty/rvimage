@@ -101,8 +101,8 @@ pub(super) fn export_if_triggered(
             rot90_data,
             &bbox_data.cocofile_conn(),
         ) {
-            Ok(p) => tracing::info!("export to {p:?} successful"),
-            Err(e) => tracing::error!("export failed due to {e:?}"),
+            Ok((p, _)) => tracing::info!("export to {p:?} successfully triggered"),
+            Err(e) => tracing::error!("trigger export failed due to {e:?}"),
         }
     }
 }

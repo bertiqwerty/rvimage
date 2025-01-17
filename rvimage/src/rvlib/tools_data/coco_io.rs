@@ -625,12 +625,16 @@ where
             rotation_data.as_ref(),
             meta_data.prj_path(),
         );
-        let data_str = serde_json::to_string(&coco_data).map_err(to_rv)?;
+        let data_str = serde_json::to_string(&coco_data)
+            .map_err(to_rv)
+            .inspect_err(|e| tracing::error!("export failed due to {e:?}"))?;
+
         conn.write(
             &data_str,
             &coco_out_path_for_thr,
             meta_data.ssh_cfg.as_ref(),
-        )?;
+        )
+        .inspect_err(|e| tracing::error!("export failed due to {e:?}"))?;
         tracing::info!("exported coco labels to {coco_out_path_for_thr:?}");
         Ok(())
     });

@@ -187,8 +187,8 @@ fn check_export(mut world: World) -> World {
                 let coco_file_conn = data.cocofile_conn();
                 match tools_data::write_coco(&meta_data, data, rot90_data.as_ref(), &coco_file_conn)
                 {
-                    Ok(p) => tracing::info!("export to {p:?} successful"),
-                    Err(e) => tracing::error!("export failed due to {e:?}"),
+                    Ok((p, _)) => tracing::info!("export to {p:?} successfully triggered"),
+                    Err(e) => tracing::error!("trigger export failed due to {e:?}"),
                 };
                 tracing::info!("export took {} seconds", start.elapsed().as_secs_f32());
             };
