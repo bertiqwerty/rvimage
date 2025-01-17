@@ -337,7 +337,13 @@ fn annotations_popup(
                 .map(|ps| ps.filtered_file_paths());
             filelist
         };
-        trace_ok_err(annotations(ui, in_tdm, are_tools_active, parent_depth, get_filelist));
+        trace_ok_err(annotations(
+            ui,
+            in_tdm,
+            are_tools_active,
+            parent_depth,
+            get_filelist,
+        ));
         ui.separator();
         ui.horizontal(|ui| {
             if ui.button("Close").clicked() {
