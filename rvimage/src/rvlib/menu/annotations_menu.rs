@@ -67,7 +67,10 @@ where
     }
 }
 
-fn get_all_absent_files<'a>(tdm: &'a ToolsDataMap, filepaths: &[&PathPair]) -> Vec<&'a str> {
+fn get_all_absent_files<'a>(
+    tdm: &'a ToolsDataMap,
+    filepaths: &[&PathPair],
+) -> Vec<(&'a str, &'static str)> {
     let mut all_absent_files = vec![];
     let afs = trace_ok_err(get_absent_files(
         BBOX_NAME,
@@ -75,8 +78,8 @@ fn get_all_absent_files<'a>(tdm: &'a ToolsDataMap, filepaths: &[&PathPair]) -> V
         tdm,
         filepaths,
     ));
-    if let Some(mut afs) = afs {
-        all_absent_files.append(&mut afs);
+    if let Some(afs) = afs {
+        all_absent_files.extend(afs.into_iter().map(|af| (af, BBOX_NAME)));
     }
     let afs = trace_ok_err(get_absent_files(
         BRUSH_NAME,
@@ -84,8 +87,8 @@ fn get_all_absent_files<'a>(tdm: &'a ToolsDataMap, filepaths: &[&PathPair]) -> V
         tdm,
         filepaths,
     ));
-    if let Some(mut afs) = afs {
-        all_absent_files.append(&mut afs);
+    if let Some(afs) = afs {
+        all_absent_files.extend(afs.into_iter().map(|af| (af, BRUSH_NAME)));
     }
     all_absent_files
 }
@@ -180,7 +183,7 @@ fn annotations<'a>(
     are_tools_active: &mut bool,
     parents_depth: &mut u8,
     get_filtered_filespaths: impl Fn() -> Option<Vec<&'a PathPair>>,
-) {
+) -> RvResult<()> {
     ui.heading("Annotations");
     ui.label(egui::RichText::new(
         "Your project's content is shown below.",
@@ -228,8 +231,8 @@ fn annotations<'a>(
             if absent_files.is_empty() {
                 tracing::info!("no absent files with annotations found");
             }
-            for af in absent_files {
-                tracing::info!("absent file {af}");
+            for (af, tool_name) in absent_files {
+                tracing::info!("absent file {af} has {tool_name} annotations ");
             }
         }
     }
@@ -242,14 +245,26 @@ fn annotations<'a>(
             let absent_files = get_all_absent_files(tdm, &filepaths);
             let absent_files = absent_files
                 .into_iter()
-                .map(str::to_string)
+                .map(|(af, tn)| (af.to_string(), tn))
                 .collect::<Vec<_>>();
-            for af in absent_files {
-                tracing::info!("deleting annotations of {af}");
-                tdm.remove(&af);
+            for (af, tool_name) in absent_files {
+                tracing::info!("deleting annotations of {af} for tool {tool_name}");
+                if tool_name == BBOX_NAME {
+                    let tools_data = tdm.get_mut(tool_name);
+                    if let Some(td) = tools_data {
+                        td.specifics.bbox_mut()?.annotations_map.remove(&af);
+                    }
+                }
+                if tool_name == BRUSH_NAME {
+                    let tools_data = tdm.get_mut(tool_name);
+                    if let Some(td) = tools_data {
+                        td.specifics.brush_mut()?.annotations_map.remove(&af);
+                    }
+                }
             }
         }
     }
+    Ok(())
 }
 
 fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
@@ -322,7 +337,7 @@ fn annotations_popup(
                 .map(|ps| ps.filtered_file_paths());
             filelist
         };
-        annotations(ui, in_tdm, are_tools_active, parent_depth, get_filelist);
+        trace_ok_err(annotations(ui, in_tdm, are_tools_active, parent_depth, get_filelist));
         ui.separator();
         ui.horizontal(|ui| {
             if ui.button("Close").clicked() {
