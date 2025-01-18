@@ -305,17 +305,21 @@ fn tdm_instance_annos<T>(
     }
 }
 
+pub struct AnnotationsParams<'a> {
+    pub tool_choice: &'a mut ToolChoice,
+    pub parents_depth: &'a mut u8,
+    pub text_buffers: &'a mut TextBuffers,
+}
+
 fn annotations(
     ui: &mut Ui,
     tdm: &mut ToolsDataMap,
     are_tools_active: &mut bool,
-    parents_depth: &mut u8,
-    tool_choice: &mut ToolChoice,
-    text_buffers: &mut TextBuffers,
+    params: AnnotationsParams,
     ctrl: &mut Control,
 ) -> RvResult<()> {
-    tool_choice.ui(ui);
-    if tool_choice.is_some() {
+    params.tool_choice.ui(ui);
+    if params.tool_choice.is_some() {
         ui.heading("Annotations per Folder");
         ui.label(egui::RichText::new(
             "Your project's content is shown below.",
@@ -324,12 +328,12 @@ fn annotations(
         slider(
             ui,
             are_tools_active,
-            parents_depth,
+            params.parents_depth,
             1..=5u8,
             "# subfolders to aggregate",
         );
         let max_n_folders = 5;
-        tool_choice.run(
+        params.tool_choice.run(
             ui,
             tdm,
             |ui, tdm| {
@@ -339,7 +343,7 @@ fn annotations(
                     ui,
                     FolderParams {
                         max_n_folders,
-                        parents_depth: *parents_depth,
+                        parents_depth: *params.parents_depth,
                     },
                     |ts| ts.bbox().map(|d| &d.annotations_map),
                     |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
@@ -352,7 +356,7 @@ fn annotations(
                     ui,
                     FolderParams {
                         max_n_folders,
-                        parents_depth: *parents_depth,
+                        parents_depth: *params.parents_depth,
                     },
                     |ts| ts.brush().map(|d| &d.annotations_map),
                     |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
@@ -369,7 +373,7 @@ fn annotations(
                 .paths_selector()
                 .map(|ps| ps.filtered_file_paths());
             if let Some(filepaths) = filepaths {
-                let absent_files = get_all_absent_files(tdm, &filepaths, *tool_choice);
+                let absent_files = get_all_absent_files(tdm, &filepaths, *params.tool_choice);
                 if absent_files.is_empty() {
                     tracing::info!("no absent files with annotations found");
                 }
@@ -388,7 +392,7 @@ fn annotations(
                 .paths_selector()
                 .map(|ps| ps.filtered_file_paths());
             if let Some(filepaths) = filepaths {
-                let absent_files = get_all_absent_files(tdm, &filepaths, *tool_choice);
+                let absent_files = get_all_absent_files(tdm, &filepaths, *params.tool_choice);
                 let absent_files = absent_files
                     .into_iter()
                     .map(|(af, tn)| (af.to_string(), tn))
@@ -418,7 +422,7 @@ fn annotations(
         if let Some(selected_file_idx) = ctrl.paths_navigator.file_label_selected_idx() {
             let n_prop: Option<usize> = ui_util::button_triggerable_number(
                 ui,
-                &mut text_buffers.label_propagation_buffer,
+                &mut params.text_buffers.label_propagation_buffer,
                 are_tools_active,
                 "propagate labels",
                 "number of following images to propagate label to",
@@ -426,7 +430,7 @@ fn annotations(
             ui.end_row();
             let n_del: Option<usize> = ui_util::button_triggerable_number(
                 ui,
-                &mut text_buffers.label_deletion_buffer,
+                &mut params.text_buffers.label_deletion_buffer,
                 are_tools_active,
                 "delete labels",
                 "number of following images to delete label from",
@@ -442,7 +446,7 @@ fn annotations(
                             paths.len(),
                             paths[0].path_relative()
                         );
-                        tool_choice.run(
+                        params.tool_choice.run(
                             ui,
                             tdm,
                             |_, tdm| propagate_annos_of_tool(tdm, BBOX_NAME, paths),
@@ -460,7 +464,7 @@ fn annotations(
                             paths.len(),
                             paths[0].path_relative()
                         );
-                        tool_choice.run(
+                        params.tool_choice.run(
                             ui,
                             tdm,
                             |_, tdm| delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths),
@@ -531,9 +535,7 @@ fn annotations_popup(
     ctrl: &mut Control,
     in_tdm: &mut ToolsDataMap,
     are_tools_active: &mut bool,
-    parent_depth: &mut u8,
-    absent_file_tool_choice: &mut ToolChoice,
-    text_buffers: &mut TextBuffers,
+    anno_params: AnnotationsParams,
 ) -> (Close, Option<ToolsDataMap>) {
     let mut close = Close::No;
     let mut tdm = None;
@@ -546,15 +548,7 @@ fn annotations_popup(
             (close, tdm) = autosaves(ui, ctrl, close);
         });
         egui::CollapsingHeader::new("List or Delete Annotations").show(ui, |ui| {
-            trace_ok_err(annotations(
-                ui,
-                in_tdm,
-                are_tools_active,
-                parent_depth,
-                absent_file_tool_choice,
-                text_buffers,
-                ctrl,
-            ));
+            trace_ok_err(annotations(ui, in_tdm, are_tools_active, anno_params, ctrl));
         });
         ui.separator();
         if ui.button("Close").clicked() {
@@ -570,9 +564,7 @@ pub struct AutosaveMenu<'a> {
     tdm: &'a mut ToolsDataMap,
     project_loaded: &'a mut bool,
     are_tools_active: &'a mut bool,
-    parents_depth: &'a mut u8,
-    absent_file_tool_choice: &'a mut ToolChoice,
-    text_buffers: &'a mut TextBuffers,
+    anno_params: AnnotationsParams<'a>,
 }
 impl<'a> AutosaveMenu<'a> {
     pub fn new(
@@ -581,9 +573,7 @@ impl<'a> AutosaveMenu<'a> {
         tools_data_map: &'a mut ToolsDataMap,
         project_loaded: &'a mut bool,
         are_tools_active: &'a mut bool,
-        parents_depth: &'a mut u8,
-        absent_file_tool_choice: &'a mut ToolChoice,
-        text_buffers: &'a mut TextBuffers,
+        anno_params: AnnotationsParams<'a>,
     ) -> AutosaveMenu<'a> {
         Self {
             id,
@@ -591,9 +581,7 @@ impl<'a> AutosaveMenu<'a> {
             tdm: tools_data_map,
             project_loaded,
             are_tools_active,
-            parents_depth,
-            absent_file_tool_choice,
-            text_buffers,
+            anno_params,
         }
     }
 }
@@ -617,9 +605,7 @@ impl Widget for AutosaveMenu<'_> {
                         self.ctrl,
                         self.tdm,
                         self.are_tools_active,
-                        self.parents_depth,
-                        self.absent_file_tool_choice,
-                        self.text_buffers,
+                        self.anno_params,
                     );
                     close = close_;
                     if let Some(tdm) = tdm {
