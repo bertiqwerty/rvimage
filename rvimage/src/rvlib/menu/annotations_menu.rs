@@ -17,6 +17,7 @@ use crate::{
 
 use super::ui_util::slider;
 
+#[derive(Clone, Copy)]
 enum Close {
     Yes,
     No,
@@ -197,30 +198,28 @@ fn annotations<'a>(
         "# subfolders to aggregate",
     );
     let max_n_folders = 5;
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        tdm_instance_annos(
-            BRUSH_NAME,
-            tdm,
-            ui,
-            FolderParams {
-                max_n_folders,
-                parents_depth: *parents_depth,
-            },
-            |ts| ts.brush().map(|d| &d.annotations_map),
-            |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
-        );
-        tdm_instance_annos(
-            BBOX_NAME,
-            tdm,
-            ui,
-            FolderParams {
-                max_n_folders,
-                parents_depth: *parents_depth,
-            },
-            |ts| ts.bbox().map(|d| &d.annotations_map),
-            |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
-        );
-    });
+    tdm_instance_annos(
+        BRUSH_NAME,
+        tdm,
+        ui,
+        FolderParams {
+            max_n_folders,
+            parents_depth: *parents_depth,
+        },
+        |ts| ts.brush().map(|d| &d.annotations_map),
+        |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
+    );
+    tdm_instance_annos(
+        BBOX_NAME,
+        tdm,
+        ui,
+        FolderParams {
+            max_n_folders,
+            parents_depth: *parents_depth,
+        },
+        |ts| ts.bbox().map(|d| &d.annotations_map),
+        |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
+    );
     if ui
         .button("Log annotated files not in the filelist")
         .clicked()
@@ -268,56 +267,52 @@ fn annotations<'a>(
     Ok(())
 }
 
-fn autosaves(ui: &mut Ui, ctrl: &mut Control) -> (Close, Option<ToolsDataMap>) {
+fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Option<ToolsDataMap>) {
     let mut tdm = None;
-    let mut close = Close::No;
     let (today, date_n_days_ago) = make_timespan(AUTOSAVE_KEEP_N_DAYS);
     let folder = Path::new(ctrl.cfg.home_folder());
     let files = trace_ok_err(list_files(folder, Some(date_n_days_ago), Some(today)));
     ui.heading("Reset Annotations to Autsave");
     egui::Grid::new("autosaves-menu-grid").show(ui, |ui| {
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.label(egui::RichText::new("name").monospace());
-            ui.label(egui::RichText::new("size").monospace());
-            ui.label(egui::RichText::new("modified").monospace());
-            ui.end_row();
-            if let Some(autosaves) = files {
-                let cur_prj_path = ctrl.cfg.current_prj_path().to_path_buf();
-                let stem = trace_ok_err(file_util::to_stem_str(&cur_prj_path))
-                    .unwrap_or("default")
-                    .to_string();
-                let files = iter::once(cur_prj_path).chain(autosaves.into_iter().filter(|p| {
-                    p.file_name()
-                        .and_then(|s| s.to_str())
-                        .map(|s| s.starts_with(&stem))
-                        == Some(true)
-                }));
-                let fileinfos = files.clone().map(|path| fileinfo(&path));
+        ui.label(egui::RichText::new("name").monospace());
+        ui.label(egui::RichText::new("size").monospace());
+        ui.label(egui::RichText::new("modified").monospace());
+        ui.end_row();
+        if let Some(autosaves) = files {
+            let cur_prj_path = ctrl.cfg.current_prj_path().to_path_buf();
+            let stem = trace_ok_err(file_util::to_stem_str(&cur_prj_path))
+                .unwrap_or("default")
+                .to_string();
+            let files = iter::once(cur_prj_path).chain(autosaves.into_iter().filter(|p| {
+                p.file_name()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.starts_with(&stem))
+                    == Some(true)
+            }));
+            let fileinfos = files.clone().map(|path| fileinfo(&path));
 
-                let mut combined: Vec<_> = files
-                    .zip(fileinfos)
-                    .flat_map(|(file, info)| info.map(|i| (file, i)))
-                    .collect();
-                combined
-                    .sort_by(|(_, (_, datetime1)), (_, (_, datetime2))| datetime1.cmp(datetime2));
+            let mut combined: Vec<_> = files
+                .zip(fileinfos)
+                .flat_map(|(file, info)| info.map(|i| (file, i)))
+                .collect();
+            combined.sort_by(|(_, (_, datetime1)), (_, (_, datetime2))| datetime1.cmp(datetime2));
 
-                for (path, (mb, datetime)) in combined.iter().rev() {
-                    if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
-                        if ui
-                            .button(egui::RichText::new(file_name).monospace())
-                            .on_hover_text("double click to apply, LOSS(💀) of unsaved data")
-                            .double_clicked()
-                        {
-                            tdm = trace_ok_err(ctrl.replace_with_save(path));
-                            close = Close::Yes;
-                        }
-                        ui.label(egui::RichText::new(mb).monospace());
-                        ui.label(egui::RichText::new(datetime).monospace());
-                        ui.end_row();
+            for (path, (mb, datetime)) in combined.iter().rev() {
+                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
+                    if ui
+                        .button(egui::RichText::new(file_name).monospace())
+                        .on_hover_text("double click to apply, LOSS(💀) of unsaved data")
+                        .double_clicked()
+                    {
+                        tdm = trace_ok_err(ctrl.replace_with_save(path));
+                        close = Close::Yes;
                     }
+                    ui.label(egui::RichText::new(mb).monospace());
+                    ui.label(egui::RichText::new(datetime).monospace());
+                    ui.end_row();
                 }
             }
-        });
+        }
     });
     (close, tdm)
 }
@@ -332,7 +327,11 @@ fn annotations_popup(
     let mut close = Close::No;
     let mut tdm = None;
     Frame::popup(ui.style()).show(ui, |ui| {
-        (close, tdm) = autosaves(ui, ctrl);
+        if ui.button("Close").clicked() {
+            close = Close::Yes;
+        }
+        ui.separator();
+        (close, tdm) = autosaves(ui, ctrl, close);
         ui.separator();
         let get_filelist = || {
             let filelist = ctrl
@@ -349,11 +348,9 @@ fn annotations_popup(
             get_filelist,
         ));
         ui.separator();
-        ui.horizontal(|ui| {
-            if ui.button("Close").clicked() {
-                close = Close::Yes;
-            }
-        })
+        if ui.button("Close").clicked() {
+            close = Close::Yes;
+        }
     });
     (close, tdm)
 }
