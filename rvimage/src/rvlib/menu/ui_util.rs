@@ -1,4 +1,8 @@
-use std::{fmt::Display, ops::RangeInclusive, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    ops::RangeInclusive,
+    str::FromStr,
+};
 
 use egui::{
     text::{CCursor, CCursorRange},
@@ -76,13 +80,14 @@ pub fn process_number<T>(
 ) -> (bool, Option<T>)
 where
     T: Display + FromStr,
+    <T as FromStr>::Err: Debug,
 {
     let new_val = text_edit_singleline(ui, buffer, are_tools_active).on_hover_text(label);
     if new_val.changed() {
         match buffer.parse::<T>() {
             Ok(val) => (true, Some(val)),
-            Err(_) => {
-                warn!("could not parse {buffer} as number");
+            Err(e) => {
+                warn!("could not parse '{buffer}' as number due to {e:?}");
                 (false, None)
             }
         }
@@ -99,10 +104,14 @@ pub fn button_triggerable_number<T>(
 ) -> Option<T>
 where
     T: Display + FromStr,
+    <T as FromStr>::Err: Debug,
 {
     let _ = process_number::<T>(ui, are_tools_active, tool_tip, buffer);
     if ui.button(btn_label).clicked() {
-        buffer.parse::<T>().ok()
+        buffer
+            .parse::<T>()
+            .inspect_err(|e| tracing::warn!("could not parse '{buffer}' as number due to {e:?}"))
+            .ok()
     } else {
         None
     }

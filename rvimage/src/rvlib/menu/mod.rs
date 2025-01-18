@@ -1,6 +1,6 @@
 mod annotations_menu;
 mod cfg_menu;
-mod label_delpropstats;
+mod file_counts;
 mod main;
 mod open_folder;
 mod picklist;

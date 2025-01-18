@@ -3,8 +3,8 @@ use crate::{
     file_util::get_prj_name,
     image_reader::LoadImageForGui,
     menu::{
-        self, annotations_menu::AutosaveMenu, cfg_menu::CfgMenu,
-        label_delpropstats::labels_and_sorting, open_folder, ui_util::text_edit_singleline,
+        self, annotations_menu::AutosaveMenu, cfg_menu::CfgMenu, file_counts::labels_and_sorting,
+        open_folder, ui_util::text_edit_singleline,
     },
     tools::ToolState,
     tools_data::ToolSpecifics,
@@ -19,8 +19,8 @@ use std::{
 };
 
 use super::{
-    annotations_menu::AbsentFileToolChoice,
-    label_delpropstats::Stats,
+    annotations_menu::ToolChoice,
+    file_counts::Stats,
     tools_menus::{attributes_menu, bbox_menu, brush_menu},
 };
 
@@ -168,13 +168,13 @@ pub struct TextBuffers {
 
 struct AnnotationsMenuParams {
     parents_depth: u8,
-    absent_file_tool_choice: AbsentFileToolChoice,
+    absent_file_tool_choice: ToolChoice,
 }
 impl Default for AnnotationsMenuParams {
     fn default() -> Self {
         Self {
             parents_depth: 1,
-            absent_file_tool_choice: AbsentFileToolChoice::default(),
+            absent_file_tool_choice: ToolChoice::default(),
         }
     }
 }
@@ -354,6 +354,7 @@ impl Menu {
                     &mut self.are_tools_active,
                     &mut self.annotations_menu_params.parents_depth,
                     &mut self.annotations_menu_params.absent_file_tool_choice,
+                    &mut self.text_buffers,
                 );
                 ui.add(autosave_gui);
 
@@ -490,8 +491,6 @@ impl Menu {
                     ctrl,
                     tools_data_map,
                     &mut self.text_buffers,
-                    active_tool_name,
-                    &mut self.are_tools_active,
                     &mut self.stats,
                 ),
                 self
