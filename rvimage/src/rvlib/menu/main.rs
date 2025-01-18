@@ -19,6 +19,7 @@ use std::{
 };
 
 use super::{
+    annotations_menu::AbsentFileToolChoice,
     label_delpropstats::Stats,
     tools_menus::{attributes_menu, bbox_menu, brush_menu},
 };
@@ -165,6 +166,18 @@ pub struct TextBuffers {
     pub label_deletion_buffer: String,
 }
 
+struct AnnotationsMenuParams {
+    parents_depth: u8,
+    absent_file_tool_choice: AbsentFileToolChoice,
+}
+impl Default for AnnotationsMenuParams {
+    fn default() -> Self {
+        Self {
+            parents_depth: 1,
+            absent_file_tool_choice: AbsentFileToolChoice::default(),
+        }
+    }
+}
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
@@ -175,7 +188,7 @@ pub struct Menu {
     stats: Stats,
     text_buffers: TextBuffers,
     show_file_idx: bool,
-    annotations_menu_parents_depth: u8,
+    annotations_menu_params: AnnotationsMenuParams,
 }
 
 impl Menu {
@@ -195,7 +208,7 @@ impl Menu {
             stats: Stats::default(),
             text_buffers,
             show_file_idx: true,
-            annotations_menu_parents_depth: 1,
+            annotations_menu_params: AnnotationsMenuParams::default(),
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -339,7 +352,8 @@ impl Menu {
                     tools_data_map,
                     &mut projected_loaded,
                     &mut self.are_tools_active,
-                    &mut self.annotations_menu_parents_depth,
+                    &mut self.annotations_menu_params.parents_depth,
+                    &mut self.annotations_menu_params.absent_file_tool_choice,
                 );
                 ui.add(autosave_gui);
 

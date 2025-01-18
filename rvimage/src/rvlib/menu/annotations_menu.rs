@@ -68,30 +68,67 @@ where
     }
 }
 
+fn get_all_absent_files_of_tool<'a, T>(
+    tdm: &'a ToolsDataMap,
+    filepaths: &[&PathPair],
+    tool_name: &'static str,
+    unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
+) -> Vec<(&'a str, &'static str)>
+where
+    T: InstanceAnnotate + 'a,
+{
+    let mut all_absent_files = vec![];
+    let afs = trace_ok_err(get_absent_files(
+        tool_name,
+        unwrap_specifics,
+        tdm,
+        filepaths,
+    ));
+    if let Some(afs) = afs {
+        all_absent_files.extend(afs.into_iter().map(|af| (af, tool_name)));
+    }
+    all_absent_files
+}
+
+#[derive(Clone, Copy, Default)]
+pub enum AbsentFileToolChoice {
+    Bbox,
+    Brush,
+    Both,
+    #[default]
+    None,
+}
+
 fn get_all_absent_files<'a>(
     tdm: &'a ToolsDataMap,
     filepaths: &[&PathPair],
+    absent_file_tool_choice: AbsentFileToolChoice,
 ) -> Vec<(&'a str, &'static str)> {
-    let mut all_absent_files = vec![];
-    let afs = trace_ok_err(get_absent_files(
-        BBOX_NAME,
-        |ts| ts.bbox().map(|d| &d.annotations_map),
-        tdm,
-        filepaths,
-    ));
-    if let Some(afs) = afs {
-        all_absent_files.extend(afs.into_iter().map(|af| (af, BBOX_NAME)));
+    match absent_file_tool_choice {
+        AbsentFileToolChoice::Both => {
+            let mut all_absent_files =
+                get_all_absent_files_of_tool(tdm, filepaths, BBOX_NAME, |ts| {
+                    ts.bbox().map(|d| &d.annotations_map)
+                });
+            let mut all_absent_files_brush =
+                get_all_absent_files_of_tool(tdm, filepaths, BRUSH_NAME, |ts| {
+                    ts.brush().map(|d| &d.annotations_map)
+                });
+            all_absent_files.append(&mut all_absent_files_brush);
+            all_absent_files
+        }
+        AbsentFileToolChoice::Bbox => {
+            get_all_absent_files_of_tool(tdm, filepaths, BBOX_NAME, |ts| {
+                ts.bbox().map(|d| &d.annotations_map)
+            })
+        }
+        AbsentFileToolChoice::Brush => {
+            get_all_absent_files_of_tool(tdm, filepaths, BRUSH_NAME, |ts| {
+                ts.brush().map(|d| &d.annotations_map)
+            })
+        }
+        AbsentFileToolChoice::None => vec![],
     }
-    let afs = trace_ok_err(get_absent_files(
-        BRUSH_NAME,
-        |ts| ts.brush().map(|d| &d.annotations_map),
-        tdm,
-        filepaths,
-    ));
-    if let Some(afs) = afs {
-        all_absent_files.extend(afs.into_iter().map(|af| (af, BRUSH_NAME)));
-    }
-    all_absent_files
 }
 
 fn tdm_instance_annos<T>(
@@ -184,8 +221,9 @@ fn annotations<'a>(
     are_tools_active: &mut bool,
     parents_depth: &mut u8,
     get_filtered_filespaths: impl Fn() -> Option<Vec<&'a PathPair>>,
+    absent_file_tool_choice: &mut AbsentFileToolChoice,
 ) -> RvResult<()> {
-    ui.heading("Annotations");
+    ui.heading("Annotations per Folder");
     ui.label(egui::RichText::new(
         "Your project's content is shown below.",
     ));
@@ -220,45 +258,67 @@ fn annotations<'a>(
         |ts| ts.bbox().map(|d| &d.annotations_map),
         |ts| ts.bbox_mut().map(|d| &mut d.annotations_map),
     );
-    if ui
-        .button("Log annotated files not in the filelist")
-        .clicked()
-    {
-        let filepaths = get_filtered_filespaths();
-        if let Some(filepaths) = filepaths {
-            let absent_files = get_all_absent_files(tdm, &filepaths);
-            if absent_files.is_empty() {
-                tracing::info!("no absent files with annotations found");
-            }
-            for (af, tool_name) in absent_files {
-                tracing::info!("absent file {af} has {tool_name} annotations ");
+    let mut bbox_checked = matches!(absent_file_tool_choice, AbsentFileToolChoice::Bbox)
+        || matches!(absent_file_tool_choice, AbsentFileToolChoice::Both);
+    let mut brush_checked = matches!(absent_file_tool_choice, AbsentFileToolChoice::Brush)
+        || matches!(absent_file_tool_choice, AbsentFileToolChoice::Both);
+    ui.heading("Existing Annotations of Missing Files");
+    ui.label("Check the box of tool who's annotations you are interested in");
+    ui.checkbox(&mut bbox_checked, BBOX_NAME);
+    ui.checkbox(&mut brush_checked, BRUSH_NAME);
+    if bbox_checked && brush_checked {
+        *absent_file_tool_choice = AbsentFileToolChoice::Both;
+    } else if bbox_checked {
+        *absent_file_tool_choice = AbsentFileToolChoice::Bbox;
+    } else if brush_checked {
+        *absent_file_tool_choice = AbsentFileToolChoice::Brush;
+    } else {
+        *absent_file_tool_choice = AbsentFileToolChoice::None;
+    }
+    if !matches!(absent_file_tool_choice, AbsentFileToolChoice::None) {
+        if ui
+            .button("Log annotated files not in the filelist")
+            .clicked()
+        {
+            let filepaths = get_filtered_filespaths();
+            if let Some(filepaths) = filepaths {
+                let absent_files = get_all_absent_files(tdm, &filepaths, *absent_file_tool_choice);
+                if absent_files.is_empty() {
+                    tracing::info!("no absent files with annotations found");
+                }
+                for (af, tool_name) in absent_files {
+                    tracing::info!("absent file {af} has {tool_name} annotations ");
+                }
             }
         }
-    }
-    if ui
-        .button("Delete annotations of files not in the filelist")
-        .on_hover_text("Are you sure? Double click!💀")
-        .double_clicked()
-    {
-        let filepaths = get_filtered_filespaths();
-        if let Some(filepaths) = filepaths {
-            let absent_files = get_all_absent_files(tdm, &filepaths);
-            let absent_files = absent_files
-                .into_iter()
-                .map(|(af, tn)| (af.to_string(), tn))
-                .collect::<Vec<_>>();
-            for (af, tool_name) in absent_files {
-                tracing::info!("deleting annotations of {af} for tool {tool_name}");
-                if tool_name == BBOX_NAME {
-                    let tools_data = tdm.get_mut(tool_name);
-                    if let Some(td) = tools_data {
-                        td.specifics.bbox_mut()?.annotations_map.remove(&af);
-                    }
+        if ui
+            .button("Delete annotations of files not in the filelist")
+            .on_hover_text("Are you sure? Double click!💀")
+            .double_clicked()
+        {
+            let filepaths = get_filtered_filespaths();
+            if let Some(filepaths) = filepaths {
+                let absent_files = get_all_absent_files(tdm, &filepaths, *absent_file_tool_choice);
+                let absent_files = absent_files
+                    .into_iter()
+                    .map(|(af, tn)| (af.to_string(), tn))
+                    .collect::<Vec<_>>();
+                if absent_files.is_empty() {
+                    tracing::info!("no missing annotations to delete")
                 }
-                if tool_name == BRUSH_NAME {
-                    let tools_data = tdm.get_mut(tool_name);
-                    if let Some(td) = tools_data {
-                        td.specifics.brush_mut()?.annotations_map.remove(&af);
+                for (af, tool_name) in absent_files {
+                    tracing::info!("deleting annotations of {af} for tool {tool_name}");
+                    if tool_name == BBOX_NAME {
+                        let tools_data = tdm.get_mut(tool_name);
+                        if let Some(td) = tools_data {
+                            td.specifics.bbox_mut()?.annotations_map.remove(&af);
+                        }
+                    }
+                    if tool_name == BRUSH_NAME {
+                        let tools_data = tdm.get_mut(tool_name);
+                        if let Some(td) = tools_data {
+                            td.specifics.brush_mut()?.annotations_map.remove(&af);
+                        }
                     }
                 }
             }
@@ -323,6 +383,7 @@ fn annotations_popup(
     in_tdm: &mut ToolsDataMap,
     are_tools_active: &mut bool,
     parent_depth: &mut u8,
+    absent_file_tool_choice: &mut AbsentFileToolChoice,
 ) -> (Close, Option<ToolsDataMap>) {
     let mut close = Close::No;
     let mut tdm = None;
@@ -331,22 +392,26 @@ fn annotations_popup(
             close = Close::Yes;
         }
         ui.separator();
-        (close, tdm) = autosaves(ui, ctrl, close);
-        ui.separator();
-        let get_filelist = || {
-            let filelist = ctrl
-                .paths_navigator
-                .paths_selector()
-                .map(|ps| ps.filtered_file_paths());
-            filelist
-        };
-        trace_ok_err(annotations(
-            ui,
-            in_tdm,
-            are_tools_active,
-            parent_depth,
-            get_filelist,
-        ));
+        egui::CollapsingHeader::new("Restore Annotations").show(ui, |ui| {
+            (close, tdm) = autosaves(ui, ctrl, close);
+        });
+        egui::CollapsingHeader::new("List or Delete Annotations").show(ui, |ui| {
+            let get_filelist = || {
+                let filelist = ctrl
+                    .paths_navigator
+                    .paths_selector()
+                    .map(|ps| ps.filtered_file_paths());
+                filelist
+            };
+            trace_ok_err(annotations(
+                ui,
+                in_tdm,
+                are_tools_active,
+                parent_depth,
+                get_filelist,
+                absent_file_tool_choice,
+            ));
+        });
         ui.separator();
         if ui.button("Close").clicked() {
             close = Close::Yes;
@@ -362,6 +427,7 @@ pub struct AutosaveMenu<'a> {
     project_loaded: &'a mut bool,
     are_tools_active: &'a mut bool,
     parents_depth: &'a mut u8,
+    absent_file_tool_choice: &'a mut AbsentFileToolChoice,
 }
 impl<'a> AutosaveMenu<'a> {
     pub fn new(
@@ -371,6 +437,7 @@ impl<'a> AutosaveMenu<'a> {
         project_loaded: &'a mut bool,
         are_tools_active: &'a mut bool,
         parents_depth: &'a mut u8,
+        absent_file_tool_choice: &'a mut AbsentFileToolChoice,
     ) -> AutosaveMenu<'a> {
         Self {
             id,
@@ -379,6 +446,7 @@ impl<'a> AutosaveMenu<'a> {
             project_loaded,
             are_tools_active,
             parents_depth,
+            absent_file_tool_choice,
         }
     }
 }
@@ -403,6 +471,7 @@ impl Widget for AutosaveMenu<'_> {
                         self.tdm,
                         self.are_tools_active,
                         self.parents_depth,
+                        self.absent_file_tool_choice,
                     );
                     close = close_;
                     if let Some(tdm) = tdm {
