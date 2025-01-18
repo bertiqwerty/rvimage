@@ -101,13 +101,20 @@ pub fn button_triggerable_number<T>(
     are_tools_active: &mut bool,
     btn_label: &str,
     tool_tip: &str,
+    warning_tool_tip_btn: Option<&str>,
 ) -> Option<T>
 where
     T: Display + FromStr,
     <T as FromStr>::Err: Debug,
 {
     let _ = process_number::<T>(ui, are_tools_active, tool_tip, buffer);
-    if ui.button(btn_label).clicked() {
+    let btn = ui.button(btn_label);
+    let clicked = if let Some(warning) = warning_tool_tip_btn {
+        btn.on_hover_text(warning).double_clicked()
+    } else {
+        btn.clicked()
+    };
+    if clicked {
         buffer
             .parse::<T>()
             .inspect_err(|e| tracing::warn!("could not parse '{buffer}' as number due to {e:?}"))

@@ -420,59 +420,67 @@ fn annotations(
         ui.heading("Propagate to or Delete annotations from Subsequent Images");
 
         if let Some(selected_file_idx) = ctrl.paths_navigator.file_label_selected_idx() {
-            let n_prop: Option<usize> = ui_util::button_triggerable_number(
-                ui,
-                &mut params.text_buffers.label_propagation_buffer,
-                are_tools_active,
-                "propagate labels",
-                "number of following images to propagate label to",
-            );
-            ui.end_row();
-            let n_del: Option<usize> = ui_util::button_triggerable_number(
-                ui,
-                &mut params.text_buffers.label_deletion_buffer,
-                are_tools_active,
-                "delete labels",
-                "number of following images to delete label from",
-            );
-            if let Some(ps) = ctrl.paths_navigator.paths_selector() {
-                if let Some(n_prop) = n_prop {
-                    let end = (selected_file_idx + n_prop).min(ps.len_filtered());
-                    let range = selected_file_idx..end;
-                    let paths = &ps.filtered_file_paths()[range];
-                    if !paths.is_empty() {
-                        tracing::info!(
-                            "propagating {} labels from {}",
-                            paths.len(),
-                            paths[0].path_relative()
-                        );
-                        params.tool_choice.run(
-                            ui,
-                            tdm,
-                            |_, tdm| propagate_annos_of_tool(tdm, BBOX_NAME, paths),
-                            |_, tdm| propagate_annos_of_tool(tdm, BRUSH_NAME, paths),
-                        );
+            egui::Grid::new("del-prop-grid")
+                .num_columns(2)
+                .show(ui, |ui| {
+                    let n_prop: Option<usize> = ui_util::button_triggerable_number(
+                        ui,
+                        &mut params.text_buffers.label_propagation_buffer,
+                        are_tools_active,
+                        "propagate labels",
+                        "number of following images to propagate label to",
+                        None,
+                    );
+                    ui.end_row();
+                    let n_del: Option<usize> = ui_util::button_triggerable_number(
+                        ui,
+                        &mut params.text_buffers.label_deletion_buffer,
+                        are_tools_active,
+                        "delete labels",
+                        "number of following images to delete label from",
+                        Some("Double click! Annotations will be deleted! 💀"),
+                    );
+                    if let Some(ps) = ctrl.paths_navigator.paths_selector() {
+                        if let Some(n_prop) = n_prop {
+                            let end = (selected_file_idx + n_prop).min(ps.len_filtered());
+                            let range = selected_file_idx..end;
+                            let paths = &ps.filtered_file_paths()[range];
+                            if !paths.is_empty() {
+                                tracing::info!(
+                                    "propagating {} labels from {}",
+                                    paths.len(),
+                                    paths[0].path_relative()
+                                );
+                                params.tool_choice.run(
+                                    ui,
+                                    tdm,
+                                    |_, tdm| propagate_annos_of_tool(tdm, BBOX_NAME, paths),
+                                    |_, tdm| propagate_annos_of_tool(tdm, BRUSH_NAME, paths),
+                                );
+                            }
+                        }
+                        if let Some(n_del) = n_del {
+                            let end = (selected_file_idx + n_del).min(ps.len_filtered());
+                            let range = selected_file_idx..end;
+                            let paths = &ps.filtered_file_paths()[range];
+                            if !paths.is_empty() {
+                                tracing::info!(
+                                    "deleting {} labels from {}",
+                                    paths.len(),
+                                    paths[0].path_relative()
+                                );
+                                params.tool_choice.run(
+                                    ui,
+                                    tdm,
+                                    |_, tdm| delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths),
+                                    |_, tdm| {
+                                        delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths)
+                                    },
+                                );
+                            }
+                        }
                     }
-                }
-                if let Some(n_del) = n_del {
-                    let end = (selected_file_idx + n_del).min(ps.len_filtered());
-                    let range = selected_file_idx..end;
-                    let paths = &ps.filtered_file_paths()[range];
-                    if !paths.is_empty() {
-                        tracing::info!(
-                            "deleting {} labels from {}",
-                            paths.len(),
-                            paths[0].path_relative()
-                        );
-                        params.tool_choice.run(
-                            ui,
-                            tdm,
-                            |_, tdm| delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths),
-                            |_, tdm| delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths),
-                        );
-                    }
-                }
-            }
+                });
         } else {
             ui.label("no file selected");
         }
