@@ -6,13 +6,12 @@ use crate::{
     file_util::PathPair,
     paths_selector::PathsSelector,
     sort_params::{SortParams, SortType},
-    tools_data::{AnnotationsMap, BboxToolData, BrushToolData, InstanceAnnotate},
-    world::ToolsDataMap,
+    tools_data::{AnnotationsMap, BboxToolData, BrushToolData, InstanceAnnotate, ToolsDataMap},
 };
 
 use super::main::TextBuffers;
 #[derive(Default)]
-pub(super) struct Stats {
+pub(super) struct Counts {
     pub n_files_filtered_info: Option<String>,
     pub n_files_annotated_info: Option<String>,
 }
@@ -41,7 +40,7 @@ pub fn labels_and_sorting(
     ctrl: &mut Control,
     tools_data_map: &mut ToolsDataMap,
     text_buffers: &mut TextBuffers,
-    stats: &mut Stats,
+    stats: &mut Counts,
 ) -> RvResult<()> {
     if ui.button("Export filtered filelist").clicked() {
         let export_path = rfd::FileDialog::new()

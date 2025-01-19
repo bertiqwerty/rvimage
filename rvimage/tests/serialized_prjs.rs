@@ -4,7 +4,7 @@ use rvlib::{
     defer_file_removal,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
     tracing_setup::init_tracing_for_tests,
-    world::ToolsDataMap,
+    ToolsDataMap,
 };
 #[cfg(test)]
 use std::{

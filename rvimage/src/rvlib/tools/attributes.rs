@@ -2,7 +2,7 @@ use tracing::info;
 
 use super::Manipulate;
 use crate::{
-    annotations_accessor, annotations_accessor_mut,
+    annotations_accessor_mut,
     events::Events,
     file_util::PathPair,
     history::History,
@@ -14,12 +14,13 @@ use crate::{
     },
     tools_data_accessors,
     world::World,
+    world_annotations_accessor,
 };
 use std::mem;
 const MISSING_DATA_MSG: &str = "Missing data for Attributes";
 pub const ACTOR_NAME: &str = "Attributes";
 annotations_accessor_mut!(ACTOR_NAME, attributes_mut, "Attribute didn't work", AttrMap);
-annotations_accessor!(ACTOR_NAME, attributes, "Attribute didn't work", AttrMap);
+world_annotations_accessor!(ACTOR_NAME, attributes, "Attribute didn't work", AttrMap);
 tools_data_accessors!(
     ACTOR_NAME,
     MISSING_DATA_MSG,

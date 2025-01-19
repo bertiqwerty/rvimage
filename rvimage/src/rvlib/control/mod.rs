@@ -8,7 +8,8 @@ use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::world::{DataRaw, ToolsDataMap, World};
+use crate::tools_data::ToolsDataMap;
+use crate::world::{DataRaw, World};
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
@@ -46,10 +47,10 @@ mod detail {
         file_util::{self, tf_to_annomap_key, SavedCfg, DEFAULT_HOMEDIR},
         result::trace_ok_err,
         tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
-        tools_data::merge,
+        tools_data::{merge, ToolsDataMap},
         toolsdata_by_name,
         util::version_label,
-        world::{ToolsDataMap, World},
+        world::World,
     };
     use rvimage_domain::ShapeI;
     use rvimage_domain::{result::RvResult, to_rv};

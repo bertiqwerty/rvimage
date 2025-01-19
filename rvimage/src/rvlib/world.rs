@@ -4,14 +4,13 @@ use crate::result::trace_ok_err;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::{
-    self, vis_from_lfoption, ExportAsCoco, LabelInfo, ToolSpecifics, ToolsData,
+    self, vis_from_lfoption, ExportAsCoco, LabelInfo, ToolSpecifics, ToolsData, ToolsDataMap,
 };
 use crate::types::ViewImage;
 use crate::util::Visibility;
 use crate::{image_util, InstanceAnnotate, UpdatePermAnnos, UpdateView, UpdateZoomBox};
 use image::DynamicImage;
 use rvimage_domain::{BbF, RvError, RvResult, ShapeF, ShapeI};
-use std::collections::HashMap;
 use std::path::Path;
 use std::{fmt::Debug, mem};
 
@@ -139,19 +138,19 @@ macro_rules! tools_data_accessors_objects {
     };
 }
 #[macro_export]
-macro_rules! annotations_accessor {
+macro_rules! world_annotations_accessor {
     ($actor_name:expr, $access_func:ident, $error_msg:expr, $annotations_type:ty) => {
         pub(super) fn get_annos_(
             world: &World,
             is_no_anno_fine: bool,
         ) -> Option<&$annotations_type> {
             if let Some(current_file_path) = world.data.meta_data.file_path_relative() {
-                let res = world
-                    .data
-                    .tools_data_map
-                    .get($actor_name)
-                    .and_then(|x| x.specifics.$access_func().ok())
-                    .and_then(|d| d.get_annos(&current_file_path));
+                let res = $crate::get_annos_from_tdm!(
+                    $actor_name,
+                    &world.data.tools_data_map,
+                    current_file_path,
+                    $access_func
+                );
                 if res.is_none() && !is_no_anno_fine {
                     tracing::error!("{}", $error_msg);
                 }
@@ -242,8 +241,6 @@ macro_rules! instance_annotations_accessor {
         }
     };
 }
-// tool name -> tool's menu data type
-pub type ToolsDataMap = HashMap<String, ToolsData>;
 
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {

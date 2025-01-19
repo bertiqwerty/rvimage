@@ -6,7 +6,7 @@ use crate::{
     paths_selector::PathsSelector,
     result::{ignore_error, trace_ok_err},
     sort_params::{SortParams, SortType},
-    world::ToolsDataMap,
+    tools_data::ToolsDataMap,
 };
 use exmex::prelude::*;
 use rvimage_domain::RvResult;

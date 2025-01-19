@@ -1,6 +1,6 @@
 use crate::{
     cfg::{CfgLegacy, CfgPrj},
-    world::ToolsDataMap,
+    tools_data::ToolsDataMap,
 };
 use lazy_static::lazy_static;
 use rvimage_domain::{rverr, to_rv, RvResult};

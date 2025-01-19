@@ -7,9 +7,9 @@ use crate::result::ignore_error;
 use crate::tools::ATTRIBUTES_NAME;
 use crate::tools_data::annotations::InstanceAnnotations;
 use crate::tools_data::attributes_data::ATTR_INTERVAL_SEPARATOR;
-use crate::tools_data::LabelInfo;
 use crate::tools_data::{Annotate, InstanceAnnotate, ToolSpecifics};
-use crate::world::ToolsDataMap;
+use crate::tools_data::{LabelInfo, ToolsDataMap};
+
 use rvimage_domain::{rverr, RvError, RvResult};
 
 fn contains_label<T>(

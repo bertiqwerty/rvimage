@@ -1,17 +1,18 @@
 use crate::{
-    annotations_accessor, annotations_accessor_mut,
+    annotations_accessor_mut,
     events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
     tools_data::rot90_data::NRotations,
     world::{DataRaw, World},
+    world_annotations_accessor,
 };
 
 use super::Manipulate;
 
 pub const ACTOR_NAME: &str = "Rot90";
 annotations_accessor_mut!(ACTOR_NAME, rot90_mut, "Rotation 90 didn't work", NRotations);
-annotations_accessor!(ACTOR_NAME, rot90, "Rotation 90 didn't work", NRotations);
+world_annotations_accessor!(ACTOR_NAME, rot90, "Rotation 90 didn't work", NRotations);
 
 /// rotate 90 degrees counter clockwise
 fn rot90(ims: &DataRaw, n_rotations: NRotations) -> DataRaw {

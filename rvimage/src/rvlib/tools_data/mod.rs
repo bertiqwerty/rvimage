@@ -23,6 +23,7 @@ mod core;
 mod label_map;
 pub mod rot90_data;
 pub use core::{merge, AnnotationsMap, Options as CoreOptions};
+use std::collections::HashMap;
 
 macro_rules! variant_access {
     ($variant:ident, $func_name:ident, $self:ty, $return_type:ty) => {
@@ -221,5 +222,26 @@ macro_rules! toolsdata_by_name {
             .ok_or(rvimage_domain::rverr!("{} is not a tool", $name))?
             .specifics
             .$acc()?
+    };
+}
+
+// tool name -> tool's menu data type
+pub type ToolsDataMap = HashMap<String, ToolsData>;
+
+#[macro_export]
+macro_rules! get_annos_from_tdm {
+    ($actor_name:expr, $tdm:expr, $current_file_path:expr, $access_func:ident) => {
+        $tdm.get($actor_name)
+            .and_then(|x| x.specifics.$access_func().ok())
+            .and_then(|d| d.get_annos($current_file_path))
+    };
+}
+
+#[macro_export]
+macro_rules! get_labelinfo_from_tdm {
+    ($actor_name:expr, $tdm:expr,  $access_func:ident) => {
+        $tdm.get($actor_name)
+            .and_then(|x| x.specifics.$access_func().ok())
+            .map(|d| d.label_info())
     };
 }

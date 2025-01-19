@@ -2,6 +2,7 @@ use crate::{tools_data::InstanceAnnotate, util::true_indices, ShapeI};
 use rvimage_domain::{rverr, BbF, RvResult};
 use serde::{Deserialize, Serialize};
 use std::mem;
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]
 pub struct InstanceAnnotations<T> {

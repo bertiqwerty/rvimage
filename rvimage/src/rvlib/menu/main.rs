@@ -11,9 +11,8 @@ use crate::{
         ui_util::text_edit_singleline,
     },
     tools::ToolState,
-    tools_data::ToolSpecifics,
+    tools_data::{ToolSpecifics, ToolsDataMap},
     util::version_label,
-    world::ToolsDataMap,
 };
 use egui::{Context, Id, Response, RichText, Ui};
 use rvimage_domain::RvResult;
@@ -23,8 +22,7 @@ use std::{
 };
 
 use super::{
-    annotations_menu::ToolChoice,
-    file_counts::Stats,
+    file_counts::Counts,
     tools_menus::{attributes_menu, bbox_menu, brush_menu},
 };
 
@@ -164,24 +162,13 @@ fn save_dialog_in_prjfolder(prj_path: &Path, opened_folder: Option<&str>) -> Opt
         .save_file()
 }
 
+#[derive(Default)]
 pub struct TextBuffers {
     pub filter_string: String,
     pub label_propagation_buffer: String,
     pub label_deletion_buffer: String,
 }
 
-struct AnnotationsMenuParams {
-    parents_depth: u8,
-    tool_choice: ToolChoice,
-}
-impl Default for AnnotationsMenuParams {
-    fn default() -> Self {
-        Self {
-            parents_depth: 1,
-            tool_choice: ToolChoice::default(),
-        }
-    }
-}
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
@@ -189,10 +176,10 @@ pub struct Menu {
     toggle_clear_cache_on_close: bool,
     scroll_offset: f32,
     open_folder_popup_open: bool,
-    stats: Stats,
+    stats: Counts,
     text_buffers: TextBuffers,
     show_file_idx: bool,
-    annotations_menu_params: AnnotationsMenuParams,
+    annotations_menu_params: AnnotationsParams,
 }
 
 impl Menu {
@@ -209,10 +196,10 @@ impl Menu {
             toggle_clear_cache_on_close: false,
             scroll_offset: 0.0,
             open_folder_popup_open: false,
-            stats: Stats::default(),
+            stats: Counts::default(),
             text_buffers,
             show_file_idx: true,
-            annotations_menu_params: AnnotationsMenuParams::default(),
+            annotations_menu_params: AnnotationsParams::default(),
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -356,11 +343,7 @@ impl Menu {
                     tools_data_map,
                     &mut projected_loaded,
                     &mut self.are_tools_active,
-                    AnnotationsParams {
-                        parents_depth: &mut self.annotations_menu_params.parents_depth,
-                        tool_choice: &mut self.annotations_menu_params.tool_choice,
-                        text_buffers: &mut self.text_buffers,
-                    },
+                    &mut self.annotations_menu_params,
                 );
                 ui.add(autosave_gui);
 

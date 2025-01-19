@@ -2,7 +2,7 @@ use brush_data::BrushToolData;
 use std::{cmp::Ordering, mem, thread};
 
 use crate::{
-    annotations_accessor, annotations_accessor_mut,
+    annotations_accessor_mut,
     cfg::ExportPath,
     events::{Events, KeyCode},
     history::{History, Record},
@@ -23,7 +23,7 @@ use crate::{
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
     world::World,
-    Annotation, BrushAnnotation, Line, ShapeI,
+    world_annotations_accessor, Annotation, BrushAnnotation, Line, ShapeI,
 };
 use rvimage_domain::{BrushLine, Canvas, PtF, TPtF};
 
@@ -40,7 +40,7 @@ pub const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
 const MISSING_DATA_MSG: &str = "brush data not available";
 annotations_accessor_mut!(ACTOR_NAME, brush_mut, MISSING_ANNO_MSG, BrushAnnotations);
-annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
+world_annotations_accessor!(ACTOR_NAME, brush, MISSING_ANNO_MSG, BrushAnnotations);
 instance_annotations_accessor!(Canvas);
 tools_data_accessors!(
     ACTOR_NAME,

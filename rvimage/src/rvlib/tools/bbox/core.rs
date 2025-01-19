@@ -1,5 +1,5 @@
 use crate::{
-    annotations_accessor, annotations_accessor_mut,
+    annotations_accessor_mut,
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     history::{History, Record},
@@ -20,7 +20,7 @@ use crate::{
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
     world::World,
-    GeoFig, Polygon,
+    world_annotations_accessor, GeoFig, Polygon,
 };
 use rvimage_domain::{shape_unscaled, BbF, Circle, PtF, TPtF};
 use std::{iter, mem, time::Instant};
@@ -35,7 +35,7 @@ pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
 const MISSING_DATA_MSG: &str = "bbox tools data not available";
 annotations_accessor_mut!(ACTOR_NAME, bbox_mut, MISSING_ANNO_MSG, BboxAnnotations);
-annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
+world_annotations_accessor!(ACTOR_NAME, bbox, MISSING_ANNO_MSG, BboxAnnotations);
 instance_annotations_accessor!(GeoFig);
 tools_data_accessors!(
     ACTOR_NAME,
