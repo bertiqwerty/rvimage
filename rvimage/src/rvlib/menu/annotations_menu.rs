@@ -378,6 +378,7 @@ fn annotations(
     paths_navigator: &PathsNavigator,
 ) -> RvResult<()> {
     if params.tool_choice.is_some() {
+        ui.separator();
         ui.heading("Annotations per Folder");
         ui.label(egui::RichText::new(
             "Your project's content is shown below.",
@@ -421,15 +422,17 @@ fn annotations(
                 )
             },
         );
+        ui.separator();
         params.filter_relation_deletion = filter_relations_menu(
             "Delete Annotations from Files",
             ui,
             params.filter_relation_deletion,
         );
-        if ui
-            .button("Log annotated files not in the filelist")
-            .clicked()
-        {
+        let txt = params.filter_relation_deletion.select(
+            "Log annotations of files in the file list",
+            "Log annotations of files not in the file list",
+        );
+        if ui.button(txt).clicked() {
             let filepaths = paths_navigator
                 .paths_selector()
                 .map(|ps| ps.filtered_file_paths());
@@ -489,6 +492,7 @@ fn annotations(
                 }
             }
         }
+        ui.separator();
         ui.heading("Propagate to or Delete annotations from Subsequent Images");
 
         if let Some(selected_file_idx) = paths_navigator.file_label_selected_idx() {
@@ -654,7 +658,8 @@ fn anno_stats(
             .num_columns(4)
             .show(ui, |ui| {
                 ui.label(RichText::new("tool").strong());
-                ui.label(RichText::new("cat").strong()).on_hover_text("category, not the pet");
+                ui.label(RichText::new("cat").strong())
+                    .on_hover_text("category, not the pet");
                 ui.label(RichText::new("count").strong());
                 ui.label(RichText::new("mean count").strong());
                 ui.label(RichText::new("# files").strong());
@@ -738,6 +743,7 @@ fn annotations_popup(
         egui::CollapsingHeader::new("Restore Annotations").show(ui, |ui| {
             (close, tdm) = autosaves(ui, ctrl, close);
         });
+        ui.separator();
         egui::CollapsingHeader::new("Delete or Propagate Annotations").show(ui, |ui| {
             anno_params.tool_choice.ui(ui);
             trace_ok_err(annotations(
@@ -748,6 +754,7 @@ fn annotations_popup(
                 &ctrl.paths_navigator,
             ));
         });
+        ui.separator();
         egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
             anno_params.tool_choice.ui(ui);
             trace_ok_err(anno_stats(
