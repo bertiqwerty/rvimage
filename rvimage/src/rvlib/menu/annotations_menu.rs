@@ -657,6 +657,7 @@ fn anno_stats(
                     .unwrap_or_default();
                 bbox_records.extend(brush_records);
                 bbox_records.sort_by_key(|elt| elt.count);
+                bbox_records.reverse();
                 tracing::info!("{} records collected", bbox_records.len());
                 *stats_compute_results = Some(bbox_records);
             }
