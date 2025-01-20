@@ -588,8 +588,11 @@ impl AnnoStatRecord {
     }
 }
 
-fn count(tool_name: &'static str, cat_idxs: &[usize]) -> HashMap<(&'static str, usize), usize> {
-    let mut count_map = HashMap::<(&'static str, usize), usize>::new();
+fn count(
+    count_map: &mut HashMap<(&'static str, usize), usize>,
+    tool_name: &'static str,
+    cat_idxs: &[usize],
+) {
     for cat_idx in cat_idxs {
         let count = count_map.get_mut(&(tool_name, *cat_idx));
         if let Some(count) = count {
@@ -598,7 +601,6 @@ fn count(tool_name: &'static str, cat_idxs: &[usize]) -> HashMap<(&'static str, 
             count_map.insert((tool_name, *cat_idx), 1);
         }
     }
-    count_map
 }
 
 fn anno_stats(
@@ -620,13 +622,13 @@ fn anno_stats(
                 let f_bbox = |tdm: &ToolsDataMap| {
                     let annos = get_annos_from_tdm!(BBOX_NAME, tdm, path_key, bbox);
                     if let Some(annos) = annos {
-                        count_map_bbox.extend(count(BBOX_NAME, annos.cat_idxs()));
+                        count(&mut count_map_bbox, BBOX_NAME, annos.cat_idxs());
                     }
                 };
                 let f_brush = |tdm: &ToolsDataMap| {
                     let annos = get_annos_from_tdm!(BRUSH_NAME, tdm, path_key, brush);
                     if let Some(annos) = annos {
-                        count_map_brush.extend(count(BRUSH_NAME, annos.cat_idxs()));
+                        count(&mut count_map_brush, BRUSH_NAME, annos.cat_idxs());
                     }
                 };
                 tool_choice.run(tdm, f_bbox, f_brush);
@@ -652,7 +654,7 @@ fn anno_stats(
             .num_columns(4)
             .show(ui, |ui| {
                 ui.label(RichText::new("tool").strong());
-                ui.label(RichText::new("cat").strong());
+                ui.label(RichText::new("cat").strong()).on_hover_text("category, not the pet");
                 ui.label(RichText::new("count").strong());
                 ui.label(RichText::new("mean count").strong());
                 ui.label(RichText::new("# files").strong());
