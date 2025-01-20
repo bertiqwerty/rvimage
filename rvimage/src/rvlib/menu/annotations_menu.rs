@@ -505,7 +505,7 @@ fn annotations(
                         are_tools_active,
                         "propagate labels",
                         "number of following images to propagate label to",
-                        None,
+                        Some("Double click! Annotations will be overriden if already existent! 💀"),
                     );
                     ui.end_row();
                     let n_del: Option<usize> = ui_util::button_triggerable_number(
