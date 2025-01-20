@@ -152,7 +152,7 @@ where
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub enum ToolChoice {
     Bbox,
     Brush,
@@ -165,7 +165,7 @@ impl ToolChoice {
     fn ui(&mut self, ui: &mut Ui) {
         let mut bbox_checked = matches!(self, Self::Bbox) || matches!(self, Self::Both);
         let mut brush_checked = matches!(self, Self::Brush) || matches!(self, Self::Both);
-        ui.label("Check the box of the tool who's annotations you are interested in");
+        ui.label("Select tool who's annotations you are interested in");
         ui.horizontal(|ui| {
             ui.checkbox(&mut bbox_checked, BBOX_NAME);
             ui.checkbox(&mut brush_checked, BRUSH_NAME);
@@ -348,11 +348,12 @@ fn tdm_instance_annos<T>(
 
 #[derive(Default)]
 pub struct AnnotationsParams {
-    pub tool_choice: ToolChoice,
+    pub tool_choice_delprop: ToolChoice,
+    pub tool_choice_stats: ToolChoice,
     pub parents_depth: u8,
     pub text_buffers: TextBuffers,
     pub filter_relation_deletion: FilterRelation,
-    pub stats_result: Vec<AnnoStatRecord>,
+    pub stats_result: Option<Vec<AnnoStatRecord>>,
 }
 
 fn filter_relations_menu(
@@ -377,7 +378,7 @@ fn annotations(
     params: &mut AnnotationsParams,
     paths_navigator: &PathsNavigator,
 ) -> RvResult<()> {
-    if params.tool_choice.is_some() {
+    if params.tool_choice_delprop.is_some() {
         ui.separator();
         ui.heading("Annotations per Folder");
         ui.label(egui::RichText::new(
@@ -392,7 +393,7 @@ fn annotations(
             "# subfolders to aggregate",
         );
         let max_n_folders = 5;
-        params.tool_choice.run_mut(
+        params.tool_choice_delprop.run_mut(
             ui,
             tdm,
             |ui, tdm| {
@@ -440,7 +441,7 @@ fn annotations(
                 let absent_files = get_all_files(
                     tdm,
                     &filepaths,
-                    params.tool_choice,
+                    params.tool_choice_delprop,
                     params.filter_relation_deletion,
                 )?;
 
@@ -466,8 +467,12 @@ fn annotations(
                 .paths_selector()
                 .map(|ps| ps.filtered_file_paths());
             if let Some(filepaths) = filepaths {
-                let absent_files =
-                    get_all_files(tdm, &filepaths, params.tool_choice, FilterRelation::Missing)?;
+                let absent_files = get_all_files(
+                    tdm,
+                    &filepaths,
+                    params.tool_choice_delprop,
+                    FilterRelation::Missing,
+                )?;
                 let absent_files = absent_files
                     .into_iter()
                     .map(|(af, tn)| (af.to_string(), tn))
@@ -527,7 +532,7 @@ fn annotations(
                                     paths.len(),
                                     paths[0].path_relative()
                                 );
-                                params.tool_choice.run_mut(
+                                params.tool_choice_delprop.run_mut(
                                     ui,
                                     tdm,
                                     |_, tdm| propagate_annos_of_tool(tdm, BBOX_NAME, paths),
@@ -545,7 +550,7 @@ fn annotations(
                                     paths.len(),
                                     paths[0].path_relative()
                                 );
-                                params.tool_choice.run_mut(
+                                params.tool_choice_delprop.run_mut(
                                     ui,
                                     tdm,
                                     |_, tdm| delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths),
@@ -610,68 +615,78 @@ fn count(
 fn anno_stats(
     ui: &mut Ui,
     tdm: &mut ToolsDataMap,
-    stats_compute_results: &mut Vec<AnnoStatRecord>,
+    stats_compute_results: &mut Option<Vec<AnnoStatRecord>>,
     tool_choice: ToolChoice,
     paths_selector: Option<&PathsSelector>,
 ) -> RvResult<()> {
     let filepaths = paths_selector.map(|ps| ps.filtered_file_paths());
-    if ui.button("Compute stats of filtered files").clicked() {
-        if let Some(filepaths) = filepaths {
-            tracing::info!("computation of stats triggered");
-            let files = get_all_files(tdm, &filepaths, tool_choice, FilterRelation::Available)?;
-            *stats_compute_results = vec![];
-            let mut count_map_bbox = HashMap::new();
-            let mut count_map_brush = HashMap::new();
-            for (path_key, _) in &files {
-                let f_bbox = |tdm: &ToolsDataMap| {
-                    let annos = get_annos_from_tdm!(BBOX_NAME, tdm, path_key, bbox);
-                    if let Some(annos) = annos {
-                        count(&mut count_map_bbox, BBOX_NAME, annos.cat_idxs());
-                    }
-                };
-                let f_brush = |tdm: &ToolsDataMap| {
-                    let annos = get_annos_from_tdm!(BRUSH_NAME, tdm, path_key, brush);
-                    if let Some(annos) = annos {
-                        count(&mut count_map_brush, BRUSH_NAME, annos.cat_idxs());
-                    }
-                };
-                tool_choice.run(tdm, f_bbox, f_brush);
-            }
-            let li_bbox = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
-            let li_brush = get_labelinfo_from_tdm!(BRUSH_NAME, tdm, brush);
-
-            let n_files = files.len();
-            let mut bbox_records = li_bbox
-                .map(|li| AnnoStatRecord::cats_to_records(&count_map_bbox, n_files, li))
-                .unwrap_or_default();
-            let brush_records = li_brush
-                .map(|li| AnnoStatRecord::cats_to_records(&count_map_brush, n_files, li))
-                .unwrap_or_default();
-            bbox_records.extend(brush_records);
-            bbox_records.sort_by_key(|elt| elt.count);
-            tracing::info!("{} records collected", bbox_records.len());
-            *stats_compute_results = bbox_records;
-        }
-    }
-    if !stats_compute_results.is_empty() {
-        egui::Grid::new("anno-stats-records-")
-            .num_columns(4)
-            .show(ui, |ui| {
-                ui.label(RichText::new("tool").strong());
-                ui.label(RichText::new("cat").strong())
-                    .on_hover_text("category, not the pet");
-                ui.label(RichText::new("count").strong());
-                ui.label(RichText::new("mean count").strong());
-                ui.label(RichText::new("# files").strong());
-                for record in stats_compute_results.iter() {
-                    ui.end_row();
-                    ui.label(RichText::new(record.tool_name).monospace());
-                    ui.label(RichText::new(&record.cat_name).monospace());
-                    ui.label(RichText::new(format!("{}", record.count)).monospace());
-                    ui.label(RichText::new(format!("{:0.3}", record.count_per_file)).monospace());
-                    ui.label(RichText::new(format!("{}", record.n_files)).monospace());
+    if tool_choice == ToolChoice::None {
+        *stats_compute_results = None;
+    } else {
+        if ui.button("(Re-)compute stats of filtered files").clicked() {
+            if let Some(filepaths) = filepaths {
+                tracing::info!("computation of stats triggered");
+                let files = get_all_files(tdm, &filepaths, tool_choice, FilterRelation::Available)?;
+                *stats_compute_results = Some(vec![]);
+                let mut count_map_bbox = HashMap::new();
+                let mut count_map_brush = HashMap::new();
+                for (path_key, _) in &files {
+                    let f_bbox = |tdm: &ToolsDataMap| {
+                        let annos = get_annos_from_tdm!(BBOX_NAME, tdm, path_key, bbox);
+                        if let Some(annos) = annos {
+                            count(&mut count_map_bbox, BBOX_NAME, annos.cat_idxs());
+                        }
+                    };
+                    let f_brush = |tdm: &ToolsDataMap| {
+                        let annos = get_annos_from_tdm!(BRUSH_NAME, tdm, path_key, brush);
+                        if let Some(annos) = annos {
+                            count(&mut count_map_brush, BRUSH_NAME, annos.cat_idxs());
+                        }
+                    };
+                    tool_choice.run(tdm, f_bbox, f_brush);
                 }
-            });
+                let li_bbox = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
+                let li_brush = get_labelinfo_from_tdm!(BRUSH_NAME, tdm, brush);
+
+                let n_files = files.len();
+                let mut bbox_records = li_bbox
+                    .map(|li| AnnoStatRecord::cats_to_records(&count_map_bbox, n_files, li))
+                    .unwrap_or_default();
+                let brush_records = li_brush
+                    .map(|li| AnnoStatRecord::cats_to_records(&count_map_brush, n_files, li))
+                    .unwrap_or_default();
+                bbox_records.extend(brush_records);
+                bbox_records.sort_by_key(|elt| elt.count);
+                tracing::info!("{} records collected", bbox_records.len());
+                *stats_compute_results = Some(bbox_records);
+            }
+        }
+        if let Some(stats_compute_results) = stats_compute_results {
+            if !stats_compute_results.is_empty() {
+                egui::Grid::new("anno-stats-records-")
+                    .num_columns(4)
+                    .show(ui, |ui| {
+                        ui.label(RichText::new("tool").strong());
+                        ui.label(RichText::new("cat").strong())
+                            .on_hover_text("category, not the pet");
+                        ui.label(RichText::new("count").strong());
+                        ui.label(RichText::new("mean count").strong());
+                        ui.label(RichText::new("# files").strong());
+                        for record in stats_compute_results.iter() {
+                            ui.end_row();
+                            ui.label(RichText::new(record.tool_name).monospace());
+                            ui.label(RichText::new(&record.cat_name).monospace());
+                            ui.label(RichText::new(format!("{}", record.count)).monospace());
+                            ui.label(
+                                RichText::new(format!("{:0.3}", record.count_per_file)).monospace(),
+                            );
+                            ui.label(RichText::new(format!("{}", record.n_files)).monospace());
+                        }
+                    });
+            } else {
+                ui.label("no annotations found");
+            }
+        }
     }
     Ok(())
 }
@@ -745,7 +760,7 @@ fn annotations_popup(
         });
         ui.separator();
         egui::CollapsingHeader::new("Delete or Propagate Annotations").show(ui, |ui| {
-            anno_params.tool_choice.ui(ui);
+            anno_params.tool_choice_delprop.ui(ui);
             trace_ok_err(annotations(
                 ui,
                 in_tdm,
@@ -756,12 +771,12 @@ fn annotations_popup(
         });
         ui.separator();
         egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
-            anno_params.tool_choice.ui(ui);
+            anno_params.tool_choice_stats.ui(ui);
             trace_ok_err(anno_stats(
                 ui,
                 in_tdm,
                 &mut anno_params.stats_result,
-                anno_params.tool_choice,
+                anno_params.tool_choice_stats,
                 ctrl.paths_navigator.paths_selector(),
             ));
         });
