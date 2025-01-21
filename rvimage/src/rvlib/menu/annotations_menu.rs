@@ -658,7 +658,7 @@ where
 {
     Ok(iter_files_of_tool(
         tdm,
-        &filepaths,
+        filepaths,
         tool_name,
         unwrap_specifics,
         FilterRelation::Available,
