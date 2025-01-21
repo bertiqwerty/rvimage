@@ -130,9 +130,31 @@ impl FilterRelation {
     }
 }
 
+fn iter_files_of_tool<'a, T>(
+    tdm: &'a ToolsDataMap,
+    filepaths: &'a [&PathPair],
+    tool_name: &'static str,
+    unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
+    filter_relation: FilterRelation,
+) -> RvResult<Option<impl Iterator<Item = (&'a str, &'static str)> + 'a>>
+where
+    T: InstanceAnnotate + 'a,
+{
+    if tdm.contains_key(tool_name) {
+        let datamap = unwrap_specifics(&tdm[tool_name].specifics)?;
+        Ok(Some(
+            datamap
+                .keys()
+                .filter(move |k| filter_relation.apply(filepaths, k))
+                .map(move |k| (k.as_str(), tool_name)),
+        ))
+    } else {
+        Ok(None)
+    }
+}
 fn collect_files_of_tool<'a, T>(
     tdm: &'a ToolsDataMap,
-    filepaths: &[&PathPair],
+    filepaths: &'a [&PathPair],
     tool_name: &'static str,
     unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
     filter_relation: FilterRelation,
@@ -141,12 +163,15 @@ where
     T: InstanceAnnotate + 'a,
 {
     if tdm.contains_key(tool_name) {
-        let datamap = unwrap_specifics(&tdm[tool_name].specifics)?;
-        Ok(datamap
-            .keys()
-            .filter(|k| filter_relation.apply(filepaths, k))
-            .map(|k| (k.as_str(), tool_name))
-            .collect::<Vec<_>>())
+        Ok(
+            if let Some(iter) =
+                iter_files_of_tool(tdm, filepaths, tool_name, unwrap_specifics, filter_relation)?
+            {
+                iter.collect::<Vec<_>>()
+            } else {
+                vec![]
+            },
+        )
     } else {
         Ok(vec![])
     }
@@ -221,7 +246,7 @@ impl ToolChoice {
 
 fn get_all_files<'a>(
     tdm: &'a ToolsDataMap,
-    filepaths: &[&PathPair],
+    filepaths: &'a [&PathPair],
     absent_file_tool_choice: ToolChoice,
     filter_relation: FilterRelation,
 ) -> RvResult<Vec<(&'a str, &'static str)>> {
@@ -353,7 +378,7 @@ pub struct AnnotationsParams {
     pub parents_depth: u8,
     pub text_buffers: TextBuffers,
     pub filter_relation_deletion: FilterRelation,
-    pub stats_result: Option<Vec<AnnoStatRecord>>,
+    pub stats_result: Option<Vec<AnnoStatsRecord>>,
 }
 
 fn filter_relations_menu(
@@ -570,34 +595,43 @@ fn annotations(
 }
 
 #[derive(Default, Clone)]
-pub struct AnnoStatRecord {
+pub struct AnnoStatsRecord {
     tool_name: &'static str,
     cat_name: String,
     count: u64,
     count_per_file: f64,
-    n_files: usize,
+    n_files_filtered_thistool_anycat: usize,
 }
-impl AnnoStatRecord {
+impl AnnoStatsRecord {
     pub fn cats_to_records(
         cat_to_count_map: &HashMap<(&'static str, usize), usize>,
-        n_files: usize,
         label_info: &LabelInfo,
+        n_files_bbox: usize,
+        n_files_brush: usize,
     ) -> Vec<Self> {
         let mut res = vec![Self::default(); cat_to_count_map.len()];
+
         for (i, ((tool_name, cat_idx), count)) in cat_to_count_map.iter().enumerate() {
-            res[i] = AnnoStatRecord {
+            let n_files_filtered_thistool_anycat = if *tool_name == BBOX_NAME {
+                n_files_bbox
+            } else if *tool_name == BRUSH_NAME {
+                n_files_brush
+            } else {
+                0
+            };
+            res[i] = AnnoStatsRecord {
                 tool_name,
                 cat_name: label_info.labels()[*cat_idx].clone(),
                 count: *count as u64,
-                count_per_file: *count as f64 / n_files as f64,
-                n_files,
+                count_per_file: *count as f64 / n_files_filtered_thistool_anycat as f64,
+                n_files_filtered_thistool_anycat,
             };
         }
         res
     }
 }
 
-fn count(
+fn count_annos(
     count_map: &mut HashMap<(&'static str, usize), usize>,
     tool_name: &'static str,
     cat_idxs: &[usize],
@@ -612,10 +646,86 @@ fn count(
     }
 }
 
+/// number of files with annotations of the respective tool
+fn count_files_of_tool<T>(
+    tool_name: &'static str,
+    unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
+    tdm: &ToolsDataMap,
+    filepaths: &[&PathPair],
+) -> RvResult<usize>
+where
+    T: InstanceAnnotate,
+{
+    Ok(iter_files_of_tool(
+        tdm,
+        &filepaths,
+        tool_name,
+        unwrap_specifics,
+        FilterRelation::Available,
+    )?
+    .map(|iter| iter.count())
+    .unwrap_or(0))
+}
+
+fn collect_stats(
+    tdm: &ToolsDataMap,
+    filepaths: &[&PathPair],
+    tool_choice: ToolChoice,
+) -> RvResult<Vec<AnnoStatsRecord>> {
+    tracing::info!("computation of stats triggered");
+    let files = get_all_files(tdm, filepaths, tool_choice, FilterRelation::Available)?;
+    let mut count_map_bbox = HashMap::new();
+    let mut count_map_brush = HashMap::new();
+    for (path_key, _) in &files {
+        let f_bbox = |tdm: &ToolsDataMap| {
+            let annos = get_annos_from_tdm!(BBOX_NAME, tdm, path_key, bbox);
+            if let Some(annos) = annos {
+                count_annos(&mut count_map_bbox, BBOX_NAME, annos.cat_idxs());
+            }
+        };
+        let f_brush = |tdm: &ToolsDataMap| {
+            let annos = get_annos_from_tdm!(BRUSH_NAME, tdm, path_key, brush);
+            if let Some(annos) = annos {
+                count_annos(&mut count_map_brush, BRUSH_NAME, annos.cat_idxs());
+            }
+        };
+        tool_choice.run(tdm, f_bbox, f_brush);
+    }
+    let li_bbox = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
+    let li_brush = get_labelinfo_from_tdm!(BRUSH_NAME, tdm, brush);
+    let n_bbox_files = count_files_of_tool(
+        BBOX_NAME,
+        |ts| ts.bbox().map(|d| &d.annotations_map),
+        tdm,
+        filepaths,
+    )?;
+    let n_brush_files = count_files_of_tool(
+        BRUSH_NAME,
+        |ts| ts.brush().map(|d| &d.annotations_map),
+        tdm,
+        filepaths,
+    )?;
+    let mut bbox_records = li_bbox
+        .map(|li| {
+            AnnoStatsRecord::cats_to_records(&count_map_bbox, li, n_bbox_files, n_brush_files)
+        })
+        .unwrap_or_default();
+    let brush_records = li_brush
+        .map(|li| {
+            AnnoStatsRecord::cats_to_records(&count_map_brush, li, n_bbox_files, n_brush_files)
+        })
+        .unwrap_or_default();
+    bbox_records.extend(brush_records);
+    bbox_records.sort_by_key(|elt| elt.count);
+    bbox_records.reverse();
+    tracing::info!("{} records collected", bbox_records.len());
+    Ok(bbox_records)
+}
+
 fn anno_stats(
     ui: &mut Ui,
     tdm: &mut ToolsDataMap,
-    stats_compute_results: &mut Option<Vec<AnnoStatRecord>>,
+    stats_compute_results: &mut Option<Vec<AnnoStatsRecord>>,
     tool_choice: ToolChoice,
     paths_selector: Option<&PathsSelector>,
 ) -> RvResult<()> {
@@ -625,41 +735,7 @@ fn anno_stats(
     } else {
         if ui.button("(Re-)compute stats of filtered files").clicked() {
             if let Some(filepaths) = filepaths {
-                tracing::info!("computation of stats triggered");
-                let files = get_all_files(tdm, &filepaths, tool_choice, FilterRelation::Available)?;
-                *stats_compute_results = Some(vec![]);
-                let mut count_map_bbox = HashMap::new();
-                let mut count_map_brush = HashMap::new();
-                for (path_key, _) in &files {
-                    let f_bbox = |tdm: &ToolsDataMap| {
-                        let annos = get_annos_from_tdm!(BBOX_NAME, tdm, path_key, bbox);
-                        if let Some(annos) = annos {
-                            count(&mut count_map_bbox, BBOX_NAME, annos.cat_idxs());
-                        }
-                    };
-                    let f_brush = |tdm: &ToolsDataMap| {
-                        let annos = get_annos_from_tdm!(BRUSH_NAME, tdm, path_key, brush);
-                        if let Some(annos) = annos {
-                            count(&mut count_map_brush, BRUSH_NAME, annos.cat_idxs());
-                        }
-                    };
-                    tool_choice.run(tdm, f_bbox, f_brush);
-                }
-                let li_bbox = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
-                let li_brush = get_labelinfo_from_tdm!(BRUSH_NAME, tdm, brush);
-
-                let n_files = files.len();
-                let mut bbox_records = li_bbox
-                    .map(|li| AnnoStatRecord::cats_to_records(&count_map_bbox, n_files, li))
-                    .unwrap_or_default();
-                let brush_records = li_brush
-                    .map(|li| AnnoStatRecord::cats_to_records(&count_map_brush, n_files, li))
-                    .unwrap_or_default();
-                bbox_records.extend(brush_records);
-                bbox_records.sort_by_key(|elt| elt.count);
-                bbox_records.reverse();
-                tracing::info!("{} records collected", bbox_records.len());
-                *stats_compute_results = Some(bbox_records);
+                *stats_compute_results = Some(collect_stats(tdm, &filepaths, tool_choice)?);
             }
         }
         if let Some(stats_compute_results) = stats_compute_results {
@@ -672,7 +748,9 @@ fn anno_stats(
                             .on_hover_text("category, not the pet");
                         ui.label(RichText::new("count").strong());
                         ui.label(RichText::new("mean count").strong());
-                        ui.label(RichText::new("# files").strong());
+                        ui.label(RichText::new("# files").strong()).on_hover_text(
+                            "number of filtered files that contain or contained any annotations of the respective tool",
+                        );
                         for record in stats_compute_results.iter() {
                             ui.end_row();
                             ui.label(RichText::new(record.tool_name).monospace());
@@ -681,7 +759,13 @@ fn anno_stats(
                             ui.label(
                                 RichText::new(format!("{:0.3}", record.count_per_file)).monospace(),
                             );
-                            ui.label(RichText::new(format!("{}", record.n_files)).monospace());
+                            ui.label(
+                                RichText::new(format!(
+                                    "{}",
+                                    record.n_files_filtered_thistool_anycat
+                                ))
+                                .monospace(),
+                            );
                         }
                     });
             } else {
