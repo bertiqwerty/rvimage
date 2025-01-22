@@ -209,34 +209,34 @@ impl ToolChoice {
         &self,
         ui: &mut Ui,
         tdm: &mut ToolsDataMap,
-        mut f_bbox: impl FnMut(&mut Ui, &mut ToolsDataMap),
-        mut f_brush: impl FnMut(&mut Ui, &mut ToolsDataMap),
-    ) {
-        match self {
+        mut f_bbox: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
+        mut f_brush: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
+    ) -> RvResult<()> {
+        Ok(match self {
             Self::Both => {
-                f_bbox(ui, tdm);
-                f_brush(ui, tdm);
+                f_bbox(ui, tdm)?;
+                f_brush(ui, tdm)?;
             }
-            Self::Bbox => f_bbox(ui, tdm),
-            Self::Brush => f_brush(ui, tdm),
+            Self::Bbox => f_bbox(ui, tdm)?,
+            Self::Brush => f_brush(ui, tdm)?,
             Self::None => (),
-        }
+        })
     }
-    fn run(
+    fn run<'a>(
         &self,
-        tdm: &ToolsDataMap,
-        mut f_bbox: impl FnMut(&ToolsDataMap),
-        mut f_brush: impl FnMut(&ToolsDataMap),
-    ) {
-        match self {
+        tdm: &'a ToolsDataMap,
+        mut f_bbox: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
+        mut f_brush: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
+    ) -> RvResult<()> {
+        Ok(match self {
             Self::Both => {
-                f_bbox(tdm);
-                f_brush(tdm);
+                f_bbox(tdm)?;
+                f_brush(tdm)?;
             }
-            Self::Bbox => f_bbox(tdm),
-            Self::Brush => f_brush(tdm),
+            Self::Bbox => f_bbox(tdm)?,
+            Self::Brush => f_brush(tdm)?,
             Self::None => (),
-        }
+        })
     }
 
     fn is_some(&self) -> bool {
@@ -294,7 +294,8 @@ fn tdm_instance_annos<T>(
     folder_params: FolderParams,
     unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
     unwrap_specifics_mut: impl Fn(&mut ToolSpecifics) -> RvResult<&mut AnnotationsMap<T>>,
-) where
+) -> RvResult<()>
+where
     T: InstanceAnnotate,
 {
     let FolderParams {
@@ -302,73 +303,67 @@ fn tdm_instance_annos<T>(
         parents_depth,
     } = folder_params;
     if tdm.contains_key(name) {
-        let anno_map = trace_ok_err(unwrap_specifics(&tdm[name].specifics));
+        let annos = unwrap_specifics(&tdm[name].specifics)?;
         let mut n_annos_allfolders = 0;
-        let mut parents = vec![];
-        if let Some(brush_annos) = anno_map {
-            let parents_set = brush_annos
-                .iter()
-                .map(|(k, (annos, _))| {
-                    n_annos_allfolders += annos.len();
-                    ancestor(k, parents_depth).to_path_buf()
-                })
-                .collect::<HashSet<_>>();
-            parents = parents_set.into_iter().collect::<Vec<_>>();
-            parents.sort();
-        }
-        let anno_map_mut = trace_ok_err(unwrap_specifics_mut(
-            &mut tdm.get_mut(name).unwrap().specifics,
+        let parents_set = annos
+            .iter()
+            .map(|(k, (annos, _))| {
+                n_annos_allfolders += annos.len();
+                ancestor(k, parents_depth).to_path_buf()
+            })
+            .collect::<HashSet<_>>();
+        let mut parents = parents_set.into_iter().collect::<Vec<_>>();
+        parents.sort();
+        let annos_map_mut = unwrap_specifics_mut(&mut tdm.get_mut(name).unwrap().specifics)?;
+
+        ui.label(format!(
+            "There are {n_annos_allfolders} {}-annotations{}.",
+            name,
+            if n_annos_allfolders > 0 {
+                " of images in the following folders"
+            } else {
+                ""
+            }
         ));
-
-        if let Some(annos_map_mut) = anno_map_mut {
-            ui.label(format!(
-                "There are {n_annos_allfolders} {}-annotations{}.",
-                name,
-                if n_annos_allfolders > 0 {
-                    " of images in the following folders"
-                } else {
-                    ""
-                }
-            ));
-            egui::Grid::new("annotations-menu-grid").show(ui, |ui| {
-                for p in &parents[0..max_n_folders.min(parents.len())] {
-                    let p_label = egui::RichText::new(p.to_str().unwrap_or("")).monospace();
-                    let n_annos_of_subfolders = egui::RichText::new(format!(
-                        "{}",
-                        annos_map_mut
-                            .iter()
-                            .filter(|(k, _)| ancestor(k, parents_depth) == p)
-                            .map(|(_, (anno_map, _))| anno_map.len())
-                            .sum::<usize>()
-                    ))
-                    .monospace();
-                    if ui
-                        .button("x")
-                        .on_hover_text("double-click to delete all annotations in this folder")
-                        .double_clicked()
-                    {
-                        let to_del = annos_map_mut
-                            .keys()
-                            .filter(|k| ancestor(k, parents_depth) == p)
-                            .map(|k| k.to_string())
-                            .collect::<Vec<_>>();
-                        for k in to_del {
-                            annos_map_mut.remove(&k);
-                        }
+        egui::Grid::new("annotations-menu-grid").show(ui, |ui| {
+            for p in &parents[0..max_n_folders.min(parents.len())] {
+                let p_label = egui::RichText::new(p.to_str().unwrap_or("")).monospace();
+                let n_annos_of_subfolders = egui::RichText::new(format!(
+                    "{}",
+                    annos_map_mut
+                        .iter()
+                        .filter(|(k, _)| ancestor(k, parents_depth) == p)
+                        .map(|(_, (anno_map, _))| anno_map.len())
+                        .sum::<usize>()
+                ))
+                .monospace();
+                if ui
+                    .button("x")
+                    .on_hover_text("double-click to delete all annotations in this folder")
+                    .double_clicked()
+                {
+                    let to_del = annos_map_mut
+                        .keys()
+                        .filter(|k| ancestor(k, parents_depth) == p)
+                        .map(|k| k.to_string())
+                        .collect::<Vec<_>>();
+                    for k in to_del {
+                        annos_map_mut.remove(&k);
                     }
-                    ui.label(n_annos_of_subfolders);
-                    ui.label(p_label);
+                }
+                ui.label(n_annos_of_subfolders);
+                ui.label(p_label);
 
-                    ui.end_row();
-                }
-                if parents.len() > max_n_folders {
-                    ui.label(" ");
-                    ui.label(egui::RichText::new("...").monospace());
-                    ui.end_row();
-                }
-            });
-        }
+                ui.end_row();
+            }
+            if parents.len() > max_n_folders {
+                ui.label(" ");
+                ui.label(egui::RichText::new("...").monospace());
+                ui.end_row();
+            }
+        });
     }
+    Ok(())
 }
 
 #[derive(Default)]
@@ -447,7 +442,7 @@ fn annotations(
                     |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
                 )
             },
-        );
+        )?;
         ui.separator();
         params.filter_relation_deletion = filter_relations_menu(
             "Delete Annotations from Files",
@@ -557,12 +552,12 @@ fn annotations(
                                     paths.len(),
                                     paths[0].path_relative()
                                 );
-                                params.tool_choice_delprop.run_mut(
+                                trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
                                     tdm,
-                                    |_, tdm| propagate_annos_of_tool(tdm, BBOX_NAME, paths),
-                                    |_, tdm| propagate_annos_of_tool(tdm, BRUSH_NAME, paths),
-                                );
+                                    |_, tdm| Ok(propagate_annos_of_tool(tdm, BBOX_NAME, paths)),
+                                    |_, tdm| Ok(propagate_annos_of_tool(tdm, BRUSH_NAME, paths)),
+                                ));
                             }
                         }
                         if let Some(n_del) = n_del {
@@ -575,14 +570,16 @@ fn annotations(
                                     paths.len(),
                                     paths[0].path_relative()
                                 );
-                                params.tool_choice_delprop.run_mut(
+                                trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
                                     tdm,
-                                    |_, tdm| delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths),
                                     |_, tdm| {
-                                        delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths)
+                                        Ok(delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths))
                                     },
-                                );
+                                    |_, tdm| {
+                                        Ok(delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths))
+                                    },
+                                ));
                             }
                         }
                     }
@@ -682,14 +679,16 @@ fn collect_stats(
             if let Some(annos) = annos {
                 count_annos(&mut count_map_bbox, BBOX_NAME, annos.cat_idxs());
             }
+            Ok(())
         };
         let f_brush = |tdm: &ToolsDataMap| {
             let annos = get_annos_from_tdm!(BRUSH_NAME, tdm, path_key, brush);
             if let Some(annos) = annos {
                 count_annos(&mut count_map_brush, BRUSH_NAME, annos.cat_idxs());
             }
+            Ok(())
         };
-        tool_choice.run(tdm, f_bbox, f_brush);
+        trace_ok_err(tool_choice.run(tdm, f_bbox, f_brush));
     }
     let li_bbox = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
     let li_brush = get_labelinfo_from_tdm!(BRUSH_NAME, tdm, brush);
