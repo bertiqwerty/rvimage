@@ -212,7 +212,7 @@ impl ToolChoice {
         mut f_bbox: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
         mut f_brush: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
     ) -> RvResult<()> {
-        Ok(match self {
+        match self {
             Self::Both => {
                 f_bbox(ui, tdm)?;
                 f_brush(ui, tdm)?;
@@ -220,7 +220,8 @@ impl ToolChoice {
             Self::Bbox => f_bbox(ui, tdm)?,
             Self::Brush => f_brush(ui, tdm)?,
             Self::None => (),
-        })
+        };
+        Ok(())
     }
     fn run<'a>(
         &self,
@@ -228,7 +229,7 @@ impl ToolChoice {
         mut f_bbox: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
         mut f_brush: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
     ) -> RvResult<()> {
-        Ok(match self {
+        match self {
             Self::Both => {
                 f_bbox(tdm)?;
                 f_brush(tdm)?;
@@ -236,7 +237,8 @@ impl ToolChoice {
             Self::Bbox => f_bbox(tdm)?,
             Self::Brush => f_brush(tdm)?,
             Self::None => (),
-        })
+        };
+        Ok(())
     }
 
     fn is_some(&self) -> bool {
@@ -555,8 +557,14 @@ fn annotations(
                                 trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
                                     tdm,
-                                    |_, tdm| Ok(propagate_annos_of_tool(tdm, BBOX_NAME, paths)),
-                                    |_, tdm| Ok(propagate_annos_of_tool(tdm, BRUSH_NAME, paths)),
+                                    |_, tdm| {
+                                        propagate_annos_of_tool(tdm, BBOX_NAME, paths);
+                                        Ok(())
+                                    },
+                                    |_, tdm| {
+                                        propagate_annos_of_tool(tdm, BRUSH_NAME, paths);
+                                        Ok(())
+                                    },
                                 ));
                             }
                         }
@@ -574,10 +582,12 @@ fn annotations(
                                     ui,
                                     tdm,
                                     |_, tdm| {
-                                        Ok(delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths))
+                                        delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths);
+                                        Ok(())
                                     },
                                     |_, tdm| {
-                                        Ok(delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths))
+                                        delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths);
+                                        Ok(())
                                     },
                                 ));
                             }
