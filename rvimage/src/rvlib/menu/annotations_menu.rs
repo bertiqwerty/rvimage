@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
 use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Widget};
-use rvimage_domain::{to_rv, RvResult};
+use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -53,24 +53,36 @@ where
     Ok(())
 }
 
-fn propagate_annos_of_tool(tdm: &mut ToolsDataMap, tool_name: &'static str, paths: &[&PathPair]) {
+fn propagate_annos_of_tool(
+    tdm: &mut ToolsDataMap,
+    tool_name: &'static str,
+    paths: &[&PathPair],
+) -> RvResult<()> {
     if let Some(data) = tdm.get_mut(tool_name) {
-        let _ = data.specifics.apply_mut(
+        data.specifics.apply_mut(
             |d| propagate_instance_annotations(&mut d.annotations_map, paths),
             |d| propagate_instance_annotations(&mut d.annotations_map, paths),
-        );
+        )
+    } else {
+        Err(rverr!(
+            "data of tool {tool_name} not found to propagate annotations"
+        ))
     }
 }
 fn delete_subsequent_annos_of_tool(
     tdm: &mut ToolsDataMap,
     tool_name: &'static str,
     paths: &[&PathPair],
-) {
+) -> RvResult<()> {
     if let Some(data) = tdm.get_mut(tool_name) {
-        let _ = data.specifics.apply_mut(
+        data.specifics.apply_mut(
             |d| delete_annotations(&mut d.annotations_map, paths),
             |d| delete_annotations(&mut d.annotations_map, paths),
-        );
+        )
+    } else {
+        Err(rverr!(
+            "data of tool {tool_name} not found to delete subsequent annotations"
+        ))
     }
 }
 
@@ -557,14 +569,8 @@ fn annotations(
                                 trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
                                     tdm,
-                                    |_, tdm| {
-                                        propagate_annos_of_tool(tdm, BBOX_NAME, paths);
-                                        Ok(())
-                                    },
-                                    |_, tdm| {
-                                        propagate_annos_of_tool(tdm, BRUSH_NAME, paths);
-                                        Ok(())
-                                    },
+                                    |_, tdm| propagate_annos_of_tool(tdm, BBOX_NAME, paths),
+                                    |_, tdm| propagate_annos_of_tool(tdm, BRUSH_NAME, paths),
                                 ));
                             }
                         }
@@ -581,13 +587,9 @@ fn annotations(
                                 trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
                                     tdm,
+                                    |_, tdm| delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths),
                                     |_, tdm| {
-                                        delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths);
-                                        Ok(())
-                                    },
-                                    |_, tdm| {
-                                        delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths);
-                                        Ok(())
+                                        delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths)
                                     },
                                 ));
                             }
