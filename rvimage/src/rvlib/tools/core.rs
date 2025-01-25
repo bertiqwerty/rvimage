@@ -255,7 +255,7 @@ where
     IA: InstanceAnnoAccess<T>,
 {
     let clipboard_data = IA::get_clipboard(&world).cloned();
-    let auto_paste = DA::get_core_options_mut(&mut world).map_or(false, |o| o.auto_paste);
+    let auto_paste = DA::get_core_options_mut(&mut world).is_some_and(|o| o.auto_paste);
     if world.data.meta_data.flags.is_loading_screen_active == Some(false) && auto_paste {
         history.push(Record::new(world.clone(), actor));
         replace_annotations_with_clipboard::<T, DA, IA>(
