@@ -235,22 +235,17 @@ impl ToolChoice {
         };
         Ok(())
     }
-    fn run<'a>(
-        &self,
+    fn run_name<'a>(
+        tool_name: &'static str,
         tdm: &'a ToolsDataMap,
         mut f_bbox: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
         mut f_brush: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
     ) -> RvResult<()> {
-        match self {
-            Self::Both => {
-                f_bbox(tdm)?;
-                f_brush(tdm)?;
-            }
-            Self::Bbox => f_bbox(tdm)?,
-            Self::Brush => f_brush(tdm)?,
-            Self::None => (),
-        };
-        Ok(())
+        match tool_name {
+            BBOX_NAME => f_bbox(tdm),
+            BRUSH_NAME => f_brush(tdm),
+            _ => Err(rverr!("cannot run. unknown tool {tool_name}")),
+        }
     }
 
     fn is_some(&self) -> bool {
@@ -603,7 +598,7 @@ fn annotations(
     Ok(())
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct AnnoStatsRecord {
     tool_name: &'static str,
     cat_name: String,
@@ -685,7 +680,7 @@ fn collect_stats(
     let files = get_all_files(tdm, filepaths, tool_choice, FilterRelation::Available)?;
     let mut count_map_bbox = HashMap::new();
     let mut count_map_brush = HashMap::new();
-    for (path_key, _) in &files {
+    for (path_key, tool_name) in &files {
         let f_bbox = |tdm: &ToolsDataMap| {
             let annos = get_annos_from_tdm!(BBOX_NAME, tdm, path_key, bbox);
             if let Some(annos) = annos {
@@ -700,7 +695,7 @@ fn collect_stats(
             }
             Ok(())
         };
-        trace_ok_err(tool_choice.run(tdm, f_bbox, f_brush));
+        trace_ok_err(ToolChoice::run_name(tool_name, tdm, f_bbox, f_brush));
     }
     let li_bbox = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
     let li_brush = get_labelinfo_from_tdm!(BRUSH_NAME, tdm, brush);
@@ -949,4 +944,28 @@ impl Widget for AutosaveMenu<'_> {
         }
         autosaves_btn_resp
     }
+}
+
+#[cfg(test)]
+use crate::test_helpers;
+
+#[test]
+fn test_counts() {
+    let tf = test_helpers::get_test_folder();
+    let test_file_src_1 = tf.join(tf.join("import-test-src-flowerlabel.json"));
+    let tdm = test_helpers::prj_load(file_util::path_to_str(&test_file_src_1).unwrap());
+    let filepath = PathPair::new(
+        "/Users/b/Desktop/tmp/flower.jpg".to_string(),
+        &test_file_src_1,
+    );
+    let records = collect_stats(&tdm, &[&filepath], ToolChoice::Both).unwrap();
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].count, 1);
+    assert_eq!(records[1].count, 1);
+    let records = collect_stats(&tdm, &[&filepath], ToolChoice::Bbox).unwrap();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].count, 1);
+    let records = collect_stats(&tdm, &[&filepath], ToolChoice::Brush).unwrap();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].count, 1);
 }

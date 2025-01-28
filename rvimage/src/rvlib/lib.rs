@@ -21,6 +21,7 @@ mod paths_selector;
 pub mod result;
 mod sort_params;
 mod ssh;
+pub mod test_helpers;
 mod threadpool;
 pub mod tools;
 mod tools_data;

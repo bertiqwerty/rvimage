@@ -1,83 +1,40 @@
 #[cfg(test)]
 use rvlib::{
-    control::Control,
-    defer_file_removal,
+    defer_file_removal, test_helpers,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
     tracing_setup::init_tracing_for_tests,
-    ToolsDataMap,
 };
 #[cfg(test)]
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    thread,
-    time::Duration,
-};
-
-#[cfg(test)]
-fn get_test_folder() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
-}
-
-#[cfg(test)]
-fn get_ctrl() -> Control {
-    let mut ctrl = Control::default();
-    ctrl.cfg.usr.home_folder = Some(ctrl.cfg.tmpdir().to_string());
-    ctrl
-}
-
-#[cfg(test)]
-fn tmp_copy(src: &Path) -> PathBuf {
-    let tmp_file_stem = src.file_stem().unwrap().to_str().unwrap();
-    let tmp_file = get_test_folder().join(format!("tmp-{tmp_file_stem}"));
-    tracing::debug!("Copying {src:?} to {tmp_file:?}");
-    fs::copy(src, &tmp_file).unwrap();
-    tmp_file
-}
-
-#[cfg(test)]
-fn prj_load(file: &str) -> ToolsDataMap {
-    init_tracing_for_tests();
-    let mut ctrl = get_ctrl();
-    let test_file_src = get_test_folder().join(get_test_folder().join(file));
-    let test_file = tmp_copy(&test_file_src);
-    defer_file_removal!(&test_file);
-    let mut tdm = ctrl.load(test_file.clone()).unwrap();
-    let pre_tdm = tdm.clone();
-    ctrl.import_annos(&test_file, &mut tdm).unwrap();
-    thread::sleep(Duration::from_millis(5));
-    assert_eq!(tdm, pre_tdm);
-    tdm
-}
+use std::{path::Path, thread, time::Duration};
 
 #[test]
 fn test_prj_v3_2() {
-    prj_load("rvprj_v3-2_test_dummy.json");
+    test_helpers::prj_load("rvprj_v3-2_test_dummy.json");
 }
 
 #[test]
 fn test_prj_v3_3() {
-    prj_load("rvprj_v3-3_test_dummy.rvi");
+    test_helpers::prj_load("rvprj_v3-3_test_dummy.rvi");
 }
 
 #[test]
 fn test_prj_v4_0() {
-    prj_load("rvprj_v4-0.json");
+    test_helpers::prj_load("rvprj_v4-0.json");
 }
 
 #[test]
 fn test_import() {
     init_tracing_for_tests();
     fn test(src1: &Path, src2: &Path, reference: &Path) {
-        let mut ctrl = get_ctrl();
-        let src1 = tmp_copy(&src1);
+        let mut ctrl = test_helpers::get_ctrl();
+        let src1 = test_helpers::tmp_copy(&src1);
         defer_file_removal!(&src1);
         let mut tdm_merged = ctrl.load(src1.clone()).unwrap();
         thread::sleep(Duration::from_millis(5));
         ctrl.import_annos(src2, &mut tdm_merged).unwrap();
         thread::sleep(Duration::from_millis(5));
 
-        let reference = tmp_copy(&reference);
+        let reference = test_helpers::tmp_copy(&reference);
         defer_file_removal!(&reference);
         let tdm_ref = ctrl.load(reference.clone()).unwrap();
         thread::sleep(Duration::from_millis(5));
@@ -123,11 +80,10 @@ fn test_import() {
             assert_eq!(*attr, attr_ref.attr_map(file).cloned().unwrap());
         }
     }
-    let test_file_src_1 =
-        get_test_folder().join(get_test_folder().join("import-test-src-flowerlabel.json"));
-    let test_file_src_2 =
-        get_test_folder().join(get_test_folder().join("import-test-src-treelabel.json"));
-    let test_file_src_ref = get_test_folder().join(get_test_folder().join("import-test.json"));
+    let tf = test_helpers::get_test_folder();
+    let test_file_src_1 = tf.join(tf.join("import-test-src-flowerlabel.json"));
+    let test_file_src_2 = tf.join(tf.join("import-test-src-treelabel.json"));
+    let test_file_src_ref = tf.join(tf.join("import-test.json"));
     test(&test_file_src_1, &test_file_src_2, &test_file_src_ref);
     test(&test_file_src_ref, &test_file_src_ref, &test_file_src_ref);
 }
