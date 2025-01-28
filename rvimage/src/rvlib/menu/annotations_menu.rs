@@ -235,7 +235,7 @@ impl ToolChoice {
         };
         Ok(())
     }
-    fn run_name<'a>(
+    fn run<'a>(
         tool_name: &'static str,
         tdm: &'a ToolsDataMap,
         mut f_bbox: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
@@ -695,7 +695,7 @@ fn collect_stats(
             }
             Ok(())
         };
-        trace_ok_err(ToolChoice::run_name(tool_name, tdm, f_bbox, f_brush));
+        trace_ok_err(ToolChoice::run(tool_name, tdm, f_bbox, f_brush));
     }
     let li_bbox = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
     let li_brush = get_labelinfo_from_tdm!(BRUSH_NAME, tdm, brush);
@@ -750,12 +750,11 @@ fn anno_stats(
                     .num_columns(4)
                     .show(ui, |ui| {
                         ui.label(RichText::new("tool").strong());
-                        ui.label(RichText::new("cat").strong())
-                            .on_hover_text("category, not the pet");
+                        ui.label(RichText::new("category").strong());
                         ui.label(RichText::new("count").strong());
                         ui.label(RichText::new("mean count").strong());
                         ui.label(RichText::new("# files").strong()).on_hover_text(
-                            "number of filtered files that contain or contained any annotations of the respective tool",
+                            "number of files in the filtered filelist that contain or contained any annotations of the respective tool",
                         );
                         for record in stats_compute_results.iter() {
                             ui.end_row();
