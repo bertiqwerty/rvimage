@@ -1,5 +1,4 @@
-use crate::cfg::{get_log_folder, Connection};
-use crate::defer_file_removal;
+use crate::cfg::{get_log_folder, Connection, ExportPath, ExportPathConnection, PyHttpReaderCfg};
 use crate::file_util::{
     osstr_to_str, to_stem_str, PathPair, SavedCfg, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME,
     DEFAULT_PRJ_PATH,
@@ -8,13 +7,16 @@ use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::tools_data::ToolsDataMap;
+use crate::tools::{BBOX_NAME, BRUSH_NAME};
+use crate::tools_data::{coco_io::read_coco, ToolsDataMap};
 use crate::world::{DataRaw, World};
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
+use crate::{defer_file_removal, get_specifics_mut_from_tdm};
 use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
+use egui::ahash::HashSet;
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -481,6 +483,48 @@ impl Control {
         self.import_settings(prj_path)?;
         Ok(())
     }
+    pub fn import_from_coco(
+        &mut self,
+        coco_path: &str,
+        tools_data_map: &mut ToolsDataMap,
+        connection: ExportPathConnection,
+    ) -> RvResult<()> {
+        tracing::info!("importing from coco {coco_path:?}");
+
+        let meta_data = self.meta_data(None, None);
+        let path = ExportPath {
+            path: Path::new(coco_path).to_path_buf(),
+            conn: connection,
+        };
+        let (bbox_tool_data, brush_tool_data) = read_coco(&meta_data, &path, None)?;
+        let server_addresses = bbox_tool_data
+            .annotations_map
+            .keys()
+            .chain(brush_tool_data.annotations_map.keys())
+            .filter(|k| k.starts_with("http://"))
+            .flat_map(|k| k.rsplitn(2, '/').last())
+            .collect::<HashSet<_>>();
+        if !server_addresses.is_empty() {
+            self.cfg.prj.connection = Connection::PyHttp;
+
+            let server_addresses = server_addresses
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+            self.cfg.prj.py_http_reader_cfg = Some(PyHttpReaderCfg { server_addresses });
+        }
+        let first_sa = server_addresses.iter().next().map(|s| s.to_string());
+        if let Some(sa) = first_sa {
+            self.open_relative_folder(sa.to_string())?;
+        }
+        if let Some(tdm) = get_specifics_mut_from_tdm!(BRUSH_NAME, tools_data_map, brush_mut) {
+            *tdm = brush_tool_data;
+        }
+        if let Some(tdm) = get_specifics_mut_from_tdm!(BBOX_NAME, tools_data_map, bbox_mut) {
+            *tdm = bbox_tool_data;
+        }
+        Ok(())
+    }
 
     fn set_current_prj_path(&mut self, prj_path: PathBuf) -> RvResult<()> {
         trace_ok_warn(detail::create_lock_file(&prj_path));
@@ -848,7 +892,6 @@ impl Control {
 use {
     crate::{
         file_util::DEFAULT_TMPDIR,
-        tools::BBOX_NAME,
         tools_data::{BboxToolData, ToolSpecifics, ToolsData},
     },
     rvimage_domain::{make_test_bbs, ShapeI},

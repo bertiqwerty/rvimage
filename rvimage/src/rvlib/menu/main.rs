@@ -1,6 +1,7 @@
 use crate::{
+    cfg::ExportPathConnection,
     control::{Control, Info},
-    file_util::get_prj_name,
+    file_util::{get_prj_name, path_to_str},
     image_reader::LoadImageForGui,
     menu::{
         self,
@@ -165,8 +166,9 @@ fn save_dialog_in_prjfolder(prj_path: &Path, opened_folder: Option<&str>) -> Opt
 #[derive(Default)]
 pub struct TextBuffers {
     pub filter_string: String,
-    pub label_propagation_buffer: String,
-    pub label_deletion_buffer: String,
+    pub label_propagation: String,
+    pub label_deletion: String,
+    pub import_coco_from_ssh_path: String,
 }
 
 pub struct Menu {
@@ -180,14 +182,16 @@ pub struct Menu {
     text_buffers: TextBuffers,
     show_file_idx: bool,
     annotations_menu_params: AnnotationsParams,
+    import_coco_from_ssh: bool,
 }
 
 impl Menu {
     fn new() -> Self {
         let text_buffers = TextBuffers {
             filter_string: "".to_string(),
-            label_propagation_buffer: "".to_string(),
-            label_deletion_buffer: "".to_string(),
+            label_propagation: "".to_string(),
+            label_deletion: "".to_string(),
+            import_coco_from_ssh_path: "path on ssh server".to_string(),
         };
         Self {
             window_open: true,
@@ -200,6 +204,7 @@ impl Menu {
             text_buffers,
             show_file_idx: true,
             annotations_menu_params: AnnotationsParams::default(),
+            import_coco_from_ssh: false,
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -333,6 +338,46 @@ impl Menu {
                             );
                         }
                         ui.close_menu();
+                    }
+                    ui.horizontal(|ui| {
+                        if ui.button("... Annotations from COCO file").clicked() {
+                            let prj_path = if !self.import_coco_from_ssh {
+                                rfd::FileDialog::new()
+                                    .set_title("Annotations from COCO file")
+                                    .add_filter("coco files", &["json"])
+                                    .pick_file()
+                                    .and_then(|p| path_to_str(&p).ok().map(|s| s.to_string()))
+                            } else {
+                                Some(self.text_buffers.import_coco_from_ssh_path.clone())
+                            };
+                            if let Some(prj_path) = prj_path {
+                                handle_error!(
+                                    |()| {
+                                        projected_loaded = true;
+                                    },
+                                    ctrl.import_from_coco(
+                                        &prj_path,
+                                        tools_data_map,
+                                        if self.import_coco_from_ssh {
+                                            ExportPathConnection::Ssh
+                                        } else {
+                                            ExportPathConnection::Local
+                                        }
+                                    ),
+                                    self
+                                );
+                            }
+                            ui.close_menu();
+                        }
+                        ui.checkbox(&mut self.import_coco_from_ssh, "ssh")
+                    });
+
+                    if self.import_coco_from_ssh {
+                        text_edit_singleline(
+                            ui,
+                            &mut self.text_buffers.import_coco_from_ssh_path,
+                            &mut self.are_tools_active,
+                        );
                     }
                 });
 

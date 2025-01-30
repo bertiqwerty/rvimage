@@ -86,8 +86,8 @@ impl ToolSpecifics {
 
     pub fn apply_mut<T>(
         &mut self,
-        mut f_bbox: impl FnMut(&mut BboxToolData) -> RvResult<T>,
-        mut f_brush: impl FnMut(&mut BrushToolData) -> RvResult<T>,
+        f_bbox: impl FnOnce(&mut BboxToolData) -> RvResult<T>,
+        f_brush: impl FnOnce(&mut BrushToolData) -> RvResult<T>,
     ) -> RvResult<T> {
         match self {
             Self::Bbox(bbox_data) => f_bbox(bbox_data),
@@ -97,8 +97,8 @@ impl ToolSpecifics {
     }
     pub fn apply<T>(
         &self,
-        mut f_bbox: impl FnMut(&BboxToolData) -> RvResult<T>,
-        mut f_brush: impl FnMut(&BrushToolData) -> RvResult<T>,
+        f_bbox: impl FnOnce(&BboxToolData) -> RvResult<T>,
+        f_brush: impl FnOnce(&BrushToolData) -> RvResult<T>,
     ) -> RvResult<T> {
         match self {
             Self::Bbox(bbox_data) => f_bbox(bbox_data),
@@ -229,10 +229,23 @@ macro_rules! toolsdata_by_name {
 pub type ToolsDataMap = HashMap<String, ToolsData>;
 
 #[macro_export]
-macro_rules! get_annos_from_tdm {
-    ($actor_name:expr, $tdm:expr, $current_file_path:expr, $access_func:ident) => {
+macro_rules! get_specifics_mut_from_tdm {
+    ($actor_name:expr, $tdm:expr, $access_func:ident) => {
+        $tdm.get_mut($actor_name)
+            .and_then(|x| x.specifics.$access_func().ok())
+    };
+}
+#[macro_export]
+macro_rules! get_specifics_from_tdm {
+    ($actor_name:expr, $tdm:expr, $access_func:ident) => {
         $tdm.get($actor_name)
             .and_then(|x| x.specifics.$access_func().ok())
+    };
+}
+#[macro_export]
+macro_rules! get_annos_from_tdm {
+    ($actor_name:expr, $tdm:expr, $current_file_path:expr, $access_func:ident) => {
+        $crate::get_specifics_from_tdm!($actor_name, $tdm, $access_func)
             .and_then(|d| d.get_annos($current_file_path))
     };
 }
@@ -240,8 +253,6 @@ macro_rules! get_annos_from_tdm {
 #[macro_export]
 macro_rules! get_labelinfo_from_tdm {
     ($actor_name:expr, $tdm:expr,  $access_func:ident) => {
-        $tdm.get($actor_name)
-            .and_then(|x| x.specifics.$access_func().ok())
-            .map(|d| d.label_info())
+        $crate::get_specifics_from_tdm!($actor_name, $tdm, $access_func).map(|d| d.label_info())
     };
 }

@@ -535,7 +535,7 @@ fn annotations(
                 .show(ui, |ui| {
                     let n_prop: Option<usize> = ui_util::button_triggerable_number(
                         ui,
-                        &mut params.text_buffers.label_propagation_buffer,
+                        &mut params.text_buffers.label_propagation,
                         are_tools_active,
                         "propagate labels",
                         "number of following images to propagate label to",
@@ -544,7 +544,7 @@ fn annotations(
                     ui.end_row();
                     let n_del: Option<usize> = ui_util::button_triggerable_number(
                         ui,
-                        &mut params.text_buffers.label_deletion_buffer,
+                        &mut params.text_buffers.label_deletion,
                         are_tools_active,
                         "delete labels",
                         "number of following images to delete label from",
