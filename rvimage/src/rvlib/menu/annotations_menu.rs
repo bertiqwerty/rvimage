@@ -119,9 +119,9 @@ fn ancestor(path: &String, depth: u8) -> &Path {
 #[derive(Clone, Copy, Default)]
 pub enum FilterRelation {
     // files that are contained in the list of filtered files
+    #[default]
     Available,
     // files that are NOT contained the list of filtered files
-    #[default]
     Missing,
 }
 impl FilterRelation {
@@ -142,13 +142,14 @@ impl FilterRelation {
     }
 }
 
+/// Returns an iterator over filename, toolname, number of annotations in file
 fn iter_files_of_tool<'a, T>(
     tdm: &'a ToolsDataMap,
     filepaths: &'a [&PathPair],
     tool_name: &'static str,
     unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
     filter_relation: FilterRelation,
-) -> RvResult<Option<impl Iterator<Item = (&'a str, &'static str)> + 'a>>
+) -> RvResult<Option<impl Iterator<Item = (&'a str, &'static str, usize)> + 'a>>
 where
     T: InstanceAnnotate + 'a,
 {
@@ -156,9 +157,9 @@ where
         let datamap = unwrap_specifics(&tdm[tool_name].specifics)?;
         Ok(Some(
             datamap
-                .keys()
-                .filter(move |k| filter_relation.apply(filepaths, k))
-                .map(move |k| (k.as_str(), tool_name)),
+                .iter()
+                .filter(move |(k, _)| filter_relation.apply(filepaths, k))
+                .map(move |(k, (annos, _))| (k.as_str(), tool_name, annos.len())),
         ))
     } else {
         Ok(None)
@@ -170,7 +171,7 @@ fn collect_files_of_tool<'a, T>(
     tool_name: &'static str,
     unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
     filter_relation: FilterRelation,
-) -> RvResult<Vec<(&'a str, &'static str)>>
+) -> RvResult<Vec<(&'a str, &'static str, usize)>>
 where
     T: InstanceAnnotate + 'a,
 {
@@ -258,7 +259,7 @@ fn get_all_files<'a>(
     filepaths: &'a [&PathPair],
     absent_file_tool_choice: ToolChoice,
     filter_relation: FilterRelation,
-) -> RvResult<Vec<(&'a str, &'static str)>> {
+) -> RvResult<Vec<(&'a str, &'static str, usize)>> {
     Ok(match absent_file_tool_choice {
         ToolChoice::Both => {
             let mut all_absent_files = collect_files_of_tool(
@@ -391,12 +392,12 @@ fn filter_relations_menu(
     filter_relation: FilterRelation,
 ) -> FilterRelation {
     ui.heading(heading);
-    let mut tmp_filtered = matches!(filter_relation, FilterRelation::Available);
-    ui.checkbox(&mut tmp_filtered, "Delete Annotations of Available Files");
-    if tmp_filtered {
-        FilterRelation::Available
-    } else {
+    let mut is_missing = matches!(filter_relation, FilterRelation::Missing);
+    ui.checkbox(&mut is_missing, "Delete annotations of missing files");
+    if is_missing {
         FilterRelation::Missing
+    } else {
+        FilterRelation::Available
     }
 }
 
@@ -459,8 +460,8 @@ fn annotations(
             params.filter_relation_deletion,
         );
         let txt = params.filter_relation_deletion.select(
-            "Log annotations of files in the file list",
-            "Log annotations of files not in the file list",
+            "Log names of files in the file list that contain annotations",
+            "Log names of files not in the file list that contain annotations",
         );
         if ui.button(txt).clicked() {
             let filepaths = paths_navigator
@@ -477,8 +478,8 @@ fn annotations(
                 if absent_files.is_empty() {
                     tracing::info!("no relevant files with annotations found");
                 }
-                for (af, tool_name) in absent_files {
-                    tracing::info!("file {af} has {tool_name} annotations");
+                for (af, tool_name, count) in absent_files {
+                    tracing::info!("file {af} has {count} {tool_name} annotations");
                 }
             }
         }
@@ -504,7 +505,7 @@ fn annotations(
                 )?;
                 let absent_files = absent_files
                     .into_iter()
-                    .map(|(af, tn)| (af.to_string(), tn))
+                    .map(|(af, tn, _)| (af.to_string(), tn))
                     .collect::<Vec<_>>();
                 if absent_files.is_empty() {
                     tracing::info!("no missing annotations to delete")
@@ -680,7 +681,7 @@ fn collect_stats(
     let files = get_all_files(tdm, filepaths, tool_choice, FilterRelation::Available)?;
     let mut count_map_bbox = HashMap::new();
     let mut count_map_brush = HashMap::new();
-    for (path_key, tool_name) in &files {
+    for (path_key, tool_name, _) in &files {
         let f_bbox = |tdm: &ToolsDataMap| {
             let annos = get_annos_from_tdm!(BBOX_NAME, tdm, path_key, bbox);
             if let Some(annos) = annos {
