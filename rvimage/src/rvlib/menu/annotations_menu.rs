@@ -475,7 +475,7 @@ fn annotations(
                 )?;
 
                 if absent_files.is_empty() {
-                    tracing::info!("relevant files with annotations found");
+                    tracing::info!("no relevant files with annotations found");
                 }
                 for (af, tool_name) in absent_files {
                     tracing::info!("file {af} has {tool_name} annotations");
