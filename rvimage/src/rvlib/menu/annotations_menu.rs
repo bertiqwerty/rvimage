@@ -528,7 +528,7 @@ fn annotations(
             }
         }
         ui.separator();
-        ui.heading("Propagate to or Delete annotations from Subsequent Images");
+        ui.heading("Propagate to or Delete Annotations from Subsequent Images");
 
         if let Some(selected_file_idx) = paths_navigator.file_label_selected_idx() {
             egui::Grid::new("del-prop-grid")
