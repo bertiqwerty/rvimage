@@ -461,7 +461,7 @@ fn annotations(
         );
         let txt = params.filter_relation_deletion.select(
             "Log names of files in the file list that contain annotations",
-            "Log names of files not in the file list that contain annotations",
+            "Log names of files missing from the file list that contain annotations",
         );
         if ui.button(txt).clicked() {
             let filepaths = paths_navigator
@@ -485,7 +485,7 @@ fn annotations(
         }
         let txt = params.filter_relation_deletion.select(
             "Delete annotations of files in the file list",
-            "Delete annotations of files not in the file list",
+            "Delete annotations of files missing from the file list",
         );
 
         if ui
