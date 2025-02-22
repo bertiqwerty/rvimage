@@ -46,7 +46,7 @@ eframe = { version = "0.31.0", default-features = false, features = [
     "wayland",
 ] }
 futures = { version = "0.3.31", optional = true }
-httparse = "1.9.5"
+httparse = "1.10.0"
 image = "0.25.5"
 imageproc = "0.25.0"
 lazy_static = "1.5.0"
@@ -58,15 +58,15 @@ reqwest = { version = "0.12.12", features = ["blocking", "json"] }
 rfd = "0.15.2"
 rusttype = "0.9.3"
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.135"
-ssh2 = { version = "0.9.4", features = [
+serde_json = "1.0.138"
+ssh2 = { version = "0.9.5", features = [
     "vendored-openssl",
     "openssl-on-win32",
 ] }
-toml = "0.8.19"
+toml = "0.8.20"
 walkdir = "2.5.0"
 tokio = { version = "1.43.0", optional = true, features = ["rt-multi-thread"] }
-uuid = { version = "1.12.0", features = ["v4", "fast-rng"] }
+uuid = { version = "1.13.1", features = ["v4", "fast-rng"] }
 exmex = "0.20.3"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
@@ -74,7 +74,7 @@ tracing-appender = "0.2.3"
 backtrace = "0.3.74"
 zip = "2.2.2"
 rvimage-domain = "0.4.8"
-clap = { version = "4.5.26", features = ["derive"] }
+clap = { version = "4.5.29", features = ["derive"] }
 chrono = { version = "0.4.39", default-features = false, features = [
     "std",
     "clock",
