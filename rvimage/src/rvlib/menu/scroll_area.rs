@@ -1,4 +1,4 @@
-use egui::{Align, Pos2, Rect, RichText, Ui};
+use egui::{Align, OutputCommand, Pos2, Rect, RichText, Ui};
 
 use crate::paths_selector::PathsSelector;
 
@@ -49,7 +49,6 @@ pub fn scroll_area_file_selector(
                 } else {
                     sl_.on_hover_text(path.path_absolute())
                 };
-
                 if scroll_to_selected_label {
                     sl_.scroll_to_me(Some(Align::Center));
                 }
@@ -63,7 +62,10 @@ pub fn scroll_area_file_selector(
         if sl.clicked_by(egui::PointerButton::Secondary) {
             // copy to clipboard
             if let Some(fsp) = paths_selector.file_selected_path(filtered_label_idx) {
-                ui.output_mut(|po| po.copied_text = fsp.path_absolute().to_string());
+                ui.output_mut(|po| {
+                    po.commands
+                        .push(OutputCommand::CopyText(fsp.path_absolute().to_string()));
+                });
             }
         }
         if sl.clicked() {

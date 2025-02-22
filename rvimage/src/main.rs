@@ -8,8 +8,9 @@ use clap::Parser;
 
 use egui::{
     epaint::{CircleShape, PathShape, RectShape},
-    Color32, Context, IconData, Pos2, Rect, Response, Rounding, Sense, Shape, Stroke, Style,
-    TextureHandle, TextureOptions, Ui, Vec2, ViewportBuilder, ViewportCommand, Visuals,
+    Color32, Context, CornerRadius, IconData, Pos2, Rect, Response, Sense, Shape, Stroke,
+    StrokeKind, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportBuilder, ViewportCommand,
+    Visuals,
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
@@ -261,9 +262,10 @@ impl RvImageApp {
                     self.orig_pos_2_egui_rect(bb.max(), image_rect.min, image_rect.size());
                 draw_vec.push(Shape::Rect(RectShape::new(
                     Rect::from_min_max(bb_min_rect, bb_max_rect),
-                    Rounding::ZERO,
+                    CornerRadius::ZERO,
                     fill_rgb,
                     stroke,
+                    StrokeKind::Inside,
                 )));
             }
             GeoFig::Poly(poly) => {
