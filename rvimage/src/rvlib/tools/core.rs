@@ -29,7 +29,7 @@ pub(super) fn insert_attribute(
     filepath: Option<&str>,
 ) -> World {
     let mut old_attr_name = String::new();
-    let mut old_attr_type = AttrVal::Bool(false);
+    let mut old_attr_val = AttrVal::Bool(false);
 
     if let Ok(attr_data) = world::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing") {
         // does the new attribute already exist?
@@ -50,7 +50,7 @@ pub(super) fn insert_attribute(
                 removal_idx: None,
             };
             old_attr_name.clone_from(&d.new_attr_name);
-            old_attr_type.clone_from(&d.new_attr_val);
+            old_attr_val.clone_from(&d.new_attr_val);
             d.new_attr_name = name.to_string();
             d.new_attr_val = default_value;
             d.options = attr_options;
@@ -90,7 +90,7 @@ pub(super) fn insert_attribute(
         // reset the state of the attribute data
         trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
             d.new_attr_name = old_attr_name;
-            d.new_attr_val = old_attr_type;
+            d.new_attr_val = old_attr_val;
         }));
     }
 

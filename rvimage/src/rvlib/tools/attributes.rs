@@ -35,9 +35,9 @@ fn file_change(mut world: World) -> World {
     let data = get_specific_mut(&mut world);
 
     if let (Some(data), Some(mut annos)) = (data, annos) {
-        for (attr_name, attr_type) in data.attr_names().iter().zip(data.attr_types().iter()) {
+        for (attr_name, attr_val) in data.attr_names().iter().zip(data.attr_vals().iter()) {
             if !annos.contains_key(attr_name) {
-                set_attrmap_val(&mut annos, attr_name, attr_type);
+                set_attrmap_val(&mut annos, attr_name, attr_val);
             }
         }
         let attr_buffers: Vec<String> = data

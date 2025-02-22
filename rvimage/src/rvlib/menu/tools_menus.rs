@@ -18,7 +18,7 @@ use crate::{
 };
 use egui::Ui;
 use rvimage_domain::TPtF;
-use rvimage_domain::{to_rv, RvResult, TPtS};
+use rvimage_domain::{to_rv, RvResult};
 use tracing::{info, warn};
 
 use super::ui_util::{slider, text_edit_singleline};
@@ -487,16 +487,8 @@ pub fn attributes_menu(
                 }
             ))
             .show_ui(ui, |ui| {
-                ui.selectable_value(
-                    &mut data.new_attr_val,
-                    AttrVal::Float(TPtF::default()),
-                    FLOAT_LABEL,
-                );
-                ui.selectable_value(
-                    &mut data.new_attr_val,
-                    AttrVal::Int(TPtS::default()),
-                    INT_LABEL,
-                );
+                ui.selectable_value(&mut data.new_attr_val, AttrVal::Float(None), FLOAT_LABEL);
+                ui.selectable_value(&mut data.new_attr_val, AttrVal::Int(None), INT_LABEL);
                 ui.selectable_value(
                     &mut data.new_attr_val,
                     AttrVal::Str(String::new()),
@@ -541,7 +533,7 @@ pub fn attributes_menu(
                                 &mut new_attr_buffer,
                             );
                             if let Some(new_val) = new_val {
-                                *x = new_val;
+                                *x = Some(new_val);
                             }
                             if input_changed {
                                 data.options.is_update_triggered = true;
@@ -555,7 +547,7 @@ pub fn attributes_menu(
                                 &mut new_attr_buffer,
                             );
                             if let Some(new_val) = new_val {
-                                *x = new_val;
+                                *x = Some(new_val);
                             }
                             if lost_focus {
                                 data.options.is_update_triggered = true;

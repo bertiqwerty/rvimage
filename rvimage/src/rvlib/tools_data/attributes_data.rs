@@ -25,21 +25,29 @@ pub const ATTR_INTERVAL_SEPARATOR: &str = "-";
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum AttrVal {
-    Float(TPtF),
-    Int(TPtS),
+    Float(Option<TPtF>),
+    Int(Option<TPtS>),
     Str(String),
     Bool(bool),
 }
 
 impl AttrVal {
     pub fn in_domain_str(&self, domain_str: &str) -> RvResult<bool> {
-        println!("domain_str: {domain_str}");
         let mut min_max_str_it = domain_str.trim().split(ATTR_INTERVAL_SEPARATOR);
         let min_str = min_max_str_it.next().ok_or(rverr!("min not found"))?;
         let max_str = min_max_str_it.next().ok_or(rverr!("max not found"))?;
+        macro_rules! unwrap_check {
+            ($x:expr) => {
+                if let Some(x) = $x {
+                    interval_check(*x, min_str, max_str)?
+                } else {
+                    false
+                }
+            };
+        }
         Ok(match self {
-            AttrVal::Float(x) => interval_check(*x, min_str, max_str)?,
-            AttrVal::Int(x) => interval_check(*x, min_str, max_str)?,
+            AttrVal::Float(x) => unwrap_check!(x),
+            AttrVal::Int(x) => unwrap_check!(x),
             _ => Err(rverr!(
                 "in_domain_str not implemented for the type of {self}"
             ))?,
@@ -54,11 +62,11 @@ impl AttrVal {
             }
             AttrVal::Float(x) => {
                 let attr_val = attr_val.parse::<TPtF>().map_err(to_rv)?;
-                x == &attr_val
+                x == &Some(attr_val)
             }
             AttrVal::Int(x) => {
                 let attr_val = attr_val.parse::<TPtS>().map_err(to_rv)?;
-                x == &attr_val
+                x == &Some(attr_val)
             }
             AttrVal::Str(s) => {
                 let attr_val = attr_val.parse::<String>().map_err(to_rv)?;
@@ -71,8 +79,8 @@ impl AttrVal {
 impl Display for AttrVal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AttrVal::Float(val) => write!(f, "{val}"),
-            AttrVal::Int(val) => write!(f, "{val}"),
+            AttrVal::Float(val) => val.map(|val| write!(f, "{val}")).unwrap_or(write!(f, "")),
+            AttrVal::Int(val) => val.map(|val| write!(f, "{val}")).unwrap_or(write!(f, "")),
             AttrVal::Str(val) => write!(f, "{val}"),
             AttrVal::Bool(val) => write!(f, "{val}"),
         }
@@ -80,7 +88,7 @@ impl Display for AttrVal {
 }
 impl Default for AttrVal {
     fn default() -> Self {
-        AttrVal::Int(0)
+        AttrVal::Int(None)
     }
 }
 
@@ -109,9 +117,9 @@ pub struct AttributesToolData {
     attr_names: Vec<String>,
     #[serde(alias = "attr_types")]
     attr_vals: Vec<AttrVal>,
-    #[serde(alias = "new_attr")]
+    #[serde(skip)]
     pub new_attr_name: String,
-    #[serde(alias = "new_attr_type")]
+    #[serde(skip)]
     pub new_attr_val: AttrVal,
     #[serde(alias = "new_attr_buffers")]
     new_attr_name_buffers: Vec<String>,
@@ -183,7 +191,7 @@ impl AttributesToolData {
     pub fn attr_names(&self) -> &Vec<String> {
         &self.attr_names
     }
-    pub fn attr_types(&self) -> &Vec<AttrVal> {
+    pub fn attr_vals(&self) -> &Vec<AttrVal> {
         &self.attr_vals
     }
     pub fn attr_buffer_mut(&mut self, idx: usize) -> &mut String {
