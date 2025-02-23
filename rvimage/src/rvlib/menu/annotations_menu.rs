@@ -191,32 +191,18 @@ where
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
-pub enum ToolChoice {
-    Bbox,
-    Brush,
-    Both,
-    #[default]
-    None,
+pub struct ToolChoice {
+    pub brush: bool,
+    pub bbox: bool,
 }
 
 impl ToolChoice {
     fn ui(&mut self, ui: &mut Ui) {
-        let mut bbox_checked = matches!(self, Self::Bbox) || matches!(self, Self::Both);
-        let mut brush_checked = matches!(self, Self::Brush) || matches!(self, Self::Both);
         ui.label("Select tool who's annotations you are interested in");
         ui.horizontal(|ui| {
-            ui.checkbox(&mut bbox_checked, BBOX_NAME);
-            ui.checkbox(&mut brush_checked, BRUSH_NAME);
+            ui.checkbox(&mut self.bbox, BBOX_NAME);
+            ui.checkbox(&mut self.brush, BRUSH_NAME);
         });
-        if bbox_checked && brush_checked {
-            *self = Self::Both;
-        } else if bbox_checked {
-            *self = Self::Bbox;
-        } else if brush_checked {
-            *self = Self::Brush;
-        } else {
-            *self = Self::None;
-        }
     }
     fn run_mut(
         &self,
@@ -225,15 +211,12 @@ impl ToolChoice {
         mut f_bbox: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
         mut f_brush: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
     ) -> RvResult<()> {
-        match self {
-            Self::Both => {
-                f_bbox(ui, tdm)?;
-                f_brush(ui, tdm)?;
-            }
-            Self::Bbox => f_bbox(ui, tdm)?,
-            Self::Brush => f_brush(ui, tdm)?,
-            Self::None => (),
-        };
+        if self.bbox {
+            f_bbox(ui, tdm)?;
+        }
+        if self.brush {
+            f_brush(ui, tdm)?;
+        }
         Ok(())
     }
     fn run<'a>(
@@ -250,7 +233,7 @@ impl ToolChoice {
     }
 
     fn is_some(&self) -> bool {
-        !matches!(self, Self::None)
+        self.bbox || self.brush
     }
 }
 
@@ -260,41 +243,28 @@ fn get_all_files<'a>(
     absent_file_tool_choice: ToolChoice,
     filter_relation: FilterRelation,
 ) -> RvResult<Vec<(&'a str, &'static str, usize)>> {
-    Ok(match absent_file_tool_choice {
-        ToolChoice::Both => {
-            let mut all_absent_files = collect_files_of_tool(
-                tdm,
-                filepaths,
-                BBOX_NAME,
-                |ts| ts.bbox().map(|d| &d.annotations_map),
-                filter_relation,
-            )?;
-            let mut all_absent_files_brush = collect_files_of_tool(
-                tdm,
-                filepaths,
-                BRUSH_NAME,
-                |ts| ts.brush().map(|d| &d.annotations_map),
-                filter_relation,
-            )?;
-            all_absent_files.append(&mut all_absent_files_brush);
-            all_absent_files
-        }
-        ToolChoice::Bbox => collect_files_of_tool(
+    let mut all_absent_files = vec![];
+    if absent_file_tool_choice.bbox {
+        let mut all_absent_files_bbox = collect_files_of_tool(
             tdm,
             filepaths,
             BBOX_NAME,
             |ts| ts.bbox().map(|d| &d.annotations_map),
             filter_relation,
-        )?,
-        ToolChoice::Brush => collect_files_of_tool(
+        )?;
+        all_absent_files.append(&mut all_absent_files_bbox);
+    }
+    if absent_file_tool_choice.brush {
+        let mut all_absent_files_brush = collect_files_of_tool(
             tdm,
             filepaths,
             BRUSH_NAME,
             |ts| ts.brush().map(|d| &d.annotations_map),
             filter_relation,
-        )?,
-        ToolChoice::None => vec![],
-    })
+        )?;
+        all_absent_files.append(&mut all_absent_files_brush);
+    }
+    Ok(all_absent_files)
 }
 
 fn tdm_instance_annos<T>(
@@ -737,7 +707,7 @@ fn anno_stats(
     paths_selector: Option<&PathsSelector>,
 ) -> RvResult<()> {
     let filepaths = paths_selector.map(|ps| ps.filtered_file_paths());
-    if tool_choice == ToolChoice::None {
+    if !tool_choice.is_some() {
         *stats_compute_results = None;
     } else {
         if ui.button("(Re-)compute stats of filtered files").clicked() {
@@ -958,14 +928,38 @@ fn test_counts() {
         "/Users/b/Desktop/tmp/flower.jpg".to_string(),
         &test_file_src_1,
     );
-    let records = collect_stats(&tdm, &[&filepath], ToolChoice::Both).unwrap();
+    let records = collect_stats(
+        &tdm,
+        &[&filepath],
+        ToolChoice {
+            bbox: true,
+            brush: true,
+        },
+    )
+    .unwrap();
     assert_eq!(records.len(), 2);
     assert_eq!(records[0].count, 1);
     assert_eq!(records[1].count, 1);
-    let records = collect_stats(&tdm, &[&filepath], ToolChoice::Bbox).unwrap();
+    let records = collect_stats(
+        &tdm,
+        &[&filepath],
+        ToolChoice {
+            bbox: true,
+            brush: false,
+        },
+    )
+    .unwrap();
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].count, 1);
-    let records = collect_stats(&tdm, &[&filepath], ToolChoice::Brush).unwrap();
+    let records = collect_stats(
+        &tdm,
+        &[&filepath],
+        ToolChoice {
+            bbox: false,
+            brush: true,
+        },
+    )
+    .unwrap();
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].count, 1);
 }
