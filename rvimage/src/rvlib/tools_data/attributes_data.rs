@@ -121,8 +121,13 @@ pub struct AttributesToolData {
     pub new_attr_name: String,
     #[serde(skip)]
     pub new_attr_val: AttrVal,
+
+    // attribute index and value for propagation
+    #[serde(skip)]
+    pub to_propagate_attr_val: Vec<(usize, AttrVal)>,
+
     #[serde(alias = "new_attr_buffers")]
-    new_attr_name_buffers: Vec<String>,
+    new_attr_value_buffers: Vec<String>,
     // maps the filename to the number of rotations
     annotations_map: AttrAnnotationsMap,
     pub options: Options,
@@ -177,7 +182,7 @@ impl AttributesToolData {
         if !self.attr_names.contains(&attr_name) {
             self.attr_names.push(attr_name);
             self.attr_vals.push(attr_val);
-            self.new_attr_name_buffers.push(String::new());
+            self.new_attr_value_buffers.push(String::new());
         }
     }
     pub fn remove_attr(&mut self, idx: usize) {
@@ -186,7 +191,7 @@ impl AttributesToolData {
         }
         self.attr_names.remove(idx);
         self.attr_vals.remove(idx);
-        self.new_attr_name_buffers.remove(idx);
+        self.new_attr_value_buffers.remove(idx);
     }
     pub fn attr_names(&self) -> &Vec<String> {
         &self.attr_names
@@ -194,8 +199,8 @@ impl AttributesToolData {
     pub fn attr_vals(&self) -> &Vec<AttrVal> {
         &self.attr_vals
     }
-    pub fn attr_buffer_mut(&mut self, idx: usize) -> &mut String {
-        &mut self.new_attr_name_buffers[idx]
+    pub fn attr_value_buffer_mut(&mut self, idx: usize) -> &mut String {
+        &mut self.new_attr_value_buffers[idx]
     }
     pub fn serialize_annotations(&self, key_filter: Option<&str>) -> RvResult<String> {
         if let Some(kf) = key_filter {

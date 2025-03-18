@@ -513,20 +513,21 @@ pub fn attributes_menu(
         .num_columns(4)
         .show(ui, |ui| {
             let n_rows = data.attr_names().len();
-            let to_be_removed = removable_rows(ui, n_rows, |ui, idx| {
-                let attr_name = data.attr_names()[idx].clone();
-                let mut new_attr_buffer = mem::take(data.attr_buffer_mut(idx));
+            let to_be_removed = removable_rows(ui, n_rows, |ui, idx_row| {
+                let attr_name = data.attr_names()[idx_row].clone();
+                let mut new_attr_buffer = mem::take(data.attr_value_buffer_mut(idx_row));
                 ui.label(&attr_name);
                 let attr_map = &mut data.current_attr_map;
+                let mut input_changed = false;
                 if let Some(attr_map) = attr_map {
                     match attr_map.get_mut(&attr_name) {
                         Some(AttrVal::Bool(b)) => {
                             if ui.checkbox(b, "").changed() {
-                                data.options.is_update_triggered = true;
+                                input_changed = true;
                             }
                         }
                         Some(AttrVal::Float(x)) => {
-                            let (input_changed, new_val) = process_number(
+                            let (input_changed_, new_val) = process_number(
                                 ui,
                                 are_tools_active,
                                 FLOAT_LABEL,
@@ -535,9 +536,7 @@ pub fn attributes_menu(
                             if let Some(new_val) = new_val {
                                 *x = Some(new_val);
                             }
-                            if input_changed {
-                                data.options.is_update_triggered = true;
-                            }
+                            input_changed = input_changed_;
                         }
                         Some(AttrVal::Int(x)) => {
                             let (lost_focus, new_val) = process_number(
@@ -550,7 +549,7 @@ pub fn attributes_menu(
                                 *x = Some(new_val);
                             }
                             if lost_focus {
-                                data.options.is_update_triggered = true;
+                                input_changed = true;
                             }
                         }
                         Some(AttrVal::Str(s)) => {
@@ -558,17 +557,43 @@ pub fn attributes_menu(
                                 .on_hover_text(TEXT_LABEL)
                                 .lost_focus();
                             if lost_focus {
-                                data.options.is_update_triggered = true;
+                                input_changed = true;
                             }
                         }
                         None => {
                             warn!("attr_map does not contain {attr_name}");
                         }
                     }
+                    if input_changed {
+                        data.to_propagate_attr_val
+                            .retain(|(idx_attr, _)| *idx_attr != idx_row);
+                        data.options.is_update_triggered = true;
+                    }
+
+                    let checked = data
+                        .to_propagate_attr_val
+                        .iter()
+                        .any(|(idx_attr, _)| *idx_attr == idx_row);
+
+                    if ui
+                        .selectable_label(checked, "propagate")
+                        .on_hover_text("propaget attribute value to next opened image")
+                        .clicked()
+                    {
+                        if checked {
+                            data.to_propagate_attr_val
+                                .retain(|(idx_attr, _)| *idx_attr != idx_row);
+                            
+                        } else {
+                            data.to_propagate_attr_val
+                                .push((idx_row, attr_map[&attr_name].clone()));
+                        }
+                    }
+                    *data.attr_value_buffer_mut(idx_row) = new_attr_buffer;
                 }
-                *data.attr_buffer_mut(idx) = new_attr_buffer;
+
                 if ui.button("rename").clicked() {
-                    data.options.rename_src_idx = Some(idx);
+                    data.options.rename_src_idx = Some(idx_row);
                     data.options.is_update_triggered = true;
                 }
                 ui.end_row();

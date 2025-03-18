@@ -10,7 +10,7 @@ use crate::{
     result::trace_ok_err,
     tools_data::{
         self,
-        attributes_data::{self, set_attrmap_val, AttrMap},
+        attributes_data::{self, set_attrmap_val, AttrMap, AttrVal},
     },
     tools_data_accessors,
     world::World,
@@ -30,6 +30,28 @@ tools_data_accessors!(
     attributes_mut
 );
 
+fn propagate_annos(
+    mut annos: AttrMap,
+    attr_names: &[String],
+    to_propagate: &[(usize, AttrVal)],
+) -> AttrMap {
+    for (attr_idx, val) in to_propagate {
+        if let Some(attr_val) = annos.get_mut(&attr_names[*attr_idx]) {
+            *attr_val = val.clone();
+        }
+    }
+    annos
+}
+
+fn propagate_buffer(
+    mut attribute_buffer: Vec<String>,
+    to_propagate: &[(usize, AttrVal)],
+) -> Vec<String> {
+    for (attr_idx, val) in to_propagate {
+        attribute_buffer[*attr_idx] = val.to_string();
+    }
+    attribute_buffer
+}
 fn file_change(mut world: World) -> World {
     let annos = get_annos_mut(&mut world).map(mem::take);
     let data = get_specific_mut(&mut world);
@@ -40,14 +62,20 @@ fn file_change(mut world: World) -> World {
                 set_attrmap_val(&mut annos, attr_name, attr_val);
             }
         }
+
+        // put string representations of the attribute values into the buffer
         let attr_buffers: Vec<String> = data
             .attr_names()
             .iter()
             .map(|attr_name| annos.get(attr_name).unwrap().to_string())
             .collect();
+        let attr_buffers = propagate_buffer(attr_buffers, &data.to_propagate_attr_val);
         for (i, buffer) in attr_buffers.into_iter().enumerate() {
-            *data.attr_buffer_mut(i) = buffer;
+            *data.attr_value_buffer_mut(i) = buffer;
         }
+
+        annos = propagate_annos(annos, data.attr_names(), &data.to_propagate_attr_val);
+
         if let Some(annos_) = get_annos_mut(&mut world) {
             *annos_ = annos;
         }
