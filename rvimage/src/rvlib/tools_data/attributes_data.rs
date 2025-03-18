@@ -127,6 +127,7 @@ pub struct AttributesToolData {
     pub to_propagate_attr_val: Vec<(usize, AttrVal)>,
 
     #[serde(alias = "new_attr_buffers")]
+    #[serde(alias = "new_attr_name_buffers")]
     new_attr_value_buffers: Vec<String>,
     // maps the filename to the number of rotations
     annotations_map: AttrAnnotationsMap,
