@@ -583,7 +583,6 @@ pub fn attributes_menu(
                         if checked {
                             data.to_propagate_attr_val
                                 .retain(|(idx_attr, _)| *idx_attr != idx_row);
-                            
                         } else {
                             data.to_propagate_attr_val
                                 .push((idx_row, attr_map[&attr_name].clone()));
