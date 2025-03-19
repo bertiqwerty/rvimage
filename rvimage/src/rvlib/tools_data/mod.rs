@@ -88,10 +88,12 @@ impl ToolSpecifics {
         &mut self,
         f_bbox: impl FnOnce(&mut BboxToolData) -> RvResult<T>,
         f_brush: impl FnOnce(&mut BrushToolData) -> RvResult<T>,
+        f_attr: impl FnOnce(&mut AttributesToolData) -> RvResult<T>,
     ) -> RvResult<T> {
         match self {
             Self::Bbox(bbox_data) => f_bbox(bbox_data),
             Self::Brush(brush_data) => f_brush(brush_data),
+            Self::Attributes(attr_data) => f_attr(attr_data),
             _ => Err(rverr!("only brush tool and bbox tool can be used in apply")),
         }
     }

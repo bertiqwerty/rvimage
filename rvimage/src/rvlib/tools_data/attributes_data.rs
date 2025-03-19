@@ -32,6 +32,14 @@ pub enum AttrVal {
 }
 
 impl AttrVal {
+    pub fn reset(self) -> Self {
+        match self {
+            AttrVal::Float(_) => Self::Float(None),
+            AttrVal::Int(_) => Self::Int(None),
+            AttrVal::Str(_) => Self::Str(String::new()),
+            AttrVal::Bool(_) => Self::Bool(false),
+        }
+    }
     pub fn in_domain_str(&self, domain_str: &str) -> RvResult<bool> {
         let mut min_max_str_it = domain_str.trim().split(ATTR_INTERVAL_SEPARATOR);
         let min_str = min_max_str_it.next().ok_or(rverr!("min not found"))?;
@@ -215,17 +223,6 @@ impl AttributesToolData {
             serde_json::to_string(&self.annotations_map).map_err(to_rv)
         }
     }
-    pub fn set_annotations_map(&mut self, map: AttrAnnotationsMap) -> RvResult<()> {
-        for (_, (attr_map, _)) in map.iter() {
-            for attr_name in attr_map.keys() {
-                if !self.attr_names.contains(attr_name) {
-                    return Err(rverr!("attribute name {attr_name} not found in attr_names"));
-                }
-            }
-        }
-        self.annotations_map = map;
-        Ok(())
-    }
     pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {
         self.annotations_map
             .get(filename)
@@ -235,6 +232,34 @@ impl AttributesToolData {
         self.annotations_map
             .get_mut(filename)
             .map(|(attr_map, _)| attr_map)
+    }
+    pub fn get_shape(&self, filename: &str) -> Option<ShapeI> {
+        self.annotations_map.get(filename).map(|(_, shape)| *shape)
+    }
+    pub fn set_attr_val(
+        &mut self,
+        filename: &str,
+        idx: usize,
+        attr_val: AttrVal,
+        image_shape: ShapeI,
+    ) {
+        let attr_map = self
+            .annotations_map
+            .get_mut(filename)
+            .map(|(attr_map, _)| attr_map);
+        if let Some(attr_map) = attr_map {
+            let attr_name = &self.attr_names[idx];
+            let current_attr_val = attr_map.get_mut(attr_name);
+            if let Some(current_attr_val) = current_attr_val {
+                *current_attr_val = attr_val;
+            } else {
+                attr_map.insert(attr_name.clone(), attr_val);
+            }
+        } else {
+            let attr_map = HashMap::from([(self.attr_names[idx].clone(), attr_val)]);
+            self.annotations_map
+                .insert(filename.to_string(), (attr_map, image_shape));
+        }
     }
 }
 implement_annotate!(AttributesToolData);

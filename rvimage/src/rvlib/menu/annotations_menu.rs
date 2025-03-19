@@ -4,7 +4,7 @@ use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    fs, iter,
+    fs, iter, mem,
     path::Path,
 };
 
@@ -15,8 +15,11 @@ use crate::{
     get_annos_from_tdm, get_labelinfo_from_tdm,
     paths_selector::PathsSelector,
     result::trace_ok_err,
-    tools::{BBOX_NAME, BRUSH_NAME},
-    tools_data::{AnnotationsMap, ExportAsCoco, LabelInfo, ToolSpecifics, ToolsDataMap},
+    tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
+    tools_data::{
+        attributes_data::AttrVal, AnnotationsMap, AttributesToolData, ExportAsCoco, LabelInfo,
+        ToolSpecifics, ToolsDataMap,
+    },
     InstanceAnnotate,
 };
 
@@ -53,15 +56,44 @@ where
     Ok(())
 }
 
+fn propagate_attributes(
+    data: &mut AttributesToolData,
+    paths: &[&PathPair],
+    f: impl Fn(&AttrVal) -> AttrVal,
+) -> RvResult<()> {
+    let to_prop = mem::take(&mut data.to_propagate_attr_val);
+
+    let prop_anno_shape = data.get_shape(paths[0].path_relative()).ok_or_else(|| {
+        rverr!(
+            "expecting annotations to be propagated exists for {:?}",
+            paths[0]
+        )
+    })?;
+    for (idx_to_prop, attr_val_to_prop) in &to_prop {
+        for p in paths {
+            data.set_attr_val(
+                p.path_relative(),
+                *idx_to_prop,
+                f(attr_val_to_prop),
+                prop_anno_shape,
+            );
+        }
+    }
+    data.to_propagate_attr_val = to_prop;
+    Ok(())
+}
+
 fn propagate_annos_of_tool(
     tdm: &mut ToolsDataMap,
     tool_name: &'static str,
     paths: &[&PathPair],
 ) -> RvResult<()> {
     if let Some(data) = tdm.get_mut(tool_name) {
+        println!("PROOOOOP");
         data.specifics.apply_mut(
             |d| propagate_instance_annotations(&mut d.annotations_map, paths),
             |d| propagate_instance_annotations(&mut d.annotations_map, paths),
+            |d| propagate_attributes(d, paths, |attr_vals| attr_vals.clone()),
         )
     } else {
         Err(rverr!(
@@ -78,6 +110,7 @@ fn delete_subsequent_annos_of_tool(
         data.specifics.apply_mut(
             |d| delete_annotations(&mut d.annotations_map, paths),
             |d| delete_annotations(&mut d.annotations_map, paths),
+            |d| propagate_attributes(d, paths, |attr_vals| attr_vals.clone().reset()),
         )
     } else {
         Err(rverr!(
@@ -194,14 +227,19 @@ where
 pub struct ToolChoice {
     pub brush: bool,
     pub bbox: bool,
+    pub attributes: bool,
 }
 
 impl ToolChoice {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui, skip_attributes: bool) {
         ui.label("Select tool who's annotations you are interested in");
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.bbox, BBOX_NAME);
             ui.checkbox(&mut self.brush, BRUSH_NAME);
+            if !skip_attributes {
+                ui.checkbox(&mut self.attributes, ATTRIBUTES_NAME)
+                    .on_hover_text("only for propagation");
+            }
         });
     }
     fn run_mut(
@@ -210,12 +248,16 @@ impl ToolChoice {
         tdm: &mut ToolsDataMap,
         mut f_bbox: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
         mut f_brush: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
+        mut f_attr: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
     ) -> RvResult<()> {
         if self.bbox {
             f_bbox(ui, tdm)?;
         }
         if self.brush {
             f_brush(ui, tdm)?;
+        }
+        if self.attributes {
+            f_attr(ui, tdm)?;
         }
         Ok(())
     }
@@ -232,8 +274,8 @@ impl ToolChoice {
         }
     }
 
-    fn is_some(&self) -> bool {
-        self.bbox || self.brush
+    fn is_some(&self, skip_attributes: bool) -> bool {
+        self.bbox || self.brush || (!skip_attributes && self.attributes)
     }
 }
 
@@ -378,7 +420,8 @@ fn annotations(
     params: &mut AnnotationsParams,
     paths_navigator: &PathsNavigator,
 ) -> RvResult<()> {
-    if params.tool_choice_delprop.is_some() {
+    let skip_attributes = true;
+    if params.tool_choice_delprop.is_some(skip_attributes) {
         ui.separator();
         ui.heading("Annotations per Folder");
         ui.label(egui::RichText::new(
@@ -422,6 +465,7 @@ fn annotations(
                     |ts| ts.brush_mut().map(|d| &mut d.annotations_map),
                 )
             },
+            |_, _| Ok(()),
         )?;
         ui.separator();
         params.filter_relation_deletion = filter_relations_menu(
@@ -498,8 +542,10 @@ fn annotations(
             }
         }
         ui.separator();
+    }
+    let skip_attributes = false;
+    if params.tool_choice_delprop.is_some(skip_attributes) {
         ui.heading("Propagate to or Delete Annotations from Subsequent Images");
-
         if let Some(selected_file_idx) = paths_navigator.file_label_selected_idx() {
             egui::Grid::new("del-prop-grid")
                 .num_columns(2)
@@ -510,7 +556,8 @@ fn annotations(
                         are_tools_active,
                         "propagate labels",
                         "number of following images to propagate label to",
-                        Some("Double click! Annotations will be overriden if already existent! 💀"),
+                        Some("Double click! Annotations will be overriden if already existent!\n\
+                              Image shapes as part of annotation information will also be propagated! 💀"),
                     );
                     ui.end_row();
                     let n_del: Option<usize> = ui_util::button_triggerable_number(
@@ -537,6 +584,7 @@ fn annotations(
                                     tdm,
                                     |_, tdm| propagate_annos_of_tool(tdm, BBOX_NAME, paths),
                                     |_, tdm| propagate_annos_of_tool(tdm, BRUSH_NAME, paths),
+                                    |_, tdm| propagate_annos_of_tool(tdm, ATTRIBUTES_NAME, paths),
                                 ));
                             }
                         }
@@ -556,6 +604,9 @@ fn annotations(
                                     |_, tdm| delete_subsequent_annos_of_tool(tdm, BBOX_NAME, paths),
                                     |_, tdm| {
                                         delete_subsequent_annos_of_tool(tdm, BRUSH_NAME, paths)
+                                    },
+                                    |_, tdm| {
+                                        delete_subsequent_annos_of_tool(tdm, ATTRIBUTES_NAME, paths)
                                     },
                                 ));
                             }
@@ -707,7 +758,8 @@ fn anno_stats(
     paths_selector: Option<&PathsSelector>,
 ) -> RvResult<()> {
     let filepaths = paths_selector.map(|ps| ps.filtered_file_paths());
-    if !tool_choice.is_some() {
+    let skip_attributes = true;
+    if !tool_choice.is_some(skip_attributes) {
         *stats_compute_results = None;
     } else {
         if ui.button("(Re-)compute stats of filtered files").clicked() {
@@ -821,7 +873,8 @@ fn annotations_popup(
         });
         ui.separator();
         egui::CollapsingHeader::new("Delete or Propagate Annotations").show(ui, |ui| {
-            anno_params.tool_choice_delprop.ui(ui);
+            let skip_attrs = false;
+            anno_params.tool_choice_delprop.ui(ui, skip_attrs);
             trace_ok_err(annotations(
                 ui,
                 in_tdm,
@@ -832,7 +885,8 @@ fn annotations_popup(
         });
         ui.separator();
         egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
-            anno_params.tool_choice_stats.ui(ui);
+            let skip_attrs = true;
+            anno_params.tool_choice_stats.ui(ui, skip_attrs);
             trace_ok_err(anno_stats(
                 ui,
                 in_tdm,
@@ -934,6 +988,7 @@ fn test_counts() {
         ToolChoice {
             bbox: true,
             brush: true,
+            attributes: false,
         },
     )
     .unwrap();
@@ -946,6 +1001,7 @@ fn test_counts() {
         ToolChoice {
             bbox: true,
             brush: false,
+            attributes: false,
         },
     )
     .unwrap();
@@ -957,6 +1013,7 @@ fn test_counts() {
         ToolChoice {
             bbox: false,
             brush: true,
+            attributes: true,
         },
     )
     .unwrap();
