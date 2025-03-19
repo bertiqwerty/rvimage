@@ -216,11 +216,22 @@ impl AttributesToolData {
             let am = self
                 .annotations_map
                 .iter()
-                .filter(|(k, _)| k.contains(kf))
+                .filter_map(|(k, (amap, _))| {
+                    if k.contains(kf) {
+                        Some((k, amap))
+                    } else {
+                        None
+                    }
+                })
                 .collect::<HashMap<_, _>>();
             serde_json::to_string(&am).map_err(to_rv)
         } else {
-            serde_json::to_string(&self.annotations_map).map_err(to_rv)
+            let am = self
+                .annotations_map
+                .iter()
+                .map(|(k, (amap, _))| (k, amap))
+                .collect::<HashMap<_, _>>();
+            serde_json::to_string(&am).map_err(to_rv)
         }
     }
     pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {
