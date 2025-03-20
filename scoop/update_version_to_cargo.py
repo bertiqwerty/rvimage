@@ -2,12 +2,9 @@ import json
 from pathlib import Path
 import tomllib
 import urllib.request
-import click
 
-@click.command()
-@click.argument("bucketpath", type=click.Path(exists=True, file_okay=False))
-def main(bucketpath: str):
-    manifest = Path(f"{bucketpath}/rvimage.json")
+def main():
+    manifest = Path("scoop/rvimage.json")
     with open(manifest, "r") as f:
         scoop_data = json.load(f)
 
