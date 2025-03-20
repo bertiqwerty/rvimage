@@ -27,6 +27,17 @@ and start RV Image with the command
 ```
 rvimage
 ```
+
+#### Update RV Image
+
+With
+```
+scoop update rvimage
+```
+you get the latest released version.
+
+#### Install Scoop
+
 Scoop can be installed with Powershell 5.1 or later via
 ```
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
