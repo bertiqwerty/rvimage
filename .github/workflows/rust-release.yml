@@ -76,7 +76,7 @@ jobs:
           cargo build --verbose --release --target ${{ matrix.target }}
           $bin="target/${{ matrix.target }}/release/rvimage.exe"
           echo "BIN=$bin" >> $env:GITHUB_ENV
-          
+
       - name: Build release binary MacOS
         shell: bash
         if: matrix.os == 'macos-latest'
@@ -105,34 +105,10 @@ jobs:
             echo "ASSET_SUM=$FOLDER.tar.gz.sha256" >> $GITHUB_ENV
           fi
 
-      - name: Generate Scoop manifest
-        if: matrix.os == 'windows-latest'
-        shell: bash
-        run: |
-          version="${{ needs.create-release.outputs.version }}"
-          bin_url="https://github.com/${{ github.repository }}/releases/download/$version/${{ env.ASSET }}"
-          bin_hash=$(certutil -hashfile "${{ env.ASSET }}" SHA256 | findstr /V "SHA" | findstr /V "CertUtil")
-          cat <<EOF > scoop-manifest.json
-          {
-            "version": "$version",
-            "description": "Remote Image Viewer and annotation tool",
-            "homepage": "https://github.com/${{ github.repository }}",
-            "license": "MIT",
-            "architecture": {
-              "64bit": {
-                "url": "$bin_url",
-                "hash": "$bin_hash"
-              }
-            },
-            "bin": "rvimage.exe"
-          }
-          EOF
-          echo "SCOOP_MANIFEST=scoop-manifest.json" >> $GITHUB_ENV
-
-      - name: Upload release archive and Scoop manifest
+      - name: Upload release archive
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           version="${{ needs.create-release.outputs.version }}"
-          gh release upload "$version" ${{ env.ASSET }} ${{ env.ASSET_SUM }} ${{ env.SCOOP_MANIFEST }}
+          gh release upload "$version" ${{ env.ASSET }} ${{ env.ASSET_SUM }}
