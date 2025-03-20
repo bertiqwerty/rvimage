@@ -19,10 +19,6 @@ def main(bucketpath: str):
     if old_version == new_version:
         print("No version change")
         return
-    manifest_p = Path(manifest)
-    manifest_old = manifest_p.rename(manifest_p.with_name(f"rvimage-{old_version}.json"))
-    with open(manifest_old, "w") as f:
-        json.dump(scoop_data, f, indent=4)
     scoop_data["version"] = new_version
     url = scoop_data["architecture"]["64bit"]["url"]
     scoop_data["architecture"]["64bit"]["url"] = url.replace(old_version, new_version)
