@@ -15,7 +15,20 @@ RV Image is a **r**emote **v**iewer for **image**s written in Rust. You can view
 
 ## Installation
 
+### Windows with Scoop
+
+[Scoop](https://scoop.sh/) is a command-line installer for Windows.
+
+```
+scoop bucket add rvimage https://github.com/bertiqwerty/rvimage-scoop-bucket
+scoop install rvimage
+```
+
+### Pre-built binaries for Windows and Mac
+
 We have a few pre-built binaries for Windows and MacOS on the [releases page](https://github.com/bertiqwerty/rvimage/releases).
+
+### Cargo
 
 With [Rust installed](https://www.rust-lang.org/tools/install)
 you can also
@@ -24,6 +37,7 @@ cargo install rvimage
 ```
 to install the latest stable release. Additionally to the Rust toolchain, you need a c-compiler, make, and perl in your path, since we use the
 [ssh2-crate](https://crates.io/crates/ssh2) with the `vendored-openssl` feature, see [here for more info](https://docs.rs/openssl/latest/openssl/index.html#vendored). 
+
 
 ## Connect to remote
 
