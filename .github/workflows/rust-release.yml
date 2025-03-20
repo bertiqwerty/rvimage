@@ -111,7 +111,7 @@ jobs:
         run: |
           version="${{ needs.create-release.outputs.version }}"
           bin_url="https://github.com/${{ github.repository }}/releases/download/$version/${{ env.ASSET }}"
-          bin_hash=$(certutil -hashfile "${{ env.ASSET }}" SHA256 | findstr /v "SHA256")
+          bin_hash=$(certutil -hashfile "${{ env.ASSET }}" SHA256 | findstr /V "SHA" | findstr /V "CertUtil")
           cat <<EOF > scoop-manifest.json
           {
             "version": "$version",
