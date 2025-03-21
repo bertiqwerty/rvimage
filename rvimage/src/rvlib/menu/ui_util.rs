@@ -87,8 +87,12 @@ where
         match buffer.parse::<T>() {
             Ok(val) => (true, Some(val)),
             Err(e) => {
-                warn!("could not parse '{buffer}' as number due to {e:?}");
-                (false, None)
+                if !buffer.is_empty() {
+                    warn!("could not parse '{buffer}' as number due to {e:?}");
+                    (false, None)
+                } else {
+                    (true, None)
+                }
             }
         }
     } else {

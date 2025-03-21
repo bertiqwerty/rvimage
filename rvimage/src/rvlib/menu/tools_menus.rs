@@ -1,4 +1,9 @@
-use std::{mem, path::PathBuf, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    mem,
+    path::PathBuf,
+    str::FromStr,
+};
 
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
@@ -465,6 +470,28 @@ pub fn brush_menu(
     })
 }
 
+fn update_numeric_attribute<T>(
+    ui: &mut Ui,
+    are_tools_active: &mut bool,
+    x: &mut Option<T>,
+    attr_type_label: &str,
+    new_attr_buffer: &mut String,
+) -> bool
+where
+    T: Display + FromStr + Debug,
+    <T as FromStr>::Err: Debug,
+{
+    let (input_changed, new_val) =
+        process_number(ui, are_tools_active, attr_type_label, new_attr_buffer);
+    if let Some(new_val) = new_val {
+        *x = Some(new_val);
+    }
+    if new_attr_buffer.is_empty() {
+        *x = None;
+    }
+    input_changed
+}
+
 pub fn attributes_menu(
     ui: &mut Ui,
     mut window_open: bool,
@@ -527,27 +554,22 @@ pub fn attributes_menu(
                             }
                         }
                         Some(AttrVal::Float(x)) => {
-                            let (input_changed_, new_val) = process_number(
+                            input_changed = update_numeric_attribute(
                                 ui,
                                 are_tools_active,
+                                x,
                                 FLOAT_LABEL,
                                 &mut new_attr_buffer,
                             );
-                            if let Some(new_val) = new_val {
-                                *x = Some(new_val);
-                            }
-                            input_changed = input_changed_;
                         }
                         Some(AttrVal::Int(x)) => {
-                            let (lost_focus, new_val) = process_number(
+                            let lost_focus = update_numeric_attribute(
                                 ui,
                                 are_tools_active,
+                                x,
                                 INT_LABEL,
                                 &mut new_attr_buffer,
                             );
-                            if let Some(new_val) = new_val {
-                                *x = Some(new_val);
-                            }
                             if lost_focus {
                                 input_changed = true;
                             }
