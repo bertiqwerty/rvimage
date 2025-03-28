@@ -1490,9 +1490,9 @@ dependencies = [
 
 [[package]]
 name = "exmex"
-version = "0.20.3"
+version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d149d73b9c2ed0fe99dfc84f34def4b034ed576d7ab7c2ff49f00d3d414390d4"
+checksum = "2ee7ef9d0ad0bca0963181b4232e4ffce543a0c30fa51ac2ff8a8ece04c3359c"
 dependencies = [
  "lazy_static",
  "num",
@@ -4365,9 +4365,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.13.2"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
+checksum = "7fcf8323ef1faaee30a44a340193b1ac6814fd9b7b4e88e9d4519a3e4abe1cfd"
 
 [[package]]
 name = "smithay-client-toolkit"
