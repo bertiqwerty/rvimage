@@ -6,7 +6,10 @@ use crate::{
     meta_data::MetaData,
     result::trace_ok_err,
     tools::{
-        core::{change_annos, label_change_key, on_selection_keys, Mover, ReleasedKey},
+        core::{
+            change_annos, instance_label_display, label_change_key, on_selection_keys, Mover,
+            ReleasedKey,
+        },
         BBOX_NAME,
     },
     tools_data::{
@@ -625,6 +628,7 @@ pub(super) fn on_key_released(
         params.is_ctrl_held,
         BBOX_NAME,
     );
+    world = instance_label_display::<DataAccessors>(world, params.released_key, ACTOR_NAME);
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {
             // Hide all boxes (selected or not)

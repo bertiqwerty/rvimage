@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use tracing::info;
 
 use crate::{cfg::ExportPath, util::Visibility, ShapeI};
@@ -74,6 +74,60 @@ impl ImportExportTrigger {
 
 pub type AnnotationsMap<T> = LabelMap<InstanceAnnotations<T>>;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InstanceLabelDisplay {
+    None,
+    // count from left to right
+    IndexLr,
+}
+
+impl InstanceLabelDisplay {
+    pub fn next(self) -> Self {
+        match self {
+            InstanceLabelDisplay::None => InstanceLabelDisplay::IndexLr,
+            InstanceLabelDisplay::IndexLr => InstanceLabelDisplay::None,
+        }
+    }
+    pub fn sort<T>(self, instances: InstanceAnnotations<T>) -> InstanceAnnotations<T>
+    where
+        T: InstanceAnnotate,
+    {
+        match self {
+            InstanceLabelDisplay::None => instances,
+            InstanceLabelDisplay::IndexLr => {
+                let (elts, cat_idxs, selected_mask) = instances.separate_data();
+                let mut tmp_tuples = elts
+                    .into_iter()
+                    .zip(cat_idxs)
+                    .zip(selected_mask)
+                    .collect::<Vec<_>>();
+                tmp_tuples.sort_by(|((elt1, _), _), ((elt2, _), _)| {
+                    match elt1.enclosing_bb().x.partial_cmp(&elt2.enclosing_bb().x) {
+                        Some(o) => o,
+                        None => {
+                            tracing::error!(
+                                "there is a NAN in an annotation box {:?}, {:?}",
+                                elt1.enclosing_bb(),
+                                elt2.enclosing_bb()
+                            );
+                            std::cmp::Ordering::Equal
+                        }
+                    }
+                });
+                InstanceAnnotations::from_tuples(tmp_tuples)
+            }
+        }
+    }
+}
+impl Display for InstanceLabelDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InstanceLabelDisplay::None => write!(f, "None"),
+            InstanceLabelDisplay::IndexLr => write!(f, "Index-Left-Right"),
+        }
+    }
+}
+
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Options {
@@ -88,6 +142,7 @@ pub struct Options {
     pub label_propagation: Option<usize>,
     pub label_deletion: Option<usize>,
     pub auto_paste: bool,
+    pub instance_label_display: InstanceLabelDisplay,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -103,6 +158,7 @@ impl Default for Options {
             label_propagation: None,
             label_deletion: None,
             auto_paste: false,
+            instance_label_display: InstanceLabelDisplay::None,
         }
     }
 }

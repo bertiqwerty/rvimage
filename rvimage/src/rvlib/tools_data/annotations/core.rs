@@ -164,6 +164,22 @@ where
             selected_mask: vec![false; n_elts],
         }
     }
+    pub fn from_tuples(tuples: Vec<((T, usize), bool)>) -> Self {
+        let n_elts = tuples.len();
+        let mut elts = Vec::with_capacity(n_elts);
+        let mut cat_idxs = Vec::with_capacity(n_elts);
+        let mut selected_mask = Vec::with_capacity(n_elts);
+        for ((elt, cat_idx), selected) in tuples {
+            elts.push(elt);
+            cat_idxs.push(cat_idx);
+            selected_mask.push(selected);
+        }
+        Self {
+            elts,
+            cat_idxs,
+            selected_mask,
+        }
+    }
 
     pub fn label_selected(&mut self, cat_id: usize) {
         let selected_inds = true_indices(&self.selected_mask);

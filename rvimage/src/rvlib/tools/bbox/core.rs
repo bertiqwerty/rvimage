@@ -436,6 +436,7 @@ impl Manipulate for Bbox {
                             outline_alpha: options.outline_alpha,
                             is_selected: None,
                             highlight_circles: circles,
+                            instance_label_display: options.core.instance_label_display,
                         };
                         let vis = get_visible(&world);
                         world.request_redraw_annotations(BBOX_NAME, vis);

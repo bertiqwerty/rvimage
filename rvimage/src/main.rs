@@ -7,7 +7,8 @@
 use clap::Parser;
 
 use egui::{
-    epaint::{CircleShape, PathShape, RectShape},
+    epaint::{CircleShape, PathShape, RectShape, TextShape},
+    text::LayoutJob,
     Color32, Context, CornerRadius, IconData, Pos2, Rect, Response, Sense, Shape, Stroke,
     StrokeKind, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportBuilder, ViewportCommand,
     Visuals,
@@ -25,8 +26,8 @@ use rvlib::{
     tracing_setup,
     view::{self, ImageU8},
     write_coco, Annotation, BboxAnnotation, BrushAnnotation, GeoFig, InstanceAnnotate,
-    MainEventLoop, MetaData, Rot90ToolData, UpdateImage, UpdatePermAnnos, UpdateTmpAnno,
-    UpdateZoomBox,
+    InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, UpdateImage, UpdatePermAnnos,
+    UpdateTmpAnno, UpdateZoomBox,
 };
 use std::{iter, mem, ops::Deref, panic, path::Path, time::Instant};
 use tracing::error;
@@ -232,7 +233,11 @@ impl RvImageApp {
             color_rgb,
         );
     }
-    fn update_bbox_anno(&self, anno: &BboxAnnotation, image_rect: &Rect) -> egui::epaint::Shape {
+    fn update_bbox_anno(
+        &self,
+        anno: &BboxAnnotation,
+        image_rect: &Rect,
+    ) -> (egui::epaint::Shape, Color32) {
         let (fill_alpha, outline_thickness) = if anno.is_selected == Some(true) {
             (
                 anno.fill_alpha.saturating_add(60),
@@ -250,12 +255,10 @@ impl RvImageApp {
                 Shape::Circle(CircleShape::filled(p, c.radius as f32, Color32::WHITE))
             })
             .collect::<Vec<_>>();
+        let outline_color = detail::rgb_2_clr(Some(anno.outline.color), anno.outline_alpha);
         match &anno.geofig {
             GeoFig::BB(bb) => {
-                let stroke = Stroke::new(
-                    outline_thickness as f32,
-                    detail::rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
-                );
+                let stroke = Stroke::new(outline_thickness as f32, outline_color);
                 let bb_min_rect =
                     self.orig_pos_2_egui_rect(bb.min(), image_rect.min, image_rect.size());
                 let bb_max_rect =
@@ -294,9 +297,9 @@ impl RvImageApp {
                 }
             }
         }
-        Shape::Vec(draw_vec)
+        (Shape::Vec(draw_vec), outline_color)
     }
-    fn update_perm_annos(&mut self, image_rect: &Rect) {
+    fn update_perm_annos(&mut self, image_rect: &Rect, ctx: &Context) {
         let shape_orig = self.shape_orig();
         let canvases = self
             .perm_annos
@@ -356,8 +359,63 @@ impl RvImageApp {
                 }
                 Annotation::Brush(_) => None,
             })
-            .map(|anno| self.update_bbox_anno(anno, image_rect));
-        self.egui_perm_shapes = bbox_annos.collect::<Vec<Shape>>();
+            .collect::<Vec<_>>();
+        if bbox_annos.len() > 0 {
+            let ild = bbox_annos[0].instance_label_display;
+            match ild {
+                InstanceLabelDisplay::None => {
+                    self.egui_perm_shapes = bbox_annos
+                        .into_iter()
+                        .map(|anno| {
+                            let (egui_shape, _) = self.update_bbox_anno(anno, image_rect);
+                            egui_shape
+                        })
+                        .collect::<Vec<_>>();
+                }
+                InstanceLabelDisplay::IndexLr => {
+                    self.egui_perm_shapes =
+                        bbox_annos
+                            .into_iter()
+                            .enumerate()
+                            .flat_map(|(i, anno)| {
+                                let (egui_shape, color) = self.update_bbox_anno(anno, image_rect);
+                                let color_th = 200;
+                                let n_channels_above_th = &(color.to_array())[0..3]
+                                    .iter()
+                                    .filter(|c| **c > color_th)
+                                    .count();
+                                let bg_color = if *n_channels_above_th > 1 {
+                                    Color32::BLACK
+                                } else {
+                                    Color32::WHITE
+                                };
+
+                                let text_job = LayoutJob::single_section(
+                                    i.to_string(),
+                                    egui::TextFormat {
+                                        color,
+                                        background: bg_color,
+                                        ..Default::default()
+                                    },
+                                );
+                                let galley = ctx.fonts(|f| f.layout_job(text_job));
+                                let x = anno.geofig.enclosing_bb().min().x;
+                                let y = anno.geofig.enclosing_bb().max().y;
+
+                                let p = self.orig_pos_2_egui_rect(
+                                    PtF { x, y },
+                                    image_rect.min,
+                                    image_rect.size(),
+                                );
+                                iter::once(egui_shape).chain(iter::once(Shape::Text(
+                                    TextShape::new(p, galley, Color32::BLACK),
+                                )))
+                            })
+                            .collect::<Vec<_>>();
+                }
+            }
+        }
+
         // update texture with brush canvas
         let shape_orig = self.shape_orig();
         let mut im_view = view::from_orig(&self.im_orig, self.zoom_box);
@@ -514,7 +572,7 @@ impl eframe::App for RvImageApp {
 
                             time_scope!("update_perm_annos_resize");
 
-                            self.update_perm_annos(&ir.rect);
+                            self.update_perm_annos(&ir.rect, ctx);
 
                             self.image_rect = Some(image_surrounding_rect);
                         }
@@ -522,7 +580,7 @@ impl eframe::App for RvImageApp {
                         if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {
                             time_scope!("update_perm_annos_new");
                             self.perm_annos = perm_annos;
-                            self.update_perm_annos(&ir.rect);
+                            self.update_perm_annos(&ir.rect, ctx);
                             update_texture = true;
                         }
                         match update_view.tmp_annos {
@@ -535,8 +593,8 @@ impl eframe::App for RvImageApp {
                                         update_texture = true;
                                     }
                                     Annotation::Bbox(bbox) => {
-                                        self.egui_tmp_shapes[1] =
-                                            Some(self.update_bbox_anno(bbox, &ir.rect));
+                                        let (egui_shape, _) = self.update_bbox_anno(bbox, &ir.rect);
+                                        self.egui_tmp_shapes[1] = Some(egui_shape);
                                     }
                                 }
                                 self.tmp_anno = Some(anno);

@@ -1,4 +1,4 @@
-use crate::{types::ViewImage, GeoFig};
+use crate::{tools_data::InstanceLabelDisplay, types::ViewImage, GeoFig};
 use rvimage_domain::{BbF, Canvas, Circle, TPtF};
 use std::default::Default;
 
@@ -17,6 +17,7 @@ impl Stroke {
     }
 }
 
+
 #[derive(Clone, Debug)]
 pub struct BboxAnnotation {
     pub geofig: GeoFig,
@@ -27,6 +28,7 @@ pub struct BboxAnnotation {
     pub label: Option<String>,
     pub is_selected: Option<bool>,
     pub highlight_circles: Vec<Circle>,
+    pub instance_label_display: InstanceLabelDisplay,
 }
 
 #[derive(Clone, Debug)]
@@ -36,6 +38,7 @@ pub struct BrushAnnotation {
     pub label: Option<String>,
     pub is_selected: Option<bool>,
     pub fill_alpha: u8,
+    pub instance_label_view: InstanceLabelDisplay,
 }
 
 #[derive(Clone, Debug)]

@@ -44,6 +44,6 @@ pub use rvimage_domain::{
 };
 pub use tools_data::{
     coco_io::{read_coco, to_per_file_crowd, write_coco},
-    InstanceAnnotate, Rot90ToolData, ToolsDataMap,
+    InstanceAnnotate, InstanceLabelDisplay, Rot90ToolData, ToolsDataMap,
 };
 pub use util::Defer;

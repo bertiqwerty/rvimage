@@ -395,6 +395,32 @@ where
     world
 }
 
+pub(super) fn instance_label_display<DA>(
+    mut world: World,
+    key: ReleasedKey,
+    actor: &'static str,
+) -> World
+where
+    DA: MetaDataAccess,
+{
+    match key {
+        ReleasedKey::L => {
+            let options = DA::get_core_options_mut(&mut world);
+            if let Some(options) = options {
+                options.instance_label_display = options.instance_label_display.next();
+                tracing::info!(
+                    "instance label display changed to {}",
+                    options.instance_label_display
+                );
+                let vis = vis_from_lfoption(DA::get_label_info(&world), true);
+                world.request_redraw_annotations(actor, vis);
+            }
+        }
+        _ => (),
+    }
+    world
+}
+
 pub(super) fn on_selection_keys<T, DA, IA>(
     mut world: World,
     mut history: History,

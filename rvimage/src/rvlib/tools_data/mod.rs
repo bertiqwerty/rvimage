@@ -22,7 +22,7 @@ pub mod coco_io;
 mod core;
 mod label_map;
 pub mod rot90_data;
-pub use core::{merge, AnnotationsMap, Options as CoreOptions};
+pub use core::{merge, AnnotationsMap, InstanceLabelDisplay, Options as CoreOptions};
 use std::collections::HashMap;
 
 macro_rules! variant_access {
@@ -116,7 +116,10 @@ impl ToolSpecifics {
     ) -> Option<Vec<Annotation>> {
         match self {
             ToolSpecifics::Bbox(bb_data) => {
-                if let Some(annos) = bb_data.get_annos(file_path_relative) {
+                let annos = bb_data.get_annos(file_path_relative).cloned();
+                
+                if let Some(mut annos) = annos {
+                    annos = bb_data.options.core.instance_label_display.sort(annos);
                     let geos = annos.elts();
                     let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_mask();
@@ -147,6 +150,7 @@ impl ToolSpecifics {
                                 outline_alpha: bb_data.options.outline_alpha,
                                 is_selected: Some(*is_selected),
                                 highlight_circles: bb_data.highlight_circles.clone(),
+                                instance_label_display: bb_data.options.core.instance_label_display,
                             })
                         })
                         .collect::<Vec<Annotation>>();
@@ -179,6 +183,7 @@ impl ToolSpecifics {
                                 label: None,
                                 is_selected: Some(*is_selected),
                                 fill_alpha: br_data.options.fill_alpha,
+                                instance_label_view: br_data.options.core.instance_label_display,
                             })
                         })
                         .collect::<Vec<Annotation>>();
