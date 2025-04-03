@@ -458,8 +458,7 @@ impl RvImageApp {
                     let color = detail::rgb_2_clr(Some(color.0), fill_alpha);
                     let text_shape =
                         self.text_shape(color, ctx, canvas.enclosing_bb(), image_rect, i);
-                    self.egui_perm_brush_shapes
-                        .push(Shape::Text(text_shape));
+                    self.egui_perm_brush_shapes.push(Shape::Text(text_shape));
                 }
             }
         }
@@ -472,7 +471,8 @@ impl RvImageApp {
                 texture.set(im, TextureOptions::NEAREST);
             }
         }
-        ui.painter().add(Shape::Vec(self.egui_perm_bbox_shapes.clone()));
+        ui.painter()
+            .add(Shape::Vec(self.egui_perm_bbox_shapes.clone()));
         ui.painter()
             .add(Shape::Vec(self.egui_perm_brush_shapes.clone()));
         ui.painter().add(Shape::Vec(
