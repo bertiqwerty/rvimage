@@ -306,7 +306,7 @@ impl RvImageApp {
         ctx: &Context,
         enclosing_bb: BbF,
         image_rect: &Rect,
-        idx: usize,
+        txt: impl ToString,
     ) -> TextShape {
         let color_th = 200;
         let n_channels_above_th = &(color.to_array())[0..3]
@@ -320,7 +320,7 @@ impl RvImageApp {
         };
 
         let text_job = LayoutJob::single_section(
-            idx.to_string(),
+            txt.to_string(),
             egui::TextFormat {
                 color,
                 background: bg_color,
@@ -366,7 +366,7 @@ impl RvImageApp {
                             bb: new_bb,
                             intensity: 1.0,
                         };
-                        res[0] = Some((selection_viz_canvas, (Rgb([0, 0, 0]), 255, None)));
+                        res[0] = Some((selection_viz_canvas, (Rgb([0, 0, 0]), 255, None, None)));
                     }
                 }
                 res[1] = Some((
@@ -375,6 +375,7 @@ impl RvImageApp {
                         color_rgb,
                         anno.fill_alpha,
                         Some(anno.instance_display_label),
+                        anno.label.as_deref(),
                     ),
                 ));
                 res
@@ -414,6 +415,26 @@ impl RvImageApp {
                         })
                         .collect::<Vec<_>>();
                 }
+                InstanceLabelDisplay::CatLabel => {
+                    self.egui_perm_bbox_shapes = bbox_annos
+                        .into_iter()
+                        .flat_map(|anno| {
+                            let (egui_shape, color) = self.update_bbox_anno(anno, image_rect);
+                            if let Some(label) = anno.label.as_deref() {
+                                let text_shape = self.text_shape(
+                                    color,
+                                    ctx,
+                                    anno.geofig.enclosing_bb(),
+                                    image_rect,
+                                    label,
+                                );
+                                iter::once(egui_shape).chain(iter::once(Shape::Text(text_shape)))
+                            } else {
+                                iter::once(egui_shape).chain(iter::once(Shape::Noop))
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                }
                 _ => {
                     self.egui_perm_bbox_shapes = bbox_annos
                         .into_iter()
@@ -441,7 +462,7 @@ impl RvImageApp {
         let mut im_view = view::from_orig(&self.im_orig, self.zoom_box);
 
         self.egui_perm_brush_shapes = vec![];
-        for (i, (canvas, (color, fill_alpha, instance_label_display))) in
+        for (i, (canvas, (color, fill_alpha, instance_label_display, label))) in
             canvases.flatten().enumerate()
         {
             detail::canvas_to_view(
@@ -454,6 +475,14 @@ impl RvImageApp {
             );
             match instance_label_display {
                 Some(InstanceLabelDisplay::None) | None => (),
+                Some(InstanceLabelDisplay::CatLabel) => {
+                    if let Some(label) = label {
+                        let color = detail::rgb_2_clr(Some(color.0), fill_alpha);
+                        let text_shape =
+                            self.text_shape(color, ctx, canvas.enclosing_bb(), image_rect, label);
+                        self.egui_perm_brush_shapes.push(Shape::Text(text_shape));
+                    }
+                }
                 _ => {
                     let color = detail::rgb_2_clr(Some(color.0), fill_alpha);
                     let text_shape =

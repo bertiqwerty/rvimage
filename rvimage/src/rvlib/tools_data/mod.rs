@@ -161,6 +161,7 @@ impl ToolSpecifics {
                     let colors = br_data.label_info.colors();
                     let cats = annos.cat_idxs();
                     let selected_mask = annos.selected_mask();
+                    let labels = br_data.label_info.labels();
                     let annos = annos
                         .elts()
                         .iter()
@@ -177,7 +178,7 @@ impl ToolSpecifics {
                             Annotation::Brush(BrushAnnotation {
                                 canvas: brush_line.clone(),
                                 color: colors[*cat_idx],
-                                label: None,
+                                label: Some(labels[*cat_idx].clone()),
                                 is_selected: Some(*is_selected),
                                 fill_alpha: br_data.options.fill_alpha,
                                 instance_display_label: br_data.options.core.instance_label_display,

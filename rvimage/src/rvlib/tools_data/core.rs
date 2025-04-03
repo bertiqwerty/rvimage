@@ -100,6 +100,7 @@ where
     InstanceAnnotations::from_tuples(tmp_tuples)
 }
 
+/// Small little labels to be displayed in a box below instance annotations
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum InstanceLabelDisplay {
     #[default]
@@ -108,14 +109,17 @@ pub enum InstanceLabelDisplay {
     IndexLr,
     // count from top to bottom
     IndexTb,
+    // category label
+    CatLabel,
 }
 
 impl InstanceLabelDisplay {
     pub fn next(self) -> Self {
         match self {
-            InstanceLabelDisplay::None => InstanceLabelDisplay::IndexLr,
-            InstanceLabelDisplay::IndexLr => InstanceLabelDisplay::IndexTb,
-            InstanceLabelDisplay::IndexTb => InstanceLabelDisplay::None,
+            Self::None => Self::IndexLr,
+            Self::IndexLr => Self::IndexTb,
+            Self::IndexTb => Self::CatLabel,
+            Self::CatLabel => Self::None,
         }
     }
     pub fn sort<T>(self, annos: InstanceAnnotations<T>) -> InstanceAnnotations<T>
@@ -123,18 +127,19 @@ impl InstanceLabelDisplay {
         T: InstanceAnnotate,
     {
         match self {
-            InstanceLabelDisplay::None => annos,
-            InstanceLabelDisplay::IndexLr => sort(annos, |bb| bb.x),
-            InstanceLabelDisplay::IndexTb => sort(annos, |bb| bb.y),
+            Self::None | Self::CatLabel => annos,
+            Self::IndexLr => sort(annos, |bb| bb.x),
+            Self::IndexTb => sort(annos, |bb| bb.y),
         }
     }
 }
 impl Display for InstanceLabelDisplay {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InstanceLabelDisplay::None => write!(f, "None"),
-            InstanceLabelDisplay::IndexLr => write!(f, "Index-Left-Right"),
-            InstanceLabelDisplay::IndexTb => write!(f, "Index-Top-Bottom"),
+            Self::None => write!(f, "None"),
+            Self::IndexLr => write!(f, "Index-Left-Right"),
+            Self::IndexTb => write!(f, "Index-Top-Bottom"),
+            Self::CatLabel => write!(f, "Category-Label"),
         }
     }
 }
