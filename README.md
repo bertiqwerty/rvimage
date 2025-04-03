@@ -217,7 +217,7 @@ There two main ways to draw a polygon or a box:
 | <kbd>Ctrl</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd> | move top left corner of all selected boxes                                               |
 | <kbd>Alt</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>  | move all selected boxes                                                                  |
 | change label                                                                         | labels of selected boxes/polygons are changed                                            |
-| <kbd>L</kbd> | Toggle index label display between none, sorted-left-right, and sorted-top-bottom                                            |
+| <kbd>L</kbd> | Toggle label display between none, index-sorted-left-right, index-sorted-top-bottom, and category                                            |
 
 
 ### Brush Tool
