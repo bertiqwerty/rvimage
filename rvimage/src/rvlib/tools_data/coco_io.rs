@@ -730,6 +730,8 @@ fn make_data_brush(
     export_absolute: bool,
     n_boxes: Option<usize>,
 ) -> (BrushToolData, MetaData, PathBuf, ShapeI) {
+    use super::InstanceLabelDisplay;
+
     let shape = ShapeI::new(100, 40);
     let mut bbox_data = BrushToolData::default();
     bbox_data.options.core.is_export_absolute = export_absolute;
@@ -765,7 +767,7 @@ fn make_data_brush(
                 mask,
                 intensity: 0.5,
             };
-            a.add_elt(c, 0);
+            a.add_elt(c, 0, InstanceLabelDisplay::None);
         }
     }
 
@@ -807,7 +809,7 @@ pub fn make_data_bbox(
     let annos = bbox_data.get_annos_mut(image_file.as_os_str().to_str().unwrap(), shape);
     if let Some(a) = annos {
         for bb in bbs {
-            a.add_bb(bb, 0);
+            a.add_bb(bb, 0, super::InstanceLabelDisplay::IndexLr);
         }
     }
     let (meta, test_export_path) = make_meta_data(opened_folder);

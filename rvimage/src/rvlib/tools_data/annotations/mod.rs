@@ -39,6 +39,11 @@ macro_rules! implement_annotations_getters {
             let annos = self.annotations_map.get(file_path);
             annos.map(|(annos, _shape)| annos)
         }
+        pub fn get_annos_mut_noinsert(&mut self, file_path: &str) -> Option<&mut $tool_data_type> {
+            self.annotations_map
+                .get_mut(file_path)
+                .map(|(annos, _)| annos)
+        }
         pub fn anno_iter_mut(
             &mut self,
         ) -> impl Iterator<Item = (&String, &mut ($tool_data_type, ShapeI))> {

@@ -8,13 +8,13 @@ use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{vis_from_lfoption, InstanceAnnotate, LabelInfo};
 use crate::util::Visibility;
 use crate::world::InstanceAnnoAccess;
-use crate::ShapeI;
 use crate::{
     events::Events,
     history::History,
     world,
     world::{MetaDataAccess, World},
 };
+use crate::{InstanceLabelDisplay, ShapeI};
 use rvimage_domain::PtF;
 use std::mem;
 
@@ -358,12 +358,16 @@ where
     if let Some(clipboard) = clipboard {
         let cb_bbs = clipboard.elts();
         if !cb_bbs.is_empty() {
+            let ild = DA::get_core_options(&world)
+                .map(|o| o.instance_label_display)
+                .unwrap_or_default();
             let shape_orig = ShapeI::from_im(world.data.im_background());
             let paste_annos = |a: &mut InstanceAnnotations<T>| {
                 a.extend(
                     cb_bbs.iter().cloned(),
                     clipboard.cat_idxs().iter().copied(),
                     shape_orig,
+                    ild,
                 );
             };
             change_annos::<T, DA, IA>(&mut world, paste_annos);
@@ -395,16 +399,19 @@ where
     world
 }
 
-pub(super) fn instance_label_display<DA>(
+pub(super) fn instance_label_display<T, DA, IA>(
     mut world: World,
     key: ReleasedKey,
     actor: &'static str,
 ) -> World
 where
+    T: InstanceAnnotate,
     DA: MetaDataAccess,
+    IA: InstanceAnnoAccess<T>,
 {
     match key {
         ReleasedKey::L => {
+            // update instance label display
             let options = DA::get_core_options_mut(&mut world);
             if let Some(options) = options {
                 options.instance_label_display = options.instance_label_display.next();
@@ -412,9 +419,19 @@ where
                     "instance label display changed to {}",
                     options.instance_label_display
                 );
-                let vis = vis_from_lfoption(DA::get_label_info(&world), true);
-                world.request_redraw_annotations(actor, vis);
             }
+
+            // sort the annotations
+            let ild = DA::get_core_options(&world)
+                .map(|o| o.instance_label_display)
+                .unwrap_or(InstanceLabelDisplay::None);
+            let annos = IA::get_annos_mut(&mut world);
+            if let Some(annos) = annos {
+                *annos = ild.sort(mem::take(annos));
+            }
+
+            let vis = vis_from_lfoption(DA::get_label_info(&world), true);
+            world.request_redraw_annotations(actor, vis);
         }
         _ => (),
     }

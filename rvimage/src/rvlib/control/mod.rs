@@ -933,7 +933,7 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
     );
     if let Some(a) = annos {
         for bb in bbs {
-            a.add_bb(bb, 0);
+            a.add_bb(bb, 0, crate::InstanceLabelDisplay::IndexLr);
         }
     }
 

@@ -123,7 +123,11 @@ fn key_released(events: &Events, mut world: World, mut history: History) -> (Wor
         }
         _ => (),
     }
-    world = instance_label_display::<DataAccessors>(world, released_key, ACTOR_NAME);
+    world = instance_label_display::<_, DataAccessors, InstanceAnnoAccessors>(
+        world,
+        released_key,
+        ACTOR_NAME,
+    );
     world = check_erase_mode::<DataAccessors>(released_key, set_visible, world);
     (world, history)
 }
@@ -349,7 +353,7 @@ impl Brush {
                                     label: None,
                                     is_selected: None,
                                     fill_alpha: options.fill_alpha,
-                                    instance_label_view: options.core.instance_label_display,
+                                    instance_display_label: options.core.instance_label_display,
                                 }));
                             }
                         }
@@ -411,19 +415,17 @@ impl Brush {
                 } else {
                     None
                 };
+                let ild = get_instance_label_display(&world);
 
                 let change_annos = |annos: &mut BrushAnnotations| {
                     if let (Some(line), Some(cat_idx)) = (line, cat_idx) {
                         let canvas = Canvas::new(&line, shape_orig, None);
                         if let Ok(canvas) = canvas {
-                            annos.add_elt(canvas, cat_idx);
+                            annos.add_elt(canvas, cat_idx, ild);
                         }
                     }
                 };
                 change_annos_brush(&mut world, change_annos);
-                if let Some(d) = get_specific_mut(&mut world) {
-                    d.tmp_line = None;
-                }
                 set_visible(&mut world);
             } else if let Some(mp) = events.mouse_pos_on_orig {
                 world = draw_erase_circle(world, mp);

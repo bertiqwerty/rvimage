@@ -38,7 +38,7 @@ pub struct BrushAnnotation {
     pub label: Option<String>,
     pub is_selected: Option<bool>,
     pub fill_alpha: u8,
-    pub instance_label_view: InstanceLabelDisplay,
+    pub instance_display_label: InstanceLabelDisplay,
 }
 
 #[derive(Clone, Debug)]

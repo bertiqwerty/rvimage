@@ -1,4 +1,4 @@
-use crate::GeoFig;
+use crate::{GeoFig, InstanceLabelDisplay};
 use rvimage_domain::{BbF, OutOfBoundsMode, PtF, RvResult, ShapeI, TPtF};
 use std::mem;
 
@@ -128,8 +128,13 @@ impl BboxAnnotations {
             .expect("after shift the number of elements cannot change")
     }
 
-    pub fn add_bb(&mut self, bb: BbF, cat_idx: usize) {
-        self.add_elt(GeoFig::BB(bb), cat_idx);
+    pub fn add_bb(
+        &mut self,
+        bb: BbF,
+        cat_idx: usize,
+        instance_label_display: InstanceLabelDisplay,
+    ) {
+        self.add_elt(GeoFig::BB(bb), cat_idx, instance_label_display);
     }
 
     pub fn selected_follow_movement(
@@ -242,9 +247,9 @@ fn test_annos() {
     assert!(annos.elts().len() == make_test_bbs().len() - 2);
     assert!(annos.selected_mask().len() == make_test_bbs().len() - 2);
     assert!(annos.cat_idxs().len() == make_test_bbs().len() - 2);
-    annos.add_bb(make_test_bbs()[0], 0);
+    annos.add_bb(make_test_bbs()[0], 0, InstanceLabelDisplay::None);
     len_check(&annos);
-    annos.add_bb(make_test_bbs()[0], 123);
+    annos.add_bb(make_test_bbs()[0], 123, InstanceLabelDisplay::IndexLr);
     len_check(&annos);
     annos.clear();
     len_check(&annos);

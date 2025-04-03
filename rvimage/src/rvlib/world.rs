@@ -102,6 +102,9 @@ macro_rules! tools_data_accessors_objects {
         pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
             get_specific(world).map(|d| &d.label_info)
         }
+        pub(super) fn get_instance_label_display(world: &World) -> $crate::tools_data::InstanceLabelDisplay {
+            get_options(world).map(|d| d.core.instance_label_display).unwrap_or_default()
+        }
 
         /// when you access annotations, you often also need this metadata
         pub(super) struct DataAccessors;

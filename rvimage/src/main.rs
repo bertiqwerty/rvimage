@@ -299,6 +299,40 @@ impl RvImageApp {
         }
         (Shape::Vec(draw_vec), outline_color)
     }
+    fn text_shape(
+        &self,
+        color: Color32,
+        ctx: &Context,
+        enclosing_bb: BbF,
+        image_rect: &Rect,
+        idx: usize,
+    ) -> TextShape {
+        let color_th = 200;
+        let n_channels_above_th = &(color.to_array())[0..3]
+            .iter()
+            .filter(|c| **c > color_th)
+            .count();
+        let bg_color = if *n_channels_above_th > 1 {
+            Color32::BLACK
+        } else {
+            Color32::WHITE
+        };
+
+        let text_job = LayoutJob::single_section(
+            idx.to_string(),
+            egui::TextFormat {
+                color,
+                background: bg_color,
+                ..Default::default()
+            },
+        );
+        let galley = ctx.fonts(|f| f.layout_job(text_job));
+        let x = enclosing_bb.min().x;
+        let y = enclosing_bb.max().y;
+
+        let p = self.orig_pos_2_egui_rect(PtF { x, y }, image_rect.min, image_rect.size());
+        TextShape::new(p, galley, Color32::BLACK)
+    }
     fn update_perm_annos(&mut self, image_rect: &Rect, ctx: &Context) {
         let shape_orig = self.shape_orig();
         let canvases = self
@@ -331,10 +365,17 @@ impl RvImageApp {
                             bb: new_bb,
                             intensity: 1.0,
                         };
-                        res[0] = Some((selection_viz_canvas, (Rgb([0, 0, 0]), 255)));
+                        res[0] = Some((selection_viz_canvas, (Rgb([0, 0, 0]), 255, None)));
                     }
                 }
-                res[1] = Some((anno.canvas.clone(), (color_rgb, anno.fill_alpha)));
+                res[1] = Some((
+                    anno.canvas.clone(),
+                    (
+                        color_rgb,
+                        anno.fill_alpha,
+                        Some(anno.instance_display_label),
+                    ),
+                ));
                 res
             });
         let bbox_annos = self
@@ -372,46 +413,22 @@ impl RvImageApp {
                         })
                         .collect::<Vec<_>>();
                 }
-                InstanceLabelDisplay::IndexLr => {
-                    self.egui_perm_shapes =
-                        bbox_annos
-                            .into_iter()
-                            .enumerate()
-                            .flat_map(|(i, anno)| {
-                                let (egui_shape, color) = self.update_bbox_anno(anno, image_rect);
-                                let color_th = 200;
-                                let n_channels_above_th = &(color.to_array())[0..3]
-                                    .iter()
-                                    .filter(|c| **c > color_th)
-                                    .count();
-                                let bg_color = if *n_channels_above_th > 1 {
-                                    Color32::BLACK
-                                } else {
-                                    Color32::WHITE
-                                };
-
-                                let text_job = LayoutJob::single_section(
-                                    i.to_string(),
-                                    egui::TextFormat {
-                                        color,
-                                        background: bg_color,
-                                        ..Default::default()
-                                    },
-                                );
-                                let galley = ctx.fonts(|f| f.layout_job(text_job));
-                                let x = anno.geofig.enclosing_bb().min().x;
-                                let y = anno.geofig.enclosing_bb().max().y;
-
-                                let p = self.orig_pos_2_egui_rect(
-                                    PtF { x, y },
-                                    image_rect.min,
-                                    image_rect.size(),
-                                );
-                                iter::once(egui_shape).chain(iter::once(Shape::Text(
-                                    TextShape::new(p, galley, Color32::BLACK),
-                                )))
-                            })
-                            .collect::<Vec<_>>();
+                _ => {
+                    self.egui_perm_shapes = bbox_annos
+                        .into_iter()
+                        .enumerate()
+                        .flat_map(|(i, anno)| {
+                            let (egui_shape, color) = self.update_bbox_anno(anno, image_rect);
+                            let text_shape = self.text_shape(
+                                color,
+                                ctx,
+                                anno.geofig.enclosing_bb(),
+                                image_rect,
+                                i,
+                            );
+                            iter::once(egui_shape).chain(iter::once(Shape::Text(text_shape)))
+                        })
+                        .collect::<Vec<_>>();
                 }
             }
         }
@@ -419,7 +436,9 @@ impl RvImageApp {
         // update texture with brush canvas
         let shape_orig = self.shape_orig();
         let mut im_view = view::from_orig(&self.im_orig, self.zoom_box);
-        for (canvas, (color, fill_alpha)) in canvases.flatten() {
+        for (i, (canvas, (color, fill_alpha, instance_label_display))) in
+            canvases.flatten().enumerate()
+        {
             detail::canvas_to_view(
                 &canvas,
                 &mut im_view,
@@ -428,6 +447,15 @@ impl RvImageApp {
                 fill_alpha,
                 color,
             );
+            match instance_label_display {
+                Some(InstanceLabelDisplay::None) | None => (),
+                _ => {
+                    let color = detail::rgb_2_clr(Some(color.0), fill_alpha);
+                    let text_shape =
+                        self.text_shape(color, ctx, canvas.enclosing_bb(), image_rect, i);
+                    self.egui_perm_shapes.push(Shape::Text(text_shape));
+                }
+            }
         }
         self.im_view = im_view;
     }

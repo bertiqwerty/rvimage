@@ -74,48 +74,58 @@ impl ImportExportTrigger {
 
 pub type AnnotationsMap<T> = LabelMap<InstanceAnnotations<T>>;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+fn sort<T>(annos: InstanceAnnotations<T>, access_x_or_y: fn(BbF) -> TPtF) -> InstanceAnnotations<T>
+where
+    T: InstanceAnnotate,
+{
+    let (elts, cat_idxs, selected_mask) = annos.separate_data();
+    let mut tmp_tuples = elts
+        .into_iter()
+        .zip(cat_idxs)
+        .zip(selected_mask)
+        .collect::<Vec<_>>();
+    tmp_tuples.sort_by(|((elt1, _), _), ((elt2, _), _)| {
+        match access_x_or_y(elt1.enclosing_bb()).partial_cmp(&access_x_or_y(elt2.enclosing_bb())) {
+            Some(o) => o,
+            None => {
+                tracing::error!(
+                    "there is a NAN in an annotation box {:?}, {:?}",
+                    elt1.enclosing_bb(),
+                    elt2.enclosing_bb()
+                );
+                std::cmp::Ordering::Equal
+            }
+        }
+    });
+    InstanceAnnotations::from_tuples(tmp_tuples)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum InstanceLabelDisplay {
+    #[default]
     None,
     // count from left to right
     IndexLr,
+    // count from top to bottom
+    IndexTb,
 }
 
 impl InstanceLabelDisplay {
     pub fn next(self) -> Self {
         match self {
             InstanceLabelDisplay::None => InstanceLabelDisplay::IndexLr,
-            InstanceLabelDisplay::IndexLr => InstanceLabelDisplay::None,
+            InstanceLabelDisplay::IndexLr => InstanceLabelDisplay::IndexTb,
+            InstanceLabelDisplay::IndexTb => InstanceLabelDisplay::None,
         }
     }
-    pub fn sort<T>(self, instances: InstanceAnnotations<T>) -> InstanceAnnotations<T>
+    pub fn sort<T>(self, annos: InstanceAnnotations<T>) -> InstanceAnnotations<T>
     where
         T: InstanceAnnotate,
     {
         match self {
-            InstanceLabelDisplay::None => instances,
-            InstanceLabelDisplay::IndexLr => {
-                let (elts, cat_idxs, selected_mask) = instances.separate_data();
-                let mut tmp_tuples = elts
-                    .into_iter()
-                    .zip(cat_idxs)
-                    .zip(selected_mask)
-                    .collect::<Vec<_>>();
-                tmp_tuples.sort_by(|((elt1, _), _), ((elt2, _), _)| {
-                    match elt1.enclosing_bb().x.partial_cmp(&elt2.enclosing_bb().x) {
-                        Some(o) => o,
-                        None => {
-                            tracing::error!(
-                                "there is a NAN in an annotation box {:?}, {:?}",
-                                elt1.enclosing_bb(),
-                                elt2.enclosing_bb()
-                            );
-                            std::cmp::Ordering::Equal
-                        }
-                    }
-                });
-                InstanceAnnotations::from_tuples(tmp_tuples)
-            }
+            InstanceLabelDisplay::None => annos,
+            InstanceLabelDisplay::IndexLr => sort(annos, |bb| bb.x),
+            InstanceLabelDisplay::IndexTb => sort(annos, |bb| bb.y),
         }
     }
 }
@@ -124,6 +134,7 @@ impl Display for InstanceLabelDisplay {
         match self {
             InstanceLabelDisplay::None => write!(f, "None"),
             InstanceLabelDisplay::IndexLr => write!(f, "Index-Left-Right"),
+            InstanceLabelDisplay::IndexTb => write!(f, "Index-Top-Bottom"),
         }
     }
 }
@@ -277,6 +288,7 @@ where
                 elts.into_iter(),
                 cat_idxs.into_iter().map(|old_idx| idx_map[old_idx]),
                 s,
+                InstanceLabelDisplay::default(),
             );
             v1.deselect_all();
         } else {
@@ -285,7 +297,8 @@ where
                 .into_iter()
                 .map(|old_idx| idx_map[old_idx])
                 .collect::<Vec<_>>();
-            let v2 = InstanceAnnotations::new_relaxed(elts, cat_idxs);
+            let v2 =
+                InstanceAnnotations::new_relaxed(elts, cat_idxs, InstanceLabelDisplay::default());
             annotations_map.insert(k, (v2, s));
         }
     }

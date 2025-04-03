@@ -1,4 +1,4 @@
-use crate::{tools_data::InstanceAnnotate, util::true_indices, ShapeI};
+use crate::{tools_data::InstanceAnnotate, util::true_indices, InstanceLabelDisplay, ShapeI};
 use rvimage_domain::{rverr, BbF, RvResult};
 use serde::{Deserialize, Serialize};
 use std::mem;
@@ -33,11 +33,15 @@ where
             })
         }
     }
-    pub fn new_relaxed(elts: Vec<T>, cat_idxs: Vec<usize>) -> Self {
+    pub fn new_relaxed(
+        elts: Vec<T>,
+        cat_idxs: Vec<usize>,
+        instance_label_display: InstanceLabelDisplay,
+    ) -> Self {
         let mut res = Self::default();
         for (elt, cat_idx) in elts.into_iter().zip(cat_idxs.into_iter()) {
             if !res.elts.contains(&elt) {
-                res.add_elt(elt, cat_idx);
+                res.add_elt(elt, cat_idx, instance_label_display);
             }
         }
         res
@@ -71,21 +75,32 @@ where
     pub fn separate_data(self) -> (Vec<T>, Vec<usize>, Vec<bool>) {
         (self.elts, self.cat_idxs, self.selected_mask)
     }
-    pub fn extend<IE, IC>(&mut self, elts: IE, cat_idxs: IC, shape_image: ShapeI)
-    where
+    pub fn extend<IE, IC>(
+        &mut self,
+        elts: IE,
+        cat_idxs: IC,
+        shape_image: ShapeI,
+        instance_label_display: InstanceLabelDisplay,
+    ) where
         IE: Iterator<Item = T>,
         IC: Iterator<Item = usize>,
     {
         for (elt, cat_idx) in elts.zip(cat_idxs) {
             if elt.is_contained_in_image(shape_image) && !self.elts.contains(&elt) {
-                self.add_elt(elt, cat_idx);
+                self.add_elt(elt, cat_idx, instance_label_display);
             }
         }
     }
-    pub fn add_elt(&mut self, elt: T, cat_idx: usize) {
+    pub fn add_elt(
+        &mut self,
+        elt: T,
+        cat_idx: usize,
+        instance_label_display: InstanceLabelDisplay,
+    ) {
         self.cat_idxs.push(cat_idx);
         self.elts.push(elt);
         self.selected_mask.push(false);
+        *self = instance_label_display.sort(mem::take(self));
     }
     pub fn cat_idxs(&self) -> &Vec<usize> {
         &self.cat_idxs

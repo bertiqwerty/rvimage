@@ -27,8 +27,9 @@ use rvimage_domain::{
 };
 
 use super::core::{
-    current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_options, get_options_mut,
-    get_specific, get_specific_mut, get_visible, DataAccessors, InstanceAnnoAccessors, ACTOR_NAME,
+    current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_instance_label_display,
+    get_options, get_options_mut, get_specific, get_specific_mut, get_visible, DataAccessors,
+    InstanceAnnoAccessors, ACTOR_NAME,
 };
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
@@ -188,9 +189,10 @@ fn close_polygon(
                 mem::take(prev_pos).prev_pos.into_iter().collect::<Vec<_>>(),
             ))?
         };
+        let ild = get_instance_label_display(world);
         prev_pos.prev_pos = vec![];
         let add_annos = |annos: &mut BboxAnnotations| {
-            annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label);
+            annos.add_elt(GeoFig::Poly(poly), in_menu_selected_label, ild);
         };
         change_annos_bbox(world, add_annos);
         history.push(Record::new(world.clone(), ACTOR_NAME));
@@ -258,6 +260,7 @@ pub(super) fn on_mouse_released_right(
     mut world: World,
     mut history: History,
 ) -> (World, History, PrevPos) {
+    let ild = get_instance_label_display(&world);
     if get_options(&world).map(|o| o.core.erase) != Some(true) {
         let split_mode = get_options(&world).map(|o| o.split_mode);
         let lc_orig = prev_pos.last_valid_click;
@@ -276,7 +279,7 @@ pub(super) fn on_mouse_released_right(
                             SplitMode::None => mp,
                         };
                         let add_annos = |annos: &mut BboxAnnotations| {
-                            annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label);
+                            annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label, ild);
                         };
                         change_annos_bbox(&mut world, add_annos);
                         history.push(Record::new(world.clone(), ACTOR_NAME));
@@ -351,6 +354,7 @@ pub(super) fn on_mouse_released_left(
     mut history: History,
 ) -> (World, History, PrevPos) {
     let split_mode = get_options(&world).map(|o| o.split_mode);
+    let ild = get_instance_label_display(&world);
     let MouseReleaseParams {
         mut prev_pos,
         visible,
@@ -583,8 +587,8 @@ pub(super) fn on_mouse_released_left(
                                 annos.remove_multiple(&removers);
                                 if let Some(selected) = in_menu_selected_label {
                                     for (_, bb1, bb2) in new_bbs {
-                                        annos.add_bb(bb1, selected);
-                                        annos.add_bb(bb2, selected);
+                                        annos.add_bb(bb1, selected, ild);
+                                        annos.add_bb(bb2, selected, ild);
                                     }
                                 }
                             };
@@ -628,7 +632,11 @@ pub(super) fn on_key_released(
         params.is_ctrl_held,
         BBOX_NAME,
     );
-    world = instance_label_display::<DataAccessors>(world, params.released_key, ACTOR_NAME);
+    world = instance_label_display::<_, DataAccessors, InstanceAnnoAccessors>(
+        world,
+        params.released_key,
+        ACTOR_NAME,
+    );
     match params.released_key {
         ReleasedKey::H if params.is_ctrl_held => {
             // Hide all boxes (selected or not)
@@ -646,6 +654,7 @@ pub(super) fn on_key_released(
             }) = mouse_pos
             {
                 let shape_orig = world.shape_orig();
+                let ild = get_instance_label_display(&world);
                 let add_anno = |annos: &mut BboxAnnotations| {
                     let selected_inds = true_indices(annos.selected_mask());
                     let first_selected_idx = true_indices(annos.selected_mask()).next();
@@ -673,6 +682,7 @@ pub(super) fn on_key_released(
                                 translated_bbs.iter().cloned(),
                                 translated_cat_ids.iter().copied(),
                                 shape_orig,
+                                ild,
                             );
                             annos.deselect_all();
                             annos.select_last_n(translated_bbs.len());
@@ -746,6 +756,7 @@ fn test_key_released() {
             w: 10.0,
         },
         0,
+        crate::InstanceLabelDisplay::IndexTb,
     );
     assert!(!annos.selected_mask()[0]);
     let annos_orig = annos.clone();
@@ -762,12 +773,14 @@ fn test_key_released() {
     let params = make_params(ReleasedKey::C, true);
     let (world, history) = on_key_released(world, history, None, &params);
     assert!(get_annos(&world).unwrap().selected_mask()[0]);
+    let ild = get_instance_label_display(&world);
     if let Some(clipboard) = get_specific(&world).and_then(|d| d.clipboard.clone()) {
         let mut annos = BboxAnnotations::default();
         annos.extend(
             clipboard.elts().iter().cloned(),
             clipboard.cat_idxs().iter().copied(),
             ShapeI { w: 100, h: 100 },
+            ild,
         );
         assert_eq!(annos.elts(), get_annos(&world).unwrap().elts());
         assert_eq!(annos.cat_idxs(), get_annos(&world).unwrap().cat_idxs());
@@ -852,7 +865,9 @@ fn test_mouse_held() {
     let (mouse_pos, mut world, history) = test_data();
     let annos = get_annos_mut(&mut world);
     let bbs = make_test_bbs();
-    annos.unwrap().add_bb(bbs[0], 0);
+    annos
+        .unwrap()
+        .add_bb(bbs[0], 0, crate::InstanceLabelDisplay::IndexLr);
     {
         let mut mover = Mover::new();
         mover.move_mouse_pressed(Some((12.0, 12.0).into()));
@@ -976,10 +991,26 @@ fn test_mouse_release() {
             .label_info
             .cat_idx_current = 1;
         let annos = get_annos_mut(&mut world).unwrap();
-        annos.add_bb(BbI::from_arr(&[20, 20, 20, 20]).into(), 0);
-        annos.add_bb(BbI::from_arr(&[50, 50, 5, 5]).into(), 0);
-        annos.add_bb(BbI::from_arr(&[20, 50, 3, 3]).into(), 1);
-        annos.add_bb(BbI::from_arr(&[20, 55, 3, 3]).into(), 0);
+        annos.add_bb(
+            BbI::from_arr(&[20, 20, 20, 20]).into(),
+            0,
+            crate::InstanceLabelDisplay::IndexLr,
+        );
+        annos.add_bb(
+            BbI::from_arr(&[50, 50, 5, 5]).into(),
+            0,
+            crate::InstanceLabelDisplay::IndexLr,
+        );
+        annos.add_bb(
+            BbI::from_arr(&[20, 50, 3, 3]).into(),
+            1,
+            crate::InstanceLabelDisplay::IndexLr,
+        );
+        annos.add_bb(
+            BbI::from_arr(&[20, 55, 3, 3]).into(),
+            0,
+            crate::InstanceLabelDisplay::IndexLr,
+        );
 
         let (mut world, _, prev_pos) =
             on_mouse_released_left(mouse_pos, params, world.clone(), history.clone());

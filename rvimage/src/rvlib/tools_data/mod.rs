@@ -116,10 +116,7 @@ impl ToolSpecifics {
     ) -> Option<Vec<Annotation>> {
         match self {
             ToolSpecifics::Bbox(bb_data) => {
-                let annos = bb_data.get_annos(file_path_relative).cloned();
-                
-                if let Some(mut annos) = annos {
-                    annos = bb_data.options.core.instance_label_display.sort(annos);
+                if let Some(annos) = bb_data.get_annos(file_path_relative) {
                     let geos = annos.elts();
                     let cats = annos.cat_idxs();
                     let selected_bbs = annos.selected_mask();
@@ -183,7 +180,7 @@ impl ToolSpecifics {
                                 label: None,
                                 is_selected: Some(*is_selected),
                                 fill_alpha: br_data.options.fill_alpha,
-                                instance_label_view: br_data.options.core.instance_label_display,
+                                instance_display_label: br_data.options.core.instance_label_display,
                             })
                         })
                         .collect::<Vec<Annotation>>();
