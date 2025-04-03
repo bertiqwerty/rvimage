@@ -1,7 +1,15 @@
 use std::fmt::Debug;
 
 use crate::{
-    drawme::{Annotation, BboxAnnotation, Stroke}, events::{Events, KeyCode}, history::History, make_tool_transform, tools::core::Manipulate, tools_data::InstanceLabelDisplay, types::ViewImage, world::World, GeoFig
+    drawme::{Annotation, BboxAnnotation, Stroke},
+    events::{Events, KeyCode},
+    history::History,
+    make_tool_transform,
+    tools::core::Manipulate,
+    tools_data::InstanceLabelDisplay,
+    types::ViewImage,
+    world::World,
+    GeoFig,
 };
 use rvimage_domain::{BbF, OutOfBoundsMode, PtF, ShapeI, TPtF};
 

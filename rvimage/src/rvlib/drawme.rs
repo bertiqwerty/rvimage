@@ -17,7 +17,6 @@ impl Stroke {
     }
 }
 
-
 #[derive(Clone, Debug)]
 pub struct BboxAnnotation {
     pub geofig: GeoFig,

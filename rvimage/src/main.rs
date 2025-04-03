@@ -401,7 +401,7 @@ impl RvImageApp {
                 Annotation::Brush(_) => None,
             })
             .collect::<Vec<_>>();
-        if bbox_annos.len() > 0 {
+        if !bbox_annos.is_empty() {
             let ild = bbox_annos[0].instance_label_display;
             match ild {
                 InstanceLabelDisplay::None => {

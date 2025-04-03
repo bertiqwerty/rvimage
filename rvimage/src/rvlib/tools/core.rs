@@ -409,31 +409,28 @@ where
     DA: MetaDataAccess,
     IA: InstanceAnnoAccess<T>,
 {
-    match key {
-        ReleasedKey::L => {
-            // update instance label display
-            let options = DA::get_core_options_mut(&mut world);
-            if let Some(options) = options {
-                options.instance_label_display = options.instance_label_display.next();
-                tracing::info!(
-                    "instance label display changed to {}",
-                    options.instance_label_display
-                );
-            }
-
-            // sort the annotations
-            let ild = DA::get_core_options(&world)
-                .map(|o| o.instance_label_display)
-                .unwrap_or(InstanceLabelDisplay::None);
-            let annos = IA::get_annos_mut(&mut world);
-            if let Some(annos) = annos {
-                *annos = ild.sort(mem::take(annos));
-            }
-
-            let vis = vis_from_lfoption(DA::get_label_info(&world), true);
-            world.request_redraw_annotations(actor, vis);
+    if let ReleasedKey::L = key {
+        // update instance label display
+        let options = DA::get_core_options_mut(&mut world);
+        if let Some(options) = options {
+            options.instance_label_display = options.instance_label_display.next();
+            tracing::info!(
+                "instance label display changed to {}",
+                options.instance_label_display
+            );
         }
-        _ => (),
+
+        // sort the annotations
+        let ild = DA::get_core_options(&world)
+            .map(|o| o.instance_label_display)
+            .unwrap_or(InstanceLabelDisplay::None);
+        let annos = IA::get_annos_mut(&mut world);
+        if let Some(annos) = annos {
+            *annos = ild.sort(mem::take(annos));
+        }
+
+        let vis = vis_from_lfoption(DA::get_label_info(&world), true);
+        world.request_redraw_annotations(actor, vis);
     }
     world
 }
