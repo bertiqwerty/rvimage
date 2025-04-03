@@ -7,8 +7,8 @@ use crate::{
     result::trace_ok_err,
     tools::{
         core::{
-            change_annos, instance_label_display, label_change_key, on_selection_keys, Mover,
-            ReleasedKey,
+            change_annos, check_instance_label_display_change, label_change_key, on_selection_keys,
+            Mover, ReleasedKey,
         },
         BBOX_NAME,
     },
@@ -632,7 +632,7 @@ pub(super) fn on_key_released(
         params.is_ctrl_held,
         BBOX_NAME,
     );
-    world = instance_label_display::<_, DataAccessors, InstanceAnnoAccessors>(
+    world = check_instance_label_display_change::<_, DataAccessors, InstanceAnnoAccessors>(
         world,
         params.released_key,
         ACTOR_NAME,

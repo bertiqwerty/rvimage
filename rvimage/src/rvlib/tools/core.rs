@@ -8,13 +8,13 @@ use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{vis_from_lfoption, InstanceAnnotate, LabelInfo};
 use crate::util::Visibility;
 use crate::world::InstanceAnnoAccess;
-use crate::ShapeI;
 use crate::{
     events::Events,
     history::History,
     world,
     world::{MetaDataAccess, World},
 };
+use crate::{InstanceLabelDisplay, ShapeI};
 use rvimage_domain::PtF;
 use std::mem;
 
@@ -399,7 +399,27 @@ where
     world
 }
 
-pub(super) fn instance_label_display<T, DA, IA>(
+pub(super) fn instance_label_display_sort<T, DA, IA>(
+    mut world: World,
+    instance_label_display: InstanceLabelDisplay,
+    actor: &'static str,
+) -> World
+where
+    T: InstanceAnnotate,
+    DA: MetaDataAccess,
+    IA: InstanceAnnoAccess<T>,
+{
+    let annos = IA::get_annos_mut(&mut world);
+    if let Some(annos) = annos {
+        *annos = instance_label_display.sort(mem::take(annos));
+    }
+
+    let vis = vis_from_lfoption(DA::get_label_info(&world), true);
+    world.request_redraw_annotations(actor, vis);
+
+    world
+}
+pub(super) fn check_instance_label_display_change<T, DA, IA>(
     mut world: World,
     key: ReleasedKey,
     actor: &'static str,
@@ -424,13 +444,7 @@ where
         let ild = DA::get_core_options(&world)
             .map(|o| o.instance_label_display)
             .unwrap_or_default();
-        let annos = IA::get_annos_mut(&mut world);
-        if let Some(annos) = annos {
-            *annos = ild.sort(mem::take(annos));
-        }
-
-        let vis = vis_from_lfoption(DA::get_label_info(&world), true);
-        world.request_redraw_annotations(actor, vis);
+        world = instance_label_display_sort::<_, DA, IA>(world, ild, actor);
     }
     world
 }

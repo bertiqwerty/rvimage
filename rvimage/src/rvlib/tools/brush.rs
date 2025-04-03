@@ -29,9 +29,9 @@ use rvimage_domain::{BrushLine, Canvas, PtF, TPtF};
 
 use super::{
     core::{
-        change_annos, check_autopaste, check_erase_mode, deselect_all, instance_label_display,
-        label_change_key, map_held_key, map_released_key, on_selection_keys, HeldKey, Mover,
-        ReleasedKey,
+        change_annos, check_autopaste, check_erase_mode, check_instance_label_display_change,
+        deselect_all, instance_label_display_sort, label_change_key, map_held_key,
+        map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey,
     },
     instance_anno_shared::get_rot90_data,
     Manipulate, BRUSH_NAME,
@@ -123,7 +123,7 @@ fn key_released(events: &Events, mut world: World, mut history: History) -> (Wor
         }
         _ => (),
     }
-    world = instance_label_display::<_, DataAccessors, InstanceAnnoAccessors>(
+    world = check_instance_label_display_change::<_, DataAccessors, InstanceAnnoAccessors>(
         world,
         released_key,
         ACTOR_NAME,
@@ -507,6 +507,10 @@ impl Manipulate for Brush {
             for (_, (anno, _)) in brush_data.anno_iter_mut() {
                 anno.deselect_all();
             }
+            let ild = get_instance_label_display(&world);
+            world = instance_label_display_sort::<_, DataAccessors, InstanceAnnoAccessors>(
+                world, ild, ACTOR_NAME,
+            );
         }
         (world, history) =
             check_autopaste::<_, DataAccessors, InstanceAnnoAccessors>(world, history, ACTOR_NAME);

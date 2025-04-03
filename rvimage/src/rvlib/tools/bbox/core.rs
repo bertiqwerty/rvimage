@@ -8,7 +8,8 @@ use crate::{
     tools::{
         core::{
             check_autopaste, check_erase_mode, check_recolorboxes, check_trigger_history_update,
-            check_trigger_redraw, deselect_all, map_released_key, Mover,
+            check_trigger_redraw, deselect_all, instance_label_display_sort, map_released_key,
+            Mover,
         },
         instance_anno_shared::{check_cocoimport, get_rot90_data},
         Manipulate, BBOX_NAME,
@@ -351,6 +352,10 @@ impl Manipulate for Bbox {
             for (_, (anno, _)) in bbox_data.anno_iter_mut() {
                 anno.deselect_all();
             }
+            let ild = get_instance_label_display(&world);
+            world = instance_label_display_sort::<_, DataAccessors, InstanceAnnoAccessors>(
+                world, ild, ACTOR_NAME,
+            );
         }
 
         let visible = get_options(&world).map(|o| o.core.visible) == Some(true);
