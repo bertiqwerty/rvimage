@@ -187,7 +187,8 @@ struct RvImageApp {
     events: rvlib::Events,
     last_sensed_btncodes: rvlib::LastSensedBtns,
     t_last_iterations: [f64; 3],
-    egui_perm_shapes: Vec<Shape>,
+    egui_perm_bbox_shapes: Vec<Shape>,
+    egui_perm_brush_shapes: Vec<Shape>,
     egui_tmp_shapes: [Option<Shape>; 2],
     image_rect: Option<Rect>,
     prev_image_rect_size: Option<Vec2>,
@@ -405,7 +406,7 @@ impl RvImageApp {
             let ild = bbox_annos[0].instance_label_display;
             match ild {
                 InstanceLabelDisplay::None => {
-                    self.egui_perm_shapes = bbox_annos
+                    self.egui_perm_bbox_shapes = bbox_annos
                         .into_iter()
                         .map(|anno| {
                             let (egui_shape, _) = self.update_bbox_anno(anno, image_rect);
@@ -414,7 +415,7 @@ impl RvImageApp {
                         .collect::<Vec<_>>();
                 }
                 _ => {
-                    self.egui_perm_shapes = bbox_annos
+                    self.egui_perm_bbox_shapes = bbox_annos
                         .into_iter()
                         .enumerate()
                         .flat_map(|(i, anno)| {
@@ -431,11 +432,15 @@ impl RvImageApp {
                         .collect::<Vec<_>>();
                 }
             }
+        } else {
+            self.egui_perm_bbox_shapes = vec![];
         }
 
         // update texture with brush canvas
         let shape_orig = self.shape_orig();
         let mut im_view = view::from_orig(&self.im_orig, self.zoom_box);
+
+        self.egui_perm_brush_shapes = vec![];
         for (i, (canvas, (color, fill_alpha, instance_label_display))) in
             canvases.flatten().enumerate()
         {
@@ -453,7 +458,8 @@ impl RvImageApp {
                     let color = detail::rgb_2_clr(Some(color.0), fill_alpha);
                     let text_shape =
                         self.text_shape(color, ctx, canvas.enclosing_bb(), image_rect, i);
-                    self.egui_perm_shapes.push(Shape::Text(text_shape));
+                    self.egui_perm_brush_shapes
+                        .push(Shape::Text(text_shape));
                 }
             }
         }
@@ -466,7 +472,9 @@ impl RvImageApp {
                 texture.set(im, TextureOptions::NEAREST);
             }
         }
-        ui.painter().add(Shape::Vec(self.egui_perm_shapes.clone()));
+        ui.painter().add(Shape::Vec(self.egui_perm_bbox_shapes.clone()));
+        ui.painter()
+            .add(Shape::Vec(self.egui_perm_brush_shapes.clone()));
         ui.painter().add(Shape::Vec(
             self.egui_tmp_shapes
                 .iter()
