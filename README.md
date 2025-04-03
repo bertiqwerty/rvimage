@@ -227,12 +227,11 @@ There two main ways to draw a polygon or a box:
 | hold left mouse                                                                    | draw brush if not in erase mode                                 |
 | <kbd>E</kbd>                                                                       | activate erase mode                                             |
 | <kbd>Ctrl</kbd> + click with left mouse                                            | select brush                                                    |
-| <kbd>Ctrl</kbd> + <kbd>C</kbd>/<kbd>V</kbd>/<kbd>A</kbd>/<kbd>H</kbd>/<kbd>D</kbd> | see bounding box tool                                           |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd>/<kbd>V</kbd>/<kbd>A</kbd>/<kbd>H</kbd>/<kbd>D</kbd>/<kbd>L</kbd> | see bounding box tool                                           |
 | <kbd>Delete</kbd>                                                                  | delete selected strokes                                         |
 | change label                                                                       | labels of selected strokes are changed                          |
 | <kbd>T</kbd>/<kbd>I</kbd>                                                          | increase thickness/intensity                                    |
 | <kbd>Alt</kbd> + <kbd>T</kbd>/<kbd>I</kbd>                                         | decrease thickness/intensity                                    |
-| <kbd>L</kbd> | Toggle index label display between none, sorted-left-right, and sorted-top-bottom                                            |
 
 
 ---
