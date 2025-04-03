@@ -8,13 +8,13 @@ use crate::tools_data::attributes_data::{self, AttrVal};
 use crate::tools_data::{vis_from_lfoption, InstanceAnnotate, LabelInfo};
 use crate::util::Visibility;
 use crate::world::InstanceAnnoAccess;
+use crate::ShapeI;
 use crate::{
     events::Events,
     history::History,
     world,
     world::{MetaDataAccess, World},
 };
-use crate::{InstanceLabelDisplay, ShapeI};
 use rvimage_domain::PtF;
 use std::mem;
 
@@ -423,7 +423,7 @@ where
         // sort the annotations
         let ild = DA::get_core_options(&world)
             .map(|o| o.instance_label_display)
-            .unwrap_or(InstanceLabelDisplay::None);
+            .unwrap_or_default();
         let annos = IA::get_annos_mut(&mut world);
         if let Some(annos) = annos {
             *annos = ild.sort(mem::take(annos));
