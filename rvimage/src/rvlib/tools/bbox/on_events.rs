@@ -705,6 +705,7 @@ pub(super) fn on_key_released(
 
 #[cfg(test)]
 use {
+    crate::tracing_setup::init_tracing_for_tests,
     crate::types::ViewImage,
     image::DynamicImage,
     rvimage_domain::{make_test_bbs, make_test_geos, BbI, ShapeI},
@@ -897,6 +898,7 @@ fn test_mouse_held() {
 
 #[test]
 fn test_mouse_release() {
+    init_tracing_for_tests();
     let (mouse_pos, world, history) = test_data();
     let make_params = |prev_pos: Vec<PtF>, is_ctrl_held| {
         let is_pp_empty = prev_pos.is_empty();
@@ -1002,7 +1004,7 @@ fn test_mouse_release() {
             crate::InstanceLabelDisplay::IndexLr,
         );
         annos.add_bb(
-            BbI::from_arr(&[20, 50, 3, 3]).into(),
+            BbI::from_arr(&[30, 50, 3, 3]).into(),
             1,
             crate::InstanceLabelDisplay::IndexLr,
         );
@@ -1038,11 +1040,13 @@ fn test_mouse_release() {
         assert_eq!(prev_pos.prev_pos, vec![]);
         assert!(annos.selected_mask()[0]);
         assert!(!annos.selected_mask()[1]);
+        assert!(!annos.selected_mask()[2]);
+        assert!(!annos.selected_mask()[3]);
         assert_eq!(annos.cat_idxs()[0], 1);
         assert_eq!(annos.cat_idxs()[1], 0);
         assert_eq!(annos.cat_idxs()[2], 1);
         assert_eq!(annos.cat_idxs()[3], 0);
-        // shift
+
         let mut params = make_params(vec![], true);
         params.is_shift_held = true;
         let annos = get_annos_mut(&mut world).unwrap();
@@ -1052,7 +1056,7 @@ fn test_mouse_release() {
         let annos = get_annos(&world).unwrap();
         assert_eq!(prev_pos.prev_pos, vec![]);
         assert!(annos.selected_mask()[0]);
-        assert!(!annos.selected_mask()[1]);
+        assert!(annos.selected_mask()[1]);
         assert!(annos.selected_mask()[2]);
         assert!(annos.selected_mask()[3]);
         assert_eq!(annos.cat_idxs()[0], 1);
