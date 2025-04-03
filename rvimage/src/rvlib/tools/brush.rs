@@ -574,6 +574,7 @@ impl Manipulate for Brush {
                 (released, KeyCode::E, key_released),
                 (released, KeyCode::H, key_released),
                 (held, KeyCode::I, key_held),
+                (released, KeyCode::L, key_released),
                 (held, KeyCode::T, key_held),
                 (released, KeyCode::V, key_released),
                 (released, KeyCode::Key1, key_released),
