@@ -32,6 +32,7 @@ rvimage
 
 With
 ```
+scoop update
 scoop update rvimage
 ```
 you get the latest released version.
