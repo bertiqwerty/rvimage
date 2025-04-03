@@ -8,8 +8,8 @@ name = "rvimage"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21.2", features = ["generate-import-lib"] }
-numpy = "0.21.0"
+pyo3 = { version = "0.24.1", features = ["generate-import-lib"] }
+numpy = "0.24.0"
 rvimage-domain = { path = "../rvimage-domain" }
 
 [features]
