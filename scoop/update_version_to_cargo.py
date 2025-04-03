@@ -4,6 +4,7 @@ import tomllib
 import urllib.request
 import click
 
+
 @click.command()
 @click.argument("bucketpath", type=click.Path(exists=True, file_okay=False))
 def main(bucketpath: str):
@@ -22,7 +23,8 @@ def main(bucketpath: str):
     scoop_data["version"] = new_version
     url = scoop_data["architecture"]["64bit"]["url"]
     scoop_data["architecture"]["64bit"]["url"] = url.replace(old_version, new_version)
-    scoop_data["extract_dir"] = scoop_data["extract_dir"].replace(
+    extract_dir = scoop_data["architecture"]["64bit"]["extract_dir"]
+    scoop_data["architecture"]["64bit"]["extract_dir"] = extract_dir.replace(
         old_version, new_version
     )
     checksum_file, _ = urllib.request.urlretrieve(
