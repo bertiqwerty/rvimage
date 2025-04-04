@@ -39,7 +39,7 @@ mod detail {
         path::{Path, PathBuf},
     };
 
-    use image::{DynamicImage, GenericImage, ImageBuffer};
+    use image::{DynamicImage, GenericImage};
     use imageproc::drawing::Canvas;
     use serde::{Deserialize, Serialize, Serializer};
 
@@ -164,17 +164,9 @@ mod detail {
         Ok(())
     }
 
-    pub(super) fn loading_image(
-        input_image: Option<&DynamicImage>,
-        shape: ShapeI,
-        counter: u128,
-    ) -> DynamicImage {
-        let shape = if let Some(im) = input_image {
-            ShapeI::from_im(im)
-        } else {
-            shape
-        };
-        let radius = 7i32;
+    pub(super) fn loading_image(im: &DynamicImage, counter: u128) -> DynamicImage {
+        let shape = ShapeI::from_im(im);
+        let radius = 7u32;
         let centers = [
             (shape.w - 70, shape.h - 20),
             (shape.w - 50, shape.h - 20),
@@ -191,42 +183,21 @@ mod detail {
             }
             res
         };
-        if let Some(input_image) = input_image {
-            let mut im = input_image.clone();
-            for y in 0..im.height() {
-                for x in 0..im.width() {
-                    for (c_idx, ctr) in centers.iter().enumerate() {
-                        if (ctr.0 as i32 - x as i32).pow(2) + (ctr.1 as i32 - y as i32).pow(2)
-                            < radius.pow(2)
-                        {
-                            let counter_mod = ((counter / 5) % 3) as usize;
-                            let rgb = off_center_dim(c_idx, counter_mod, &[195u8, 255u8, 205u8]);
-                            let mut pixel = im.get_pixel(x, y);
-
-                            pixel.0 = [rgb[0], rgb[1], rgb[2], 255];
-                            im.put_pixel(x, y, pixel);
-                        }
+        let mut im = im.clone();
+        for (c_idx, ctr) in centers.iter().enumerate() {
+            for y in ctr.1.saturating_sub(radius)..ctr.1.saturating_add(radius) {
+                for x in ctr.0.saturating_sub(radius)..ctr.0.saturating_add(radius) {
+                    if (ctr.0 - x).pow(2) + (ctr.1 - y).pow(2) < radius.pow(2) {
+                        let counter_mod = ((counter / 5) % 3) as usize;
+                        let rgb = off_center_dim(c_idx, counter_mod, &[195u8, 255u8, 205u8]);
+                        let mut pixel = im.get_pixel(x, y);
+                        pixel.0 = [rgb[0], rgb[1], rgb[2], 255];
+                        im.put_pixel(x, y, pixel);
                     }
                 }
             }
-            im
-        } else {
-            DynamicImage::ImageRgb8(ImageBuffer::from_fn(shape.w, shape.h, |x, y| {
-                for (c_idx, ctr) in centers.iter().enumerate() {
-                    if (ctr.0 as i32 - x as i32).pow(2) + (ctr.1 as i32 - y as i32).pow(2)
-                        < radius.pow(2)
-                    {
-                        let counter_mod = ((counter / 5) % 3) as usize;
-                        return image::Rgb(off_center_dim(
-                            c_idx,
-                            counter_mod,
-                            &[195u8, 255u8, 205u8],
-                        ));
-                    }
-                }
-                image::Rgb([77u8, 77u8, 87u8])
-            }))
         }
+        im
     }
     pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, CfgPrj)> {
         let s = file_util::read_to_string(file_path)?;
@@ -888,27 +859,22 @@ impl Control {
                     }
                     _ => {
                         thread::sleep(Duration::from_millis(2));
-                        let shape = world.shape_orig();
                         self.file_selected_idx = menu_file_selected;
                         self.flags.is_loading_screen_active = true;
                         let prev_im = world.data.im_background();
-
-                        (
-                            World::new(
-                                DataRaw::new(
-                                    detail::loading_image(
-                                        Some(prev_im),
-                                        shape,
-                                        self.loading_screen_animation_counter,
-                                    ),
-                                    world.data.tools_data_map.clone(),
-                                    MetaData::default(),
-                                    world.ui_image_rect(),
+                        let new_world = World::new(
+                            DataRaw::new(
+                                detail::loading_image(
+                                    prev_im,
+                                    self.loading_screen_animation_counter,
                                 ),
-                                None,
+                                world.data.tools_data_map.clone(),
+                                MetaData::default(),
+                                world.ui_image_rect(),
                             ),
-                            self.file_selected_idx,
-                        )
+                            None,
+                        );
+                        (new_world, self.file_selected_idx)
                     }
                 };
                 Some(read_image_and_idx)
