@@ -315,9 +315,9 @@ impl Debug for DataRaw {
     }
 }
 
-impl Into<DynamicImage> for DataRaw {
-    fn into(self) -> DynamicImage {
-        self.im_background
+impl From<DataRaw> for DynamicImage {
+    fn from(data: DataRaw) -> Self {
+        data.im_background
     }
 }
 
