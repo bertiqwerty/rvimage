@@ -273,6 +273,7 @@ impl MainEventLoop {
         activate_tool_event!(B, BBOX_NAME, e, self.recently_clicked_tool_idx, self.tools);
         activate_tool_event!(Z, ZOOM_NAME, e, self.recently_clicked_tool_idx, self.tools);
 
+        const DOUBLE_SKIP_TH_MS: u128 = 500;
         if e.held_ctrl() && e.pressed(KeyCode::M) {
             self.menu.toggle();
         } else if e.released(KeyCode::F5) {
@@ -295,9 +296,13 @@ impl MainEventLoop {
                     self.next_image_held_timer = Instant::now();
                 }
             }
-        } else if e.released(KeyCode::PageDown) {
+        } else if e.released(KeyCode::PageDown)
+            && self.next_image_held_timer.elapsed().as_millis() > DOUBLE_SKIP_TH_MS
+        {
             self.ctrl.paths_navigator.next();
-        } else if e.released(KeyCode::PageUp) {
+        } else if e.released(KeyCode::PageUp)
+            && self.next_image_held_timer.elapsed().as_millis() > DOUBLE_SKIP_TH_MS
+        {
             self.ctrl.paths_navigator.prev();
         } else if e.released(KeyCode::Escape) {
             self.world.set_zoom_box(None);
