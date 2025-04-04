@@ -56,7 +56,7 @@ impl CfgLegacy {
             tmpdir: self.tmpdir,
             current_prj_path: self.current_prj_path,
             file_cache_args: self.file_cache_args.unwrap_or_default(),
-            next_image_held_interval_ms: get_default_next_image_held_interval_ms(),
+            image_change_delay_on_held_key_ms: get_image_change_delay_on_held_key_ms(),
 
             ssh: SshCfgUsr {
                 user: self.ssh_cfg.user,
@@ -247,7 +247,7 @@ fn get_default_n_autosaves() -> Option<u8> {
     Some(2)
 }
 
-fn get_default_next_image_held_interval_ms() -> u64 {
+fn get_image_change_delay_on_held_key_ms() -> u64 {
     300
 }
 
@@ -257,8 +257,8 @@ pub struct CfgUsr {
     #[serde(default = "get_default_n_autosaves")]
     pub n_autosaves: Option<u8>,
 
-    #[serde(default = "get_default_next_image_held_interval_ms")]
-    pub next_image_held_interval_ms: u64,
+    #[serde(default = "get_image_change_delay_on_held_key_ms")]
+    pub image_change_delay_on_held_key_ms: u64,
 
     // This is only variable to make tests not override your config.
     // You shall not change this when actually running RV Image.

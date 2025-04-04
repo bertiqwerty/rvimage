@@ -92,6 +92,9 @@ current_prj_path = "prjpath.json"
 # "NoCache" for not caching at all or "FileCache" for caching files
 # in a configurable folder.
 cache = "FileCache"  
+# how long should an image be shown before switching to the next in case
+# page-up or -down is held
+image_change_delay_on_held_key_ms = 300
 
 # Address of the http control server, default is 127.0.0.1:5432
 # http_address = address:port

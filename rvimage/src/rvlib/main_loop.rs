@@ -282,7 +282,7 @@ impl MainEventLoop {
             }
         } else if e.held(KeyCode::PageDown) || e.held(KeyCode::PageUp) {
             let elapsed = self.next_image_held_timer.elapsed().as_millis();
-            let interval = self.ctrl.cfg.usr.next_image_held_interval_ms as u128;
+            let interval = self.ctrl.cfg.usr.image_change_delay_on_held_key_ms as u128;
             if elapsed > interval {
                 if e.held(KeyCode::PageDown) {
                     self.ctrl.paths_navigator.next();
