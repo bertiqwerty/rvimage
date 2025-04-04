@@ -124,6 +124,7 @@ pub struct MainEventLoop {
     rx_from_http: Option<Receiver<RvResult<String>>>,
     http_addr: String,
     autosave_timer: Instant,
+    next_image_held_timer: Instant,
 }
 impl Default for MainEventLoop {
     fn default() -> Self {
@@ -161,6 +162,7 @@ impl MainEventLoop {
             recently_clicked_tool_idx: None,
             rx_from_http,
             autosave_timer: Instant::now(),
+            next_image_held_timer: Instant::now(),
         };
 
         trace_ok_err(self_.load_prj_during_startup(prj_file_path));
@@ -273,20 +275,27 @@ impl MainEventLoop {
 
         if e.held_ctrl() && e.pressed(KeyCode::M) {
             self.menu.toggle();
-        }
-        if e.released(KeyCode::F5) {
+        } else if e.released(KeyCode::F5) {
             if let Err(e) = self.ctrl.reload(None) {
                 self.menu
                     .show_info(Info::Error(format!("could not reload due to {e:?}")));
             }
-        }
-        if e.pressed(KeyCode::PageDown) {
+        } else if e.held(KeyCode::PageDown) || e.held(KeyCode::PageUp) {
+            let elapsed = self.next_image_held_timer.elapsed().as_millis();
+            let interval = self.ctrl.cfg.usr.next_image_held_interval_ms as u128;
+            if elapsed > interval {
+                if e.held(KeyCode::PageDown) {
+                    self.ctrl.paths_navigator.next();
+                } else if e.held(KeyCode::PageUp) {
+                    self.ctrl.paths_navigator.prev();
+                }
+                self.next_image_held_timer = Instant::now();
+            }
+        } else if e.released(KeyCode::PageDown) {
             self.ctrl.paths_navigator.next();
-        }
-        if e.pressed(KeyCode::PageUp) {
+        } else if e.released(KeyCode::PageUp) {
             self.ctrl.paths_navigator.prev();
-        }
-        if e.pressed(KeyCode::Escape) {
+        } else if e.released(KeyCode::Escape) {
             self.world.set_zoom_box(None);
         }
 
