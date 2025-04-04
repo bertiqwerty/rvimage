@@ -315,6 +315,12 @@ impl Debug for DataRaw {
     }
 }
 
+impl Into<DynamicImage> for DataRaw {
+    fn into(self) -> DynamicImage {
+        self.im_background
+    }
+}
+
 fn evaluate_visibility(
     visibility: Visibility,
     tool_name: &str,

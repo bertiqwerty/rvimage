@@ -333,7 +333,7 @@ impl MainEventLoop {
         } else {
             match self
                 .ctrl
-                .load_new_image_if_triggered(&self.world, &mut self.history)
+                .load_new_image_if_triggered(&mut self.world, &mut self.history)
             {
                 Ok(iip) => iip,
                 Err(e) => {

@@ -164,8 +164,8 @@ mod detail {
         Ok(())
     }
 
-    pub(super) fn loading_image(im: &DynamicImage, counter: u128) -> DynamicImage {
-        let shape = ShapeI::from_im(im);
+    pub(super) fn loading_image(mut im: DynamicImage, counter: u128) -> DynamicImage {
+        let shape = ShapeI::from_im(&im);
         let radius = 7u32;
         let centers = [
             (shape.w - 70, shape.h - 20),
@@ -183,7 +183,6 @@ mod detail {
             }
             res
         };
-        let mut im = im.clone();
         for (c_idx, ctr) in centers.iter().enumerate() {
             for y in ctr.1.saturating_sub(radius)..ctr.1.saturating_add(radius) {
                 for x in ctr.0.saturating_sub(radius)..ctr.0.saturating_add(radius) {
@@ -807,7 +806,7 @@ impl Control {
 
     pub fn load_new_image_if_triggered(
         &mut self,
-        world: &World,
+        world: &mut World,
         history: &mut History,
     ) -> RvResult<Option<(World, Option<usize>)>> {
         let menu_file_selected = self.paths_navigator.file_label_selected_idx();
@@ -861,13 +860,14 @@ impl Control {
                         thread::sleep(Duration::from_millis(2));
                         self.file_selected_idx = menu_file_selected;
                         self.flags.is_loading_screen_active = true;
-                        let prev_im = world.data.im_background();
+                        let prev_data = mem::take(&mut world.data);
+                        let im_loading = detail::loading_image(
+                            prev_data.into(),
+                            self.loading_screen_animation_counter,
+                        );
                         let new_world = World::new(
                             DataRaw::new(
-                                detail::loading_image(
-                                    prev_im,
-                                    self.loading_screen_animation_counter,
-                                ),
+                                im_loading,
                                 world.data.tools_data_map.clone(),
                                 MetaData::default(),
                                 world.ui_image_rect(),
