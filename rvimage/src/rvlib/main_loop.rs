@@ -281,15 +281,19 @@ impl MainEventLoop {
                     .show_info(Info::Error(format!("could not reload due to {e:?}")));
             }
         } else if e.held(KeyCode::PageDown) || e.held(KeyCode::PageUp) {
-            let elapsed = self.next_image_held_timer.elapsed().as_millis();
-            let interval = self.ctrl.cfg.usr.image_change_delay_on_held_key_ms as u128;
-            if elapsed > interval {
-                if e.held(KeyCode::PageDown) {
-                    self.ctrl.paths_navigator.next();
-                } else if e.held(KeyCode::PageUp) {
-                    self.ctrl.paths_navigator.prev();
-                }
+            if self.world.data.meta_data.flags.is_loading_screen_active == Some(true) {
                 self.next_image_held_timer = Instant::now();
+            } else {
+                let elapsed = self.next_image_held_timer.elapsed().as_millis();
+                let interval = self.ctrl.cfg.usr.image_change_delay_on_held_key_ms as u128;
+                if elapsed > interval {
+                    if e.held(KeyCode::PageDown) {
+                        self.ctrl.paths_navigator.next();
+                    } else if e.held(KeyCode::PageUp) {
+                        self.ctrl.paths_navigator.prev();
+                    }
+                    self.next_image_held_timer = Instant::now();
+                }
             }
         } else if e.released(KeyCode::PageDown) {
             self.ctrl.paths_navigator.next();
