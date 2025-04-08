@@ -276,7 +276,7 @@ impl DataRaw {
     pub fn im_background(&self) -> &DynamicImage {
         &self.im_background
     }
-    
+
     pub fn take_background(&mut self) -> DynamicImage {
         mem::take(&mut self.im_background)
     }
