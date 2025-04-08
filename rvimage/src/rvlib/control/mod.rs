@@ -828,15 +828,15 @@ impl Control {
                     )
                 });
                 let im_read = self.read_image(*selected)?;
-                let read_image_and_idx = match (abs_file_path, menu_file_selected, im_read) {
-                    (Some(fp), Some(fidx), Some(ri)) => {
+                let read_image_and_idx = match (abs_file_path, im_read) {
+                    (Some(fp), Some(ri)) => {
                         tracing::info!("loading {} from {}", ri.info, fp);
                         self.file_selected_idx = menu_file_selected;
                         self.file_info_selected = Some(ri.info);
                         let ims_raw = DataRaw::new(
                             ri.im,
                             world.data.tools_data_map.clone(),
-                            MetaData::from_filepath(fp, fidx, self.cfg.current_prj_path()),
+                            world.data.meta_data.clone(),
                             world.ui_image_rect(),
                         );
                         let zoom_box = if ims_raw.shape() == world.data.shape() {
@@ -864,9 +864,9 @@ impl Control {
                         thread::sleep(Duration::from_millis(2));
                         self.file_selected_idx = menu_file_selected;
                         self.flags.is_loading_screen_active = true;
-                        let prev_data = mem::take(&mut world.data);
+
                         let im_loading = detail::loading_image(
-                            prev_data.into(),
+                            world.data.take_background(),
                             self.loading_screen_animation_counter,
                         );
                         let new_world = World::new(

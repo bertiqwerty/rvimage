@@ -336,9 +336,10 @@ impl MainEventLoop {
             info!("redo");
             self.ctrl.redo(&mut self.history)
         } else {
+            let mut world = self.world.clone();
             match self
                 .ctrl
-                .load_new_image_if_triggered(&mut self.world, &mut self.history)
+                .load_new_image_if_triggered(&mut world, &mut self.history)
             {
                 Ok(iip) => iip,
                 Err(e) => {

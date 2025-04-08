@@ -276,6 +276,10 @@ impl DataRaw {
     pub fn im_background(&self) -> &DynamicImage {
         &self.im_background
     }
+    
+    pub fn take_background(&mut self) -> DynamicImage {
+        mem::take(&mut self.im_background)
+    }
 
     #[must_use]
     pub fn shape_initial(&self) -> &ShapeI {
@@ -312,12 +316,6 @@ impl Debug for DataRaw {
             self.shape(),
             self.tools_data_map,
         )
-    }
-}
-
-impl From<DataRaw> for DynamicImage {
-    fn from(data: DataRaw) -> Self {
-        data.im_background
     }
 }
 
