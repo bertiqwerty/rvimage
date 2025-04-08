@@ -186,7 +186,11 @@ mod detail {
         for (c_idx, ctr) in centers.iter().enumerate() {
             for y in ctr.1.saturating_sub(radius)..ctr.1.saturating_add(radius) {
                 for x in ctr.0.saturating_sub(radius)..ctr.0.saturating_add(radius) {
-                    if (ctr.0 - x).pow(2) + (ctr.1 - y).pow(2) < radius.pow(2) {
+                    let ctr0_x = x.abs_diff(ctr.0);
+                    let ctr1_y = y.abs_diff(ctr.1);
+                    let ctr0_x_sq = ctr0_x.saturating_mul(ctr0_x);
+                    let ctr1_y_sq = ctr1_y.saturating_mul(ctr1_y);
+                    if ctr0_x_sq + ctr1_y_sq < radius.pow(2) {
                         let counter_mod = ((counter / 5) % 3) as usize;
                         let rgb = off_center_dim(c_idx, counter_mod, &[195u8, 255u8, 205u8]);
                         let mut pixel = im.get_pixel(x, y);
