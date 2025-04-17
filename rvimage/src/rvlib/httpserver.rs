@@ -111,7 +111,7 @@ pub fn launch(address: String) -> LaunchResultType {
 
 fn increase_port(address: &str) -> RvResult<String> {
     let address_wo_port = address.split(':').next();
-    let port = address.split(':').last();
+    let port = address.split(':').next_back();
     if let Some(port) = port {
         if let Some(address_wo_port) = address_wo_port {
             Ok(format!(

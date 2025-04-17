@@ -1,10 +1,12 @@
 use chrono::{DateTime, Local};
-use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Widget};
+use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
+use egui_plot::{Corner, GridMark, Legend, Line, Plot, PlotPoint, PlotPoints};
 use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fs, iter, mem,
+    ops::RangeInclusive,
     path::Path,
 };
 
@@ -158,7 +160,7 @@ pub enum FilterRelation {
     Missing,
 }
 impl FilterRelation {
-    fn apply(&self, filtered_filepaths: &[&PathPair], path_tdm_key: &str) -> bool {
+    fn apply<'a>(&'a self, filtered_filepaths: &[&PathPair], path_tdm_key: &'a str) -> bool {
         let is_key_in_filtered_paths = filtered_filepaths
             .iter()
             .any(|fp| fp.path_relative() == path_tdm_key);
@@ -175,8 +177,21 @@ impl FilterRelation {
     }
 }
 
+fn iter_attributes_of_files<'a>(
+    atd: &'a AttributesToolData,
+    filepaths: &'a [&PathPair],
+    filter_relation: FilterRelation,
+) -> impl Iterator<Item = (&'a str, &'a HashMap<String, AttrVal>)> + 'a {
+    atd.anno_iter().filter_map(move |(k, v)| {
+        if filter_relation.apply(filepaths, k) {
+            Some((k.as_str(), &v.0))
+        } else {
+            None
+        }
+    })
+}
 /// Returns an iterator over filename, toolname, number of annotations in file
-fn iter_files_of_tool<'a, T>(
+fn iter_files_of_instance_tool<'a, T>(
     tdm: &'a ToolsDataMap,
     filepaths: &'a [&PathPair],
     tool_name: &'static str,
@@ -210,9 +225,13 @@ where
 {
     if tdm.contains_key(tool_name) {
         Ok(
-            if let Some(iter) =
-                iter_files_of_tool(tdm, filepaths, tool_name, unwrap_specifics, filter_relation)?
-            {
+            if let Some(iter) = iter_files_of_instance_tool(
+                tdm,
+                filepaths,
+                tool_name,
+                unwrap_specifics,
+                filter_relation,
+            )? {
                 iter.collect::<Vec<_>>()
             } else {
                 vec![]
@@ -279,6 +298,7 @@ impl ToolChoice {
     }
 }
 
+/// return a vector with filename, tool name, and number of annotations per file
 fn get_all_files<'a>(
     tdm: &'a ToolsDataMap,
     filepaths: &'a [&PathPair],
@@ -396,6 +416,8 @@ pub struct AnnotationsParams {
     pub text_buffers: TextBuffers,
     pub filter_relation_deletion: FilterRelation,
     pub stats_result: Option<Vec<AnnoStatsRecord>>,
+    pub selected_attributes_for_plot: HashMap<String, bool>,
+    pub attribute_plots: HashMap<String, Vec<PlotPoint>>,
 }
 
 fn filter_relations_menu(
@@ -682,7 +704,7 @@ fn count_files_of_tool<T>(
 where
     T: InstanceAnnotate,
 {
-    Ok(iter_files_of_tool(
+    Ok(iter_files_of_instance_tool(
         tdm,
         filepaths,
         tool_name,
@@ -803,6 +825,92 @@ fn anno_stats(
     }
     Ok(())
 }
+fn anno_plots(
+    ctx: &Context,
+    ui: &mut Ui,
+    tdm: &ToolsDataMap,
+    tool_choice: ToolChoice,
+    paths_selector: Option<&PathsSelector>,
+    selected_attributes: &mut HashMap<String, bool>,
+    attribute_plots: &mut HashMap<String, Vec<PlotPoint>>,
+) -> RvResult<()> {
+    if tool_choice.attributes {
+        let filepaths = paths_selector
+            .map(|ps| ps.filtered_file_paths())
+            .ok_or_else(|| rverr!("no file paths found"))?;
+
+        let atd = tdm
+            .get(ATTRIBUTES_NAME)
+            .ok_or_else(|| rverr!("{ATTRIBUTES_NAME} not initialized"))?
+            .specifics
+            .attributes()?;
+        ui.group(|ui| {
+            ui.label("Select Attribute");
+            for name in atd.attr_names() {
+                if !selected_attributes.contains_key(name) {
+                    selected_attributes.insert(name.clone(), false);
+                }
+                let attr = selected_attributes.get_mut(name);
+                if let Some(attr) = attr {
+                    ui.checkbox(attr, name);
+                }
+            }
+        });
+        if ui.button("plot").clicked() {
+            *attribute_plots = HashMap::new();
+            for (selected_attr, is_selected) in selected_attributes.iter() {
+                if *is_selected {
+                    let mut plot = vec![];
+                    let mut filenames = vec![];
+                    for (i, (filename, attr_map)) in
+                        iter_attributes_of_files(atd, &filepaths, FilterRelation::Available)
+                            .enumerate()
+                    {
+                        let value = attr_map.get(selected_attr);
+                        if let Some(value) = value {
+                            let y = match value {
+                                AttrVal::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+                                AttrVal::Float(x) => *x,
+                                AttrVal::Int(n) => n.map(|n| n as f64),
+                                _ => None,
+                            };
+                            if let Some(y) = y {
+                                plot.push(PlotPoint { x: i as f64, y });
+                                filenames.push(filename);
+                            }
+                        }
+                    }
+                    if !plot.is_empty() {
+                        attribute_plots.insert(selected_attr.clone(), plot);
+                    }
+                }
+            }
+        }
+        if !attribute_plots.is_empty() {
+            let x_fmt = move |x: GridMark, _range: &RangeInclusive<f64>| {
+                if x.value.fract().abs() < 1e-6 {
+                    let i = x.value.round() as usize;
+                    trace_ok_err(filepaths[i].filestem().map(|s| s.to_string())).unwrap_or_default()
+                } else {
+                    String::new()
+                }
+            };
+            egui::Window::new("Annotation Plots")
+                .collapsible(false)
+                .show(ctx, |ui| {
+                    Plot::new("attribute plots")
+                        .legend(Legend::default().position(Corner::LeftTop))
+                        .x_axis_formatter(x_fmt)
+                        .show(ui, |plot_ui| {
+                            for (k, v) in attribute_plots.iter() {
+                                plot_ui.line(Line::new(k, PlotPoints::Borrowed(v)));
+                            }
+                        });
+                });
+        }
+    }
+    Ok(())
+}
 
 fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Option<ToolsDataMap>) {
     let mut tdm = None;
@@ -855,6 +963,7 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
 }
 
 fn annotations_popup(
+    ctx: &Context,
     ui: &mut Ui,
     ctrl: &mut Control,
     in_tdm: &mut ToolsDataMap,
@@ -896,6 +1005,20 @@ fn annotations_popup(
             ));
         });
         ui.separator();
+        egui::CollapsingHeader::new("Plot images vs. annotations").show(ui, |ui| {
+            let skip_attrs = false;
+            anno_params.tool_choice_stats.ui(ui, skip_attrs);
+            trace_ok_err(anno_plots(
+                ctx,
+                ui,
+                in_tdm,
+                anno_params.tool_choice_stats,
+                ctrl.paths_navigator.paths_selector(),
+                &mut anno_params.selected_attributes_for_plot,
+                &mut anno_params.attribute_plots,
+            ));
+        });
+        ui.separator();
         if ui.button("Close").clicked() {
             close = Close::Yes;
         }
@@ -904,6 +1027,7 @@ fn annotations_popup(
 }
 
 pub struct AutosaveMenu<'a> {
+    ctx: &'a Context,
     id: Id,
     ctrl: &'a mut Control,
     tdm: &'a mut ToolsDataMap,
@@ -913,6 +1037,7 @@ pub struct AutosaveMenu<'a> {
 }
 impl<'a> AutosaveMenu<'a> {
     pub fn new(
+        ctx: &'a Context,
         id: Id,
         ctrl: &'a mut Control,
         tools_data_map: &'a mut ToolsDataMap,
@@ -921,6 +1046,7 @@ impl<'a> AutosaveMenu<'a> {
         anno_params: &'a mut AnnotationsParams,
     ) -> AutosaveMenu<'a> {
         Self {
+            ctx,
             id,
             ctrl,
             tdm: tools_data_map,
@@ -946,6 +1072,7 @@ impl Widget for AutosaveMenu<'_> {
             let area_response = area
                 .show(ui.ctx(), |ui| {
                     let (close_, tdm) = annotations_popup(
+                        self.ctx,
                         ui,
                         self.ctrl,
                         self.tdm,

@@ -108,6 +108,9 @@ impl PathPair {
     pub fn filename(&self) -> RvResult<&str> {
         to_name_str(Path::new(&self.path_relative))
     }
+    pub fn filestem(&self) -> RvResult<&str> {
+        to_stem_str(Path::new(&self.path_relative))
+    }
 }
 
 pub fn read_to_string<P>(p: P) -> RvResult<String>
@@ -291,10 +294,10 @@ fn get_last_part_of_path_by_sep(path: &str, sep: char) -> Option<LastPartOfPath>
         let offset = mark.len();
         let mut path_wo_final_sep = &path[offset..(path.len() - offset)];
         let n_fp_slice_initial = path_wo_final_sep.len();
-        let mut last_folder = path_wo_final_sep.split(sep).last().unwrap_or("");
+        let mut last_folder = path_wo_final_sep.split(sep).next_back().unwrap_or("");
         while last_folder.is_empty() && !path_wo_final_sep.is_empty() {
             path_wo_final_sep = &path_wo_final_sep[0..path_wo_final_sep.len() - 1];
-            last_folder = path_wo_final_sep.split(sep).last().unwrap_or("");
+            last_folder = path_wo_final_sep.split(sep).next_back().unwrap_or("");
         }
         Some(LastPartOfPath {
             last_folder,

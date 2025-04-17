@@ -144,6 +144,12 @@ impl PathsSelector {
             .map(|(idx, fl)| (*idx, fl.as_str()))
     }
 
+    pub fn filtered_idx_file_paths_pairs(&self) -> Vec<(usize, &PathPair)> {
+        self.filtered_file_labels
+            .iter()
+            .map(|(idx, _)| (*idx, &self.file_paths[*idx]))
+            .collect()
+    }
     pub fn filtered_file_paths(&self) -> Vec<&PathPair> {
         self.filtered_file_labels
             .iter()

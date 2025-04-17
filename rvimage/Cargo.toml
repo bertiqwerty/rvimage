@@ -45,6 +45,7 @@ eframe = { version = "0.31.1", default-features = false, features = [
     "persistence",   # Enable restoring app state when restarting the app.
     "wayland",
 ] }
+egui_plot = "0.32.1"
 futures = { version = "0.3.31", optional = true }
 httparse = "1.10.1"
 image = "0.25.6"

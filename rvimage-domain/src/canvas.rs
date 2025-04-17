@@ -26,9 +26,7 @@ fn line_to_mask(
     let mut buffer = if let Some(mut buffer) =
         buffer.filter(|buffer| buffer.len() >= (bbi.w * bbi.h) as usize)
     {
-        for elt in &mut buffer {
-            *elt = 0;
-        }
+        buffer.fill(0);
         ImageBuffer::from_vec(bbi.w, bbi.h, buffer)
             .unwrap_or_else(|| RenderTargetOrShape::Shape(bbi.shape()).make_buffer())
     } else {

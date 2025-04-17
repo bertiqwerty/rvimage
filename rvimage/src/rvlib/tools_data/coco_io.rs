@@ -322,7 +322,7 @@ impl CocoExportData {
             .into_iter()
             .map(|coco_cat| coco_cat.name)
             .collect();
-        let color_str = self.info.description.split(',').last();
+        let color_str = self.info.description.split(',').next_back();
         let colors: Vec<[u8; 3]> = if let Some(s) = color_str {
             string_to_colors(s).unwrap_or_else(|_| new_random_colors(labels.len()))
         } else {

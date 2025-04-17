@@ -278,11 +278,7 @@ impl RvImageApp {
                     detail::rgb_2_clr(Some(anno.outline.color), anno.outline_alpha),
                 );
                 let poly = if let Some(zb) = self.zoom_box {
-                    if let Ok(poly_) = poly.clone().intersect(zb) {
-                        Some(poly_)
-                    } else {
-                        None
-                    }
+                    poly.clone().intersect(zb).ok()
                 } else {
                     Some(poly.clone())
                 };
