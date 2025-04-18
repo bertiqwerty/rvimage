@@ -27,7 +27,7 @@ use crate::{
 
 use super::{
     main::TextBuffers,
-    ui_util::{self, slider},
+    ui_util::{self, slider, ui_with_deactivated_tools_on_hover},
 };
 
 pub fn delete_annotations<T>(
@@ -196,55 +196,42 @@ fn iter_attributes_of_files<'a>(
             }
         })
 }
-/// Returns an iterator over filename, toolname, number of annotations in file
+/// Returns an iterator over file idx, filename, toolname, number of annotations in file
 fn iter_files_of_instance_tool<'a, T>(
     tdm: &'a ToolsDataMap,
-    filepaths: &'a [&PathPair],
+    filepaths: &'a [(usize, &PathPair)],
     tool_name: &'static str,
     unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
     filter_relation: FilterRelation,
-) -> RvResult<Option<impl Iterator<Item = (&'a str, &'static str, usize)> + 'a>>
+) -> RvResult<impl Iterator<Item = (Option<usize>, &'a str, &'static str, usize)> + 'a>
 where
     T: InstanceAnnotate + 'a,
 {
     if tdm.contains_key(tool_name) {
         let datamap = unwrap_specifics(&tdm[tool_name].specifics)?;
-        Ok(Some(
-            datamap
+
+        let iter_available =
+            filepaths
                 .iter()
-                .filter(move |(k, _)| filter_relation.apply(filepaths.iter(), k))
-                .map(move |(k, (annos, _))| (k.as_str(), tool_name, annos.len())),
-        ))
+                .filter_map(move |(idx, filepath)| match filter_relation {
+                    FilterRelation::Available => {
+                        let annos = datamap.get(filepath.path_relative());
+                        annos.map(|(annos, _)| {
+                            (Some(*idx), filepath.path_relative(), tool_name, annos.len())
+                        })
+                    }
+                    FilterRelation::Missing => None,
+                });
+        let iter_missing = datamap
+            .iter()
+            .filter(move |(k, _)| {
+                matches!(filter_relation, FilterRelation::Missing)
+                    && filter_relation.apply(filepaths.iter().map(|(_, fp)| fp), k)
+            })
+            .map(move |(k, (annos, _))| (None, k.as_str(), tool_name, annos.len()));
+        Ok(iter_available.chain(iter_missing))
     } else {
-        Ok(None)
-    }
-}
-fn collect_files_of_tool<'a, T>(
-    tdm: &'a ToolsDataMap,
-    filepaths: &'a [&PathPair],
-    tool_name: &'static str,
-    unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
-    filter_relation: FilterRelation,
-) -> RvResult<Vec<(&'a str, &'static str, usize)>>
-where
-    T: InstanceAnnotate + 'a,
-{
-    if tdm.contains_key(tool_name) {
-        Ok(
-            if let Some(iter) = iter_files_of_instance_tool(
-                tdm,
-                filepaths,
-                tool_name,
-                unwrap_specifics,
-                filter_relation,
-            )? {
-                iter.collect::<Vec<_>>()
-            } else {
-                vec![]
-            },
-        )
-    } else {
-        Ok(vec![])
+        Err(rverr!("Tool {tool_name} has no data"))
     }
 }
 
@@ -304,32 +291,35 @@ impl ToolChoice {
     }
 }
 
+type ElementOfInstanceToolIterator<'a> = (Option<usize>, &'a str, &'static str, usize);
 /// return a vector with filename, tool name, and number of annotations per file
 fn get_all_files<'a>(
     tdm: &'a ToolsDataMap,
-    filepaths: &'a [&PathPair],
+    filepaths: &'a [(usize, &PathPair)],
     absent_file_tool_choice: ToolChoice,
     filter_relation: FilterRelation,
-) -> RvResult<Vec<(&'a str, &'static str, usize)>> {
+) -> RvResult<Vec<ElementOfInstanceToolIterator<'a>>> {
     let mut all_absent_files = vec![];
     if absent_file_tool_choice.bbox {
-        let mut all_absent_files_bbox = collect_files_of_tool(
+        let mut all_absent_files_bbox = iter_files_of_instance_tool(
             tdm,
             filepaths,
             BBOX_NAME,
             |ts| ts.bbox().map(|d| &d.annotations_map),
             filter_relation,
-        )?;
+        )?
+        .collect::<Vec<_>>();
         all_absent_files.append(&mut all_absent_files_bbox);
     }
     if absent_file_tool_choice.brush {
-        let mut all_absent_files_brush = collect_files_of_tool(
+        let mut all_absent_files_brush = iter_files_of_instance_tool(
             tdm,
             filepaths,
             BRUSH_NAME,
             |ts| ts.brush().map(|d| &d.annotations_map),
             filter_relation,
-        )?;
+        )?
+        .collect::<Vec<_>>();
         all_absent_files.append(&mut all_absent_files_brush);
     }
     Ok(all_absent_files)
@@ -418,6 +408,7 @@ where
 pub struct AnnotationsParams {
     pub tool_choice_delprop: ToolChoice,
     pub tool_choice_stats: ToolChoice,
+    pub tool_choice_plot: ToolChoice,
     pub parents_depth: u8,
     pub text_buffers: TextBuffers,
     pub filter_relation_deletion: FilterRelation,
@@ -508,7 +499,7 @@ fn annotations(
         if ui.button(txt).clicked() {
             let filepaths = paths_navigator
                 .paths_selector()
-                .map(|ps| ps.filtered_file_paths());
+                .map(|ps| ps.filtered_idx_file_paths_pairs());
             if let Some(filepaths) = filepaths {
                 let absent_files = get_all_files(
                     tdm,
@@ -520,7 +511,7 @@ fn annotations(
                 if absent_files.is_empty() {
                     tracing::info!("no relevant files with annotations found");
                 }
-                for (af, tool_name, count) in absent_files {
+                for (_, af, tool_name, count) in absent_files {
                     tracing::info!("file {af} has {count} {tool_name} annotations");
                 }
             }
@@ -537,7 +528,7 @@ fn annotations(
         {
             let filepaths = paths_navigator
                 .paths_selector()
-                .map(|ps| ps.filtered_file_paths());
+                .map(|ps| ps.filtered_idx_file_paths_pairs());
             if let Some(filepaths) = filepaths {
                 let absent_files = get_all_files(
                     tdm,
@@ -547,7 +538,7 @@ fn annotations(
                 )?;
                 let absent_files = absent_files
                     .into_iter()
-                    .map(|(af, tn, _)| (af.to_string(), tn))
+                    .map(|(_, af, tn, _)| (af.to_string(), tn))
                     .collect::<Vec<_>>();
                 if absent_files.is_empty() {
                     tracing::info!("no missing annotations to delete")
@@ -705,7 +696,7 @@ fn count_files_of_tool<T>(
     tool_name: &'static str,
     unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
     tdm: &ToolsDataMap,
-    filepaths: &[&PathPair],
+    filepaths: &[(usize, &PathPair)],
 ) -> RvResult<usize>
 where
     T: InstanceAnnotate,
@@ -717,20 +708,19 @@ where
         unwrap_specifics,
         FilterRelation::Available,
     )?
-    .map(|iter| iter.count())
-    .unwrap_or(0))
+    .count())
 }
 
 fn collect_stats(
     tdm: &ToolsDataMap,
-    filepaths: &[&PathPair],
+    filepaths: &[(usize, &PathPair)],
     tool_choice: ToolChoice,
 ) -> RvResult<Vec<AnnoStatsRecord>> {
     tracing::info!("computation of stats triggered");
     let files = get_all_files(tdm, filepaths, tool_choice, FilterRelation::Available)?;
     let mut count_map_bbox = HashMap::new();
     let mut count_map_brush = HashMap::new();
-    for (path_key, tool_name, _) in &files {
+    for (_, path_key, tool_name, _) in &files {
         let f_bbox = |tdm: &ToolsDataMap| {
             let annos = get_annos_from_tdm!(BBOX_NAME, tdm, path_key, bbox);
             if let Some(annos) = annos {
@@ -785,7 +775,7 @@ fn anno_stats(
     tool_choice: ToolChoice,
     paths_selector: Option<&PathsSelector>,
 ) -> RvResult<()> {
-    let filepaths = paths_selector.map(|ps| ps.filtered_file_paths());
+    let filepaths = paths_selector.map(|ps| ps.filtered_idx_file_paths_pairs());
     let skip_attributes = true;
     if !tool_choice.is_some(skip_attributes) {
         *stats_compute_results = None;
@@ -831,25 +821,26 @@ fn anno_stats(
     }
     Ok(())
 }
+
 fn anno_plots(
-    ctx: &Context,
-    ui: &mut Ui,
+    ui_params: (&Context, &mut Ui),
     tdm: &ToolsDataMap,
     tool_choice: ToolChoice,
     paths_selector: Option<&PathsSelector>,
-    selected_attributes: &mut HashMap<String, bool>,
-    attribute_plots: &mut HashMap<String, Vec<PlotPoint>>,
+    are_tools_active: &mut bool,
+    plot_params: (
+        &mut HashMap<String, bool>,
+        &mut HashMap<String, Vec<PlotPoint>>,
+    ),
 ) -> RvResult<()> {
+    let (selected_attributes, attribute_plots) = plot_params;
+    let (ctx, ui) = ui_params;
+    let atd = tdm
+        .get(ATTRIBUTES_NAME)
+        .ok_or_else(|| rverr!("{ATTRIBUTES_NAME} not initialized"))?
+        .specifics
+        .attributes()?;
     if tool_choice.attributes {
-        let filepaths = paths_selector
-            .map(|ps| ps.filtered_idx_file_paths_pairs())
-            .ok_or_else(|| rverr!("no file paths found"))?;
-
-        let atd = tdm
-            .get(ATTRIBUTES_NAME)
-            .ok_or_else(|| rverr!("{ATTRIBUTES_NAME} not initialized"))?
-            .specifics
-            .attributes()?;
         ui.group(|ui| {
             ui.label("Select Attribute");
             for name in atd.attr_names() {
@@ -862,47 +853,78 @@ fn anno_plots(
                 }
             }
         });
-        if ui.button("plot").clicked() {
-            *attribute_plots = HashMap::new();
-            for (selected_attr, is_selected) in selected_attributes.iter() {
-                if *is_selected {
-                    let mut plot = vec![];
-                    for (file_idx, attr_map) in iter_attributes_of_files(atd, &filepaths) {
-                        let value = attr_map.get(selected_attr);
-                        if let Some(value) = value {
-                            let y = match value {
-                                AttrVal::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
-                                AttrVal::Float(x) => *x,
-                                AttrVal::Int(n) => n.map(|n| n as f64),
-                                AttrVal::Str(s) => Some(s.len() as f64),
-                            };
-                            if let Some(y) = y {
-                                plot.push(PlotPoint {
-                                    x: file_idx as f64,
-                                    y,
-                                });
-                            }
+    }
+    if ui.button("plot").clicked() {
+        let filepaths = paths_selector
+            .map(|ps| ps.filtered_idx_file_paths_pairs())
+            .ok_or_else(|| rverr!("no file paths found"))?;
+        *attribute_plots = HashMap::new();
+        for (selected_attr, is_selected) in selected_attributes.iter() {
+            if *is_selected {
+                let mut plot = vec![];
+                for (file_idx, attr_map) in iter_attributes_of_files(atd, &filepaths) {
+                    let value = attr_map.get(selected_attr);
+                    if let Some(value) = value {
+                        let y = match value {
+                            AttrVal::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+                            AttrVal::Float(x) => *x,
+                            AttrVal::Int(n) => n.map(|n| n as f64),
+                            AttrVal::Str(s) => Some(s.len() as f64),
+                        };
+                        if let Some(y) = y {
+                            plot.push(PlotPoint {
+                                x: file_idx as f64,
+                                y,
+                            });
                         }
                     }
-                    if !plot.is_empty() {
-                        attribute_plots.insert(selected_attr.clone(), plot);
-                    }
+                }
+                if !plot.is_empty() {
+                    attribute_plots.insert(selected_attr.clone(), plot);
                 }
             }
         }
-        if !attribute_plots.is_empty() {
-            let x_fmt = move |x: GridMark, _range: &RangeInclusive<f64>| {
-                if x.value.fract().abs() < 1e-6 {
-                    let i = x.value.round() as usize;
-                    let filelabel = paths_selector.and_then(|ps| ps.file_label_of_idx(i));
-                    filelabel.map(|s| s.to_string()).unwrap_or_default()
-                } else {
-                    String::new()
+        macro_rules! count_plot {
+            ($tool_name:expr, $accessfunc:ident, $plotname:expr) => {
+                let mut plot = vec![];
+                for (fidx, _, _, count) in iter_files_of_instance_tool(
+                    tdm,
+                    &filepaths,
+                    $tool_name,
+                    |ts| ts.$accessfunc().map(|d| &d.annotations_map),
+                    FilterRelation::Available,
+                )? {
+                    if let Some(fidx) = fidx {
+                        plot.push(PlotPoint {
+                            x: fidx as f64,
+                            y: count as f64,
+                        });
+                    }
                 }
+                attribute_plots.insert($plotname.into(), plot);
             };
-            egui::Window::new("Annotation Plots")
-                .collapsible(false)
-                .show(ctx, |ui| {
+        }
+        if tool_choice.bbox {
+            count_plot!(BBOX_NAME, bbox, "Bbox counts");
+        }
+        if tool_choice.brush {
+            count_plot!(BRUSH_NAME, brush, "Brush counts");
+        }
+    }
+    if !attribute_plots.is_empty() {
+        let x_fmt = move |x: GridMark, _range: &RangeInclusive<f64>| {
+            if x.value.fract().abs() < 1e-6 {
+                let i = x.value.round() as usize;
+                let filelabel = paths_selector.and_then(|ps| ps.file_label_of_idx(i));
+                filelabel.map(|s| s.to_string()).unwrap_or_default()
+            } else {
+                String::new()
+            }
+        };
+        egui::Window::new("Annotation Plots")
+            .collapsible(false)
+            .show(ctx, |ui| {
+                ui_with_deactivated_tools_on_hover(are_tools_active, || {
                     Plot::new("attribute plots")
                         .legend(Legend::default().position(Corner::LeftTop))
                         .x_axis_formatter(x_fmt)
@@ -915,9 +937,10 @@ fn anno_plots(
                                         .filled(true),
                                 );
                             }
-                        });
+                        })
+                        .response
                 });
-        }
+            });
     }
     Ok(())
 }
@@ -1017,15 +1040,17 @@ fn annotations_popup(
         ui.separator();
         egui::CollapsingHeader::new("Plot images vs. annotations").show(ui, |ui| {
             let skip_attrs = false;
-            anno_params.tool_choice_stats.ui(ui, skip_attrs);
+            anno_params.tool_choice_plot.ui(ui, skip_attrs);
             trace_ok_err(anno_plots(
-                ctx,
-                ui,
+                (ctx, ui),
                 in_tdm,
-                anno_params.tool_choice_stats,
+                anno_params.tool_choice_plot,
                 ctrl.paths_navigator.paths_selector(),
-                &mut anno_params.selected_attributes_for_plot,
-                &mut anno_params.attribute_plots,
+                are_tools_active,
+                (
+                    &mut anno_params.selected_attributes_for_plot,
+                    &mut anno_params.attribute_plots,
+                ),
             ));
         });
         ui.separator();
@@ -1121,7 +1146,7 @@ fn test_counts() {
     );
     let records = collect_stats(
         &tdm,
-        &[&filepath],
+        &[(34, &filepath)],
         ToolChoice {
             bbox: true,
             brush: true,
@@ -1134,7 +1159,7 @@ fn test_counts() {
     assert_eq!(records[1].count, 1);
     let records = collect_stats(
         &tdm,
-        &[&filepath],
+        &[(34, &filepath)],
         ToolChoice {
             bbox: true,
             brush: false,
@@ -1146,7 +1171,7 @@ fn test_counts() {
     assert_eq!(records[0].count, 1);
     let records = collect_stats(
         &tdm,
-        &[&filepath],
+        &[(34, &filepath)],
         ToolChoice {
             bbox: false,
             brush: true,

@@ -10,14 +10,16 @@ use egui::{
 };
 use tracing::warn;
 
-pub fn ui_with_deactivated_tools(
+fn ui_with_deactivated_tools(
     are_tools_active: &mut bool,
     mut f_ui: impl FnMut() -> Response,
+    event_activate: impl Fn(&Response) -> bool,
+    event_deactivate: impl Fn(&Response) -> bool,
 ) -> Response {
     let response = f_ui();
-    *are_tools_active = if response.gained_focus() {
+    *are_tools_active = if event_deactivate(&response) {
         false
-    } else if response.lost_focus() {
+    } else if event_activate(&response) {
         true
     } else {
         *are_tools_active
@@ -25,12 +27,35 @@ pub fn ui_with_deactivated_tools(
     response
 }
 
+pub fn ui_with_deactivated_tools_on_keys(
+    are_tools_active: &mut bool,
+    f_ui: impl FnMut() -> Response,
+) -> Response {
+    ui_with_deactivated_tools(
+        are_tools_active,
+        f_ui,
+        |response| response.lost_focus(),
+        |response| response.gained_focus(),
+    )
+}
+pub fn ui_with_deactivated_tools_on_hover(
+    are_tools_active: &mut bool,
+    f_ui: impl FnMut() -> Response,
+) -> Response {
+    ui_with_deactivated_tools(
+        are_tools_active,
+        f_ui,
+        |response| !response.hovered(),
+        |response| response.hovered(),
+    )
+}
+
 pub fn text_edit_with_deactivated_tools<S: TextBuffer>(
     text: &mut S,
     are_tools_active: &mut bool,
     mut f_ui: impl FnMut(&mut S) -> Response,
 ) -> Response {
-    ui_with_deactivated_tools(are_tools_active, || f_ui(text))
+    ui_with_deactivated_tools_on_keys(are_tools_active, || f_ui(text))
 }
 pub fn text_edit_singleline(
     ui: &mut Ui,
@@ -66,7 +91,7 @@ pub fn slider<Num>(
 where
     Num: egui::emath::Numeric,
 {
-    ui_with_deactivated_tools(are_tools_active, || {
+    ui_with_deactivated_tools_on_keys(are_tools_active, || {
         let slider = ui.add(egui::Slider::new(value, range.clone()).text(text));
         slider
     })
