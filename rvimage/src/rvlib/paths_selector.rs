@@ -192,11 +192,20 @@ impl PathsSelector {
         self.folder_label.as_str()
     }
 
-    pub fn idx_of_file_label(&self, file_label: &str) -> Option<usize> {
+    /// this does not select the global index of the file but
+    /// the index within the filtered files list
+    pub fn filteredidx_of_file_label(&self, file_label: &str) -> Option<usize> {
         self.filtered_file_labels
             .iter()
             .enumerate()
             .find(|(_, (_, fl))| fl == file_label)
             .map(|(idx, _)| idx)
+    }
+
+    pub fn file_label_of_idx(&self, file_idx: usize) -> Option<&str> {
+        self.filtered_file_labels
+            .iter()
+            .find(|(idx, _)| *idx == file_idx)
+            .map(|(_, fl)| fl.as_str())
     }
 }

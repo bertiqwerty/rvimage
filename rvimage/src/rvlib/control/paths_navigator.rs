@@ -100,7 +100,7 @@ impl PathsNavigator {
 
     fn idx_of_file_label(&self, file_label: &str) -> Option<usize> {
         match self.paths_selector() {
-            Some(ps) => ps.idx_of_file_label(file_label),
+            Some(ps) => ps.filteredidx_of_file_label(file_label),
             None => None,
         }
     }

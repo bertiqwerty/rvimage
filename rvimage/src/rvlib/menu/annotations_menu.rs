@@ -1,11 +1,11 @@
 use chrono::{DateTime, Local};
 use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
-use egui_plot::{Corner, GridMark, Legend, Line, Plot, PlotPoint, PlotPoints};
+use egui_plot::{Corner, GridMark, Legend, MarkerShape, Plot, PlotPoint, PlotPoints, Points};
 use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    fs, iter, mem,
+    f64, fs, iter, mem,
     ops::RangeInclusive,
     path::Path,
 };
@@ -19,8 +19,8 @@ use crate::{
     result::trace_ok_err,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
     tools_data::{
-        attributes_data::AttrVal, AnnotationsMap, AttributesToolData, ExportAsCoco, LabelInfo,
-        ToolSpecifics, ToolsDataMap,
+        attributes_data::{AttrMap, AttrVal},
+        AnnotationsMap, AttributesToolData, ExportAsCoco, LabelInfo, ToolSpecifics, ToolsDataMap,
     },
     InstanceAnnotate,
 };
@@ -160,10 +160,13 @@ pub enum FilterRelation {
     Missing,
 }
 impl FilterRelation {
-    fn apply<'a>(&'a self, filtered_filepaths: &[&PathPair], path_tdm_key: &'a str) -> bool {
-        let is_key_in_filtered_paths = filtered_filepaths
-            .iter()
-            .any(|fp| fp.path_relative() == path_tdm_key);
+    fn apply<'a>(
+        &'a self,
+        mut filtered_filepaths: impl Iterator<Item = &'a &'a PathPair>,
+        path_tdm_key: &'a str,
+    ) -> bool {
+        let is_key_in_filtered_paths =
+            filtered_filepaths.any(|fp| fp.path_relative() == path_tdm_key);
         match self {
             Self::Available => is_key_in_filtered_paths,
             Self::Missing => !is_key_in_filtered_paths,
@@ -179,16 +182,19 @@ impl FilterRelation {
 
 fn iter_attributes_of_files<'a>(
     atd: &'a AttributesToolData,
-    filepaths: &'a [&PathPair],
-    filter_relation: FilterRelation,
-) -> impl Iterator<Item = (&'a str, &'a HashMap<String, AttrVal>)> + 'a {
-    atd.anno_iter().filter_map(move |(k, v)| {
-        if filter_relation.apply(filepaths, k) {
-            Some((k.as_str(), &v.0))
-        } else {
-            None
-        }
-    })
+    filepaths: &'a [(usize, &PathPair)],
+) -> impl Iterator<Item = (usize, &'a AttrMap)> + 'a {
+    atd.anno_iter()
+        .filter_map(move |(anno_key_filename, (attrmap, _))| {
+            if let Some((idx, _)) = filepaths
+                .iter()
+                .find(|(_, fp)| fp.path_relative() == anno_key_filename)
+            {
+                Some((*idx, attrmap))
+            } else {
+                None
+            }
+        })
 }
 /// Returns an iterator over filename, toolname, number of annotations in file
 fn iter_files_of_instance_tool<'a, T>(
@@ -206,7 +212,7 @@ where
         Ok(Some(
             datamap
                 .iter()
-                .filter(move |(k, _)| filter_relation.apply(filepaths, k))
+                .filter(move |(k, _)| filter_relation.apply(filepaths.iter(), k))
                 .map(move |(k, (annos, _))| (k.as_str(), tool_name, annos.len())),
         ))
     } else {
@@ -836,7 +842,7 @@ fn anno_plots(
 ) -> RvResult<()> {
     if tool_choice.attributes {
         let filepaths = paths_selector
-            .map(|ps| ps.filtered_file_paths())
+            .map(|ps| ps.filtered_idx_file_paths_pairs())
             .ok_or_else(|| rverr!("no file paths found"))?;
 
         let atd = tdm
@@ -861,22 +867,20 @@ fn anno_plots(
             for (selected_attr, is_selected) in selected_attributes.iter() {
                 if *is_selected {
                     let mut plot = vec![];
-                    let mut filenames = vec![];
-                    for (i, (filename, attr_map)) in
-                        iter_attributes_of_files(atd, &filepaths, FilterRelation::Available)
-                            .enumerate()
-                    {
+                    for (file_idx, attr_map) in iter_attributes_of_files(atd, &filepaths) {
                         let value = attr_map.get(selected_attr);
                         if let Some(value) = value {
                             let y = match value {
                                 AttrVal::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
                                 AttrVal::Float(x) => *x,
                                 AttrVal::Int(n) => n.map(|n| n as f64),
-                                _ => None,
+                                AttrVal::Str(s) => Some(s.len() as f64),
                             };
                             if let Some(y) = y {
-                                plot.push(PlotPoint { x: i as f64, y });
-                                filenames.push(filename);
+                                plot.push(PlotPoint {
+                                    x: file_idx as f64,
+                                    y,
+                                });
                             }
                         }
                     }
@@ -890,7 +894,8 @@ fn anno_plots(
             let x_fmt = move |x: GridMark, _range: &RangeInclusive<f64>| {
                 if x.value.fract().abs() < 1e-6 {
                     let i = x.value.round() as usize;
-                    trace_ok_err(filepaths[i].filestem().map(|s| s.to_string())).unwrap_or_default()
+                    let filelabel = paths_selector.and_then(|ps| ps.file_label_of_idx(i));
+                    filelabel.map(|s| s.to_string()).unwrap_or_default()
                 } else {
                     String::new()
                 }
@@ -903,7 +908,12 @@ fn anno_plots(
                         .x_axis_formatter(x_fmt)
                         .show(ui, |plot_ui| {
                             for (k, v) in attribute_plots.iter() {
-                                plot_ui.line(Line::new(k, PlotPoints::Borrowed(v)));
+                                plot_ui.points(
+                                    Points::new(k, PlotPoints::Borrowed(v))
+                                        .shape(MarkerShape::Circle)
+                                        .radius(5.0)
+                                        .filled(true),
+                                );
                             }
                         });
                 });
