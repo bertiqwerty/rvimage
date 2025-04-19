@@ -4,7 +4,7 @@ use chrono::{DateTime, Local};
 use core::{iter_files_of_instance_tool, FilterRelation, ToolChoice};
 use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
 use egui_plot::PlotPoint;
-use plot::anno_plots;
+use plot::{anno_plots, Selection};
 use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
@@ -296,6 +296,8 @@ pub struct AnnotationsParams {
     pub filter_relation_deletion: FilterRelation,
     pub stats_result: Option<Vec<AnnoStatsRecord>>,
     pub selected_attributes_for_plot: HashMap<String, bool>,
+    pub selected_bboxclasses_for_plot: HashMap<String, bool>,
+    pub selected_brushclasses_for_plot: HashMap<String, bool>,
     pub attribute_plots: HashMap<String, Vec<PlotPoint>>,
 }
 
@@ -808,7 +810,11 @@ fn annotations_popup(
                 ctrl.paths_navigator.paths_selector(),
                 are_tools_active,
                 (
-                    &mut anno_params.selected_attributes_for_plot,
+                    Selection {
+                        attributes: &mut anno_params.selected_attributes_for_plot,
+                        bbox_classes: &mut anno_params.selected_bboxclasses_for_plot,
+                        brush_classes: &mut anno_params.selected_brushclasses_for_plot,
+                    },
                     &mut anno_params.attribute_plots,
                 ),
             ));

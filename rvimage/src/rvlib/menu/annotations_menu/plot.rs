@@ -5,29 +5,57 @@ use egui_plot::{Corner, GridMark, Legend, MarkerShape, Plot, PlotPoint, PlotPoin
 use rvimage_domain::{rverr, RvResult};
 
 use crate::{
+    get_labelinfo_from_tdm,
     menu::{
         annotations_menu::iter_attributes_of_files, ui_util::ui_with_deactivated_tools_on_hover,
     },
     paths_selector::PathsSelector,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
-    tools_data::attributes_data::AttrVal,
+    tools_data::{attributes_data::AttrVal, ExportAsCoco, LabelInfo},
     ToolsDataMap,
 };
 
 use super::core::{iter_files_of_instance_tool, FilterRelation, ToolChoice};
 
-pub(super) fn anno_plots(
-    ui_params: (&Context, &mut Ui),
+pub(super) struct Selection<'a> {
+    pub attributes: &'a mut HashMap<String, bool>,
+    pub bbox_classes: &'a mut HashMap<String, bool>,
+    pub brush_classes: &'a mut HashMap<String, bool>,
+}
+
+fn class_selection(
+    ui: &mut Ui,
+    tool_name: &str,
+    labelinfo: Option<&LabelInfo>,
+    selected: &mut HashMap<String, bool>,
+) {
+    ui.collapsing(format!("Select classes of {tool_name}"), |ui| {
+        if let Some(labelinfo) = labelinfo {
+            for name in labelinfo.labels() {
+                if !selected.contains_key(name) {
+                    selected.insert(name.clone(), false);
+                }
+                let is_class_selected = selected.get_mut(name);
+                if let Some(is_selected) = is_class_selected {
+                    ui.checkbox(is_selected, name);
+                }
+            }
+        }
+    });
+}
+
+pub(super) fn anno_plots<'a>(
+    ui_params: (&Context, &'a mut Ui),
     tdm: &ToolsDataMap,
     tool_choice: ToolChoice,
-    paths_selector: Option<&PathsSelector>,
-    are_tools_active: &mut bool,
-    plot_params: (
-        &mut HashMap<String, bool>,
-        &mut HashMap<String, Vec<PlotPoint>>,
-    ),
+    paths_selector: Option<&'a PathsSelector>,
+    are_tools_active: &'a mut bool,
+    plot_params: (Selection<'a>, &'a mut HashMap<String, Vec<PlotPoint>>),
 ) -> RvResult<()> {
-    let (selected_attributes, attribute_plots) = plot_params;
+    let (selection, attribute_plots) = plot_params;
+    let selected_attributes = selection.attributes;
+    let selected_bboxclasses = selection.bbox_classes;
+    let selected_brushclasses = selection.brush_classes;
     let (ctx, ui) = ui_params;
     let atd = tdm
         .get(ATTRIBUTES_NAME)
@@ -35,8 +63,7 @@ pub(super) fn anno_plots(
         .specifics
         .attributes()?;
     if tool_choice.attributes {
-        ui.group(|ui| {
-            ui.label("Select Attribute");
+        ui.collapsing("Select Attributes", |ui| {
             for name in atd.attr_names() {
                 if !selected_attributes.contains_key(name) {
                     selected_attributes.insert(name.clone(), false);
@@ -48,19 +75,13 @@ pub(super) fn anno_plots(
             }
         });
     }
+    let bbox_labelinfo = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
     if tool_choice.bbox {
-        ui.group(|ui| {
-            ui.label("Select Class");
-            for name in atd.attr_names() {
-                if !selected_attributes.contains_key(name) {
-                    selected_attributes.insert(name.clone(), false);
-                }
-                let attr = selected_attributes.get_mut(name);
-                if let Some(attr) = attr {
-                    ui.checkbox(attr, name);
-                }
-            }
-        });
+        class_selection(ui, BBOX_NAME, bbox_labelinfo, selected_bboxclasses);
+    }
+    let brush_labelinfo = get_labelinfo_from_tdm!(BRUSH_NAME, tdm, brush);
+    if tool_choice.brush {
+        class_selection(ui, BRUSH_NAME, brush_labelinfo, selected_brushclasses);
     }
     if ui.button("plot").clicked() {
         let filepaths = paths_selector
@@ -88,13 +109,27 @@ pub(super) fn anno_plots(
                     }
                 }
                 if !plot.is_empty() {
-                    attribute_plots.insert(selected_attr.clone(), plot);
+                    attribute_plots.insert(format!("{ATTRIBUTES_NAME}_{selected_attr}"), plot);
                 }
             }
         }
 
         macro_rules! count_plot {
-            ($tool_name:expr, $accessfunc:ident, $plotname:expr) => {
+            ($tool_name:expr, $accessfunc:ident, $selected:expr, $labelinfo:expr) => {
+                let relevant_indices = if let Some(labelinfo) = $labelinfo {
+                    $selected
+                        .iter()
+                        .filter(|(_, is_selected)| **is_selected)
+                        .flat_map(|(selected_label, _)| {
+                            labelinfo
+                                .labels()
+                                .iter()
+                                .position(|label| label == selected_label)
+                        })
+                        .collect::<Vec<_>>()
+                } else {
+                    vec![]
+                };
                 let mut plot = vec![];
                 for (fidx, _, _, count) in iter_files_of_instance_tool(
                     tdm,
@@ -102,7 +137,11 @@ pub(super) fn anno_plots(
                     $tool_name,
                     |ts| ts.$accessfunc().map(|d| &d.annotations_map),
                     FilterRelation::Available,
-                    None,
+                    if relevant_indices.is_empty() {
+                        None
+                    } else {
+                        Some(&relevant_indices)
+                    },
                 )? {
                     if let Some(fidx) = fidx {
                         plot.push(PlotPoint {
@@ -111,14 +150,14 @@ pub(super) fn anno_plots(
                         });
                     }
                 }
-                attribute_plots.insert($plotname.into(), plot);
+                attribute_plots.insert(format!("{}", $tool_name), plot);
             };
         }
         if tool_choice.bbox {
-            count_plot!(BBOX_NAME, bbox, "Bbox counts");
+            count_plot!(BBOX_NAME, bbox, selected_bboxclasses, bbox_labelinfo);
         }
         if tool_choice.brush {
-            count_plot!(BRUSH_NAME, brush, "Brush counts");
+            count_plot!(BRUSH_NAME, brush, selected_brushclasses, brush_labelinfo);
         }
     }
     if !attribute_plots.is_empty() {
