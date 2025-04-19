@@ -1,12 +1,15 @@
+mod core;
+mod plot;
 use chrono::{DateTime, Local};
+use core::{iter_files_of_instance_tool, FilterRelation, ToolChoice};
 use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
-use egui_plot::{Corner, GridMark, Legend, MarkerShape, Plot, PlotPoint, PlotPoints, Points};
+use egui_plot::PlotPoint;
+use plot::anno_plots;
 use rvimage_domain::{rverr, to_rv, RvResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     f64, fs, iter, mem,
-    ops::RangeInclusive,
     path::Path,
 };
 
@@ -27,7 +30,7 @@ use crate::{
 
 use super::{
     main::TextBuffers,
-    ui_util::{self, slider, ui_with_deactivated_tools_on_hover},
+    ui_util::{self, slider},
 };
 
 pub fn delete_annotations<T>(
@@ -151,35 +154,6 @@ fn ancestor(path: &String, depth: u8) -> &Path {
         .unwrap_or(Path::new(""))
 }
 
-#[derive(Clone, Copy, Default)]
-pub enum FilterRelation {
-    // files that are contained in the list of filtered files
-    #[default]
-    Available,
-    // files that are NOT contained the list of filtered files
-    Missing,
-}
-impl FilterRelation {
-    fn apply<'a>(
-        &'a self,
-        mut filtered_filepaths: impl Iterator<Item = &'a &'a PathPair>,
-        path_tdm_key: &'a str,
-    ) -> bool {
-        let is_key_in_filtered_paths =
-            filtered_filepaths.any(|fp| fp.path_relative() == path_tdm_key);
-        match self {
-            Self::Available => is_key_in_filtered_paths,
-            Self::Missing => !is_key_in_filtered_paths,
-        }
-    }
-    fn select<T>(&self, option_available: T, option_missing: T) -> T {
-        match self {
-            Self::Available => option_available,
-            Self::Missing => option_missing,
-        }
-    }
-}
-
 fn iter_attributes_of_files<'a>(
     atd: &'a AttributesToolData,
     filepaths: &'a [(usize, &PathPair)],
@@ -195,100 +169,6 @@ fn iter_attributes_of_files<'a>(
                 None
             }
         })
-}
-/// Returns an iterator over file idx, filename, toolname, number of annotations in file
-fn iter_files_of_instance_tool<'a, T>(
-    tdm: &'a ToolsDataMap,
-    filepaths: &'a [(usize, &PathPair)],
-    tool_name: &'static str,
-    unwrap_specifics: impl Fn(&ToolSpecifics) -> RvResult<&AnnotationsMap<T>>,
-    filter_relation: FilterRelation,
-) -> RvResult<impl Iterator<Item = (Option<usize>, &'a str, &'static str, usize)> + 'a>
-where
-    T: InstanceAnnotate + 'a,
-{
-    if tdm.contains_key(tool_name) {
-        let datamap = unwrap_specifics(&tdm[tool_name].specifics)?;
-
-        let iter_available =
-            filepaths
-                .iter()
-                .filter_map(move |(idx, filepath)| match filter_relation {
-                    FilterRelation::Available => {
-                        let annos = datamap.get(filepath.path_relative());
-                        annos.map(|(annos, _)| {
-                            (Some(*idx), filepath.path_relative(), tool_name, annos.len())
-                        })
-                    }
-                    FilterRelation::Missing => None,
-                });
-        let iter_missing = datamap
-            .iter()
-            .filter(move |(k, _)| {
-                matches!(filter_relation, FilterRelation::Missing)
-                    && filter_relation.apply(filepaths.iter().map(|(_, fp)| fp), k)
-            })
-            .map(move |(k, (annos, _))| (None, k.as_str(), tool_name, annos.len()));
-        Ok(iter_available.chain(iter_missing))
-    } else {
-        Err(rverr!("Tool {tool_name} has no data"))
-    }
-}
-
-#[derive(Clone, Copy, Default, PartialEq)]
-pub struct ToolChoice {
-    pub brush: bool,
-    pub bbox: bool,
-    pub attributes: bool,
-}
-
-impl ToolChoice {
-    fn ui(&mut self, ui: &mut Ui, skip_attributes: bool) {
-        ui.label("Select tool who's annotations you are interested in");
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.bbox, BBOX_NAME);
-            ui.checkbox(&mut self.brush, BRUSH_NAME);
-            if !skip_attributes {
-                ui.checkbox(&mut self.attributes, ATTRIBUTES_NAME)
-                    .on_hover_text("only for propagation");
-            }
-        });
-    }
-    fn run_mut(
-        &self,
-        ui: &mut Ui,
-        tdm: &mut ToolsDataMap,
-        mut f_bbox: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
-        mut f_brush: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
-        mut f_attr: impl FnMut(&mut Ui, &mut ToolsDataMap) -> RvResult<()>,
-    ) -> RvResult<()> {
-        if self.bbox {
-            f_bbox(ui, tdm)?;
-        }
-        if self.brush {
-            f_brush(ui, tdm)?;
-        }
-        if self.attributes {
-            f_attr(ui, tdm)?;
-        }
-        Ok(())
-    }
-    fn run<'a>(
-        tool_name: &'static str,
-        tdm: &'a ToolsDataMap,
-        mut f_bbox: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
-        mut f_brush: impl FnMut(&'a ToolsDataMap) -> RvResult<()>,
-    ) -> RvResult<()> {
-        match tool_name {
-            BBOX_NAME => f_bbox(tdm),
-            BRUSH_NAME => f_brush(tdm),
-            _ => Err(rverr!("cannot run. unknown tool {tool_name}")),
-        }
-    }
-
-    fn is_some(&self, skip_attributes: bool) -> bool {
-        self.bbox || self.brush || (!skip_attributes && self.attributes)
-    }
 }
 
 type ElementOfInstanceToolIterator<'a> = (Option<usize>, &'a str, &'static str, usize);
@@ -307,6 +187,7 @@ fn get_all_files<'a>(
             BBOX_NAME,
             |ts| ts.bbox().map(|d| &d.annotations_map),
             filter_relation,
+            None,
         )?
         .collect::<Vec<_>>();
         all_absent_files.append(&mut all_absent_files_bbox);
@@ -318,6 +199,7 @@ fn get_all_files<'a>(
             BRUSH_NAME,
             |ts| ts.brush().map(|d| &d.annotations_map),
             filter_relation,
+            None,
         )?
         .collect::<Vec<_>>();
         all_absent_files.append(&mut all_absent_files_brush);
@@ -707,6 +589,7 @@ where
         tool_name,
         unwrap_specifics,
         FilterRelation::Available,
+        None,
     )?
     .count())
 }
@@ -818,129 +701,6 @@ fn anno_stats(
                 ui.label("no annotations found");
             }
         }
-    }
-    Ok(())
-}
-
-fn anno_plots(
-    ui_params: (&Context, &mut Ui),
-    tdm: &ToolsDataMap,
-    tool_choice: ToolChoice,
-    paths_selector: Option<&PathsSelector>,
-    are_tools_active: &mut bool,
-    plot_params: (
-        &mut HashMap<String, bool>,
-        &mut HashMap<String, Vec<PlotPoint>>,
-    ),
-) -> RvResult<()> {
-    let (selected_attributes, attribute_plots) = plot_params;
-    let (ctx, ui) = ui_params;
-    let atd = tdm
-        .get(ATTRIBUTES_NAME)
-        .ok_or_else(|| rverr!("{ATTRIBUTES_NAME} not initialized"))?
-        .specifics
-        .attributes()?;
-    if tool_choice.attributes {
-        ui.group(|ui| {
-            ui.label("Select Attribute");
-            for name in atd.attr_names() {
-                if !selected_attributes.contains_key(name) {
-                    selected_attributes.insert(name.clone(), false);
-                }
-                let attr = selected_attributes.get_mut(name);
-                if let Some(attr) = attr {
-                    ui.checkbox(attr, name);
-                }
-            }
-        });
-    }
-    if ui.button("plot").clicked() {
-        let filepaths = paths_selector
-            .map(|ps| ps.filtered_idx_file_paths_pairs())
-            .ok_or_else(|| rverr!("no file paths found"))?;
-        *attribute_plots = HashMap::new();
-        for (selected_attr, is_selected) in selected_attributes.iter() {
-            if *is_selected {
-                let mut plot = vec![];
-                for (file_idx, attr_map) in iter_attributes_of_files(atd, &filepaths) {
-                    let value = attr_map.get(selected_attr);
-                    if let Some(value) = value {
-                        let y = match value {
-                            AttrVal::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
-                            AttrVal::Float(x) => *x,
-                            AttrVal::Int(n) => n.map(|n| n as f64),
-                            AttrVal::Str(s) => Some(s.len() as f64),
-                        };
-                        if let Some(y) = y {
-                            plot.push(PlotPoint {
-                                x: file_idx as f64,
-                                y,
-                            });
-                        }
-                    }
-                }
-                if !plot.is_empty() {
-                    attribute_plots.insert(selected_attr.clone(), plot);
-                }
-            }
-        }
-        macro_rules! count_plot {
-            ($tool_name:expr, $accessfunc:ident, $plotname:expr) => {
-                let mut plot = vec![];
-                for (fidx, _, _, count) in iter_files_of_instance_tool(
-                    tdm,
-                    &filepaths,
-                    $tool_name,
-                    |ts| ts.$accessfunc().map(|d| &d.annotations_map),
-                    FilterRelation::Available,
-                )? {
-                    if let Some(fidx) = fidx {
-                        plot.push(PlotPoint {
-                            x: fidx as f64,
-                            y: count as f64,
-                        });
-                    }
-                }
-                attribute_plots.insert($plotname.into(), plot);
-            };
-        }
-        if tool_choice.bbox {
-            count_plot!(BBOX_NAME, bbox, "Bbox counts");
-        }
-        if tool_choice.brush {
-            count_plot!(BRUSH_NAME, brush, "Brush counts");
-        }
-    }
-    if !attribute_plots.is_empty() {
-        let x_fmt = move |x: GridMark, _range: &RangeInclusive<f64>| {
-            if x.value.fract().abs() < 1e-6 {
-                let i = x.value.round() as usize;
-                let filelabel = paths_selector.and_then(|ps| ps.file_label_of_idx(i));
-                filelabel.map(|s| s.to_string()).unwrap_or_default()
-            } else {
-                String::new()
-            }
-        };
-        egui::Window::new("Annotation Plots")
-            .collapsible(false)
-            .show(ctx, |ui| {
-                ui_with_deactivated_tools_on_hover(are_tools_active, || {
-                    Plot::new("attribute plots")
-                        .legend(Legend::default().position(Corner::LeftTop))
-                        .x_axis_formatter(x_fmt)
-                        .show(ui, |plot_ui| {
-                            for (k, v) in attribute_plots.iter() {
-                                plot_ui.points(
-                                    Points::new(k, PlotPoints::Borrowed(v))
-                                        .shape(MarkerShape::Circle)
-                                        .radius(5.0)
-                                        .filled(true),
-                                );
-                            }
-                        })
-                        .response
-                });
-            });
     }
     Ok(())
 }

@@ -64,6 +64,7 @@ where
         }
         true
     }
+    /// iterate over element, category index, and selection status
     pub fn iter(&self) -> impl Iterator<Item = (&T, usize, bool)> {
         self.elts
             .iter()
