@@ -4,7 +4,7 @@ use crate::result::trace_ok_err;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::{
-    self, vis_from_lfoption, ExportAsCoco, LabelInfo, ToolSpecifics, ToolsData, ToolsDataMap,
+    self, vis_from_lfoption, AccessInstanceData, LabelInfo, ToolSpecifics, ToolsData, ToolsDataMap,
 };
 use crate::types::ViewImage;
 use crate::util::Visibility;

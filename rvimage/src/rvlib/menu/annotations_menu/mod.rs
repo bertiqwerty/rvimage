@@ -22,8 +22,8 @@ use crate::{
     result::trace_ok_err,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
     tools_data::{
-        attributes_data::{AttrMap, AttrVal},
-        AnnotationsMap, AttributesToolData, ExportAsCoco, LabelInfo, ToolSpecifics, ToolsDataMap,
+        attributes_data::AttrVal, AccessInstanceData, AnnotationsMap, AttributesToolData,
+        LabelInfo, ToolSpecifics, ToolsDataMap,
     },
     InstanceAnnotate,
 };
@@ -152,23 +152,6 @@ fn ancestor(path: &String, depth: u8) -> &Path {
         .ancestors()
         .nth(depth.into())
         .unwrap_or(Path::new(""))
-}
-
-fn iter_attributes_of_files<'a>(
-    atd: &'a AttributesToolData,
-    filepaths: &'a [(usize, &PathPair)],
-) -> impl Iterator<Item = (usize, &'a AttrMap)> + 'a {
-    atd.anno_iter()
-        .filter_map(move |(anno_key_filename, (attrmap, _))| {
-            if let Some((idx, _)) = filepaths
-                .iter()
-                .find(|(_, fp)| fp.path_relative() == anno_key_filename)
-            {
-                Some((*idx, attrmap))
-            } else {
-                None
-            }
-        })
 }
 
 type ElementOfInstanceToolIterator<'a> = (Option<usize>, &'a str, &'static str, usize);

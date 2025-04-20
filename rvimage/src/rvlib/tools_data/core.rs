@@ -584,13 +584,16 @@ pub trait InstanceAnnotate:
         is_export_absolute: bool,
     ) -> RvResult<Option<CocoSegmentation>>;
 }
-pub trait ExportAsCoco<A>
+pub trait AccessInstanceData<T: InstanceAnnotate> {
+    fn annotations_map(&self) -> &AnnotationsMap<T>;
+    fn label_info(&self) -> &LabelInfo;
+}
+pub trait ExportAsCoco<A>: AccessInstanceData<A>
 where
     A: InstanceAnnotate + 'static,
 {
-    fn separate_data(self) -> (Options, LabelInfo, AnnotationsMap<A>, ExportPath);
     fn cocofile_conn(&self) -> ExportPath;
-    fn label_info(&self) -> &LabelInfo;
+    fn separate_data(self) -> (Options, LabelInfo, AnnotationsMap<A>, ExportPath);
     #[cfg(test)]
     fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<A>, ShapeI))>;
     fn set_annotations_map(&mut self, map: AnnotationsMap<A>) -> RvResult<()>;

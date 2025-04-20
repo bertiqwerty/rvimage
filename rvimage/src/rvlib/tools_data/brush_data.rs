@@ -2,7 +2,10 @@
 use super::annotations::InstanceAnnotations;
 use super::{
     annotations::{BrushAnnotations, ClipboardData},
-    core::{self, AnnotationsMap, CocoRle, CocoSegmentation, ExportAsCoco, LabelInfo},
+    core::{
+        self, AccessInstanceData, AnnotationsMap, CocoRle, CocoSegmentation, ExportAsCoco,
+        LabelInfo,
+    },
     InstanceAnnotate, InstanceExportData,
 };
 use crate::{cfg::ExportPath, result::trace_ok_warn, BrushLine};
@@ -126,6 +129,14 @@ impl<'de> Deserialize<'de> for BrushToolData {
     }
 }
 
+impl AccessInstanceData<Canvas> for BrushToolData {
+    fn annotations_map(&self) -> &AnnotationsMap<Canvas> {
+        &self.annotations_map
+    }
+    fn label_info(&self) -> &LabelInfo {
+        &self.label_info
+    }
+}
 impl ExportAsCoco<Canvas> for BrushToolData {
     fn cocofile_conn(&self) -> ExportPath {
         self.coco_file.clone()
@@ -137,9 +148,6 @@ impl ExportAsCoco<Canvas> for BrushToolData {
             self.annotations_map,
             self.coco_file,
         )
-    }
-    fn label_info(&self) -> &LabelInfo {
-        &self.label_info
     }
     fn core_options_mut(&mut self) -> &mut core::Options {
         &mut self.options.core

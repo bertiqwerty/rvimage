@@ -7,8 +7,8 @@ use super::annotations::InstanceAnnotations;
 use super::{
     annotations::{BboxAnnotations, ClipboardData},
     core::{
-        AnnotationsMap, CocoSegmentation, ExportAsCoco, InstanceExportData, LabelInfo,
-        OUTLINE_THICKNESS_CONVERSION,
+        AccessInstanceData, AnnotationsMap, CocoSegmentation, ExportAsCoco, InstanceExportData,
+        LabelInfo, OUTLINE_THICKNESS_CONVERSION,
     },
     InstanceAnnotate,
 };
@@ -142,6 +142,15 @@ impl Default for BboxToolData {
     }
 }
 
+impl AccessInstanceData<GeoFig> for BboxToolData {
+    fn annotations_map(&self) -> &AnnotationsMap<GeoFig> {
+        &self.annotations_map
+    }
+    fn label_info(&self) -> &LabelInfo {
+        &self.label_info
+    }
+}
+
 impl ExportAsCoco<GeoFig> for BboxToolData {
     fn cocofile_conn(&self) -> ExportPath {
         self.coco_file.clone()
@@ -153,9 +162,6 @@ impl ExportAsCoco<GeoFig> for BboxToolData {
             self.annotations_map,
             self.coco_file,
         )
-    }
-    fn label_info(&self) -> &LabelInfo {
-        &self.label_info
     }
     #[cfg(test)]
     fn anno_iter(&self) -> impl Iterator<Item = (&String, &(InstanceAnnotations<GeoFig>, ShapeI))> {

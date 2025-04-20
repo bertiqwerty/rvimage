@@ -4,13 +4,13 @@ use crate::{
 };
 
 pub use self::core::{
-    vis_from_lfoption, Annotate, ExportAsCoco, ImportExportTrigger, ImportMode, InstanceAnnotate,
-    InstanceExportData, LabelInfo, Options, VisibleInactiveToolsState,
+    vis_from_lfoption, AccessInstanceData, Annotate, ExportAsCoco, ImportExportTrigger, ImportMode,
+    InstanceAnnotate, InstanceExportData, LabelInfo, Options, VisibleInactiveToolsState,
     OUTLINE_THICKNESS_CONVERSION,
 };
 pub use self::{
     attributes_data::AttributesToolData, bbox_data::BboxToolData, brush_data::BrushToolData,
-    coco_io::write_coco, rot90_data::Rot90ToolData,
+    coco_io::write_coco, plot_stats::PlotAnnotationStats, rot90_data::Rot90ToolData,
 };
 use rvimage_domain::{rverr, RvResult, TPtF};
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,7 @@ pub mod brush_data;
 pub mod coco_io;
 mod core;
 mod label_map;
+mod plot_stats;
 pub mod rot90_data;
 pub use core::{merge, AnnotationsMap, InstanceLabelDisplay, Options as CoreOptions};
 use std::collections::HashMap;

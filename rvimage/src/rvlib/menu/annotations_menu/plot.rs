@@ -2,20 +2,24 @@ use std::{collections::HashMap, ops::RangeInclusive};
 
 use egui::{Context, Ui};
 use egui_plot::{Corner, GridMark, Legend, MarkerShape, Plot, PlotPoint, PlotPoints, Points};
-use rvimage_domain::{rverr, RvResult};
+use rvimage_domain::{rverr, PtF, RvResult};
 
 use crate::{
-    get_labelinfo_from_tdm,
-    menu::{
-        annotations_menu::iter_attributes_of_files, ui_util::ui_with_deactivated_tools_on_hover,
-    },
+    get_labelinfo_from_tdm, get_specifics_from_tdm,
+    menu::ui_util::ui_with_deactivated_tools_on_hover,
     paths_selector::PathsSelector,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
-    tools_data::{attributes_data::AttrVal, ExportAsCoco, LabelInfo},
+    tools_data::{AccessInstanceData, LabelInfo, PlotAnnotationStats},
     ToolsDataMap,
 };
 
-use super::core::{iter_files_of_instance_tool, FilterRelation, ToolChoice};
+use super::core::ToolChoice;
+
+fn plot_to_egui(plot: Vec<PtF>) -> Vec<PlotPoint> {
+    plot.into_iter()
+        .map(|p| PlotPoint { x: p.x, y: p.y })
+        .collect()
+}
 
 pub(super) struct Selection<'a> {
     pub attributes: &'a mut HashMap<String, bool>,
@@ -88,76 +92,26 @@ pub(super) fn anno_plots<'a>(
             .map(|ps| ps.filtered_idx_file_paths_pairs())
             .ok_or_else(|| rverr!("no file paths found"))?;
         *attribute_plots = HashMap::new();
-        for (selected_attr, is_selected) in selected_attributes.iter() {
-            if *is_selected {
-                let mut plot = vec![];
-                for (file_idx, attr_map) in iter_attributes_of_files(atd, &filepaths) {
-                    let value = attr_map.get(selected_attr);
-                    if let Some(value) = value {
-                        let y = match value {
-                            AttrVal::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
-                            AttrVal::Float(x) => *x,
-                            AttrVal::Int(n) => n.map(|n| n as f64),
-                            AttrVal::Str(s) => Some(s.len() as f64),
-                        };
-                        if let Some(y) = y {
-                            plot.push(PlotPoint {
-                                x: file_idx as f64,
-                                y,
-                            });
-                        }
-                    }
-                }
-                if !plot.is_empty() {
-                    attribute_plots.insert(format!("{ATTRIBUTES_NAME}_{selected_attr}"), plot);
-                }
-            }
-        }
 
-        macro_rules! count_plot {
-            ($tool_name:expr, $accessfunc:ident, $selected:expr, $labelinfo:expr) => {
-                let relevant_indices = if let Some(labelinfo) = $labelinfo {
-                    $selected
-                        .iter()
-                        .filter(|(_, is_selected)| **is_selected)
-                        .flat_map(|(selected_label, _)| {
-                            labelinfo
-                                .labels()
-                                .iter()
-                                .position(|label| label == selected_label)
-                        })
-                        .collect::<Vec<_>>()
-                } else {
-                    vec![]
-                };
-                let mut plot = vec![];
-                for (fidx, _, _, count) in iter_files_of_instance_tool(
-                    tdm,
-                    &filepaths,
-                    $tool_name,
-                    |ts| ts.$accessfunc().map(|d| &d.annotations_map),
-                    FilterRelation::Available,
-                    if relevant_indices.is_empty() {
-                        None
-                    } else {
-                        Some(&relevant_indices)
-                    },
-                )? {
-                    if let Some(fidx) = fidx {
-                        plot.push(PlotPoint {
-                            x: fidx as f64,
-                            y: count as f64,
-                        });
+        macro_rules! plot_instance {
+            ($tool_name:expr, $accessfunc:ident, $selected:expr) => {
+                let data = get_specifics_from_tdm!($tool_name, tdm, $accessfunc);
+                if let Some(d) = data {
+                    let plots = d.plot($selected, &filepaths)?;
+                    for (classname, plot) in plots {
+                        attribute_plots.insert(classname, plot_to_egui(plot));
                     }
                 }
-                attribute_plots.insert(format!("{}", $tool_name), plot);
             };
         }
+        if tool_choice.attributes {
+            plot_instance!(ATTRIBUTES_NAME, attributes, selected_attributes);
+        }
         if tool_choice.bbox {
-            count_plot!(BBOX_NAME, bbox, selected_bboxclasses, bbox_labelinfo);
+            plot_instance!(BBOX_NAME, bbox, selected_bboxclasses);
         }
         if tool_choice.brush {
-            count_plot!(BRUSH_NAME, brush, selected_brushclasses, brush_labelinfo);
+            plot_instance!(BRUSH_NAME, brush, selected_brushclasses);
         }
     }
     if !attribute_plots.is_empty() {
