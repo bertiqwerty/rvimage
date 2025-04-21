@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::RangeInclusive};
 
-use egui::{Context, Ui};
+use egui::Ui;
 use egui_plot::{Corner, GridMark, Legend, MarkerShape, Plot, PlotPoint, PlotPoints, Points};
 use rvimage_domain::{rverr, PtF, RvResult};
 
@@ -49,7 +49,7 @@ fn class_selection(
 }
 
 pub(super) fn anno_plots<'a>(
-    ui_params: (&Context, &'a mut Ui),
+    ui: &'a mut Ui,
     tdm: &ToolsDataMap,
     tool_choice: ToolChoice,
     paths_selector: Option<&'a PathsSelector>,
@@ -64,7 +64,6 @@ pub(super) fn anno_plots<'a>(
     let selected_attributes = selection.attributes;
     let selected_bboxclasses = selection.bbox_classes;
     let selected_brushclasses = selection.brush_classes;
-    let (ctx, ui) = ui_params;
     let atd = tdm
         .get(ATTRIBUTES_NAME)
         .ok_or_else(|| rverr!("{ATTRIBUTES_NAME} not initialized"))?
@@ -129,11 +128,12 @@ pub(super) fn anno_plots<'a>(
                 String::new()
             }
         };
+
         egui::Window::new("Annotation Plots")
             .collapsible(false)
             .open(window_open)
             .movable(true)
-            .show(ctx, |ui| {
+            .show(ui.ctx(), |ui| {
                 ui_with_deactivated_tools_on_hover(are_tools_active, || {
                     Plot::new("attribute plots")
                         .legend(Legend::default().position(Corner::LeftTop))

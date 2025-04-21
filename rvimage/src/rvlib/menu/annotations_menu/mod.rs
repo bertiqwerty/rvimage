@@ -2,7 +2,7 @@ mod core;
 mod plot;
 use chrono::{DateTime, Local};
 use core::{iter_files_of_instance_tool, FilterRelation, ToolChoice};
-use egui::{Area, Context, Frame, Id, Order, Response, RichText, Ui, Widget};
+use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Widget};
 use egui_plot::PlotPoint;
 use plot::{anno_plots, Selection};
 use rvimage_domain::{rverr, to_rv, RvResult};
@@ -742,7 +742,6 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
 }
 
 fn annotations_popup(
-    ctx: &Context,
     ui: &mut Ui,
     ctrl: &mut Control,
     in_tdm: &mut ToolsDataMap,
@@ -788,7 +787,7 @@ fn annotations_popup(
             let skip_attrs = false;
             anno_params.tool_choice_plot.ui(ui, skip_attrs);
             trace_ok_err(anno_plots(
-                (ctx, ui),
+                ui,
                 in_tdm,
                 anno_params.tool_choice_plot,
                 ctrl.paths_navigator.paths_selector(),
@@ -813,7 +812,6 @@ fn annotations_popup(
 }
 
 pub struct AutosaveMenu<'a> {
-    ctx: &'a Context,
     id: Id,
     ctrl: &'a mut Control,
     tdm: &'a mut ToolsDataMap,
@@ -823,7 +821,6 @@ pub struct AutosaveMenu<'a> {
 }
 impl<'a> AutosaveMenu<'a> {
     pub fn new(
-        ctx: &'a Context,
         id: Id,
         ctrl: &'a mut Control,
         tools_data_map: &'a mut ToolsDataMap,
@@ -832,7 +829,6 @@ impl<'a> AutosaveMenu<'a> {
         anno_params: &'a mut AnnotationsParams,
     ) -> AutosaveMenu<'a> {
         Self {
-            ctx,
             id,
             ctrl,
             tdm: tools_data_map,
@@ -858,7 +854,6 @@ impl Widget for AutosaveMenu<'_> {
             let area_response = area
                 .show(ui.ctx(), |ui| {
                     let (close_, tdm) = annotations_popup(
-                        self.ctx,
                         ui,
                         self.ctrl,
                         self.tdm,

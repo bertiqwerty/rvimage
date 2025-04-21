@@ -383,7 +383,6 @@ impl Menu {
 
                 let popup_id = ui.make_persistent_id("autosave-popup");
                 let autosave_gui = AutosaveMenu::new(
-                    ctx,
                     popup_id,
                     ctrl,
                     tools_data_map,
