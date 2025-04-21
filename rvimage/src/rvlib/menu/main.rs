@@ -183,6 +183,7 @@ pub struct Menu {
     show_file_idx: bool,
     annotations_menu_params: AnnotationsParams,
     import_coco_from_ssh: bool,
+    new_file_idx_annoplot: Option<usize>,
 }
 
 impl Menu {
@@ -205,6 +206,7 @@ impl Menu {
             show_file_idx: true,
             annotations_menu_params: AnnotationsParams::default(),
             import_coco_from_ssh: false,
+            new_file_idx_annoplot: None,
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -230,7 +232,7 @@ impl Menu {
         self.info_message = msg;
     }
 
-    /// Returns true if a project was loaded
+    /// Returns true if a project was loaded and if a new file load was triggered
     pub fn ui(
         &mut self,
         ctx: &Context,
@@ -389,8 +391,11 @@ impl Menu {
                     &mut projected_loaded,
                     &mut self.are_tools_active,
                     &mut self.annotations_menu_params,
+                    &mut self.new_file_idx_annoplot,
                 );
                 ui.add(autosave_gui);
+                ctrl.paths_navigator
+                    .select_label_idx(self.new_file_idx_annoplot);
 
                 let popup_id = ui.make_persistent_id("cfg-popup");
                 let cfg_gui = CfgMenu::new(

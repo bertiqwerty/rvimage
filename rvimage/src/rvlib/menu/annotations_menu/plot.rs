@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::RangeInclusive};
+use std::{cmp::Ordering, collections::HashMap, ops::RangeInclusive};
 
 use egui::Ui;
 use egui_plot::{Corner, GridMark, Legend, MarkerShape, Plot, PlotPoint, PlotPoints, Points};
@@ -59,7 +59,7 @@ pub(super) fn anno_plots<'a>(
         &'a mut HashMap<String, Vec<PlotPoint>>,
         &mut bool,
     ),
-) -> RvResult<()> {
+) -> RvResult<Option<usize>> {
     let (selection, attribute_plots, window_open) = plot_params;
     let selected_attributes = selection.attributes;
     let selected_bboxclasses = selection.bbox_classes;
@@ -129,28 +129,57 @@ pub(super) fn anno_plots<'a>(
             }
         };
 
+        let mut pointer_pos = None;
+        let mut plot_response = None;
+        const PLOT_POINT_RADIUS: f32 = 5.0;
         egui::Window::new("Annotation Plots")
             .collapsible(false)
             .open(window_open)
             .movable(true)
             .show(ui.ctx(), |ui| {
                 ui_with_deactivated_tools_on_hover(are_tools_active, || {
-                    Plot::new("attribute plots")
+                    let plot_response_ = Plot::new("attribute plots")
                         .legend(Legend::default().position(Corner::LeftTop))
                         .x_axis_formatter(x_fmt)
                         .show(ui, |plot_ui| {
+                            pointer_pos = plot_ui.pointer_coordinate();
+
                             for (k, v) in attribute_plots.iter() {
                                 plot_ui.points(
                                     Points::new(k, PlotPoints::Borrowed(v))
                                         .shape(MarkerShape::Circle)
-                                        .radius(5.0)
+                                        .radius(PLOT_POINT_RADIUS)
                                         .filled(true),
                                 );
                             }
-                        })
-                        .response
+                        });
+                    let r = plot_response_.response.clone();
+                    plot_response = Some(plot_response_);
+                    r
                 });
             });
+        if let Some(r) = plot_response {
+            if r.response.clicked() {
+                if let Some(pos) = pointer_pos {
+                    let dist =
+                        |v: PlotPoint, p: PlotPoint| (v.x - p.x).powi(2) + (v.y - p.y).powi(2);
+                    let data_point_close_to_mouse = attribute_plots
+                        .iter()
+                        .flat_map(|(_, plt)| plt.iter())
+                        .filter(|v| (v.x - pos.x).abs() <= PLOT_POINT_RADIUS as f64)
+                        .min_by(|v1, v2| {
+                            let dist1 = dist(**v1, pos);
+                            let dist2 = dist(**v2, pos);
+                            match dist1.partial_cmp(&dist2) {
+                                Some(o) => o,
+                                None => Ordering::Less,
+                            }
+                        });
+                    let index = data_point_close_to_mouse.map(|p| p.x.round() as usize);
+                    return Ok(index);
+                }
+            }
+        }
     }
-    Ok(())
+    Ok(None)
 }

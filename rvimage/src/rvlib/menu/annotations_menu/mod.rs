@@ -741,15 +741,27 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
     (close, tdm)
 }
 
+struct AnnotationsMenuResult {
+    pub close: Close,
+    pub tdm: Option<ToolsDataMap>,
+    pub new_file_idx: Option<usize>,
+}
 fn annotations_popup(
     ui: &mut Ui,
     ctrl: &mut Control,
     in_tdm: &mut ToolsDataMap,
     are_tools_active: &mut bool,
     anno_params: &mut AnnotationsParams,
-) -> (Close, Option<ToolsDataMap>) {
+) -> RvResult<AnnotationsMenuResult> {
     let mut close = Close::No;
     let mut tdm = None;
+    let mut new_file_idx = Ok(None);
+    let mut rvresult = Ok(());
+    let mut update_rvresult = |r: RvResult<()>| {
+        if rvresult.is_ok() && r.is_err() {
+            rvresult = r;
+        }
+    };
     Frame::popup(ui.style()).show(ui, |ui| {
         if ui.button("Close").clicked() {
             close = Close::Yes;
@@ -762,31 +774,33 @@ fn annotations_popup(
         egui::CollapsingHeader::new("Delete or Propagate Annotations").show(ui, |ui| {
             let skip_attrs = false;
             anno_params.tool_choice_delprop.ui(ui, skip_attrs);
-            trace_ok_err(annotations(
+            let r = annotations(
                 ui,
                 in_tdm,
                 are_tools_active,
                 anno_params,
                 &ctrl.paths_navigator,
-            ));
+            );
+            update_rvresult(r);
         });
         ui.separator();
         egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
             let skip_attrs = true;
             anno_params.tool_choice_stats.ui(ui, skip_attrs);
-            trace_ok_err(anno_stats(
+            let r = anno_stats(
                 ui,
                 in_tdm,
                 &mut anno_params.stats_result,
                 anno_params.tool_choice_stats,
                 ctrl.paths_navigator.paths_selector(),
-            ));
+            );
+            update_rvresult(r);
         });
         ui.separator();
         egui::CollapsingHeader::new("Plot images vs. annotations").show(ui, |ui| {
             let skip_attrs = false;
             anno_params.tool_choice_plot.ui(ui, skip_attrs);
-            trace_ok_err(anno_plots(
+            new_file_idx = anno_plots(
                 ui,
                 in_tdm,
                 anno_params.tool_choice_plot,
@@ -801,14 +815,19 @@ fn annotations_popup(
                     &mut anno_params.attribute_plots,
                     &mut anno_params.plot_window_open,
                 ),
-            ));
+            );
         });
         ui.separator();
         if ui.button("Close").clicked() {
             close = Close::Yes;
         }
     });
-    (close, tdm)
+    rvresult?;
+    Ok(AnnotationsMenuResult {
+        close,
+        tdm,
+        new_file_idx: new_file_idx?,
+    })
 }
 
 pub struct AutosaveMenu<'a> {
@@ -818,6 +837,7 @@ pub struct AutosaveMenu<'a> {
     project_loaded: &'a mut bool,
     are_tools_active: &'a mut bool,
     anno_params: &'a mut AnnotationsParams,
+    new_file_idx: &'a mut Option<usize>,
 }
 impl<'a> AutosaveMenu<'a> {
     pub fn new(
@@ -827,6 +847,7 @@ impl<'a> AutosaveMenu<'a> {
         project_loaded: &'a mut bool,
         are_tools_active: &'a mut bool,
         anno_params: &'a mut AnnotationsParams,
+        new_file_idx: &'a mut Option<usize>,
     ) -> AutosaveMenu<'a> {
         Self {
             id,
@@ -835,6 +856,7 @@ impl<'a> AutosaveMenu<'a> {
             project_loaded,
             are_tools_active,
             anno_params,
+            new_file_idx,
         }
     }
 }
@@ -851,26 +873,25 @@ impl Widget for AutosaveMenu<'_> {
                 .default_pos(autosaves_btn_resp.rect.left_bottom());
 
             let mut close = Close::No;
-            let area_response = area
-                .show(ui.ctx(), |ui| {
-                    let (close_, tdm) = annotations_popup(
-                        ui,
-                        self.ctrl,
-                        self.tdm,
-                        self.are_tools_active,
-                        self.anno_params,
-                    );
-                    close = close_;
-                    if let Some(tdm) = tdm {
+            area.show(ui.ctx(), |ui| {
+                let anno_menu_res = trace_ok_err(annotations_popup(
+                    ui,
+                    self.ctrl,
+                    self.tdm,
+                    self.are_tools_active,
+                    self.anno_params,
+                ));
+                if let Some(anno_menu_res) = anno_menu_res {
+                    close = anno_menu_res.close;
+                    if let Some(tdm) = anno_menu_res.tdm {
                         *self.tdm = tdm;
                         *self.project_loaded = true;
                     }
-                })
-                .response;
+                    *self.new_file_idx = anno_menu_res.new_file_idx;
+                }
+            });
+
             if let Close::Yes = close {
-                ui.memory_mut(|m| m.toggle_popup(self.id));
-            }
-            if !autosaves_btn_resp.clicked() && area_response.clicked_elsewhere() {
                 ui.memory_mut(|m| m.toggle_popup(self.id));
             }
         }
