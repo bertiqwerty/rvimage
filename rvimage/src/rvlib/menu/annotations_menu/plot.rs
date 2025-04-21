@@ -54,9 +54,13 @@ pub(super) fn anno_plots<'a>(
     tool_choice: ToolChoice,
     paths_selector: Option<&'a PathsSelector>,
     are_tools_active: &'a mut bool,
-    plot_params: (Selection<'a>, &'a mut HashMap<String, Vec<PlotPoint>>),
+    plot_params: (
+        Selection<'a>,
+        &'a mut HashMap<String, Vec<PlotPoint>>,
+        &mut bool,
+    ),
 ) -> RvResult<()> {
-    let (selection, attribute_plots) = plot_params;
+    let (selection, attribute_plots, window_open) = plot_params;
     let selected_attributes = selection.attributes;
     let selected_bboxclasses = selection.bbox_classes;
     let selected_brushclasses = selection.brush_classes;
@@ -88,6 +92,7 @@ pub(super) fn anno_plots<'a>(
         class_selection(ui, BRUSH_NAME, brush_labelinfo, selected_brushclasses);
     }
     if ui.button("plot").clicked() {
+        *window_open = true;
         let filepaths = paths_selector
             .map(|ps| ps.filtered_idx_file_paths_pairs())
             .ok_or_else(|| rverr!("no file paths found"))?;
@@ -126,6 +131,8 @@ pub(super) fn anno_plots<'a>(
         };
         egui::Window::new("Annotation Plots")
             .collapsible(false)
+            .open(window_open)
+            .movable(true)
             .show(ctx, |ui| {
                 ui_with_deactivated_tools_on_hover(are_tools_active, || {
                     Plot::new("attribute plots")

@@ -282,6 +282,7 @@ pub struct AnnotationsParams {
     pub selected_bboxclasses_for_plot: HashMap<String, bool>,
     pub selected_brushclasses_for_plot: HashMap<String, bool>,
     pub attribute_plots: HashMap<String, Vec<PlotPoint>>,
+    pub plot_window_open: bool,
 }
 
 fn filter_relations_menu(
@@ -799,6 +800,7 @@ fn annotations_popup(
                         brush_classes: &mut anno_params.selected_brushclasses_for_plot,
                     },
                     &mut anno_params.attribute_plots,
+                    &mut anno_params.plot_window_open,
                 ),
             ));
         });
