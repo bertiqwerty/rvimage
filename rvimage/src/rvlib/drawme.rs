@@ -1,4 +1,4 @@
-use crate::{tools_data::InstanceLabelDisplay, types::ViewImage, GeoFig};
+use crate::{tools_data::InstanceLabelDisplay, types::ViewImage, world::DataRaw, GeoFig};
 use rvimage_domain::{BbF, Canvas, Circle, TPtF};
 use std::default::Default;
 
@@ -87,6 +87,17 @@ pub struct UpdateView {
 }
 
 impl UpdateView {
+    pub fn new(image: &DataRaw, zoom_box: Option<BbF>) -> Self {
+        let im_uncropped_view = image.bg_to_uncropped_view();
+        UpdateView {
+            image: UpdateImage::Yes(im_uncropped_view),
+            perm_annos: UpdatePermAnnos::No,
+            tmp_annos: UpdateTmpAnno::No,
+            zoom_box: UpdateZoomBox::Yes(zoom_box),
+            image_info: None,
+            tmp_anno_buffer: None,
+        }
+    }
     pub fn from_zoombox(zoom_box: Option<BbF>) -> Self {
         UpdateView {
             image: UpdateImage::No,

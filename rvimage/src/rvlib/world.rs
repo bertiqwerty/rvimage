@@ -8,7 +8,7 @@ use crate::tools_data::{
 };
 use crate::types::ViewImage;
 use crate::util::Visibility;
-use crate::{image_util, InstanceAnnotate, UpdatePermAnnos, UpdateView, UpdateZoomBox};
+use crate::{image_util, InstanceAnnotate, UpdatePermAnnos, UpdateView};
 use image::DynamicImage;
 use rvimage_domain::{BbF, RvError, RvResult, ShapeF, ShapeI};
 use std::path::Path;
@@ -276,9 +276,8 @@ impl DataRaw {
     pub fn im_background(&self) -> &DynamicImage {
         &self.im_background
     }
-
-    pub fn take_background(&mut self) -> DynamicImage {
-        mem::take(&mut self.im_background)
+    pub fn im_background_mut(&mut self) -> &mut DynamicImage {
+        &mut self.im_background
     }
 
     #[must_use]
@@ -351,20 +350,16 @@ pub struct World {
 impl World {
     #[must_use]
     pub fn new(ims_raw: DataRaw, zoom_box: Option<BbF>) -> Self {
-        let im = ims_raw.bg_to_uncropped_view();
+        let update_view = UpdateView::new(&ims_raw, zoom_box);
         let world = Self {
             data: ims_raw,
             zoom_box,
-            update_view: UpdateView {
-                image: UpdateImage::Yes(im),
-                perm_annos: UpdatePermAnnos::No,
-                tmp_annos: UpdateTmpAnno::No,
-                zoom_box: UpdateZoomBox::Yes(zoom_box),
-                image_info: None,
-                tmp_anno_buffer: None,
-            },
+            update_view,
         };
         add_tools_initial_data(world)
+    }
+    pub fn reset_updateview(&mut self) {
+        self.update_view = UpdateView::new(&self.data, self.zoom_box);
     }
 
     #[must_use]
@@ -500,6 +495,9 @@ impl World {
 
     pub fn set_image_rect(&mut self, ui_image_rect: Option<ShapeF>) {
         self.data.set_image_rect(ui_image_rect);
+    }
+    pub fn set_background_image(&mut self, image: DynamicImage) {
+        self.data.im_background = image;
     }
 }
 impl Debug for World {

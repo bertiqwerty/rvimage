@@ -9,11 +9,11 @@ use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{BBOX_NAME, BRUSH_NAME};
 use crate::tools_data::{coco_io::read_coco, ToolsDataMap};
-use crate::world::{DataRaw, World};
+use crate::world::World;
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
-use crate::{defer_file_removal, get_specifics_mut_from_tdm};
+use crate::{defer_file_removal, get_specifics_mut_from_tdm, measure_time};
 use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use egui::ahash::HashSet;
@@ -164,8 +164,8 @@ mod detail {
         Ok(())
     }
 
-    pub(super) fn loading_image(mut im: DynamicImage, counter: u128) -> DynamicImage {
-        let shape = ShapeI::from_im(&im);
+    pub(super) fn draw_loading_dots(im: &mut DynamicImage, counter: u128) {
+        let shape = ShapeI::from_im(im);
         let radius = 7u32;
         let centers = [
             (shape.w - 70, shape.h - 20),
@@ -200,7 +200,6 @@ mod detail {
                 }
             }
         }
-        im
     }
     pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, CfgPrj)> {
         let s = file_util::read_to_string(file_path)?;
@@ -810,89 +809,80 @@ impl Control {
 
     pub fn load_new_image_if_triggered(
         &mut self,
-        world: &mut World,
+        world: &World,
         history: &mut History,
     ) -> RvResult<Option<(World, Option<usize>)>> {
-        let menu_file_selected = self.paths_navigator.file_label_selected_idx();
-        let world_idx_pair = if self.file_selected_idx != menu_file_selected
-            || self.flags.is_loading_screen_active
-        {
-            // load new image
-            if let Some(selected) = &menu_file_selected {
-                let abs_file_path = menu_file_selected.and_then(|fs| {
-                    Some(
-                        self.paths_navigator
-                            .file_path(fs)?
-                            .path_absolute()
-                            .replace('\\', "/"),
-                    )
-                });
-                let im_read = self.read_image(*selected)?;
-                let read_image_and_idx = match (abs_file_path, im_read) {
-                    (Some(fp), Some(ri)) => {
-                        tracing::info!("loading {} from {}", ri.info, fp);
-                        self.file_selected_idx = menu_file_selected;
-                        self.file_info_selected = Some(ri.info);
-                        let ims_raw = DataRaw::new(
-                            ri.im,
-                            world.data.tools_data_map.clone(),
-                            world.data.meta_data.clone(),
-                            world.ui_image_rect(),
-                        );
-                        let zoom_box = if ims_raw.shape() == world.data.shape() {
-                            *world.zoom_box()
-                        } else {
-                            None
-                        };
-                        let new_world = World::new(ims_raw, zoom_box);
-                        if !self.flags.undo_redo_load {
-                            history.push(Record {
-                                world: world.clone(),
-                                actor: LOAD_ACTOR_NAME,
-                                file_label_idx: self.file_selected_idx,
-                                opened_folder: self
-                                    .opened_folder
-                                    .as_ref()
-                                    .map(|of| of.path_absolute().to_string()),
-                            });
-                        }
-                        self.flags.undo_redo_load = false;
-                        self.flags.is_loading_screen_active = false;
-                        (new_world, self.file_selected_idx)
-                    }
-                    _ => {
-                        thread::sleep(Duration::from_millis(2));
-                        self.file_selected_idx = menu_file_selected;
-                        self.flags.is_loading_screen_active = true;
+        measure_time!("load image if new", {
+            let menu_file_selected = measure_time!("before if", {
+                self.paths_navigator.file_label_selected_idx()
+            });
+            let world_idx_pair = if self.file_selected_idx != menu_file_selected
+                || self.flags.is_loading_screen_active
+            {
+                // load new image
+                if let Some(selected) = &menu_file_selected {
+                    let abs_file_path = menu_file_selected.and_then(|fs| {
+                        Some(
+                            self.paths_navigator
+                                .file_path(fs)?
+                                .path_absolute()
+                                .replace('\\', "/"),
+                        )
+                    });
+                    let im_read = self.read_image(*selected)?;
+                    let read_image_and_idx = match (abs_file_path, im_read) {
+                        (Some(fp), Some(ri)) => {
+                            tracing::info!("loading {} from {}", ri.info, fp);
+                            self.file_selected_idx = menu_file_selected;
+                            self.file_info_selected = Some(ri.info);
+                            let mut new_world = world.clone();
+                            new_world.set_background_image(ri.im);
+                            new_world.reset_updateview();
 
-                        let im_loading = detail::loading_image(
-                            world.data.take_background(),
-                            self.loading_screen_animation_counter,
-                        );
-                        let new_world = World::new(
-                            DataRaw::new(
-                                im_loading,
-                                world.data.tools_data_map.clone(),
-                                MetaData::default(),
-                                world.ui_image_rect(),
-                            ),
-                            None,
-                        );
-                        (new_world, self.file_selected_idx)
-                    }
-                };
-                Some(read_image_and_idx)
+                            if !self.flags.undo_redo_load {
+                                history.push(Record {
+                                    world: world.clone(),
+                                    actor: LOAD_ACTOR_NAME,
+                                    file_label_idx: self.file_selected_idx,
+                                    opened_folder: self
+                                        .opened_folder
+                                        .as_ref()
+                                        .map(|of| of.path_absolute().to_string()),
+                                });
+                            }
+                            self.flags.undo_redo_load = false;
+                            self.flags.is_loading_screen_active = false;
+                            (new_world, self.file_selected_idx)
+                        }
+                        _ => {
+                            thread::sleep(Duration::from_millis(2));
+
+                            tracing::debug!("still loading...");
+                            self.file_selected_idx = menu_file_selected;
+                            self.flags.is_loading_screen_active = true;
+                            let mut new_world = world.clone();
+
+                            detail::draw_loading_dots(
+                                new_world.data.im_background_mut(),
+                                self.loading_screen_animation_counter,
+                            );
+                            new_world.reset_updateview();
+                            (new_world, self.file_selected_idx)
+                        }
+                    };
+                    Some(read_image_and_idx)
+                } else {
+                    None
+                }
             } else {
                 None
+            };
+            self.loading_screen_animation_counter += 1;
+            if self.loading_screen_animation_counter == u128::MAX {
+                self.loading_screen_animation_counter = 0;
             }
-        } else {
-            None
-        };
-        self.loading_screen_animation_counter += 1;
-        if self.loading_screen_animation_counter == u128::MAX {
-            self.loading_screen_animation_counter = 0;
-        }
-        Ok(world_idx_pair)
+            Ok(world_idx_pair)
+        })
     }
 }
 

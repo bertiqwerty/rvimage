@@ -71,6 +71,16 @@ pub fn version_label() -> String {
     }
 }
 
+#[macro_export]
+macro_rules! measure_time {
+    ($name:expr, $block:expr) => {{
+        // let start = std::time::Instant::now();
+        let result = $block;
+        // tracing::warn!("{} took {} millis", $name, start.elapsed().as_millis());
+        result
+    }};
+}
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum Visibility {
     All,
