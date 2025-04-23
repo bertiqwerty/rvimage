@@ -295,12 +295,12 @@ impl Index<&str> for ToolsDataMap {
 impl FromIterator<(String, ToolsData)> for ToolsDataMap {
     fn from_iter<T: IntoIterator<Item = (std::string::String, ToolsData)>>(iter: T) -> Self {
         let data = iter.into_iter().collect::<HashMap<String, ToolsData>>();
-        ToolsDataMap { data }
+        add_tools_initial_data(ToolsDataMap { data })
     }
 }
 impl From<HashMap<String, ToolsData>> for ToolsDataMap {
     fn from(data: HashMap<String, ToolsData>) -> Self {
-        ToolsDataMap { data }
+        add_tools_initial_data(ToolsDataMap { data })
     }
 }
 
