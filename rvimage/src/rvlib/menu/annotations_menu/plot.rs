@@ -64,7 +64,9 @@ pub(super) fn anno_plots<'a>(
     let selected_attributes = selection.attributes;
     let selected_bboxclasses = selection.bbox_classes;
     let selected_brushclasses = selection.brush_classes;
-    let atd = tdm.get_specifics(ATTRIBUTES_NAME).and_then(|d| d.attributes().ok());
+    let atd = tdm
+        .get_specifics(ATTRIBUTES_NAME)
+        .and_then(|d| d.attributes().ok());
     if let Some(atd) = atd {
         if tool_choice.attributes {
             ui.collapsing("Select Attributes", |ui| {

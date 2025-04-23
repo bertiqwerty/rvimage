@@ -66,7 +66,7 @@ macro_rules! make_tools {
                     ),
                 );
             })+
-            tdm        
+            tdm
         }
     };
 }

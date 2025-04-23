@@ -386,7 +386,7 @@ impl World {
                 .iter()
                 .zip(visible_inactive_tools.iter())
             {
-                let vli = self.data.tools_data_map.get(*tool_name_inactive).map(|td| {
+                let vli = self.data.tools_data_map.get(tool_name_inactive).map(|td| {
                     match &td.specifics {
                         tools_data::ToolSpecifics::Bbox(bbox_data) => {
                             (bbox_data.options.core.visible, bbox_data.label_info())

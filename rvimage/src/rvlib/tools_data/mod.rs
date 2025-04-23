@@ -253,7 +253,7 @@ impl ToolsDataMap {
         self.data.contains_key(name)
     }
     pub fn get_specifics(&self, name: &str) -> Option<&ToolSpecifics> {
-        self.data.get(name).map(|d|&d.specifics)
+        self.data.get(name).map(|d| &d.specifics)
     }
     pub fn get(&self, name: &str) -> Option<&ToolsData> {
         self.data.get(name)

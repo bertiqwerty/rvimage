@@ -13,7 +13,10 @@ use crate::tools::{
 };
 use crate::util::Visibility;
 use crate::world::World;
-use crate::{apply_tool_method_mut, httpserver, image_util, measure_time, Annotation, ToolsDataMap, UpdateView};
+use crate::{
+    apply_tool_method_mut, httpserver, image_util, measure_time, Annotation, ToolsDataMap,
+    UpdateView,
+};
 use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
