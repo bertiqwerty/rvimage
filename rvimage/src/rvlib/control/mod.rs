@@ -8,12 +8,13 @@ use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{BBOX_NAME, BRUSH_NAME};
-use crate::tools_data::{coco_io::read_coco, ToolsDataMap};
+use crate::tools_data::set_tools_specific_data;
+use crate::tools_data::{coco_io::read_coco, ToolSpecifics, ToolsDataMap};
 use crate::world::World;
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
 };
-use crate::{defer_file_removal, get_specifics_mut_from_tdm, measure_time};
+use crate::{defer_file_removal, measure_time};
 use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use egui::ahash::HashSet;
@@ -525,12 +526,17 @@ impl Control {
         if let Some(sa) = first_sa {
             self.open_relative_folder(sa.to_string())?;
         }
-        if let Some(tdm) = get_specifics_mut_from_tdm!(BRUSH_NAME, tools_data_map, brush_mut) {
-            *tdm = brush_tool_data;
-        }
-        if let Some(tdm) = get_specifics_mut_from_tdm!(BBOX_NAME, tools_data_map, bbox_mut) {
-            *tdm = bbox_tool_data;
-        }
+
+        set_tools_specific_data(
+            tools_data_map,
+            BRUSH_NAME,
+            ToolSpecifics::Brush(brush_tool_data),
+        );
+        set_tools_specific_data(
+            tools_data_map,
+            BBOX_NAME,
+            ToolSpecifics::Bbox(bbox_tool_data),
+        );
         Ok(())
     }
 
@@ -890,7 +896,7 @@ impl Control {
 use {
     crate::{
         file_util::DEFAULT_TMPDIR,
-        tools_data::{BboxToolData, ToolSpecifics, ToolsData},
+        tools_data::{BboxToolData, ToolsData},
     },
     rvimage_domain::{make_test_bbs, ShapeI},
     std::str::FromStr,

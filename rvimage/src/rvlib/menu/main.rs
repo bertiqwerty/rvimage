@@ -343,7 +343,7 @@ impl Menu {
                     }
                     ui.horizontal(|ui| {
                         if ui.button("... Annotations from COCO file").clicked() {
-                            let prj_path = if !self.import_coco_from_ssh {
+                            let coco_path = if !self.import_coco_from_ssh {
                                 rfd::FileDialog::new()
                                     .set_title("Annotations from COCO file")
                                     .add_filter("coco files", &["json"])
@@ -352,13 +352,13 @@ impl Menu {
                             } else {
                                 Some(self.text_buffers.import_coco_from_ssh_path.clone())
                             };
-                            if let Some(prj_path) = prj_path {
+                            if let Some(coco_path) = coco_path {
                                 handle_error!(
                                     |()| {
                                         projected_loaded = true;
                                     },
                                     ctrl.import_from_coco(
-                                        &prj_path,
+                                        &coco_path,
                                         tools_data_map,
                                         if self.import_coco_from_ssh {
                                             ExportPathConnection::Ssh

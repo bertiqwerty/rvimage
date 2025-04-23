@@ -234,13 +234,13 @@ macro_rules! toolsdata_by_name {
 // tool name -> tool's menu data type
 pub type ToolsDataMap = HashMap<String, ToolsData>;
 
-#[macro_export]
-macro_rules! get_specifics_mut_from_tdm {
-    ($actor_name:expr, $tdm:expr, $access_func:ident) => {
-        $tdm.get_mut($actor_name)
-            .and_then(|x| x.specifics.$access_func().ok())
-    };
+pub fn set_tools_specific_data(tdm: &mut ToolsDataMap, name: &str, specifics: ToolSpecifics) {
+    tdm.insert(
+        name.to_string(),
+        ToolsData::new(specifics, VisibleInactiveToolsState::default()),
+    );
 }
+
 #[macro_export]
 macro_rules! get_specifics_from_tdm {
     ($actor_name:expr, $tdm:expr, $access_func:ident) => {
