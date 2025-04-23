@@ -8,7 +8,6 @@ use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{BBOX_NAME, BRUSH_NAME};
-use crate::tools_data::set_tools_specific_data;
 use crate::tools_data::{coco_io::read_coco, ToolSpecifics, ToolsDataMap};
 use crate::world::World;
 use crate::{
@@ -20,7 +19,6 @@ use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use egui::ahash::HashSet;
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -50,7 +48,7 @@ mod detail {
         defer_file_removal,
         file_util::{self, tf_to_annomap_key, SavedCfg, DEFAULT_HOMEDIR},
         result::trace_ok_err,
-        tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
+        tools::{add_tools_initial_data, ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
         tools_data::{merge, ToolsDataMap},
         toolsdata_by_name,
         util::version_label,
@@ -210,7 +208,11 @@ mod detail {
             SavedCfg::CfgLegacy(cfg) => cfg.to_cfg().prj,
             SavedCfg::CfgPrj(cfg_prj) => cfg_prj,
         };
-        Ok((save_data.tools_data_map, save_data.opened_folder, cfg_prj))
+        Ok((
+            add_tools_initial_data(save_data.tools_data_map),
+            save_data.opened_folder,
+            cfg_prj,
+        ))
     }
 
     #[derive(PartialEq)]
@@ -527,16 +529,8 @@ impl Control {
             self.open_relative_folder(sa.to_string())?;
         }
 
-        set_tools_specific_data(
-            tools_data_map,
-            BRUSH_NAME,
-            ToolSpecifics::Brush(brush_tool_data),
-        );
-        set_tools_specific_data(
-            tools_data_map,
-            BBOX_NAME,
-            ToolSpecifics::Bbox(bbox_tool_data),
-        );
+        tools_data_map.set_tools_specific_data(BRUSH_NAME, ToolSpecifics::Brush(brush_tool_data));
+        tools_data_map.set_tools_specific_data(BBOX_NAME, ToolSpecifics::Bbox(bbox_tool_data));
         Ok(())
     }
 
@@ -609,7 +603,7 @@ impl Control {
         cfg.unset_current_prj_path();
         *self = Control::default();
         self.cfg = cfg;
-        HashMap::new()
+        ToolsDataMap::new()
     }
 
     pub fn reader(&self) -> Option<&ReaderFromCfg> {
@@ -899,6 +893,7 @@ use {
         tools_data::{BboxToolData, ToolsData},
     },
     rvimage_domain::{make_test_bbs, ShapeI},
+    std::collections::HashMap,
     std::str::FromStr,
 };
 #[cfg(test)]
@@ -941,13 +936,14 @@ pub fn make_data(image_file: &Path) -> ToolsDataMap {
         }
     }
 
-    HashMap::from([(
+    let data = HashMap::from([(
         BBOX_NAME.to_string(),
         ToolsData::new(
             ToolSpecifics::Bbox(bbox_data),
             VisibleInactiveToolsState::default(),
         ),
-    )])
+    )]);
+    ToolsDataMap::from(data)
 }
 
 impl Drop for Control {

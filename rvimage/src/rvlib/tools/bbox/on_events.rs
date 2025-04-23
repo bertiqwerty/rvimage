@@ -709,17 +709,18 @@ use {
     crate::types::ViewImage,
     image::DynamicImage,
     rvimage_domain::{make_test_bbs, make_test_geos, BbI, ShapeI},
-    std::collections::HashMap,
 };
 
 #[cfg(test)]
 pub(super) fn test_data() -> (Option<PtF>, World, History) {
     use std::path::Path;
 
+    use crate::ToolsDataMap;
+
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
     let mut world = World::from_real_im(
         im_test,
-        HashMap::new(),
+        ToolsDataMap::new(),
         None,
         Some("superimage.png".to_string()),
         Path::new("superimage.png"),

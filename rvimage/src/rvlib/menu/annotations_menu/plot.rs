@@ -64,23 +64,21 @@ pub(super) fn anno_plots<'a>(
     let selected_attributes = selection.attributes;
     let selected_bboxclasses = selection.bbox_classes;
     let selected_brushclasses = selection.brush_classes;
-    let atd = tdm
-        .get(ATTRIBUTES_NAME)
-        .ok_or_else(|| rverr!("{ATTRIBUTES_NAME} not initialized"))?
-        .specifics
-        .attributes()?;
-    if tool_choice.attributes {
-        ui.collapsing("Select Attributes", |ui| {
-            for name in atd.attr_names() {
-                if !selected_attributes.contains_key(name) {
-                    selected_attributes.insert(name.clone(), false);
+    let atd = tdm.get_specifics(ATTRIBUTES_NAME).and_then(|d| d.attributes().ok());
+    if let Some(atd) = atd {
+        if tool_choice.attributes {
+            ui.collapsing("Select Attributes", |ui| {
+                for name in atd.attr_names() {
+                    if !selected_attributes.contains_key(name) {
+                        selected_attributes.insert(name.clone(), false);
+                    }
+                    let attr = selected_attributes.get_mut(name);
+                    if let Some(attr) = attr {
+                        ui.checkbox(attr, name);
+                    }
                 }
-                let attr = selected_attributes.get_mut(name);
-                if let Some(attr) = attr {
-                    ui.checkbox(attr, name);
-                }
-            }
-        });
+            });
+        }
     }
     let bbox_labelinfo = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
     if tool_choice.bbox {

@@ -351,12 +351,14 @@ impl World {
     #[must_use]
     pub fn new(ims_raw: DataRaw, zoom_box: Option<BbF>) -> Self {
         let update_view = UpdateView::new(&ims_raw, zoom_box);
-        let world = Self {
+        let mut world = Self {
             data: ims_raw,
             zoom_box,
             update_view,
         };
-        add_tools_initial_data(world)
+        world.data.tools_data_map =
+            add_tools_initial_data(mem::take(&mut world.data.tools_data_map));
+        world
     }
     pub fn reset_updateview(&mut self) {
         self.update_view = UpdateView::new(&self.data, self.zoom_box);

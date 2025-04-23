@@ -1,8 +1,3 @@
-use crate::{
-    drawme::{Annotation, BboxAnnotation, Stroke},
-    BrushAnnotation,
-};
-
 pub use self::core::{
     vis_from_lfoption, AccessInstanceData, Annotate, ExportAsCoco, ImportExportTrigger, ImportMode,
     InstanceAnnotate, InstanceExportData, LabelInfo, Options, VisibleInactiveToolsState,
@@ -12,8 +7,15 @@ pub use self::{
     attributes_data::AttributesToolData, bbox_data::BboxToolData, brush_data::BrushToolData,
     coco_io::write_coco, plot_stats::PlotAnnotationStats, rot90_data::Rot90ToolData,
 };
+use crate::tools::add_tools_initial_data;
+use crate::{
+    drawme::{Annotation, BboxAnnotation, Stroke},
+    BrushAnnotation,
+};
 use rvimage_domain::{rverr, RvResult, TPtF};
 use serde::{Deserialize, Serialize};
+use std::ops::Index;
+
 pub mod annotations;
 pub mod attributes_data;
 pub mod bbox_data;
@@ -231,14 +233,75 @@ macro_rules! toolsdata_by_name {
     };
 }
 
-// tool name -> tool's menu data type
-pub type ToolsDataMap = HashMap<String, ToolsData>;
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ToolsDataMap {
+    // tool name -> tool's menu data type
+    #[serde(flatten)]
+    data: HashMap<String, ToolsData>,
+}
+impl ToolsDataMap {
+    pub fn new() -> Self {
+        let tdm = ToolsDataMap {
+            data: HashMap::new(),
+        };
+        add_tools_initial_data(tdm)
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &ToolsData)> {
+        self.data.iter()
+    }
+    pub fn contains_key(&self, name: &str) -> bool {
+        self.data.contains_key(name)
+    }
+    pub fn get_specifics(&self, name: &str) -> Option<&ToolSpecifics> {
+        self.data.get(name).map(|d|&d.specifics)
+    }
+    pub fn get(&self, name: &str) -> Option<&ToolsData> {
+        self.data.get(name)
+    }
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut ToolsData> {
+        self.data.get_mut(name)
+    }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut ToolsData> {
+        self.data.values_mut()
+    }
 
-pub fn set_tools_specific_data(tdm: &mut ToolsDataMap, name: &str, specifics: ToolSpecifics) {
-    tdm.insert(
-        name.to_string(),
-        ToolsData::new(specifics, VisibleInactiveToolsState::default()),
-    );
+    pub fn insert(&mut self, name: String, data: ToolsData) -> Option<ToolsData> {
+        self.data.insert(name, data)
+    }
+    pub fn set_tools_specific_data(&mut self, name: &str, specifics: ToolSpecifics) {
+        self.data.insert(
+            name.to_string(),
+            ToolsData::new(specifics, VisibleInactiveToolsState::default()),
+        );
+    }
+}
+impl Default for ToolsDataMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl Index<&str> for ToolsDataMap {
+    type Output = ToolsData;
+    fn index(&self, index: &str) -> &Self::Output {
+        &self.data[index]
+    }
+}
+impl FromIterator<(String, ToolsData)> for ToolsDataMap {
+    fn from_iter<T: IntoIterator<Item = (std::string::String, ToolsData)>>(iter: T) -> Self {
+        let data = iter.into_iter().collect::<HashMap<String, ToolsData>>();
+        ToolsDataMap { data }
+    }
+}
+impl From<HashMap<String, ToolsData>> for ToolsDataMap {
+    fn from(data: HashMap<String, ToolsData>) -> Self {
+        ToolsDataMap { data }
+    }
 }
 
 #[macro_export]

@@ -13,12 +13,11 @@ use crate::tools::{
 };
 use crate::util::Visibility;
 use crate::world::World;
-use crate::{apply_tool_method_mut, httpserver, image_util, measure_time, Annotation, UpdateView};
+use crate::{apply_tool_method_mut, httpserver, image_util, measure_time, Annotation, ToolsDataMap, UpdateView};
 use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
 use rvimage_domain::{PtI, RvResult, ShapeF};
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::mem;
 use std::path::{Path, PathBuf};
@@ -98,7 +97,7 @@ macro_rules! activate_tool_event {
 fn empty_world() -> World {
     World::from_real_im(
         DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
-        HashMap::new(),
+        ToolsDataMap::new(),
         None,
         None,
         Path::new(""),

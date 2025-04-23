@@ -56,17 +56,17 @@ macro_rules! make_tools {
                     button_label: $label
                 }),+]
         }
-        #[must_use] pub fn add_tools_initial_data(mut world: World) -> World {
+        #[must_use] pub fn add_tools_initial_data(mut tdm: $crate::ToolsDataMap) -> $crate::ToolsDataMap {
 
-            $(if world.data.tools_data_map.get_mut($name).is_none() {
-                world.data.tools_data_map.insert(
+            $(if tdm.get_mut($name).is_none() {
+                tdm.insert(
                     $name.to_string(),
                     $crate::tools_data::ToolsData::new(
                         $crate::tools_data::ToolSpecifics::$tool($data_default), VisibleInactiveToolsState::default()
                     ),
                 );
             })+
-            world
+            tdm        
         }
     };
 }

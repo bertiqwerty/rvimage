@@ -94,7 +94,6 @@ fn propagate_annos_of_tool(
     paths: &[&PathPair],
 ) -> RvResult<()> {
     if let Some(data) = tdm.get_mut(tool_name) {
-        println!("PROOOOOP");
         data.specifics.apply_mut(
             |d| propagate_instance_annotations(&mut d.annotations_map, paths),
             |d| propagate_instance_annotations(&mut d.annotations_map, paths),
@@ -892,6 +891,7 @@ impl Widget for AutosaveMenu<'_> {
             });
 
             if let Close::Yes = close {
+                tracing::warn!("closing autosave menu");
                 ui.memory_mut(|m| m.toggle_popup(self.id));
             }
         }
