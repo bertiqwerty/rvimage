@@ -897,7 +897,6 @@ impl Widget for AutosaveMenu<'_> {
             });
 
             if let Close::Yes = close {
-                tracing::warn!("closing autosave menu");
                 ui.memory_mut(|m| m.toggle_popup(self.id));
             }
         }
