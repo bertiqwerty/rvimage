@@ -282,6 +282,9 @@ pub struct AnnotationsParams {
     pub selected_brushclasses_for_plot: HashMap<String, bool>,
     pub attribute_plots: HashMap<String, Vec<PlotPoint>>,
     pub plot_window_open: bool,
+    pub areabelow_threshold_buffer: String,
+    pub areabelow_threshold: f64,
+    pub area_restriction: bool,
 }
 
 fn filter_relations_menu(
@@ -813,6 +816,9 @@ fn annotations_popup(
                     },
                     &mut anno_params.attribute_plots,
                     &mut anno_params.plot_window_open,
+                    &mut anno_params.areabelow_threshold,
+                    &mut anno_params.area_restriction,
+                    &mut anno_params.areabelow_threshold_buffer,
                 ),
             );
         });

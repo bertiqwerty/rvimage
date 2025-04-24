@@ -6,11 +6,11 @@ use rvimage_domain::{rverr, PtF, RvResult};
 
 use crate::{
     get_labelinfo_from_tdm, get_specifics_from_tdm,
-    menu::ui_util::ui_with_deactivated_tools_on_hover,
+    menu::ui_util::{process_number, ui_with_deactivated_tools_on_hover},
     paths_selector::PathsSelector,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
     tools_data::{AccessInstanceData, LabelInfo, PlotAnnotationStats},
-    ToolsDataMap,
+    InstanceAnnotate, ToolsDataMap,
 };
 
 use super::core::ToolChoice;
@@ -48,6 +48,17 @@ fn class_selection(
     });
 }
 
+fn predicate_always_true<T>(_: &T) -> bool {
+    true
+}
+fn predicate_area_belowth<T>(anno: &T, area_threshold: f64) -> bool
+where
+    T: InstanceAnnotate,
+{
+    let shape = anno.enclosing_bb().shape();
+    shape.w * shape.h <= area_threshold
+}
+
 pub(super) fn anno_plots<'a>(
     ui: &'a mut Ui,
     tdm: &ToolsDataMap,
@@ -58,9 +69,13 @@ pub(super) fn anno_plots<'a>(
         Selection<'a>,
         &'a mut HashMap<String, Vec<PlotPoint>>,
         &mut bool,
+        &mut f64,
+        &mut bool,
+        &mut String,
     ),
 ) -> RvResult<Option<usize>> {
-    let (selection, attribute_plots, window_open) = plot_params;
+    let (selection, attribute_plots, window_open, area_threshold, area_restricted, area_th_buffer) =
+        plot_params;
     let selected_attributes = selection.attributes;
     let selected_bboxclasses = selection.bbox_classes;
     let selected_brushclasses = selection.brush_classes;
@@ -83,6 +98,18 @@ pub(super) fn anno_plots<'a>(
         }
     }
     let bbox_labelinfo = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
+    if tool_choice.is_some(true) {
+        ui.checkbox(area_restricted, "restrict area with upper bound");
+        if *area_restricted {
+            if let (_, Some(at)) =
+                process_number(ui, are_tools_active, "enter maximum area", area_th_buffer)
+            {
+                *area_threshold = at;
+            }
+        } else {
+            *area_threshold = f64::MAX;
+        }
+    }
     if tool_choice.bbox {
         class_selection(ui, BBOX_NAME, bbox_labelinfo, selected_bboxclasses);
     }
@@ -98,10 +125,10 @@ pub(super) fn anno_plots<'a>(
         *attribute_plots = HashMap::new();
 
         macro_rules! plot_instance {
-            ($tool_name:expr, $accessfunc:ident, $selected:expr) => {
+            ($tool_name:expr, $accessfunc:ident, $selected:expr, $pred:expr) => {
                 let data = get_specifics_from_tdm!($tool_name, tdm, $accessfunc);
                 if let Some(d) = data {
-                    let plots = d.plot($selected, &filepaths)?;
+                    let plots = d.plot($selected, &filepaths, $pred)?;
                     for (classname, plot) in plots {
                         attribute_plots.insert(classname, plot_to_egui(plot));
                     }
@@ -109,13 +136,22 @@ pub(super) fn anno_plots<'a>(
             };
         }
         if tool_choice.attributes {
-            plot_instance!(ATTRIBUTES_NAME, attributes, selected_attributes);
+            plot_instance!(
+                ATTRIBUTES_NAME,
+                attributes,
+                selected_attributes,
+                &predicate_always_true
+            );
         }
         if tool_choice.bbox {
-            plot_instance!(BBOX_NAME, bbox, selected_bboxclasses);
+            plot_instance!(BBOX_NAME, bbox, selected_bboxclasses, &|anno| {
+                predicate_area_belowth(anno, *area_threshold)
+            });
         }
         if tool_choice.brush {
-            plot_instance!(BRUSH_NAME, brush, selected_brushclasses);
+            plot_instance!(BRUSH_NAME, brush, selected_brushclasses, &|anno| {
+                predicate_area_belowth(anno, *area_threshold)
+            });
         }
     }
     if !attribute_plots.is_empty() {
