@@ -374,12 +374,14 @@ impl MainEventLoop {
                         Some(self.ctrl.flags().is_loading_screen_active),
                     );
                     self.world.data.meta_data = meta_data;
-                    for t in &mut self.tools {
-                        if t.is_active() {
-                            (self.world, self.history) = t.file_changed(
-                                mem::take(&mut self.world),
-                                mem::take(&mut self.history),
-                            );
+                    if !self.ctrl.flags().is_loading_screen_active {
+                        for t in &mut self.tools {
+                            if t.is_active() {
+                                (self.world, self.history) = t.file_changed(
+                                    mem::take(&mut self.world),
+                                    mem::take(&mut self.history),
+                                );
+                            }
                         }
                     }
                 }
