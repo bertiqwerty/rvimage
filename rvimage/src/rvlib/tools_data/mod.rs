@@ -255,6 +255,9 @@ impl ToolsDataMap {
     pub fn get_specifics(&self, name: &str) -> Option<&ToolSpecifics> {
         self.data.get(name).map(|d| &d.specifics)
     }
+    pub fn get_specifics_mut(&mut self, name: &str) -> Option<&mut ToolSpecifics> {
+        self.data.get_mut(name).map(|d| &mut d.specifics)
+    }
     pub fn get(&self, name: &str) -> Option<&ToolsData> {
         self.data.get(name)
     }

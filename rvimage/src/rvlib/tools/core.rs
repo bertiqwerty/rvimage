@@ -23,7 +23,7 @@ pub(super) fn make_track_changes_str(actor: &'static str) -> String {
 }
 pub(super) fn insert_attribute(
     mut world: World,
-    name: &str,
+    attr_name: &str,
     value: AttrVal,
     default_value: AttrVal,
     filepath: Option<&str>,
@@ -36,7 +36,7 @@ pub(super) fn insert_attribute(
         let populate_new_attr = attr_data.specifics.attributes().map(|a| {
             a.attr_names()
                 .iter()
-                .any(|attr_name| attr_name.as_str() == name)
+                .any(|attr_name| attr_name.as_str() == attr_name)
         }) != Ok(true);
 
         // set the attribute data to addtion
@@ -51,7 +51,7 @@ pub(super) fn insert_attribute(
             };
             old_attr_name.clone_from(&d.new_attr_name);
             old_attr_val.clone_from(&d.new_attr_val);
-            d.new_attr_name = name.to_string();
+            d.new_attr_name = attr_name.to_string();
             d.new_attr_val = default_value;
             d.options = attr_options;
         }));
@@ -78,7 +78,7 @@ pub(super) fn insert_attribute(
                 d.current_attr_map.as_mut()
             };
             if let Some(attr_map) = attr_map {
-                attr_map.insert(name.to_string(), value);
+                attr_map.insert(attr_name.to_string(), value);
             } else {
                 warn!("no attrmap found");
             }

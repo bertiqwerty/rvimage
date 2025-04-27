@@ -1,3 +1,3 @@
-pub use self::core::{Bbox, ACTOR_NAME};
-mod core;
-mod on_events;
+pub use self::core::{get_annos_mut, get_options_mut, Bbox, ACTOR_NAME};
+pub mod core;
+pub mod on_events;

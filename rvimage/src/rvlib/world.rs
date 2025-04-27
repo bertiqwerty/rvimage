@@ -68,31 +68,35 @@ macro_rules! tools_data_accessors {
             $crate::world::get(world, $actor_name, $missing_data_msg)
         }
         #[allow(unused)]
-        pub(super) fn get_specific(world: &World) -> Option<&$data_module::$data_type> {
-            $crate::world::get_specific(tools_data::$data_func, get_data(world))
+        pub(super) fn get_specific(
+            world: &World,
+        ) -> Option<&$crate::tools_data::$data_module::$data_type> {
+            $crate::world::get_specific($crate::tools_data::$data_func, get_data(world))
         }
         pub(super) fn get_data_mut(
             world: &mut World,
         ) -> rvimage_domain::RvResult<&mut $crate::tools_data::ToolsData> {
             $crate::world::get_mut(world, $actor_name, $missing_data_msg)
         }
-        pub(super) fn get_specific_mut(world: &mut World) -> Option<&mut $data_module::$data_type> {
-            $crate::world::get_specific_mut(tools_data::$data_func_mut, get_data_mut(world))
+        pub(super) fn get_specific_mut(
+            world: &mut World,
+        ) -> Option<&mut $crate::tools_data::$data_module::$data_type> {
+            $crate::world::get_specific_mut($crate::tools_data::$data_func_mut, get_data_mut(world))
         }
     };
 }
 #[macro_export]
 macro_rules! tools_data_accessors_objects {
     ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
-        pub(super) fn get_options(world: &World) -> Option<&$data_module::Options> {
+        pub(super) fn get_options(world: &World) -> Option<&$crate::tools_data::$data_module::Options> {
             get_specific(world).map(|d| &d.options)
         }
-        pub(super) fn get_options_mut(world: &mut World) -> Option<&mut $data_module::Options> {
+        pub fn get_options_mut(world: &mut World) -> Option<&mut $crate::tools_data::$data_module::Options> {
             get_specific_mut(world).map(|d| &mut d.options)
         }
         pub(super) fn get_track_changes_str(world: &World) -> Option<&'static str> {
             lazy_static::lazy_static! {
-                static ref TRACK_CHANGE_STR: String = $crate::tools::core::make_track_changes_str(ACTOR_NAME);
+                static ref TRACK_CHANGE_STR: String = $crate::tools::core::make_track_changes_str($actor_name);
             };
             let track_changes =
                 get_options(world).map(|o| o.core.track_changes) == Some(true);
@@ -198,7 +202,7 @@ macro_rules! annotations_accessor_mut {
                 None
             }
         }
-        pub(super) fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
+        pub fn get_annos_mut(world: &mut World) -> Option<&mut $annotations_type> {
             let is_no_anno_fine = world.data.meta_data.flags.is_file_list_empty == Some(true);
             get_annos_mut_(world, is_no_anno_fine)
         }
