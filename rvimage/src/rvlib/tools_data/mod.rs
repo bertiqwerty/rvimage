@@ -328,3 +328,43 @@ macro_rules! get_labelinfo_from_tdm {
         $crate::get_specifics_from_tdm!($actor_name, $tdm, $access_func).map(|d| d.label_info())
     };
 }
+
+#[cfg(test)]
+use crate::tools::{
+    ALWAYS_ACTIVE_ZOOM, ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME, ZOOM_NAME,
+};
+#[test]
+fn test_tools_data_map() {
+    let tdm = ToolsDataMap::new();
+    let tools = [
+        BBOX_NAME,
+        ROT90_NAME,
+        BRUSH_NAME,
+        ATTRIBUTES_NAME,
+        ZOOM_NAME,
+        ALWAYS_ACTIVE_ZOOM,
+    ];
+    for tool in tools.iter() {
+        assert!(tdm.contains_key(tool));
+    }
+    assert_eq!(tdm.len(), tools.len());
+
+    // test from hashmap
+    let data = HashMap::from([(BBOX_NAME.to_string(), ToolsData::default())]);
+    let tdm = ToolsDataMap::from(data);
+    for tool in tools.iter() {
+        assert!(tdm.contains_key(tool));
+    }
+    assert_eq!(tdm.len(), tools.len());
+
+    // test from iterator
+    let data = vec![
+        (BBOX_NAME.to_string(), ToolsData::default()),
+        (ROT90_NAME.to_string(), ToolsData::default()),
+    ];
+    let tdm = ToolsDataMap::from_iter(data);
+    for tool in tools.iter() {
+        assert!(tdm.contains_key(tool));
+    }
+    assert_eq!(tdm.len(), tools.len());
+}
