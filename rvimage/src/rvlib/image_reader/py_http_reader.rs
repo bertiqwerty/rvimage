@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{cache::ReadImageToCache, file_util, types::ResultImage};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -24,10 +26,17 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
         lazy_static! {
             static ref HREF_REGEX: Regex = Regex::new("href\\s*=\\s*\".*\"").unwrap();
         }
-        println!("{address}");
         let address = file_util::url_encode(address);
-        let resp = || reqwest::blocking::get(&address)?.text();
-        let text = resp().map_err(to_rv)?;
+        let c = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .build();
+        let resp = c.and_then(|c| {
+            let request = c.get(&address).build();
+            request.and_then(|r| c.execute(r))
+        });
+        let text = resp
+            .and_then(|r| r.text())
+            .map_err(|e| rverr!("pyhttp reader cannot read {address} due to {e:?}"))?;
         Ok(LI_REGEX
             .find_iter(&text)
             .flat_map(|found| {

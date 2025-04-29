@@ -106,16 +106,20 @@ pub fn find(
 }
 
 pub fn auth(ssh_cfg: &SshCfg) -> RvResult<Session> {
-    let tcp = TcpStream::connect(&ssh_cfg.prj.address).map_err(to_rv)?;
-    let mut sess = Session::new().map_err(to_rv)?;
+    let tcp = TcpStream::connect(&ssh_cfg.prj.address)
+        .map_err(|e| rverr!("TCP stream connection error, {:?}", e))?;
+    let mut sess = Session::new()
+        .map_err(|e| rverr!("could not create ssh session, {:?}", e))?;
     sess.set_tcp_stream(tcp);
-    sess.handshake().map_err(to_rv)?;
+    sess.handshake()
+        .map_err(|e| rverr!("ssh handshake error, {:?}", e))?;
     let keyfile = Path::new(&ssh_cfg.usr.ssh_identity_file_path);
     if !keyfile.exists() {
         return Err(rverr!("could not find private key file {keyfile:?}"));
     }
     sess.userauth_pubkey_file(&ssh_cfg.usr.user, None, keyfile, None)
-        .map_err(to_rv)?;
+        .map_err(|e| rverr!("ssh user auth error, {:?}", e))?;
     assert!(sess.authenticated());
+    tracing::info!("ssh session authenticated");
     Ok(sess)
 }

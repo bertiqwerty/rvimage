@@ -72,7 +72,6 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
                 .expect("current project file cannot be in no parent directory")
                 .join(conn_data.connection_string_path)
         };
-        println!("CSP {constr_path:?}");
         let connection_string = fs::read_to_string(&constr_path).map_err(to_rv)?;
         let line_with_cs = connection_string.lines().find(|line| {
             !line.starts_with('#') && (line.to_lowercase().contains("connection_string"))
