@@ -108,8 +108,7 @@ pub fn find(
 pub fn auth(ssh_cfg: &SshCfg) -> RvResult<Session> {
     let tcp = TcpStream::connect(&ssh_cfg.prj.address)
         .map_err(|e| rverr!("TCP stream connection error, {:?}", e))?;
-    let mut sess = Session::new()
-        .map_err(|e| rverr!("could not create ssh session, {:?}", e))?;
+    let mut sess = Session::new().map_err(|e| rverr!("could not create ssh session, {:?}", e))?;
     sess.set_tcp_stream(tcp);
     sess.handshake()
         .map_err(|e| rverr!("ssh handshake error, {:?}", e))?;
