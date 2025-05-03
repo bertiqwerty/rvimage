@@ -184,7 +184,7 @@ macro_rules! annotations_accessor_mut {
             is_no_anno_fine: bool,
         ) -> Option<&mut $annotations_type> {
             if let Some(current_file_path) = world.data.meta_data.file_path_relative() {
-                let shape_initial = *world.data.shape_initial();
+                let shape_initial = world.shape_orig();
                 let res = world
                     .data
                     .tools_data_map
@@ -252,7 +252,6 @@ macro_rules! instance_annotations_accessor {
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
     im_background: DynamicImage,
-    shape_initial: ShapeI,
     ui_image_rect: Option<ShapeF>,
     pub meta_data: MetaData,
     pub tools_data_map: ToolsDataMap,
@@ -266,10 +265,8 @@ impl DataRaw {
         meta_data: MetaData,
         ui_image_rect: Option<ShapeF>,
     ) -> Self {
-        let shape_initial = ShapeI::from_im(&im_background);
         DataRaw {
             im_background,
-            shape_initial,
             ui_image_rect,
             meta_data,
             tools_data_map,
@@ -282,11 +279,6 @@ impl DataRaw {
     }
     pub fn im_background_mut(&mut self) -> &mut DynamicImage {
         &mut self.im_background
-    }
-
-    #[must_use]
-    pub fn shape_initial(&self) -> &ShapeI {
-        &self.shape_initial
     }
 
     pub fn set_image_rect(&mut self, ui_image_rect: Option<ShapeF>) {

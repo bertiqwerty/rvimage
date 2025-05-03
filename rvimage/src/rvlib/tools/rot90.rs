@@ -68,6 +68,8 @@ fn rot90(mut world: World, n_rotations: NRotations, skip_annos: bool) -> World {
             world.data.apply(|im| im.rotate90());
         }
     }
+    world.set_zoom_box(None);
+    world.request_redraw_image();
     world
 }
 #[derive(Clone, Copy, Debug)]
@@ -86,7 +88,6 @@ impl Rot90 {
             *anno = anno.increase();
         }
         history.push(Record::new(world.clone(), ACTOR_NAME));
-        world.request_redraw_image();
         (world, history)
     }
 }
