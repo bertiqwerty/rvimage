@@ -495,6 +495,9 @@ impl World {
         self.data.set_image_rect(ui_image_rect);
     }
     pub fn set_background_image(&mut self, image: DynamicImage) {
+        if ShapeI::from_im(&image) != self.shape_orig() {
+            self.zoom_box = None;
+        }
         self.data.im_background = image;
     }
 }
