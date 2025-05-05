@@ -94,6 +94,96 @@ fn draw_erase_circle(mut world: World, mp: PtF) -> World {
     }
     world
 }
+fn mouse_released(events: &Events, mut world: World, mut history: History) -> (World, History) {
+    if events.held_ctrl() {
+        let shape_orig = world.shape_orig();
+        let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
+        let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
+        if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
+            let to_be_selected_line_idx = find_closest_canvas(annos, mp, |idx| {
+                annos.is_of_current_label(idx, idx_current, show_only_current)
+            });
+            if let Some((idx, dist)) = to_be_selected_line_idx {
+                if dist < max_select_dist(shape_orig) {
+                    if annos.selected_mask()[idx] {
+                        annos.deselect(idx);
+                    } else {
+                        annos.select(idx);
+                    }
+                } else {
+                    world =
+                        deselect_all::<_, DataAccessors, InstanceAnnoAccessors>(world, BRUSH_NAME);
+                }
+            }
+        }
+        set_visible(&mut world);
+    } else if !(events.held_alt() || events.held_shift()) {
+        // neither shift nor alt nor ctrl were held => a brushline has been finished
+        // or a brush line has been deleted.
+        let erase = get_options(&world).map(|o| o.core.erase);
+        let cat_idx = get_specific(&world).map(|o| o.label_info.cat_idx_current);
+        if erase != Some(true) {
+            let shape_orig = world.shape_orig();
+            let line = get_specific_mut(&mut world).and_then(|d| mem::take(&mut d.tmp_line));
+            let line = if let Some((line, _)) = line {
+                Some(line)
+            } else if let (Some(mp), Some(options)) =
+                (events.mouse_pos_on_orig, get_options(&world))
+            {
+                Some(BrushLine {
+                    line: Line::from(mp),
+                    intensity: options.intensity,
+                    thickness: options.thickness,
+                })
+            } else {
+                None
+            };
+            let ild = get_instance_label_display(&world);
+
+            let change_annos = |annos: &mut BrushAnnotations| {
+                if let (Some(line), Some(cat_idx)) = (line, cat_idx) {
+                    let canvas = Canvas::new(&line, shape_orig, None);
+                    if let Ok(canvas) = canvas {
+                        annos.add_elt(canvas, cat_idx, ild);
+                    }
+                }
+            };
+            change_annos_brush(&mut world, change_annos);
+            set_visible(&mut world);
+        } else if let Some(mp) = events.mouse_pos_on_orig {
+            world = draw_erase_circle(world, mp);
+        }
+        history.push(Record::new(world.clone(), ACTOR_NAME));
+    }
+    (world, history)
+}
+fn mouse_pressed_left(events: &Events, mut world: World) -> World {
+    if !(events.held_alt() || events.held_ctrl() || events.held_shift()) {
+        world = deselect_all::<_, DataAccessors, InstanceAnnoAccessors>(world, BRUSH_NAME);
+    }
+    if !events.held_ctrl() {
+        let options = get_options(&world).copied();
+        let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
+        if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
+            let erase = options.core.erase;
+            if !erase {
+                if let (Some(d), Some(cat_idx)) = (get_specific_mut(&mut world), idx_current) {
+                    let line = Line::from(mp);
+                    d.tmp_line = Some((
+                        BrushLine {
+                            line,
+                            intensity: options.intensity,
+                            thickness: options.thickness,
+                        },
+                        cat_idx,
+                    ));
+                }
+            }
+        }
+        set_visible(&mut world);
+    }
+    world
+}
 fn key_released(events: &Events, mut world: World, mut history: History) -> (World, History) {
     let released_key = map_released_key(events);
     (world, history) = on_selection_keys::<_, DataAccessors, InstanceAnnoAccessors>(
@@ -249,32 +339,7 @@ impl Brush {
         if events.pressed(KeyCode::MouseRight) {
             self.mover.move_mouse_pressed(events.mouse_pos_on_orig);
         } else {
-            if !(events.held_alt() || events.held_ctrl() || events.held_shift()) {
-                world = deselect_all::<_, DataAccessors, InstanceAnnoAccessors>(world, BRUSH_NAME);
-            }
-            if !events.held_ctrl() {
-                let options = get_options(&world).copied();
-                let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
-                if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
-                    let erase = options.core.erase;
-                    if !erase {
-                        if let (Some(d), Some(cat_idx)) =
-                            (get_specific_mut(&mut world), idx_current)
-                        {
-                            let line = Line::from(mp);
-                            d.tmp_line = Some((
-                                BrushLine {
-                                    line,
-                                    intensity: options.intensity,
-                                    thickness: options.thickness,
-                                },
-                                cat_idx,
-                            ));
-                        }
-                    }
-                }
-                set_visible(&mut world);
-            }
+            world = mouse_pressed_left(events, world);
         }
         (world, history)
     }
@@ -368,72 +433,12 @@ impl Brush {
     fn mouse_released(
         &mut self,
         events: &Events,
-        mut world: World,
-        mut history: History,
+        world: World,
+        history: History,
     ) -> (World, History) {
-        if events.held_ctrl() {
-            let shape_orig = world.shape_orig();
-            let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
-            let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
-            if let (Some(mp), Some(annos)) = (events.mouse_pos_on_orig, get_annos_mut(&mut world)) {
-                let to_be_selected_line_idx = find_closest_canvas(annos, mp, |idx| {
-                    annos.is_of_current_label(idx, idx_current, show_only_current)
-                });
-                if let Some((idx, dist)) = to_be_selected_line_idx {
-                    if dist < max_select_dist(shape_orig) {
-                        if annos.selected_mask()[idx] {
-                            annos.deselect(idx);
-                        } else {
-                            annos.select(idx);
-                        }
-                    } else {
-                        world = deselect_all::<_, DataAccessors, InstanceAnnoAccessors>(
-                            world, BRUSH_NAME,
-                        );
-                    }
-                }
-            }
-            set_visible(&mut world);
-        } else if !(events.held_alt() || events.held_shift()) {
-            // neither shift nor alt nor ctrl were held => a brushline has been finished
-            // or a brush line has been deleted.
-            let erase = get_options(&world).map(|o| o.core.erase);
-            let cat_idx = get_specific(&world).map(|o| o.label_info.cat_idx_current);
-            if erase != Some(true) {
-                let shape_orig = world.shape_orig();
-                let line = get_specific(&world).and_then(|d| d.tmp_line.clone());
-                let line = if let Some((line, _)) = line {
-                    Some(line)
-                } else if let (Some(mp), Some(options)) =
-                    (events.mouse_pos_on_orig, get_options(&world))
-                {
-                    Some(BrushLine {
-                        line: Line::from(mp),
-                        intensity: options.intensity,
-                        thickness: options.thickness,
-                    })
-                } else {
-                    None
-                };
-                let ild = get_instance_label_display(&world);
-
-                let change_annos = |annos: &mut BrushAnnotations| {
-                    if let (Some(line), Some(cat_idx)) = (line, cat_idx) {
-                        let canvas = Canvas::new(&line, shape_orig, None);
-                        if let Ok(canvas) = canvas {
-                            annos.add_elt(canvas, cat_idx, ild);
-                        }
-                    }
-                };
-                change_annos_brush(&mut world, change_annos);
-                set_visible(&mut world);
-            } else if let Some(mp) = events.mouse_pos_on_orig {
-                world = draw_erase_circle(world, mp);
-            }
-            history.push(Record::new(world.clone(), ACTOR_NAME));
-        }
-        (world, history)
+        mouse_released(events, world, history)
     }
+
     #[allow(clippy::unused_self)]
     fn key_released(
         &mut self,
@@ -593,4 +598,69 @@ impl Manipulate for Brush {
             ]
         )
     }
+}
+
+#[cfg(test)]
+use {
+    crate::{tracing_setup::init_tracing_for_tests, types::ViewImage},
+    image::DynamicImage,
+};
+
+#[cfg(test)]
+pub fn test_data() -> (Option<PtF>, World, History) {
+    use std::path::Path;
+
+    use crate::ToolsDataMap;
+    let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
+    let mut world = World::from_real_im(
+        im_test,
+        ToolsDataMap::new(),
+        None,
+        Some("superimage.png".to_string()),
+        Path::new("superimage.png"),
+        Some(0),
+    );
+    world.data.meta_data.flags.is_loading_screen_active = Some(false);
+    get_specific_mut(&mut world)
+        .unwrap()
+        .label_info
+        .push("label".to_string(), None, None)
+        .unwrap();
+    let history = History::default();
+    let mouse_pos = Some((32.0, 32.0).into());
+    (mouse_pos, world, history)
+}
+
+#[test]
+fn test_mouse_released() {
+    init_tracing_for_tests();
+    let (mp, mut world, history) = test_data();
+    let options = get_options_mut(&mut world).unwrap();
+    options.thickness = 1.0;
+    let mut events = Events::default();
+    events.mouse_pos_on_orig = mp;
+    let (world, history) = mouse_released(&events, world, history);
+    let annos = get_annos(&world).unwrap();
+    assert_eq!(annos.len(), 1);
+    assert_eq!(annos.elts()[0].bb.x, 32);
+    assert_eq!(annos.elts()[0].bb.y, 32);
+    events.mouse_pos_on_orig = Some((40, 40).into());
+    let world = mouse_pressed_left(&events, world);
+    let (world, history) = mouse_released(&events, world, history);
+    let annos = get_annos(&world).unwrap();
+    assert_eq!(annos.len(), 2);
+    assert_eq!(annos.elts()[0].bb.x, 32);
+    assert_eq!(annos.elts()[0].bb.y, 32);
+    assert_eq!(annos.elts()[1].bb.x, 40);
+    assert_eq!(annos.elts()[1].bb.y, 40);
+    events.mouse_pos_on_orig = Some((10, 10).into());
+    let (world, _) = mouse_released(&events, world, history);
+    let annos = get_annos(&world).unwrap();
+    assert_eq!(annos.len(), 3);
+    assert_eq!(annos.elts()[0].bb.x, 32);
+    assert_eq!(annos.elts()[0].bb.y, 32);
+    assert_eq!(annos.elts()[1].bb.x, 40);
+    assert_eq!(annos.elts()[1].bb.y, 40);
+    assert_eq!(annos.elts()[2].bb.x, 10);
+    assert_eq!(annos.elts()[2].bb.y, 10);
 }
