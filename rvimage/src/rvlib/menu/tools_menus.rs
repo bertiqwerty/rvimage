@@ -630,17 +630,14 @@ pub fn attributes_menu(
         &mut data.options.export_only_opened_folder,
         "export only opened folder",
     );
-    let mut import_export_trigger =
-        ImportExportTrigger::from_export_triggered(data.options.is_export_triggered);
     export_file_menu(
         ui,
         "export attributes as json",
         &mut data.export_path,
         are_tools_active,
-        &mut import_export_trigger,
+        &mut data.options.import_export_trigger,
         skip_merge_menu,
     )?;
-    data.options.is_export_triggered = import_export_trigger.export_triggered();
 
     ui.separator();
     if ui.button("Close").clicked() {

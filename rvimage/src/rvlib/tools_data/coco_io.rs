@@ -11,12 +11,11 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{
-    cfg::{ExportPath, ExportPathConnection},
+    cfg::ExportPath,
     file_util::{self, path_to_str, PathPair},
     image_util,
     meta_data::MetaData,
     result::trace_ok_warn,
-    ssh,
     util::version_label,
     GeoFig, Polygon,
 };
@@ -654,35 +653,18 @@ pub fn read_coco(
     rotation_data: Option<&Rot90ToolData>,
 ) -> RvResult<(BboxToolData, BrushToolData)> {
     let coco_inpath = get_cocofilepath(meta_data, coco_file)?;
-    match &coco_file.conn {
-        ExportPathConnection::Local => {
-            let s = file_util::read_to_string(&coco_inpath)?;
-            let read_data: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-            tracing::info!("imported coco file from {coco_inpath:?}");
-            read_data.convert_to_toolsdata(coco_file.clone(), rotation_data)
-        }
-        ExportPathConnection::Ssh => {
-            if let Some(ssh_cfg) = &meta_data.ssh_cfg {
-                tracing::info!("creating session based on {:?}", meta_data.ssh_cfg);
-                let sess = ssh::auth(ssh_cfg)?;
-                let read_bytes = ssh::download(path_to_str(&coco_file.path)?, &sess)?;
-                let s = String::from_utf8(read_bytes).map_err(to_rv)?;
-
-                let read: CocoExportData = serde_json::from_str(s.as_str()).map_err(to_rv)?;
-                tracing::info!("imported coco file from {coco_inpath:?}");
-                read.convert_to_toolsdata(coco_file.clone(), rotation_data)
-            } else {
-                Err(rverr!("cannot read coco from ssh, ssh-cfg missing."))
-            }
-        }
-    }
+    let coco_str = coco_file
+        .conn
+        .read(&coco_inpath, meta_data.ssh_cfg.as_ref())?;
+    let read_data: CocoExportData = serde_json::from_str(coco_str.as_str()).map_err(to_rv)?;
+    read_data.convert_to_toolsdata(coco_file.clone(), rotation_data)
 }
 
 #[cfg(test)]
 use {
     super::core::CocoRle,
     crate::{
-        cfg::SshCfg,
+        cfg::{ExportPathConnection, SshCfg},
         defer_file_removal,
         meta_data::{ConnectionData, MetaDataFlags},
     },

@@ -1,6 +1,6 @@
 use crate::{
     cache::FileCacheCfgArgs,
-    file_util::{self, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR},
+    file_util::{self, path_to_str, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR},
     sort_params::SortParams,
     ssh,
 };
@@ -230,6 +230,19 @@ impl ExportPathConnection {
     }
     pub fn write(&self, data_str: &str, dst_path: &Path, ssh_cfg: Option<&SshCfg>) -> RvResult<()> {
         self.write_bytes(data_str.as_bytes(), dst_path, ssh_cfg)
+    }
+    pub fn read(&self, src_path: &Path, ssh_cfg: Option<&SshCfg>) -> RvResult<String> {
+        match (self, ssh_cfg) {
+            (ExportPathConnection::Ssh, Some(ssh_cfg)) => {
+                let sess = ssh::auth(ssh_cfg)?;
+                let read_bytes = ssh::download(path_to_str(src_path)?, &sess)?;
+                String::from_utf8(read_bytes).map_err(to_rv)
+            }
+            (ExportPathConnection::Local, _) => file_util::read_to_string(src_path),
+            (ExportPathConnection::Ssh, None) => {
+                Err(rverr!("cannot read from ssh. config missing"))
+            }
+        }
     }
 }
 #[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq, Eq)]

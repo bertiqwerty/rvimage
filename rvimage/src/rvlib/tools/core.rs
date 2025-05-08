@@ -5,7 +5,7 @@ use crate::history::Record;
 use crate::result::trace_ok_err;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data::{self, AttrVal};
-use crate::tools_data::{vis_from_lfoption, InstanceAnnotate, LabelInfo};
+use crate::tools_data::{vis_from_lfoption, ImportExportTrigger, InstanceAnnotate, LabelInfo};
 use crate::util::Visibility;
 use crate::world::InstanceAnnoAccess;
 use crate::{
@@ -42,7 +42,7 @@ pub(super) fn insert_attribute(
         // set the attribute data to addtion
         trace_ok_err(attr_data.specifics.attributes_mut().map(|d| {
             let attr_options = attributes_data::Options {
-                is_export_triggered: false,
+                import_export_trigger: ImportExportTrigger::default(),
                 is_addition_triggered: populate_new_attr,
                 rename_src_idx: None,
                 is_update_triggered: false,
@@ -63,7 +63,7 @@ pub(super) fn insert_attribute(
     // insert the attribute's value to the attribute map of the current file
     if let Ok(attr_data) = world::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing") {
         let attr_options = attributes_data::Options {
-            is_export_triggered: false,
+            import_export_trigger: ImportExportTrigger::default(),
             is_addition_triggered: false,
             rename_src_idx: None,
             is_update_triggered: true,

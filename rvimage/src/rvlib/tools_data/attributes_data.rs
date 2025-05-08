@@ -8,7 +8,7 @@ use std::{
 use crate::{cfg::ExportPath, implement_annotate, implement_annotations_getters, ShapeI};
 use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtS};
 
-use super::label_map::LabelMap;
+use super::{label_map::LabelMap, ImportExportTrigger};
 
 #[allow(clippy::needless_pass_by_value)]
 fn interval_check<T>(val: T, min: &str, max: &str) -> RvResult<bool>
@@ -115,7 +115,8 @@ pub struct Options {
     #[serde(default)]
     pub rename_src_idx: Option<usize>, // target idx of renamed attribute
     pub is_update_triggered: bool,
-    pub is_export_triggered: bool,
+    #[serde(skip)]
+    pub import_export_trigger: ImportExportTrigger,
     #[serde(default)]
     pub export_only_opened_folder: bool,
     pub removal_idx: Option<usize>,
@@ -234,6 +235,34 @@ impl AttributesToolData {
             serde_json::to_string(&am).map_err(to_rv)
         }
     }
+    pub fn deserialize_annotations(
+        &mut self,
+        json_str: &str,
+        current_file: Option<&str>,
+    ) -> RvResult<()> {
+        let am: HashMap<String, AttrMap> = serde_json::from_str(json_str).map_err(to_rv)?;
+        for (filename, attr_map) in am.into_iter() {
+            if let Some((self_attr_map, _)) = self.annotations_map.get_mut(&filename) {
+                for (attr_name, attr_val) in attr_map.into_iter() {
+                    self_attr_map.insert(attr_name, attr_val);
+                }
+            } else {
+                self.annotations_map
+                    .insert(filename.clone(), (attr_map, ShapeI::default()));
+            }
+            if let Some(current_file) = current_file {
+                if filename == current_file {
+                    let attr_map = self.get_annos(current_file).cloned();
+                    if let Some(attr_map) = attr_map {
+                        for (idx, (_, attr_val)) in attr_map.iter().enumerate() {
+                            *self.attr_value_buffer_mut(idx) = attr_val.to_string();
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
     pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {
         self.annotations_map
             .get(filename)
@@ -274,3 +303,16 @@ impl AttributesToolData {
     }
 }
 implement_annotate!(AttributesToolData);
+
+#[test]
+fn test_deserialize() {
+    fn test(json_str: &str, expected_len: usize) {
+        let mut d = AttributesToolData::default();
+        d.deserialize_annotations(json_str, None).unwrap();
+        assert_eq!(d.annotations_map.len(), expected_len);
+    }
+    let json_str = r#"{"path": {"attrname": {"Float": 1}}}"#;
+    test(json_str, 1);
+    let json_str = r#"{"path": {"attrname": {"Float": 1}}, "path1": {"attrname": {"Int": 1}}}"#;
+    test(json_str, 2);
+}

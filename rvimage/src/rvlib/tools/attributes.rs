@@ -186,7 +186,8 @@ impl Manipulate for Attributes {
                 *removal_idx = None;
             }
         }
-        let is_export_triggered = get_specific(&world).map(|d| d.options.is_export_triggered);
+        let is_export_triggered =
+            get_specific(&world).map(|d| d.options.import_export_trigger.export_triggered());
         if is_export_triggered == Some(true) {
             let ssh_cfg = world.data.meta_data.ssh_cfg.clone();
             let attr_data = get_specific(&world);
@@ -215,11 +216,38 @@ impl Manipulate for Attributes {
                     info!("exported annotations to {:?}", data.export_path.path);
                 }
             }
-            if let Some(is_export_triggered) =
-                get_specific_mut(&mut world).map(|d| &mut d.options.is_export_triggered)
+            if let Some(export_triggered) =
+                get_specific_mut(&mut world).map(|d| &mut d.options.import_export_trigger)
             {
-                *is_export_triggered = false;
+                export_triggered.untrigger_export();
             }
+        }
+        let is_import_triggered =
+            get_specific(&world).map(|d| d.options.import_export_trigger.import_triggered());
+        if is_import_triggered == Some(true) {
+            tracing::info!("import attr tiggered");
+            let ssh_cfg = world.data.meta_data.ssh_cfg.clone();
+            let cur_file = world
+                .data
+                .meta_data
+                .file_path_relative()
+                .map(str::to_string);
+            let attr_data = get_specific_mut(&mut world);
+            if let Some(data) = attr_data {
+                let in_path = &data.export_path.path;
+                tracing::info!("importing attributes from {in_path:?}");
+                trace_ok_err(
+                    data.export_path
+                        .conn
+                        .read(in_path, ssh_cfg.as_ref())
+                        .map(|s| data.deserialize_annotations(s.as_str(), cur_file.as_deref())),
+                );
+            }
+        }
+        if let Some(import_trigger) =
+            get_specific_mut(&mut world).map(|d| &mut d.options.import_export_trigger)
+        {
+            import_trigger.untrigger_import();
         }
         make_tool_transform!(self, world, history, event, [])
     }
