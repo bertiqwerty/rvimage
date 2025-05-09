@@ -8,7 +8,10 @@ use crate::{
     history::History,
     make_tool_transform,
     result::trace_ok_err,
-    tools_data::attributes_data::{set_attrmap_val, AttrMap, AttrVal},
+    tools_data::{
+        attributes_data::{set_attrmap_val, AttrMap, AttrVal},
+        AttributesToolData,
+    },
     tools_data_accessors,
     world::World,
     world_annotations_accessor,
@@ -55,7 +58,7 @@ fn file_change(mut world: World) -> World {
 
     if let (Some(data), Some(mut annos)) = (data, annos) {
         for (attr_name, attr_val) in data.attr_names().iter().zip(data.attr_vals().iter()) {
-            if !annos.contains_key(attr_name) {
+            if !annos.contains(attr_name) {
                 set_attrmap_val(&mut annos, attr_name, attr_val);
             }
         }
@@ -80,6 +83,36 @@ fn file_change(mut world: World) -> World {
     let current = get_annos(&world).cloned();
     if let Some(data) = get_specific_mut(&mut world) {
         data.current_attr_map = current;
+    }
+    world
+}
+fn add_attribute(mut world: World, suppress_exists_err: bool) -> World {
+    let attr_map_tmp = get_annos_mut(&mut world).map(mem::take);
+    let data = get_specific_mut(&mut world);
+
+    if let (Some(mut attr_map_tmp), Some(data)) = (attr_map_tmp, data) {
+        let new_attr_name = data.new_attr_name.clone();
+        if data.attr_names().contains(&new_attr_name) && !suppress_exists_err {
+            tracing::error!("New attribute {new_attr_name} could not be created, already exists");
+        } else {
+            let new_attr_val = data.new_attr_val.clone();
+            for (_, (val_map, _)) in data.anno_iter_mut() {
+                set_attrmap_val(val_map, &new_attr_name, &new_attr_val);
+            }
+            set_attrmap_val(&mut attr_map_tmp, &new_attr_name, &new_attr_val);
+            if let Some(a) = get_annos_mut(&mut world) {
+                a.clone_from(&attr_map_tmp);
+            }
+            if let Some(data) = get_specific_mut(&mut world) {
+                data.current_attr_map = Some(attr_map_tmp);
+                data.push(new_attr_name, new_attr_val);
+            }
+        }
+    }
+    if let Some(data) = get_specific_mut(&mut world) {
+        data.options.is_addition_triggered = false;
+        data.new_attr_name = String::new();
+        data.new_attr_val = AttrVal::default();
     }
     world
 }
@@ -119,35 +152,8 @@ impl Manipulate for Attributes {
     ) -> (World, History) {
         let is_addition_triggered = get_specific(&world).map(|d| d.options.is_addition_triggered);
         if is_addition_triggered == Some(true) {
-            let attr_map_tmp = get_annos_mut(&mut world).map(mem::take);
-            let data = get_specific_mut(&mut world);
-
-            if let (Some(mut attr_map_tmp), Some(data)) = (attr_map_tmp, data) {
-                let new_attr_name = data.new_attr_name.clone();
-                if data.attr_names().contains(&new_attr_name) {
-                    tracing::error!(
-                        "New attribute {new_attr_name} could not be created, already exists"
-                    );
-                } else {
-                    let new_attr_val = data.new_attr_val.clone();
-                    for (_, (val_map, _)) in data.anno_iter_mut() {
-                        set_attrmap_val(val_map, &new_attr_name, &new_attr_val);
-                    }
-                    set_attrmap_val(&mut attr_map_tmp, &new_attr_name, &new_attr_val);
-                    if let Some(a) = get_annos_mut(&mut world) {
-                        a.clone_from(&attr_map_tmp);
-                    }
-                    if let Some(data) = get_specific_mut(&mut world) {
-                        data.current_attr_map = Some(attr_map_tmp);
-                        data.push(new_attr_name, new_attr_val);
-                    }
-                }
-            }
-            if let Some(is_add_triggered_out) =
-                get_specific_mut(&mut world).map(|d| &mut d.options.is_addition_triggered)
-            {
-                *is_add_triggered_out = false;
-            }
+            // handle addition triggered in the GUI
+            world = add_attribute(world, false);
         }
         let attr_data = get_specific_mut(&mut world);
         if let Some(attr_data) = attr_data {
@@ -227,21 +233,39 @@ impl Manipulate for Attributes {
         if is_import_triggered == Some(true) {
             tracing::info!("import attr tiggered");
             let ssh_cfg = world.data.meta_data.ssh_cfg.clone();
-            let cur_file = world
-                .data
-                .meta_data
-                .file_path_relative()
-                .map(str::to_string);
+            let cur_prj = world.data.meta_data.prj_path().map(|p| p.to_path_buf());
             let attr_data = get_specific_mut(&mut world);
-            if let Some(data) = attr_data {
+            let imported_map = attr_data.and_then(|data| {
                 let in_path = &data.export_path.path;
                 tracing::info!("importing attributes from {in_path:?}");
-                trace_ok_err(
-                    data.export_path
-                        .conn
-                        .read(in_path, ssh_cfg.as_ref())
-                        .map(|s| data.deserialize_annotations(s.as_str(), cur_file.as_deref())),
-                );
+                let json_str = trace_ok_err(data.export_path.conn.read(in_path, ssh_cfg.as_ref()));
+                if let Some(s) = json_str {
+                    trace_ok_err(AttributesToolData::deserialize_annotations(
+                        &s,
+                        cur_prj.as_deref(),
+                    ))
+                } else {
+                    None
+                }
+            });
+            if let Some(imported_map) = &imported_map {
+                // add attributes in case they don't exist
+                for (_, (attr_map, _)) in imported_map.iter() {
+                    for (attr_name, attr_val) in attr_map.iter() {
+                        let data = get_specific_mut(&mut world);
+                        if let Some(d) = data {
+                            d.new_attr_name = attr_name.clone();
+                            d.new_attr_val = attr_val.clone();
+                        }
+                        world = add_attribute(world, true);
+                    }
+                }
+            }
+            if let Some(imported_map) = imported_map {
+                let data = get_specific_mut(&mut world);
+                if let Some(d) = data {
+                    d.merge_map(imported_map);
+                }
             }
         }
         if let Some(import_trigger) =

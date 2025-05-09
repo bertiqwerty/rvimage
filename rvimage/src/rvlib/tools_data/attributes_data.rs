@@ -1,11 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{hash_map, HashMap},
     fmt::{Debug, Display},
+    mem,
+    ops::Index,
+    path::Path,
     str::FromStr,
 };
 
-use crate::{cfg::ExportPath, implement_annotate, implement_annotations_getters, ShapeI};
+use crate::{
+    cfg::ExportPath, file_util, implement_annotate, implement_annotations_getters, ShapeI,
+};
 use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtS};
 
 use super::{label_map::LabelMap, ImportExportTrigger};
@@ -24,6 +29,14 @@ where
 pub const ATTR_INTERVAL_SEPARATOR: &str = "-";
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
+#[serde(untagged)]
+pub enum AttrValUntagged {
+    Float(Option<TPtF>),
+    Int(Option<TPtS>),
+    Str(String),
+    Bool(bool),
+}
+#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum AttrVal {
     Float(Option<TPtF>),
     Int(Option<TPtS>),
@@ -38,6 +51,14 @@ impl AttrVal {
             AttrVal::Int(_) => Self::Int(None),
             AttrVal::Str(_) => Self::Str(String::new()),
             AttrVal::Bool(_) => Self::Bool(false),
+        }
+    }
+    pub fn is_default(&self) -> bool {
+        match self {
+            AttrVal::Float(x) => x.is_none(),
+            AttrVal::Int(x) => x.is_none(),
+            AttrVal::Str(x) => x.is_empty(),
+            AttrVal::Bool(x) => !x,
         }
     }
     pub fn in_domain_str(&self, domain_str: &str) -> RvResult<bool> {
@@ -99,9 +120,116 @@ impl Default for AttrVal {
         AttrVal::Int(None)
     }
 }
+impl From<AttrValUntagged> for AttrVal {
+    fn from(attr_val: AttrValUntagged) -> Self {
+        match attr_val {
+            AttrValUntagged::Float(x) => AttrVal::Float(x),
+            AttrValUntagged::Int(x) => AttrVal::Int(x),
+            AttrValUntagged::Str(x) => AttrVal::Str(x),
+            AttrValUntagged::Bool(x) => AttrVal::Bool(x),
+        }
+    }
+}
+
+// just for deserialization
+pub type AttrMapUntagged = HashMap<String, AttrValUntagged>;
 
 // { attribute name: attribute value }
-pub type AttrMap = HashMap<String, AttrVal>;
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Default)]
+pub struct AttrMap {
+    #[serde(flatten)]
+    data: HashMap<String, AttrVal>,
+}
+impl AttrMap {
+    pub fn new() -> Self {
+        Self {
+            data: HashMap::new(),
+        }
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &AttrVal)> {
+        self.data.iter()
+    }
+    pub fn insert(&mut self, name: String, val: AttrVal) {
+        self.data.insert(name, val);
+    }
+    pub fn get(&self, name: &str) -> Option<&AttrVal> {
+        self.data
+            .iter()
+            .find_map(|(n, v)| if n == name { Some(v) } else { None })
+    }
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut AttrVal> {
+        self.data
+            .iter_mut()
+            .find_map(|(n, v)| if n == name { Some(v) } else { None })
+    }
+    pub fn keys(&self) -> impl Iterator<Item = &String> {
+        self.data.keys()
+    }
+    pub fn remove(&mut self, name: &str) -> Option<AttrVal> {
+        self.data.remove(name)
+    }
+    pub fn contains(&self, name: &str) -> bool {
+        self.data.iter().any(|(n, _)| n == name)
+    }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+}
+impl From<(String, AttrVal)> for AttrMap {
+    fn from(data: (String, AttrVal)) -> Self {
+        Self {
+            data: HashMap::from([data]),
+        }
+    }
+}
+impl Index<&str> for AttrMap {
+    type Output = AttrVal;
+    fn index(&self, index: &str) -> &Self::Output {
+        self.data
+            .iter()
+            .find_map(|(n, v)| if n == index { Some(v) } else { None })
+            .unwrap_or_else(|| panic!("Attribute {index} not found"))
+    }
+}
+impl IntoIterator for AttrMap {
+    type Item = (String, AttrVal);
+    type IntoIter = hash_map::IntoIter<String, AttrVal>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
+    }
+}
+impl Index<&String> for AttrMap {
+    type Output = AttrVal;
+    fn index(&self, index: &String) -> &Self::Output {
+        &self[index.as_str()]
+    }
+}
+impl From<HashMap<String, AttrValUntagged>> for AttrMap {
+    fn from(data: HashMap<String, AttrValUntagged>) -> Self {
+        Self {
+            data: data
+                .into_iter()
+                .map(|(k, v)| (k, AttrVal::from(v)))
+                .collect::<HashMap<_, _>>(),
+        }
+    }
+}
+
+pub fn merge_attrmaps(mut existing_map: AttrMap, new_map: AttrMap) -> AttrMap {
+    for (new_name, new_val) in new_map {
+        if let Some(existing_val) = existing_map.get_mut(&new_name) {
+            if !new_val.is_default() {
+                *existing_val = new_val;
+            }
+        } else {
+            existing_map.insert(new_name, new_val);
+        }
+    }
+    existing_map
+}
 
 pub type AttrAnnotationsMap = LabelMap<AttrMap>;
 
@@ -152,7 +280,7 @@ impl AttributesToolData {
         } else {
             // better solution: use indices the attr_map hashmap keys instead of Strings
             // rename would then be not necessary anymore.
-            let update_attr_map = |attr_map: &mut HashMap<String, AttrVal>| {
+            let update_attr_map = |attr_map: &mut AttrMap| {
                 let keys = attr_map.keys().cloned().collect::<Vec<_>>();
                 for k in keys {
                     if k == from_name {
@@ -178,14 +306,18 @@ impl AttributesToolData {
             }
         }
     }
-    pub fn merge(mut self, other: Self) -> Self {
-        for (filename, (attrmap_other, _)) in other.annotations_map {
+    pub fn merge_map(&mut self, other: AttrAnnotationsMap) {
+        for (filename, (attrmap_other, _)) in other {
             if let Some((attr_map_self, _)) = self.annotations_map.get_mut(&filename) {
-                for (attr_name, attr_val) in attrmap_other {
-                    attr_map_self.entry(attr_name).or_insert(attr_val);
-                }
+                tracing::warn!("Merging {filename} annotations");
+                *attr_map_self = merge_attrmaps(mem::take(attr_map_self), attrmap_other);
+            } else {
+                tracing::warn!("Merging {filename} annotations");
             }
         }
+    }
+    pub fn merge(mut self, other: Self) -> Self {
+        self.merge_map(other.annotations_map);
         self
     }
     pub fn push(&mut self, attr_name: String, attr_val: AttrVal) {
@@ -236,32 +368,32 @@ impl AttributesToolData {
         }
     }
     pub fn deserialize_annotations(
-        &mut self,
         json_str: &str,
-        current_file: Option<&str>,
-    ) -> RvResult<()> {
-        let am: HashMap<String, AttrMap> = serde_json::from_str(json_str).map_err(to_rv)?;
+        curr_prj_path: Option<&Path>,
+    ) -> RvResult<AttrAnnotationsMap> {
+        let am: RvResult<HashMap<String, AttrMap>> = serde_json::from_str(json_str).map_err(to_rv);
+        let am: RvResult<HashMap<String, AttrMap>> = match am {
+            Ok(am) => Ok(am),
+            Err(_) => {
+                let am: HashMap<String, AttrMapUntagged> =
+                    serde_json::from_str(json_str).map_err(to_rv)?;
+                Ok(am.into_iter().map(|(k, v)| (k, AttrMap::from(v))).collect())
+            }
+        };
+        let am = am.map_err(to_rv)?;
+        let mut annotations_map = AttrAnnotationsMap::new();
         for (filename, attr_map) in am.into_iter() {
-            if let Some((self_attr_map, _)) = self.annotations_map.get_mut(&filename) {
+            let key = file_util::tf_to_annomap_key(filename, curr_prj_path);
+
+            if let Some((self_attr_map, _)) = annotations_map.get_mut(&key) {
                 for (attr_name, attr_val) in attr_map.into_iter() {
                     self_attr_map.insert(attr_name, attr_val);
                 }
             } else {
-                self.annotations_map
-                    .insert(filename.clone(), (attr_map, ShapeI::default()));
-            }
-            if let Some(current_file) = current_file {
-                if filename == current_file {
-                    let attr_map = self.get_annos(current_file).cloned();
-                    if let Some(attr_map) = attr_map {
-                        for (idx, (_, attr_val)) in attr_map.iter().enumerate() {
-                            *self.attr_value_buffer_mut(idx) = attr_val.to_string();
-                        }
-                    }
-                }
+                annotations_map.insert(key.clone(), (attr_map, ShapeI::default()));
             }
         }
-        Ok(())
+        Ok(annotations_map)
     }
     pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {
         self.annotations_map
@@ -296,7 +428,7 @@ impl AttributesToolData {
                 attr_map.insert(attr_name.clone(), attr_val);
             }
         } else {
-            let attr_map = HashMap::from([(self.attr_names[idx].clone(), attr_val)]);
+            let attr_map = AttrMap::from((self.attr_names[idx].clone(), attr_val));
             self.annotations_map
                 .insert(filename.to_string(), (attr_map, image_shape));
         }
@@ -307,9 +439,8 @@ implement_annotate!(AttributesToolData);
 #[test]
 fn test_deserialize() {
     fn test(json_str: &str, expected_len: usize) {
-        let mut d = AttributesToolData::default();
-        d.deserialize_annotations(json_str, None).unwrap();
-        assert_eq!(d.annotations_map.len(), expected_len);
+        let newmap = AttributesToolData::deserialize_annotations(json_str, None).unwrap();
+        assert_eq!(newmap.len(), expected_len);
     }
     let json_str = r#"{"path": {"attrname": {"Float": 1}}}"#;
     test(json_str, 1);
