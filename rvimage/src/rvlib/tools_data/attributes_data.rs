@@ -393,6 +393,7 @@ impl AttributesToolData {
                 annotations_map.insert(key.clone(), (attr_map, ShapeI::default()));
             }
         }
+        tracing::warn!("Annotations map: {annotations_map:?}");
         Ok(annotations_map)
     }
     pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {
