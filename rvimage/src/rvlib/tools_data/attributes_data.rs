@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{hash_map, HashMap},
+    collections::{btree_map, BTreeMap, HashMap},
     fmt::{Debug, Display},
     mem,
     ops::Index,
@@ -138,12 +138,12 @@ pub type AttrMapUntagged = HashMap<String, AttrValUntagged>;
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Default)]
 pub struct AttrMap {
     #[serde(flatten)]
-    data: HashMap<String, AttrVal>,
+    data: BTreeMap<String, AttrVal>,
 }
 impl AttrMap {
     pub fn new() -> Self {
         Self {
-            data: HashMap::new(),
+            data: BTreeMap::new(),
         }
     }
     pub fn iter(&self) -> impl Iterator<Item = (&String, &AttrVal)> {
@@ -181,7 +181,7 @@ impl AttrMap {
 impl From<(String, AttrVal)> for AttrMap {
     fn from(data: (String, AttrVal)) -> Self {
         Self {
-            data: HashMap::from([data]),
+            data: BTreeMap::from([data]),
         }
     }
 }
@@ -196,7 +196,7 @@ impl Index<&str> for AttrMap {
 }
 impl IntoIterator for AttrMap {
     type Item = (String, AttrVal);
-    type IntoIter = hash_map::IntoIter<String, AttrVal>;
+    type IntoIter = btree_map::IntoIter<String, AttrVal>;
     fn into_iter(self) -> Self::IntoIter {
         self.data.into_iter()
     }
@@ -213,7 +213,7 @@ impl From<HashMap<String, AttrValUntagged>> for AttrMap {
             data: data
                 .into_iter()
                 .map(|(k, v)| (k, AttrVal::from(v)))
-                .collect::<HashMap<_, _>>(),
+                .collect::<BTreeMap<_, _>>(),
         }
     }
 }
@@ -393,7 +393,7 @@ impl AttributesToolData {
                 annotations_map.insert(key.clone(), (attr_map, ShapeI::default()));
             }
         }
-        tracing::warn!("Annotations map: {annotations_map:?}");
+        tracing::warn!("Annotations map: {annotations_map:#?}");
         Ok(annotations_map)
     }
     pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {
