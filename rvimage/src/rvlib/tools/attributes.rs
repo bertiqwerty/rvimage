@@ -44,14 +44,13 @@ fn propagate_annos(
 }
 
 fn get_buffers(world: &World) -> Vec<String> {
-    let annos = get_annos(&world);
-    let data = get_specific(&world);
+    let annos = get_annos(world);
+    let data = get_specific(world);
     if let (Some(data), Some(annos)) = (data, annos) {
-        return data
-            .attr_names()
+        data.attr_names()
             .iter()
             .map(|attr_name| annos.get(attr_name).unwrap().to_string())
-            .collect();
+            .collect()
     } else {
         vec![]
     }
@@ -277,7 +276,7 @@ impl Manipulate for Attributes {
                     d.merge_map(imported_map);
                 }
             }
-            let annos = get_annos(&mut world).cloned();
+            let annos = get_annos(&world).cloned();
             let attr_buffer = get_buffers(&world);
             if let (Some(data), Some(annos)) = (get_specific_mut(&mut world), annos) {
                 data.current_attr_map = Some(annos);
