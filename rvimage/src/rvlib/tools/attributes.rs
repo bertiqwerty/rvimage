@@ -43,6 +43,19 @@ fn propagate_annos(
     annos
 }
 
+fn get_buffers(world: &World) -> Vec<String> {
+    let annos = get_annos(&world);
+    let data = get_specific(&world);
+    if let (Some(data), Some(annos)) = (data, annos) {
+        return data
+            .attr_names()
+            .iter()
+            .map(|attr_name| annos.get(attr_name).unwrap().to_string())
+            .collect();
+    } else {
+        vec![]
+    }
+}
 fn propagate_buffer(
     mut attribute_buffer: Vec<String>,
     to_propagate: &[(usize, AttrVal)],
@@ -53,6 +66,7 @@ fn propagate_buffer(
     attribute_buffer
 }
 fn file_change(mut world: World) -> World {
+    let attr_buffers = get_buffers(&world);
     let annos = get_annos_mut(&mut world).map(mem::take);
     let data = get_specific_mut(&mut world);
 
@@ -64,11 +78,6 @@ fn file_change(mut world: World) -> World {
         }
 
         // put string representations of the attribute values into the buffer
-        let attr_buffers: Vec<String> = data
-            .attr_names()
-            .iter()
-            .map(|attr_name| annos.get(attr_name).unwrap().to_string())
-            .collect();
         let attr_buffers = propagate_buffer(attr_buffers, &data.to_propagate_attr_val);
         for (i, buffer) in attr_buffers.into_iter().enumerate() {
             *data.attr_value_buffer_mut(i) = buffer;
@@ -267,6 +276,12 @@ impl Manipulate for Attributes {
                 if let Some(d) = data {
                     d.merge_map(imported_map);
                 }
+            }
+            let annos = get_annos(&mut world).cloned();
+            let attr_buffer = get_buffers(&world);
+            if let (Some(data), Some(annos)) = (get_specific_mut(&mut world), annos) {
+                data.current_attr_map = Some(annos);
+                data.set_new_attr_value_buffer(attr_buffer);
             }
         }
         if let Some(import_trigger) =

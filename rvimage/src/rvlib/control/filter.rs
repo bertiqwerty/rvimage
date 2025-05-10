@@ -244,7 +244,7 @@ impl MatchLiteral for PathMatcher {
             None
         } else {
             exmex::lazy_static::lazy_static! {
-                static ref RE_VAR_NAME_EXACT: exmex::regex::Regex = exmex::regex::Regex::new(r"^[a-zA-z0-9\\/\-: ]+").unwrap();
+                static ref RE_VAR_NAME_EXACT: exmex::regex::Regex = exmex::regex::Regex::new(r"^[a-zA-z0-9\\/\-:. ]+").unwrap();
             }
             RE_VAR_NAME_EXACT.find(text).map(|m| m.as_str())
         }
