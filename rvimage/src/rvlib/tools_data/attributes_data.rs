@@ -165,6 +165,9 @@ impl AttrMap {
     pub fn keys(&self) -> impl Iterator<Item = &String> {
         self.data.keys()
     }
+    pub fn values(&self) -> impl Iterator<Item = &AttrVal> {
+        self.data.values()
+    }
     pub fn remove(&mut self, name: &str) -> Option<AttrVal> {
         self.data.remove(name)
     }
@@ -309,10 +312,12 @@ impl AttributesToolData {
     pub fn merge_map(&mut self, other: AttrAnnotationsMap) {
         for (filename, (attrmap_other, _)) in other {
             if let Some((attr_map_self, _)) = self.annotations_map.get_mut(&filename) {
-                tracing::warn!("Merging {filename} annotations");
+                tracing::debug!("Merging {filename} annotations");
                 *attr_map_self = merge_attrmaps(mem::take(attr_map_self), attrmap_other);
             } else {
-                tracing::warn!("Merging {filename} annotations");
+                tracing::debug!("Inserting {filename} annotations");
+                self.annotations_map
+                    .insert(filename.clone(), (attrmap_other, ShapeI::default()));
             }
         }
     }
@@ -393,7 +398,7 @@ impl AttributesToolData {
                 annotations_map.insert(key.clone(), (attr_map, ShapeI::default()));
             }
         }
-        tracing::warn!("Annotations map: {annotations_map:#?}");
+        tracing::debug!("Annotations map: {annotations_map:?}");
         Ok(annotations_map)
     }
     pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {

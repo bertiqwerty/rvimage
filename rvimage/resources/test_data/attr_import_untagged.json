@@ -1,0 +1,15 @@
+{
+    "path/file1.jpg": {
+        "attr1": 22.9,
+        "attr2": 22.1,
+        "attr3": "Hallo",
+        "attr4": true,
+        "attr5": 123
+    },
+    "path/file2.jpg": {
+        "attr1": 44.5,
+        "attr2": 44.65,
+        "attr3": "Hallo2",
+        "attr4": false
+    }
+}

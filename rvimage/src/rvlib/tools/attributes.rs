@@ -255,8 +255,9 @@ impl Manipulate for Attributes {
                         let data = get_specific_mut(&mut world);
                         if let Some(d) = data {
                             d.new_attr_name = attr_name.clone();
-                            d.new_attr_val = attr_val.clone();
+                            d.new_attr_val = attr_val.clone().reset();
                         }
+                        tracing::debug!("inserting attr {attr_name} with value {attr_val}");
                         world = add_attribute(world, true);
                     }
                 }
@@ -275,4 +276,65 @@ impl Manipulate for Attributes {
         }
         make_tool_transform!(self, world, history, event, [])
     }
+}
+#[cfg(test)]
+use {
+    crate::tracing_setup::init_tracing_for_tests, crate::types::ViewImage, image::DynamicImage,
+    std::collections::HashMap, std::fs, std::path::Path,
+};
+#[cfg(test)]
+pub(super) fn test_data() -> (World, History) {
+    use std::path::Path;
+
+    use crate::ToolsDataMap;
+
+    let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
+    let mut world = World::from_real_im(
+        im_test,
+        ToolsDataMap::new(),
+        None,
+        Some("superimage.png".to_string()),
+        Path::new("superimage.png"),
+        Some(0),
+    );
+    world.data.meta_data.flags.is_loading_screen_active = Some(false);
+
+    let history = History::default();
+    (world, history)
+}
+#[test]
+fn test_import_export() {
+    init_tracing_for_tests();
+    fn test(testpath: &Path) {
+        let (mut world, history) = test_data();
+        let data = get_specific_mut(&mut world).unwrap();
+        let json_str = fs::read_to_string(testpath).unwrap();
+        let reference_data = AttributesToolData::deserialize_annotations(&json_str, None).unwrap();
+        tracing::debug!("reference_data: {:?}", reference_data);
+        data.export_path.path = testpath.to_path_buf();
+        data.options.import_export_trigger.trigger_import();
+        let events = Events::default();
+        let (world, _) = Attributes {}.events_tf(world, history, &events);
+        let annos = world.data.tools_data_map[ACTOR_NAME]
+            .specifics
+            .attributes()
+            .unwrap()
+            .anno_iter()
+            .collect::<HashMap<_, _>>();
+        tracing::debug!("annos: {:?}", annos);
+        for k in reference_data.keys() {
+            tracing::debug!("k: {:?}", k);
+            let (annos, _) = annos.get(k).unwrap();
+            let (ref_annos, _) = &reference_data[k];
+            assert_eq!(annos, ref_annos);
+        }
+        let current = get_annos(&world).unwrap();
+        for v in current.values() {
+            assert!(v.is_default());
+        }
+    }
+    let testpath = Path::new("resources/test_data/attr_import.json");
+    test(testpath);
+    let testpath = Path::new("resources/test_data/attr_import_untagged.json");
+    test(testpath);
 }

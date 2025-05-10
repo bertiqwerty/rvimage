@@ -1,0 +1,24 @@
+{
+    "path/file1.jpg": {
+        "attr1": {
+            "Float": 22.9
+        },
+        "attr2": {
+            "Float": 22.1
+        },
+        "attr3": {
+            "Int": 22
+        }
+    },
+    "path/file2.jpg": {
+        "attr1": {
+            "Float": 44.5
+        },
+        "attr2": {
+            "Float": 44.65
+        },
+        "attr3": {
+            "Int": 22
+        }
+    }
+}
