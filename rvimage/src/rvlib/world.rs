@@ -210,7 +210,7 @@ macro_rules! annotations_accessor_mut {
             // we update the shape of the image on each mutable annotation access
             // annotations can be wrong when the image is changed after the annotation has been created
             // or if in case of the attriubte tool the image shape is not necessary and just write dummy
-            // numbers are written. 
+            // numbers are written.
             get_annos_mut(world);
         }
     };

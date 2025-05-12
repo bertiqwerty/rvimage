@@ -347,7 +347,6 @@ impl Manipulate for Bbox {
         (world, history)
     }
     fn on_filechange(&mut self, mut world: World, mut history: History) -> (World, History) {
-
         use_currentimageshape_for_annos(&mut world);
 
         let bbox_data = get_specific_mut(&mut world);
