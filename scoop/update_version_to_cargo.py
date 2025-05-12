@@ -3,11 +3,15 @@ from pathlib import Path
 import tomllib
 import urllib.request
 import click
+import git
 
 
 @click.command()
 @click.argument("bucketpath", type=click.Path(exists=True, file_okay=False))
 def main(bucketpath: str):
+    repo = git.Repo(bucketpath)
+    repo.remotes.origin.pull()
+
     manifest = Path(f"{bucketpath}/rvimage.json")
     with open(manifest, "r") as f:
         scoop_data = json.load(f)
@@ -37,6 +41,10 @@ def main(bucketpath: str):
     print(scoop_data)
     with open(manifest, "w") as f:
         json.dump(scoop_data, f, indent=4)
+
+    repo.index.add([manifest])
+    repo.index.commit(f"Update version to {new_version}")
+    repo.remotes.origin.push()
 
 
 if __name__ == "__main__":
