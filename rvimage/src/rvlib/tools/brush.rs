@@ -507,6 +507,9 @@ impl Manipulate for Brush {
     }
 
     fn on_filechange(&mut self, mut world: World, mut history: History) -> (World, History) {
+
+        use_currentimageshape_for_annos(&mut world);
+
         let brush_data = get_specific_mut(&mut world);
         if let Some(brush_data) = brush_data {
             for (_, (anno, _)) in brush_data.anno_iter_mut() {

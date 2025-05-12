@@ -206,6 +206,13 @@ macro_rules! annotations_accessor_mut {
             let is_no_anno_fine = world.data.meta_data.flags.is_file_list_empty == Some(true);
             get_annos_mut_(world, is_no_anno_fine)
         }
+        pub fn use_currentimageshape_for_annos(world: &mut World) {
+            // we update the shape of the image on each mutable annotation access
+            // annotations can be wrong when the image is changed after the annotation has been created
+            // or if in case of the attriubte tool the image shape is not necessary and just write dummy
+            // numbers are written. 
+            get_annos_mut(world);
+        }
     };
 }
 

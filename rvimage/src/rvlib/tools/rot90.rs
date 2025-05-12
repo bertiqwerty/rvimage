@@ -98,6 +98,7 @@ impl Manipulate for Rot90 {
     }
 
     fn on_filechange(&mut self, mut world: World, history: History) -> (World, History) {
+        use_currentimageshape_for_annos(&mut world);
         if let Some(nrot) = get_annos_if_some(&world).copied() {
             let skip_annos = true;
             world = rot90(world, nrot, skip_annos);

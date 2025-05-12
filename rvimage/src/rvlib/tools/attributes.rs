@@ -65,6 +65,7 @@ fn propagate_buffer(
     attribute_buffer
 }
 fn file_change(mut world: World) -> World {
+    use_currentimageshape_for_annos(&mut world);
     let attr_buffers = get_buffers(&world);
     let annos = get_annos_mut(&mut world).map(mem::take);
     let data = get_specific_mut(&mut world);
