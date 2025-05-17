@@ -706,6 +706,8 @@ fn export_coco_via_cli(
     per_file_crowd: bool,
 ) -> RvResult<(Vec<ExportPath>, MetaData, Option<Rot90ToolData>)> {
     let mut ctrl = Control::default();
+    let cfg = Cfg::with_unique_folders();
+    ctrl.cfg = cfg;
     let tdm = ctrl.load(in_prj_path.to_path_buf())?;
     let meta_data = ctrl.meta_data(None, None);
     let rot90 = tdm

@@ -273,7 +273,7 @@ pub struct CfgUsr {
     #[serde(default = "get_image_change_delay_on_held_key_ms")]
     pub image_change_delay_on_held_key_ms: u64,
 
-    // This is only variable to make tests not override your config.
+    // This is only variable to make the CLI and tests not override your config.
     // You shall not change this when actually running RV Image.
     pub home_folder: Option<String>,
 
@@ -302,6 +302,18 @@ pub struct Cfg {
 }
 
 impl Cfg {
+    /// for multiple cli instances to run in parallel
+    pub fn with_unique_folders() -> Self {
+        let mut cfg = Self::default();
+        let uuid_str = format!("{}", uuid::Uuid::new_v4());
+        let tmpdir_str = DEFAULT_TMPDIR
+            .to_str()
+            .expect("default tmpdir does not exist. cannot work without")
+            .to_string();
+        cfg.usr.tmpdir = Some(format!("{tmpdir_str}/rvimage_tmp_{uuid_str}"));
+        cfg.usr.home_folder = Some(format!("{tmpdir_str}/rvimage_home_{uuid_str}"));
+        cfg
+    }
     pub fn ssh_cfg(&self) -> SshCfg {
         SshCfg {
             usr: self.usr.ssh.clone(),

@@ -9,6 +9,7 @@ use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{BBOX_NAME, BRUSH_NAME};
 use crate::tools_data::{coco_io::read_coco, ToolSpecifics, ToolsDataMap};
+use crate::util::version_label;
 use crate::world::World;
 use crate::{
     cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
@@ -645,6 +646,7 @@ impl Control {
         let homefolder = self.cfg.home_folder();
         let log_folder = get_log_folder(Path::new(homefolder));
         tracing::info!("exporting logs from {log_folder:?} to {dst:?}");
+        tracing::info!("RV Image version {}", version_label());
         let elf = log_folder.clone();
         let dst = dst.to_path_buf();
         thread::spawn(move || {
