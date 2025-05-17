@@ -49,7 +49,13 @@ fn get_buffers(world: &World) -> Vec<String> {
     if let (Some(data), Some(annos)) = (data, annos) {
         data.attr_names()
             .iter()
-            .map(|attr_name| annos.get(attr_name).unwrap().to_string())
+            .map(|attr_name| {
+                if let Some(attrval) = annos.get(attr_name) {
+                    attrval.to_string()
+                } else {
+                    "".to_string()
+                }
+            })
             .collect()
     } else {
         vec![]
