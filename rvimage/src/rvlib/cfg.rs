@@ -1,6 +1,7 @@
 use crate::{
     cache::FileCacheCfgArgs,
     file_util::{self, path_to_str, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR},
+    result::trace_ok_err,
     sort_params::SortParams,
     ssh,
 };
@@ -311,7 +312,22 @@ impl Cfg {
             .expect("default tmpdir does not exist. cannot work without")
             .to_string();
         cfg.usr.tmpdir = Some(format!("{tmpdir_str}/rvimage_tmp_{uuid_str}"));
-        cfg.usr.home_folder = Some(format!("{tmpdir_str}/rvimage_home_{uuid_str}"));
+        let tmp_homedir = format!("{tmpdir_str}/rvimage_home_{uuid_str}");
+
+        // copy user cfg to tmp homedir
+        trace_ok_err(fs::create_dir_all(&tmp_homedir));
+        if let Some(home_folder) = &cfg.usr.home_folder {
+            let usrcfg_path = get_cfg_path_usr(Path::new(home_folder));
+            if usrcfg_path.exists() {
+                if let Some(filename) = usrcfg_path.file_name() {
+                    trace_ok_err(fs::copy(
+                        &usrcfg_path,
+                        Path::new(&tmp_homedir).join(filename),
+                    ));
+                }
+            }
+        }
+        cfg.usr.home_folder = Some(tmp_homedir);
         cfg
     }
     pub fn ssh_cfg(&self) -> SshCfg {
