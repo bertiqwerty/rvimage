@@ -117,7 +117,7 @@ fn test() {
         .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to start FastAPI server");
-    thread::sleep(Duration::from_secs(2));
+    thread::sleep(Duration::from_secs(5));
     let w = RestWand::new("http://localhost:8000/predict".into(), None);
     let p = format!("{}/resources/rvimage-logo.png", manifestdir);
     w.predict(ImageForPrediction::ImagePath(Path::new(&p)), None)
