@@ -101,13 +101,14 @@ use std::{
 
 #[test]
 fn test() {
+    let manifestdir = env!("CARGO_MANIFEST_DIR");
     let script = format!(
         r#"
         cd {}/../rest-testserver
         uv sync
         uv run fastapi run run.py&
     "#,
-        env!("CARGO_MANIFEST_DIR")
+        manifestdir
     );
     let mut child = Command::new("bash")
         .arg("-c")
@@ -118,11 +119,11 @@ fn test() {
         .expect("failed to start FastAPI server");
     thread::sleep(Duration::from_secs(2));
     let w = RestWand::new("http://localhost:8000/predict".into(), None);
-    let p = "/Users/b/prj/rvimage/rvimage/resources/rvimage-logo.png";
+    let p = format!("{}/resources/rvimage-logo.png", manifestdir);
     let data = CocoExportData::default();
     println!("{data:?}");
     println!("{:#?}", serde_json::to_string(&data));
-    w.predict(ImageForPrediction::ImagePath(Path::new(p)), None)
+    w.predict(ImageForPrediction::ImagePath(Path::new(&p)), None)
         .unwrap();
     child.kill().expect("Failed to kill the server");
 }
