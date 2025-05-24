@@ -105,7 +105,7 @@ fn test() {
         r#"
         cd {}/../rest-testserver
         uv sync
-        fastapi run run.py&
+        uv run fastapi run run.py&
     "#,
         env!("CARGO_MANIFEST_DIR")
     );
