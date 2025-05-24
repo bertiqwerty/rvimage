@@ -120,9 +120,6 @@ fn test() {
     thread::sleep(Duration::from_secs(2));
     let w = RestWand::new("http://localhost:8000/predict".into(), None);
     let p = format!("{}/resources/rvimage-logo.png", manifestdir);
-    let data = CocoExportData::default();
-    println!("{data:?}");
-    println!("{:#?}", serde_json::to_string(&data));
     w.predict(ImageForPrediction::ImagePath(Path::new(&p)), None)
         .unwrap();
     child.kill().expect("Failed to kill the server");
