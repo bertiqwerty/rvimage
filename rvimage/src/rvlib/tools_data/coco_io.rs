@@ -29,7 +29,7 @@ use super::{
     BboxToolData, BrushToolData, InstanceAnnotate, InstanceExportData, Rot90ToolData,
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct CocoInfo {
     description: String,
 }
@@ -190,7 +190,7 @@ impl<'a> WarnerCounting<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CocoExportData {
     info: CocoInfo,
     images: Vec<CocoImage>,

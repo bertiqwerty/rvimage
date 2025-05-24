@@ -5,8 +5,8 @@ mod brush;
 mod core;
 mod instance_anno_shared;
 mod rot90;
-mod zoom;
 mod wand;
+mod zoom;
 use crate::{
     history::{History, Record},
     tools_data::{AttributesToolData, BboxToolData, BrushToolData, VisibleInactiveToolsState},
