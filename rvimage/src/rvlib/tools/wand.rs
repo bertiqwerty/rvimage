@@ -17,9 +17,20 @@ pub enum ImageForPrediction<'a> {
 
 #[allow(dead_code)]
 pub trait Wand {
+    /// Prediction for predictive labelling
+    ///
+    /// # Arguments
+    ///
+    /// * im: path to image or loaded image instance, implementations
+    ///   of [`Wand`] might return an error if an unsupported option is passed.
+    /// * label_names: all the labels we want to have predictions for
+    /// * annotations: currently available annotations, optionally to be used by
+    ///   implementations of [`Wand`]
+    ///
     fn predict(
         &self,
         im: ImageForPrediction,
+        label_name: &[&str],
         annotations: Option<&CocoExportData>,
     ) -> RvResult<CocoExportData>;
 }
@@ -53,6 +64,7 @@ impl Wand for RestWand {
     fn predict(
         &self,
         im: ImageForPrediction,
+        label_names: &[&str],
         annotations: Option<&CocoExportData>,
     ) -> RvResult<CocoExportData> {
         match im {
@@ -78,9 +90,13 @@ impl Wand for RestWand {
                             .map_err(to_rv)?,
                         ),
                     );
+                let paramsquery = label_names.iter().map(|n| format!("label_names={n}")).reduce(|l1, l2| format!("{l1}&{l2}"));
+                let paramsquery = paramsquery.map(|pq| format!("?{pq}")).unwrap_or_default();
+                let url = format!("{}{}",self.url, paramsquery);
 
+                tracing::debug!("URL {url}");
                 self.client
-                    .post(&self.url)
+                    .post(&url)
                     .headers(self.headers.clone())
                     .multipart(form)
                     .send()
@@ -93,6 +109,8 @@ impl Wand for RestWand {
 }
 
 #[cfg(test)]
+use crate::tracing_setup::init_tracing_for_tests;
+#[cfg(test)]
 use std::{
     process::{Command, Stdio},
     thread,
@@ -101,6 +119,7 @@ use std::{
 
 #[test]
 fn test() {
+    init_tracing_for_tests();
     let manifestdir = env!("CARGO_MANIFEST_DIR");
     let script = format!(
         r#"
@@ -120,7 +139,11 @@ fn test() {
     thread::sleep(Duration::from_secs(5));
     let w = RestWand::new("http://127.0.0.1:8000/predict".into(), None);
     let p = format!("{}/resources/rvimage-logo.png", manifestdir);
-    w.predict(ImageForPrediction::ImagePath(Path::new(&p)), None)
-        .unwrap();
+    w.predict(
+        ImageForPrediction::ImagePath(Path::new(&p)),
+        &["some_label"],
+        None,
+    )
+    .unwrap();
     child.kill().expect("Failed to kill the server");
 }

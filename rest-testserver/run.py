@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Annotated
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, Query, UploadFile
 from pydantic import BaseModel
 import cv2
 import numpy as np
@@ -71,7 +71,9 @@ async def ping():
 async def predict(
     image: Annotated[UploadFile, File(...)],
     annotations: Annotated[str, Form(...)],
+    label_names: Annotated[list[str] | None, Query()] = None,
 ):
+    assert label_names == ["some_label"]
     bytes = await image.read()
     np_bytes = np.frombuffer(bytes, np.uint8)
     im = cv2.imdecode(np_bytes, cv2.IMREAD_COLOR)  # BGR format
