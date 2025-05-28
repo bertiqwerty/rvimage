@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from datetime import datetime
+import json
 from typing import Annotated
 from fastapi import FastAPI, File, Form, Query, UploadFile
 from pydantic import BaseModel
@@ -62,6 +63,10 @@ class Coco(BaseModel):
     categories: Sequence[Category]
 
 
+class AttrVal(BaseModel):
+    pass
+
+
 @app.get("/ping")
 async def ping():
     return "pong"
@@ -70,6 +75,7 @@ async def ping():
 @app.post("/predict")
 async def predict(
     image: Annotated[UploadFile, File(...)],
+    parameters: Annotated[str, Form(...)],
     annotations: Annotated[str, Form(...)],
     label_names: Annotated[list[str] | None, Query()] = None,
 ):
@@ -79,4 +85,5 @@ async def predict(
     im = cv2.imdecode(np_bytes, cv2.IMREAD_COLOR)  # BGR format
     im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     coco = Coco.model_validate_json(annotations)
+    parameters = json.loads(parameters)
     return coco

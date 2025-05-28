@@ -7,6 +7,7 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use rvimage_domain::{rverr, to_rv, RvResult};
 
 use crate::result::trace_ok_err;
+use crate::tools_data::attributes_data::AttrMap;
 use crate::{file_util, tools_data::coco_io::CocoExportData};
 
 #[allow(dead_code)]
@@ -31,6 +32,7 @@ pub trait Wand {
         &self,
         im: ImageForPrediction,
         label_name: &[&str],
+        parameters: Option<&AttrMap>,
         annotations: Option<&CocoExportData>,
     ) -> RvResult<CocoExportData>;
 }
@@ -65,6 +67,7 @@ impl Wand for RestWand {
         &self,
         im: ImageForPrediction,
         label_names: &[&str],
+        parameters: Option<&AttrMap>,
         annotations: Option<&CocoExportData>,
     ) -> RvResult<CocoExportData> {
         match im {
@@ -74,27 +77,33 @@ impl Wand for RestWand {
             ImageForPrediction::ImagePath(path) => {
                 let image_bytes = std::fs::read(path).map_err(to_rv)?;
                 let filename = file_util::to_name_str(path)?.to_string();
+                let anno_json_str = if let Some(annos) = annotations {
+                    serde_json::to_string(annos)
+                } else {
+                    serde_json::to_string(&CocoExportData::default())
+                }
+                .map_err(to_rv)?;
+                let param_json_str = if let Some(p) = parameters {
+                    serde_json::to_string(p)
+                } else {
+                    serde_json::to_string(&AttrMap::default())
+                }.map_err(to_rv)?;
                 let form = multipart::Form::new()
                     .part(
                         "image",
-                        multipart::Part::bytes(image_bytes).file_name(filename),
+                        multipart::Part::bytes(image_bytes).file_name(filename)
                     )
+                    .part("parameters", multipart::Part::text(param_json_str))
                     .part(
                         "annotations",
-                        multipart::Part::text(
-                            if let Some(annos) = annotations {
-                                serde_json::to_string(annos)
-                            } else {
-                                serde_json::to_string(&CocoExportData::default())
-                            }
-                            .map_err(to_rv)?,
-                        ),
+                        multipart::Part::text(anno_json_str)
                     );
-                let paramsquery = label_names.iter().map(|n| format!("label_names={n}")).reduce(|l1, l2| format!("{l1}&{l2}"));
+                let paramsquery = label_names
+                    .iter()
+                    .map(|n| format!("label_names={n}")).reduce(|l1, l2| format!("{l1}&{l2}"));
                 let paramsquery = paramsquery.map(|pq| format!("?{pq}")).unwrap_or_default();
                 let url = format!("{}{}",self.url, paramsquery);
 
-                tracing::debug!("URL {url}");
                 self.client
                     .post(&url)
                     .headers(self.headers.clone())
@@ -108,6 +117,8 @@ impl Wand for RestWand {
     }
 }
 
+#[cfg(test)]
+use crate::tools_data::attributes_data::AttrVal;
 #[cfg(test)]
 use crate::tracing_setup::init_tracing_for_tests;
 #[cfg(test)]
@@ -139,9 +150,13 @@ fn test() {
     thread::sleep(Duration::from_secs(5));
     let w = RestWand::new("http://127.0.0.1:8000/predict".into(), None);
     let p = format!("{}/resources/rvimage-logo.png", manifestdir);
+    let mut m = AttrMap::new();
+    m.insert("some_param".into(), AttrVal::Float(Some(1.0)));
+
     w.predict(
         ImageForPrediction::ImagePath(Path::new(&p)),
         &["some_label"],
+        Some(&m),
         None,
     )
     .unwrap();
