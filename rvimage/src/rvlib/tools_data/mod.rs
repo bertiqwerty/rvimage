@@ -23,6 +23,7 @@ pub mod brush_data;
 pub mod coco_io;
 mod core;
 mod label_map;
+pub mod parameters;
 mod plot_stats;
 pub mod rot90_data;
 pub use core::{merge, AnnotationsMap, InstanceLabelDisplay, Options as CoreOptions};

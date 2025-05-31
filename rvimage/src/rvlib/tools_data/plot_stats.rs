@@ -9,14 +9,14 @@ use crate::{
 
 use super::{
     annotations::InstanceAnnotations,
-    attributes_data::{AttrMap, AttrVal},
+    attributes_data::{ParamMap, ParamVal},
     AccessInstanceData, AttributesToolData, BboxToolData, BrushToolData, InstanceAnnotate,
 };
 
 fn iter_attributes_of_files<'a>(
     atd: &'a AttributesToolData,
     filepaths: &'a [(usize, &PathPair)],
-) -> impl Iterator<Item = (usize, &'a AttrMap)> + 'a {
+) -> impl Iterator<Item = (usize, &'a ParamMap)> + 'a {
     atd.anno_iter()
         .filter_map(move |(anno_key_filename, (attrmap, _))| {
             if let Some((idx, _)) = filepaths
@@ -137,12 +137,12 @@ impl PlotAnnotationStats<Canvas> for BrushToolData {
         Ok(HashMap::from([(BRUSH_NAME.into(), plt)]))
     }
 }
-impl PlotAnnotationStats<AttrMap> for AttributesToolData {
+impl PlotAnnotationStats<ParamMap> for AttributesToolData {
     fn plot(
         &self,
         selected: &HashMap<String, bool>,
         filepaths: &[(usize, &PathPair)],
-        _pred: &impl Fn(&AttrMap) -> bool,
+        _pred: &impl Fn(&ParamMap) -> bool,
     ) -> RvResult<HashMap<String, Vec<PtF>>> {
         let mut output_plots = HashMap::new();
         for (selected_attr, is_selected) in selected.iter() {
@@ -152,10 +152,10 @@ impl PlotAnnotationStats<AttrMap> for AttributesToolData {
                     let value = attr_map.get(selected_attr);
                     if let Some(value) = value {
                         let y = match value {
-                            AttrVal::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
-                            AttrVal::Float(x) => *x,
-                            AttrVal::Int(n) => n.map(|n| n as f64),
-                            AttrVal::Str(s) => Some(s.len() as f64),
+                            ParamVal::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+                            ParamVal::Float(x) => *x,
+                            ParamVal::Int(n) => n.map(|n| n as f64),
+                            ParamVal::Str(s) => Some(s.len() as f64),
                         };
                         if let Some(y) = y {
                             plot.push(PtF {

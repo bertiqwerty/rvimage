@@ -9,7 +9,7 @@ use crate::{
     make_tool_transform,
     result::trace_ok_err,
     tools_data::{
-        attributes_data::{set_attrmap_val, AttrMap, AttrVal},
+        attributes_data::{set_attrmap_val, ParamMap, ParamVal},
         AttributesToolData,
     },
     tools_data_accessors,
@@ -19,8 +19,13 @@ use crate::{
 use std::mem;
 const MISSING_DATA_MSG: &str = "Missing data for Attributes";
 pub const ACTOR_NAME: &str = "Attributes";
-annotations_accessor_mut!(ACTOR_NAME, attributes_mut, "Attribute didn't work", AttrMap);
-world_annotations_accessor!(ACTOR_NAME, attributes, "Attribute didn't work", AttrMap);
+annotations_accessor_mut!(
+    ACTOR_NAME,
+    attributes_mut,
+    "Attribute didn't work",
+    ParamMap
+);
+world_annotations_accessor!(ACTOR_NAME, attributes, "Attribute didn't work", ParamMap);
 tools_data_accessors!(
     ACTOR_NAME,
     MISSING_DATA_MSG,
@@ -31,10 +36,10 @@ tools_data_accessors!(
 );
 
 fn propagate_annos(
-    mut annos: AttrMap,
+    mut annos: ParamMap,
     attr_names: &[String],
-    to_propagate: &[(usize, AttrVal)],
-) -> AttrMap {
+    to_propagate: &[(usize, ParamVal)],
+) -> ParamMap {
     for (attr_idx, val) in to_propagate {
         if let Some(attr_val) = annos.get_mut(&attr_names[*attr_idx]) {
             *attr_val = val.clone();
@@ -63,7 +68,7 @@ fn get_buffers(world: &World) -> Vec<String> {
 }
 fn propagate_buffer(
     mut attribute_buffer: Vec<String>,
-    to_propagate: &[(usize, AttrVal)],
+    to_propagate: &[(usize, ParamVal)],
 ) -> Vec<String> {
     for (attr_idx, val) in to_propagate {
         attribute_buffer[*attr_idx] = val.to_string();
@@ -127,7 +132,7 @@ fn add_attribute(mut world: World, suppress_exists_err: bool) -> World {
     if let Some(data) = get_specific_mut(&mut world) {
         data.options.is_addition_triggered = false;
         data.new_attr_name = String::new();
-        data.new_attr_val = AttrVal::default();
+        data.new_attr_val = ParamVal::default();
     }
     world
 }

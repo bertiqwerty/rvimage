@@ -7,7 +7,7 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use rvimage_domain::{rverr, to_rv, RvResult};
 
 use crate::result::trace_ok_err;
-use crate::tools_data::attributes_data::AttrMap;
+use crate::tools_data::attributes_data::ParamMap;
 use crate::{file_util, tools_data::coco_io::CocoExportData};
 
 #[allow(dead_code)]
@@ -32,7 +32,7 @@ pub trait Wand {
         &self,
         im: ImageForPrediction,
         label_name: &[&str],
-        parameters: Option<&AttrMap>,
+        parameters: Option<&ParamMap>,
         annotations: Option<&CocoExportData>,
     ) -> RvResult<CocoExportData>;
 }
@@ -67,7 +67,7 @@ impl Wand for RestWand {
         &self,
         im: ImageForPrediction,
         label_names: &[&str],
-        parameters: Option<&AttrMap>,
+        parameters: Option<&ParamMap>,
         annotations: Option<&CocoExportData>,
     ) -> RvResult<CocoExportData> {
         match im {
@@ -86,7 +86,7 @@ impl Wand for RestWand {
                 let param_json_str = if let Some(p) = parameters {
                     serde_json::to_string(p)
                 } else {
-                    serde_json::to_string(&AttrMap::default())
+                    serde_json::to_string(&ParamMap::default())
                 }.map_err(to_rv)?;
                 let form = multipart::Form::new()
                     .part(
@@ -118,7 +118,7 @@ impl Wand for RestWand {
 }
 
 #[cfg(test)]
-use crate::tools_data::attributes_data::AttrVal;
+use crate::tools_data::attributes_data::ParamVal;
 #[cfg(test)]
 use crate::tracing_setup::init_tracing_for_tests;
 #[cfg(test)]
@@ -150,8 +150,8 @@ fn test() {
     thread::sleep(Duration::from_secs(5));
     let w = RestWand::new("http://127.0.0.1:8000/predict".into(), None);
     let p = format!("{}/resources/rvimage-logo.png", manifestdir);
-    let mut m = AttrMap::new();
-    m.insert("some_param".into(), AttrVal::Float(Some(1.0)));
+    let mut m = ParamMap::new();
+    m.insert("some_param".into(), ParamVal::Float(Some(1.0)));
 
     w.predict(
         ImageForPrediction::ImagePath(Path::new(&p)),

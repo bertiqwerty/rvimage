@@ -30,35 +30,35 @@ pub const ATTR_INTERVAL_SEPARATOR: &str = "-";
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 #[serde(untagged)]
-pub enum AttrValUntagged {
+pub enum ParamValUntagged {
     Float(Option<TPtF>),
     Int(Option<TPtS>),
     Str(String),
     Bool(bool),
 }
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
-pub enum AttrVal {
+pub enum ParamVal {
     Float(Option<TPtF>),
     Int(Option<TPtS>),
     Str(String),
     Bool(bool),
 }
 
-impl AttrVal {
+impl ParamVal {
     pub fn reset(self) -> Self {
         match self {
-            AttrVal::Float(_) => Self::Float(None),
-            AttrVal::Int(_) => Self::Int(None),
-            AttrVal::Str(_) => Self::Str(String::new()),
-            AttrVal::Bool(_) => Self::Bool(false),
+            ParamVal::Float(_) => Self::Float(None),
+            ParamVal::Int(_) => Self::Int(None),
+            ParamVal::Str(_) => Self::Str(String::new()),
+            ParamVal::Bool(_) => Self::Bool(false),
         }
     }
     pub fn is_default(&self) -> bool {
         match self {
-            AttrVal::Float(x) => x.is_none(),
-            AttrVal::Int(x) => x.is_none(),
-            AttrVal::Str(x) => x.is_empty(),
-            AttrVal::Bool(x) => !x,
+            ParamVal::Float(x) => x.is_none(),
+            ParamVal::Int(x) => x.is_none(),
+            ParamVal::Str(x) => x.is_empty(),
+            ParamVal::Bool(x) => !x,
         }
     }
     pub fn in_domain_str(&self, domain_str: &str) -> RvResult<bool> {
@@ -75,8 +75,8 @@ impl AttrVal {
             };
         }
         Ok(match self {
-            AttrVal::Float(x) => unwrap_check!(x),
-            AttrVal::Int(x) => unwrap_check!(x),
+            ParamVal::Float(x) => unwrap_check!(x),
+            ParamVal::Int(x) => unwrap_check!(x),
             _ => Err(rverr!(
                 "in_domain_str not implemented for the type of {self}"
             ))?,
@@ -85,19 +85,19 @@ impl AttrVal {
     #[allow(clippy::float_cmp)]
     pub fn corresponds_to_str(&self, attr_val: &str) -> RvResult<bool> {
         Ok(match self {
-            AttrVal::Bool(b) => {
+            ParamVal::Bool(b) => {
                 let attr_val = attr_val.parse::<bool>().map_err(to_rv)?;
                 b == &attr_val
             }
-            AttrVal::Float(x) => {
+            ParamVal::Float(x) => {
                 let attr_val = attr_val.parse::<TPtF>().map_err(to_rv)?;
                 x == &Some(attr_val)
             }
-            AttrVal::Int(x) => {
+            ParamVal::Int(x) => {
                 let attr_val = attr_val.parse::<TPtS>().map_err(to_rv)?;
                 x == &Some(attr_val)
             }
-            AttrVal::Str(s) => {
+            ParamVal::Str(s) => {
                 let attr_val = attr_val.parse::<String>().map_err(to_rv)?;
                 s == &attr_val
             }
@@ -105,59 +105,59 @@ impl AttrVal {
     }
 }
 
-impl Display for AttrVal {
+impl Display for ParamVal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AttrVal::Float(val) => val.map(|val| write!(f, "{val}")).unwrap_or(write!(f, "")),
-            AttrVal::Int(val) => val.map(|val| write!(f, "{val}")).unwrap_or(write!(f, "")),
-            AttrVal::Str(val) => write!(f, "{val}"),
-            AttrVal::Bool(val) => write!(f, "{val}"),
+            ParamVal::Float(val) => val.map(|val| write!(f, "{val}")).unwrap_or(write!(f, "")),
+            ParamVal::Int(val) => val.map(|val| write!(f, "{val}")).unwrap_or(write!(f, "")),
+            ParamVal::Str(val) => write!(f, "{val}"),
+            ParamVal::Bool(val) => write!(f, "{val}"),
         }
     }
 }
-impl Default for AttrVal {
+impl Default for ParamVal {
     fn default() -> Self {
-        AttrVal::Int(None)
+        ParamVal::Int(None)
     }
 }
-impl From<AttrValUntagged> for AttrVal {
-    fn from(attr_val: AttrValUntagged) -> Self {
+impl From<ParamValUntagged> for ParamVal {
+    fn from(attr_val: ParamValUntagged) -> Self {
         match attr_val {
-            AttrValUntagged::Float(x) => AttrVal::Float(x),
-            AttrValUntagged::Int(x) => AttrVal::Int(x),
-            AttrValUntagged::Str(x) => AttrVal::Str(x),
-            AttrValUntagged::Bool(x) => AttrVal::Bool(x),
+            ParamValUntagged::Float(x) => ParamVal::Float(x),
+            ParamValUntagged::Int(x) => ParamVal::Int(x),
+            ParamValUntagged::Str(x) => ParamVal::Str(x),
+            ParamValUntagged::Bool(x) => ParamVal::Bool(x),
         }
     }
 }
 
 // just for deserialization
-pub type AttrMapUntagged = HashMap<String, AttrValUntagged>;
+pub type ParamMapUntagged = HashMap<String, ParamValUntagged>;
 
 // { attribute name: attribute value }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Default)]
-pub struct AttrMap {
+pub struct ParamMap {
     #[serde(flatten)]
-    data: BTreeMap<String, AttrVal>,
+    data: BTreeMap<String, ParamVal>,
 }
-impl AttrMap {
+impl ParamMap {
     pub fn new() -> Self {
         Self {
             data: BTreeMap::new(),
         }
     }
-    pub fn iter(&self) -> impl Iterator<Item = (&String, &AttrVal)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &ParamVal)> {
         self.data.iter()
     }
-    pub fn insert(&mut self, name: String, val: AttrVal) {
+    pub fn insert(&mut self, name: String, val: ParamVal) {
         self.data.insert(name, val);
     }
-    pub fn get(&self, name: &str) -> Option<&AttrVal> {
+    pub fn get(&self, name: &str) -> Option<&ParamVal> {
         self.data
             .iter()
             .find_map(|(n, v)| if n == name { Some(v) } else { None })
     }
-    pub fn get_mut(&mut self, name: &str) -> Option<&mut AttrVal> {
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut ParamVal> {
         self.data
             .iter_mut()
             .find_map(|(n, v)| if n == name { Some(v) } else { None })
@@ -165,10 +165,10 @@ impl AttrMap {
     pub fn keys(&self) -> impl Iterator<Item = &String> {
         self.data.keys()
     }
-    pub fn values(&self) -> impl Iterator<Item = &AttrVal> {
+    pub fn values(&self) -> impl Iterator<Item = &ParamVal> {
         self.data.values()
     }
-    pub fn remove(&mut self, name: &str) -> Option<AttrVal> {
+    pub fn remove(&mut self, name: &str) -> Option<ParamVal> {
         self.data.remove(name)
     }
     pub fn contains(&self, name: &str) -> bool {
@@ -181,15 +181,15 @@ impl AttrMap {
         self.data.is_empty()
     }
 }
-impl From<(String, AttrVal)> for AttrMap {
-    fn from(data: (String, AttrVal)) -> Self {
+impl From<(String, ParamVal)> for ParamMap {
+    fn from(data: (String, ParamVal)) -> Self {
         Self {
             data: BTreeMap::from([data]),
         }
     }
 }
-impl Index<&str> for AttrMap {
-    type Output = AttrVal;
+impl Index<&str> for ParamMap {
+    type Output = ParamVal;
     fn index(&self, index: &str) -> &Self::Output {
         self.data
             .iter()
@@ -197,31 +197,31 @@ impl Index<&str> for AttrMap {
             .unwrap_or_else(|| panic!("Attribute {index} not found"))
     }
 }
-impl IntoIterator for AttrMap {
-    type Item = (String, AttrVal);
-    type IntoIter = btree_map::IntoIter<String, AttrVal>;
+impl IntoIterator for ParamMap {
+    type Item = (String, ParamVal);
+    type IntoIter = btree_map::IntoIter<String, ParamVal>;
     fn into_iter(self) -> Self::IntoIter {
         self.data.into_iter()
     }
 }
-impl Index<&String> for AttrMap {
-    type Output = AttrVal;
+impl Index<&String> for ParamMap {
+    type Output = ParamVal;
     fn index(&self, index: &String) -> &Self::Output {
         &self[index.as_str()]
     }
 }
-impl From<HashMap<String, AttrValUntagged>> for AttrMap {
-    fn from(data: HashMap<String, AttrValUntagged>) -> Self {
+impl From<HashMap<String, ParamValUntagged>> for ParamMap {
+    fn from(data: HashMap<String, ParamValUntagged>) -> Self {
         Self {
             data: data
                 .into_iter()
-                .map(|(k, v)| (k, AttrVal::from(v)))
+                .map(|(k, v)| (k, ParamVal::from(v)))
                 .collect::<BTreeMap<_, _>>(),
         }
     }
 }
 
-pub fn merge_attrmaps(mut existing_map: AttrMap, new_map: AttrMap) -> AttrMap {
+pub fn merge_attrmaps(mut existing_map: ParamMap, new_map: ParamMap) -> ParamMap {
     for (new_name, new_val) in new_map {
         if let Some(existing_val) = existing_map.get_mut(&new_name) {
             if !new_val.is_default() {
@@ -234,9 +234,9 @@ pub fn merge_attrmaps(mut existing_map: AttrMap, new_map: AttrMap) -> AttrMap {
     existing_map
 }
 
-pub type AttrAnnotationsMap = LabelMap<AttrMap>;
+pub type AttrAnnotationsMap = LabelMap<ParamMap>;
 
-pub fn set_attrmap_val(attr_map: &mut AttrMap, attr_name: &str, attr_val: &AttrVal) {
+pub fn set_attrmap_val(attr_map: &mut ParamMap, attr_name: &str, attr_val: &ParamVal) {
     attr_map.insert(attr_name.to_string(), attr_val.clone());
 }
 #[allow(clippy::struct_excessive_bools)]
@@ -256,15 +256,15 @@ pub struct Options {
 pub struct AttributesToolData {
     attr_names: Vec<String>,
     #[serde(alias = "attr_types")]
-    attr_vals: Vec<AttrVal>,
+    attr_vals: Vec<ParamVal>,
     #[serde(skip)]
     pub new_attr_name: String,
     #[serde(skip)]
-    pub new_attr_val: AttrVal,
+    pub new_attr_val: ParamVal,
 
     // attribute index and value for propagation
     #[serde(skip)]
-    pub to_propagate_attr_val: Vec<(usize, AttrVal)>,
+    pub to_propagate_attr_val: Vec<(usize, ParamVal)>,
 
     #[serde(alias = "new_attr_buffers")]
     #[serde(alias = "new_attr_name_buffers")]
@@ -272,18 +272,18 @@ pub struct AttributesToolData {
     // maps the filename to the number of rotations
     annotations_map: AttrAnnotationsMap,
     pub options: Options,
-    pub current_attr_map: Option<AttrMap>,
+    pub current_attr_map: Option<ParamMap>,
     pub export_path: ExportPath,
 }
 impl AttributesToolData {
-    implement_annotations_getters!(AttrMap);
+    implement_annotations_getters!(ParamMap);
     pub fn rename(&mut self, from_name: &str, to_name: &str) {
         if self.attr_names().iter().any(|n| n == to_name) {
             tracing::warn!("Cannot update to {to_name}. Already exists.");
         } else {
             // better solution: use indices the attr_map hashmap keys instead of Strings
             // rename would then be not necessary anymore.
-            let update_attr_map = |attr_map: &mut AttrMap| {
+            let update_attr_map = |attr_map: &mut ParamMap| {
                 let keys = attr_map.keys().cloned().collect::<Vec<_>>();
                 for k in keys {
                     if k == from_name {
@@ -325,7 +325,7 @@ impl AttributesToolData {
         self.merge_map(other.annotations_map);
         self
     }
-    pub fn push(&mut self, attr_name: String, attr_val: AttrVal) {
+    pub fn push(&mut self, attr_name: String, attr_val: ParamVal) {
         if !self.attr_names.contains(&attr_name) {
             self.attr_names.push(attr_name);
             self.attr_vals.push(attr_val);
@@ -343,7 +343,7 @@ impl AttributesToolData {
     pub fn attr_names(&self) -> &Vec<String> {
         &self.attr_names
     }
-    pub fn attr_vals(&self) -> &Vec<AttrVal> {
+    pub fn attr_vals(&self) -> &Vec<ParamVal> {
         &self.attr_vals
     }
     pub fn attr_value_buffer_mut(&mut self, idx: usize) -> &mut String {
@@ -382,13 +382,16 @@ impl AttributesToolData {
         json_str: &str,
         curr_prj_path: Option<&Path>,
     ) -> RvResult<AttrAnnotationsMap> {
-        let am: RvResult<HashMap<String, AttrMap>> = serde_json::from_str(json_str).map_err(to_rv);
-        let am: RvResult<HashMap<String, AttrMap>> = match am {
+        let am: RvResult<HashMap<String, ParamMap>> = serde_json::from_str(json_str).map_err(to_rv);
+        let am: RvResult<HashMap<String, ParamMap>> = match am {
             Ok(am) => Ok(am),
             Err(_) => {
-                let am: HashMap<String, AttrMapUntagged> =
+                let am: HashMap<String, ParamMapUntagged> =
                     serde_json::from_str(json_str).map_err(to_rv)?;
-                Ok(am.into_iter().map(|(k, v)| (k, AttrMap::from(v))).collect())
+                Ok(am
+                    .into_iter()
+                    .map(|(k, v)| (k, ParamMap::from(v)))
+                    .collect())
             }
         };
         let am = am.map_err(to_rv)?;
@@ -407,12 +410,12 @@ impl AttributesToolData {
         tracing::debug!("Annotations map: {annotations_map:?}");
         Ok(annotations_map)
     }
-    pub fn attr_map(&self, filename: &str) -> Option<&AttrMap> {
+    pub fn attr_map(&self, filename: &str) -> Option<&ParamMap> {
         self.annotations_map
             .get(filename)
             .map(|(attr_map, _)| attr_map)
     }
-    pub fn attr_map_mut(&mut self, filename: &str) -> Option<&mut AttrMap> {
+    pub fn attr_map_mut(&mut self, filename: &str) -> Option<&mut ParamMap> {
         self.annotations_map
             .get_mut(filename)
             .map(|(attr_map, _)| attr_map)
@@ -424,7 +427,7 @@ impl AttributesToolData {
         &mut self,
         filename: &str,
         idx: usize,
-        attr_val: AttrVal,
+        attr_val: ParamVal,
         image_shape: ShapeI,
     ) {
         let attr_map = self
@@ -440,7 +443,7 @@ impl AttributesToolData {
                 attr_map.insert(attr_name.clone(), attr_val);
             }
         } else {
-            let attr_map = AttrMap::from((self.attr_names[idx].clone(), attr_val));
+            let attr_map = ParamMap::from((self.attr_names[idx].clone(), attr_val));
             self.annotations_map
                 .insert(filename.to_string(), (attr_map, image_shape));
         }

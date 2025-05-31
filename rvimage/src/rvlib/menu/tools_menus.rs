@@ -13,7 +13,7 @@ use crate::{
     tools::{get_visible_inactive_names, BBOX_NAME, BRUSH_NAME},
     tools_data::{
         annotations::SplitMode,
-        attributes_data::{AttrMap, AttrVal},
+        attributes_data::{ParamMap, ParamVal},
         bbox_data::BboxToolData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportExportTrigger,
@@ -499,26 +499,26 @@ const BOOL_LABEL: &str = "Bool";
 fn add_parameter_menu(
     ui: &mut Ui,
     mut new_param_name: String,
-    mut new_param_val: AttrVal,
+    mut new_param_val: ParamVal,
     existing_param_names: &[String],
     are_tools_active: &mut bool,
-) -> (String, AttrVal, bool) {
+) -> (String, ParamVal, bool) {
     ui.horizontal(|ui| {
         egui::ComboBox::from_label("")
             .selected_text(format!(
                 "{:?}",
                 match new_param_val {
-                    AttrVal::Float(_) => FLOAT_LABEL,
-                    AttrVal::Int(_) => INT_LABEL,
-                    AttrVal::Str(_) => TEXT_LABEL,
-                    AttrVal::Bool(_) => BOOL_LABEL,
+                    ParamVal::Float(_) => FLOAT_LABEL,
+                    ParamVal::Int(_) => INT_LABEL,
+                    ParamVal::Str(_) => TEXT_LABEL,
+                    ParamVal::Bool(_) => BOOL_LABEL,
                 }
             ))
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut new_param_val, AttrVal::Float(None), FLOAT_LABEL);
-                ui.selectable_value(&mut new_param_val, AttrVal::Int(None), INT_LABEL);
-                ui.selectable_value(&mut new_param_val, AttrVal::Str(String::new()), TEXT_LABEL);
-                ui.selectable_value(&mut new_param_val, AttrVal::Bool(false), BOOL_LABEL);
+                ui.selectable_value(&mut new_param_val, ParamVal::Float(None), FLOAT_LABEL);
+                ui.selectable_value(&mut new_param_val, ParamVal::Int(None), INT_LABEL);
+                ui.selectable_value(&mut new_param_val, ParamVal::Str(String::new()), TEXT_LABEL);
+                ui.selectable_value(&mut new_param_val, ParamVal::Bool(false), BOOL_LABEL);
             });
     });
     text_edit_singleline(ui, &mut new_param_name, are_tools_active);
@@ -551,15 +551,15 @@ struct ExistingParamMenuResult {
     action: ExistingParamMenuAction,
     buffers: Vec<String>,
     is_update_triggered: bool,
-    attr_map: AttrMap,
+    attr_map: ParamMap,
 }
 
 fn existing_params_menu(
     ui: &mut Ui,
-    mut attr_map: Option<AttrMap>,
+    mut attr_map: Option<ParamMap>,
     param_names: &[String],
     are_tools_active: &mut bool,
-    mut more_cols: Option<impl FnMut(&mut Ui, bool, usize, AttrVal) -> bool>,
+    mut more_cols: Option<impl FnMut(&mut Ui, bool, usize, ParamVal) -> bool>,
     mut param_buffers: Vec<String>,
 ) -> ExistingParamMenuResult {
     let mut result = ExistingParamMenuResult::default();
@@ -574,12 +574,12 @@ fn existing_params_menu(
                 let mut input_changed = false;
                 if let Some(attr_map) = &mut attr_map {
                     match attr_map.get_mut(&attr_name) {
-                        Some(AttrVal::Bool(b)) => {
+                        Some(ParamVal::Bool(b)) => {
                             if ui.checkbox(b, "").changed() {
                                 input_changed = true;
                             }
                         }
-                        Some(AttrVal::Float(x)) => {
+                        Some(ParamVal::Float(x)) => {
                             input_changed = update_numeric_attribute(
                                 ui,
                                 are_tools_active,
@@ -588,7 +588,7 @@ fn existing_params_menu(
                                 &mut new_attr_buffer,
                             );
                         }
-                        Some(AttrVal::Int(x)) => {
+                        Some(ParamVal::Int(x)) => {
                             input_changed = update_numeric_attribute(
                                 ui,
                                 are_tools_active,
@@ -597,7 +597,7 @@ fn existing_params_menu(
                                 &mut new_attr_buffer,
                             );
                         }
-                        Some(AttrVal::Str(s)) => {
+                        Some(ParamVal::Str(s)) => {
                             input_changed = text_edit_singleline(ui, s, are_tools_active)
                                 .on_hover_text(TEXT_LABEL)
                                 .lost_focus();
@@ -648,7 +648,7 @@ pub fn attributes_menu(
         data.options.is_update_triggered = true;
     }
     let mut to_propagate = mem::take(&mut data.to_propagate_attr_val);
-    let more_cols = |ui: &mut Ui, input_changed: bool, idx_row: usize, attr_val: AttrVal| {
+    let more_cols = |ui: &mut Ui, input_changed: bool, idx_row: usize, attr_val: ParamVal| {
         let mut is_update_triggered = false;
         if input_changed {
             to_propagate.retain(|(idx_attr, _)| *idx_attr != idx_row);
