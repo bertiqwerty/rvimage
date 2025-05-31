@@ -12,6 +12,7 @@ use crate::{
             Mover,
         },
         instance_anno_shared::{check_cocoimport, get_rot90_data},
+        wand::{ImageForPrediction, RestWand, Wand},
         Manipulate, BBOX_NAME,
     },
     tools_data::{
@@ -377,6 +378,23 @@ impl Manipulate for Bbox {
         events: &Events,
     ) -> (World, History) {
         world = check_recolorboxes::<DataAccessors>(world, BBOX_NAME);
+        let d = get_specific(&world);
+        if let Some(d) = d {
+            if d.predictive_labeling_data.is_prediction_triggered {
+                let wand = RestWand::new(d.predictive_labeling_data.url.clone(), None);
+                let im = ImageForPrediction::Image(world.data.im_background());
+                let annos = get_annos(&world);
+                wand.predict(
+                    im,
+                    d.predictive_labeling_data
+                        .label_names
+                        .iter()
+                        .map(|s| s.as_str()),
+                    Some(&d.predictive_labeling_data.parameters),
+                    Some(annos),
+                );
+            }
+        }
 
         (world, history) = check_trigger_history_update::<DataAccessors>(world, history, BBOX_NAME);
 

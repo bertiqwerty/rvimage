@@ -11,4 +11,5 @@ pub struct PredictiveLabelingData {
     pub url: String,
     pub authorization_headers: Option<String>,
     pub is_prediction_triggered: bool,
+    pub label_names: Vec<String>,
 }

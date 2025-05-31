@@ -28,10 +28,10 @@ pub trait Wand {
     /// * annotations: currently available annotations, optionally to be used by
     ///   implementations of [`Wand`]
     ///
-    fn predict(
+    fn predict<'a>(
         &self,
         im: ImageForPrediction,
-        label_name: &[&str],
+        label_name: impl Iterator<Item = &'a str>,
         parameters: Option<&ParamMap>,
         annotations: Option<&CocoExportData>,
     ) -> RvResult<CocoExportData>;
@@ -63,10 +63,10 @@ impl RestWand {
 }
 
 impl Wand for RestWand {
-    fn predict(
+    fn predict<'a>(
         &self,
         im: ImageForPrediction,
-        label_names: &[&str],
+        label_names: impl Iterator<Item = &'a str>,
         parameters: Option<&ParamMap>,
         annotations: Option<&CocoExportData>,
     ) -> RvResult<CocoExportData> {
@@ -99,7 +99,6 @@ impl Wand for RestWand {
                         multipart::Part::text(anno_json_str)
                     );
                 let paramsquery = label_names
-                    .iter()
                     .map(|n| format!("label_names={n}")).reduce(|l1, l2| format!("{l1}&{l2}"));
                 let paramsquery = paramsquery.map(|pq| format!("?{pq}")).unwrap_or_default();
                 let url = format!("{}{}",self.url, paramsquery);
@@ -155,7 +154,7 @@ fn test() {
 
     w.predict(
         ImageForPrediction::ImagePath(Path::new(&p)),
-        &["some_label"],
+        ["some_label"].iter().map(|s| *s),
         Some(&m),
         None,
     )
