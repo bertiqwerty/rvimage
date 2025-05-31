@@ -349,6 +349,9 @@ impl AttributesToolData {
     pub fn attr_value_buffer_mut(&mut self, idx: usize) -> &mut String {
         &mut self.new_attr_value_buffers[idx]
     }
+    pub fn attr_value_buffers_mut(&mut self) -> &mut Vec<String> {
+        &mut self.new_attr_value_buffers
+    }
     pub fn set_new_attr_value_buffer(&mut self, buffer: Vec<String>) {
         self.new_attr_value_buffers = buffer;
     }
