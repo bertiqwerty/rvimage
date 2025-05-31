@@ -10,6 +10,7 @@ use super::{
         AccessInstanceData, AnnotationsMap, CocoSegmentation, ExportAsCoco, InstanceExportData,
         LabelInfo, OUTLINE_THICKNESS_CONVERSION,
     },
+    predictive_labeling::PredictiveLabelingData,
     InstanceAnnotate,
 };
 use crate::{
@@ -55,6 +56,8 @@ pub struct BboxToolData {
     pub coco_file: ExportPath,
     #[serde(skip)]
     pub highlight_circles: Vec<Circle>,
+    #[serde(default)]
+    pub predictive_labeling_data: PredictiveLabelingData,
 }
 
 impl BboxToolData {
@@ -79,6 +82,7 @@ impl BboxToolData {
             },
             coco_file: input_data.coco_file,
             highlight_circles: vec![],
+            predictive_labeling_data: PredictiveLabelingData::default(),
         };
         out_data.set_annotations_map(
             input_data
@@ -113,6 +117,7 @@ impl BboxToolData {
             },
             coco_file: ExportPath::default(),
             highlight_circles: vec![],
+            predictive_labeling_data: PredictiveLabelingData::default(),
         }
     }
 
@@ -186,6 +191,7 @@ impl ExportAsCoco<GeoFig> for BboxToolData {
             },
             coco_file: export_path,
             highlight_circles: vec![],
+            predictive_labeling_data: PredictiveLabelingData::default(),
         }
     }
     fn set_annotations_map(&mut self, map: AnnotationsMap<GeoFig>) -> RvResult<()> {
