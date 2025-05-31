@@ -7,7 +7,7 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use rvimage_domain::{rverr, to_rv, RvResult};
 
 use crate::result::trace_ok_err;
-use crate::tools_data::attributes_data::ParamMap;
+use crate::tools_data::parameters::ParamMap;
 use crate::{file_util, tools_data::coco_io::CocoExportData};
 
 #[allow(dead_code)]
@@ -118,7 +118,7 @@ impl Wand for RestWand {
 }
 
 #[cfg(test)]
-use crate::tools_data::attributes_data::ParamVal;
+use crate::tools_data::parameters::ParamVal;
 #[cfg(test)]
 use crate::tracing_setup::init_tracing_for_tests;
 #[cfg(test)]

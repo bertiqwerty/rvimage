@@ -6,7 +6,7 @@ use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
 use crate::result::ignore_error;
 use crate::tools::ATTRIBUTES_NAME;
 use crate::tools_data::annotations::InstanceAnnotations;
-use crate::tools_data::attributes_data::ATTR_INTERVAL_SEPARATOR;
+use crate::tools_data::parameters::PARAM_INTERVAL_SEPARATOR;
 use crate::tools_data::{Annotate, InstanceAnnotate, ToolSpecifics};
 use crate::tools_data::{LabelInfo, ToolsDataMap};
 
@@ -88,7 +88,7 @@ impl FilterPredicate {
                                     .and_then(|annos| annos.get(attr_name.trim()))
                             })
                         {
-                            if attr_val_str.contains(ATTR_INTERVAL_SEPARATOR) {
+                            if attr_val_str.contains(PARAM_INTERVAL_SEPARATOR) {
                                 match attr_val.in_domain_str(attr_val_str.trim()) {
                                     Ok(b) => {
                                         found = b;

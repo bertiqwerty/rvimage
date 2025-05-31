@@ -13,9 +13,9 @@ use crate::{
     tools::{get_visible_inactive_names, BBOX_NAME, BRUSH_NAME},
     tools_data::{
         annotations::SplitMode,
-        attributes_data::{ParamMap, ParamVal},
         bbox_data::BboxToolData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
+        parameters::{ParamMap, ParamVal},
         AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportExportTrigger,
         InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData, VisibleInactiveToolsState,
         OUTLINE_THICKNESS_CONVERSION,

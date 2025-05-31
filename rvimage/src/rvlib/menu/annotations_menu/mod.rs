@@ -22,8 +22,8 @@ use crate::{
     result::trace_ok_err,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
     tools_data::{
-        attributes_data::ParamVal, AccessInstanceData, AnnotationsMap, AttributesToolData,
-        LabelInfo, ToolSpecifics, ToolsDataMap,
+        parameters::ParamVal, AccessInstanceData, AnnotationsMap, AttributesToolData, LabelInfo,
+        ToolSpecifics, ToolsDataMap,
     },
     InstanceAnnotate,
 };

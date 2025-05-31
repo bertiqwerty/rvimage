@@ -9,7 +9,8 @@ use crate::{
     make_tool_transform,
     result::trace_ok_err,
     tools_data::{
-        attributes_data::{set_attrmap_val, ParamMap, ParamVal},
+        attributes_data::set_attrmap_val,
+        parameters::{ParamMap, ParamVal},
         AttributesToolData,
     },
     tools_data_accessors,

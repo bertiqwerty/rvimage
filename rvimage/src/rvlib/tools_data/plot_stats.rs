@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     annotations::InstanceAnnotations,
-    attributes_data::{ParamMap, ParamVal},
+    parameters::{ParamMap, ParamVal},
     AccessInstanceData, AttributesToolData, BboxToolData, BrushToolData, InstanceAnnotate,
 };
 
