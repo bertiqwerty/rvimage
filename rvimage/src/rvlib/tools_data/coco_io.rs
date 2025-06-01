@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fmt::Debug,
+    fmt::{Debug, Display},
     mem,
     path::{Path, PathBuf},
     thread::{self, JoinHandle},
@@ -32,6 +32,11 @@ use super::{
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct CocoInfo {
     description: String,
+}
+impl Display for CocoInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.description)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -198,7 +203,18 @@ pub struct CocoExportData {
     categories: Vec<CocoBboxCategory>,
 }
 impl CocoExportData {
-    fn from_tools_data<T, A>(
+    pub fn append(&mut self, other: &mut Self) {
+        self.images.append(&mut other.images);
+        self.annotations.append(&mut other.annotations);
+        self.categories.append(&mut other.categories);
+        self.info = CocoInfo {
+            description: format!("{} merged with {}", self.info, other.info),
+        };
+    }
+    pub fn is_empty(&self) -> bool {
+        self.images.is_empty() || self.annotations.is_empty() || self.categories.is_empty()
+    }
+    pub fn from_tools_data<T, A>(
         tools_data: T,
         rotation_data: Option<&Rot90ToolData>,
         prj_path: Option<&Path>,
@@ -310,7 +326,7 @@ impl CocoExportData {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn convert_to_toolsdata(
+    pub fn convert_to_toolsdata(
         self,
         coco_file: ExportPath,
         rotation_data: Option<&Rot90ToolData>,

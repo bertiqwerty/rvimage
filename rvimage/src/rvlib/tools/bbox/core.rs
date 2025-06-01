@@ -6,6 +6,7 @@ use crate::{
     instance_annotations_accessor, make_tool_transform,
     result::trace_ok_err,
     tools::{
+        brush,
         core::{
             check_autopaste, check_erase_mode, check_recolorboxes, check_trigger_history_update,
             check_trigger_redraw, deselect_all, instance_label_display_sort, map_released_key,
@@ -25,7 +26,7 @@ use crate::{
     world_annotations_accessor, GeoFig, Polygon,
 };
 use rvimage_domain::{shape_unscaled, BbF, Circle, PtF, TPtF};
-use std::{iter, mem, time::Instant};
+use std::{iter, mem, path::Path, time::Instant};
 
 use super::on_events::{
     change_annos_bbox, closest_corner, export_if_triggered, find_close_vertex, import_coco,
@@ -381,17 +382,24 @@ impl Manipulate for Bbox {
         let d = get_specific(&world);
         if let Some(d) = d {
             if d.predictive_labeling_data.is_prediction_triggered {
-                let wand = RestWand::new(d.predictive_labeling_data.url.clone(), None);
-                let im = ImageForPrediction::Image(world.data.im_background());
-                let annos = get_annos(&world);
-                wand.predict(
-                    im,
-                    d.predictive_labeling_data
-                        .label_names
-                        .iter()
-                        .map(|s| s.as_str()),
-                    Some(&d.predictive_labeling_data.parameters),
-                    Some(annos),
+                let rot90_data = get_rot90_data(&world);
+                let wand = RestWand::new(d.predictive_labeling_data.url.clone(), None, rot90_data);
+                let im = ImageForPrediction {
+                    image: world.data.im_background(),
+                    path: world.data.meta_data.file_path_absolute().map(Path::new),
+                };
+                let brush_data = brush::get_specific(&world);
+                trace_ok_err(
+                    wand.predict(
+                        im,
+                        d.predictive_labeling_data
+                            .label_names
+                            .iter()
+                            .map(|s| s.as_str()),
+                        Some(&d.predictive_labeling_data.parameters),
+                        Some(d),
+                        brush_data,
+                    ),
                 );
             }
         }
