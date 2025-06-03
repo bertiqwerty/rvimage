@@ -106,12 +106,31 @@ pub fn get_log_folder(homefolder: &Path) -> PathBuf {
     homefolder.join("logs")
 }
 
+fn parse_toml_str<CFG: Debug + DeserializeOwned + Default>(toml_str: &str) -> RvResult<CFG> {
+    match toml::from_str(toml_str) {
+        Ok(cfg) => Ok(cfg),
+        Err(_) => {
+            // lets try replacing \ by / and see if we can parse it
+            let toml_str = toml_str.replace('\\', "/");
+            match toml::from_str(&toml_str) {
+                Ok(cfg) => Ok(cfg),
+                Err(_) => {
+                    // lets try replacing " by ' and see if we can parse it
+                    let toml_str = toml_str.replace('"', "'");
+                    toml::from_str(&toml_str)
+                        .map_err(|e| rverr!("failed to parse cfg due to {e:?}"))
+                }
+            }
+        }
+    }
+}
+
 pub fn read_cfg_gen<CFG: Debug + DeserializeOwned + Default>(
     cfg_toml_path: &Path,
 ) -> RvResult<CFG> {
     if cfg_toml_path.exists() {
         let toml_str = file_util::read_to_string(cfg_toml_path)?;
-        toml::from_str(&toml_str).map_err(|e| rverr!("could not parse cfg due to {:?}", e))
+        parse_toml_str(&toml_str)
     } else {
         warn!("cfg {cfg_toml_path:?} file does not exist. using default cfg");
         Ok(CFG::default())
@@ -442,4 +461,61 @@ fn test_read_cfg_legacy() {
     assert_eq!(cfg.usr.darkmode, Some(true));
     assert_eq!(cfg.usr.ssh.user, "someuser");
     assert_eq!(cfg.prj.ssh.address, "73.42.73.42")
+}
+
+#[cfg(test)]
+fn make_cfg_str(ssh_identity_filepath: &str) -> String {
+    let part1 = r#"
+[usr]
+n_autosaves = 10
+image_change_delay_on_held_key_ms = 10
+cache = "FileCache"
+current_prj_path = "someprjpath.json"
+
+[usr.file_cache_args]
+n_prev_images = 4
+n_next_images = 8
+n_threads = 2
+clear_on_close = true
+cachedir = "C:/Users/ShafeiB/.rvimage/cache"
+
+[usr.ssh]
+user = "auser"
+ssh_identity_file_path ="#;
+
+    let part2 = r#"
+[prj]
+connection = "Local"
+
+[prj.py_http_reader_cfg]
+server_addresses = [
+    "http://localhost:8000/somewhere",
+    "http://localhost:8000/elsewhere",
+]
+
+[prj.ssh]
+remote_folder_paths = ["/"]
+address = "12.11.10.13:22"
+
+[prj.sort_params]
+kind = "Natural"
+sort_by_filename = false
+"#;
+
+    format!("{part1} {ssh_identity_filepath} {part2}")
+}
+
+#[test]
+fn test_parse_toml() {
+    fn test(ssh_path: &str, ssh_path_expected: &str) {
+        let toml_str = make_cfg_str(ssh_path);
+        let cfg: Cfg = parse_toml_str(&toml_str).unwrap();
+        assert_eq!(
+            cfg.usr.ssh.ssh_identity_file_path,
+            ssh_path_expected);
+    }
+    test("\"c:\\somehome\\.ssh\\id_rsa\"", "c:/somehome/.ssh/id_rsa");
+    test("'c:\\some home\\.ssh\\id_rsa'", "c:\\some home\\.ssh\\id_rsa");
+    test("\"/s omehome\\.ssh\\id_rsa\"", "/s omehome/.ssh/id_rsa");
+    test("'/some home/.ssh/id_rsa'", "/some home/.ssh/id_rsa");
 }
