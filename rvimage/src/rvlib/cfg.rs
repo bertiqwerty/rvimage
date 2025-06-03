@@ -107,7 +107,7 @@ pub fn get_log_folder(homefolder: &Path) -> PathBuf {
 }
 
 fn parse_toml_str<CFG: Debug + DeserializeOwned + Default>(toml_str: &str) -> RvResult<CFG> {
-    match toml::from_str(&toml_str) {
+    match toml::from_str(toml_str) {
         Ok(cfg) => Ok(cfg),
         Err(_) => {
             // lets try replacing \ by / and see if we can parse it
