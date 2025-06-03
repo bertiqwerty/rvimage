@@ -219,11 +219,7 @@ where
         if files.is_empty() {
             return Err(RvError::new("no files to read from"));
         }
-        let start_idx = if selected_file_idx <= self.n_prev_images {
-            0
-        } else {
-            selected_file_idx - self.n_prev_images
-        };
+        let start_idx = selected_file_idx.saturating_sub(self.n_prev_images);
         let end_idx = if files.len() <= selected_file_idx + self.n_next_images {
             files.len()
         } else {
