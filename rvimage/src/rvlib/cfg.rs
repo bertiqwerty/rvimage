@@ -510,12 +510,13 @@ fn test_parse_toml() {
     fn test(ssh_path: &str, ssh_path_expected: &str) {
         let toml_str = make_cfg_str(ssh_path);
         let cfg: Cfg = parse_toml_str(&toml_str).unwrap();
-        assert_eq!(
-            cfg.usr.ssh.ssh_identity_file_path,
-            ssh_path_expected);
+        assert_eq!(cfg.usr.ssh.ssh_identity_file_path, ssh_path_expected);
     }
     test("\"c:\\somehome\\.ssh\\id_rsa\"", "c:/somehome/.ssh/id_rsa");
-    test("'c:\\some home\\.ssh\\id_rsa'", "c:\\some home\\.ssh\\id_rsa");
+    test(
+        "'c:\\some home\\.ssh\\id_rsa'",
+        "c:\\some home\\.ssh\\id_rsa",
+    );
     test("\"/s omehome\\.ssh\\id_rsa\"", "/s omehome/.ssh/id_rsa");
     test("'/some home/.ssh/id_rsa'", "/some home/.ssh/id_rsa");
 }
