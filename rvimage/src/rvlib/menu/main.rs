@@ -16,9 +16,9 @@ use crate::{
     util::version_label,
 };
 use egui::{Context, Id, Response, RichText, Ui};
-use rvimage_domain::RvResult;
+use rvimage_domain::{rverr, RvResult};
 use std::{
-    mem,
+    f32, mem,
     path::{Path, PathBuf},
 };
 
@@ -118,27 +118,37 @@ impl ToolSelectMenu {
                 .map(|(i, _)| i);
         });
         for v in tools_menu_map.values_mut().filter(|v| v.menu_active) {
-            let tmp = match &mut v.specifics {
-                ToolSpecifics::Bbox(x) => bbox_menu(
-                    ui,
-                    v.menu_active,
-                    mem::take(x),
-                    &mut self.are_tools_active,
-                    v.visible_inactive_tools.clone(),
-                ),
-                ToolSpecifics::Brush(x) => brush_menu(
-                    ui,
-                    v.menu_active,
-                    mem::take(x),
-                    &mut self.are_tools_active,
-                    v.visible_inactive_tools.clone(),
-                ),
-                ToolSpecifics::Attributes(x) => {
-                    attributes_menu(ui, v.menu_active, mem::take(x), &mut self.are_tools_active)
-                }
-                _ => Ok(mem::take(v)),
-            };
-            *v = tmp?;
+            let mut v_result = Err(rverr!("Tool menu not implemented"));
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .max_height(f32::INFINITY)
+                .show(ui, |ui| {
+                    let tmp = match &mut v.specifics {
+                        ToolSpecifics::Bbox(x) => bbox_menu(
+                            ui,
+                            v.menu_active,
+                            mem::take(x),
+                            &mut self.are_tools_active,
+                            v.visible_inactive_tools.clone(),
+                        ),
+                        ToolSpecifics::Brush(x) => brush_menu(
+                            ui,
+                            v.menu_active,
+                            mem::take(x),
+                            &mut self.are_tools_active,
+                            v.visible_inactive_tools.clone(),
+                        ),
+                        ToolSpecifics::Attributes(x) => attributes_menu(
+                            ui,
+                            v.menu_active,
+                            mem::take(x),
+                            &mut self.are_tools_active,
+                        ),
+                        _ => Ok(mem::take(v)),
+                    };
+                    v_result = tmp;
+                });
+            *v = v_result?;
         }
         Ok(())
     }
