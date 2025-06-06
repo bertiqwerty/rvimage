@@ -17,9 +17,9 @@ use crate::{
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         parameters::{ParamMap, ParamVal},
         predictive_labeling::PredictiveLabelingData,
-        AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportExportTrigger,
-        InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData, VisibleInactiveToolsState,
-        OUTLINE_THICKNESS_CONVERSION,
+        AccessInstanceData, AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions,
+        ImportExportTrigger, InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData,
+        VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
     },
 };
 use egui::Ui;
@@ -359,11 +359,14 @@ pub fn bbox_menu(
         });
 
         egui::CollapsingHeader::new("Predictive Labeling").show(ui, |ui| {
+            let mut pd = mem::take(&mut data.predictive_labeling_data);
             trace_ok_err(predictive_labeling_menu(
                 ui,
-                &mut data.predictive_labeling_data,
+                &mut pd,
+                data.label_info(),
                 are_tools_active,
             ));
+            data.predictive_labeling_data = pd;
         });
     });
     export_file_menu_result?;
@@ -743,6 +746,7 @@ pub fn attributes_menu(
 pub fn predictive_labeling_menu(
     ui: &mut Ui,
     data: &mut PredictiveLabelingData,
+    label_info: &LabelInfo,
     are_tools_active: &mut bool,
 ) -> RvResult<()> {
     ui.label("Parameters");
@@ -774,6 +778,23 @@ pub fn predictive_labeling_menu(
     )?;
     data.parameters = res.param_map;
     data.param_buffers = res.buffers;
+    // vertical checkboxes over labelnames
+    ui.label("Label names");
+    let mut active_labels = label_info
+        .labels()
+        .iter()
+        .map(|lab| data.label_names.contains(lab))
+        .collect::<Vec<_>>();
+    for (text, checked) in label_info.labels().iter().zip(active_labels.iter_mut()) {
+        if ui.checkbox(checked, text).changed() {
+            if *checked {
+                data.label_names.push(text.to_string());
+            } else {
+                data.label_names.retain(|s| s != text);
+            }
+        }
+    }
+
     text_edit_singleline(ui, &mut data.url, are_tools_active);
     if ui.button("Predict").clicked() {
         data.is_prediction_triggered = true;

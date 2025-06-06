@@ -378,7 +378,7 @@ impl Manipulate for Bbox {
     ) -> (World, History) {
         world = check_recolorboxes::<DataAccessors>(world, BBOX_NAME);
 
-        world = predictive_labeling::<DataAccessors>(world);
+        (world, history) = predictive_labeling::<DataAccessors>(world, history, ACTOR_NAME);
 
         (world, history) = check_trigger_history_update::<DataAccessors>(world, history, BBOX_NAME);
 

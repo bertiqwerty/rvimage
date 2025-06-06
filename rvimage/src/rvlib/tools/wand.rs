@@ -129,6 +129,7 @@ impl<'b> Wand for RestWand<'b> {
         let paramsquery = paramsquery.map(|pq| format!("?{pq}")).unwrap_or_default();
         let url = format!("{}{}", self.url, paramsquery);
 
+        tracing::info!("Sending predictive labeling request to {url}");
         let coco_export_data = self
             .client
             .post(&url)
