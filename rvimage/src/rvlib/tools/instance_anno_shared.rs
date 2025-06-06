@@ -11,7 +11,12 @@ use crate::{
     world::{self, MetaDataAccess, World},
     InstanceAnnotate,
 };
-use std::{mem, path::Path};
+use std::{
+    mem,
+    path::Path,
+    sync::mpsc::{self, Receiver},
+    thread,
+};
 
 use super::rot90;
 
@@ -22,52 +27,68 @@ pub(super) fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
 }
 
 pub fn predictive_labeling<DA>(
-    mut world: World,
-    mut history: History,
+    world: &mut World,
+    history: &History,
     actor: &'static str,
-) -> (World, History)
+) -> Option<Receiver<(World, History)>>
 where
     DA: MetaDataAccess,
 {
-    let pred_data = DA::get_predictive_labeling_data(&world);
-    if let Some(pred_data) = pred_data {
+    let pred_data = DA::get_predictive_labeling_data(world);
+    let receiver = if let Some(pred_data) = pred_data {
         if pred_data.is_prediction_triggered {
-            let rot90_data = get_rot90_data(&world);
-            let wand = RestWand::new(pred_data.url.clone(), None, rot90_data);
-            let im = ImageForPrediction {
-                image: world.data.im_background(),
-                path: world.data.meta_data.file_path_absolute().map(Path::new),
-            };
-            let bbox_data = bbox::get_specific(&world);
-            let brush_data = brush::get_specific(&world);
+            tracing::info!("Predictive labeling thread is spawned");
+            let mut world = world.clone();
+            let mut history = history.clone();
+            let pred_data = pred_data.clone();
+            let (tx, rx) = mpsc::channel();
+            let pred_thread = move || {
+                let rot90_data = get_rot90_data(&world);
+                let wand = RestWand::new(pred_data.url.clone(), None, rot90_data);
+                let im = ImageForPrediction {
+                    image: world.data.im_background(),
+                    path: world.data.meta_data.file_path_absolute().map(Path::new),
+                };
+                let bbox_data = bbox::get_specific(&world);
+                let brush_data = brush::get_specific(&world);
 
-            let predictions = trace_ok_err(wand.predict(
-                im,
-                pred_data.label_names.iter().map(|s| s.as_str()),
-                Some(&pred_data.parameters),
-                bbox_data,
-                brush_data,
-            ));
-            if let Some((bbox_data, brush_data)) = predictions {
-                let bbox_data_mut = bbox::get_specific_mut(&mut world);
-                if let Some(bbox_data_mut) = bbox_data_mut {
-                    bbox_data_mut.set_labelinfo(bbox_data.label_info);
-                    trace_ok_err(bbox_data_mut.set_annotations_map(bbox_data.annotations_map));
+                let predictions = trace_ok_err(wand.predict(
+                    im,
+                    pred_data.label_names.iter().map(|s| s.as_str()),
+                    Some(&pred_data.parameters),
+                    bbox_data,
+                    brush_data,
+                ));
+                if let Some((bbox_data, brush_data)) = predictions {
+                    let bbox_data_mut = bbox::get_specific_mut(&mut world);
+                    if let Some(bbox_data_mut) = bbox_data_mut {
+                        bbox_data_mut.set_labelinfo(bbox_data.label_info);
+                        trace_ok_err(bbox_data_mut.set_annotations_map(bbox_data.annotations_map));
+                    }
+                    let brush_data_mut = brush::get_specific_mut(&mut world);
+                    if let Some(brush_data_mut) = brush_data_mut {
+                        brush_data_mut.set_labelinfo(brush_data.label_info);
+                        trace_ok_err(
+                            brush_data_mut.set_annotations_map(brush_data.annotations_map),
+                        );
+                    }
+                    history.push(Record::new(world.clone(), actor));
                 }
-                let brush_data_mut = brush::get_specific_mut(&mut world);
-                if let Some(brush_data_mut) = brush_data_mut {
-                    brush_data_mut.set_labelinfo(brush_data.label_info);
-                    trace_ok_err(brush_data_mut.set_annotations_map(brush_data.annotations_map));
-                }
-                history.push(Record::new(world.clone(), actor));
-            }
+                tracing::info!("Predictive labeling thread sending data");
+                tx.send((world, history))
+            };
+            thread::spawn(pred_thread);
+            Some(rx)
+        } else {
+            None
         }
-    }
-    if let Some(pred_data_mut) = DA::get_predictive_labeling_data_mut(&mut world) {
+    } else {
+        None
+    };
+    if let Some(pred_data_mut) = DA::get_predictive_labeling_data_mut(world) {
         pred_data_mut.is_prediction_triggered = false;
     }
-
-    (world, history)
+    receiver
 }
 
 pub fn check_cocoimport<T, A, DA>(

@@ -24,7 +24,7 @@ use crate::{
     world_annotations_accessor, GeoFig, Polygon,
 };
 use rvimage_domain::{shape_unscaled, BbF, Circle, PtF, TPtF};
-use std::{iter, mem, time::Instant};
+use std::{iter, mem, sync::mpsc::Receiver, sync::mpsc::TryRecvError, time::Instant};
 
 use super::on_events::{
     change_annos_bbox, closest_corner, export_if_triggered, find_close_vertex, import_coco,
@@ -154,7 +154,7 @@ fn show_grab_ball(
     Instant::now()
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Bbox {
     prev_pos: PrevPos,
     mover: Mover,
@@ -162,6 +162,20 @@ pub struct Bbox {
     points_at_press: Option<usize>,
     points_after_held: Option<usize>,
     last_proximal_circle_check: Option<Instant>,
+    prediction_receiver: Option<Receiver<(World, History)>>,
+}
+impl Clone for Bbox {
+    fn clone(&self) -> Self {
+        Self {
+            prev_pos: self.prev_pos.clone(),
+            mover: self.mover,
+            start_press_time: self.start_press_time,
+            points_at_press: self.points_at_press,
+            points_after_held: self.points_after_held,
+            last_proximal_circle_check: self.last_proximal_circle_check,
+            prediction_receiver: None, // JoinHandle cannot be cloned
+        }
+    }
 }
 
 impl Bbox {
@@ -320,6 +334,7 @@ impl Manipulate for Bbox {
             points_after_held: None,
             points_at_press: None,
             last_proximal_circle_check: None,
+            prediction_receiver: None,
         }
     }
 
@@ -378,7 +393,21 @@ impl Manipulate for Bbox {
     ) -> (World, History) {
         world = check_recolorboxes::<DataAccessors>(world, BBOX_NAME);
 
-        (world, history) = predictive_labeling::<DataAccessors>(world, history, ACTOR_NAME);
+        self.prediction_receiver =
+            predictive_labeling::<DataAccessors>(&mut world, &history, ACTOR_NAME);
+        if let Some(rx) = &self.prediction_receiver {
+            match rx.try_recv() {
+                Ok((world_pred, history_pred)) => {
+                    world = world_pred;
+                    history = history_pred;
+                    tracing::info!("received prediction from predictive labeling of {ACTOR_NAME}");
+                }
+                Err(TryRecvError::Empty) => (),
+                Err(TryRecvError::Disconnected) => {
+                    tracing::error!("prediction receiver disconnected for {ACTOR_NAME}");
+                }
+            }
+        }
 
         (world, history) = check_trigger_history_update::<DataAccessors>(world, history, BBOX_NAME);
 
