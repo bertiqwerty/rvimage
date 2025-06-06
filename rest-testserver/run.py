@@ -84,6 +84,8 @@ async def predict(
     np_bytes = np.frombuffer(bytes, np.uint8)
     im = cv2.imdecode(np_bytes, cv2.IMREAD_COLOR)  # BGR format
     im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    print(f"Image shape: {im.shape}")  # Debugging line
+    cv2.imwrite("test.jpg", im)  # Save the image for debugging
     coco = Coco.model_validate_json(annotations)
     parameters = json.loads(parameters)
     return coco

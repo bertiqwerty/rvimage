@@ -3,6 +3,7 @@ use crate::meta_data::MetaData;
 use crate::result::trace_ok_err;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
+use crate::tools_data::predictive_labeling::PredictiveLabelingData;
 use crate::tools_data::{
     self, vis_from_lfoption, AccessInstanceData, LabelInfo, ToolSpecifics, ToolsData, ToolsDataMap,
 };
@@ -49,13 +50,15 @@ pub fn get_specific_mut<T>(
     trace_ok_err(data.map(|d| &mut d.specifics).and_then(f_data_access))
 }
 
-/// Often needed meta data when accessing annotations, see different `AnnoMetaAccessors` structs.
+/// Often needed meta data when accessing annotations
 pub trait MetaDataAccess {
     fn get_core_options(world: &World) -> Option<&tools_data::Options>;
     fn get_core_options_mut(world: &mut World) -> Option<&mut tools_data::Options>;
     fn get_track_changes_str(world: &World) -> Option<&'static str>;
     fn get_label_info(world: &World) -> Option<&LabelInfo>;
     fn get_label_info_mut(world: &mut World) -> Option<&mut LabelInfo>;
+    fn get_predictive_labeling_data(world: &World) -> Option<&PredictiveLabelingData>;
+    fn get_predictive_labeling_data_mut(world: &mut World) -> Option<&mut PredictiveLabelingData>;
 }
 
 #[macro_export]
@@ -68,7 +71,7 @@ macro_rules! tools_data_accessors {
             $crate::world::get(world, $actor_name, $missing_data_msg)
         }
         #[allow(unused)]
-        pub(super) fn get_specific(
+        pub fn get_specific(
             world: &World,
         ) -> Option<&$crate::tools_data::$data_module::$data_type> {
             $crate::world::get_specific($crate::tools_data::$data_func, get_data(world))
@@ -78,7 +81,7 @@ macro_rules! tools_data_accessors {
         ) -> rvimage_domain::RvResult<&mut $crate::tools_data::ToolsData> {
             $crate::world::get_mut(world, $actor_name, $missing_data_msg)
         }
-        pub(super) fn get_specific_mut(
+        pub fn get_specific_mut(
             world: &mut World,
         ) -> Option<&mut $crate::tools_data::$data_module::$data_type> {
             $crate::world::get_specific_mut($crate::tools_data::$data_func_mut, get_data_mut(world))
@@ -127,6 +130,12 @@ macro_rules! tools_data_accessors_objects {
             }
             fn get_label_info_mut(world: &mut World) -> Option<&mut LabelInfo> {
                 get_specific_mut(world).map(|d| &mut d.label_info)
+            }
+            fn get_predictive_labeling_data(world: &World) -> Option<&$crate::tools_data::predictive_labeling::PredictiveLabelingData> {
+                get_specific(world).map(|d| &d.predictive_labeling_data)
+            }
+            fn get_predictive_labeling_data_mut(world: &mut World) -> Option<&mut $crate::tools_data::predictive_labeling::PredictiveLabelingData> {
+                get_specific_mut(world).map(|d| &mut d.predictive_labeling_data)
             }
         }
 

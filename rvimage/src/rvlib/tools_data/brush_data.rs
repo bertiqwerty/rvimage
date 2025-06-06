@@ -8,7 +8,10 @@ use super::{
     },
     InstanceAnnotate, InstanceExportData,
 };
-use crate::{cfg::ExportPath, result::trace_ok_warn, BrushLine};
+use crate::{
+    cfg::ExportPath, result::trace_ok_warn,
+    tools_data::predictive_labeling::PredictiveLabelingData, BrushLine,
+};
 use crate::{implement_annotate, implement_annotations_getters};
 use rvimage_domain::{
     access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, rverr, BbF, Canvas, PtF, PtI,
@@ -67,6 +70,8 @@ pub struct BrushToolData {
     #[serde(skip)]
     pub clipboard: Option<ClipboardData<Canvas>>,
     pub coco_file: ExportPath,
+    #[serde(default)]
+    pub predictive_labeling_data: PredictiveLabelingData,
 }
 impl BrushToolData {
     implement_annotations_getters!(BrushAnnotations);
@@ -86,6 +91,7 @@ impl BrushToolData {
                 ..Default::default()
             },
             coco_file: input_data.coco_file,
+            predictive_labeling_data: PredictiveLabelingData::default(),
         };
         out_data.set_annotations_map(
             input_data
@@ -125,6 +131,7 @@ impl<'de> Deserialize<'de> for BrushToolData {
             label_info: read.label_info,
             clipboard: None,
             coco_file: read.coco_file.unwrap_or_default(),
+            predictive_labeling_data: PredictiveLabelingData::default(),
         })
     }
 }
@@ -168,6 +175,7 @@ impl ExportAsCoco<Canvas> for BrushToolData {
             label_info,
             clipboard: None,
             coco_file: export_path,
+            predictive_labeling_data: PredictiveLabelingData::default(),
         }
     }
     fn set_annotations_map(&mut self, map: AnnotationsMap<Canvas>) -> RvResult<()> {

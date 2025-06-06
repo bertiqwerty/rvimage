@@ -183,16 +183,19 @@ fn test() {
     m.insert("some_param".into(), ParamVal::Float(Some(1.0)));
 
     let im = image::open(&p).unwrap();
-    w.predict(
-        ImageForPrediction {
-            image: &im,
-            path: Some(Path::new(&p)),
-        },
-        ["some_label"].iter().map(|s| *s),
-        Some(&m),
-        None,
-        None,
-    )
-    .unwrap();
+    let (bbox_data, brush_data) = w
+        .predict(
+            ImageForPrediction {
+                image: &im,
+                path: Some(Path::new(&p)),
+            },
+            ["some_label"].iter().map(|s| *s),
+            Some(&m),
+            None,
+            None,
+        )
+        .unwrap();
+    tracing::debug!("Coco export data: {bbox_data:?}");
+    tracing::debug!("Coco export data: {brush_data:?}");
     child.kill().expect("Failed to kill the server");
 }
