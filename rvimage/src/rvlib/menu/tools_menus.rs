@@ -798,7 +798,7 @@ pub fn predictive_labeling_menu(
     text_edit_singleline(ui, &mut data.url, are_tools_active);
     if ui.button("Predict").clicked() {
         tracing::info!("Predictive labeling triggered");
-        data.is_prediction_triggered = true;
+        data.trigger_prediction();
     }
     Ok(())
 }

@@ -14,7 +14,7 @@ use crate::{
 use std::{
     mem,
     path::Path,
-    sync::mpsc::{self, Receiver},
+    sync::mpsc::{self, Receiver, TryRecvError},
     thread,
 };
 
@@ -28,15 +28,15 @@ pub(super) fn get_rot90_data(world: &World) -> Option<&Rot90ToolData> {
 
 pub fn predictive_labeling<DA>(
     world: &mut World,
-    history: &History,
+    history: &mut History,
     actor: &'static str,
-) -> Option<Receiver<(World, History)>>
-where
+    prediction_receiver: &mut Option<Receiver<(World, History)>>,
+) where
     DA: MetaDataAccess,
 {
     let pred_data = DA::get_predictive_labeling_data(world);
-    let receiver = if let Some(pred_data) = pred_data {
-        if pred_data.is_prediction_triggered {
+    if let Some(pred_data) = pred_data {
+        if pred_data.prediction_start_triggered() {
             tracing::info!("Predictive labeling thread is spawned");
             let mut world = world.clone();
             let mut history = history.clone();
@@ -59,36 +59,60 @@ where
                     bbox_data,
                     brush_data,
                 ));
-                if let Some((bbox_data, brush_data)) = predictions {
+                tracing::info!("{predictions:?}");
+                if let Some((bbox_data_pred, brush_data_pred)) = predictions {
                     let bbox_data_mut = bbox::get_specific_mut(&mut world);
                     if let Some(bbox_data_mut) = bbox_data_mut {
-                        bbox_data_mut.set_labelinfo(bbox_data.label_info);
-                        trace_ok_err(bbox_data_mut.set_annotations_map(bbox_data.annotations_map));
+                        bbox_data_mut.set_labelinfo(bbox_data_pred.label_info);
+                        trace_ok_err(
+                            bbox_data_mut.set_annotations_map(bbox_data_pred.annotations_map),
+                        );
                     }
                     let brush_data_mut = brush::get_specific_mut(&mut world);
                     if let Some(brush_data_mut) = brush_data_mut {
-                        brush_data_mut.set_labelinfo(brush_data.label_info);
+                        brush_data_mut.set_labelinfo(brush_data_pred.label_info);
                         trace_ok_err(
-                            brush_data_mut.set_annotations_map(brush_data.annotations_map),
+                            brush_data_mut.set_annotations_map(brush_data_pred.annotations_map),
                         );
                     }
                     history.push(Record::new(world.clone(), actor));
                 }
                 tracing::info!("Predictive labeling thread sending data");
-                tx.send((world, history))
+                trace_ok_err(tx.send((world, history)));
             };
             thread::spawn(pred_thread);
-            Some(rx)
-        } else {
-            None
+            *prediction_receiver = Some(rx);
         }
-    } else {
-        None
-    };
-    if let Some(pred_data_mut) = DA::get_predictive_labeling_data_mut(world) {
-        pred_data_mut.is_prediction_triggered = false;
     }
-    receiver
+    if let Some(pred_data_mut) = DA::get_predictive_labeling_data_mut(world) {
+        pred_data_mut.untrigger();
+        if let Some(rx) = prediction_receiver {
+            match rx.try_recv() {
+                Ok((world_pred, history_pred)) => {
+                    pred_data_mut.kill_trigger();
+                    *prediction_receiver = None;
+                    *world = world_pred;
+                    *history = history_pred;
+                    tracing::info!("received prediction from predictive labeling of {actor}");
+                }
+                Err(TryRecvError::Empty) => {
+                    if let Some(t) = pred_data_mut.trigger_time() {
+                        if t.elapsed().as_millis() > pred_data_mut.timeout_ms {
+                            tracing::error!(
+                                "timeout of predictive labeling of {actor} after{} ms",
+                                pred_data_mut.timeout_ms
+                            );
+                            pred_data_mut.kill_trigger();
+                            *prediction_receiver = None;
+                        }
+                    }
+                }
+                Err(TryRecvError::Disconnected) => {
+                    tracing::error!("prediction receiver disconnected for {actor}");
+                }
+            }
+        }
+    };
 }
 
 pub fn check_cocoimport<T, A, DA>(

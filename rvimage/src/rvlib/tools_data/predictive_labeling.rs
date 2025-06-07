@@ -1,8 +1,10 @@
+use std::time::Instant;
+
 use serde::{Deserialize, Serialize};
 
 use super::parameters::{ParamMap, ParamVal};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PredictiveLabelingData {
     pub new_param_name_buffer: String,
     pub new_param_val_buffer: ParamVal,
@@ -10,6 +12,52 @@ pub struct PredictiveLabelingData {
     pub parameters: ParamMap,
     pub url: String,
     pub authorization_headers: Option<String>,
-    pub is_prediction_triggered: bool,
     pub label_names: Vec<String>,
+    pub timeout_ms: u128,
+    #[serde(skip)]
+    trigger: Option<(bool, Instant)>,
+}
+
+impl PredictiveLabelingData {
+    pub fn trigger_prediction(&mut self) {
+        self.trigger = Some((true, Instant::now()));
+    }
+    pub fn untrigger(&mut self) {
+        self.trigger = self.trigger.map(|(_, t)| (false, t));
+    }
+    pub fn prediction_start_triggered(&self) -> bool {
+        self.trigger.map(|(start_prediction, _)| start_prediction) == Some(true)
+    }
+    pub fn trigger_time(&self) -> Option<&Instant> {
+        self.trigger.as_ref().map(|(_, t)| t)
+    }
+    pub fn kill_trigger(&mut self) {
+        self.trigger = None;
+    }
+}
+
+impl Default for PredictiveLabelingData {
+    fn default() -> Self {
+        Self {
+            new_param_name_buffer: String::default(),
+            new_param_val_buffer: ParamVal::default(),
+            param_buffers: Vec::default(),
+            parameters: ParamMap::default(),
+            url: String::default(),
+            authorization_headers: None,
+            label_names: Vec::default(),
+            timeout_ms: 2000,
+            trigger: None,
+        }
+    }
+}
+
+impl PartialEq for PredictiveLabelingData {
+    fn eq(&self, other: &Self) -> bool {
+        self.authorization_headers == other.authorization_headers
+            && self.label_names == other.label_names
+            && self.parameters == other.parameters
+            && self.url == other.url
+            && self.timeout_ms == other.timeout_ms
+    }
 }

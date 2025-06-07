@@ -58,7 +58,7 @@ impl Default for Options {
     }
 }
 
-#[derive(Serialize, Clone, Debug, PartialEq, Default)]
+#[derive(Serialize, Clone, Debug, Default, PartialEq)]
 pub struct BrushToolData {
     pub annotations_map: BrushAnnoMap,
     // we might want to show this while it is being drawn,
@@ -108,7 +108,6 @@ impl BrushToolData {
         Ok(out_data)
     }
 }
-impl Eq for BrushToolData {}
 
 impl<'de> Deserialize<'de> for BrushToolData {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

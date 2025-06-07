@@ -235,7 +235,7 @@ macro_rules! toolsdata_by_name {
     };
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ToolsDataMap {
     // tool name -> tool's menu data type
     #[serde(flatten)]

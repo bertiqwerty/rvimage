@@ -24,7 +24,7 @@ use crate::{
     world_annotations_accessor, GeoFig, Polygon,
 };
 use rvimage_domain::{shape_unscaled, BbF, Circle, PtF, TPtF};
-use std::{iter, mem, sync::mpsc::Receiver, sync::mpsc::TryRecvError, time::Instant};
+use std::{iter, mem, sync::mpsc::Receiver, time::Instant};
 
 use super::on_events::{
     change_annos_bbox, closest_corner, export_if_triggered, find_close_vertex, import_coco,
@@ -393,21 +393,12 @@ impl Manipulate for Bbox {
     ) -> (World, History) {
         world = check_recolorboxes::<DataAccessors>(world, BBOX_NAME);
 
-        self.prediction_receiver =
-            predictive_labeling::<DataAccessors>(&mut world, &history, ACTOR_NAME);
-        if let Some(rx) = &self.prediction_receiver {
-            match rx.try_recv() {
-                Ok((world_pred, history_pred)) => {
-                    world = world_pred;
-                    history = history_pred;
-                    tracing::info!("received prediction from predictive labeling of {ACTOR_NAME}");
-                }
-                Err(TryRecvError::Empty) => (),
-                Err(TryRecvError::Disconnected) => {
-                    tracing::error!("prediction receiver disconnected for {ACTOR_NAME}");
-                }
-            }
-        }
+        predictive_labeling::<DataAccessors>(
+            &mut world,
+            &mut history,
+            ACTOR_NAME,
+            &mut self.prediction_receiver,
+        );
 
         (world, history) = check_trigger_history_update::<DataAccessors>(world, history, BBOX_NAME);
 
