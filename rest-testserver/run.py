@@ -100,13 +100,13 @@ async def ping():
     return "pong"
 
 
-@app.post("/predict")
+@app.post("/predict", response_model=OutputAnnotationData)
 async def predict(
     image: Annotated[UploadFile, File(...)],
     parameters: Annotated[str, Form(...)],
     input_annotations: Annotated[str, Form(...)],
     active_tool: Annotated[str, Query()],
-):
+) -> OutputAnnotationData:
     bytes = await image.read()
     np_bytes = np.frombuffer(bytes, np.uint8)
     im = cv2.imdecode(np_bytes, cv2.IMREAD_COLOR)  # BGR format
