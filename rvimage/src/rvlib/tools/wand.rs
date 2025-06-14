@@ -5,20 +5,49 @@ use image::{self, DynamicImage, ExtendedColorType, ImageEncoder};
 use reqwest::blocking::multipart;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 
-use rvimage_domain::{to_rv, RvResult};
+use rvimage_domain::{to_rv, Canvas, GeoFig, RvResult};
+use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
-use crate::cfg::ExportPath;
 use crate::result::trace_ok_err;
+use crate::tools_data::annotations::InstanceAnnotations;
 use crate::tools_data::parameters::ParamMap;
-use crate::tools_data::{BboxToolData, BrushToolData};
-use crate::Rot90ToolData;
-use crate::{file_util, tools_data::coco_io::CocoExportData};
+use crate::tools_data::LabelInfo;
+use crate::{file_util, InstanceAnnotate};
 
 #[allow(dead_code)]
 pub struct ImageForPrediction<'a> {
     pub image: &'a DynamicImage,
     pub path: Option<&'a Path>,
+}
+
+#[derive(Serialize)]
+pub struct AnnosWithInfo<'a, T>
+where
+    T: InstanceAnnotate,
+{
+    pub annos: &'a InstanceAnnotations<T>,
+    pub labelinfo: &'a LabelInfo,
+}
+
+#[derive(Serialize)]
+pub struct WandAnnotationsInput<'a> {
+    pub bbox: Option<AnnosWithInfo<'a, GeoFig>>,
+    pub brush: Option<AnnosWithInfo<'a, Canvas>>,
+}
+impl<'a> WandAnnotationsInput<'a> {
+    #[cfg(test)]
+    pub fn empty() -> Self {
+        Self {
+            bbox: None,
+            brush: None,
+        }
+    }
+}
+#[derive(Serialize, Deserialize)]
+pub struct WandAnnotationsOutput {
+    pub bbox_data: Option<InstanceAnnotations<GeoFig>>,
+    pub brush_data: Option<InstanceAnnotations<Canvas>>,
 }
 
 pub trait Wand {
@@ -28,34 +57,32 @@ pub trait Wand {
     ///
     /// * im: path to image or loaded image instance, implementations
     ///   of [`Wand`] might return an error if an unsupported option is passed.
-    /// * label_names: all the labels we want to have predictions for
-    /// * annotations: currently available annotations, optionally to be used by
-    ///   implementations of [`Wand`]
+    /// * label_names_to_predict: all the labels we want to have predictions for
+    /// * parameters: parameters that can be defined in the UI and might be
+    ///   necessary for the predictor
+    /// * bbox_data: names of all labels and instance annotations such that the
+    ///   cat-idxs of the annotations yield the corresponding name of the label.
+    ///   This can be helpful for comparison with the iterator of label names to predict.
+    /// * brush_data: see bbox_data
     ///
     fn predict<'a>(
         &self,
         im: ImageForPrediction,
-        label_name: impl Iterator<Item = &'a str>,
+        active_tool: &'static str,
         parameters: Option<&ParamMap>,
-        bbox_data: Option<&BboxToolData>,
-        brush_data: Option<&BrushToolData>,
-    ) -> RvResult<(BboxToolData, BrushToolData)>;
+        annotations_input: WandAnnotationsInput<'a>,
+    ) -> RvResult<WandAnnotationsOutput>;
 }
 
-pub struct RestWand<'a> {
+pub struct RestWand {
     url: String,
     headers: HeaderMap,
     client: reqwest::blocking::Client,
-    rotation_data: Option<&'a Rot90ToolData>,
 }
 
 #[allow(dead_code)]
-impl<'a> RestWand<'a> {
-    pub fn new(
-        url: String,
-        authorization: Option<&str>,
-        rotation_data: Option<&'a Rot90ToolData>,
-    ) -> Self {
+impl RestWand {
+    pub fn new(url: String, authorization: Option<&str>) -> Self {
         let client = reqwest::blocking::Client::new();
         let mut headers = HeaderMap::new();
         if let Some(s) = authorization {
@@ -68,23 +95,20 @@ impl<'a> RestWand<'a> {
             url,
             headers,
             client,
-            rotation_data,
         }
     }
 }
 
-impl<'b> Wand for RestWand<'b> {
+impl Wand for RestWand {
     fn predict<'a>(
         &self,
         im: ImageForPrediction,
-        label_names: impl Iterator<Item = &'a str>,
+        active_tool: &'static str,
         parameters: Option<&ParamMap>,
-        bbox_data: Option<&BboxToolData>,
-        brush_data: Option<&BrushToolData>,
-    ) -> RvResult<(BboxToolData, BrushToolData)> {
+        annos_input: WandAnnotationsInput<'a>,
+    ) -> RvResult<WandAnnotationsOutput> {
         let rgb_image = im.image.to_rgb8();
         let (width, height) = rgb_image.dimensions();
-
         let mut image_bytes = Vec::new();
         let cursor = Cursor::new(&mut image_bytes);
 
@@ -98,18 +122,9 @@ impl<'b> Wand for RestWand<'b> {
         } else {
             "tmpfile.png".into()
         };
-        let mut bbox_exp = if let Some(bbox_data) = bbox_data {
-            CocoExportData::from_tools_data(bbox_data.clone(), self.rotation_data, None)
-        } else {
-            CocoExportData::default()
-        };
-        let mut brush_exp = if let Some(brush_data) = brush_data {
-            CocoExportData::from_tools_data(brush_data.clone(), self.rotation_data, None)
-        } else {
-            CocoExportData::default()
-        };
-        bbox_exp.append(&mut brush_exp);
-        let anno_json_str = serde_json::to_string(&brush_exp).map_err(to_rv)?;
+        let bbox_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
+        tracing::info!(bbox_json_str);
+        let brush_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
         let param_json_str = if let Some(p) = parameters {
             serde_json::to_string(p)
         } else {
@@ -122,35 +137,28 @@ impl<'b> Wand for RestWand<'b> {
                 multipart::Part::bytes(image_bytes).file_name(filename),
             )
             .part("parameters", multipart::Part::text(param_json_str))
-            .part("annotations", multipart::Part::text(anno_json_str));
-        let paramsquery = label_names
-            .map(|n| format!("label_names={n}"))
-            .reduce(|l1, l2| format!("{l1}&{l2}"));
-        let paramsquery = paramsquery.map(|pq| format!("?{pq}")).unwrap_or_default();
-        let url = format!("{}{}", self.url, paramsquery);
+            .part("bbox_annotations", multipart::Part::text(bbox_json_str))
+            .part("brush_annotations", multipart::Part::text(brush_json_str));
+        let url = format!("{}?active_tool={active_tool}", self.url);
 
         tracing::info!("Sending predictive labeling request to {url}");
-        let coco_export_data = self
+        let segs = self
             .client
             .post(&url)
             .headers(self.headers.clone())
             .multipart(form)
             .send()
             .map_err(to_rv)?
-            .json::<CocoExportData>()
+            .json::<WandAnnotationsOutput>()
             .map_err(to_rv)?;
-        if coco_export_data.is_empty() {
-            Ok((BboxToolData::default(), BrushToolData::default()))
-        } else {
-            coco_export_data.convert_to_toolsdata(ExportPath::default(), self.rotation_data)
-        }
+        Ok(segs)
     }
 }
 
 #[cfg(test)]
-use crate::tools_data::parameters::ParamVal;
-#[cfg(test)]
 use crate::tracing_setup::init_tracing_for_tests;
+#[cfg(test)]
+use crate::{tools::BBOX_NAME, tools_data::parameters::ParamVal};
 #[cfg(test)]
 use std::{
     process::{Command, Stdio},
@@ -178,24 +186,27 @@ fn test() {
         .spawn()
         .expect("failed to start FastAPI server");
     thread::sleep(Duration::from_secs(5));
-    let w = RestWand::new("http://127.0.0.1:8000/predict".into(), None, None);
+    let w = RestWand::new("http://127.0.0.1:8000/predict".into(), None);
     let p = format!("{}/resources/rvimage-logo.png", manifestdir);
     let mut m = ParamMap::new();
     m.insert("some_param".into(), ParamVal::Float(Some(1.0)));
 
     let im = image::open(&p).unwrap();
-    let (bbox_data, brush_data) = w
+    let seg = w
         .predict(
             ImageForPrediction {
                 image: &im,
                 path: Some(Path::new(&p)),
             },
-            ["some_label"].iter().map(|s| *s),
+            BBOX_NAME,
             Some(&m),
-            None,
-            None,
+            WandAnnotationsInput::empty(),
         )
         .unwrap();
+    let WandAnnotationsOutput {
+        bbox_data,
+        brush_data,
+    } = seg;
     tracing::debug!("Coco export data: {bbox_data:?}");
     tracing::debug!("Coco export data: {brush_data:?}");
     child.kill().expect("Failed to kill the server");

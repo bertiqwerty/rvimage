@@ -365,6 +365,7 @@ pub fn bbox_menu(
                 &mut pd,
                 data.label_info(),
                 are_tools_active,
+                BBOX_NAME,
             ));
             data.predictive_labeling_data = pd;
         });
@@ -748,6 +749,7 @@ pub fn predictive_labeling_menu(
     data: &mut PredictiveLabelingData,
     label_info: &LabelInfo,
     are_tools_active: &mut bool,
+    tool_name: &'static str,
 ) -> RvResult<()> {
     ui.label("Parameters");
     let add_param;
@@ -783,18 +785,19 @@ pub fn predictive_labeling_menu(
     let mut active_labels = label_info
         .labels()
         .iter()
-        .map(|lab| data.label_names.contains(lab))
+        .map(|lab| data.tool_labelnames_map[tool_name].contains(lab))
         .collect::<Vec<_>>();
     for (text, checked) in label_info.labels().iter().zip(active_labels.iter_mut()) {
         if ui.checkbox(checked, text).changed() {
             if *checked {
-                data.label_names.push(text.to_string());
-            } else {
-                data.label_names.retain(|s| s != text);
+                if let Some(t) = data.tool_labelnames_map.get_mut(tool_name) {
+                    t.push(text.to_string())
+                }
+            } else if let Some(t) = data.tool_labelnames_map.get_mut(tool_name) {
+                t.retain(|s| s != text);
             }
         }
     }
-
     text_edit_singleline(ui, &mut data.url, are_tools_active);
     if ui.button("Predict").clicked() {
         tracing::info!("Predictive labeling triggered");

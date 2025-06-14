@@ -16,11 +16,12 @@ use crate::{
     image_util,
     meta_data::MetaData,
     result::trace_ok_warn,
+    tools_data::core::polygon_to_geofig,
     util::version_label,
-    GeoFig, Polygon,
+    GeoFig,
 };
-use rvimage_domain::{rle_image_to_bb, rle_to_mask, BbF, Canvas, Point, ShapeI, TPtF};
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
+use rvimage_domain::{BbF, Canvas, ShapeI, TPtF};
 
 use super::{
     annotations::InstanceAnnotations,
@@ -203,17 +204,6 @@ pub struct CocoExportData {
     categories: Vec<CocoBboxCategory>,
 }
 impl CocoExportData {
-    pub fn append(&mut self, other: &mut Self) {
-        self.images.append(&mut other.images);
-        self.annotations.append(&mut other.annotations);
-        self.categories.append(&mut other.categories);
-        self.info = CocoInfo {
-            description: format!("{} merged with {}", self.info, other.info),
-        };
-    }
-    pub fn is_empty(&self) -> bool {
-        self.images.is_empty() || self.annotations.is_empty() || self.categories.is_empty()
-    }
     pub fn from_tools_data<T, A>(
         tools_data: T,
         rotation_data: Option<&Rot90ToolData>,
@@ -371,7 +361,6 @@ impl CocoExportData {
         for coco_anno in self.annotations {
             let (file_path, w_coco, h_coco) = id_image_map[&coco_anno.image_id];
 
-            let mut invalid_segmentation_exists = false;
             // The annotations in the coco files created by RV Image are stored
             // ignoring any orientation meta-data. Hence, if the image has been loaded
             // and rotated with RV Image we correct the rotation.
@@ -419,95 +408,36 @@ impl CocoExportData {
             };
 
             let bb = BbF::from(&bbox);
-            match coco_anno.segmentation {
-                Some(CocoSegmentation::Polygon(segmentation)) => {
-                    let geo = if segmentation.is_empty() {
-                        GeoFig::BB(bb)
-                    } else {
-                        if segmentation.len() > 1 {
-                            return Err(rverr!(
-                                "multiple polygons per box not supported. ignoring all but first."
-                            ));
-                        }
-                        let n_points = segmentation[0].len();
-                        let coco_data = &segmentation[0];
 
-                        let poly_points = (0..n_points)
-                            .step_by(2)
-                            .filter_map(|idx| {
-                                let p = Point {
-                                    x: (coco_data[idx] * w_factor),
-                                    y: (coco_data[idx + 1] * h_factor),
-                                };
-                                if bb.contains(p) {
-                                    Some(p)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect();
-                        let poly = Polygon::from_vec(poly_points);
-                        if let Ok(poly) = poly {
-                            let encl_bb = poly.enclosing_bb();
-                            if encl_bb.w * encl_bb.h < 1e-6 && bb.w * bb.h > 1e-6 {
-                                warner.warn(&format!("polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}"));
-                                GeoFig::BB(bb)
-                            } else {
-                                if !bb.all_corners_close(encl_bb) {
-                                    let msg = format!("bounding box and polygon enclosing box do not match. using bb. bb: {bb:?}, poly: {encl_bb:?}, file: {file_path}");
-                                    warner.warn(&msg);
-                                }
-                                // check if the poly is just a bounding box
-                                if poly.points().len() == 4
-                                // all points are bb corners
-                                && poly.points_iter().all(|p| {
-                                    encl_bb.points_iter().any(|p_encl| p == p_encl)})
-                                // all points are different
-                                && poly
-                                    .points_iter()
-                                    .all(|p| poly.points_iter().filter(|p_| p == *p_).count() == 1)
-                                {
-                                    GeoFig::BB(bb)
-                                } else {
-                                    GeoFig::Poly(poly)
-                                }
-                            }
-                        } else {
-                            if n_points > 0 {
-                                invalid_segmentation_exists = true;
-                            }
-                            // polygon might be empty, we continue with the BB
-                            GeoFig::BB(bb)
-                        }
-                    };
-                    insert_geo(geo);
+            match coco_anno.segmentation {
+                Some(CocoSegmentation::Polygon(poly)) => {
+                    let geofig =
+                        polygon_to_geofig(&poly, w_factor, h_factor, bb, |s| warner.warn(s));
+                    if let Ok(geofig) = geofig {
+                        insert_geo(geofig);
+                    } else {
+                        warner.warn(&format!("invalid segmentation in coco file {file_path}"));
+                    }
                 }
                 Some(CocoSegmentation::Rle(rle)) => {
-                    let bb = bb.into();
-                    let rle_bb = rle_image_to_bb(&rle.counts, bb, ShapeI::from(rle.size))?;
-                    let mask = rle_to_mask(&rle_bb, bb.w, bb.h);
-                    let intensity = rle.intensity.unwrap_or(1.0);
-                    let canvas = Canvas {
-                        bb,
-                        mask,
-                        intensity,
-                    };
-                    insert_elt(
-                        canvas,
-                        &mut annotations_brush,
-                        cat_idx,
-                        n_rotations,
-                        path_as_key,
-                        shape_coco,
-                    );
+                    let canvas = rle.to_canvas(bb);
+                    if let Ok(canvas) = canvas {
+                        insert_elt(
+                            canvas,
+                            &mut annotations_brush,
+                            cat_idx,
+                            n_rotations,
+                            path_as_key,
+                            shape_coco,
+                        );
+                    } else {
+                        warner.warn(&format!("invalid segmentation in coco file {file_path}"));
+                    }
                 }
                 _ => {
                     let geo = GeoFig::BB(bb);
                     insert_geo(geo);
                 }
-            }
-            if invalid_segmentation_exists {
-                warner.warn(&format!("invalid segmentation in coco file {file_path}"));
             }
         }
         let bbox_data = BboxToolData::from_coco_export_data(InstanceExportData {

@@ -5,7 +5,9 @@ use std::fmt::{Debug, Display};
 use tracing::info;
 
 use crate::{cfg::ExportPath, util::Visibility, ShapeI};
-use rvimage_domain::{rverr, RvResult};
+use rvimage_domain::{
+    rle_image_to_bb, rle_to_mask, rverr, Canvas, GeoFig, Point, Polygon, RvResult,
+};
 use rvimage_domain::{BbF, PtF, TPtF, TPtI};
 
 use super::annotations::InstanceAnnotations;
@@ -536,11 +538,92 @@ pub struct CocoRle {
     pub intensity: Option<TPtF>,
 }
 
+impl CocoRle {
+    pub fn to_canvas(&self, bb: BbF) -> RvResult<Canvas> {
+        let bb = bb.into();
+        let rle_bb = rle_image_to_bb(&self.counts, bb, ShapeI::from(self.size))?;
+        let mask = rle_to_mask(&rle_bb, bb.w, bb.h);
+        let intensity = self.intensity.unwrap_or(1.0);
+        Ok(Canvas {
+            bb,
+            mask,
+            intensity,
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum CocoSegmentation {
     Polygon(Vec<Vec<TPtF>>),
     Rle(CocoRle),
+}
+
+pub fn polygon_to_geofig(
+    poly: &[Vec<TPtF>],
+    w_factor: f64,
+    h_factor: f64,
+    bb: BbF,
+    mut warn: impl FnMut(&str),
+) -> RvResult<GeoFig> {
+    if poly.len() > 1 {
+        return Err(rverr!(
+            "multiple polygons per box not supported. ignoring all but first."
+        ));
+    }
+    let n_points = poly[0].len();
+    let coco_data = &poly[0];
+
+    let poly_points = (0..n_points)
+        .step_by(2)
+        .filter_map(|idx| {
+            let p = Point {
+                x: (coco_data[idx] * w_factor),
+                y: (coco_data[idx + 1] * h_factor),
+            };
+            if bb.contains(p) {
+                Some(p)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let poly = Polygon::from_vec(poly_points);
+    if let Ok(poly) = poly {
+        let encl_bb = poly.enclosing_bb();
+        if encl_bb.w * encl_bb.h < 1e-6 && bb.w * bb.h > 1e-6 {
+            warn(&format!(
+                "polygon has no area. using bb. bb: {bb:?}, poly: {encl_bb:?}"
+            ));
+            Ok(GeoFig::BB(bb))
+        } else {
+            if !bb.all_corners_close(encl_bb) {
+                let msg = format!("bounding box and polygon enclosing box do not match. using bb. bb: {bb:?}, poly: {encl_bb:?}");
+                warn(&msg);
+            }
+            // check if the poly is just a bounding box
+            if poly.points().len() == 4
+                                // all points are bb corners
+                                && poly.points_iter().all(|p| {
+                                    encl_bb.points_iter().any(|p_encl| p == p_encl)})
+                                // all points are different
+                                && poly
+                                    .points_iter()
+                                    .all(|p| poly.points_iter().filter(|p_| p == *p_).count() == 1)
+            {
+                Ok(GeoFig::BB(bb))
+            } else {
+                Ok(GeoFig::Poly(poly))
+            }
+        }
+    } else if n_points > 0 {
+        Err(rverr!(
+            "Segmentation invalid, could not be created from polygon with {n_points} points"
+        ))
+    } else {
+        // polygon might be empty, we continue with the BB
+        Ok(GeoFig::BB(bb))
+    }
 }
 
 #[macro_export]
@@ -610,7 +693,7 @@ where
 #[cfg(test)]
 use crate::tools_data::brush_data;
 #[cfg(test)]
-use rvimage_domain::{BrushLine, Canvas, Line};
+use rvimage_domain::{BrushLine, Line};
 #[test]
 fn test_argmax() {
     let picklist = [

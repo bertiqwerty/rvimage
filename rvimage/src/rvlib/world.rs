@@ -106,7 +106,7 @@ macro_rules! tools_data_accessors_objects {
             $crate::util::wrap_if(&TRACK_CHANGE_STR, track_changes)
         }
 
-        pub(super) fn get_label_info(world: &World) -> Option<&LabelInfo> {
+        pub fn get_label_info(world: &World) -> Option<&LabelInfo> {
             get_specific(world).map(|d| &d.label_info)
         }
         pub(super) fn get_instance_label_display(world: &World) -> $crate::tools_data::InstanceLabelDisplay {
@@ -176,7 +176,7 @@ macro_rules! world_annotations_accessor {
             }
         }
         #[allow(unused)]
-        pub(super) fn get_annos(world: &World) -> Option<&$annotations_type> {
+        pub fn get_annos(world: &World) -> Option<&$annotations_type> {
             get_annos_(world, false)
         }
         #[allow(unused)]

@@ -5,7 +5,7 @@ use crate::{
     result::trace_ok_err,
     tools::{
         bbox, brush,
-        wand::{ImageForPrediction, RestWand, Wand},
+        wand::{AnnosWithInfo, ImageForPrediction, RestWand, Wand, WandAnnotationsInput},
     },
     tools_data::{merge, ExportAsCoco, ImportMode, Rot90ToolData},
     world::{self, MetaDataAccess, World},
@@ -43,37 +43,39 @@ pub fn predictive_labeling<DA>(
             let pred_data = pred_data.clone();
             let (tx, rx) = mpsc::channel();
             let pred_thread = move || {
-                let rot90_data = get_rot90_data(&world);
-                let wand = RestWand::new(pred_data.url.clone(), None, rot90_data);
+                let wand = RestWand::new(pred_data.url.clone(), None);
                 let im = ImageForPrediction {
                     image: world.data.im_background(),
                     path: world.data.meta_data.file_path_absolute().map(Path::new),
                 };
-                let bbox_data = bbox::get_specific(&world);
-                let brush_data = brush::get_specific(&world);
+                let bbox_annos = bbox::get_annos(&world);
+                let brush_annos = brush::get_annos(&world);
+                let bbox_label_info = bbox::get_label_info(&world);
+                let brush_label_info = brush::get_label_info(&world);
 
                 let predictions = trace_ok_err(wand.predict(
                     im,
-                    pred_data.label_names.iter().map(|s| s.as_str()),
+                    actor,
                     Some(&pred_data.parameters),
-                    bbox_data,
-                    brush_data,
+                    WandAnnotationsInput {
+                        bbox: bbox_annos.and_then(|annos| {
+                            bbox_label_info.map(|labelinfo| AnnosWithInfo { labelinfo, annos })
+                        }),
+                        brush: brush_annos.and_then(|annos| {
+                            brush_label_info.map(|labelinfo| AnnosWithInfo { labelinfo, annos })
+                        }),
+                    },
                 ));
-                tracing::info!("{predictions:?}");
-                if let Some((bbox_data_pred, brush_data_pred)) = predictions {
-                    let bbox_data_mut = bbox::get_specific_mut(&mut world);
-                    if let Some(bbox_data_mut) = bbox_data_mut {
-                        bbox_data_mut.set_labelinfo(bbox_data_pred.label_info);
-                        trace_ok_err(
-                            bbox_data_mut.set_annotations_map(bbox_data_pred.annotations_map),
-                        );
+                if let Some(pred) = predictions {
+                    if let Some(pred) = pred.bbox_data {
+                        if let Some(annos) = bbox::get_annos_mut(&mut world) {
+                            *annos = pred;
+                        }
                     }
-                    let brush_data_mut = brush::get_specific_mut(&mut world);
-                    if let Some(brush_data_mut) = brush_data_mut {
-                        brush_data_mut.set_labelinfo(brush_data_pred.label_info);
-                        trace_ok_err(
-                            brush_data_mut.set_annotations_map(brush_data_pred.annotations_map),
-                        );
+                    if let Some(pred) = pred.brush_data {
+                        if let Some(annos) = brush::get_annos_mut(&mut world) {
+                            *annos = pred;
+                        }
                     }
                     history.push(Record::new(world.clone(), actor));
                 }
