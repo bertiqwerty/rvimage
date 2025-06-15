@@ -4,3 +4,5 @@ rv_cfg.toml
 .DS_Store
 .venv
 __pycache__
+build
+**egg-info**
