@@ -6,3 +6,4 @@ rv_cfg.toml
 __pycache__
 build
 **egg-info**
+.env
