@@ -5,5 +5,6 @@ rv_cfg.toml
 .venv
 __pycache__
 build
+dist
 **egg-info**
 .env
