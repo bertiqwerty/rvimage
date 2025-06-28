@@ -275,14 +275,21 @@ fn check_export(mut world: World) -> World {
             let meta_data = world.data.meta_data.clone();
             let mut data = data.clone();
             let per_file_crowd = options.map(|o| o.per_file_crowd) == Some(true);
+            let skip_shape_correction =
+                options.map(|o| o.core.skip_cocoexport_shape_correction) == Some(true);
             let f_export = move || {
                 let start = std::time::Instant::now();
                 if per_file_crowd {
                     to_per_file_crowd(&mut data.annotations_map);
                 }
                 let coco_file_conn = data.cocofile_conn();
-                match tools_data::write_coco(&meta_data, data, rot90_data.as_ref(), &coco_file_conn)
-                {
+                match tools_data::write_coco(
+                    &meta_data,
+                    data,
+                    rot90_data.as_ref(),
+                    &coco_file_conn,
+                    skip_shape_correction,
+                ) {
                     Ok((p, _)) => tracing::info!("export to {p:?} successfully triggered"),
                     Err(e) => tracing::error!("trigger export failed due to {e:?}"),
                 };

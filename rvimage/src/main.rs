@@ -686,6 +686,8 @@ struct Cli {
     out_folder: Option<std::path::PathBuf>,
     #[arg(short, long)]
     per_file_crowd: bool,
+    #[arg(short, long)]
+    skip_shape_correction: bool,
 }
 fn export_coco_path(
     in_prj_path: &Path,
@@ -704,6 +706,7 @@ fn export_coco_via_cli(
     in_prj_path: &Path,
     out_folder: &Path,
     per_file_crowd: bool,
+    skip_shape_correction: bool,
 ) -> RvResult<(Vec<ExportPath>, MetaData, Option<Rot90ToolData>)> {
     let mut ctrl = Control::default();
     let cfg = Cfg::with_unique_folders();
@@ -723,6 +726,7 @@ fn export_coco_via_cli(
             tools_data.specifics.bbox()?.clone(),
             rot90,
             &export_path,
+            skip_shape_correction,
         )?;
         export_paths.push(export_path);
         handles.push(handle);
@@ -734,7 +738,13 @@ fn export_coco_via_cli(
         if per_file_crowd {
             to_per_file_crowd(&mut brush_data.annotations_map);
         }
-        let (_, handle) = write_coco(&meta_data, brush_data, rot90, &export_path)?;
+        let (_, handle) = write_coco(
+            &meta_data,
+            brush_data,
+            rot90,
+            &export_path,
+            skip_shape_correction,
+        )?;
         handles.push(handle);
         export_paths.push(export_path);
     }
@@ -752,6 +762,7 @@ fn main() {
                 &in_prj_path,
                 &out_folder,
                 cli.per_file_crowd,
+                cli.skip_shape_correction,
             ));
         } else {
             let icon_bytes = include_bytes!("../resources/rvimage-logo.png");
@@ -820,7 +831,7 @@ fn test_coco() {
     std::fs::create_dir_all(&tmp_folder).unwrap();
     defer_folder_removal!(&tmp_folder);
     let (export_path, meta_data, rot90) =
-        export_coco_via_cli(&test_file, &tmp_folder, true).unwrap();
+        export_coco_via_cli(&test_file, &tmp_folder, true, false).unwrap();
     let files = tmp_folder
         .read_dir()
         .unwrap()
