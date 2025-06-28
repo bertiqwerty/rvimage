@@ -218,7 +218,7 @@ fn export_file_menu(
         if let Some(skip_shape_correction) = skip_shape_correction {
             ui.checkbox(
                 skip_shape_correction,
-                "don't double check the shape on export",
+                "don't double check shape",
             )
             .on_hover_text(
                 "For shape correction the image needs to be loaded which slows down the export.",
