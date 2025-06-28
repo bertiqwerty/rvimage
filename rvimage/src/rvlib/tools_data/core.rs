@@ -159,7 +159,7 @@ pub struct Options {
     pub label_deletion: Option<usize>,
     pub auto_paste: bool,
     pub instance_label_display: InstanceLabelDisplay,
-    pub skip_cocoexport_shape_correction: bool,
+    pub doublecheck_cocoexport_shape: bool,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -176,7 +176,7 @@ impl Default for Options {
             label_deletion: None,
             auto_paste: false,
             instance_label_display: InstanceLabelDisplay::None,
-            skip_cocoexport_shape_correction: false,
+            doublecheck_cocoexport_shape: true,
         }
     }
 }

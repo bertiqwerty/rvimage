@@ -275,8 +275,8 @@ fn check_export(mut world: World) -> World {
             let meta_data = world.data.meta_data.clone();
             let mut data = data.clone();
             let per_file_crowd = options.map(|o| o.per_file_crowd) == Some(true);
-            let skip_shape_correction =
-                options.map(|o| o.core.skip_cocoexport_shape_correction) == Some(true);
+            let double_check_shape =
+                options.map(|o| o.core.doublecheck_cocoexport_shape) == Some(true);
             let f_export = move || {
                 let start = std::time::Instant::now();
                 if per_file_crowd {
@@ -288,7 +288,7 @@ fn check_export(mut world: World) -> World {
                     data,
                     rot90_data.as_ref(),
                     &coco_file_conn,
-                    skip_shape_correction,
+                    double_check_shape,
                 ) {
                     Ok((p, _)) => tracing::info!("export to {p:?} successfully triggered"),
                     Err(e) => tracing::error!("trigger export failed due to {e:?}"),

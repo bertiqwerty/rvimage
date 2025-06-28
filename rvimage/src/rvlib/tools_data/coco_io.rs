@@ -202,7 +202,7 @@ impl CocoExportData {
         tools_data: T,
         rotation_data: Option<&Rot90ToolData>,
         prj_path: Option<&Path>,
-        skip_shape_correction: bool,
+        double_check_shape: bool,
     ) -> Self
     where
         T: ExportAsCoco<A>,
@@ -263,7 +263,7 @@ impl CocoExportData {
             };
             let p = PathPair::new(file_path.clone(), prj_path);
             let p_abs = p.path_absolute();
-            let shape = if Path::new(p_abs).exists() && !skip_shape_correction {
+            let shape = if Path::new(p_abs).exists() && double_check_shape {
                 let im = trace_ok_warn(image_util::read_image(file_path));
                 if let Some(im) = im {
                     ShapeI::new(im.width(), im.height())
@@ -312,7 +312,7 @@ impl CocoExportData {
                 if n_images_exported == 1 {
                     n_images_exported = image_idx;
                     tracing::info!(
-                        "If your export is too slow, consider skipping the shape correction."
+                        "If your export is too slow, consider skipping the shape double check."
                     )
                 }
             }
@@ -632,7 +632,7 @@ pub fn write_coco<T, A>(
     tools_data: T,
     rotation_data: Option<&Rot90ToolData>,
     coco_file: &ExportPath,
-    skip_shape_correction: bool,
+    double_check_shape: bool,
 ) -> RvResult<(PathBuf, JoinHandle<RvResult<()>>)>
 where
     T: ExportAsCoco<A> + Send + 'static,
@@ -648,7 +648,7 @@ where
             tools_data,
             rotation_data.as_ref(),
             meta_data.prj_path(),
-            skip_shape_correction,
+            double_check_shape,
         );
         let data_str = serde_json::to_string(&coco_data)
             .map_err(to_rv)

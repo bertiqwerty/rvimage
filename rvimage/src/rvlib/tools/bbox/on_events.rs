@@ -104,7 +104,7 @@ pub(super) fn export_if_triggered(
             bbox_data.clone(),
             rot90_data,
             &bbox_data.cocofile_conn(),
-            bbox_data.options.core.skip_cocoexport_shape_correction,
+            bbox_data.options.core.doublecheck_cocoexport_shape,
         ) {
             Ok((p, _)) => tracing::info!("export to {p:?} successfully triggered"),
             Err(e) => tracing::error!("trigger export failed due to {e:?}"),
