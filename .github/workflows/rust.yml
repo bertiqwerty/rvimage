@@ -58,4 +58,4 @@ jobs:
 
       - name: Run data model tests
         working-directory: rvimage-py
-        run: uv run pytest tests
+        run: uv run pytest test
