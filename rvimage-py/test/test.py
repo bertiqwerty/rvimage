@@ -1,4 +1,6 @@
+import json
 import numpy as np
+from rvimage.collection_types import BboxAnnos, BrushAnnos
 from rvimage.converters import extract_polys_from_mask, fill_polys_on_mask
 from rvimage.converters import rle_to_mask, mask_to_rle
 from rvimage.domain import Point
@@ -37,6 +39,28 @@ def test_polygon():
     mask_converted = fill_polys_on_mask(polygons, value, im_mask, abs_coords_input=True)
 
     assert np.allclose(mask, mask_converted), "Masks are not equal after conversion"
+
+
+def test_validation():
+    annos = {
+        "elts": [{"BB": {"x": 0.0, "y": 0.0, "w": 5.0, "h": 5.0}}],
+        "cat_idxs": [1],
+        "selected_mask": [False],
+    }
+    BboxAnnos.model_validate(annos)
+    with open("../rvimage/resources/test_data/rvprj_v4-0.json", "r") as f:
+        data_loaded = json.load(f)
+
+    def get_data(tool):
+        for d, _ in data_loaded["tools_data_map"][tool]["specifics"][tool][
+            "annotations_map"
+        ].values():
+            yield d
+
+    for brush_data in get_data("Brush"):
+        BrushAnnos.model_validate(brush_data)
+    for bbox_data in get_data("Bbox"):
+        BboxAnnos.model_validate(bbox_data)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 from typing import Self
-from pydantic import BaseModel
+from pydantic import BaseModel, model_serializer, model_validator
 import numpy as np
 from rvimage.converters import (
     extract_polys_from_mask,
@@ -9,11 +9,6 @@ from rvimage.converters import (
     rle_to_mask,
 )
 from rvimage.domain import BbF, BbI, Poly, enclosing_bb, find_ccs
-
-
-class GeoFig(BaseModel):
-    bbox: BbF | None = None
-    poly: Poly | None = None
 
 
 class Labelinfo(BaseModel):
@@ -26,9 +21,30 @@ class Labelinfo(BaseModel):
 
 
 class BboxAnnos(BaseModel):
-    elts: list[GeoFig]
+    elts: list[BbF | Poly]
     cat_idxs: list[int]
     selected_mask: list[bool]
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_bb_poly(cls, data: dict) -> dict:
+        # remove the type-info from the dict
+        data["elts"] = [next(v for v in d.values()) for d in data["elts"]]
+        return data
+
+    @model_serializer()
+    def serialize_model(self):
+        elts = [
+            {"BB": elt.model_dump()}
+            if isinstance(elt, BbF)
+            else {"Poly": elt.model_dump()}
+            for elt in self.elts
+        ]
+        return {
+            "cat_idxs": self.cat_idxs,
+            "selected_mask": self.selected_mask,
+            "elts": elts,
+        }
 
     @classmethod
     def from_mask(cls, mask: np.ndarray, cat_idx: int) -> "BboxAnnos":
@@ -40,7 +56,7 @@ class BboxAnnos(BaseModel):
 
         return cls(
             elts=[
-                GeoFig(poly=Poly(points=points, enclosing_bb=enclosing_bb(points)))
+                Poly(points=points, enclosing_bb=enclosing_bb(points))
                 for points in polys
             ],
             cat_idxs=cat_idxs,
@@ -60,9 +76,9 @@ class BboxAnnos(BaseModel):
     def fill_mask(self, im_mask: np.ndarray, cat_idx: int):
         fill_polys_on_mask(
             polygons=(
-                elt.poly.points
+                elt.points
                 for elt, cat_idx_ in zip(self.elts, self.cat_idxs)
-                if cat_idx == cat_idx_ and elt.poly is not None
+                if cat_idx == cat_idx_ and isinstance(elt, Poly)
             ),
             value=1,
             im_mask=im_mask,
@@ -70,9 +86,9 @@ class BboxAnnos(BaseModel):
         )
         fill_bbs_on_mask(
             bbs=(
-                elt.bbox
+                elt
                 for elt, cat_idx_ in zip(self.elts, self.cat_idxs)
-                if cat_idx == cat_idx_ and elt.bbox is not None
+                if cat_idx == cat_idx_ and isinstance(elt, BbF)
             ),
             value=1,
             im_mask=im_mask,
@@ -125,10 +141,10 @@ class BrushData(BaseModel):
 
 
 class InputAnnotationData(BaseModel):
-    bbox: BboxData
-    brush: BrushData
+    bbox: BboxData | None
+    brush: BrushData | None
 
 
 class OutputAnnotationData(BaseModel):
-    bbox: BboxAnnos
-    brush: BrushAnnos
+    bbox: BboxAnnos | None
+    brush: BrushAnnos | None

@@ -3,8 +3,12 @@ name = "rest-testserver"
 version = "0.0.1"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.115.12",
     "opencv-python-headless>=4.11.0.86",
+    "rvimage>=0.0.1",
 ]
+
+[tool.uv.sources]
+rvimage = { path = "../rvimage-py" }

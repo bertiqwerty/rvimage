@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import FastAPI, File, Form, Query, UploadFile
 import cv2
 import numpy as np
-from rvimage.types import InputAnnotationData, OutputAnnotationData
+from rvimage.collection_types import InputAnnotationData, OutputAnnotationData
 
 app = FastAPI()
 
@@ -26,7 +26,15 @@ async def predict(
     im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     print(f"Image shape: {im.shape}")  # Debugging line
     print(f"active tool name {active_tool}")
-    cv2.imwrite("test.jpg", im)  # Save the image for debugging
+    print(input_annotations)
     data = InputAnnotationData.model_validate_json(input_annotations)
     parameters = json.loads(parameters)
-    return OutputAnnotationData(bbox=data.bbox.annos, brush=data.brush.annos)
+    bbd = data.bbox
+    brd = data.brush
+    oad = OutputAnnotationData(
+        bbox=None if bbd is None else bbd.annos,
+        brush=None if brd is None else brd.annos,
+    )
+    print("OAD")
+    print(oad)
+    return oad

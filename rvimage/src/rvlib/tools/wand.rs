@@ -21,7 +21,7 @@ pub struct ImageForPrediction<'a> {
     pub path: Option<&'a Path>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct AnnosWithInfo<'a, T>
 where
     T: InstanceAnnotate,
@@ -30,24 +30,16 @@ where
     pub labelinfo: &'a LabelInfo,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct WandAnnotationsInput<'a> {
     pub bbox: Option<AnnosWithInfo<'a, GeoFig>>,
     pub brush: Option<AnnosWithInfo<'a, Canvas>>,
 }
-impl<'a> WandAnnotationsInput<'a> {
-    #[cfg(test)]
-    pub fn empty() -> Self {
-        Self {
-            bbox: None,
-            brush: None,
-        }
-    }
-}
-#[derive(Serialize, Deserialize)]
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WandAnnotationsOutput {
-    pub bbox_data: Option<InstanceAnnotations<GeoFig>>,
-    pub brush_data: Option<InstanceAnnotations<Canvas>>,
+    pub bbox: Option<InstanceAnnotations<GeoFig>>,
+    pub brush: Option<InstanceAnnotations<Canvas>>,
 }
 
 pub trait Wand {
@@ -122,9 +114,7 @@ impl Wand for RestWand {
         } else {
             "tmpfile.png".into()
         };
-        let bbox_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
-        tracing::info!(bbox_json_str);
-        let brush_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
+        let annos_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
         let param_json_str = if let Some(p) = parameters {
             serde_json::to_string(p)
         } else {
@@ -137,8 +127,7 @@ impl Wand for RestWand {
                 multipart::Part::bytes(image_bytes).file_name(filename),
             )
             .part("parameters", multipart::Part::text(param_json_str))
-            .part("bbox_annotations", multipart::Part::text(bbox_json_str))
-            .part("brush_annotations", multipart::Part::text(brush_json_str));
+            .part("input_annotations", multipart::Part::text(annos_json_str));
         let url = format!("{}?active_tool={active_tool}", self.url);
 
         tracing::info!("Sending predictive labeling request to {url}");
@@ -156,9 +145,11 @@ impl Wand for RestWand {
 }
 
 #[cfg(test)]
-use crate::tracing_setup::init_tracing_for_tests;
+use crate::{
+    tools::BBOX_NAME, tools_data::parameters::ParamVal, tracing_setup::init_tracing_for_tests,
+};
 #[cfg(test)]
-use crate::{tools::BBOX_NAME, tools_data::parameters::ParamVal};
+use rvimage_domain::{BbF, BbI};
 #[cfg(test)]
 use std::{
     process::{Command, Stdio},
@@ -172,6 +163,7 @@ fn test() {
     let manifestdir = env!("CARGO_MANIFEST_DIR");
     let script = format!(
         r#"
+        export PYTHONPATH=../rvimage-py
         cd {}/../rest-testserver
         uv sync
         uv run fastapi run run.py&
@@ -192,6 +184,29 @@ fn test() {
     m.insert("some_param".into(), ParamVal::Float(Some(1.0)));
 
     let im = image::open(&p).unwrap();
+    let bbox_annos = InstanceAnnotations::from_elts_cats(
+        vec![GeoFig::BB(BbF::from_arr(&[0.0, 0.0, 5.0, 5.0]))],
+        vec![1],
+    );
+    let c = Canvas {
+        bb: BbI::from_arr(&[0, 0, 10, 10]),
+        mask: vec![0; 100],
+        intensity: 1.0,
+    };
+    let brush_annos = InstanceAnnotations::from_elts_cats(vec![c], vec![1]);
+    let labelinfo = LabelInfo::default();
+    let bbox_dummy = AnnosWithInfo {
+        annos: &bbox_annos,
+        labelinfo: &labelinfo,
+    };
+    let brush_dummy = AnnosWithInfo {
+        annos: &brush_annos,
+        labelinfo: &labelinfo,
+    };
+    let annos = WandAnnotationsInput {
+        bbox: Some(bbox_dummy),
+        brush: Some(brush_dummy),
+    };
     let seg = w
         .predict(
             ImageForPrediction {
@@ -200,14 +215,14 @@ fn test() {
             },
             BBOX_NAME,
             Some(&m),
-            WandAnnotationsInput::empty(),
+            annos.clone(),
         )
         .unwrap();
     let WandAnnotationsOutput {
-        bbox_data,
-        brush_data,
+        bbox: bbox_data,
+        brush: brush_data,
     } = seg;
-    tracing::debug!("Coco export data: {bbox_data:?}");
-    tracing::debug!("Coco export data: {brush_data:?}");
+    assert_eq!(bbox_data, annos.bbox.map(|b| b.annos.clone()));
+    assert_eq!(brush_data, annos.brush.map(|b| b.annos.clone()));
     child.kill().expect("Failed to kill the server");
 }

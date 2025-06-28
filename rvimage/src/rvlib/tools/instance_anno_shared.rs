@@ -67,12 +67,12 @@ pub fn predictive_labeling<DA>(
                     },
                 ));
                 if let Some(pred) = predictions {
-                    if let Some(pred) = pred.bbox_data {
+                    if let Some(pred) = pred.bbox {
                         if let Some(annos) = bbox::get_annos_mut(&mut world) {
                             *annos = pred;
                         }
                     }
-                    if let Some(pred) = pred.brush_data {
+                    if let Some(pred) = pred.brush {
                         if let Some(annos) = brush::get_annos_mut(&mut world) {
                             *annos = pred;
                         }
