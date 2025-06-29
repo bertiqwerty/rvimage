@@ -297,7 +297,7 @@ pub fn bbox_menu(
                 "vertical",
             );
         });
-        egui::CollapsingHeader::new("view").show(ui, |ui| {
+        egui::CollapsingHeader::new("View").show(ui, |ui| {
             if transparency_slider(
                 ui,
                 are_tools_active,
@@ -346,7 +346,7 @@ pub fn bbox_menu(
             }
         });
 
-        egui::CollapsingHeader::new("Coco import/export").show(ui, |ui| {
+        egui::CollapsingHeader::new("Coco Import/Export").show(ui, |ui| {
             let skip_import_mode = false;
             export_file_menu_result = export_file_menu(
                 ui,
@@ -459,15 +459,28 @@ pub fn brush_menu(
             &mut data.options.per_file_crowd,
             "export merged annotations per file",
         );
-        let skip_import_mode = false;
-        trace_ok_err(export_file_menu(
-            ui,
-            "coco file",
-            &mut data.coco_file,
-            are_tools_active,
-            &mut data.options.core.import_export_trigger,
-            skip_import_mode,
-        ));
+        egui::CollapsingHeader::new("Coco Import/Export").show(ui, |ui| {
+            let skip_import_mode = false;
+            trace_ok_err(export_file_menu(
+                ui,
+                "coco file",
+                &mut data.coco_file,
+                are_tools_active,
+                &mut data.options.core.import_export_trigger,
+                skip_import_mode,
+            ));
+        });
+        egui::CollapsingHeader::new("Predictive Labeling").show(ui, |ui| {
+            let mut pd = mem::take(&mut data.predictive_labeling_data);
+            trace_ok_err(predictive_labeling_menu(
+                ui,
+                &mut pd,
+                data.label_info(),
+                are_tools_active,
+                BBOX_NAME,
+            ));
+            data.predictive_labeling_data = pd;
+        });
     });
     ui.separator();
     if show_inactive_tool_menu(ui, BRUSH_NAME, &mut visible_inactive_tools) {
