@@ -188,11 +188,7 @@ fn test() {
         vec![GeoFig::BB(BbF::from_arr(&[0.0, 0.0, 5.0, 5.0]))],
         vec![1],
     );
-    let c = Canvas {
-        bb: BbI::from_arr(&[0, 0, 10, 10]),
-        mask: vec![0; 100],
-        intensity: 1.0,
-    };
+    let c = Canvas::from_box(BbI::from_arr(&[11, 11, 5, 5]), 1.0);
     let brush_annos = InstanceAnnotations::from_elts_cats(vec![c], vec![1]);
     let labelinfo = LabelInfo::default();
     let bbox_dummy = AnnosWithInfo {
@@ -219,10 +215,39 @@ fn test() {
         )
         .unwrap();
     let WandAnnotationsOutput {
-        bbox: bbox_data,
-        brush: brush_data,
+        bbox: ret_bbox_data,
+        brush: ret_brush_data,
     } = seg;
-    assert_eq!(bbox_data, annos.bbox.map(|b| b.annos.clone()));
-    assert_eq!(brush_data, annos.brush.map(|b| b.annos.clone()));
+    let ret_bbox_data = ret_bbox_data.unwrap();
+    let ret_brush_data = ret_brush_data.unwrap();
+    macro_rules! assert_sendback {
+        ($tool:ident, $ret:expr) => {
+            for (a, cat_idx, is_selected) in annos.$tool.as_ref().unwrap().annos.iter() {
+                let mut found = false;
+                for (r_a, r_cat_idx, r_is_selected) in $ret.iter() {
+                    if a == r_a && is_selected == r_is_selected && cat_idx == r_cat_idx {
+                        found = true;
+                    }
+                }
+                assert!(found);
+            }
+        };
+    }
+    assert_sendback!(bbox, ret_bbox_data);
+    assert_sendback!(brush, ret_brush_data);
+    assert_eq!(
+        ret_bbox_data.elts()[0].enclosing_bb(),
+        BbF::from_arr(&[21.0, 31.0, 9.0, 9.0])
+    );
+    assert_eq!(vec![1, 1, 1], ret_brush_data.elts()[0].mask);
+    assert_eq!(
+        Canvas::from_box(BbI::from_arr(&[23, 30, 3, 1]), 1.0),
+        ret_brush_data.elts()[0]
+    );
+    assert_eq!(
+        Canvas::from_box(BbI::from_arr(&[5, 76, 1, 4]), 1.0),
+        ret_brush_data.elts()[1]
+    );
+
     child.kill().expect("Failed to kill the server");
 }

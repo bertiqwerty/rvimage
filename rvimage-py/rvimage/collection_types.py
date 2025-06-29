@@ -8,7 +8,7 @@ from rvimage.converters import (
     mask_to_rle,
     rle_to_mask,
 )
-from rvimage.domain import BbF, BbI, Poly, enclosing_bb, find_ccs
+from rvimage.domain import BbF, BbI, Poly, find_ccs
 
 
 class Labelinfo(BaseModel):
@@ -29,7 +29,8 @@ class BboxAnnos(BaseModel):
     @classmethod
     def resolve_bb_poly(cls, data: dict) -> dict:
         # remove the type-info from the dict
-        data["elts"] = [next(v for v in d.values()) for d in data["elts"]]
+        if len(data["elts"]) > 0 and isinstance(data["elts"][0], dict):
+            data["elts"] = [next(v for v in d.values()) for d in data["elts"]]
         return data
 
     @model_serializer()
@@ -55,18 +56,17 @@ class BboxAnnos(BaseModel):
         cat_idxs = [cat_idx] * len(polys)
 
         return cls(
-            elts=[
-                Poly(points=points, enclosing_bb=enclosing_bb(points))
-                for points in polys
-            ],
+            elts=[Poly.from_points(points) for points in polys],
             cat_idxs=cat_idxs,
             selected_mask=[False] * len(polys),
         )
 
-    def extend(self, other: Self) -> "BboxAnnos":
+    def extend(self, other: Self | None) -> "BboxAnnos":
         """
         Extend the current BboxAnnos with another BboxAnnos.
         """
+        if other is None:
+            return self
         return BboxAnnos(
             elts=self.elts + other.elts,
             cat_idxs=self.cat_idxs + other.cat_idxs,
@@ -129,10 +129,28 @@ class BrushAnnos(BaseModel):
         )
 
     def fill_mask(self, im_mask: np.ndarray, cat_idx: int):
+        """Create a binary mask from all brush annotations of the given category
+
+        Args:
+            im_mask: output mask to write on
+            cat_idx: index of category to be written
+        """
         for elt, cat_idx_ in zip(self.elts, self.cat_idxs):
             if cat_idx == cat_idx_:
                 im_bb_mask = rle_to_mask(elt.rle, value=1, mask=elt.bb)
                 im_mask[elt.bb.slices] = im_bb_mask
+
+    def extend(self, other: Self | None) -> "BrushAnnos":
+        """
+        Extend the current BrushAnnos with another BrushAnnos.
+        """
+        if other is None:
+            return self
+        return BrushAnnos(
+            elts=self.elts + other.elts,
+            cat_idxs=self.cat_idxs + other.cat_idxs,
+            selected_mask=self.selected_mask + other.selected_mask,
+        )
 
 
 class BrushData(BaseModel):

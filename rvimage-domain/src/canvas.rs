@@ -331,6 +331,13 @@ impl Canvas {
             intensity: line.intensity,
         })
     }
+    pub fn from_box(bb: BbI, intensity: TPtF) -> Self {
+        Self {
+            bb,
+            mask: vec![1; (bb.w * bb.h) as usize],
+            intensity,
+        }
+    }
     #[must_use]
     pub fn merge(mut self, other: &Canvas) -> Self {
         let old_self_bb = self.bb;
@@ -742,4 +749,14 @@ fn test_merge() {
     assert_eq!(merged.bb, BbI::from_arr(&[1, 1, 4, 4]));
     let mask_reference = vec![1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1];
     assert_eq!(merged.mask, mask_reference);
+}
+
+#[test]
+fn test_from_box() {
+    let bb = BbI::from_arr(&[7, 8, 2, 2]);
+    let i = 1.0;
+    let c = Canvas::from_box(bb, i);
+    assert_eq!(c.mask.len(), (bb.w * bb.h) as usize);
+    assert_eq!(c.bb, bb);
+    assert_eq!(c.intensity, i);
 }

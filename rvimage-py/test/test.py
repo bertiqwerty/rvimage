@@ -43,6 +43,12 @@ def test_polygon():
 
 def test_validation():
     annos = {
+        "elts": [],
+        "cat_idxs": [],
+        "selected_mask": [],
+    }
+    BboxAnnos.model_validate(annos)
+    annos = {
         "elts": [{"BB": {"x": 0.0, "y": 0.0, "w": 5.0, "h": 5.0}}],
         "cat_idxs": [1],
         "selected_mask": [False],
@@ -63,6 +69,14 @@ def test_validation():
         BboxAnnos.model_validate(bbox_data)
 
 
+def test_from_mask():
+    resulting_mask = np.zeros((64, 32), dtype=np.uint8)
+    resulting_mask[31:40, 21:30] = 1
+    BboxAnnos.from_mask(resulting_mask, 0)
+
+
 if __name__ == "__main__":
+    test_from_mask()
+    test_validation()
     test_rle()
     test_polygon()

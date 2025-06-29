@@ -65,8 +65,32 @@ class Poly(BaseModel):
     points: list[Point]
     enclosing_bb: BbF
 
+    @classmethod
+    def from_points(cls, points: list[Point]) -> "Poly":
+        return cls(points=points, enclosing_bb=enclosing_bb(points))
+
+
+def enclosing_bb(points: list[Point]) -> BbF:
+    points = points
+    min_x = math.inf
+    min_y = math.inf
+    max_x = -math.inf
+    max_y = -math.inf
+    for point in points:
+        if point.x < min_x:
+            min_x = point.x
+        if point.y < min_y:
+            min_y = point.y
+        if point.x > max_x:
+            max_x = point.x
+        if point.y > max_y:
+            max_y = point.y
+    return BbF(x=min_x, y=min_y, w=max_x + 1 - min_x, h=max_y + 1 - min_y)
+
 
 class CC:
+    """Connected component"""
+
     def __init__(
         self,
         slices: tuple[slice, slice],
@@ -74,8 +98,8 @@ class CC:
         im: np.ndarray,
         im_labeled: np.ndarray,
     ):
-        self.im = im.copy()
-        self.im[im_labeled != label] = 0
+        self.im = im[slices].copy()
+        self.im[im_labeled[slices] != label] = 0
         self.slices = slices
         self.bb = BbI.from_slices(slices)
         self.label = label
@@ -101,20 +125,3 @@ def find_ccs(im: np.ndarray) -> tuple[list[CC], np.ndarray]:
     cc_slices, im_labeled, _ = _find_cc_slices(im)
     ccs = [CC(slc, i + 1, im, im_labeled) for i, slc in enumerate(cc_slices)]
     return ccs, im_labeled
-
-
-def enclosing_bb(points: list[Point]) -> BbF:
-    min_x = math.inf
-    min_y = math.inf
-    max_x = -math.inf
-    max_y = -math.inf
-    for point in points:
-        if point.x < min_x:
-            min_x = point.x
-        if point.y < min_y:
-            min_y = point.y
-        if point.x > max_x:
-            max_x = point.x
-        if point.y > max_y:
-            max_y = point.y
-    return BbF(x=min_x, y=min_y, w=max_x - min_x, h=max_y - min_y)
