@@ -7,7 +7,7 @@ use crate::{
     file_util::PathPair,
 };
 
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct MetaDataFlags {
     pub is_loading_screen_active: Option<bool>,
     pub is_file_list_empty: Option<bool>,
@@ -22,7 +22,7 @@ pub enum ConnectionData {
     #[default]
     None,
 }
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct MetaData {
     file_path_pair: Option<PathPair>,
     pub file_selected_idx: Option<usize>,

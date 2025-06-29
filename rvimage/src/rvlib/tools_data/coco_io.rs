@@ -411,8 +411,11 @@ impl CocoExportData {
 
             match coco_anno.segmentation {
                 Some(CocoSegmentation::Polygon(poly)) => {
-                    let geofig =
-                        polygon_to_geofig(&poly, w_factor, h_factor, bb, |s| warner.warn(s));
+                    let geofig = if poly.is_empty() {
+                        Ok(GeoFig::BB(bb))
+                    } else {
+                        polygon_to_geofig(&poly, w_factor, h_factor, bb, |s| warner.warn(s))
+                    };
                     if let Ok(geofig) = geofig {
                         insert_geo(geofig);
                     } else {
@@ -613,6 +616,7 @@ use {
         cfg::{ExportPathConnection, SshCfg},
         defer_file_removal,
         meta_data::{ConnectionData, MetaDataFlags},
+        tracing_setup::init_tracing_for_tests,
     },
     file_util::DEFAULT_TMPDIR,
     rvimage_domain::{make_test_bbs, BbI},
@@ -878,7 +882,9 @@ fn test_coco_import_export() {
 
 #[test]
 fn test_coco_import() -> RvResult<()> {
+    init_tracing_for_tests();
     fn test(filename: &str, cat_ids: Vec<u32>, reference_bbs: &[(BbI, &str)]) {
+        tracing::debug!(filename);
         let meta = MetaData::new(
             None,
             None,
@@ -889,6 +895,7 @@ fn test_coco_import() -> RvResult<()> {
             MetaDataFlags::default(),
             None,
         );
+        tracing::debug!("{meta:?}");
         let (read, _) = read_coco(&meta, &ExportPath::default(), None).unwrap();
         assert_eq!(read.label_info.cat_ids(), &cat_ids);
         assert_eq!(
