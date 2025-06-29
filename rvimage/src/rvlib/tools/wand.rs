@@ -74,7 +74,7 @@ pub struct RestWand {
 
 #[allow(dead_code)]
 impl RestWand {
-    pub fn new(url: String, authorization: Option<&str>) -> Self {
+    pub fn new(mut url: String, authorization: Option<&str>) -> Self {
         let client = reqwest::blocking::Client::new();
         let mut headers = HeaderMap::new();
         if let Some(s) = authorization {
@@ -82,6 +82,15 @@ impl RestWand {
                 headers.insert(AUTHORIZATION, s);
             }
         }
+        while url.ends_with('/') && !url.is_empty() {
+            url = url[..url.len() - 1].into();
+        }
+
+        let url = if url.split('/').next_back() == Some("predict") {
+            url
+        } else {
+            format!("{url}/predict")
+        };
 
         Self {
             url,
@@ -178,76 +187,82 @@ fn test() {
         .spawn()
         .expect("failed to start FastAPI server");
     thread::sleep(Duration::from_secs(5));
-    let w = RestWand::new("http://127.0.0.1:8000/predict".into(), None);
-    let p = format!("{}/resources/rvimage-logo.png", manifestdir);
-    let mut m = ParamMap::new();
-    m.insert("some_param".into(), ParamVal::Float(Some(1.0)));
+    fn test(url: &str, manifestdir: &'static str) {
+        let w = RestWand::new(url.into(), None);
+        let p = format!("{}/resources/rvimage-logo.png", manifestdir);
+        let mut m = ParamMap::new();
+        m.insert("some_param".into(), ParamVal::Float(Some(1.0)));
 
-    let im = image::open(&p).unwrap();
-    let bbox_annos = InstanceAnnotations::from_elts_cats(
-        vec![GeoFig::BB(BbF::from_arr(&[0.0, 0.0, 5.0, 5.0]))],
-        vec![1],
-    );
-    let c = Canvas::from_box(BbI::from_arr(&[11, 11, 5, 5]), 1.0);
-    let brush_annos = InstanceAnnotations::from_elts_cats(vec![c], vec![1]);
-    let labelinfo = LabelInfo::default();
-    let bbox_dummy = AnnosWithInfo {
-        annos: &bbox_annos,
-        labelinfo: &labelinfo,
-    };
-    let brush_dummy = AnnosWithInfo {
-        annos: &brush_annos,
-        labelinfo: &labelinfo,
-    };
-    let annos = WandAnnotationsInput {
-        bbox: Some(bbox_dummy),
-        brush: Some(brush_dummy),
-    };
-    let seg = w
-        .predict(
-            ImageForPrediction {
-                image: &im,
-                path: Some(Path::new(&p)),
-            },
-            BBOX_NAME,
-            Some(&m),
-            annos.clone(),
-        )
-        .unwrap();
-    let WandAnnotationsOutput {
-        bbox: ret_bbox_data,
-        brush: ret_brush_data,
-    } = seg;
-    let ret_bbox_data = ret_bbox_data.unwrap();
-    let ret_brush_data = ret_brush_data.unwrap();
-    macro_rules! assert_sendback {
-        ($tool:ident, $ret:expr) => {
-            for (a, cat_idx, is_selected) in annos.$tool.as_ref().unwrap().annos.iter() {
-                let mut found = false;
-                for (r_a, r_cat_idx, r_is_selected) in $ret.iter() {
-                    if a == r_a && is_selected == r_is_selected && cat_idx == r_cat_idx {
-                        found = true;
-                    }
-                }
-                assert!(found);
-            }
+        let im = image::open(&p).unwrap();
+        let bbox_annos = InstanceAnnotations::from_elts_cats(
+            vec![GeoFig::BB(BbF::from_arr(&[0.0, 0.0, 5.0, 5.0]))],
+            vec![1],
+        );
+        let c = Canvas::from_box(BbI::from_arr(&[11, 11, 5, 5]), 1.0);
+        let brush_annos = InstanceAnnotations::from_elts_cats(vec![c], vec![1]);
+        let labelinfo = LabelInfo::default();
+        let bbox_dummy = AnnosWithInfo {
+            annos: &bbox_annos,
+            labelinfo: &labelinfo,
         };
+        let brush_dummy = AnnosWithInfo {
+            annos: &brush_annos,
+            labelinfo: &labelinfo,
+        };
+        let annos = WandAnnotationsInput {
+            bbox: Some(bbox_dummy),
+            brush: Some(brush_dummy),
+        };
+        let seg = w
+            .predict(
+                ImageForPrediction {
+                    image: &im,
+                    path: Some(Path::new(&p)),
+                },
+                BBOX_NAME,
+                Some(&m),
+                annos.clone(),
+            )
+            .unwrap();
+        let WandAnnotationsOutput {
+            bbox: ret_bbox_data,
+            brush: ret_brush_data,
+        } = seg;
+        let ret_bbox_data = ret_bbox_data.unwrap();
+        let ret_brush_data = ret_brush_data.unwrap();
+        macro_rules! assert_sendback {
+            ($tool:ident, $ret:expr) => {
+                for (a, cat_idx, is_selected) in annos.$tool.as_ref().unwrap().annos.iter() {
+                    let mut found = false;
+                    for (r_a, r_cat_idx, r_is_selected) in $ret.iter() {
+                        if a == r_a && is_selected == r_is_selected && cat_idx == r_cat_idx {
+                            found = true;
+                        }
+                    }
+                    assert!(found);
+                }
+            };
+        }
+        assert_sendback!(bbox, ret_bbox_data);
+        assert_sendback!(brush, ret_brush_data);
+        assert_eq!(
+            ret_bbox_data.elts()[0].enclosing_bb(),
+            BbF::from_arr(&[21.0, 31.0, 9.0, 9.0])
+        );
+        assert_eq!(vec![1, 1, 1], ret_brush_data.elts()[0].mask);
+        assert_eq!(
+            Canvas::from_box(BbI::from_arr(&[23, 30, 3, 1]), 1.0),
+            ret_brush_data.elts()[0]
+        );
+        assert_eq!(
+            Canvas::from_box(BbI::from_arr(&[5, 76, 1, 4]), 1.0),
+            ret_brush_data.elts()[1]
+        );
     }
-    assert_sendback!(bbox, ret_bbox_data);
-    assert_sendback!(brush, ret_brush_data);
-    assert_eq!(
-        ret_bbox_data.elts()[0].enclosing_bb(),
-        BbF::from_arr(&[21.0, 31.0, 9.0, 9.0])
-    );
-    assert_eq!(vec![1, 1, 1], ret_brush_data.elts()[0].mask);
-    assert_eq!(
-        Canvas::from_box(BbI::from_arr(&[23, 30, 3, 1]), 1.0),
-        ret_brush_data.elts()[0]
-    );
-    assert_eq!(
-        Canvas::from_box(BbI::from_arr(&[5, 76, 1, 4]), 1.0),
-        ret_brush_data.elts()[1]
-    );
+    test("http://127.0.0.1:8000/", manifestdir);
+    test("http://127.0.0.1:8000", manifestdir);
+    test("http://127.0.0.1:8000/predict", manifestdir);
+    test("http://127.0.0.1:8000/predict/", manifestdir);
 
     child.kill().expect("Failed to kill the server");
 }

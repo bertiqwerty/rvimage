@@ -180,7 +180,7 @@ macro_rules! world_annotations_accessor {
             get_annos_(world, false)
         }
         #[allow(unused)]
-        pub(super) fn get_annos_if_some(world: &World) -> Option<&$annotations_type> {
+        pub fn get_annos_if_some(world: &World) -> Option<&$annotations_type> {
             get_annos_(world, true)
         }
     };

@@ -39,24 +39,28 @@ pub fn predictive_labeling<DA>(
         if pred_data.prediction_start_triggered() {
             tracing::info!("Predictive labeling thread is spawned");
             let mut world = world.clone();
+            if let Some(pred_data_mut) = DA::get_predictive_labeling_data_mut(&mut world) {
+                pred_data_mut.untrigger();
+            }
             let mut history = history.clone();
-            let pred_data = pred_data.clone();
+            let url = pred_data.url.clone();
+            let parameters = pred_data.parameters.clone();
             let (tx, rx) = mpsc::channel();
             let pred_thread = move || {
-                let wand = RestWand::new(pred_data.url.clone(), None);
+                let wand = RestWand::new(url, None);
                 let im = ImageForPrediction {
                     image: world.data.im_background(),
                     path: world.data.meta_data.file_path_absolute().map(Path::new),
                 };
-                let bbox_annos = bbox::get_annos(&world);
-                let brush_annos = brush::get_annos(&world);
+                let bbox_annos = bbox::get_annos_if_some(&world);
+                let brush_annos = brush::get_annos_if_some(&world);
                 let bbox_label_info = bbox::get_label_info(&world);
                 let brush_label_info = brush::get_label_info(&world);
 
                 let predictions = trace_ok_err(wand.predict(
                     im,
                     actor,
-                    Some(&pred_data.parameters),
+                    Some(&parameters),
                     WandAnnotationsInput {
                         bbox: bbox_annos.and_then(|annos| {
                             bbox_label_info.map(|labelinfo| AnnosWithInfo { labelinfo, annos })
@@ -67,6 +71,14 @@ pub fn predictive_labeling<DA>(
                     },
                 ));
                 if let Some(pred) = predictions {
+                    tracing::info!(
+                        "received {:?} bbox predictions",
+                        pred.bbox.as_ref().map(|ia| ia.len())
+                    );
+                    tracing::info!(
+                        "received {:?} brush predictions",
+                        pred.brush.as_ref().map(|ia| ia.len())
+                    );
                     if let Some(pred) = pred.bbox {
                         if let Some(annos) = bbox::get_annos_mut(&mut world) {
                             *annos = pred;
@@ -95,6 +107,7 @@ pub fn predictive_labeling<DA>(
                     *prediction_receiver = None;
                     *world = world_pred;
                     *history = history_pred;
+                    world.request_redraw_annotations(actor, crate::util::Visibility::All);
                     tracing::info!("received prediction from predictive labeling of {actor}");
                 }
                 Err(TryRecvError::Empty) => {
