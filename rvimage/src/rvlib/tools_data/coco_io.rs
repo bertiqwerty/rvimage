@@ -208,6 +208,7 @@ impl CocoExportData {
         tools_data: T,
         rotation_data: Option<&Rot90ToolData>,
         prj_path: Option<&Path>,
+        double_check_shape: bool,
     ) -> Self
     where
         T: ExportAsCoco<A>,
@@ -257,7 +258,10 @@ impl CocoExportData {
             .collect::<Vec<_>>();
 
         let mut box_id = 0;
+        let mut imagesum_elapsed = 0;
+        let mut n_images_exported = 1;
         let make_anno_map = |(image_idx, (file_path, (bbs, cat_idxs, shape))): AnnoType<A>| {
+            let now = std::time::Instant::now();
             let prj_path = if let Some(prj_path) = prj_path {
                 prj_path
             } else {
@@ -265,7 +269,7 @@ impl CocoExportData {
             };
             let p = PathPair::new(file_path.clone(), prj_path);
             let p_abs = p.path_absolute();
-            let shape = if Path::new(p_abs).exists() {
+            let shape = if Path::new(p_abs).exists() && double_check_shape {
                 let im = trace_ok_warn(image_util::read_image(file_path));
                 if let Some(im) = im {
                     ShapeI::new(im.width(), im.height())
@@ -276,7 +280,8 @@ impl CocoExportData {
                 *shape
             };
             let n_rotations = get_n_rotations(rotation_data, file_path);
-            bbs.iter()
+            let annos = bbs
+                .iter()
                 .zip(cat_idxs.iter())
                 .filter_map(|(inst_anno, cat_idx): (&A, &usize)| {
                     trace_ok_warn(instance_to_coco_anno(
@@ -298,7 +303,26 @@ impl CocoExportData {
                         }
                     })
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            let elapsed = now.elapsed();
+            imagesum_elapsed += elapsed.as_millis();
+            if imagesum_elapsed > 10000 && image_idx % n_images_exported == 0 {
+                let ave = imagesum_elapsed as usize / (image_idx + 1);
+                tracing::info!(
+                    "converting with {} ms/image, {}/{}, estimated time left: {} s",
+                    ave,
+                    image_idx + 1,
+                    export_data.annotations.len(),
+                    ave * (export_data.annotations.len() - image_idx - 1) / 1000
+                );
+                if n_images_exported == 1 {
+                    n_images_exported = image_idx;
+                    tracing::info!(
+                        "If your export is too slow, consider skipping the shape double check."
+                    )
+                }
+            }
+            annos
         };
         let annotations = export_data
             .annotations
@@ -557,6 +581,7 @@ pub fn write_coco<T, A>(
     tools_data: T,
     rotation_data: Option<&Rot90ToolData>,
     coco_file: &ExportPath,
+    double_check_shape: bool,
 ) -> RvResult<(PathBuf, JoinHandle<RvResult<()>>)>
 where
     T: ExportAsCoco<A> + Send + 'static,
@@ -572,6 +597,7 @@ where
             tools_data,
             rotation_data.as_ref(),
             meta_data.prj_path(),
+            double_check_shape,
         );
         let data_str = serde_json::to_string(&coco_data)
             .map_err(to_rv)
@@ -803,7 +829,7 @@ fn test_coco_export() {
         A: InstanceAnnotate + 'static,
     {
         let coco_file = tools_data.cocofile_conn();
-        let (coco_file, handle) = write_coco(meta, tools_data, None, &coco_file).unwrap();
+        let (coco_file, handle) = write_coco(meta, tools_data, None, &coco_file, true).unwrap();
         handle.join().unwrap().unwrap();
         (
             read_coco(
@@ -867,7 +893,7 @@ fn test_coco_import_export() {
     };
 
     let (read, _) = read_coco(&meta, &export_path, None).unwrap();
-    let (_, handle) = write_coco(&meta, read.clone(), None, &export_path.clone()).unwrap();
+    let (_, handle) = write_coco(&meta, read.clone(), None, &export_path.clone(), true).unwrap();
     handle.join().unwrap().unwrap();
     no_image_dups(&read.coco_file.path);
     let (read, _) = read_coco(&meta, &export_path, None).unwrap();
@@ -973,6 +999,7 @@ fn test_rotation_export_import() {
             bbox_specifics.clone(),
             Some(&rotation_data),
             &coco_file,
+            true,
         )
         .unwrap();
         handle.join().unwrap().unwrap();

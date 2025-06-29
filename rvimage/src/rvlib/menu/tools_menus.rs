@@ -192,6 +192,7 @@ fn export_file_menu(
     export_path: &mut ExportPath,
     are_tools_active: &mut bool,
     import_export_trigger: &mut ImportExportTrigger,
+    double_check_shape: Option<&mut bool>,
     skip_import_mode: bool,
 ) -> RvResult<()> {
     let mut file_txt = path_to_str(&export_path.path)?.to_string();
@@ -214,6 +215,12 @@ fn export_file_menu(
         if ui.button("import").clicked() {
             tracing::info!("clicked on import trigger");
             import_export_trigger.trigger_import();
+        }
+        if let Some(double_check_shape) = double_check_shape {
+            ui.checkbox(double_check_shape, "double check shape")
+                .on_hover_text(
+                "For shape correction the image needs to be loaded which slows down the export.",
+            );
         }
         if skip_import_mode {
             let mut checked = import_export_trigger.merge_mode();
@@ -354,6 +361,7 @@ pub fn bbox_menu(
                 &mut data.coco_file,
                 are_tools_active,
                 &mut data.options.core.import_export_trigger,
+                Some(&mut data.options.core.doublecheck_cocoexport_shape),
                 skip_import_mode,
             );
         });
@@ -467,6 +475,7 @@ pub fn brush_menu(
                 &mut data.coco_file,
                 are_tools_active,
                 &mut data.options.core.import_export_trigger,
+                Some(&mut data.options.core.doublecheck_cocoexport_shape),
                 skip_import_mode,
             ));
         });
@@ -742,6 +751,7 @@ pub fn attributes_menu(
         &mut data.export_path,
         are_tools_active,
         &mut data.options.import_export_trigger,
+        None,
         skip_merge_menu,
     )?;
 
