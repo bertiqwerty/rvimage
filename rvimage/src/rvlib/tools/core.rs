@@ -4,7 +4,8 @@ use super::attributes;
 use crate::history::Record;
 use crate::result::trace_ok_err;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
-use crate::tools_data::attributes_data::{self, AttrVal};
+use crate::tools_data::attributes_data;
+use crate::tools_data::parameters::ParamVal;
 use crate::tools_data::{vis_from_lfoption, ImportExportTrigger, InstanceAnnotate, LabelInfo};
 use crate::util::Visibility;
 use crate::world::InstanceAnnoAccess;
@@ -24,12 +25,12 @@ pub(super) fn make_track_changes_str(actor: &'static str) -> String {
 pub(super) fn insert_attribute(
     mut world: World,
     attr_name: &str,
-    value: AttrVal,
-    default_value: AttrVal,
+    value: ParamVal,
+    default_value: ParamVal,
     filepath: Option<&str>,
 ) -> World {
     let mut old_attr_name = String::new();
-    let mut old_attr_val = AttrVal::Bool(false);
+    let mut old_attr_val = ParamVal::Bool(false);
 
     if let Ok(attr_data) = world::get_mut(&mut world, attributes::ACTOR_NAME, "Attr data missing") {
         // does the new attribute already exist?
@@ -113,8 +114,8 @@ pub(super) fn change_annos<T, DA, IA>(
         *world = insert_attribute(
             mem::take(world),
             track_changes_str,
-            AttrVal::Bool(true),
-            AttrVal::Bool(false),
+            ParamVal::Bool(true),
+            ParamVal::Bool(false),
             None,
         );
     }

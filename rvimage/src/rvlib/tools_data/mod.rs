@@ -23,7 +23,9 @@ pub mod brush_data;
 pub mod coco_io;
 mod core;
 mod label_map;
+pub mod parameters;
 mod plot_stats;
+pub mod predictive_labeling;
 pub mod rot90_data;
 pub use core::{merge, AnnotationsMap, InstanceLabelDisplay, Options as CoreOptions};
 use std::collections::HashMap;
@@ -233,7 +235,7 @@ macro_rules! toolsdata_by_name {
     };
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ToolsDataMap {
     // tool name -> tool's menu data type
     #[serde(flatten)]

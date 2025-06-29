@@ -22,8 +22,8 @@ use crate::{
     result::trace_ok_err,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
     tools_data::{
-        attributes_data::AttrVal, AccessInstanceData, AnnotationsMap, AttributesToolData,
-        LabelInfo, ToolSpecifics, ToolsDataMap,
+        parameters::ParamVal, AccessInstanceData, AnnotationsMap, AttributesToolData, LabelInfo,
+        ToolSpecifics, ToolsDataMap,
     },
     InstanceAnnotate,
 };
@@ -64,7 +64,7 @@ where
 fn propagate_attributes(
     data: &mut AttributesToolData,
     paths: &[&PathPair],
-    f: impl Fn(&AttrVal) -> AttrVal,
+    f: impl Fn(&ParamVal) -> ParamVal,
 ) -> RvResult<()> {
     let to_prop = mem::take(&mut data.to_propagate_attr_val);
 

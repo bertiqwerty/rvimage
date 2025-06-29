@@ -314,7 +314,7 @@ impl Default for UserPrjOpened {
         Self::new()
     }
 }
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SavePrjData {
     pub version: Option<String>,
     #[serde(serialize_with = "detail::serialize_opened_folder")]

@@ -1,6 +1,15 @@
 use brush_data::BrushToolData;
-use std::{cmp::Ordering, mem, thread};
+use std::{cmp::Ordering, mem, sync::mpsc::Receiver, thread};
 
+use super::{
+    core::{
+        change_annos, check_autopaste, check_erase_mode, check_instance_label_display_change,
+        deselect_all, instance_label_display_sort, label_change_key, map_held_key,
+        map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey,
+    },
+    instance_anno_shared::get_rot90_data,
+    Manipulate, BRUSH_NAME,
+};
 use crate::{
     annotations_accessor_mut,
     cfg::ExportPath,
@@ -11,7 +20,7 @@ use crate::{
     result::trace_ok_err,
     tools::{
         core::{check_recolorboxes, check_trigger_history_update, check_trigger_redraw},
-        instance_anno_shared::check_cocoimport,
+        instance_anno_shared::{check_cocoimport, predictive_labeling},
     },
     tools_data::{
         self,
@@ -26,16 +35,6 @@ use crate::{
     world_annotations_accessor, Annotation, BrushAnnotation, Line, ShapeI,
 };
 use rvimage_domain::{BrushLine, Canvas, PtF, TPtF};
-
-use super::{
-    core::{
-        change_annos, check_autopaste, check_erase_mode, check_instance_label_display_change,
-        deselect_all, instance_label_display_sort, label_change_key, map_held_key,
-        map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey,
-    },
-    instance_anno_shared::get_rot90_data,
-    Manipulate, BRUSH_NAME,
-};
 
 pub const ACTOR_NAME: &str = "Brush";
 const MISSING_ANNO_MSG: &str = "brush annotations have not yet been initialized";
@@ -331,9 +330,10 @@ pub(super) fn on_mouse_held_right(
     }
     (world, history)
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Brush {
     mover: Mover,
+    prediction_receiver: Option<Receiver<(World, History)>>,
 }
 
 impl Brush {
@@ -506,10 +506,19 @@ impl Brush {
     }
 }
 
+impl Clone for Brush {
+    fn clone(&self) -> Self {
+        Self {
+            mover: self.mover,
+            prediction_receiver: None, // JoinHandle cannot be cloned
+        }
+    }
+}
 impl Manipulate for Brush {
     fn new() -> Self {
         Self {
             mover: Mover::new(),
+            prediction_receiver: None,
         }
     }
 
@@ -570,6 +579,12 @@ impl Manipulate for Brush {
         if imported {
             set_visible(&mut world);
         }
+        predictive_labeling::<DataAccessors>(
+            &mut world,
+            &mut history,
+            ACTOR_NAME,
+            &mut self.prediction_receiver,
+        );
         world = check_recolorboxes::<DataAccessors>(world, BRUSH_NAME);
         world = check_selected_intensity_thickness(world);
         world = check_export(world);

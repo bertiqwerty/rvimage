@@ -2717,6 +2717,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
+name = "mime_guess"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
+dependencies = [
+ "mime",
+ "unicase",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3891,6 +3901,7 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
+ "mime_guess",
  "native-tls",
  "once_cell",
  "percent-encoding",
@@ -4066,6 +4077,7 @@ dependencies = [
  "azure_storage",
  "azure_storage_blobs",
  "backtrace",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "conv",
@@ -4087,7 +4099,7 @@ dependencies = [
  "reqwest",
  "rfd",
  "rusttype",
- "rvimage-domain 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rvimage-domain",
  "serde",
  "serde_json",
  "ssh2",
@@ -4106,19 +4118,6 @@ dependencies = [
 [[package]]
 name = "rvimage-domain"
 version = "0.4.9"
-dependencies = [
- "image",
- "imageproc",
- "serde",
- "serde_json",
- "tracing",
-]
-
-[[package]]
-name = "rvimage-domain"
-version = "0.4.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b737d320ae3e21aabdca9b4ec0d6be553140da34fc7612a6604e1c088c290d9d"
 dependencies = [
  "image",
  "imageproc",
@@ -4914,6 +4913,12 @@ dependencies = [
  "tempfile",
  "winapi",
 ]
+
+[[package]]
+name = "unicase"
+version = "2.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75b844d17643ee918803943289730bec8aac480150456169e647ed0b576ba539"
 
 [[package]]
 name = "unicode-ident"

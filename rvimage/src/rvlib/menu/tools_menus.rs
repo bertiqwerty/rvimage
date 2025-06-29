@@ -13,12 +13,13 @@ use crate::{
     tools::{get_visible_inactive_names, BBOX_NAME, BRUSH_NAME},
     tools_data::{
         annotations::SplitMode,
-        attributes_data::AttrVal,
         bbox_data::BboxToolData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportExportTrigger,
-        InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData, VisibleInactiveToolsState,
-        OUTLINE_THICKNESS_CONVERSION,
+        parameters::{ParamMap, ParamVal},
+        predictive_labeling::PredictiveLabelingData,
+        AccessInstanceData, AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions,
+        ImportExportTrigger, InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData,
+        VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
     },
 };
 use egui::Ui;
@@ -288,48 +289,6 @@ pub fn bbox_menu(
     let mut export_file_menu_result = Ok(());
     egui::CollapsingHeader::new("advanced").show(ui, |ui| {
         ui.checkbox(&mut data.options.core.track_changes, "track changes");
-        if transparency_slider(
-            ui,
-            are_tools_active,
-            &mut data.options.fill_alpha,
-            "fill transparency",
-        ) {
-            data.options.core.is_redraw_annos_triggered = true;
-        }
-        if transparency_slider(
-            ui,
-            are_tools_active,
-            &mut data.options.outline_alpha,
-            "outline transparency",
-        ) {
-            data.options.core.is_redraw_annos_triggered = true;
-        }
-        let mut outline_thickness_f =
-            data.options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION;
-        if slider(
-            ui,
-            are_tools_active,
-            &mut outline_thickness_f,
-            0.0..=10.0,
-            "outline thickness",
-        )
-        .changed()
-        {
-            data.options.core.is_redraw_annos_triggered = true;
-        }
-        data.options.outline_thickness =
-            (outline_thickness_f * OUTLINE_THICKNESS_CONVERSION).round() as u16;
-        if slider(
-            ui,
-            are_tools_active,
-            &mut data.options.drawing_distance,
-            1..=50,
-            "drawing distance parameter",
-        )
-        .changed()
-        {
-            data.options.core.is_redraw_annos_triggered = true;
-        }
         ui.horizontal(|ui| {
             ui.separator();
             ui.label("split mode");
@@ -345,24 +304,79 @@ pub fn bbox_menu(
                 "vertical",
             );
         });
+        egui::CollapsingHeader::new("View").show(ui, |ui| {
+            if transparency_slider(
+                ui,
+                are_tools_active,
+                &mut data.options.fill_alpha,
+                "fill transparency",
+            ) {
+                data.options.core.is_redraw_annos_triggered = true;
+            }
+            if transparency_slider(
+                ui,
+                are_tools_active,
+                &mut data.options.outline_alpha,
+                "outline transparency",
+            ) {
+                data.options.core.is_redraw_annos_triggered = true;
+            }
+            let mut outline_thickness_f =
+                data.options.outline_thickness as TPtF / OUTLINE_THICKNESS_CONVERSION;
+            if slider(
+                ui,
+                are_tools_active,
+                &mut outline_thickness_f,
+                0.0..=10.0,
+                "outline thickness",
+            )
+            .changed()
+            {
+                data.options.core.is_redraw_annos_triggered = true;
+            }
+            data.options.outline_thickness =
+                (outline_thickness_f * OUTLINE_THICKNESS_CONVERSION).round() as u16;
+            if slider(
+                ui,
+                are_tools_active,
+                &mut data.options.drawing_distance,
+                1..=50,
+                "drawing distance parameter",
+            )
+            .changed()
+            {
+                data.options.core.is_redraw_annos_triggered = true;
+            }
+            ui.separator();
+            if ui.button("new random colors").clicked() {
+                data.options.core.is_colorchange_triggered = true;
+            }
+        });
 
-        ui.separator();
+        egui::CollapsingHeader::new("Coco Import/Export").show(ui, |ui| {
+            let skip_import_mode = false;
+            export_file_menu_result = export_file_menu(
+                ui,
+                "coco file",
+                &mut data.coco_file,
+                are_tools_active,
+                &mut data.options.core.import_export_trigger,
+                Some(&mut data.options.core.doublecheck_cocoexport_shape),
+                skip_import_mode,
+            );
+        });
 
-        let skip_import_mode = false;
-        export_file_menu_result = export_file_menu(
-            ui,
-            "coco file",
-            &mut data.coco_file,
-            are_tools_active,
-            &mut data.options.core.import_export_trigger,
-            Some(&mut data.options.core.doublecheck_cocoexport_shape),
-            skip_import_mode,
-        );
-
-        ui.separator();
-        if ui.button("new random colors").clicked() {
-            data.options.core.is_colorchange_triggered = true;
-        }
+        egui::CollapsingHeader::new("Predictive Labeling").show(ui, |ui| {
+            let mut pd = mem::take(&mut data.predictive_labeling_data);
+            trace_ok_err(predictive_labeling_menu(
+                ui,
+                &mut pd,
+                data.label_info(),
+                are_tools_active,
+                BBOX_NAME,
+            ));
+            data.predictive_labeling_data = pd;
+        });
     });
     export_file_menu_result?;
     ui.separator();
@@ -453,16 +467,29 @@ pub fn brush_menu(
             &mut data.options.per_file_crowd,
             "export merged annotations per file",
         );
-        let skip_import_mode = false;
-        trace_ok_err(export_file_menu(
-            ui,
-            "coco file",
-            &mut data.coco_file,
-            are_tools_active,
-            &mut data.options.core.import_export_trigger,
-            Some(&mut data.options.core.doublecheck_cocoexport_shape),
-            skip_import_mode,
-        ));
+        egui::CollapsingHeader::new("Coco Import/Export").show(ui, |ui| {
+            let skip_import_mode = false;
+            trace_ok_err(export_file_menu(
+                ui,
+                "coco file",
+                &mut data.coco_file,
+                are_tools_active,
+                &mut data.options.core.import_export_trigger,
+                Some(&mut data.options.core.doublecheck_cocoexport_shape),
+                skip_import_mode,
+            ));
+        });
+        egui::CollapsingHeader::new("Predictive Labeling").show(ui, |ui| {
+            let mut pd = mem::take(&mut data.predictive_labeling_data);
+            trace_ok_err(predictive_labeling_menu(
+                ui,
+                &mut pd,
+                data.label_info(),
+                are_tools_active,
+                BBOX_NAME,
+            ));
+            data.predictive_labeling_data = pd;
+        });
     });
     ui.separator();
     if show_inactive_tool_menu(ui, BRUSH_NAME, &mut visible_inactive_tools) {
@@ -501,137 +528,216 @@ where
     input_changed
 }
 
+const FLOAT_LABEL: &str = "Float";
+const INT_LABEL: &str = "Int";
+const TEXT_LABEL: &str = "Text";
+const BOOL_LABEL: &str = "Bool";
+fn add_parameter_menu<'a>(
+    ui: &mut Ui,
+    mut new_param_name: String,
+    mut new_param_val: ParamVal,
+    mut existing_param_names: impl Iterator<Item = &'a String>,
+    are_tools_active: &mut bool,
+) -> (String, ParamVal, bool) {
+    ui.horizontal(|ui| {
+        egui::ComboBox::from_label("")
+            .selected_text(format!(
+                "{:?}",
+                match new_param_val {
+                    ParamVal::Float(_) => FLOAT_LABEL,
+                    ParamVal::Int(_) => INT_LABEL,
+                    ParamVal::Str(_) => TEXT_LABEL,
+                    ParamVal::Bool(_) => BOOL_LABEL,
+                }
+            ))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut new_param_val, ParamVal::Float(None), FLOAT_LABEL);
+                ui.selectable_value(&mut new_param_val, ParamVal::Int(None), INT_LABEL);
+                ui.selectable_value(&mut new_param_val, ParamVal::Str(String::new()), TEXT_LABEL);
+                ui.selectable_value(&mut new_param_val, ParamVal::Bool(false), BOOL_LABEL);
+            });
+    });
+    text_edit_singleline(ui, &mut new_param_name, are_tools_active);
+    if ui.button("add").clicked() {
+        if existing_param_names.any(|pm| pm == &new_param_name) {
+            tracing::error!(
+                "attribute {:?} already exists, we do not re-create it",
+                new_param_name
+            );
+            (new_param_name, new_param_val, false)
+        } else {
+            // only case where we add a new attribute and hence return true
+            (new_param_name, new_param_val, true)
+        }
+    } else {
+        (new_param_name, new_param_val, false)
+    }
+}
+
+#[derive(Default)]
+enum ExistingParamMenuAction {
+    Rename(usize),
+    Remove(usize),
+    #[default]
+    None,
+}
+
+#[derive(Default)]
+struct ExistingParamMenuResult {
+    action: ExistingParamMenuAction,
+    buffers: Vec<String>,
+    is_update_triggered: bool,
+    param_map: ParamMap,
+}
+
+fn no_more_cols(_: &mut Ui, input_changed: bool, _: usize, _: ParamVal) -> bool {
+    input_changed
+}
+
+fn existing_params_menu(
+    ui: &mut Ui,
+    mut attr_map: ParamMap,
+    are_tools_active: &mut bool,
+    mut more_cols: impl FnMut(&mut Ui, bool, usize, ParamVal) -> bool,
+    mut param_buffers: Vec<String>,
+) -> RvResult<ExistingParamMenuResult> {
+    let mut result = ExistingParamMenuResult::default();
+    egui::Grid::new("attributes_grid")
+        .num_columns(4)
+        .show(ui, |ui| {
+            let n_rows = attr_map.len();
+            let to_be_removed = removable_rows(ui, n_rows, |ui, idx_row| {
+                let attr_name = attr_map
+                    .keys()
+                    .nth(idx_row)
+                    .unwrap_or_else(|| {
+                        panic!("BUG! could not find idx {idx_row} in params of {attr_map:?}")
+                    })
+                    .clone();
+                let mut new_attr_buffer = mem::take(&mut param_buffers[idx_row]);
+                ui.label(&attr_name);
+                let mut input_changed = false;
+                match attr_map.get_mut(&attr_name) {
+                    Some(ParamVal::Bool(b)) => {
+                        if ui.checkbox(b, "").changed() {
+                            input_changed = true;
+                        }
+                    }
+                    Some(ParamVal::Float(x)) => {
+                        input_changed = update_numeric_attribute(
+                            ui,
+                            are_tools_active,
+                            x,
+                            FLOAT_LABEL,
+                            &mut new_attr_buffer,
+                        );
+                    }
+                    Some(ParamVal::Int(x)) => {
+                        input_changed = update_numeric_attribute(
+                            ui,
+                            are_tools_active,
+                            x,
+                            INT_LABEL,
+                            &mut new_attr_buffer,
+                        );
+                    }
+                    Some(ParamVal::Str(s)) => {
+                        input_changed = text_edit_singleline(ui, s, are_tools_active)
+                            .on_hover_text(TEXT_LABEL)
+                            .lost_focus();
+                    }
+                    None => {
+                        warn!("attr_map does not contain {attr_name}");
+                    }
+                }
+                if let Some(attr_val) = attr_map.get(&attr_name) {
+                    if more_cols(ui, input_changed, idx_row, attr_val.clone()) {
+                        result.is_update_triggered = true;
+                    }
+                }
+                param_buffers[idx_row] = new_attr_buffer;
+
+                if ui.button("rename").clicked() {
+                    result.action = ExistingParamMenuAction::Rename(idx_row);
+                    result.is_update_triggered = true;
+                }
+                ui.end_row();
+            });
+            result.buffers = param_buffers;
+            if let Some(tbr) = to_be_removed {
+                result.action = ExistingParamMenuAction::Remove(tbr);
+            }
+        });
+    result.param_map = attr_map;
+    Ok(result)
+}
+
 pub fn attributes_menu(
     ui: &mut Ui,
     mut window_open: bool,
     mut data: AttributesToolData,
     are_tools_active: &mut bool,
 ) -> RvResult<ToolsData> {
-    const FLOAT_LABEL: &str = "Float";
-    const INT_LABEL: &str = "Int";
-    const TEXT_LABEL: &str = "Text";
-    const BOOL_LABEL: &str = "Bool";
-    ui.horizontal(|ui| {
-        egui::ComboBox::from_label("")
-            .selected_text(format!(
-                "{:?}",
-                match data.new_attr_val {
-                    AttrVal::Float(_) => FLOAT_LABEL,
-                    AttrVal::Int(_) => INT_LABEL,
-                    AttrVal::Str(_) => TEXT_LABEL,
-                    AttrVal::Bool(_) => BOOL_LABEL,
-                }
-            ))
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut data.new_attr_val, AttrVal::Float(None), FLOAT_LABEL);
-                ui.selectable_value(&mut data.new_attr_val, AttrVal::Int(None), INT_LABEL);
-                ui.selectable_value(
-                    &mut data.new_attr_val,
-                    AttrVal::Str(String::new()),
-                    TEXT_LABEL,
-                );
-                ui.selectable_value(&mut data.new_attr_val, AttrVal::Bool(false), BOOL_LABEL);
-            });
-    });
-    text_edit_singleline(ui, &mut data.new_attr_name, are_tools_active);
-    if ui.button("add").clicked() {
-        if data.attr_names().contains(&data.new_attr_name) {
-            tracing::error!(
-                "attribute {:?} already exists, we do not re-create it",
-                data.new_attr_name
-            );
-        } else {
-            data.options.is_addition_triggered = true;
+    let add_new;
+    (data.new_attr_name, data.new_attr_val, add_new) = add_parameter_menu(
+        ui,
+        mem::take(&mut data.new_attr_name),
+        mem::take(&mut data.new_attr_val),
+        data.attr_names().iter(),
+        are_tools_active,
+    );
+    if add_new {
+        data.options.is_addition_triggered = true;
+        data.options.is_update_triggered = true;
+    }
+    let mut to_propagate = mem::take(&mut data.to_propagate_attr_val);
+    let more_cols = |ui: &mut Ui, input_changed: bool, idx_row: usize, attr_val: ParamVal| {
+        let mut is_update_triggered = false;
+        if input_changed {
+            to_propagate.retain(|(idx_attr, _)| *idx_attr != idx_row);
+            is_update_triggered = true;
+        }
+        let checked = to_propagate
+            .iter()
+            .any(|(idx_attr, _)| *idx_attr == idx_row);
+        if ui
+            .selectable_label(checked, "propagate")
+            .on_hover_text("propaget attribute value to next opened image")
+            .clicked()
+        {
+            if checked {
+                to_propagate.retain(|(idx_attr, _)| *idx_attr != idx_row);
+            } else {
+                to_propagate.push((idx_row, attr_val));
+            }
+        }
+        is_update_triggered
+    };
+    let param_buffers = mem::take(data.attr_value_buffers_mut());
+    if let Some(attr_map) = &mut data.current_attr_map {
+        let existing_res = existing_params_menu(
+            ui,
+            mem::take(attr_map),
+            are_tools_active,
+            more_cols,
+            param_buffers,
+        )?;
+        data.current_attr_map = Some(existing_res.param_map);
+        *data.attr_value_buffers_mut() = existing_res.buffers;
+        data.to_propagate_attr_val = to_propagate;
+        match existing_res.action {
+            ExistingParamMenuAction::Rename(idx) => {
+                data.options.rename_src_idx = Some(idx);
+            }
+            ExistingParamMenuAction::Remove(idx) => {
+                data.options.removal_idx = Some(idx);
+            }
+            ExistingParamMenuAction::None => (),
+        }
+        if existing_res.is_update_triggered {
             data.options.is_update_triggered = true;
         }
     }
-    egui::Grid::new("attributes_grid")
-        .num_columns(4)
-        .show(ui, |ui| {
-            let n_rows = data.attr_names().len();
-            let to_be_removed = removable_rows(ui, n_rows, |ui, idx_row| {
-                let attr_name = data.attr_names()[idx_row].clone();
-                let mut new_attr_buffer = mem::take(data.attr_value_buffer_mut(idx_row));
-                ui.label(&attr_name);
-                let attr_map = &mut data.current_attr_map;
-                let mut input_changed = false;
-                if let Some(attr_map) = attr_map {
-                    match attr_map.get_mut(&attr_name) {
-                        Some(AttrVal::Bool(b)) => {
-                            if ui.checkbox(b, "").changed() {
-                                input_changed = true;
-                            }
-                        }
-                        Some(AttrVal::Float(x)) => {
-                            input_changed = update_numeric_attribute(
-                                ui,
-                                are_tools_active,
-                                x,
-                                FLOAT_LABEL,
-                                &mut new_attr_buffer,
-                            );
-                        }
-                        Some(AttrVal::Int(x)) => {
-                            let lost_focus = update_numeric_attribute(
-                                ui,
-                                are_tools_active,
-                                x,
-                                INT_LABEL,
-                                &mut new_attr_buffer,
-                            );
-                            if lost_focus {
-                                input_changed = true;
-                            }
-                        }
-                        Some(AttrVal::Str(s)) => {
-                            let lost_focus = text_edit_singleline(ui, s, are_tools_active)
-                                .on_hover_text(TEXT_LABEL)
-                                .lost_focus();
-                            if lost_focus {
-                                input_changed = true;
-                            }
-                        }
-                        None => {
-                            warn!("attr_map does not contain {attr_name}");
-                        }
-                    }
-                    if input_changed {
-                        data.to_propagate_attr_val
-                            .retain(|(idx_attr, _)| *idx_attr != idx_row);
-                        data.options.is_update_triggered = true;
-                    }
-
-                    let checked = data
-                        .to_propagate_attr_val
-                        .iter()
-                        .any(|(idx_attr, _)| *idx_attr == idx_row);
-
-                    if ui
-                        .selectable_label(checked, "propagate")
-                        .on_hover_text("propaget attribute value to next opened image")
-                        .clicked()
-                    {
-                        if checked {
-                            data.to_propagate_attr_val
-                                .retain(|(idx_attr, _)| *idx_attr != idx_row);
-                        } else {
-                            data.to_propagate_attr_val
-                                .push((idx_row, attr_map[&attr_name].clone()));
-                        }
-                    }
-                    *data.attr_value_buffer_mut(idx_row) = new_attr_buffer;
-                }
-
-                if ui.button("rename").clicked() {
-                    data.options.rename_src_idx = Some(idx_row);
-                    data.options.is_update_triggered = true;
-                }
-                ui.end_row();
-            });
-            if let Some(tbr) = to_be_removed {
-                data.options.removal_idx = Some(tbr);
-            }
-        });
 
     ui.separator();
     let skip_merge_menu = true;
@@ -659,4 +765,66 @@ pub fn attributes_menu(
         menu_active: window_open,
         visible_inactive_tools: VisibleInactiveToolsState::default(),
     })
+}
+
+pub fn predictive_labeling_menu(
+    ui: &mut Ui,
+    data: &mut PredictiveLabelingData,
+    label_info: &LabelInfo,
+    are_tools_active: &mut bool,
+    tool_name: &'static str,
+) -> RvResult<()> {
+    ui.label("Parameters");
+    let add_param;
+    (
+        data.new_param_name_buffer,
+        data.new_param_val_buffer,
+        add_param,
+    ) = add_parameter_menu(
+        ui,
+        mem::take(&mut data.new_param_name_buffer),
+        mem::take(&mut data.new_param_val_buffer),
+        data.parameters.keys(),
+        are_tools_active,
+    );
+    if add_param {
+        data.parameters.insert(
+            mem::take(&mut data.new_param_name_buffer),
+            mem::take(&mut data.new_param_val_buffer),
+        );
+        data.param_buffers.push("".to_string());
+    }
+    let res = existing_params_menu(
+        ui,
+        mem::take(&mut data.parameters),
+        are_tools_active,
+        no_more_cols,
+        mem::take(&mut data.param_buffers),
+    )?;
+    data.parameters = res.param_map;
+    data.param_buffers = res.buffers;
+    // vertical checkboxes over labelnames
+    ui.label("Label names");
+    let mut active_labels = label_info
+        .labels()
+        .iter()
+        .map(|lab| data.tool_labelnames_map[tool_name].contains(lab))
+        .collect::<Vec<_>>();
+    for (text, checked) in label_info.labels().iter().zip(active_labels.iter_mut()) {
+        if ui.checkbox(checked, text).changed() {
+            if *checked {
+                if let Some(t) = data.tool_labelnames_map.get_mut(tool_name) {
+                    t.push(text.to_string())
+                }
+            } else if let Some(t) = data.tool_labelnames_map.get_mut(tool_name) {
+                t.retain(|s| s != text);
+            }
+        }
+    }
+    text_edit_singleline(ui, &mut data.url, are_tools_active);
+    if ui.button("Predict").clicked() {
+        tracing::info!("Predictive labeling triggered");
+        data.trigger_prediction();
+    }
+    Ok(())
 }
