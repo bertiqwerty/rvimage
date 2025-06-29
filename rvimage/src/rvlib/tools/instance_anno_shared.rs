@@ -99,7 +99,7 @@ pub fn predictive_labeling<DA>(
                 }
                 Err(TryRecvError::Empty) => {
                     if let Some(t) = pred_data_mut.trigger_time() {
-                        if t.elapsed().as_millis() > pred_data_mut.timeout_ms {
+                        if t.elapsed().as_millis() as usize > pred_data_mut.timeout_ms {
                             tracing::error!(
                                 "timeout of predictive labeling of {actor} after{} ms",
                                 pred_data_mut.timeout_ms

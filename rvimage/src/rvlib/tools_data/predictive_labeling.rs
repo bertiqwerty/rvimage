@@ -15,7 +15,7 @@ pub struct PredictiveLabelingData {
     pub url: String,
     pub authorization_headers: Option<String>,
     pub tool_labelnames_map: HashMap<String, Vec<String>>,
-    pub timeout_ms: u128,
+    pub timeout_ms: usize,
     #[serde(skip)]
     trigger: Option<(bool, Instant)>,
 }
