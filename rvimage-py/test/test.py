@@ -1,8 +1,16 @@
 import json
+
+import cv2
 import numpy as np
+
 from rvimage.collection_types import BboxAnnos, BrushAnnos
-from rvimage.converters import extract_polys_from_mask, fill_polys_on_mask
-from rvimage.converters import rle_to_mask, mask_to_rle
+from rvimage.converters import (
+    decode_bytes_into_rgbarray,
+    extract_polys_from_mask,
+    fill_polys_on_mask,
+    mask_to_rle,
+    rle_to_mask,
+)
 from rvimage.domain import Point
 
 
@@ -75,7 +83,21 @@ def test_from_mask():
     BboxAnnos.from_mask(resulting_mask, 0)
 
 
+def test_decode_image():
+    bytes = open("../rvimage/resources/rvimage-logo.png", "rb").read()
+    im_decoded = decode_bytes_into_rgbarray(bytes)
+    im_read = cv2.imread("../rvimage/resources/rvimage-logo.png", cv2.IMREAD_COLOR)
+    im_read = cv2.cvtColor(im_read, cv2.COLOR_BGR2RGB)
+    assert im_decoded.shape == im_read.shape, (
+        "Decoded image shape does not match read image shape"
+    )
+    assert np.array_equal(im_decoded, im_read), (
+        "Decoded image does not match read image"
+    )
+
+
 if __name__ == "__main__":
+    test_decode_image()
     test_from_mask()
     test_validation()
     test_rle()

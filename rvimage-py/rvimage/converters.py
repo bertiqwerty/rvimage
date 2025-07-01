@@ -97,3 +97,14 @@ def extract_polys_from_mask(
 
         polygons.append(polygon)
     return polygons
+
+
+def decode_bytes_into_rgbarray(
+    bytes: bytes, color_mode: int = cv2.IMREAD_COLOR
+) -> np.ndarray:
+    np_bytes = np.frombuffer(bytes, np.uint8)
+    im = cv2.imdecode(np_bytes, color_mode)
+    im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    if im is None:
+        raise ValueError("Could not decode image from uploaded bytes")
+    return im

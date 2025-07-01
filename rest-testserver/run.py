@@ -1,7 +1,6 @@
 import json
 from typing import Annotated
 from fastapi import FastAPI, File, Form, Query, UploadFile
-import cv2
 import numpy as np
 from rvimage.collection_types import (
     InputAnnotationData,
@@ -9,6 +8,7 @@ from rvimage.collection_types import (
     BrushAnnos,
     BboxAnnos,
 )
+from rvimage.converters import decode_bytes_into_rgbarray
 
 app = FastAPI()
 
@@ -26,9 +26,7 @@ async def predict(
     active_tool: Annotated[str, Query()],
 ) -> OutputAnnotationData:
     bytes = await image.read()
-    np_bytes = np.frombuffer(bytes, np.uint8)
-    im = cv2.imdecode(np_bytes, cv2.IMREAD_COLOR)
-    im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    im = decode_bytes_into_rgbarray(bytes)
     print(f"image shape {im.shape}")
     data = InputAnnotationData.model_validate_json(input_annotations)
     parameters = json.loads(parameters)

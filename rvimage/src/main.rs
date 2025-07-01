@@ -687,7 +687,7 @@ struct Cli {
     #[arg(short, long)]
     per_file_crowd: bool,
     #[arg(short, long)]
-    skip_shape_correction: bool,
+    double_check_shape: bool,
 }
 fn export_coco_path(
     in_prj_path: &Path,
@@ -706,7 +706,7 @@ fn export_coco_via_cli(
     in_prj_path: &Path,
     out_folder: &Path,
     per_file_crowd: bool,
-    skip_shape_correction: bool,
+    double_check_shape: bool,
 ) -> RvResult<(Vec<ExportPath>, MetaData, Option<Rot90ToolData>)> {
     let mut ctrl = Control::default();
     let cfg = Cfg::with_unique_folders();
@@ -726,7 +726,7 @@ fn export_coco_via_cli(
             tools_data.specifics.bbox()?.clone(),
             rot90,
             &export_path,
-            skip_shape_correction,
+            double_check_shape,
         )?;
         export_paths.push(export_path);
         handles.push(handle);
@@ -743,7 +743,7 @@ fn export_coco_via_cli(
             brush_data,
             rot90,
             &export_path,
-            skip_shape_correction,
+            double_check_shape,
         )?;
         handles.push(handle);
         export_paths.push(export_path);
@@ -762,7 +762,7 @@ fn main() {
                 &in_prj_path,
                 &out_folder,
                 cli.per_file_crowd,
-                cli.skip_shape_correction,
+                cli.double_check_shape,
             ));
         } else {
             let icon_bytes = include_bytes!("../resources/rvimage-logo.png");
