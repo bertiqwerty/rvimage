@@ -214,8 +214,7 @@ impl CocoExportData {
         T: ExportAsCoco<A>,
         A: InstanceAnnotate + 'static,
     {
-        type AnnoType<'a, A> = (usize, (&'a String, &'a (Vec<A>, Vec<usize>, ShapeI)));
-        type AnnotationMapValue<'a, A> = (&'a String, &'a (Vec<A>, Vec<usize>, ShapeI));
+        type AnnoValue<'a, A> = (&'a String, &'a (Vec<A>, Vec<usize>, ShapeI));
 
         let (options, label_info, anno_map, coco_file) = tools_data.separate_data();
         let color_str = if let Some(s) = colors_to_string(label_info.colors()) {
@@ -233,13 +232,12 @@ impl CocoExportData {
         let export_data =
             InstanceExportData::from_tools_data(&options, label_info, coco_file, anno_map);
 
-        let make_image_map =
-            |(idx, (file_path, (_, _, shape))): (usize, AnnotationMapValue<A>)| CocoImage {
-                id: idx as u32,
-                width: shape.w,
-                height: shape.h,
-                file_name: file_path.clone(),
-            };
+        let make_image_map = |(idx, (file_path, (_, _, shape))): (usize, AnnoValue<A>)| CocoImage {
+            id: idx as u32,
+            width: shape.w,
+            height: shape.h,
+            file_name: file_path.clone(),
+        };
         let images = export_data
             .annotations
             .iter()
@@ -260,70 +258,71 @@ impl CocoExportData {
         let mut box_id = 0;
         let mut imagesum_elapsed = 0;
         let mut n_images_exported = 1;
-        let make_anno_map = |(image_idx, (file_path, (bbs, cat_idxs, shape))): AnnoType<A>| {
-            let now = std::time::Instant::now();
-            let prj_path = if let Some(prj_path) = prj_path {
-                prj_path
-            } else {
-                Path::new("")
-            };
-            let p = PathPair::new(file_path.clone(), prj_path);
-            let p_abs = p.path_absolute();
-            let shape = if Path::new(p_abs).exists() && double_check_shape {
-                let im = trace_ok_warn(image_util::read_image(file_path));
-                if let Some(im) = im {
-                    ShapeI::new(im.width(), im.height())
+        let make_anno_map =
+            |(image_idx, (file_path, (bbs, cat_idxs, shape))): (usize, AnnoValue<A>)| {
+                let now = std::time::Instant::now();
+                let prj_path = if let Some(prj_path) = prj_path {
+                    prj_path
+                } else {
+                    Path::new("")
+                };
+                let p = PathPair::new(file_path.clone(), prj_path);
+                let p_abs = p.path_absolute();
+                let shape = if Path::new(p_abs).exists() && double_check_shape {
+                    let im = trace_ok_warn(image_util::read_image(file_path));
+                    if let Some(im) = im {
+                        ShapeI::new(im.width(), im.height())
+                    } else {
+                        *shape
+                    }
                 } else {
                     *shape
-                }
-            } else {
-                *shape
-            };
-            let n_rotations = get_n_rotations(rotation_data, file_path);
-            let annos = bbs
-                .iter()
-                .zip(cat_idxs.iter())
-                .filter_map(|(inst_anno, cat_idx): (&A, &usize)| {
-                    trace_ok_warn(instance_to_coco_anno(
-                        inst_anno,
-                        shape,
-                        n_rotations,
-                        options.is_export_absolute,
-                        file_path,
-                    ))
-                    .map(|(bb_f, segmentation)| {
-                        box_id += 1;
-                        CocoAnnotation {
-                            id: box_id - 1,
-                            image_id: image_idx as u32,
-                            category_id: export_data.cat_ids[*cat_idx],
-                            bbox: bb_f,
-                            segmentation,
-                            area: Some(bb_f[2] * bb_f[3]),
-                        }
+                };
+                let n_rotations = get_n_rotations(rotation_data, file_path);
+                let annos = bbs
+                    .iter()
+                    .zip(cat_idxs.iter())
+                    .filter_map(|(inst_anno, cat_idx): (&A, &usize)| {
+                        trace_ok_warn(instance_to_coco_anno(
+                            inst_anno,
+                            shape,
+                            n_rotations,
+                            options.is_export_absolute,
+                            file_path,
+                        ))
+                        .map(|(bb_f, segmentation)| {
+                            box_id += 1;
+                            CocoAnnotation {
+                                id: box_id - 1,
+                                image_id: image_idx as u32,
+                                category_id: export_data.cat_ids[*cat_idx],
+                                bbox: bb_f,
+                                segmentation,
+                                area: Some(bb_f[2] * bb_f[3]),
+                            }
+                        })
                     })
-                })
-                .collect::<Vec<_>>();
-            let elapsed = now.elapsed();
-            imagesum_elapsed += elapsed.as_millis();
-            if imagesum_elapsed > 10000 && image_idx % n_images_exported == 0 {
-                let ave = imagesum_elapsed as usize / (image_idx + 1);
-                tracing::info!(
-                    "converting with {} ms/image, {}/{}, estimated time left: {} s",
-                    ave,
-                    image_idx + 1,
-                    export_data.annotations.len(),
-                    ave * (export_data.annotations.len() - image_idx - 1) / 1000
-                );
-                if n_images_exported == 1 {
-                    n_images_exported = image_idx;
+                    .collect::<Vec<_>>();
+                let elapsed = now.elapsed();
+                imagesum_elapsed += elapsed.as_millis();
+                if imagesum_elapsed > 10000 && image_idx % n_images_exported == 0 {
+                    let ave = imagesum_elapsed as usize / (image_idx + 1);
                     tracing::info!(
-                        "If your export is too slow, consider skipping the shape double check."
-                    )
+                        "converting with {} ms/image, {}/{}, estimated time left: {} s",
+                        ave,
+                        image_idx + 1,
+                        export_data.annotations.len(),
+                        ave * (export_data.annotations.len() - image_idx - 1) / 1000
+                    );
+                    if n_images_exported == 1 {
+                        n_images_exported = image_idx;
+                        tracing::info!(
+                            "If your export is too slow, consider skipping the shape double check."
+                        )
+                    }
                 }
-            }
-            annos
-        };
+                annos
+            };
         let annotations = export_data
             .annotations
             .iter()
