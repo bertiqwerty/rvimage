@@ -51,7 +51,7 @@ impl Default for PredictiveLabelingData {
                 (BBOX_NAME.into(), vec![]),
                 (BRUSH_NAME.into(), vec![]),
             ]),
-            timeout_ms: 2000,
+            timeout_ms: 30000,
             trigger: None,
         }
     }
