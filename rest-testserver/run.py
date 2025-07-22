@@ -32,7 +32,7 @@ async def predict(
     bytes = await image.read()
     im = decode_bytes_into_rgbarray(bytes)
     print(f"image shape {im.shape}")
-    zb = TypeAdapter(BbF).validate_json(zoom_box)
+    zb = TypeAdapter(BbF | None).validate_json(zoom_box)
     print(zb)
     data = InputAnnotationData.model_validate_json(input_annotations)
     parameters = json.loads(parameters)
