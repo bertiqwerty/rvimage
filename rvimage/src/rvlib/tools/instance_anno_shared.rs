@@ -69,6 +69,7 @@ pub fn predictive_labeling<DA>(
                             brush_label_info.map(|labelinfo| AnnosWithInfo { labelinfo, annos })
                         }),
                     },
+                    *world.zoom_box(),
                 ));
                 if let Some(pred) = predictions {
                     tracing::info!(

@@ -5,7 +5,7 @@ use image::{self, DynamicImage, ExtendedColorType, ImageEncoder};
 use reqwest::blocking::multipart;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 
-use rvimage_domain::{to_rv, Canvas, GeoFig, RvResult};
+use rvimage_domain::{to_rv, BbF, Canvas, GeoFig, RvResult};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
@@ -63,6 +63,7 @@ pub trait Wand {
         active_tool: &'static str,
         parameters: Option<&ParamMap>,
         annotations_input: WandAnnotationsInput<'a>,
+        zoom_box: Option<BbF>,
     ) -> RvResult<WandAnnotationsOutput>;
 }
 
@@ -107,6 +108,7 @@ impl Wand for RestWand {
         active_tool: &'static str,
         parameters: Option<&ParamMap>,
         annos_input: WandAnnotationsInput<'a>,
+        zoom_box: Option<BbF>,
     ) -> RvResult<WandAnnotationsOutput> {
         let rgb_image = im.image.to_rgb8();
         let (width, height) = rgb_image.dimensions();
@@ -130,13 +132,15 @@ impl Wand for RestWand {
             serde_json::to_string(&ParamMap::default())
         }
         .map_err(to_rv)?;
+        let zoom_box_json_str = serde_json::to_string(&zoom_box).map_err(to_rv)?;
         let form = multipart::Form::new()
             .part(
                 "image",
                 multipart::Part::bytes(image_bytes).file_name(filename),
             )
             .part("parameters", multipart::Part::text(param_json_str))
-            .part("input_annotations", multipart::Part::text(annos_json_str));
+            .part("input_annotations", multipart::Part::text(annos_json_str))
+            .part("zoom_box", multipart::Part::text(zoom_box_json_str));
         let url = format!("{}?active_tool={active_tool}", self.url);
 
         tracing::info!("Sending predictive labeling request to {url}");
@@ -158,7 +162,7 @@ use crate::{
     tools::BBOX_NAME, tools_data::parameters::ParamVal, tracing_setup::init_tracing_for_tests,
 };
 #[cfg(test)]
-use rvimage_domain::{BbF, BbI};
+use rvimage_domain::BbI;
 #[cfg(test)]
 use std::{
     process::{Command, Stdio},
@@ -222,6 +226,7 @@ fn test() {
                 BBOX_NAME,
                 Some(&m),
                 annos.clone(),
+                None,
             )
             .unwrap();
         let WandAnnotationsOutput {

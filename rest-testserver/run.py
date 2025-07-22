@@ -1,14 +1,17 @@
 import json
 from typing import Annotated
-from fastapi import FastAPI, File, Form, Query, UploadFile
+
 import numpy as np
+from fastapi import FastAPI, File, Form, Query, UploadFile
+from pydantic import TypeAdapter
 from rvimage.collection_types import (
+    BboxAnnos,
+    BrushAnnos,
     InputAnnotationData,
     OutputAnnotationData,
-    BrushAnnos,
-    BboxAnnos,
 )
 from rvimage.converters import decode_bytes_into_rgbarray
+from rvimage.domain import BbF
 
 app = FastAPI()
 
@@ -23,11 +26,14 @@ async def predict(
     image: Annotated[UploadFile, File(...)],
     parameters: Annotated[str, Form(...)],
     input_annotations: Annotated[str, Form(...)],
+    zoom_box: Annotated[str, Form],
     active_tool: Annotated[str, Query()],
 ) -> OutputAnnotationData:
     bytes = await image.read()
     im = decode_bytes_into_rgbarray(bytes)
     print(f"image shape {im.shape}")
+    zb = TypeAdapter(BbF).validate_json(zoom_box)
+    print(zb)
     data = InputAnnotationData.model_validate_json(input_annotations)
     parameters = json.loads(parameters)
     bbd = data.bbox
