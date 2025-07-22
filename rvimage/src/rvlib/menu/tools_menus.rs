@@ -1,10 +1,3 @@
-use std::{
-    fmt::{Debug, Display},
-    mem,
-    path::PathBuf,
-    str::FromStr,
-};
-
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
     file_util::path_to_str,
@@ -25,6 +18,13 @@ use crate::{
 use egui::Ui;
 use rvimage_domain::TPtF;
 use rvimage_domain::{to_rv, RvResult};
+use std::{
+    fmt::{Debug, Display},
+    mem,
+    path::PathBuf,
+    str::FromStr,
+};
+use tracing;
 use tracing::{info, warn};
 
 use super::ui_util::{slider, text_edit_singleline};

@@ -5,7 +5,7 @@ use crate::{
     annotations_accessor_mut,
     events::Events,
     file_util::PathPair,
-    history::History,
+    history::{History, Record},
     make_tool_transform,
     result::trace_ok_err,
     tools_data::{
@@ -107,7 +107,11 @@ fn file_change(mut world: World) -> World {
     }
     world
 }
-fn add_attribute(mut world: World, suppress_exists_err: bool) -> World {
+fn add_attribute(
+    mut world: World,
+    mut history: History,
+    suppress_exists_err: bool,
+) -> (World, History) {
     let attr_map_tmp = get_annos_mut(&mut world).map(mem::take);
     let data = get_specific_mut(&mut world);
 
@@ -127,6 +131,7 @@ fn add_attribute(mut world: World, suppress_exists_err: bool) -> World {
             if let Some(data) = get_specific_mut(&mut world) {
                 data.current_attr_map = Some(attr_map_tmp);
                 data.push(new_attr_name, new_attr_val);
+                history.push(Record::new(world.clone(), ACTOR_NAME));
             }
         }
     }
@@ -135,8 +140,24 @@ fn add_attribute(mut world: World, suppress_exists_err: bool) -> World {
         data.new_attr_name = String::new();
         data.new_attr_val = ParamVal::default();
     }
-    world
+    (world, history)
 }
+
+fn check_remove(mut world: World, mut history: History) -> (World, History) {
+    if let Some(removal_idx) = get_specific(&world).map(|d| d.options.removal_idx) {
+        let data = get_specific_mut(&mut world);
+        if let (Some(data), Some(removal_idx)) = (data, removal_idx) {
+            data.remove_attr(removal_idx);
+            history.push(Record::new(world.clone(), ACTOR_NAME));
+        }
+        if let Some(removal_idx) = get_specific_mut(&mut world).map(|d| &mut d.options.removal_idx)
+        {
+            *removal_idx = None;
+        }
+    }
+    (world, history)
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Attributes;
 
@@ -168,13 +189,13 @@ impl Manipulate for Attributes {
     fn events_tf(
         &mut self,
         mut world: World,
-        history: History,
+        mut history: History,
         _event: &Events,
     ) -> (World, History) {
         let is_addition_triggered = get_specific(&world).map(|d| d.options.is_addition_triggered);
         if is_addition_triggered == Some(true) {
             // handle addition triggered in the GUI
-            world = add_attribute(world, false);
+            (world, history) = add_attribute(world, history, false);
         }
         let attr_data = get_specific_mut(&mut world);
         if let Some(attr_data) = attr_data {
@@ -202,17 +223,8 @@ impl Manipulate for Attributes {
                 *update_current_attr_map = false;
             }
         }
-        if let Some(removal_idx) = get_specific(&world).map(|d| d.options.removal_idx) {
-            let data = get_specific_mut(&mut world);
-            if let (Some(data), Some(removal_idx)) = (data, removal_idx) {
-                data.remove_attr(removal_idx);
-            }
-            if let Some(removal_idx) =
-                get_specific_mut(&mut world).map(|d| &mut d.options.removal_idx)
-            {
-                *removal_idx = None;
-            }
-        }
+        (world, history) = check_remove(world, history);
+
         let is_export_triggered =
             get_specific(&world).map(|d| d.options.import_export_trigger.export_triggered());
         if is_export_triggered == Some(true) {
@@ -279,7 +291,7 @@ impl Manipulate for Attributes {
                             d.new_attr_val = attr_val.clone().reset();
                         }
                         tracing::debug!("inserting attr {attr_name} with value {attr_val}");
-                        world = add_attribute(world, true);
+                        (world, history) = add_attribute(world, history, true);
                     }
                 }
             }
@@ -364,4 +376,25 @@ fn test_import_export() {
     test(testpath);
     let testpath = Path::new("resources/test_data/attr_import_untagged.json");
     test(testpath);
+}
+
+#[test]
+fn test_rm_add() {
+    init_tracing_for_tests();
+    let (mut world, history) = test_data();
+    let attr_data = get_specific_mut(&mut world).unwrap();
+    attr_data.options.is_addition_triggered = true;
+    attr_data.new_attr_name = "test_attr".to_string();
+    attr_data.new_attr_val = ParamVal::Str("123".into());
+    let (mut world, history) = add_attribute(world, history, false);
+    let attr_data = get_specific_mut(&mut world).unwrap();
+    attr_data.options.removal_idx = Some(0);
+    let (mut world, _) = check_remove(world, history);
+    let attr_data = get_specific_mut(&mut world).unwrap();
+    assert!(!attr_data.options.is_addition_triggered);
+    assert!(attr_data.options.removal_idx.is_none());
+    assert_eq!(
+        attr_data.current_attr_map.as_ref().map(|cam| cam.len()),
+        Some(0)
+    );
 }

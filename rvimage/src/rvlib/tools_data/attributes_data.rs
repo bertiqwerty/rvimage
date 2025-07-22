@@ -117,9 +117,12 @@ impl AttributesToolData {
         for (_, (attr_map, _)) in self.annotations_map.iter_mut() {
             attr_map.remove(&self.attr_names[idx]);
         }
-        self.attr_names.remove(idx);
+        let removed_name = self.attr_names.remove(idx);
         self.attr_vals.remove(idx);
         self.new_attr_value_buffers.remove(idx);
+        if let Some(current_attr_map) = &mut self.current_attr_map {
+            current_attr_map.remove(&removed_name);
+        }
     }
     pub fn attr_names(&self) -> &Vec<String> {
         &self.attr_names
@@ -232,6 +235,9 @@ impl AttributesToolData {
 }
 implement_annotate!(AttributesToolData);
 
+#[cfg(test)]
+use crate::tracing_setup::init_tracing_for_tests;
+
 #[test]
 fn test_deserialize() {
     fn test(json_str: &str, expected_len: usize) {
@@ -242,4 +248,17 @@ fn test_deserialize() {
     test(json_str, 1);
     let json_str = r#"{"path": {"attrname": {"Float": 1}}, "path1": {"attrname": {"Int": 1}}}"#;
     test(json_str, 2);
+}
+
+#[test]
+fn test_add_remove() {
+    init_tracing_for_tests();
+
+    let mut data = AttributesToolData::default();
+    data.options.is_addition_triggered = true;
+    data.new_attr_name = "new_attr".to_string();
+    data.new_attr_val = ParamVal::Float(Some(1.0));
+    data.push(data.new_attr_name.clone(), data.new_attr_val.clone());
+    data.remove_attr(0);
+    tracing::debug!("data: {data:?}");
 }
