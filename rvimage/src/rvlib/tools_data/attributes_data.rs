@@ -111,6 +111,15 @@ impl AttributesToolData {
             self.attr_names.push(attr_name);
             self.attr_vals.push(attr_val);
             self.new_attr_value_buffers.push(String::new());
+            // current map is sorted, hence we need to sort also the lists of attributes
+            let mut idxs = (0..self.attr_names.len()).collect::<Vec<_>>();
+            idxs.sort_unstable_by_key(|&i| &self.attr_names[i]);
+            self.attr_names = idxs.iter().map(|i| self.attr_names[*i].clone()).collect();
+            self.attr_vals = idxs.iter().map(|i| self.attr_vals[*i].clone()).collect();
+            self.new_attr_value_buffers = idxs
+                .iter()
+                .map(|i| self.new_attr_value_buffers[*i].clone())
+                .collect();
         }
     }
     pub fn remove_attr(&mut self, idx: usize) {
@@ -251,14 +260,14 @@ fn test_deserialize() {
 }
 
 #[test]
-fn test_add_remove() {
+fn test_push_sorted() {
     init_tracing_for_tests();
-
     let mut data = AttributesToolData::default();
-    data.options.is_addition_triggered = true;
-    data.new_attr_name = "new_attr".to_string();
-    data.new_attr_val = ParamVal::Float(Some(1.0));
-    data.push(data.new_attr_name.clone(), data.new_attr_val.clone());
-    data.remove_attr(0);
-    tracing::debug!("data: {data:?}");
+    data.push("c".into(), ParamVal::Int(Some(2)));
+    data.push("a".into(), ParamVal::Int(Some(20)));
+    assert_eq!(data.attr_names(), &["a", "c"]);
+    assert_eq!(
+        data.attr_vals(),
+        &[ParamVal::Int(Some(20)), ParamVal::Int(Some(2))]
+    );
 }

@@ -379,6 +379,47 @@ fn test_import_export() {
 }
 
 #[test]
+fn test_add() {
+    init_tracing_for_tests();
+    let mut attr_tool = Attributes::new();
+    let events = Events::default();
+    let (mut world, history) = test_data();
+    let attr_data = get_specific_mut(&mut world).unwrap();
+    attr_data.options.is_addition_triggered = true;
+    attr_data.new_attr_name = "a attr".to_string();
+    attr_data.new_attr_val = ParamVal::Int(Some(1));
+    let (mut world, history) = attr_tool.events_tf(world, history, &events);
+    let attr_data = get_specific_mut(&mut world).unwrap();
+    attr_data.options.is_addition_triggered = true;
+    attr_data.new_attr_name = "c attr".to_string();
+    attr_data.new_attr_val = ParamVal::Int(Some(2));
+    let (mut world, history) = attr_tool.events_tf(world, history, &events);
+    let attr_data = get_specific_mut(&mut world).unwrap();
+    attr_data.options.is_addition_triggered = true;
+    attr_data.new_attr_name = "b attr".to_string();
+    attr_data.new_attr_val = ParamVal::Int(Some(3));
+    let (world, _) = attr_tool.events_tf(world, history, &events);
+    let data = get_specific(&world).unwrap();
+    let cam = data.current_attr_map.as_ref().unwrap();
+    let c_attr_val = cam.get("c attr").unwrap();
+    assert_eq!(c_attr_val, &ParamVal::Int(Some(2)));
+    let b_attr_val = cam.get("b attr").unwrap();
+    assert_eq!(b_attr_val, &ParamVal::Int(Some(3)));
+    let a_attr_val = cam.get("a attr").unwrap();
+    assert_eq!(a_attr_val, &ParamVal::Int(Some(1)));
+
+    // cur map is a BTree and hence sorted
+    assert_eq!(data.attr_names(), &["a attr", "b attr", "c attr"]);
+    assert_eq!(
+        data.attr_vals(),
+        &[
+            ParamVal::Int(Some(1)),
+            ParamVal::Int(Some(3)),
+            ParamVal::Int(Some(2)),
+        ]
+    );
+}
+#[test]
 fn test_rm_add() {
     init_tracing_for_tests();
     let (mut world, history) = test_data();
