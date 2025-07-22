@@ -58,7 +58,7 @@ impl Default for Options {
     }
 }
 
-#[derive(Serialize, Clone, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct BrushToolData {
     pub annotations_map: BrushAnnoMap,
     // we might want to show this while it is being drawn,
@@ -106,32 +106,6 @@ impl BrushToolData {
                 .collect(),
         )?;
         Ok(out_data)
-    }
-}
-
-impl<'de> Deserialize<'de> for BrushToolData {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct BrushToolDataDe {
-            annotations_map: BrushAnnoMap,
-            options: Options,
-            label_info: LabelInfo,
-            coco_file: Option<ExportPath>,
-        }
-
-        let read = BrushToolDataDe::deserialize(deserializer)?;
-        Ok(Self {
-            annotations_map: read.annotations_map,
-            tmp_line: None,
-            options: read.options,
-            label_info: read.label_info,
-            clipboard: None,
-            coco_file: read.coco_file.unwrap_or_default(),
-            predictive_labeling_data: PredictiveLabelingData::default(),
-        })
     }
 }
 

@@ -92,7 +92,7 @@ mod detail {
 
 fn serialized_paths_path(cachedir: &str) -> String {
     const CACHEDPATHS_SERIALIZED_FILE: &str = "cached_paths.json";
-    format!("{}/{}", cachedir, CACHEDPATHS_SERIALIZED_FILE)
+    format!("{cachedir}/{CACHEDPATHS_SERIALIZED_FILE}")
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct LocalImagePathInfoPair {
