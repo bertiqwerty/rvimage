@@ -803,6 +803,26 @@ pub fn predictive_labeling_menu(
     )?;
     data.parameters = res.param_map;
     data.param_buffers = res.buffers;
+    match res.action {
+        ExistingParamMenuAction::Remove(idx) => {
+            let name = data.parameters.keys().nth(idx).cloned();
+            if let Some(name) = name {
+                data.parameters.remove(&name);
+                data.param_buffers.remove(idx);
+            }
+        }
+        ExistingParamMenuAction::Rename(idx) => {
+            let name = data.parameters.keys().nth(idx).cloned();
+            if let Some(name) = name {
+                let value = data.parameters.remove(&name);
+                if let Some(val) = value {
+                    data.parameters
+                        .insert(data.new_param_name_buffer.clone(), val);
+                }
+            }
+        }
+        ExistingParamMenuAction::None => (),
+    };
     // vertical checkboxes over labelnames
     ui.label("Label names");
     let mut active_labels = label_info
