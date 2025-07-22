@@ -81,6 +81,12 @@ def test_from_mask():
     resulting_mask = np.zeros((64, 32), dtype=np.uint8)
     resulting_mask[31:40, 21:30] = 1
     BboxAnnos.from_mask(resulting_mask, 0)
+    annos = BrushAnnos.from_mask(resulting_mask, 0)
+    reconstructed_mask = np.zeros_like(resulting_mask)
+    annos.fill_mask(reconstructed_mask, 0)
+    assert np.array_equal(resulting_mask, reconstructed_mask), (
+        "Reconstructed mask does not match the original mask"
+    )
 
 
 def test_decode_image():
@@ -97,8 +103,8 @@ def test_decode_image():
 
 
 if __name__ == "__main__":
-    test_decode_image()
     test_from_mask()
+    test_decode_image()
     test_validation()
     test_rle()
     test_polygon()

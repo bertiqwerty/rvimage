@@ -16,6 +16,8 @@ pub struct PredictiveLabelingData {
     pub authorization_headers: Option<String>,
     pub tool_labelnames_map: HashMap<String, Vec<String>>,
     pub timeout_ms: usize,
+    #[serde(default)]
+    pub timeout_buffer: String,
     #[serde(skip)]
     trigger: Option<(bool, Instant)>,
 }
@@ -45,13 +47,14 @@ impl Default for PredictiveLabelingData {
             new_param_val_buffer: ParamVal::default(),
             param_buffers: Vec::default(),
             parameters: ParamMap::default(),
-            url: String::default(),
+            url: "http".into(),
             authorization_headers: None,
             tool_labelnames_map: HashMap::from([
                 (BBOX_NAME.into(), vec![]),
                 (BRUSH_NAME.into(), vec![]),
             ]),
             timeout_ms: 30000,
+            timeout_buffer: "".into(),
             trigger: None,
         }
     }

@@ -821,7 +821,22 @@ pub fn predictive_labeling_menu(
             }
         }
     }
-    text_edit_singleline(ui, &mut data.url, are_tools_active);
+
+    text_edit_singleline(ui, &mut data.url, are_tools_active).on_hover_text("url");
+
+    if data.timeout_buffer.is_empty() {
+        data.timeout_buffer = data.timeout_ms.to_string();
+    }
+    let (_, val) = process_number::<usize>(
+        ui,
+        are_tools_active,
+        "timeout [ms]",
+        &mut data.timeout_buffer,
+    );
+    if let Some(val) = val {
+        data.timeout_ms = val;
+    }
+
     if ui.button("Predict").clicked() {
         tracing::info!("Predictive labeling triggered");
         data.trigger_prediction();
