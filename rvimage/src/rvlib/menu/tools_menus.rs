@@ -14,6 +14,7 @@ use crate::{
         ImportExportTrigger, InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData,
         VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
     },
+    util,
 };
 use egui::Ui;
 use rvimage_domain::TPtF;
@@ -767,6 +768,17 @@ pub fn attributes_menu(
     })
 }
 
+fn add_buffer_sorted(data: &mut PredictiveLabelingData) {
+    let parameter_names = data
+        .parameters
+        .keys()
+        .cloned()
+        .chain(std::iter::once(data.new_param_name_buffer.clone()))
+        .collect::<Vec<_>>();
+    data.param_buffers.push("".to_string());
+    data.param_buffers = util::sort_by_vec(&parameter_names, mem::take(&mut data.param_buffers));
+}
+
 pub fn predictive_labeling_menu(
     ui: &mut Ui,
     data: &mut PredictiveLabelingData,
@@ -788,11 +800,11 @@ pub fn predictive_labeling_menu(
         are_tools_active,
     );
     if add_param {
+        add_buffer_sorted(data);
         data.parameters.insert(
             mem::take(&mut data.new_param_name_buffer),
             mem::take(&mut data.new_param_val_buffer),
         );
-        data.param_buffers.push("".to_string());
     }
     let res = existing_params_menu(
         ui,
@@ -814,11 +826,11 @@ pub fn predictive_labeling_menu(
         ExistingParamMenuAction::Rename(idx) => {
             let name = data.parameters.keys().nth(idx).cloned();
             if let Some(name) = name {
-                let value = data.parameters.remove(&name);
-                if let Some(val) = value {
-                    data.parameters
-                        .insert(data.new_param_name_buffer.clone(), val);
-                }
+                let value = data.parameters.remove(&name).unwrap();
+                data.new_param_name_buffer.remove(idx);
+                add_buffer_sorted(data);
+                data.parameters
+                    .insert(data.new_param_name_buffer.clone(), value);
             }
         }
         ExistingParamMenuAction::None => (),

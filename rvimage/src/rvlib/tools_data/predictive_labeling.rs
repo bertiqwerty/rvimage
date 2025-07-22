@@ -20,6 +20,8 @@ pub struct PredictiveLabelingData {
     pub timeout_buffer: String,
     #[serde(skip)]
     trigger: Option<(bool, Instant)>,
+    #[serde(skip)]
+    pub to_be_removed: Option<usize>,
 }
 
 impl PredictiveLabelingData {
@@ -56,6 +58,7 @@ impl Default for PredictiveLabelingData {
             timeout_ms: 30000,
             timeout_buffer: "".into(),
             trigger: None,
+            to_be_removed: None,
         }
     }
 }
