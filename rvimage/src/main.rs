@@ -154,7 +154,7 @@ mod detail {
                         zoom_box,
                     );
                     if let Some(p_view) = p_view {
-                        let (x_view, y_view) = (p_view.x as u32, p_view.y as u32);
+                        let (x_view, y_view) = (p_view.x.round() as u32, p_view.y.round() as u32);
                         let current_clr = im_view.get_pixel_checked(x_view, y_view);
                         if let Some(current_clr) = current_clr {
                             let alpha = f32::from(fill_alpha) / 255.0;
