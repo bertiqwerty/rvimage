@@ -2,7 +2,10 @@ import json
 from typing import Annotated
 
 import numpy as np
-from fastapi import FastAPI, File, Form, Query, UploadFile
+from fastapi import FastAPI, File, Form, Query, Request, UploadFile, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from loguru import logger
 from pydantic import TypeAdapter
 from rvimage.collection_types import (
     BboxAnnos,
@@ -16,6 +19,17 @@ from rvimage.domain import BbF
 app = FastAPI()
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
+    # or logger.error(f'{exc}')
+    logger.error(exc_str)
+    content = {"status_code": 10422, "message": exc_str, "data": None}
+    return JSONResponse(
+        content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+    )
+
+
 @app.get("/ping")
 async def ping():
     return "pong"
@@ -26,7 +40,7 @@ async def predict(
     image: Annotated[UploadFile, File(...)],
     parameters: Annotated[str, Form(...)],
     input_annotations: Annotated[str, Form(...)],
-    zoom_box: Annotated[str, Form],
+    zoom_box: Annotated[str, Form(...)],
     active_tool: Annotated[str, Query()],
 ) -> OutputAnnotationData:
     bytes = await image.read()

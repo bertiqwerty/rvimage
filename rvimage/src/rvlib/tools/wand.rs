@@ -224,9 +224,9 @@ fn test() {
                     path: Some(Path::new(&p)),
                 },
                 BBOX_NAME,
-                Some(&m),
-                annos.clone(),
                 None,
+                annos.clone(),
+                Some(BbF::from_arr(&[0.0, 0.0, 1.5, 1.5])),
             )
             .unwrap();
         let WandAnnotationsOutput {
