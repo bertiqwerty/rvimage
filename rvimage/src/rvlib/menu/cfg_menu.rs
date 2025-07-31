@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Visuals, Widget};
+use egui::{Popup, Response, RichText, Ui, Visuals, Widget};
 use rvimage_domain::to_rv;
 
 use crate::{
@@ -61,139 +61,136 @@ fn settings_popup(
     toggle_cache_clear_on_close: &mut bool,
 ) -> Close {
     let mut close = Close::No;
-    Frame::popup(ui.style()).show(ui, |ui| {
-        ui.horizontal(|ui| {
-            if ui.button("Open in Editor").clicked() {
-                // to show the current config in an external editor, we need to save it first
-                let tmppath = get_cfg_tmppath(cfg);
-                tmppath
-                    .parent()
-                    .and_then(|p| fs::create_dir_all(p).ok())
-                    .or_else(|| {
-                        tracing::error!("could not create directory for tmp file");
-                        Some(())
-                    });
-                trace_ok_err(File::create(&tmppath));
-                let log_tmp = false;
-                if let Err(e) =
-                    toml::to_string_pretty(&cfg).map(|s| write_cfg_str(&s, &tmppath, log_tmp))
-                {
-                    tracing::error!("could not write config,\n{e:#?}");
-                    tracing::error!("{:?}", cfg);
-                }
-                tracing::info!("opening {tmppath:?}");
-                if let Err(e) = edit::edit_file(&tmppath) {
-                    tracing::error!("{e:?}");
-                    tracing::error!("could not open editor. {:?}", edit::get_editor());
-                }
-                if let Some(cfg_) = trace_ok_err(cfg::read_cfg_gen::<Cfg>(&tmppath)) {
-                    tracing::info!("config updated with new settings");
-                    *cfg = cfg_;
-                }
-                if let Err(e) = cfg.write() {
-                    tracing::error!("could not save cfg {e:?}");
-                }
+    ui.horizontal(|ui| {
+        if ui.button("Open in Editor").clicked() {
+            // to show the current config in an external editor, we need to save it first
+            let tmppath = get_cfg_tmppath(cfg);
+            tmppath
+                .parent()
+                .and_then(|p| fs::create_dir_all(p).ok())
+                .or_else(|| {
+                    tracing::error!("could not create directory for tmp file");
+                    Some(())
+                });
+            trace_ok_err(File::create(&tmppath));
+            let log_tmp = false;
+            if let Err(e) =
+                toml::to_string_pretty(&cfg).map(|s| write_cfg_str(&s, &tmppath, log_tmp))
+            {
+                tracing::error!("could not write config,\n{e:#?}");
+                tracing::error!("{:?}", cfg);
             }
-            if ui.button("OK").clicked() {
-                close = Close::Yes(true);
+            tracing::info!("opening {tmppath:?}");
+            if let Err(e) = edit::edit_file(&tmppath) {
+                tracing::error!("{e:?}");
+                tracing::error!("could not open editor. {:?}", edit::get_editor());
             }
-            if ui.button("Cancel").clicked() {
-                close = Close::Yes(false);
+            if let Some(cfg_) = trace_ok_err(cfg::read_cfg_gen::<Cfg>(&tmppath)) {
+                tracing::info!("config updated with new settings");
+                *cfg = cfg_;
             }
-        });
-        ui.horizontal(|ui| {
-            let name = get_prj_name(cfg.current_prj_path(), None);
-            ui.label("Project Name");
-            ui.label(RichText::from(name).text_style(egui::TextStyle::Monospace))
-                .on_hover_text(
-                    cfg.current_prj_path()
-                        .to_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                );
-        });
-        ui.separator();
-        ui.horizontal(|ui| {
-            ui.label("Style");
-            if ui.visuals().dark_mode {
-                if ui.button("Light").clicked() {
-                    cfg.usr.darkmode = Some(false);
-                    ui.ctx().set_visuals(Visuals::light());
-                }
-            } else if ui.button("Dark").clicked() {
-                cfg.usr.darkmode = Some(true);
-                ui.ctx().set_visuals(Visuals::dark());
+            if let Err(e) = cfg.write() {
+                tracing::error!("could not save cfg {e:?}");
             }
-        });
-        ui.separator();
-        if ui
-            .checkbox(
-                &mut cfg.usr.file_cache_args.clear_on_close,
-                "Clear cache on close",
-            )
-            .changed()
-        {
-            *toggle_cache_clear_on_close = true;
         }
-        ui.separator();
-        ui.horizontal(|ui| {
-            let mut autosave = cfg.usr.n_autosaves.unwrap_or(0);
-            ui.label("Autosave versions");
-            ui.add(egui::Slider::new(&mut autosave, 0..=10));
-            if autosave > 0 {
-                cfg.usr.n_autosaves = Some(autosave);
-            } else {
-                cfg.usr.n_autosaves = None;
-            }
-        });
-        ui.separator();
-        ui.label("Connection");
-        ui.radio_value(&mut cfg.prj.connection, Connection::Local, "Local");
-        ui.radio_value(&mut cfg.prj.connection, Connection::Ssh, "Ssh");
-        ui.radio_value(
-            &mut cfg.prj.connection,
-            Connection::PyHttp,
-            "Http served by 'python -m http.server'",
-        );
-        #[cfg(feature = "azure_blob")]
-        ui.radio_value(
-            &mut cfg.prj.connection,
-            Connection::AzureBlob,
-            "Azure blob storage",
-        );
-        #[cfg(feature = "azure_blob")]
-        if cfg.prj.connection == Connection::AzureBlob {
-            let curprjpath = cfg.current_prj_path().parent().map(|cpp| cpp.to_path_buf());
-            let azure_cfg = match &mut cfg.prj.azure_blob {
-                Some(cfg) => cfg,
-                None => {
-                    cfg.prj.azure_blob = Some(AzureBlobCfgPrj::default());
-                    cfg.prj.azure_blob.as_mut().unwrap()
-                }
-            };
-            azure_cfg_menu(ui, azure_cfg, curprjpath.as_deref(), are_tools_active);
+        if ui.button("OK").clicked() {
+            close = Close::Yes(true);
         }
-        ui.separator();
-        ui.horizontal(|ui| {
-            ui.label("Cache");
-            ui.radio_value(&mut cfg.usr.cache, Cache::FileCache, "File Cache");
-            ui.radio_value(&mut cfg.usr.cache, Cache::NoCache, "No Cache");
-        });
-        ui.separator();
-        ui.horizontal(|ui| {
-            if ui.button("OK").clicked() {
-                close = Close::Yes(true);
+        if ui.button("Cancel").clicked() {
+            close = Close::Yes(false);
+        }
+    });
+    ui.horizontal(|ui| {
+        let name = get_prj_name(cfg.current_prj_path(), None);
+        ui.label("Project Name");
+        ui.label(RichText::from(name).text_style(egui::TextStyle::Monospace))
+            .on_hover_text(
+                cfg.current_prj_path()
+                    .to_str()
+                    .unwrap_or_default()
+                    .to_string(),
+            );
+    });
+    ui.separator();
+    ui.horizontal(|ui| {
+        ui.label("Style");
+        if ui.visuals().dark_mode {
+            if ui.button("Light").clicked() {
+                cfg.usr.darkmode = Some(false);
+                ui.ctx().set_visuals(Visuals::light());
             }
-            if ui.button("Cancel").clicked() {
-                close = Close::Yes(false);
+        } else if ui.button("Dark").clicked() {
+            cfg.usr.darkmode = Some(true);
+            ui.ctx().set_visuals(Visuals::dark());
+        }
+    });
+    ui.separator();
+    if ui
+        .checkbox(
+            &mut cfg.usr.file_cache_args.clear_on_close,
+            "Clear cache on close",
+        )
+        .changed()
+    {
+        *toggle_cache_clear_on_close = true;
+    }
+    ui.separator();
+    ui.horizontal(|ui| {
+        let mut autosave = cfg.usr.n_autosaves.unwrap_or(0);
+        ui.label("Autosave versions");
+        ui.add(egui::Slider::new(&mut autosave, 0..=10));
+        if autosave > 0 {
+            cfg.usr.n_autosaves = Some(autosave);
+        } else {
+            cfg.usr.n_autosaves = None;
+        }
+    });
+    ui.separator();
+    ui.label("Connection");
+    ui.radio_value(&mut cfg.prj.connection, Connection::Local, "Local");
+    ui.radio_value(&mut cfg.prj.connection, Connection::Ssh, "Ssh");
+    ui.radio_value(
+        &mut cfg.prj.connection,
+        Connection::PyHttp,
+        "Http served by 'python -m http.server'",
+    );
+    #[cfg(feature = "azure_blob")]
+    ui.radio_value(
+        &mut cfg.prj.connection,
+        Connection::AzureBlob,
+        "Azure blob storage",
+    );
+    #[cfg(feature = "azure_blob")]
+    if cfg.prj.connection == Connection::AzureBlob {
+        let curprjpath = cfg.current_prj_path().parent().map(|cpp| cpp.to_path_buf());
+        let azure_cfg = match &mut cfg.prj.azure_blob {
+            Some(cfg) => cfg,
+            None => {
+                cfg.prj.azure_blob = Some(AzureBlobCfgPrj::default());
+                cfg.prj.azure_blob.as_mut().unwrap()
             }
-        })
+        };
+        azure_cfg_menu(ui, azure_cfg, curprjpath.as_deref(), are_tools_active);
+    }
+    ui.separator();
+    ui.horizontal(|ui| {
+        ui.label("Cache");
+        ui.radio_value(&mut cfg.usr.cache, Cache::FileCache, "File Cache");
+        ui.radio_value(&mut cfg.usr.cache, Cache::NoCache, "No Cache");
+    });
+    ui.separator();
+    ui.horizontal(|ui| {
+        if ui.button("OK").clicked() {
+            close = Close::Yes(true);
+        }
+        if ui.button("Cancel").clicked() {
+            close = Close::Yes(false);
+        }
     });
     close
 }
 
 pub struct CfgMenu<'a> {
-    id: Id,
     cfg: &'a mut Cfg,
     cfg_orig: Cfg,
     are_tools_active: &'a mut bool,
@@ -201,14 +198,12 @@ pub struct CfgMenu<'a> {
 }
 impl<'a> CfgMenu<'a> {
     pub fn new(
-        id: Id,
         cfg: &'a mut Cfg,
         are_tools_active: &'a mut bool,
         reload: &'a mut bool,
     ) -> CfgMenu<'a> {
         let cfg_orig = cfg.clone();
         Self {
-            id,
             cfg,
             cfg_orig,
             are_tools_active,
@@ -219,41 +214,27 @@ impl<'a> CfgMenu<'a> {
 impl Widget for CfgMenu<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let edit_cfg_btn_resp = ui.button("Settings");
-        if edit_cfg_btn_resp.clicked() {
-            ui.memory_mut(|m| m.toggle_popup(self.id));
-        }
-        if ui.memory(|m| m.is_popup_open(self.id)) {
-            let area = Area::new(self.id)
-                .order(Order::Foreground)
-                .default_pos(edit_cfg_btn_resp.rect.left_bottom());
-
-            let mut close = Close::No;
-            let area_response = area
-                .show(ui.ctx(), |ui| {
-                    close = settings_popup(
-                        ui,
-                        self.cfg,
-                        self.are_tools_active,
-                        self.toggle_clear_cache_on_close,
-                    );
-                })
-                .response;
-            if let Close::Yes(save) = close {
-                if save {
-                    if let Err(e) = self.cfg.write() {
-                        tracing::error!("could not write config,\n{e:#?}");
-                        tracing::error!("{:?}", self.cfg);
+        Popup::menu(&edit_cfg_btn_resp)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| {
+                let close = settings_popup(
+                    ui,
+                    self.cfg,
+                    self.are_tools_active,
+                    self.toggle_clear_cache_on_close,
+                );
+                if let Close::Yes(save) = close {
+                    if save {
+                        if let Err(e) = self.cfg.write() {
+                            tracing::error!("could not write config,\n{e:#?}");
+                            tracing::error!("{:?}", self.cfg);
+                        }
+                    } else {
+                        *self.cfg = self.cfg_orig.clone();
                     }
-                } else {
-                    *self.cfg = self.cfg_orig.clone();
+                    ui.close();
                 }
-                ui.memory_mut(|m| m.toggle_popup(self.id));
-            }
-            if !edit_cfg_btn_resp.clicked() && area_response.clicked_elsewhere() {
-                ui.memory_mut(|m| m.toggle_popup(self.id));
-                *self.cfg = self.cfg_orig.clone();
-            }
-        }
+            });
         edit_cfg_btn_resp
     }
 }

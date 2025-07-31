@@ -1,64 +1,37 @@
-use egui::{Id, Response, Ui};
+use egui::{Popup, Response};
 
-enum ListPopupResult {
-    ElementIndex(usize),
-    Cancel,
-}
-
-pub enum PicklistResult {
-    Picked(String),
-    Cancel,
-}
-fn show_list_popup<'a, I>(
-    ui: &mut Ui,
-    folders: I,
-    popup_id: Id,
-    min_width: f32,
-    below_respone: &Response,
-) -> Option<ListPopupResult>
+fn show_list_popup<'a, I>(folders: I, min_width: f32, btn_response: &Response) -> Option<usize>
 where
     I: Iterator<Item = &'a str>,
 {
-    ui.memory_mut(|m| m.open_popup(popup_id));
+    tracing::warn!("BTN RESP {btn_response:?}");
     let mut selected_idx = None;
-    egui::popup_below_widget(
-        ui,
-        popup_id,
-        below_respone,
-        egui::PopupCloseBehavior::CloseOnClickOutside,
-        |ui| {
-            ui.set_min_width(min_width);
+
+    Popup::menu(btn_response)
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
+            tracing::warn!("SHOW MENU");
             for (i, f) in folders.enumerate() {
+                tracing::warn!("folder {f} {min_width}");
                 if ui.button(f).clicked() {
-                    selected_idx = Some(ListPopupResult::ElementIndex(i));
+                    selected_idx = Some(i);
                 }
             }
             if ui.button("cancel").clicked() {
-                selected_idx = Some(ListPopupResult::Cancel);
+                ui.close();
             }
-        },
-    );
+        });
     selected_idx
 }
 
-pub fn pick<'a, I>(
-    ui: &mut Ui,
-    mut elt_iter: I,
-    min_width: f32,
-    response: &Response,
-    popup_str: &str,
-) -> Option<PicklistResult>
+pub fn pick<'a, I>(mut elt_iter: I, min_width: f32, response: &Response) -> Option<String>
 where
     I: Iterator<Item = &'a str> + Clone,
 {
-    let popup_id = ui.make_persistent_id(popup_str);
-    let idx = show_list_popup(ui, elt_iter.clone(), popup_id, min_width, response);
+    let idx = show_list_popup(elt_iter.clone(), min_width, response);
 
     match idx {
-        Some(ListPopupResult::ElementIndex(idx)) => elt_iter
-            .nth(idx)
-            .map(|elt| (PicklistResult::Picked(elt.to_string()))),
-        Some(ListPopupResult::Cancel) => Some(PicklistResult::Cancel),
+        Some(idx) => elt_iter.nth(idx).map(|elt| (elt.to_string())),
         _ => None,
     }
 }

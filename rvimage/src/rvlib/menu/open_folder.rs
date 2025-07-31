@@ -1,18 +1,15 @@
-use egui::Ui;
+use egui::Response;
 
 use crate::{cfg::Connection, control::Control, result::trace_ok_err};
 
-use super::picklist::{self, PicklistResult};
+use super::picklist;
 use rvimage_domain::{RvError, RvResult};
 
-pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> RvResult<bool> {
-    let resp = ui.button("Open Folder");
-    if resp.clicked() {
-        Ok(true)
-    } else if open_folder_popup_open {
-        let mut cancel = false;
-        let picked = match &ctrl.cfg.prj.connection {
-            Connection::Local => {
+pub fn pick_by_connection(ctrl: &mut Control, resp: &Response) -> RvResult<bool> {
+    let mut cancel = false;
+    let picked = match &ctrl.cfg.prj.connection {
+        Connection::Local => {
+            if resp.clicked() {
                 let sf = rfd::FileDialog::new().pick_folder();
                 if sf.is_none() {
                     cancel = true;
@@ -24,58 +21,46 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                         }))
                     })
                     .map(|sf| sf.to_string())
+            } else {
+                None
             }
-            Connection::Ssh => {
-                let picklist_res = picklist::pick(
-                    ui,
-                    ctrl.cfg
-                        .prj
-                        .ssh
-                        .remote_folder_paths
-                        .iter()
-                        .map(|s| s.as_str()),
-                    500.0,
-                    &resp,
-                    "ssh-open-popup",
-                );
-                match picklist_res {
-                    Some(PicklistResult::Picked(folder)) => Some(folder.to_string()),
-                    Some(PicklistResult::Cancel) => {
-                        cancel = true;
-                        None
-                    }
-                    _ => None,
-                }
-            }
-            Connection::PyHttp => {
-                let picklist_res = picklist::pick(
-                    ui,
-                    ctrl.cfg
-                        .prj
-                        .py_http_reader_cfg
-                        .as_ref()
-                        .ok_or_else(|| RvError::new("no http reader cfg given in cfg"))?
-                        .server_addresses
-                        .iter()
-                        .map(|s| s.as_str()),
-                    500.0,
-                    &resp,
-                    "pyhttp-open-popup",
-                );
-                match picklist_res {
-                    Some(PicklistResult::Picked(folder)) => Some({
-                        let n_slashes = folder.chars().rev().take_while(|c| *c == '/').count();
-                        folder[0..folder.len() - n_slashes].to_string()
-                    }),
-                    Some(PicklistResult::Cancel) => {
-                        cancel = true;
-                        None
-                    }
-                    _ => None,
-                }
-            }
-            #[cfg(feature = "azure_blob")]
-            Connection::AzureBlob => {
+        }
+        Connection::Ssh => {
+            tracing::warn!("SSH");
+            let picklist_res = picklist::pick(
+                ctrl.cfg
+                    .prj
+                    .ssh
+                    .remote_folder_paths
+                    .iter()
+                    .map(|s| s.as_str()),
+                500.0,
+                resp,
+            );
+            tracing::warn!("{picklist_res:?}");
+            picklist_res
+        }
+        Connection::PyHttp => {
+            let picklist_res = picklist::pick(
+                ctrl.cfg
+                    .prj
+                    .py_http_reader_cfg
+                    .as_ref()
+                    .ok_or_else(|| RvError::new("no http reader cfg given in cfg"))?
+                    .server_addresses
+                    .iter()
+                    .map(|s| s.as_str()),
+                500.0,
+                resp,
+            );
+            picklist_res.map(|folder| {
+                let n_slashes = folder.chars().rev().take_while(|c| *c == '/').count();
+                folder[0..folder.len() - n_slashes].to_string()
+            })
+        }
+        #[cfg(feature = "azure_blob")]
+        Connection::AzureBlob => {
+            if resp.clicked() {
                 let address = ctrl
                     .cfg
                     .prj
@@ -85,17 +70,17 @@ pub fn button(ui: &mut Ui, ctrl: &mut Control, open_folder_popup_open: bool) -> 
                     .prefix
                     .clone();
                 Some(address)
+            } else {
+                None
             }
-        };
-        if let Some(new_folder) = picked {
-            ctrl.open_relative_folder(new_folder)?;
-            Ok(false)
-        } else if cancel {
-            Ok(false)
-        } else {
-            Ok(true)
         }
-    } else {
+    };
+    if let Some(new_folder) = picked {
+        ctrl.open_relative_folder(new_folder)?;
         Ok(false)
+    } else if cancel {
+        Ok(false)
+    } else {
+        Ok(true)
     }
 }

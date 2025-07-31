@@ -15,7 +15,7 @@ use crate::{
     tools_data::{ToolSpecifics, ToolsDataMap},
     util::version_label,
 };
-use egui::{Context, Id, Response, RichText, Ui};
+use egui::{Context, Popup, Response, RichText, Ui};
 use rvimage_domain::{rverr, RvResult};
 use std::{
     f32, mem,
@@ -27,23 +27,11 @@ use super::{
     tools_menus::{attributes_menu, bbox_menu, brush_menu},
 };
 
-fn show_popup(
-    ui: &mut Ui,
-    msg: &str,
-    icon: &str,
-    popup_id: Id,
-    info_message: Info,
-    response: &Response,
-) -> Info {
-    ui.memory_mut(|m| m.open_popup(popup_id));
+fn show_popup(msg: &str, icon: &str, info_message: Info, response: &Response) -> Info {
     let mut new_msg = Info::None;
-    egui::popup_above_or_below_widget(
-        ui,
-        popup_id,
-        response,
-        egui::AboveOrBelow::Above,
-        egui::PopupCloseBehavior::CloseOnClickOutside,
-        |ui| {
+    Popup::from_response(response)
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
             let max_msg_len = 500;
             let shortened_msg = if msg.len() > max_msg_len {
                 &msg[..max_msg_len]
@@ -57,8 +45,7 @@ fn show_popup(
             } else {
                 info_message
             }
-        },
-    );
+        });
     new_msg
 }
 
@@ -187,7 +174,6 @@ pub struct Menu {
     are_tools_active: bool,
     toggle_clear_cache_on_close: bool,
     scroll_offset: f32,
-    open_folder_popup_open: bool,
     stats: Counts,
     text_buffers: TextBuffers,
     show_file_idx: bool,
@@ -210,7 +196,6 @@ impl Menu {
             are_tools_active: true,
             toggle_clear_cache_on_close: false,
             scroll_offset: 0.0,
-            open_folder_popup_open: false,
             stats: Counts::default(),
             text_buffers,
             show_file_idx: true,
@@ -250,19 +235,13 @@ impl Menu {
         tools_data_map: &mut ToolsDataMap,
         active_tool_name: Option<&str>,
     ) -> bool {
-        let mut projected_loaded = false;
+        let mut project_loaded = false;
         egui::TopBottomPanel::top("top-menu-bar").show(ctx, |ui| {
             // Top row with open folder and settings button
-            egui::menu::bar(ui, |ui| {
-                let button_resp = open_folder::button(ui, ctrl, self.open_folder_popup_open);
-                handle_error!(
-                    |open| {
-                        self.open_folder_popup_open = open;
-                    },
-                    || self.open_folder_popup_open = false,
-                    button_resp,
-                    self
-                );
+            egui::MenuBar::new().ui(ui, |ui| {
+                let of_response = ui.button("Open Folder");
+                let pick_result = open_folder::pick_by_connection(ctrl, &of_response);
+                handle_error!(pick_result, self);
                 ui.menu_button("Project", |ui| {
                     if ui
                         .button("New")
@@ -272,7 +251,7 @@ impl Menu {
                         .double_clicked()
                     {
                         *tools_data_map = ctrl.new_prj();
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("Load").clicked() {
                         let prj_path = rfd::FileDialog::new()
@@ -282,13 +261,13 @@ impl Menu {
                             handle_error!(
                                 |tdm| {
                                     *tools_data_map = tdm;
-                                    projected_loaded = true;
+                                    project_loaded = true;
                                 },
                                 ctrl.load(prj_path),
                                 self
                             );
                         }
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("Save").clicked() {
                         let prj_path = save_dialog_in_prjfolder(
@@ -299,7 +278,7 @@ impl Menu {
                         if let Some(prj_path) = prj_path {
                             handle_error!(ctrl.save(prj_path, tools_data_map, true), self);
                         }
-                        ui.close_menu();
+                        ui.close();
                     }
                     ui.separator();
                     ui.label("Import ...");
@@ -311,13 +290,13 @@ impl Menu {
                         if let Some(prj_path) = prj_path {
                             handle_error!(
                                 |()| {
-                                    projected_loaded = true;
+                                    project_loaded = true;
                                 },
                                 ctrl.import_annos(&prj_path, tools_data_map),
                                 self
                             );
                         }
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("... Settings").clicked() {
                         let prj_path = rfd::FileDialog::new()
@@ -327,13 +306,13 @@ impl Menu {
                         if let Some(prj_path) = prj_path {
                             handle_error!(
                                 |()| {
-                                    projected_loaded = true;
+                                    project_loaded = true;
                                 },
                                 ctrl.import_settings(&prj_path),
                                 self
                             );
                         }
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("... Annotations and Settings").clicked() {
                         let prj_path = rfd::FileDialog::new()
@@ -343,13 +322,13 @@ impl Menu {
                         if let Some(prj_path) = prj_path {
                             handle_error!(
                                 |()| {
-                                    projected_loaded = true;
+                                    project_loaded = true;
                                 },
                                 ctrl.import_both(&prj_path, tools_data_map),
                                 self
                             );
                         }
-                        ui.close_menu();
+                        ui.close();
                     }
                     ui.horizontal(|ui| {
                         if ui.button("... Annotations from COCO file").clicked() {
@@ -365,7 +344,7 @@ impl Menu {
                             if let Some(coco_path) = coco_path {
                                 handle_error!(
                                     |()| {
-                                        projected_loaded = true;
+                                        project_loaded = true;
                                     },
                                     ctrl.import_from_coco(
                                         &coco_path,
@@ -379,7 +358,7 @@ impl Menu {
                                     self
                                 );
                             }
-                            ui.close_menu();
+                            ui.close();
                         }
                         ui.checkbox(&mut self.import_coco_from_ssh, "ssh")
                     });
@@ -393,12 +372,10 @@ impl Menu {
                     }
                 });
 
-                let popup_id = ui.make_persistent_id("autosave-popup");
                 let autosave_gui = AutosaveMenu::new(
-                    popup_id,
                     ctrl,
                     tools_data_map,
-                    &mut projected_loaded,
+                    &mut project_loaded,
                     &mut self.are_tools_active,
                     &mut self.annotations_menu_params,
                     &mut self.new_file_idx_annoplot,
@@ -407,9 +384,7 @@ impl Menu {
                 ctrl.paths_navigator
                     .select_label_idx(self.new_file_idx_annoplot);
 
-                let popup_id = ui.make_persistent_id("cfg-popup");
                 let cfg_gui = CfgMenu::new(
-                    popup_id,
                     &mut ctrl.cfg,
                     &mut self.are_tools_active,
                     &mut self.toggle_clear_cache_on_close,
@@ -444,11 +419,11 @@ impl Menu {
                             .save_file();
 
                         ctrl.log_export_path = log_export_dst;
-                        ui.close_menu();
+                        ui.close();
                     }
                     let resp_close = ui.button("Close");
                     if resp_close.clicked() {
-                        ui.close_menu();
+                        ui.close();
                     }
                 });
             });
@@ -488,24 +463,13 @@ impl Menu {
                 );
             }
             // Popup for error messages
-            let popup_id = ui.make_persistent_id("info-popup");
             self.info_message = match &self.info_message {
-                Info::Warning(msg) => show_popup(
-                    ui,
-                    msg,
-                    "❕",
-                    popup_id,
-                    self.info_message.clone(),
-                    &filter_txt_field,
-                ),
-                Info::Error(msg) => show_popup(
-                    ui,
-                    msg,
-                    "❌",
-                    popup_id,
-                    self.info_message.clone(),
-                    &filter_txt_field,
-                ),
+                Info::Warning(msg) => {
+                    show_popup(msg, "❕", self.info_message.clone(), &filter_txt_field)
+                }
+                Info::Error(msg) => {
+                    show_popup(msg, "❌", self.info_message.clone(), &filter_txt_field)
+                }
                 Info::None => Info::None,
             };
 
@@ -546,7 +510,7 @@ impl Menu {
             );
             ctrl.cfg.prj.sort_params = sort_params;
         });
-        projected_loaded
+        project_loaded
     }
 }
 

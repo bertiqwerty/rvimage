@@ -2,7 +2,7 @@ mod core;
 mod plot;
 use chrono::{DateTime, Local};
 use core::{iter_files_of_instance_tool, FilterRelation, ToolChoice};
-use egui::{Area, Frame, Id, Order, Response, RichText, Ui, Widget};
+use egui::{Frame, Popup, Response, RichText, Ui, Widget};
 use egui_plot::PlotPoint;
 use plot::{anno_plots, Selection};
 use rvimage_domain::{rverr, to_rv, RvResult};
@@ -836,7 +836,6 @@ fn annotations_popup(
 }
 
 pub struct AutosaveMenu<'a> {
-    id: Id,
     ctrl: &'a mut Control,
     tdm: &'a mut ToolsDataMap,
     project_loaded: &'a mut bool,
@@ -846,7 +845,6 @@ pub struct AutosaveMenu<'a> {
 }
 impl<'a> AutosaveMenu<'a> {
     pub fn new(
-        id: Id,
         ctrl: &'a mut Control,
         tools_data_map: &'a mut ToolsDataMap,
         project_loaded: &'a mut bool,
@@ -855,7 +853,6 @@ impl<'a> AutosaveMenu<'a> {
         new_file_idx: &'a mut Option<usize>,
     ) -> AutosaveMenu<'a> {
         Self {
-            id,
             ctrl,
             tdm: tools_data_map,
             project_loaded,
@@ -869,16 +866,9 @@ impl Widget for AutosaveMenu<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         *self.project_loaded = false;
         let autosaves_btn_resp = ui.button("Annotations");
-        if autosaves_btn_resp.clicked() {
-            ui.memory_mut(|m| m.toggle_popup(self.id));
-        }
-        if ui.memory(|m| m.is_popup_open(self.id)) {
-            let area = Area::new(self.id)
-                .order(Order::Foreground)
-                .default_pos(autosaves_btn_resp.rect.left_bottom());
-
-            let mut close = Close::No;
-            area.show(ui.ctx(), |ui| {
+        Popup::menu(&autosaves_btn_resp)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| {
                 let anno_menu_res = trace_ok_err(annotations_popup(
                     ui,
                     self.ctrl,
@@ -886,20 +876,18 @@ impl Widget for AutosaveMenu<'_> {
                     self.are_tools_active,
                     self.anno_params,
                 ));
+                let close = matches!(anno_menu_res.as_ref().map(|a| a.close), Some(Close::Yes));
                 if let Some(anno_menu_res) = anno_menu_res {
-                    close = anno_menu_res.close;
                     if let Some(tdm) = anno_menu_res.tdm {
                         *self.tdm = tdm;
                         *self.project_loaded = true;
                     }
                     *self.new_file_idx = anno_menu_res.new_file_idx;
                 }
+                if close {
+                    ui.close();
+                }
             });
-
-            if let Close::Yes = close {
-                ui.memory_mut(|m| m.toggle_popup(self.id));
-            }
-        }
         autosaves_btn_resp
     }
 }
