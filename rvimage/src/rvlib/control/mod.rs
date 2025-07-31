@@ -85,12 +85,12 @@ mod detail {
         Ok(folder.map(|p| tf_to_annomap_key(p, prj_path)))
     }
 
-    pub(super) fn lock_file_path(file_path: &Path) -> RvResult<PathBuf> {
-        let stem = file_util::osstr_to_str(file_path.file_stem()).map_err(to_rv)?;
-        Ok(file_path.with_file_name(format!(".{stem}_lock.json")))
+    pub(super) fn lock_file_path(prj_file_path: &Path) -> RvResult<PathBuf> {
+        let stem = file_util::osstr_to_str(prj_file_path.file_stem()).map_err(to_rv)?;
+        Ok(prj_file_path.with_file_name(format!(".{stem}_lock.json")))
     }
-    pub(super) fn create_lock_file(file_path: &Path) -> RvResult<()> {
-        let lock_file = lock_file_path(file_path)?;
+    pub(super) fn create_lock_file(prj_file_path: &Path) -> RvResult<()> {
+        let lock_file = lock_file_path(prj_file_path)?;
         tracing::info!("creating lock file {lock_file:?}");
         let upo = UserPrjOpened::new();
         file_util::save(&lock_file, upo)
@@ -147,7 +147,7 @@ mod detail {
     pub fn save(
         opened_folder: Option<&str>,
         tools_data_map: &ToolsDataMap,
-        file_path: &Path,
+        prj_file_path: &Path,
         cfg: &Cfg,
     ) -> RvResult<()> {
         // we need to write the cfg for correct prj-path mapping during serialization
@@ -159,8 +159,10 @@ mod detail {
             tools_data_map: tdm.clone(),
             cfg: SavedCfg::CfgPrj(cfg.prj.clone()),
         };
-        tracing::info!("saved to {file_path:?}");
-        write(tools_data_map, make_data, file_path)?;
+        tracing::info!("saved to {prj_file_path:?}");
+        let lock_file = lock_file_path(prj_file_path)?;
+        create_lock_file(&lock_file)?;
+        write(tools_data_map, make_data, prj_file_path)?;
         Ok(())
     }
 
@@ -551,7 +553,7 @@ impl Control {
         set_cur_prj: bool,
     ) -> RvResult<()> {
         tracing::info!("saving project to {prj_path:?}");
-        let path = if let Some(of) = self.opened_folder() {
+        let prj_path = if let Some(of) = self.opened_folder() {
             if DEFAULT_PRJ_PATH.as_os_str() == prj_path.as_os_str() {
                 PathBuf::from(of.path_relative()).join(DEFAULT_PRJ_NAME)
             } else {
@@ -562,7 +564,7 @@ impl Control {
         };
 
         if set_cur_prj {
-            self.set_current_prj_path(path.clone())?;
+            self.set_current_prj_path(prj_path.clone())?;
             // update prj name in cfg
             trace_ok_err(self.cfg.write());
         }
@@ -574,7 +576,7 @@ impl Control {
             trace_ok_err(detail::save(
                 opened_folder.as_ref().map(|of| of.path_relative()),
                 &tdm,
-                path.as_path(),
+                prj_path.as_path(),
                 &cfg,
             ));
         });
