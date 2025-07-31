@@ -22,7 +22,6 @@ app = FastAPI()
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
-    # or logger.error(f'{exc}')
     logger.error(exc_str)
     content = {"status_code": 10422, "message": exc_str, "data": None}
     return JSONResponse(
