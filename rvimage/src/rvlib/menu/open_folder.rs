@@ -26,7 +26,6 @@ pub fn pick_by_connection(ctrl: &mut Control, resp: &Response) -> RvResult<bool>
             }
         }
         Connection::Ssh => {
-            tracing::warn!("SSH");
             let picklist_res = picklist::pick(
                 ctrl.cfg
                     .prj
@@ -34,10 +33,8 @@ pub fn pick_by_connection(ctrl: &mut Control, resp: &Response) -> RvResult<bool>
                     .remote_folder_paths
                     .iter()
                     .map(|s| s.as_str()),
-                500.0,
                 resp,
             );
-            tracing::warn!("{picklist_res:?}");
             picklist_res
         }
         Connection::PyHttp => {
@@ -50,7 +47,6 @@ pub fn pick_by_connection(ctrl: &mut Control, resp: &Response) -> RvResult<bool>
                     .server_addresses
                     .iter()
                     .map(|s| s.as_str()),
-                500.0,
                 resp,
             );
             picklist_res.map(|folder| {
