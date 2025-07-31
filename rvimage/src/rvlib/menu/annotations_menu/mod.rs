@@ -2,7 +2,7 @@ mod core;
 mod plot;
 use chrono::{DateTime, Local};
 use core::{iter_files_of_instance_tool, FilterRelation, ToolChoice};
-use egui::{Frame, Popup, Response, RichText, Ui, Widget};
+use egui::{Popup, Response, RichText, Ui, Widget};
 use egui_plot::PlotPoint;
 use plot::{anno_plots, Selection};
 use rvimage_domain::{rverr, to_rv, RvResult};
@@ -764,69 +764,61 @@ fn annotations_popup(
             rvresult = r;
         }
     };
-    Frame::popup(ui.style()).show(ui, |ui| {
-        if ui.button("Close").clicked() {
-            close = Close::Yes;
-        }
-        ui.separator();
-        egui::CollapsingHeader::new("Restore Annotations").show(ui, |ui| {
-            (close, tdm) = autosaves(ui, ctrl, close);
-        });
-        ui.separator();
-        egui::CollapsingHeader::new("Delete or Propagate Annotations").show(ui, |ui| {
-            let skip_attrs = false;
-            anno_params.tool_choice_delprop.ui(ui, skip_attrs);
-            let r = annotations(
-                ui,
-                in_tdm,
-                are_tools_active,
-                anno_params,
-                &ctrl.paths_navigator,
-            );
-            update_rvresult(r);
-        });
-        ui.separator();
-        egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
-            let skip_attrs = true;
-            anno_params.tool_choice_stats.ui(ui, skip_attrs);
-            let r = anno_stats(
-                ui,
-                in_tdm,
-                &mut anno_params.stats_result,
-                anno_params.tool_choice_stats,
-                ctrl.paths_navigator.paths_selector(),
-            );
-            update_rvresult(r);
-        });
-        ui.separator();
-        egui::CollapsingHeader::new("Plot images vs. annotations").show(ui, |ui| {
-            let skip_attrs = false;
-            anno_params.tool_choice_plot.ui(ui, skip_attrs);
-            new_file_idx = anno_plots(
-                ui,
-                in_tdm,
-                anno_params.tool_choice_plot,
-                ctrl.paths_navigator.paths_selector(),
-                are_tools_active,
-                (
-                    Selection {
-                        attributes: &mut anno_params.selected_attributes_for_plot,
-                        bbox_classes: &mut anno_params.selected_bboxclasses_for_plot,
-                        brush_classes: &mut anno_params.selected_brushclasses_for_plot,
-                    },
-                    &mut anno_params.attribute_plots,
-                    &mut anno_params.plot_window_open,
-                    &mut anno_params.areabelow_threshold,
-                    &mut anno_params.area_restriction,
-                    &mut anno_params.areabelow_threshold_buffer,
-                ),
-            );
-        });
-        ui.separator();
-        if ui.button("Close").clicked() {
-            close = Close::Yes;
-        }
+    ui.separator();
+    egui::CollapsingHeader::new("Restore Annotations").show(ui, |ui| {
+        (close, tdm) = autosaves(ui, ctrl, close);
     });
+    ui.separator();
+    egui::CollapsingHeader::new("Delete or Propagate Annotations").show(ui, |ui| {
+        let skip_attrs = false;
+        anno_params.tool_choice_delprop.ui(ui, skip_attrs);
+        let r = annotations(
+            ui,
+            in_tdm,
+            are_tools_active,
+            anno_params,
+            &ctrl.paths_navigator,
+        );
+        update_rvresult(r);
+    });
+    ui.separator();
+    egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
+        let skip_attrs = true;
+        anno_params.tool_choice_stats.ui(ui, skip_attrs);
+        let r = anno_stats(
+            ui,
+            in_tdm,
+            &mut anno_params.stats_result,
+            anno_params.tool_choice_stats,
+            ctrl.paths_navigator.paths_selector(),
+        );
+        update_rvresult(r);
+    });
+    ui.separator();
+    egui::CollapsingHeader::new("Plot images vs. annotations").show(ui, |ui| {
+        let skip_attrs = false;
+        anno_params.tool_choice_plot.ui(ui, skip_attrs);
+        new_file_idx = anno_plots(
+            ui,
+            in_tdm,
+            anno_params.tool_choice_plot,
+            ctrl.paths_navigator.paths_selector(),
+            are_tools_active,
+            (
+                Selection {
+                    attributes: &mut anno_params.selected_attributes_for_plot,
+                    bbox_classes: &mut anno_params.selected_bboxclasses_for_plot,
+                    brush_classes: &mut anno_params.selected_brushclasses_for_plot,
+                },
+                &mut anno_params.attribute_plots,
+                &mut anno_params.plot_window_open,
+                &mut anno_params.areabelow_threshold,
+                &mut anno_params.area_restriction,
+                &mut anno_params.areabelow_threshold_buffer,
+            ),
+        );
+    });
+    ui.separator();
     rvresult?;
     Ok(AnnotationsMenuResult {
         close,
