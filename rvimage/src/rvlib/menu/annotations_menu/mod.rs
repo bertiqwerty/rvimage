@@ -764,7 +764,6 @@ fn annotations_popup(
             rvresult = r;
         }
     };
-    ui.separator();
     egui::CollapsingHeader::new("Restore Annotations").show(ui, |ui| {
         (close, tdm) = autosaves(ui, ctrl, close);
     });
@@ -818,7 +817,6 @@ fn annotations_popup(
             ),
         );
     });
-    ui.separator();
     rvresult?;
     Ok(AnnotationsMenuResult {
         close,
