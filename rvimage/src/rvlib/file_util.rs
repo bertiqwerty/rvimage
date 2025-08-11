@@ -282,7 +282,7 @@ pub fn url_encode(url: &str) -> String {
     url
 }
 
-fn get_last_part_of_path_by_sep(path: &str, sep: char) -> Option<LastPartOfPath> {
+fn get_last_part_of_path_by_sep(path: &str, sep: char) -> Option<LastPartOfPath<'_>> {
     if path.contains(sep) {
         let mark = if path.starts_with('\'') && path.ends_with('\'') {
             "\'"
@@ -311,7 +311,7 @@ fn get_last_part_of_path_by_sep(path: &str, sep: char) -> Option<LastPartOfPath>
     }
 }
 
-pub fn get_last_part_of_path(path: &str) -> Option<LastPartOfPath> {
+pub fn get_last_part_of_path(path: &str) -> Option<LastPartOfPath<'_>> {
     let lp_fw = get_last_part_of_path_by_sep(path, '/');
     if let Some(lp) = &lp_fw {
         if let Some(lp_fwbw) = get_last_part_of_path_by_sep(lp.last_folder, '\\') {
