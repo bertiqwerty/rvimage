@@ -273,7 +273,7 @@ pub fn url_encode(url: &str) -> String {
         ("(", "%28"),
         (")", "%29"),
     ];
-    let mut url = url.replace(mappings[0].0, mappings[1].1);
+    let mut url = url.replace(mappings[0].0, mappings[0].1);
     for m in mappings[1..].iter() {
         url = url
             .replace(m.0, m.1)
@@ -360,6 +360,14 @@ fn get_last_part() {
     let path = "http://localhost:8000/a/21%20%20b/Beg.png";
     let lp = get_last_part_of_path(path).unwrap();
     assert_eq!(lp.last_folder, "Beg.png");
+}
+
+#[test]
+fn encode() {
+    let url = "http://localhost:8000/a/ +,;*()/Beg.png";
+    let encoded = url_encode(url);
+    let url_enc = "http://localhost:8000/a/%20%2B%2C%3B%2A%28%29/Beg.png";
+    assert_eq!(encoded, url_enc);
 }
 
 #[test]
