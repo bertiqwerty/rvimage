@@ -5,7 +5,7 @@ use image::{self, DynamicImage, ExtendedColorType, ImageEncoder};
 use reqwest::blocking::multipart;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 
-use rvimage_domain::{to_rv, BbF, Canvas, GeoFig, RvResult};
+use rvimage_domain::{rverr, to_rv, BbF, Canvas, GeoFig, RvResult};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
@@ -144,16 +144,27 @@ impl Wand for RestWand {
         let url = format!("{}?active_tool={active_tool}", self.url);
 
         tracing::info!("Sending predictive labeling request to {url}");
-        let segs = self
+        let response = self
             .client
             .post(&url)
             .headers(self.headers.clone())
             .multipart(form)
             .send()
-            .map_err(to_rv)?
-            .json::<WandAnnotationsOutput>()
             .map_err(to_rv)?;
-        Ok(segs)
+        if response.status().is_success() {
+            let segs = response.json::<WandAnnotationsOutput>().map_err(to_rv)?;
+            Ok(segs)
+        } else {
+            let status = response.status();
+            let err_msg = response
+                .text()
+                .unwrap_or("no error message available".into());
+            Err(rverr!(
+                "predictive labelling failed with status {} and error message '{}'",
+                status,
+                err_msg
+            ))
+        }
     }
 }
 
