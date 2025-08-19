@@ -160,8 +160,7 @@ mod detail {
             cfg: SavedCfg::CfgPrj(cfg.prj.clone()),
         };
         tracing::info!("saved to {prj_file_path:?}");
-        let lock_file = lock_file_path(prj_file_path)?;
-        create_lock_file(&lock_file)?;
+        create_lock_file(prj_file_path)?;
         write(tools_data_map, make_data, prj_file_path)?;
         Ok(())
     }
