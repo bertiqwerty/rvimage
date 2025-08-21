@@ -184,27 +184,39 @@ use std::{
 #[test]
 fn test() {
     init_tracing_for_tests();
-    let manifestdir = env!("CARGO_MANIFEST_DIR");
-    let script = format!(
-        r#"
-        export PYTHONPATH=../rvimage-py
-        cd {}/../rest-testserver
-        uv sync
-        uv run fastapi run run.py&
-    "#,
-        manifestdir
-    );
-    let mut child = Command::new("bash")
-        .arg("-c")
-        .arg(script)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .expect("failed to start FastAPI server");
+    let manifestdir = env!("CARGO_MANIFEST_DIR").replace("\\", "/");
+    let mut child = if cfg!(target_os = "windows") {
+        let script_addr = format!("{manifestdir}/resources/test_data/scripts/start_restserver.bat");
+        Command::new(script_addr)
+            .arg(&manifestdir)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("failed to start FastAPI server")
+    } else {
+        let script = format!(
+            r#"
+                export PYTHONPATH=../rvimage-py
+                cd {manifestdir}/../rest-testserver
+                uv sync
+                uv run fastapi run run.py&
+            "#
+        );
+
+        Command::new("bash")
+            .arg("-c")
+            .arg(script)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("failed to start FastAPI server")
+    };
+
+    tracing::debug!("FastAPI server started");
     thread::sleep(Duration::from_secs(5));
-    fn test(url: &str, manifestdir: &'static str) {
+    fn test_inner(url: &str, manifestdir: &str) {
         let w = RestWand::new(url.into(), None);
-        let p = format!("{}/resources/rvimage-logo.png", manifestdir);
+        let p = format!("{manifestdir}/resources/rvimage-logo.png");
         let mut m = ParamMap::new();
         m.insert("some_param".into(), ParamVal::Float(Some(1.0)));
 
@@ -275,10 +287,10 @@ fn test() {
             ret_brush_data.elts()[1]
         );
     }
-    test("http://127.0.0.1:8000/", manifestdir);
-    test("http://127.0.0.1:8000", manifestdir);
-    test("http://127.0.0.1:8000/predict", manifestdir);
-    test("http://127.0.0.1:8000/predict/", manifestdir);
+    test_inner("http://127.0.0.1:8000/", &manifestdir);
+    test_inner("http://127.0.0.1:8000", &manifestdir);
+    test_inner("http://127.0.0.1:8000/predict", &manifestdir);
+    test_inner("http://127.0.0.1:8000/predict/", &manifestdir);
 
     child.kill().expect("Failed to kill the server");
 }
