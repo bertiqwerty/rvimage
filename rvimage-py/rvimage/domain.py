@@ -68,7 +68,7 @@ class BbF(BaseModel, _RowColMixin[float]):
     w: float
     h: float
 
-    def to_bbi(self) -> "BbI":
+    def to_bbi(self) -> BbI:
         """
         Convert to integer bounding box.
         """
