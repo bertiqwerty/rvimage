@@ -1,6 +1,9 @@
-from typing import Self
-from pydantic import BaseModel, model_serializer, model_validator
+from collections.abc import Callable, Sequence
+from typing import Any, Self, TypeVar
+
 import numpy as np
+from pydantic import BaseModel, model_serializer, model_validator
+
 from rvimage.converters import (
     extract_polys_from_mask,
     fill_bbs_on_mask,
@@ -9,6 +12,20 @@ from rvimage.converters import (
     rle_to_mask,
 )
 from rvimage.domain import BbF, BbI, Poly, find_ccs
+
+B = TypeVar("B", BbI, BbF)
+
+
+def _keep_inbox_anno_inds(
+    container_boxes: Sequence[BbF | BbI],
+    keep_or_remove: Sequence[Any],
+    convert_to_box: Callable[[Any], B],
+):
+    return [
+        i
+        for i, elt in enumerate(keep_or_remove)
+        if any(convert_to_box(elt) in cb for cb in container_boxes)
+    ]
 
 
 class Labelinfo(BaseModel):
@@ -95,6 +112,17 @@ class BboxAnnos(BaseModel):
             abs_coords_input=True,
         )
 
+    def keep_inbox_annos(self, bbs: Sequence[BbF | BbI]):
+        """Keep all annotations whose bounding box is contained in of the passed bbs"""
+        inds = _keep_inbox_anno_inds(
+            bbs,
+            self.elts,
+            lambda elt: elt if isinstance(elt, BbF) else elt.enclosing_bb,
+        )
+        self.elts = [self.elts[i] for i in inds]
+        self.cat_idxs = [self.cat_idxs[i] for i in inds]
+        self.selected_mask = [self.selected_mask[i] for i in inds]
+
 
 class BboxData(BaseModel):
     annos: BboxAnnos
@@ -152,6 +180,13 @@ class BrushAnnos(BaseModel):
             cat_idxs=self.cat_idxs + other.cat_idxs,
             selected_mask=self.selected_mask + other.selected_mask,
         )
+
+    def keep_inbox_annos(self, bbs: Sequence[BbI | BbF]):
+        """Keep all annotations whose bounding box is contained in of the passed bbs"""
+        inds = _keep_inbox_anno_inds(bbs, self.elts, lambda x: x.bb)
+        self.elts = [self.elts[i] for i in inds]
+        self.cat_idxs = [self.cat_idxs[i] for i in inds]
+        self.selected_mask = [self.selected_mask[i] for i in inds]
 
 
 class BrushData(BaseModel):

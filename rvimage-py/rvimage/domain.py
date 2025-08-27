@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import math
 from typing import Generic, TypeVar
+
 import numpy as np
 from pydantic import BaseModel
 from scipy.ndimage import find_objects
@@ -34,13 +37,17 @@ class _RowColMixin(Generic[T]):
         return self.h  # type: ignore[attr-defined]
 
 
-class _SlicesMixin:
-    @property
-    def slices(self):
-        return slice(self.y, self.y + self.h), slice(self.x, self.x + self.w)  # type: ignore[attr-defined]
+class _ContainsMixin:
+    def __contains__(self, other: BbI | BbF) -> bool:
+        return (
+            other.c_min >= self.c_min  # type: ignore[attr-defined]
+            and other.c_max <= self.c_max  # type: ignore[attr-defined]
+            and other.r_min >= self.r_min  # type: ignore[attr-defined]
+            and other.r_max <= self.r_max  # type: ignore[attr-defined]
+        )
 
 
-class BbI(BaseModel, _RowColMixin[int], _SlicesMixin):
+class BbI(BaseModel, _RowColMixin[int], _ContainsMixin):
     x: int
     y: int
     w: int
@@ -62,7 +69,7 @@ class BbI(BaseModel, _RowColMixin[int], _SlicesMixin):
         return slice(self.y, self.y + self.h), slice(self.x, self.x + self.w)
 
 
-class BbF(BaseModel, _RowColMixin[float]):
+class BbF(BaseModel, _RowColMixin[float], _ContainsMixin):
     x: float
     y: float
     w: float

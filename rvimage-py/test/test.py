@@ -61,6 +61,13 @@ def test_validation():
         "selected_mask": [False],
     }
     BboxAnnos.model_validate(annos)
+
+
+def test_inbox():
+    bb1 = BbI(x=271, y=192, w=1014, h=86)
+    bb2 = BbI(x=0, y=190, w=1500, h=100)
+    assert bb1 in bb2
+
     with open("../rvimage/resources/test_data/rvprj_v4-0.json", "r") as f:
         data_loaded = json.load(f)
 
@@ -70,10 +77,34 @@ def test_validation():
         ].values():
             yield d
 
-    for brush_data in get_data("Brush"):
-        BrushAnnos.model_validate(brush_data)
-    for bbox_data in get_data("Bbox"):
-        BboxAnnos.model_validate(bbox_data)
+    data = get_data("Bbox")
+    for i, bbox_data in enumerate(data):
+        annos = BboxAnnos.model_validate(bbox_data)
+        if i == 0:
+            assert len(annos.elts) == 4
+            assert len(annos.cat_idxs) == 4
+            assert len(annos.selected_mask) == 4
+            annos.keep_inbox_annos(
+                [
+                    BbF(x=550.70, y=1300.28, w=1455, h=339),
+                    BbF(x=105.72, y=416.41, w=327.09, h=932.01),
+                ]
+            )
+            assert len(annos.elts) == 2
+            assert len(annos.cat_idxs) == 2
+            assert len(annos.selected_mask) == 2
+
+    data = get_data("Brush")
+    for i, brush_data in enumerate(data):
+        annos = BrushAnnos.model_validate(brush_data)
+        if i == 0:
+            assert len(annos.elts) == 4
+            assert len(annos.cat_idxs) == 4
+            assert len(annos.selected_mask) == 4
+            annos.keep_inbox_annos([bb2])
+            assert len(annos.elts) == 1
+            assert len(annos.cat_idxs) == 1
+            assert len(annos.selected_mask) == 1
 
 
 def test_from_mask():
@@ -121,6 +152,7 @@ def test_bb_rowcolinterface():
 
 
 if __name__ == "__main__":
+    test_inbox()
     test_bb_rowcolinterface()
     test_from_mask()
     test_decode_image()
