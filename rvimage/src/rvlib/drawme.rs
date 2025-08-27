@@ -72,6 +72,7 @@ pub struct ImageInfo {
     pub shape_info: String,
     pub pixel_value: String,
     pub tool_info: String,
+    pub zoom_box_coords: String,
 }
 
 #[derive(Clone, Debug, Default)]

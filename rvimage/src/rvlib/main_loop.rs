@@ -20,7 +20,7 @@ use crate::{
 use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use image::{ImageBuffer, Rgb};
-use rvimage_domain::{PtI, RvResult, ShapeF};
+use rvimage_domain::{BbI, PtI, RvResult, ShapeF};
 use std::fmt::Debug;
 use std::mem;
 use std::path::{Path, PathBuf};
@@ -413,18 +413,28 @@ impl MainEventLoop {
                 } else {
                     "".to_string()
                 };
+                let zoom_box_coords = self
+                    .world
+                    .zoom_box()
+                    .map(|zb| {
+                        let zb = BbI::from(zb);
+                        format!("zoom x {}, y {}, w {}, h {}", zb.x, zb.y, zb.w, zb.h)
+                    })
+                    .unwrap_or("no zoom".into());
                 let s = match data_point {
                     Some(s) => ImageInfo {
                         filename: file_label.to_string(),
                         shape_info: format!("{}x{}", shape.w, shape.h),
                         pixel_value: s,
                         tool_info: tool_string,
+                        zoom_box_coords,
                     },
                     None => ImageInfo {
                         filename: file_label.to_string(),
                         shape_info: format!("{}x{}", shape.w, shape.h),
                         pixel_value: "(x, y) -> (r, g, b)".to_string(),
                         tool_info: tool_string,
+                        zoom_box_coords,
                     },
                 };
                 self.world.update_view.image_info = Some(s);

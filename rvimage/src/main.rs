@@ -616,8 +616,8 @@ impl eframe::App for RvImageApp {
                     ui.add(
                         egui::Label::new(
                             egui::RichText::new(format!(
-                                "{} | {} | {} it/s",
-                                info.pixel_value, info.shape_info, it_str
+                                "{} | {} | {} | {} it/s",
+                                info.pixel_value, info.shape_info, info.zoom_box_coords, it_str
                             ))
                             .monospace(),
                         )
