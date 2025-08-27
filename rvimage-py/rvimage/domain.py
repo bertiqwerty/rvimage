@@ -34,7 +34,13 @@ class _RowColMixin(Generic[T]):
         return self.h  # type: ignore[attr-defined]
 
 
-class BbI(BaseModel, _RowColMixin[int]):
+class _SlicesMixin:
+    @property
+    def slices(self):
+        return slice(self.y, self.y + self.h), slice(self.x, self.x + self.w)  # type: ignore[attr-defined]
+
+
+class BbI(BaseModel, _RowColMixin[int], _SlicesMixin):
     x: int
     y: int
     w: int

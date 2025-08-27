@@ -109,6 +109,10 @@ def test_bb_rowcolinterface():
         assert bb.c_max == bb.x + bb.w
         assert bb.height == bb.h
         assert bb.width == bb.w
+        if isinstance(bb, BbI):
+            y_slice, x_slice = bb.slices
+            assert y_slice == slice(bb.r_min, bb.r_max)
+            assert x_slice == slice(bb.c_min, bb.c_max)
 
     test(BbF(x=0, y=0, w=10, h=20))
     test(BbI(x=0, y=0, w=1, h=2))
