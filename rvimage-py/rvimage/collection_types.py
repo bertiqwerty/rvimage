@@ -73,14 +73,14 @@ class BboxAnnos(BaseModel):
             selected_mask=self.selected_mask + other.selected_mask,
         )
 
-    def fill_mask(self, im_mask: np.ndarray, cat_idx: int):
+    def fill_mask(self, im_mask: np.ndarray, cat_idx: int, value: int = 1):
         fill_polys_on_mask(
             polygons=(
                 elt.points
                 for elt, cat_idx_ in zip(self.elts, self.cat_idxs)
                 if cat_idx == cat_idx_ and isinstance(elt, Poly)
             ),
-            value=1,
+            value=value,
             im_mask=im_mask,
             abs_coords_input=True,
         )
@@ -90,7 +90,7 @@ class BboxAnnos(BaseModel):
                 for elt, cat_idx_ in zip(self.elts, self.cat_idxs)
                 if cat_idx == cat_idx_ and isinstance(elt, BbF)
             ),
-            value=1,
+            value=value,
             im_mask=im_mask,
             abs_coords_input=True,
         )
@@ -128,16 +128,17 @@ class BrushAnnos(BaseModel):
             selected_mask=[False] * len(ccs),
         )
 
-    def fill_mask(self, im_mask: np.ndarray, cat_idx: int):
+    def fill_mask(self, im_mask: np.ndarray, cat_idx: int, value: int = 1):
         """Create a binary mask from all brush annotations of the given category
 
         Args:
             im_mask: output mask to write on
             cat_idx: index of category to be written
+            value: image intensity of masked pixels
         """
         for elt, cat_idx_ in zip(self.elts, self.cat_idxs):
             if cat_idx == cat_idx_:
-                im_bb_mask = rle_to_mask(elt.rle, value=1, mask=elt.bb)
+                im_bb_mask = rle_to_mask(elt.rle, value=value, mask=elt.bb)
                 im_mask[elt.bb.slices] = im_bb_mask
 
     def extend(self, other: Self | None) -> "BrushAnnos":
