@@ -1,11 +1,40 @@
 import math
+from typing import Generic, TypeVar
 import numpy as np
 from pydantic import BaseModel
 from scipy.ndimage import find_objects
 from scipy.ndimage import label as scpiy_label
 
+T = TypeVar("T")
 
-class BbI(BaseModel):
+
+class _RowColMixin(Generic[T]):
+    @property
+    def r_min(self) -> T:
+        return self.y  # type: ignore[attr-defined]
+
+    @property
+    def r_max(self) -> T:
+        return self.y + self.h  # type: ignore[attr-defined]
+
+    @property
+    def c_min(self) -> T:
+        return self.x  # type: ignore[attr-defined]
+
+    @property
+    def c_max(self) -> T:
+        return self.x + self.w  # type: ignore[attr-defined]
+
+    @property
+    def width(self) -> T:
+        return self.w  # type: ignore[attr-defined]
+
+    @property
+    def height(self) -> T:
+        return self.h  # type: ignore[attr-defined]
+
+
+class BbI(BaseModel, _RowColMixin[int]):
     x: int
     y: int
     w: int
@@ -27,7 +56,7 @@ class BbI(BaseModel):
         return slice(self.y, self.y + self.h), slice(self.x, self.x + self.w)
 
 
-class BbF(BaseModel):
+class BbF(BaseModel, _RowColMixin[float]):
     x: float
     y: float
     w: float

@@ -11,7 +11,7 @@ from rvimage.converters import (
     mask_to_rle,
     rle_to_mask,
 )
-from rvimage.domain import Point
+from rvimage.domain import BbF, BbI, Point
 
 
 def test_rle():
@@ -38,7 +38,6 @@ def test_polygon():
     value = 1
 
     mask = fill_polys_on_mask(polygons, value, im_mask, abs_coords_input=True)
-    print(mask)
     assert np.sum(mask) > 0
 
     polygons_converted = extract_polys_from_mask(mask, abs_coords_output=True)
@@ -102,7 +101,23 @@ def test_decode_image():
     )
 
 
+def test_bb_rowcolinterface():
+    def test(bb: BbI | BbF):
+        assert bb.c_min == bb.x
+        assert bb.r_min == bb.y
+        assert bb.r_max == bb.y + bb.h
+        assert bb.c_max == bb.x + bb.w
+        assert bb.height == bb.h
+        assert bb.width == bb.w
+
+    test(BbF(x=0, y=0, w=10, h=20))
+    test(BbI(x=0, y=0, w=1, h=2))
+    test(BbF(x=0.5, y=0.76, w=10.8, h=20.22))
+    test(BbI(x=1, y=120, w=11, h=21))
+
+
 if __name__ == "__main__":
+    test_bb_rowcolinterface()
     test_from_mask()
     test_decode_image()
     test_validation()
