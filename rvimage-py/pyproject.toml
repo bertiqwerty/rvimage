@@ -1,6 +1,6 @@
 [project]
 name = "rvimage"
-version = "0.1.2"
+version = "0.1.3"
 description = "Pydantic types to facilitate writing prediction APIs integrated into the image annotation tool RV Image"
 readme = "README.md"
 requires-python = ">=3.11"
