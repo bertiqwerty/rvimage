@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from scipy.ndimage import find_objects
 from scipy.ndimage import label as scpiy_label
 
-T = TypeVar("T")
+T = TypeVar("T", int, float)
 
 
 class _RowColMixin(Generic[T]):
@@ -36,6 +36,14 @@ class _RowColMixin(Generic[T]):
     def height(self) -> T:
         return self.h  # type: ignore[attr-defined]
 
+    @classmethod
+    def from_rowcols(cls, r_min: T, c_min: T, r_max: T, c_max: T):
+        x = c_min
+        y = r_min
+        w = c_max - c_min
+        h = r_max - r_min
+        return cls(x=x, y=y, h=h, w=w)  # type: ignore[attr-defined]
+
 
 class _ContainsMixin:
     def __contains__(self, other: BbI | BbF) -> bool:
@@ -45,6 +53,25 @@ class _ContainsMixin:
             and other.r_min >= self.r_min  # type: ignore[attr-defined]
             and other.r_max <= self.r_max  # type: ignore[attr-defined]
         )
+
+    def intersect(self, other: BbI | BbF) -> BbI | BbF | None:
+        c_min = max(self.c_min, other.c_min)  # type: ignore[attr-defined]
+        c_max = min(self.c_max, other.c_max)  # type: ignore[attr-defined]
+        r_min = max(self.r_min, other.r_min)  # type: ignore[attr-defined]
+        r_max = min(self.r_max, other.r_max)  # type: ignore[attr-defined]
+        if c_min < c_max and r_min < r_max:
+            if (
+                isinstance(c_min, int)
+                and isinstance(c_max, int)
+                and isinstance(r_min, int)
+                and isinstance(r_max, int)
+            ):
+                return BbI.from_rowcols(r_min, c_min, r_max, c_max)
+            else:
+                return BbF.from_rowcols(r_min, c_min, r_max, c_max)
+        else:
+            # boxes don't overlap
+            return None
 
 
 class BbI(BaseModel, _RowColMixin[int], _ContainsMixin):
@@ -85,6 +112,10 @@ class BbF(BaseModel, _RowColMixin[float], _ContainsMixin):
             w=int(np.round(self.w)),
             h=int(np.round(self.h)),
         )
+
+    @classmethod
+    def from_bbi(cls, bbi: BbI):
+        return cls(x=bbi.x, y=bbi.y, w=bbi.w, h=bbi.h)
 
     def scale(self, scale_x: float, scale_y) -> "BbF":
         """

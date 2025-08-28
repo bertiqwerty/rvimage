@@ -171,7 +171,38 @@ def test_bb_rowcolinterface():
     test(BbI(x=1, y=120, w=11, h=21))
 
 
+def test_intersect():
+    bb1 = BbF(x=0, y=0, w=10, h=20)
+    bb2 = BbI(x=0, y=0, w=10, h=20)
+    # match the float box, not the int box
+    assert bb1.intersect(bb2) == bb1
+    assert bb1.intersect(bb2) != bb2
+
+    # no overlap
+    bb1 = BbF(x=11, y=0, w=10, h=20)
+    bb2 = BbI(x=0, y=0, w=10, h=20)
+    assert bb1.intersect(bb2) is None
+
+    bb1 = BbF(x=5, y=6, w=10, h=20)
+    bb2 = BbF(x=0, y=0, w=10, h=20)
+    assert bb1.intersect(bb2) == BbF(x=5, y=6, w=5, h=14)
+
+    bb1 = BbI(x=15, y=6, w=100, h=20)
+    bb2 = BbI(x=20, y=10, w=100, h=120)
+    assert bb1.intersect(bb2) == BbI(x=20, y=10, w=95, h=16)
+
+
+def test_bb_conversion():
+    bbi = BbI(x=0, y=0, w=10, h=20)
+    assert BbF.from_bbi(bbi).to_bbi() == bbi
+
+    bbf = BbF(x=0.04, y=0.4, w=9.54, h=20.3)
+    assert bbf.to_bbi() == bbi
+
+
 if __name__ == "__main__":
+    test_bb_conversion()
+    test_intersect()
     test_inbox()
     test_bb_rowcolinterface()
     test_from_mask()
