@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Sequence
-from typing import Self, TypeVar
+from typing import Protocol, Self, TypeVar
 
 import numpy as np
 from pydantic import BaseModel, model_serializer, model_validator
@@ -17,7 +19,7 @@ B = TypeVar("B", BbI, BbF)
 T = TypeVar("T")
 
 
-def _keep_inbox_anno_inds(
+def _inbox_inds(
     container_boxes: Sequence[BbF | BbI],
     keep_or_remove: Sequence[T],
     convert_to_box: Callable[[T], B],
@@ -27,6 +29,30 @@ def _keep_inbox_anno_inds(
         for i, elt in enumerate(keep_or_remove)
         if any(convert_to_box(elt) in cb for cb in container_boxes)
     ]
+
+
+def _outofbox_inds(
+    container_boxes: Sequence[BbF | BbI],
+    keep_or_remove: Sequence[T],
+    convert_to_box: Callable[[T], B],
+):
+    return [
+        i
+        for i, elt in enumerate(keep_or_remove)
+        if all(convert_to_box(elt) not in cb for cb in container_boxes)
+    ]
+
+
+class _AnnotationProtocol(Protocol):
+    elts: list
+    cat_idxs: list[int]
+    selected_mask: list[bool]
+
+
+def _keep_inds(obj: _AnnotationProtocol, inds: list[int]):
+    obj.elts = [obj.elts[i] for i in inds]
+    obj.cat_idxs = [obj.cat_idxs[i] for i in inds]
+    obj.selected_mask = [obj.selected_mask[i] for i in inds]
 
 
 class Labelinfo(BaseModel):
@@ -114,15 +140,22 @@ class BboxAnnos(BaseModel):
         )
 
     def keep_inbox_annos(self, bbs: Sequence[BbF | BbI]):
-        """Keep all annotations whose bounding box is contained in of the passed bbs"""
-        inds = _keep_inbox_anno_inds(
+        """Keep all annotations whose bounding box is contained in one of the passed bbs"""
+        inds = _inbox_inds(
             bbs,
             self.elts,
             lambda elt: elt if isinstance(elt, BbF) else elt.enclosing_bb,
         )
-        self.elts = [self.elts[i] for i in inds]
-        self.cat_idxs = [self.cat_idxs[i] for i in inds]
-        self.selected_mask = [self.selected_mask[i] for i in inds]
+        _keep_inds(self, inds)
+
+    def remove_inbox_annos(self, bbs: Sequence[BbF | BbI]):
+        """Remove all annotations whose bounding box is contained in one of the passed bbs"""
+        inds = _outofbox_inds(
+            bbs,
+            self.elts,
+            lambda elt: elt if isinstance(elt, BbF) else elt.enclosing_bb,
+        )
+        _keep_inds(self, inds)
 
 
 class BboxData(BaseModel):
@@ -184,10 +217,13 @@ class BrushAnnos(BaseModel):
 
     def keep_inbox_annos(self, bbs: Sequence[BbI | BbF]):
         """Keep all annotations whose bounding box is contained in of the passed bbs"""
-        inds = _keep_inbox_anno_inds(bbs, self.elts, lambda x: x.bb)
-        self.elts = [self.elts[i] for i in inds]
-        self.cat_idxs = [self.cat_idxs[i] for i in inds]
-        self.selected_mask = [self.selected_mask[i] for i in inds]
+        inds = _inbox_inds(bbs, self.elts, lambda x: x.bb)
+        _keep_inds(self, inds)
+
+    def remove_inbox_annos(self, bbs: Sequence[BbI | BbF]):
+        """Keep all annotations whose bounding box is contained in of the passed bbs"""
+        inds = _outofbox_inds(bbs, self.elts, lambda x: x.bb)
+        _keep_inds(self, inds)
 
 
 class BrushData(BaseModel):

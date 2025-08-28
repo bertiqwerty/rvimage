@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 
 import cv2
@@ -81,10 +82,22 @@ def test_inbox():
     for i, bbox_data in enumerate(data):
         annos = BboxAnnos.model_validate(bbox_data)
         if i == 0:
-            assert len(annos.elts) == 4
-            assert len(annos.cat_idxs) == 4
-            assert len(annos.selected_mask) == 4
-            annos.keep_inbox_annos(
+            annos_ = deepcopy(annos)
+            assert len(annos_.elts) == 4
+            assert len(annos_.cat_idxs) == 4
+            assert len(annos_.selected_mask) == 4
+
+            annos_.keep_inbox_annos(
+                [
+                    BbF(x=550.70, y=1300.28, w=1455, h=339),
+                    BbF(x=105.72, y=416.41, w=327.09, h=932.01),
+                ]
+            )
+            assert len(annos_.elts) == 2
+            assert len(annos_.cat_idxs) == 2
+            assert len(annos_.selected_mask) == 2
+
+            annos.remove_inbox_annos(
                 [
                     BbF(x=550.70, y=1300.28, w=1455, h=339),
                     BbF(x=105.72, y=416.41, w=327.09, h=932.01),
@@ -98,13 +111,20 @@ def test_inbox():
     for i, brush_data in enumerate(data):
         annos = BrushAnnos.model_validate(brush_data)
         if i == 0:
-            assert len(annos.elts) == 4
-            assert len(annos.cat_idxs) == 4
-            assert len(annos.selected_mask) == 4
-            annos.keep_inbox_annos([bb2])
-            assert len(annos.elts) == 1
-            assert len(annos.cat_idxs) == 1
-            assert len(annos.selected_mask) == 1
+            annos_ = deepcopy(annos)
+            assert len(annos_.elts) == 4
+            assert len(annos_.cat_idxs) == 4
+            assert len(annos_.selected_mask) == 4
+
+            annos_.keep_inbox_annos([bb2])
+            assert len(annos_.elts) == 1
+            assert len(annos_.cat_idxs) == 1
+            assert len(annos_.selected_mask) == 1
+
+            annos.remove_inbox_annos([bb2])
+            assert len(annos.elts) == 3
+            assert len(annos.cat_idxs) == 3
+            assert len(annos.selected_mask) == 3
 
 
 def test_from_mask():
