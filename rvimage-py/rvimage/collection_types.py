@@ -1,5 +1,5 @@
 from collections.abc import Callable, Sequence
-from typing import Any, Self, TypeVar
+from typing import Self, TypeVar
 
 import numpy as np
 from pydantic import BaseModel, model_serializer, model_validator
@@ -14,12 +14,13 @@ from rvimage.converters import (
 from rvimage.domain import BbF, BbI, Poly, find_ccs
 
 B = TypeVar("B", BbI, BbF)
+T = TypeVar("T")
 
 
 def _keep_inbox_anno_inds(
     container_boxes: Sequence[BbF | BbI],
-    keep_or_remove: Sequence[Any],
-    convert_to_box: Callable[[Any], B],
+    keep_or_remove: Sequence[T],
+    convert_to_box: Callable[[T], B],
 ):
     return [
         i
