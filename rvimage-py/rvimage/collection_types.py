@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from typing import Protocol, Self, TypeVar
+from collections.abc import Iterable
 
 import numpy as np
 from pydantic import BaseModel, model_serializer, model_validator
@@ -62,6 +63,10 @@ class Labelinfo(BaseModel):
     cat_ids: list[int]
     cat_idx_current: int
     show_only_current: bool
+
+
+def _bbox_elt_to_bb(elt: BbF | Poly) -> BbF:
+    return elt if isinstance(elt, BbF) else elt.enclosing_bb
 
 
 class BboxAnnos(BaseModel):
@@ -139,12 +144,15 @@ class BboxAnnos(BaseModel):
             abs_coords_input=True,
         )
 
+    def bbs(self) -> Iterable[BbF]:
+        return (elt if isinstance(elt, BbF) else elt.enclosing_bb for elt in self.elts)
+
     def keep_inbox_annos(self, bbs: Sequence[BbF | BbI]):
         """Keep all annotations whose bounding box is contained in one of the passed bbs"""
         inds = _inbox_inds(
             bbs,
             self.elts,
-            lambda elt: elt if isinstance(elt, BbF) else elt.enclosing_bb,
+            _bbox_elt_to_bb,
         )
         _keep_inds(self, inds)
 
@@ -167,6 +175,10 @@ class Canvas(BaseModel):
     rle: list[int]
     bb: BbI
     intensity: float
+
+
+def _brush_elt_to_bb(elt: Canvas) -> BbI:
+    return elt.bb
 
 
 class BrushAnnos(BaseModel):
@@ -215,14 +227,17 @@ class BrushAnnos(BaseModel):
             selected_mask=self.selected_mask + other.selected_mask,
         )
 
+    def bbs(self) -> Iterable[BbI]:
+        return (_brush_elt_to_bb(elt) for elt in self.elts)
+
     def keep_inbox_annos(self, bbs: Sequence[BbI | BbF]):
         """Keep all annotations whose bounding box is contained in of the passed bbs"""
-        inds = _inbox_inds(bbs, self.elts, lambda x: x.bb)
+        inds = _inbox_inds(bbs, self.elts, _brush_elt_to_bb)
         _keep_inds(self, inds)
 
     def remove_inbox_annos(self, bbs: Sequence[BbI | BbF]):
         """Keep all annotations whose bounding box is contained in of the passed bbs"""
-        inds = _outofbox_inds(bbs, self.elts, lambda x: x.bb)
+        inds = _outofbox_inds(bbs, self.elts, _brush_elt_to_bb)
         _keep_inds(self, inds)
 
 
