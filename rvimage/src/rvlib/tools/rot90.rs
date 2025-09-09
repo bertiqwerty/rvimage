@@ -68,8 +68,10 @@ fn rot90(mut world: World, n_rotations: NRotations, skip_annos: bool) -> World {
             world.data.apply(|im| im.rotate90());
         }
     }
-    world.set_zoom_box(None);
-    world.request_redraw_image();
+    if !matches!(n_rotations, NRotations::Zero) {
+        world.set_zoom_box(None);
+        world.request_redraw_image();
+    }
     world
 }
 #[derive(Clone, Copy, Debug)]
