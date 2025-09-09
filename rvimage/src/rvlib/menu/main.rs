@@ -246,9 +246,9 @@ impl Menu {
                     if ui
                         .button("New")
                         .on_hover_text(
-                            "Double click, old project will be closed, unsaved data will get lost",
+                            "Right click, old project will be closed, unsaved data will get lost",
                         )
-                        .double_clicked()
+                        .secondary_clicked()
                     {
                         *tools_data_map = ctrl.new_prj();
                         ui.close();
