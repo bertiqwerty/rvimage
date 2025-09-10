@@ -7,7 +7,7 @@ where
     let mut selected_idx = None;
 
     Popup::menu(btn_response)
-        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
         .show(|ui| {
             for (i, f) in folders.enumerate() {
                 if ui.button(f).clicked() {
