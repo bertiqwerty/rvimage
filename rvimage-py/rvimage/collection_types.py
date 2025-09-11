@@ -168,11 +168,11 @@ class BboxAnnos(BaseModel):
             abs_coords_input=True,
         )
 
-    def bbs(self, cat_idx: int | None = None) -> Iterable[BbF]:
+    def bbs(self, cat_idx: list[int] | None = None) -> Iterable[BbF]:
         return (
             elt if isinstance(elt, BbF) else elt.enclosing_bb
             for elt, cat_idx_ in zip(self.elts, self.cat_idxs)
-            if cat_idx is None or cat_idx_ == cat_idx
+            if cat_idx is None or cat_idx_ in cat_idx
         )
 
     def keep_only_inbox_annos(self, bbs: Sequence[BbF | BbI]):
@@ -193,9 +193,9 @@ class BboxAnnos(BaseModel):
         )
         _keep_inds(self, inds)
 
-    def find_max_overlap_bb_with_zoombox(self, zb: BbI, cat_idx: int) -> BbI:
+    def find_max_overlap_bb_with_zoombox(self, zb: BbI, cat_idxs: list[int]) -> BbI:
         if len(self.elts) > 0:
-            max_ol_bb = zb.find_max_overlap_bb(self.bbs(cat_idx))
+            max_ol_bb = zb.find_max_overlap_bb(self.bbs(cat_idxs))
             if max_ol_bb is None:
                 return zb
             else:
@@ -270,11 +270,11 @@ class BrushAnnos(BaseModel):
             selected_mask=self.selected_mask + other.selected_mask,
         )
 
-    def bbs(self, cat_idx: int | None = None) -> Iterable[BbI]:
+    def bbs(self, cat_idx: list[int] | None = None) -> Iterable[BbI]:
         return (
             _brush_elt_to_bb(elt)
             for elt, cat_idx_ in zip(self.elts, self.cat_idxs)
-            if cat_idx is None or cat_idx_ == cat_idx
+            if cat_idx is None or cat_idx_ in cat_idx
         )
 
     def keep_only_inbox_annos(self, bbs: Sequence[BbI | BbF]):

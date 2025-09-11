@@ -89,8 +89,8 @@ def test_inbox():
             assert len(annos_.cat_idxs) == 4
             assert len(annos_.selected_mask) == 4
             assert len(list(annos.bbs())) == 4
-            assert len(list(annos.bbs(cat_idx=0))) == 4
-            assert len(list(annos.bbs(cat_idx=1))) == 0
+            assert len(list(annos.bbs(cat_idx=[0]))) == 4
+            assert len(list(annos.bbs(cat_idx=[1]))) == 0
 
             annos_.keep_only_inbox_annos(
                 [
@@ -123,8 +123,8 @@ def test_inbox():
             assert len(annos_.cat_idxs) == 4
             assert len(annos_.selected_mask) == 4
             assert len(list(annos_.bbs())) == 4
-            assert len(list(annos_.bbs(cat_idx=0))) == 4
-            assert len(list(annos_.bbs(cat_idx=1))) == 0
+            assert len(list(annos_.bbs(cat_idx=[0, 6]))) == 4
+            assert len(list(annos_.bbs(cat_idx=[1, 3]))) == 0
 
             annos_.keep_only_inbox_annos([bb2])
             assert len(annos_.elts) == 1
