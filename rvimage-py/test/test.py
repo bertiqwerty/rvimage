@@ -200,20 +200,21 @@ def test_bb_conversion():
     assert bbf.to_bbi() == bbi
 
 
-def test_append():
+def test_singleelt():
     bbf1 = BbF(x=0.04, y=0.4, w=9.54, h=20.3)
     bbf2 = BbF(x=10.47, y=0.7, w=3.54, h=7.3)
     bbf3 = BbF(x=8.14, y=6.2, w=8.54, h=10.3)
-    annos = BboxAnnos(elts=[bbf1, bbf2], cat_idxs=[0, 1], selected_mask=[False, True])
+    annos = BboxAnnos.from_elt(bbf1, 0)
+    annos.append_elt(bbf2, cat_idx=1)
     annos.append_elt(bbf3, cat_idx=3)
     annos_ref = BboxAnnos(
-        elts=[bbf1, bbf2, bbf3], cat_idxs=[0, 1, 3], selected_mask=[False, True, False]
+        elts=[bbf1, bbf2, bbf3], cat_idxs=[0, 1, 3], selected_mask=[False, False, False]
     )
     assert annos == annos_ref
 
 
 if __name__ == "__main__":
-    test_append()
+    test_singleelt()
     test_bb_conversion()
     test_intersect()
     test_inbox()
