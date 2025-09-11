@@ -82,6 +82,11 @@ class BboxAnnos(BaseModel):
             data["elts"] = [next(v for v in d.values()) for d in data["elts"]]
         return data
 
+    @model_validator(mode="after")
+    def check_len(self) -> "Self":
+        assert len(self.elts) == len(self.cat_idxs) == len(self.selected_mask)
+        return self
+
     @model_serializer()
     def serialize_model(self):
         elts = [
@@ -203,6 +208,11 @@ class BrushAnnos(BaseModel):
     elts: list[Canvas]
     cat_idxs: list[int]
     selected_mask: list[bool]
+
+    @model_validator(mode="after")
+    def check_len(self) -> "Self":
+        assert len(self.elts) == len(self.cat_idxs) == len(self.selected_mask)
+        return self
 
     @classmethod
     def from_mask(cls, im_mask: np.ndarray, cat_idx: int) -> "BrushAnnos":

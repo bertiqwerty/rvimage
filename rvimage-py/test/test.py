@@ -3,8 +3,10 @@ import json
 
 import cv2
 import numpy as np
+from pydantic import ValidationError
+import pytest
 
-from rvimage.collection_types import BboxAnnos, BrushAnnos
+from rvimage.collection_types import BboxAnnos, BrushAnnos, Canvas
 from rvimage.converters import (
     decode_bytes_into_rgbarray,
     extract_polys_from_mask,
@@ -139,6 +141,21 @@ def test_from_mask():
     )
 
 
+def test_len_validator():
+    bb1 = BbF(x=11, y=0, w=10, h=20)
+    with pytest.raises(ValidationError):
+        BboxAnnos(elts=[bb1], cat_idxs=[], selected_mask=[])
+    BboxAnnos(elts=[bb1], cat_idxs=[0], selected_mask=[True])
+    rle = mask_to_rle(np.zeros((10, 20)))
+    canvas = Canvas(rle=rle, bb=bb1.to_bbi(), intensity=1)
+    with pytest.raises(ValidationError):
+        BrushAnnos(elts=[canvas], cat_idxs=[], selected_mask=[])
+    with pytest.raises(ValidationError):
+        BrushAnnos(elts=[], cat_idxs=[1], selected_mask=[])
+    BrushAnnos(elts=[], cat_idxs=[], selected_mask=[])
+    BrushAnnos(elts=[canvas], cat_idxs=[1], selected_mask=[True])
+
+
 def test_decode_image():
     bytes = open("../rvimage/resources/rvimage-logo.png", "rb").read()
     im_decoded = decode_bytes_into_rgbarray(bytes)
@@ -270,6 +287,7 @@ def test_equals():
 
 
 if __name__ == "__main__":
+    test_len_validator()
     test_equals()
     test_singleelt()
     test_bb_conversion()
