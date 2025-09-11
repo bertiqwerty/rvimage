@@ -180,16 +180,23 @@ def test_intersect():
 
     # no overlap
     bb1 = BbF(x=11, y=0, w=10, h=20)
-    bb2 = BbI(x=0, y=0, w=10, h=20)
+    bb4 = BbI(x=0, y=0, w=10, h=20)
     assert bb1.intersect(bb2) is None
 
     bb1 = BbF(x=5, y=6, w=10, h=20)
-    bb2 = BbF(x=0, y=0, w=10, h=20)
-    assert bb1.intersect(bb2) == BbF(x=5, y=6, w=5, h=14)
+    bb3 = BbF(x=0, y=0, w=10, h=20)
+    assert bb1.intersect(bb3) == BbF(x=5, y=6, w=5, h=14)
 
     bb1 = BbI(x=15, y=6, w=100, h=20)
     bb2 = BbI(x=20, y=10, w=100, h=120)
     assert bb1.intersect(bb2) == BbI(x=20, y=10, w=95, h=16)
+    assert bb1.find_max_overlap_bb([bb1, bb2]) == bb1
+    bb1 = BbI(x=15, y=6, w=100, h=20)
+    bb2 = BbI(x=20, y=10, w=100, h=120)
+    bbf = BbF(x=20, y=10, w=100, h=120)
+    assert bbf.find_max_overlap_bb([bb1, bb2]) == bb2
+    assert bb1.find_max_overlap_bb([bb2, bb3, bb4]) == bb2
+    assert bb1.find_max_overlap_bb([bb4]) is None
 
 
 def test_bb_conversion():

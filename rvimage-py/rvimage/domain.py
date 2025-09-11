@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Generic, TypeVar
+from typing import Generic, Iterable, TypeVar
 
 import numpy as np
 from pydantic import BaseModel
@@ -35,6 +35,10 @@ class _RowColMixin(Generic[T]):
     @property
     def height(self) -> T:
         return self.h  # type: ignore[attr-defined]
+
+    @property
+    def area(self) -> T:
+        return self.height * self.width
 
     @classmethod
     def from_rowcols(cls, r_min: T, c_min: T, r_max: T, c_max: T):
@@ -72,6 +76,18 @@ class _ContainsMixin:
         else:
             # boxes don't overlap
             return None
+
+    def find_max_overlap_bb(self, others: Iterable[BbI | BbF]) -> BbI | BbF | None:
+        """Finds the last bounding box from others with maximum overlap with self"""
+        max_overlap = 0
+        max_overlap_bb = None
+        for other_bb in others:
+            inter = self.intersect(other_bb)
+            ol = inter and inter.area
+            if ol is not None and ol >= max_overlap:
+                max_overlap = ol
+                max_overlap_bb = other_bb
+        return max_overlap_bb
 
 
 class BbI(BaseModel, _RowColMixin[int], _ContainsMixin):
