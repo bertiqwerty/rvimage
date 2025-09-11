@@ -111,6 +111,9 @@ class BbI(BaseModel, _RowColMixin[int], _ContainsMixin):
         """
         return slice(self.y, self.y + self.h), slice(self.x, self.x + self.w)
 
+    def to_bbi(self):
+        return self
+
 
 class BbF(BaseModel, _RowColMixin[float], _ContainsMixin):
     x: float

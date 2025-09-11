@@ -205,6 +205,7 @@ def test_bb_conversion():
 
     bbf = BbF(x=0.04, y=0.4, w=9.54, h=20.3)
     assert bbf.to_bbi() == bbi
+    assert bbf.to_bbi() == bbi.to_bbi()
 
 
 def test_singleelt():
