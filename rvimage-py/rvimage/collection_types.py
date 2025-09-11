@@ -122,6 +122,13 @@ class BboxAnnos(BaseModel):
             selected_mask=self.selected_mask + other.selected_mask,
         )
 
+    def append_elt(self, elt: BbI | BbF | Poly, cat_idx: int):
+        if isinstance(elt, BbI):
+            elt = BbF.from_bbi(elt)
+        self.elts.append(elt)
+        self.cat_idxs.append(cat_idx)
+        self.selected_mask.append(False)
+
     def fill_mask(self, im_mask: np.ndarray, cat_idx: int, value: int = 1):
         fill_polys_on_mask(
             polygons=(
