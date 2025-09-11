@@ -258,17 +258,15 @@ class BrushAnnos(BaseModel):
                 im_bb_mask = rle_to_mask(elt.rle, value=value, mask=elt.bb)
                 im_mask[elt.bb.slices] = im_bb_mask
 
-    def extend(self, other: Self | None) -> "BrushAnnos":
+    def extend(self, other: Self | None):
         """
         Extend the current BrushAnnos with another BrushAnnos.
         """
         if other is None:
             return self
-        return BrushAnnos(
-            elts=self.elts + other.elts,
-            cat_idxs=self.cat_idxs + other.cat_idxs,
-            selected_mask=self.selected_mask + other.selected_mask,
-        )
+        self.elts += other.elts
+        self.cat_idxs += other.cat_idxs
+        self.selected_mask += other.selected_mask
 
     def bbs(self, cat_idx: list[int] | None = None) -> Iterable[BbI]:
         return (
