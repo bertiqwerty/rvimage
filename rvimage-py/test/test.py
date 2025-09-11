@@ -268,6 +268,29 @@ def test_singleelt():
     )
     assert annos == annos_ref
 
+    annos.extend(annos_ref)
+    annos_ref = BboxAnnos(
+        elts=[bbf1, bbf2, bbf3, bbf4, poly1],
+        cat_idxs=[0, 1, 3, 4, 4],
+        selected_mask=[
+            False,
+            False,
+            False,
+            False,
+            False,
+        ],
+    )
+    assert annos == annos_ref
+    annos_ = BboxAnnos.from_elt(bbf1, 6)
+    annos_.append_elt(bbf2, 7, True)
+    annos.extend(annos_)
+    annos_ref = BboxAnnos(
+        elts=[bbf1, bbf2, bbf3, bbf4, poly1, bbf1, bbf2],
+        cat_idxs=[0, 1, 3, 4, 4, 6, 7],
+        selected_mask=[False, False, False, False, False, False, True],
+    )
+    assert annos == annos_ref
+
 
 def test_equals():
     bbf1 = BbF(x=0.04, y=0.4, w=9.54, h=20.3)

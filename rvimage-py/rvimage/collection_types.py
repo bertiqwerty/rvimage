@@ -115,19 +115,20 @@ class BboxAnnos(BaseModel):
             selected_mask=[False] * len(polys),
         )
 
-    def extend(self, other: Self | None) -> "BboxAnnos":
+    def extend(self, other: Self | None):
         """
         Extend the current BboxAnnos with another BboxAnnos.
         """
         if other is None:
             return self
-        return BboxAnnos(
-            elts=self.elts + other.elts,
-            cat_idxs=self.cat_idxs + other.cat_idxs,
-            selected_mask=self.selected_mask + other.selected_mask,
-        )
+        for o_elt, o_cat_idx, o_selected in zip(
+            other.elts, other.cat_idxs, other.selected_mask
+        ):
+            self.append_elt(o_elt, o_cat_idx, o_selected)
 
-    def append_elt(self, elt: BbI | BbF | Poly, cat_idx: int):
+    def append_elt(
+        self, elt: BbI | BbF | Poly, cat_idx: int, selected_mask: bool = False
+    ):
         if isinstance(elt, BbI):
             elt = BbF.from_bbi(elt)
         is_duplicate = any(
@@ -137,7 +138,7 @@ class BboxAnnos(BaseModel):
         if not is_duplicate:
             self.elts.append(elt)
             self.cat_idxs.append(cat_idx)
-            self.selected_mask.append(False)
+            self.selected_mask.append(selected_mask)
 
     @classmethod
     def from_elt(cls, elt: BbI | BbF | Poly, cat_idx: int) -> "BboxAnnos":
