@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from scipy.ndimage import find_objects
 from scipy.ndimage import label as scpiy_label
 
+
 T = TypeVar("T", int, float)
 
 

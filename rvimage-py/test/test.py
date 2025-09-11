@@ -88,8 +88,11 @@ def test_inbox():
             assert len(annos_.elts) == 4
             assert len(annos_.cat_idxs) == 4
             assert len(annos_.selected_mask) == 4
+            assert len(list(annos.bbs())) == 4
+            assert len(list(annos.bbs(cat_idx=0))) == 4
+            assert len(list(annos.bbs(cat_idx=1))) == 0
 
-            annos_.keep_inbox_annos(
+            annos_.keep_only_inbox_annos(
                 [
                     BbF(x=550.70, y=1300.28, w=1455, h=339),
                     BbF(x=105.72, y=416.41, w=327.09, h=932.01),
@@ -98,6 +101,7 @@ def test_inbox():
             assert len(annos_.elts) == 2
             assert len(annos_.cat_idxs) == 2
             assert len(annos_.selected_mask) == 2
+            assert len(list(annos_.bbs())) == 2
 
             annos.remove_inbox_annos(
                 [
@@ -108,6 +112,7 @@ def test_inbox():
             assert len(annos.elts) == 2
             assert len(annos.cat_idxs) == 2
             assert len(annos.selected_mask) == 2
+            assert len(list(annos.bbs())) == 2
 
     data = get_data("Brush")
     for i, brush_data in enumerate(data):
@@ -117,16 +122,21 @@ def test_inbox():
             assert len(annos_.elts) == 4
             assert len(annos_.cat_idxs) == 4
             assert len(annos_.selected_mask) == 4
+            assert len(list(annos_.bbs())) == 4
+            assert len(list(annos_.bbs(cat_idx=0))) == 4
+            assert len(list(annos_.bbs(cat_idx=1))) == 0
 
-            annos_.keep_inbox_annos([bb2])
+            annos_.keep_only_inbox_annos([bb2])
             assert len(annos_.elts) == 1
             assert len(annos_.cat_idxs) == 1
             assert len(annos_.selected_mask) == 1
+            assert len(list(annos_.bbs())) == 1
 
             annos.remove_inbox_annos([bb2])
             assert len(annos.elts) == 3
             assert len(annos.cat_idxs) == 3
             assert len(annos.selected_mask) == 3
+            assert len(list(annos.bbs())) == 3
 
 
 def test_from_mask():

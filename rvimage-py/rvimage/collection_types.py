@@ -167,10 +167,14 @@ class BboxAnnos(BaseModel):
             abs_coords_input=True,
         )
 
-    def bbs(self) -> Iterable[BbF]:
-        return (elt if isinstance(elt, BbF) else elt.enclosing_bb for elt in self.elts)
+    def bbs(self, cat_idx: int | None = None) -> Iterable[BbF]:
+        return (
+            elt if isinstance(elt, BbF) else elt.enclosing_bb
+            for elt, cat_idx_ in zip(self.elts, self.cat_idxs)
+            if cat_idx is None or cat_idx_ == cat_idx
+        )
 
-    def keep_inbox_annos(self, bbs: Sequence[BbF | BbI]):
+    def keep_only_inbox_annos(self, bbs: Sequence[BbF | BbI]):
         """Keep all annotations whose bounding box is contained in one of the passed bbs"""
         inds = _inbox_inds(
             bbs,
@@ -187,6 +191,16 @@ class BboxAnnos(BaseModel):
             lambda elt: elt if isinstance(elt, BbF) else elt.enclosing_bb,
         )
         _keep_inds(self, inds)
+
+    def find_max_overlap_bb_with_zoombox(self, zb: BbI, cat_idx: int) -> BbI:
+        if len(self.elts) > 0:
+            max_ol_bb = zb.find_max_overlap_bb(self.bbs(cat_idx))
+            if max_ol_bb is None:
+                return zb
+            else:
+                return max_ol_bb.to_bbi()
+        else:
+            return zb
 
 
 class BboxData(BaseModel):
@@ -255,10 +269,14 @@ class BrushAnnos(BaseModel):
             selected_mask=self.selected_mask + other.selected_mask,
         )
 
-    def bbs(self) -> Iterable[BbI]:
-        return (_brush_elt_to_bb(elt) for elt in self.elts)
+    def bbs(self, cat_idx: int | None = None) -> Iterable[BbI]:
+        return (
+            _brush_elt_to_bb(elt)
+            for elt, cat_idx_ in zip(self.elts, self.cat_idxs)
+            if cat_idx is None or cat_idx_ == cat_idx
+        )
 
-    def keep_inbox_annos(self, bbs: Sequence[BbI | BbF]):
+    def keep_only_inbox_annos(self, bbs: Sequence[BbI | BbF]):
         """Keep all annotations whose bounding box is contained in of the passed bbs"""
         inds = _inbox_inds(bbs, self.elts, _brush_elt_to_bb)
         _keep_inds(self, inds)
