@@ -12,7 +12,7 @@ from rvimage.converters import (
     mask_to_rle,
     rle_to_mask,
 )
-from rvimage.domain import BbF, BbI, Point
+from rvimage.domain import BbF, BbI, Point, Poly
 
 
 def test_rle():
@@ -204,16 +204,65 @@ def test_singleelt():
     bbf1 = BbF(x=0.04, y=0.4, w=9.54, h=20.3)
     bbf2 = BbF(x=10.47, y=0.7, w=3.54, h=7.3)
     bbf3 = BbF(x=8.14, y=6.2, w=8.54, h=10.3)
+    bbf4 = BbF(x=8.14, y=6.2, w=8.54, h=10.3)
     annos = BboxAnnos.from_elt(bbf1, 0)
     annos.append_elt(bbf2, cat_idx=1)
     annos.append_elt(bbf3, cat_idx=3)
+    annos.append_elt(bbf4, cat_idx=3)
     annos_ref = BboxAnnos(
         elts=[bbf1, bbf2, bbf3], cat_idxs=[0, 1, 3], selected_mask=[False, False, False]
     )
     assert annos == annos_ref
 
+    # with a different category, it is not a duplicate
+    annos.append_elt(bbf4, cat_idx=4)
+    annos_ref = BboxAnnos(
+        elts=[bbf1, bbf2, bbf3, bbf4],
+        cat_idxs=[0, 1, 3, 4],
+        selected_mask=[False, False, False, False],
+    )
+    assert annos == annos_ref
+    poly1 = Poly.from_points(
+        [Point(x=1.2, y=1.3), Point(x=2.2, y=1.6), Point(x=11.2, y=10.3)]
+    )
+    annos.append_elt(poly1, cat_idx=4)
+    annos_ref = BboxAnnos(
+        elts=[bbf1, bbf2, bbf3, bbf4, poly1],
+        cat_idxs=[0, 1, 3, 4, 4],
+        selected_mask=[False, False, False, False, False],
+    )
+    assert annos == annos_ref
+
+
+def test_equals():
+    bbf1 = BbF(x=0.04, y=0.4, w=9.54, h=20.3)
+    bbf2 = BbF(x=10.47, y=0.7, w=3.54, h=7.3)
+    bbf3 = BbF(x=8.14, y=6.2, w=8.54, h=10.3)
+    bbf4 = BbF(x=8.14, y=6.2, w=8.54, h=10.3)
+    bbf5 = BbF(x=8.14 + 1e-9, y=6.2, w=8.54, h=10.3)
+    assert not bbf1.equals(bbf2)
+    assert bbf3.equals(bbf4)
+    assert bbf3.equals(bbf5)
+
+    poly1 = Poly.from_points(
+        [Point(x=1.2, y=1.3), Point(x=2.2, y=1.6), Point(x=11.2, y=10.3)]
+    )
+    poly2 = Poly.from_points(
+        [Point(x=1.2, y=1.3), Point(x=2.2, y=1.6), Point(x=11.2, y=10.3)]
+    )
+    poly3 = Poly.from_points(
+        [Point(x=2.2, y=1.3), Point(x=4.2, y=4.6), Point(x=11.2, y=19.3)]
+    )
+    poly4 = Poly.from_points(
+        [Point(x=2.2, y=1.3 + 1e-9), Point(x=4.2, y=4.6), Point(x=11.2, y=19.3)]
+    )
+    assert poly1.equals(poly2)
+    assert not poly1.equals(poly3)
+    assert poly3.equals(poly4)
+
 
 if __name__ == "__main__":
+    test_equals()
     test_singleelt()
     test_bb_conversion()
     test_intersect()

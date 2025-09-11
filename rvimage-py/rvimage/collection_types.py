@@ -125,9 +125,14 @@ class BboxAnnos(BaseModel):
     def append_elt(self, elt: BbI | BbF | Poly, cat_idx: int):
         if isinstance(elt, BbI):
             elt = BbF.from_bbi(elt)
-        self.elts.append(elt)
-        self.cat_idxs.append(cat_idx)
-        self.selected_mask.append(False)
+        is_duplicate = any(
+            elt.equals(elt_i) and cat_idx == cat_idx_i
+            for elt_i, cat_idx_i in zip(self.elts, self.cat_idxs)
+        )
+        if not is_duplicate:
+            self.elts.append(elt)
+            self.cat_idxs.append(cat_idx)
+            self.selected_mask.append(False)
 
     @classmethod
     def from_elt(cls, elt: BbI | BbF | Poly, cat_idx: int) -> "BboxAnnos":

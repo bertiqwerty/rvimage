@@ -128,6 +128,19 @@ class BbF(BaseModel, _RowColMixin[float], _ContainsMixin):
             h=self.h * scale_y,
         )
 
+    def equals(self, other: "BbF | Poly", tolerance: float = 1e-8) -> bool:
+        if isinstance(other, Poly):
+            return False
+        if abs(self.x - other.x) > tolerance:
+            return False
+        if abs(self.y - other.y) > tolerance:
+            return False
+        if abs(self.w - other.w) > tolerance:
+            return False
+        if abs(self.h - other.h) > tolerance:
+            return False
+        return True
+
 
 class Point(BaseModel):
     x: float
@@ -141,6 +154,16 @@ class Poly(BaseModel):
     @classmethod
     def from_points(cls, points: list[Point]) -> "Poly":
         return cls(points=points, enclosing_bb=enclosing_bb(points))
+
+    def equals(self, other: "Poly | BbF", tolerance: float = 1e-8) -> bool:
+        if isinstance(other, BbF):
+            return False
+        if not self.enclosing_bb.equals(other.enclosing_bb):
+            return False
+        for p1, p2 in zip(self.points, other.points):
+            if abs(p1.x - p2.x) > tolerance or abs(p1.y - p2.y) > tolerance:
+                return False
+        return True
 
 
 def enclosing_bb(points: list[Point]) -> BbF:
