@@ -38,8 +38,8 @@ base64 = "0.22.1"
 conv = "0.3.3"
 dirs = "6.0.0"
 edit = "0.1.5"
-egui = "0.32.2"
-eframe = { version = "0.32.2", default-features = false, features = [
+egui = "0.32.3"
+eframe = { version = "0.32.3", default-features = false, features = [
     # "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".

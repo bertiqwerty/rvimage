@@ -304,6 +304,14 @@ pub struct CfgUsr {
     pub file_cache_args: FileCacheCfgArgs,
     pub ssh: SshCfgUsr,
 }
+
+impl CfgUsr {
+    pub fn get_n_autosaves(&self) -> u8 {
+        self.n_autosaves
+            .unwrap_or(get_default_n_autosaves().unwrap())
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct CfgPrj {
     pub py_http_reader_cfg: Option<PyHttpReaderCfg>,
