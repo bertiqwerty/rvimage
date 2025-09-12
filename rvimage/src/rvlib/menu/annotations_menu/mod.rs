@@ -698,7 +698,6 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
     let (today, date_n_days_ago) = make_timespan(AUTOSAVE_KEEP_N_DAYS);
     let folder = Path::new(ctrl.cfg.home_folder());
     let files = trace_ok_err(list_files(folder, Some(date_n_days_ago), Some(today)));
-    ui.heading("Reset Annotations to Autsave");
     egui::Grid::new("autosaves-menu-grid").show(ui, |ui| {
         ui.label(egui::RichText::new("name").monospace());
         ui.label(egui::RichText::new("size").monospace());
@@ -706,6 +705,7 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
         ui.end_row();
         if let Some(autosaves) = files {
             let cur_prj_path = ctrl.cfg.current_prj_path().to_path_buf();
+            let n_autosaves = ctrl.cfg.usr.get_n_autosaves();
             let stem = trace_ok_err(file_util::to_stem_str(&cur_prj_path))
                 .unwrap_or("default")
                 .to_string();
@@ -723,7 +723,7 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
                 .collect();
             combined.sort_by(|(_, (_, datetime1)), (_, (_, datetime2))| datetime1.cmp(datetime2));
 
-            for (path, (mb, datetime)) in combined.iter().rev() {
+            for (path, (mb, datetime)) in combined.iter().rev().take((n_autosaves + 5).into()) {
                 if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
                     if ui
                         .button(egui::RichText::new(file_name).monospace())
