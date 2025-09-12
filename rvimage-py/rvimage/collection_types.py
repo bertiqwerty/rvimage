@@ -256,7 +256,7 @@ class BrushAnnos(BaseModel):
         for elt, cat_idx_ in zip(self.elts, self.cat_idxs):
             if cat_idx == cat_idx_:
                 im_bb_mask = rle_to_mask(elt.rle, value=value, mask=elt.bb)
-                im_mask[elt.bb.slices] = im_bb_mask
+                im_mask[elt.bb.slices][im_bb_mask > 0] = im_bb_mask[im_bb_mask > 0]
 
     def extend(self, other: Self | None):
         """
