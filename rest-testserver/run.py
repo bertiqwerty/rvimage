@@ -59,8 +59,10 @@ async def predict(
     resulting_mask[76:80, 5] = 1
     brush_annos = BrushAnnos.from_mask(resulting_mask, 0)
 
-    bbox_annos = bbox_annos.extend(None if bbd is None else bbd.annos)
-    brush_annos = brush_annos.extend(None if brd is None else brd.annos)
+    logger.info(brush_annos)
+    logger.info(bbox_annos)
+    bbox_annos.extend(None if bbd is None else bbd.annos)
+    brush_annos.extend(None if brd is None else brd.annos)
 
     oad = OutputAnnotationData(
         bbox=bbox_annos,
