@@ -170,7 +170,8 @@ impl Wand for RestWand {
 
 #[cfg(test)]
 use crate::{
-    tools::BBOX_NAME, tools_data::parameters::ParamVal, tracing_setup::init_tracing_for_tests,
+    defer, tools::BBOX_NAME, tools_data::parameters::ParamVal,
+    tracing_setup::init_tracing_for_tests,
 };
 #[cfg(test)]
 use rvimage_domain::BbI;
@@ -211,6 +212,7 @@ fn test() {
             .spawn()
             .expect("failed to start FastAPI server")
     };
+    defer!(|| child.kill().expect("Failed to kill the server"));
 
     tracing::debug!("FastAPI server started");
     thread::sleep(Duration::from_secs(5));
@@ -291,6 +293,4 @@ fn test() {
     test_inner("http://127.0.0.1:8000", &manifestdir);
     test_inner("http://127.0.0.1:8000/predict", &manifestdir);
     test_inner("http://127.0.0.1:8000/predict/", &manifestdir);
-
-    child.kill().expect("Failed to kill the server");
 }
