@@ -244,6 +244,7 @@ where
                     .on_hover_text("double-click to delete all annotations in this folder")
                     .double_clicked()
                 {
+                    tracing::info!("deleting annotations of {p:?}");
                     let to_del = annos_map_mut
                         .keys()
                         .filter(|k| ancestor(k, parents_depth) == p)
