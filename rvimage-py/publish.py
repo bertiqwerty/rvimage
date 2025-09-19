@@ -8,7 +8,7 @@ def main():
         pyprj = tomllib.load(f)
     version = pyprj["project"]["version"]
     print(f"{version}")
-    os.system("git tag -a pypi-pub")
+    os.system(f"git tag -a pypi-pub-v{version}")
     os.system("uv build")
     os.system("uv publish")
 
