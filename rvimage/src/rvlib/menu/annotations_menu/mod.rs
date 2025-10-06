@@ -129,7 +129,7 @@ enum Close {
     No,
 }
 
-fn fileinfo(path: &Path) -> RvResult<(String, String)> {
+fn fileinfo(path: &Path) -> RvResult<(String, DateTime<Local>)> {
     let metadata = fs::metadata(path).map_err(to_rv)?;
     let n_bytes = metadata.len();
     let mb = n_bytes as f64 / (1024.0f64).powi(2);
@@ -137,7 +137,6 @@ fn fileinfo(path: &Path) -> RvResult<(String, String)> {
 
     let modified = metadata.modified().map_err(to_rv)?;
     let datetime: DateTime<Local> = modified.into();
-    let datetime = datetime.format("%b %d %Y - %H:%M:%S").to_string();
     Ok((mb, datetime))
 }
 
@@ -735,7 +734,8 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
                         close = Close::Yes;
                     }
                     ui.label(egui::RichText::new(mb).monospace());
-                    ui.label(egui::RichText::new(datetime).monospace());
+                    let datetime_s = datetime.format("%b %d %Y - %H:%M:%S").to_string();
+                    ui.label(egui::RichText::new(datetime_s).monospace());
                     ui.end_row();
                 }
             }
