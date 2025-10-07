@@ -28,7 +28,7 @@ where
     let idx = show_list_popup(elt_iter.clone(), response);
 
     match idx {
-        Some(idx) => elt_iter.nth(idx).map(|elt| (elt.to_string())),
+        Some(idx) => elt_iter.nth(idx).map(|elt| elt.to_string()),
         _ => None,
     }
 }
