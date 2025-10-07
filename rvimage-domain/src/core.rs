@@ -192,7 +192,7 @@ where
         Self { w, h }
     }
     pub fn rot90_with_image_ntimes(&self, n: u8) -> Self {
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             *self
         } else {
             Self {

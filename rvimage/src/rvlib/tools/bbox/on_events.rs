@@ -437,7 +437,7 @@ pub(super) fn on_mouse_released_left(
                         let newly_selected_bb = &annos.elts()[i];
                         let sel_indxs = true_indices(annos.selected_mask());
                         if let Some((p1, p2, _)) = sel_indxs
-                            .map(|i| (newly_selected_bb.max_squaredist(&annos.elts()[i])))
+                            .map(|i| newly_selected_bb.max_squaredist(&annos.elts()[i]))
                             .max_by(|(_, _, d1), (_, _, d2)| max_from_partial(d1, d2))
                         {
                             let spanned_bb = BbF::from_points(p1, p2);
