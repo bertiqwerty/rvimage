@@ -323,7 +323,7 @@ impl RvImageApp {
                 ..Default::default()
             },
         );
-        let galley = ctx.fonts(|f| f.layout_job(text_job));
+        let galley = ctx.fonts_mut(|f| f.layout_job(text_job));
         let x = enclosing_bb.min().x;
         let y = enclosing_bb.max().y;
 
