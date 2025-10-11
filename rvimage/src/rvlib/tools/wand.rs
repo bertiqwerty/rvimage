@@ -199,8 +199,7 @@ fn test() {
             r#"
                 export PYTHONPATH=../rvimage-py
                 cd {manifestdir}/../rest-testserver
-                uv sync
-                uv run fastapi run run.py&
+                uv run --no-cache fastapi run run.py&
             "#
         );
 
