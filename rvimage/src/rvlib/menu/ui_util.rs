@@ -57,6 +57,18 @@ pub fn text_edit_with_deactivated_tools<S: TextBuffer>(
 ) -> Response {
     ui_with_deactivated_tools_on_keys(are_tools_active, || f_ui(text))
 }
+pub fn text_edit_multiline(
+    ui: &mut Ui,
+    text: &mut String,
+    are_tools_active: &mut bool,
+) -> Response {
+    text_edit_with_deactivated_tools(text, are_tools_active, |text| {
+        TextEdit::multiline(text)
+            .font(FontSelection::Style(egui::TextStyle::Monospace))
+            .show(ui)
+            .response
+    })
+}
 pub fn text_edit_singleline(
     ui: &mut Ui,
     text: &mut String,

@@ -140,6 +140,9 @@ impl ParamMap {
     pub fn iter(&self) -> impl Iterator<Item = (&String, &ParamVal)> {
         self.data.iter()
     }
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut ParamVal)> {
+        self.data.iter_mut()
+    }
     pub fn insert(&mut self, name: String, val: ParamVal) {
         self.data.insert(name, val);
     }

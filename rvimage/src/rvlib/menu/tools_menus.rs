@@ -1,7 +1,7 @@
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
     file_util::path_to_str,
-    menu::ui_util::process_number,
+    menu::ui_util::{process_number, text_edit_multiline},
     result::trace_ok_err,
     tools::{get_visible_inactive_names, BBOX_NAME, BRUSH_NAME},
     tools_data::{
@@ -603,11 +603,11 @@ fn existing_params_menu(
     mut param_buffers: Vec<String>,
 ) -> RvResult<ExistingParamMenuResult> {
     let mut result = ExistingParamMenuResult::default();
+    let n_attrs = attr_map.len();
     egui::Grid::new("attributes_grid")
         .num_columns(4)
         .show(ui, |ui| {
-            let n_rows = attr_map.len();
-            let to_be_removed = removable_rows(ui, n_rows, |ui, idx_row| {
+            let to_be_removed = removable_rows(ui, n_attrs, |ui, idx_row| {
                 let attr_name = attr_map
                     .keys()
                     .nth(idx_row)
@@ -669,6 +669,19 @@ fn existing_params_menu(
                 result.action = ExistingParamMenuAction::Remove(tbr);
             }
         });
+    egui::CollapsingHeader::new("More space for text").show(ui, |ui| {
+        for (name, val) in attr_map.iter_mut() {
+            if let ParamVal::Str(s) = val {
+                ui.label(name);
+                let input_changed = text_edit_multiline(ui, s, are_tools_active)
+                    .on_hover_text(TEXT_LABEL)
+                    .lost_focus();
+                if input_changed {
+                    result.is_update_triggered = true;
+                }
+            }
+        }
+    });
     result.param_map = attr_map;
     Ok(result)
 }
