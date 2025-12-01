@@ -669,19 +669,18 @@ fn existing_params_menu(
                 result.action = ExistingParamMenuAction::Remove(tbr);
             }
         });
-    egui::CollapsingHeader::new("More space for text").show(ui, |ui| {
-        for (name, val) in attr_map.iter_mut() {
-            if let ParamVal::Str(s) = val {
-                ui.label(name);
+    for (name, val) in attr_map.iter_mut() {
+        if let ParamVal::Str(s) = val {
+            egui::CollapsingHeader::new(format!("Edit {name}")).show(ui, |ui| {
                 let input_changed = text_edit_multiline(ui, s, are_tools_active)
                     .on_hover_text(TEXT_LABEL)
                     .lost_focus();
                 if input_changed {
                     result.is_update_triggered = true;
                 }
-            }
+            });
         }
-    });
+    }
     result.param_map = attr_map;
     Ok(result)
 }
