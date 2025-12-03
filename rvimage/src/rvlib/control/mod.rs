@@ -833,7 +833,7 @@ impl Control {
                         )
                     });
                     let im_read = self.read_image(*selected)?;
-                    let read_image_and_idx = match (abs_file_path, im_read) {
+                    let new_world_idx_pair = match (abs_file_path, im_read) {
                         (Some(fp), Some(ri)) => {
                             tracing::info!("loading {} from {}", ri.info, fp);
                             self.file_selected_idx = menu_file_selected;
@@ -873,7 +873,7 @@ impl Control {
                             (new_world, self.file_selected_idx)
                         }
                     };
-                    Some(read_image_and_idx)
+                    Some(new_world_idx_pair)
                 } else {
                     None
                 }
