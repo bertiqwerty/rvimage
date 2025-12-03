@@ -16,6 +16,11 @@ pub trait Cache<A> {
         selected_file_idx: usize,
         abs_file_paths: &[&str],
     ) -> AsyncResultImage;
+    fn load_if_in_cache(
+        &self,
+        selected_file_idx: usize,
+        abs_file_paths: &[&str],
+    ) -> AsyncResultImage;
     fn ls(&self, abs_folder_path: &str) -> RvResult<Vec<String>>;
     fn new(args: A) -> RvResult<Self>
     where

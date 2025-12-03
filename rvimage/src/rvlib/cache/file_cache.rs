@@ -281,6 +281,26 @@ where
             }
         }
     }
+    fn load_if_in_cache(
+        &self,
+        selected_file_idx: usize,
+        abs_file_paths: &[&str],
+    ) -> AsyncResultImage {
+        let selected_file = &abs_file_paths[selected_file_idx];
+        let selected_file_state = self.cached_paths.get(*selected_file);
+        match selected_file_state {
+            Some(ThreadResult::Ok(path_info_pair)) => {
+                let LocalImagePathInfoPair { path, info } = path_info_pair;
+                image_util::read_image(path).map(|im| {
+                    Some(ImageInfoPair {
+                        im,
+                        info: info.clone(),
+                    })
+                })
+            }
+            _ => Ok(None),
+        }
+    }
     fn new(args: FileCacheArgs<RA>) -> RvResult<Self> {
         let FileCacheCfgArgs {
             n_prev_images,

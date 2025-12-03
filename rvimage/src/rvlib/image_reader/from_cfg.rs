@@ -143,6 +143,14 @@ impl LoadImageForGui for ReaderFromCfg {
     ) -> AsyncResultImage {
         self.reader.read_image(file_selected_idx, abs_file_paths)
     }
+    fn read_cached_image(
+        &self,
+        file_selected_idx: usize,
+        abs_file_paths: &[&str],
+    ) -> AsyncResultImage {
+        self.reader
+            .read_cached_image(file_selected_idx, abs_file_paths)
+    }
 
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector> {
         self.reader.open_folder(abs_folder_path, prj_path)

@@ -22,6 +22,12 @@ pub trait LoadImageForGui {
     /// read image with index file_selected_idx  
     fn read_image(&mut self, file_selected_idx: usize, abs_file_paths: &[&str])
         -> AsyncResultImage;
+    #[allow(dead_code)]
+    fn read_cached_image(
+        &self,
+        file_selected_idx: usize,
+        abs_file_paths: &[&str],
+    ) -> AsyncResultImage;
     /// get the user input of a new folder and open it
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector>;
     fn cache_size_in_mb(&mut self) -> f64;
@@ -92,6 +98,14 @@ where
             counter += 1;
         }
         loaded
+    }
+    fn read_cached_image(
+        &self,
+        file_selected_idx: usize,
+        abs_file_paths: &[&str],
+    ) -> AsyncResultImage {
+        self.cache
+            .load_if_in_cache(file_selected_idx, abs_file_paths)
     }
 
     fn open_folder(&self, abs_folder_path: &str, prj_path: &Path) -> RvResult<PathsSelector> {
