@@ -1,4 +1,4 @@
-use crate::drawme::{Annotation, UpdateExtraImages, UpdateImage, UpdateTmpAnno};
+use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
 use crate::meta_data::MetaData;
 use crate::result::trace_ok_err;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
@@ -7,7 +7,7 @@ use crate::tools_data::predictive_labeling::PredictiveLabelingData;
 use crate::tools_data::{
     self, vis_from_lfoption, AccessInstanceData, LabelInfo, ToolSpecifics, ToolsData, ToolsDataMap,
 };
-use crate::types::ViewImage;
+use crate::types::{ExtraIms, ExtraViews, ViewImage};
 use crate::util::Visibility;
 use crate::{image_util, InstanceAnnotate, UpdatePermAnnos, UpdateView};
 use image::DynamicImage;
@@ -268,7 +268,7 @@ macro_rules! instance_annotations_accessor {
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
     im_background: DynamicImage,
-    extra_ims: Vec<DynamicImage>,
+    extra_ims: ExtraIms,
     ui_image_rect: Option<ShapeF>,
     pub meta_data: MetaData,
     pub tools_data_map: ToolsDataMap,
@@ -278,7 +278,7 @@ impl DataRaw {
     #[must_use]
     pub fn new(
         im_background: DynamicImage,
-        extra_ims: Vec<DynamicImage>,
+        extra_ims: ExtraIms,
         tools_data_map: ToolsDataMap,
         meta_data: MetaData,
         ui_image_rect: Option<ShapeF>,
@@ -320,11 +320,21 @@ impl DataRaw {
     pub fn bg_to_uncropped_view(&self) -> ViewImage {
         image_util::orig_to_0_255(&self.im_background, &None)
     }
-    pub fn extra_im_to_extra_views(&self) -> Vec<ViewImage> {
-        self.extra_ims
-            .iter()
-            .map(|im| image_util::orig_to_0_255(im, &None))
-            .collect()
+    pub fn extra_im_to_extra_views(&self) -> ExtraViews {
+        ExtraViews {
+            prev_ims: self
+                .extra_ims
+                .prev_ims
+                .iter()
+                .map(|im| image_util::orig_to_0_255(im, &None))
+                .collect(),
+            next_ims: self
+                .extra_ims
+                .next_ims
+                .iter()
+                .map(|im| image_util::orig_to_0_255(im, &None))
+                .collect(),
+        }
     }
 }
 
@@ -470,8 +480,6 @@ impl World {
     pub fn request_redraw_image(&mut self) {
         if self.data.meta_data.file_path_relative().is_some() {
             self.update_view.image = UpdateImage::Yes(self.data.bg_to_uncropped_view());
-            self.update_view.extra_ims =
-                UpdateExtraImages::Yes(self.data.extra_im_to_extra_views());
         }
     }
 
@@ -479,7 +487,7 @@ impl World {
     #[must_use]
     pub fn from_real_im(
         im: DynamicImage,
-        extra_ims: Vec<DynamicImage>,
+        extra_ims: ExtraIms,
         tools_data: ToolsDataMap,
         ui_image_rect: Option<ShapeF>,
         file_path: Option<String>,
@@ -530,6 +538,9 @@ impl World {
             self.zoom_box = None;
         }
         self.data.im_background = image;
+    }
+    pub fn set_extra_images(&mut self, images: ExtraIms) {
+        self.data.extra_ims = images;
     }
 }
 impl Debug for World {

@@ -9,6 +9,7 @@ use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{BBOX_NAME, BRUSH_NAME};
 use crate::tools_data::{coco_io::read_coco, ToolSpecifics, ToolsDataMap};
+use crate::types::ExtraIms;
 use crate::util::version_label;
 use crate::world::World;
 use crate::{
@@ -624,6 +625,18 @@ impl Control {
             Some(x) => Ok(x?),
         }
     }
+    pub fn read_cached_image(&self, file_label_selected_idx: usize) -> AsyncResultImage {
+        let wrapped_image = self.reader.as_ref().and_then(|r| {
+            self.paths_navigator.paths_selector().as_ref().map(|ps| {
+                let ffp = ps.filtered_abs_file_paths();
+                r.read_cached_image(file_label_selected_idx, &ffp)
+            })
+        });
+        match wrapped_image {
+            None => Ok(None),
+            Some(x) => Ok(x?),
+        }
+    }
 
     fn make_reader(&mut self, cfg: Cfg) -> RvResult<()> {
         self.paths_navigator = PathsNavigator::new(None, SortParams::default())?;
@@ -839,6 +852,35 @@ impl Control {
                             self.file_selected_idx = menu_file_selected;
                             self.file_info_selected = Some(ri.info);
                             let mut new_world = world.clone();
+                            let extra_ims = if !self.cfg.usr.hide_thumbs {
+                                let prev_start = if *selected > self.cfg.usr.n_prev_thumbs {
+                                    selected - self.cfg.usr.n_prev_thumbs
+                                } else {
+                                    0
+                                };
+                                let prev_images = (prev_start..*selected)
+                                    .flat_map(|idx| {
+                                        self.read_image(idx).map(|im| im.map(|im| im.im))
+                                    })
+                                    .flatten()
+                                    .collect();
+                                let n = self.paths_navigator.len_filtered().unwrap_or(0);
+                                let next_end = if n > *selected + 1 + self.cfg.usr.n_next_thumbs {
+                                    selected + 1 + self.cfg.usr.n_prev_thumbs
+                                } else {
+                                    n
+                                };
+                                let next_images = (*selected + 1..next_end)
+                                    .flat_map(|idx| {
+                                        self.read_image(idx).map(|im| im.map(|im| im.im))
+                                    })
+                                    .flatten()
+                                    .collect();
+                                ExtraIms::new(prev_images, next_images)
+                            } else {
+                                ExtraIms::default()
+                            };
+                            new_world.set_extra_images(extra_ims);
                             new_world.set_background_image(ri.im);
                             new_world.reset_updateview();
 

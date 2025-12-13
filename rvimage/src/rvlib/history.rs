@@ -162,7 +162,7 @@ impl Debug for History {
 
 #[cfg(test)]
 use {
-    crate::{tools_data::ToolsDataMap, types::ViewImage},
+    crate::{tools_data::ToolsDataMap, types::ExtraIms, types::ViewImage},
     image::DynamicImage,
     rvimage_domain::RvResult,
     std::path::Path,
@@ -173,7 +173,7 @@ fn test_history() -> RvResult<()> {
     let prj_path = Path::new("");
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(im),
-        vec![],
+        ExtraIms::default(),
         ToolsDataMap::new(),
         None,
         None,
@@ -190,7 +190,7 @@ fn test_history() -> RvResult<()> {
     });
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(32, 32)),
-        vec![],
+        ExtraIms::default(),
         ToolsDataMap::new(),
         None,
         None,
@@ -209,7 +209,7 @@ fn test_history() -> RvResult<()> {
     hist.prev_world(&None);
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(16, 16)),
-        vec![],
+        ExtraIms::default(),
         ToolsDataMap::new(),
         None,
         None,

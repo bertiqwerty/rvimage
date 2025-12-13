@@ -125,6 +125,8 @@ fn settings_popup(
         }
     });
     ui.separator();
+    ui.checkbox(&mut cfg.usr.hide_thumbs, "Hide Thumbnails");
+    ui.separator();
     if ui
         .checkbox(
             &mut cfg.usr.file_cache_args.clear_on_close,

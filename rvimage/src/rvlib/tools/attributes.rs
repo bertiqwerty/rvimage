@@ -318,8 +318,12 @@ impl Manipulate for Attributes {
 }
 #[cfg(test)]
 use {
-    crate::tracing_setup::init_tracing_for_tests, crate::types::ViewImage, image::DynamicImage,
-    std::collections::HashMap, std::fs, std::path::Path,
+    crate::tracing_setup::init_tracing_for_tests,
+    crate::types::{ExtraIms, ViewImage},
+    image::DynamicImage,
+    std::collections::HashMap,
+    std::fs,
+    std::path::Path,
 };
 #[cfg(test)]
 pub(super) fn test_data() -> (World, History) {
@@ -330,7 +334,7 @@ pub(super) fn test_data() -> (World, History) {
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
     let mut world = World::from_real_im(
         im_test,
-        vec![],
+        ExtraIms::default(),
         ToolsDataMap::new(),
         None,
         Some("superimage.png".to_string()),

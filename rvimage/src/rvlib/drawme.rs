@@ -1,3 +1,4 @@
+pub use crate::types::ExtraViews;
 use crate::{tools_data::InstanceLabelDisplay, types::ViewImage, world::DataRaw, GeoFig};
 use rvimage_domain::{BbF, Canvas, Circle, TPtF};
 use std::default::Default;
@@ -54,7 +55,7 @@ pub enum Update<T> {
 }
 
 pub type UpdateImage = Update<ViewImage>;
-pub type UpdateExtraImages = Update<Vec<ViewImage>>;
+pub type UpdateExtraImages = Update<ExtraViews>;
 
 // permament annotations
 pub type UpdatePermAnnos = Update<Vec<Annotation>>;

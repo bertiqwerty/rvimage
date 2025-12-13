@@ -25,7 +25,7 @@ use rvlib::{
     tools::{self, BBOX_NAME, BRUSH_NAME},
     tracing_setup,
     view::{self, ImageU8},
-    write_coco, Annotation, BboxAnnotation, BrushAnnotation, GeoFig, InstanceAnnotate,
+    write_coco, Annotation, BboxAnnotation, BrushAnnotation, ExtraViews, GeoFig, InstanceAnnotate,
     InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, UpdateExtraImages, UpdateImage,
     UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
 };
@@ -175,17 +175,28 @@ mod detail {
     }
 }
 
+fn add_extra_ims(ui: &mut Ui, textures: &[TextureHandle]) {
+    ui.horizontal(|ui| {
+        for texture in textures {
+            let ui_image =
+                detail::handle_2_image(texture, texture.size()).sense(Sense::click_and_drag());
+
+            ui.add(ui_image);
+        }
+    });
+}
 #[derive(Default)]
 struct RvImageApp {
     event_loop: MainEventLoop,
     texture: Option<TextureHandle>,
-    extra_textures: Vec<TextureHandle>,
+    extra_textures_prev: Vec<TextureHandle>,
+    extra_textures_next: Vec<TextureHandle>,
     perm_annos: Vec<Annotation>,
     tmp_anno: Option<Annotation>,
     zoom_box: Option<BbF>,
     im_orig: ImageU8,
     im_view: ImageU8,
-    extra_ims: Vec<ImageU8>,
+    extra_ims: ExtraViews,
     events: rvlib::Events,
     last_sensed_btncodes: rvlib::LastSensedBtns,
     t_last_iterations: [f64; 3],
@@ -552,7 +563,7 @@ impl RvImageApp {
                 texture,
                 [self.shape_view().w as usize, self.shape_view().h as usize],
             )
-            .shrink_to_fit()
+            .fit_to_fraction([1.0, 0.8].into())
             .sense(Sense::click_and_drag());
 
             ui.add(ui_image)
@@ -566,8 +577,15 @@ impl RvImageApp {
         ));
     }
     fn update_extra_textures(&mut self, ctx: &Context) {
-        self.extra_textures = self
+        self.extra_textures_prev = self
             .extra_ims
+            .prev_ims
+            .iter()
+            .map(|im| detail::clrim_2_handle(detail::image_2_colorimage(im), ctx))
+            .collect();
+        self.extra_textures_next = self
+            .extra_ims
+            .next_ims
             .iter()
             .map(|im| detail::clrim_2_handle(detail::image_2_colorimage(im), ctx))
             .collect();
@@ -599,90 +617,97 @@ impl eframe::App for RvImageApp {
             ctx.send_viewport_cmd(ViewportCommand::Title(title));
             let mut zoom_box_update = false;
             egui::CentralPanel::default().show(ctx, |ui| {
-                if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
-                    time_scope!("update_texture_zb");
-                    self.zoom_box = zb;
-                    self.update_texture(ctx);
-                    zoom_box_update = true;
-                }
-                if let UpdateImage::Yes(im) = update_view.image {
-                    time_scope!("update_texture_image");
-                    self.im_orig = im;
-                    self.update_texture(ctx);
-                }
-                if let UpdateExtraImages::Yes(extra_ims) = update_view.extra_ims {
-                    self.extra_ims = extra_ims;
-                    self.update_extra_textures(ctx);
-                }
-                let it_per_s = 1.0
-                    / (self.t_last_iterations.iter().sum::<f64>()
-                        / self.t_last_iterations.len() as f64);
-                let it_str = if it_per_s > 200.0 {
-                    "200+".to_string()
-                } else {
-                    format!("{}", it_per_s.round())
-                };
-                if let Some(info) = update_view.image_info {
-                    ui.add(
-                        egui::Label::new(egui::RichText::new(info.filename).monospace()).truncate(),
-                    );
-                    ui.add(
-                        egui::Label::new(
-                            egui::RichText::new(format!(
-                                "{} | {} | {} | {} it/s",
-                                info.pixel_value, info.shape_info, info.zoom_box_coords, it_str
-                            ))
-                            .monospace(),
-                        )
-                        .truncate(),
-                    );
-                    let image_surrounding_rect = ui.max_rect();
-                    let image_response = self.add_image(ui);
-                    let mut update_texture = false;
-                    if let Some(ir) = image_response {
-                        // react to resizing the image rect
-                        if self.prev_image_rect_size != Some(ir.rect.size()) || zoom_box_update {
-                            self.prev_image_rect_size = Some(ir.rect.size());
-
-                            time_scope!("update_perm_annos_resize");
-
-                            self.update_perm_annos(&ir.rect, ctx);
-
-                            self.image_rect = Some(image_surrounding_rect);
-                        }
-                        self.events = self.collect_events(ui, &ir);
-                        if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {
-                            time_scope!("update_perm_annos_new");
-                            self.perm_annos = perm_annos;
-                            self.update_perm_annos(&ir.rect, ctx);
-                            update_texture = true;
-                        }
-                        match update_view.tmp_annos {
-                            UpdateTmpAnno::Yes(anno) => {
-                                time_scope!("update_tmp_annos");
-                                self.egui_tmp_shapes = [None, None];
-                                match &anno {
-                                    Annotation::Brush(brush) => {
-                                        self.update_brush_anno_tmp(brush);
-                                        update_texture = true;
-                                    }
-                                    Annotation::Bbox(bbox) => {
-                                        let (egui_shape, _) = self.update_bbox_anno(bbox, &ir.rect);
-                                        self.egui_tmp_shapes[1] = Some(egui_shape);
-                                    }
-                                }
-                                self.tmp_anno = Some(anno);
-                            }
-                            UpdateTmpAnno::No => {
-                                self.egui_tmp_shapes = [None, None];
-                            }
-                        }
-                        {
-                            time_scope!("draw_annos");
-                            self.draw_annos(ui, update_texture);
-                        }
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
+                        time_scope!("update_texture_zb");
+                        self.zoom_box = zb;
+                        self.update_texture(ctx);
+                        zoom_box_update = true;
+                    }
+                    if let UpdateImage::Yes(im) = update_view.image {
+                        time_scope!("update_texture_image");
+                        self.im_orig = im;
+                        self.update_texture(ctx);
+                    }
+                    if let UpdateExtraImages::Yes(extra_ims) = update_view.extra_ims {
+                        self.extra_ims = extra_ims;
+                        self.update_extra_textures(ctx);
+                    }
+                    let it_per_s = 1.0
+                        / (self.t_last_iterations.iter().sum::<f64>()
+                            / self.t_last_iterations.len() as f64);
+                    let it_str = if it_per_s > 200.0 {
+                        "200+".to_string()
+                    } else {
+                        format!("{}", it_per_s.round())
                     };
-                }
+                    if let Some(info) = update_view.image_info {
+                        ui.add(
+                            egui::Label::new(egui::RichText::new(info.filename).monospace())
+                                .truncate(),
+                        );
+                        ui.add(
+                            egui::Label::new(
+                                egui::RichText::new(format!(
+                                    "{} | {} | {} | {} it/s",
+                                    info.pixel_value, info.shape_info, info.zoom_box_coords, it_str
+                                ))
+                                .monospace(),
+                            )
+                            .truncate(),
+                        );
+                        let image_surrounding_rect = ui.max_rect();
+                        add_extra_ims(ui, &self.extra_textures_prev);
+                        let image_response = self.add_image(ui);
+                        add_extra_ims(ui, &self.extra_textures_next);
+                        let mut update_texture = false;
+                        if let Some(ir) = image_response {
+                            // react to resizing the image rect
+                            if self.prev_image_rect_size != Some(ir.rect.size()) || zoom_box_update
+                            {
+                                self.prev_image_rect_size = Some(ir.rect.size());
+
+                                time_scope!("update_perm_annos_resize");
+
+                                self.update_perm_annos(&ir.rect, ctx);
+
+                                self.image_rect = Some(image_surrounding_rect);
+                            }
+                            self.events = self.collect_events(ui, &ir);
+                            if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {
+                                time_scope!("update_perm_annos_new");
+                                self.perm_annos = perm_annos;
+                                self.update_perm_annos(&ir.rect, ctx);
+                                update_texture = true;
+                            }
+                            match update_view.tmp_annos {
+                                UpdateTmpAnno::Yes(anno) => {
+                                    time_scope!("update_tmp_annos");
+                                    self.egui_tmp_shapes = [None, None];
+                                    match &anno {
+                                        Annotation::Brush(brush) => {
+                                            self.update_brush_anno_tmp(brush);
+                                            update_texture = true;
+                                        }
+                                        Annotation::Bbox(bbox) => {
+                                            let (egui_shape, _) =
+                                                self.update_bbox_anno(bbox, &ir.rect);
+                                            self.egui_tmp_shapes[1] = Some(egui_shape);
+                                        }
+                                    }
+                                    self.tmp_anno = Some(anno);
+                                }
+                                UpdateTmpAnno::No => {
+                                    self.egui_tmp_shapes = [None, None];
+                                }
+                            }
+                            {
+                                time_scope!("draw_annos");
+                                self.draw_annos(ui, update_texture);
+                            }
+                        };
+                    }
+                });
             });
         }
         let n_millis = self.t_last_iterations.len();

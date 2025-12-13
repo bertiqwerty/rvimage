@@ -64,6 +64,9 @@ impl CfgLegacy {
                 ssh_identity_file_path: self.ssh_cfg.ssh_identity_file_path,
                 n_reconnection_attempts: self.ssh_cfg.n_reconnection_attempts,
             },
+            n_prev_thumbs: get_default_n_thumbs(),
+            n_next_thumbs: get_default_n_thumbs(),
+            hide_thumbs: true,
         };
         let prj = CfgPrj {
             connection: self.connection,
@@ -276,6 +279,10 @@ pub enum Style {
     Light,
 }
 
+fn get_default_n_thumbs() -> usize {
+    4
+}
+
 fn get_default_n_autosaves() -> Option<u8> {
     Some(2)
 }
@@ -303,6 +310,12 @@ pub struct CfgUsr {
     #[serde(default)]
     pub file_cache_args: FileCacheCfgArgs,
     pub ssh: SshCfgUsr,
+    #[serde(default = "get_default_n_thumbs")]
+    pub n_prev_thumbs: usize,
+    #[serde(default = "get_default_n_thumbs")]
+    pub n_next_thumbs: usize,
+    #[serde(default)]
+    pub hide_thumbs: bool,
 }
 
 impl CfgUsr {
@@ -435,8 +448,11 @@ impl Default for Cfg {
     fn default() -> Self {
         let usr = CfgUsr::default();
         let prj = CfgPrj::default();
+
         let mut cfg = Cfg { usr, prj };
         cfg.usr.current_prj_path = Some(DEFAULT_PRJ_PATH.to_path_buf());
+        cfg.usr.n_prev_thumbs = get_default_n_thumbs();
+        cfg.usr.n_next_thumbs = get_default_n_thumbs();
         cfg
     }
 }

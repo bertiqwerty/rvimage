@@ -31,8 +31,8 @@ mod util;
 pub mod view;
 pub mod world;
 pub use drawme::{
-    Annotation, BboxAnnotation, BrushAnnotation, Stroke, UpdateExtraImages, UpdateImage,
-    UpdatePermAnnos, UpdateTmpAnno, UpdateView, UpdateZoomBox,
+    Annotation, BboxAnnotation, BrushAnnotation, ExtraViews, Stroke, UpdateExtraImages,
+    UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateView, UpdateZoomBox,
 };
 pub use egui_mappers::{map_key, map_key_events, map_mouse_events, LastSensedBtns};
 pub use events::{Event, Events, KeyCode, ZoomAmount};

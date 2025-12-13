@@ -11,6 +11,7 @@ use crate::result::trace_ok_err;
 use crate::tools::{
     make_tool_vec, Manipulate, ToolState, ToolWrapper, ALWAYS_ACTIVE_ZOOM, BBOX_NAME, ZOOM_NAME,
 };
+use crate::types::ExtraIms;
 use crate::util::Visibility;
 use crate::world::World;
 use crate::{
@@ -100,7 +101,7 @@ macro_rules! activate_tool_event {
 fn empty_world() -> World {
     World::from_real_im(
         DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
-        vec![],
+        ExtraIms::default(),
         ToolsDataMap::new(),
         None,
         None,
