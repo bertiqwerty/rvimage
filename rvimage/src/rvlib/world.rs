@@ -1,4 +1,4 @@
-use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno, ViewImages};
+use crate::drawme::{Annotation, UpdateExtraImages, UpdateImage, UpdateTmpAnno};
 use crate::meta_data::MetaData;
 use crate::result::trace_ok_err;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
@@ -323,7 +323,7 @@ impl DataRaw {
     pub fn extra_im_to_extra_views(&self) -> Vec<ViewImage> {
         self.extra_ims
             .iter()
-            .map(|im| image_util::orig_to_0_255(&im, &None))
+            .map(|im| image_util::orig_to_0_255(im, &None))
             .collect()
     }
 }
@@ -469,10 +469,9 @@ impl World {
 
     pub fn request_redraw_image(&mut self) {
         if self.data.meta_data.file_path_relative().is_some() {
-            self.update_view.image = UpdateImage::Yes(ViewImages {
-                im: self.data.bg_to_uncropped_view(),
-                extra_ims: self.data.extra_im_to_extra_views(),
-            });
+            self.update_view.image = UpdateImage::Yes(self.data.bg_to_uncropped_view());
+            self.update_view.extra_ims =
+                UpdateExtraImages::Yes(self.data.extra_im_to_extra_views());
         }
     }
 

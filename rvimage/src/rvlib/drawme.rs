@@ -53,12 +53,8 @@ pub enum Update<T> {
     No,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct ViewImages {
-    pub im: ViewImage,
-    pub extra_ims: Vec<ViewImage>,
-}
-pub type UpdateImage = Update<ViewImages>;
+pub type UpdateImage = Update<ViewImage>;
+pub type UpdateExtraImages = Update<Vec<ViewImage>>;
 
 // permament annotations
 pub type UpdatePermAnnos = Update<Vec<Annotation>>;
@@ -84,6 +80,7 @@ pub struct ImageInfo {
 #[derive(Clone, Debug, Default)]
 pub struct UpdateView {
     pub image: UpdateImage,
+    pub extra_ims: UpdateExtraImages,
     pub perm_annos: UpdatePermAnnos,
     pub tmp_annos: UpdateTmpAnno,
     pub zoom_box: UpdateZoomBox,
@@ -98,10 +95,8 @@ impl UpdateView {
         let im_uncropped_view = image.bg_to_uncropped_view();
         let extra_ims = image.extra_im_to_extra_views();
         UpdateView {
-            image: UpdateImage::Yes(ViewImages {
-                im: im_uncropped_view,
-                extra_ims,
-            }),
+            image: UpdateImage::Yes(im_uncropped_view),
+            extra_ims: UpdateExtraImages::Yes(extra_ims),
             perm_annos: UpdatePermAnnos::No,
             tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
@@ -112,6 +107,7 @@ impl UpdateView {
     pub fn from_zoombox(zoom_box: Option<BbF>) -> Self {
         UpdateView {
             image: UpdateImage::No,
+            extra_ims: UpdateExtraImages::No,
             perm_annos: UpdatePermAnnos::No,
             tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),

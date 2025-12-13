@@ -1092,8 +1092,6 @@ fn test_instance_to_coco() {
         .unwrap();
     assert_ne!(coco_seg, None);
     assert_eq!(segmentation, coco_seg);
-    let mut mask = [0; 4];
-    mask[2] = 1;
     let geo = GeoFig::BB(BbF::from_arr(&[1.0, 1.0, 2.0, 8.0]));
 
     let n_rotations = 1;

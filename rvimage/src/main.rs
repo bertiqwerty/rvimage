@@ -26,8 +26,8 @@ use rvlib::{
     tracing_setup,
     view::{self, ImageU8},
     write_coco, Annotation, BboxAnnotation, BrushAnnotation, GeoFig, InstanceAnnotate,
-    InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, UpdateImage, UpdatePermAnnos,
-    UpdateTmpAnno, UpdateZoomBox,
+    InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, UpdateExtraImages, UpdateImage,
+    UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
 };
 use std::{iter, mem, ops::Deref, panic, path::Path, time::Instant};
 use tracing::error;
@@ -607,9 +607,11 @@ impl eframe::App for RvImageApp {
                 }
                 if let UpdateImage::Yes(im) = update_view.image {
                     time_scope!("update_texture_image");
-                    self.im_orig = im.im;
+                    self.im_orig = im;
                     self.update_texture(ctx);
-                    self.extra_ims = im.extra_ims;
+                }
+                if let UpdateExtraImages::Yes(extra_ims) = update_view.extra_ims {
+                    self.extra_ims = extra_ims;
                     self.update_extra_textures(ctx);
                 }
                 let it_per_s = 1.0
