@@ -176,13 +176,16 @@ mod detail {
 }
 
 fn add_extra_ims(ui: &mut Ui, textures: &[TextureHandle]) {
-    ui.horizontal(|ui| {
+    let f = |ui: &mut Ui| {
         for texture in textures {
             let ui_image =
                 detail::handle_2_image(texture, texture.size()).sense(Sense::click_and_drag());
 
             ui.add(ui_image);
         }
+    };
+    ui.horizontal(|ui| {
+        f(ui);
     });
 }
 #[derive(Default)]
@@ -617,7 +620,7 @@ impl eframe::App for RvImageApp {
             ctx.send_viewport_cmd(ViewportCommand::Title(title));
             let mut zoom_box_update = false;
             egui::CentralPanel::default().show(ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
+                egui::ScrollArea::both().show(ui, |ui| {
                     if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
                         time_scope!("update_texture_zb");
                         self.zoom_box = zb;
@@ -656,19 +659,22 @@ impl eframe::App for RvImageApp {
                             )
                             .truncate(),
                         );
-                        let image_surrounding_rect = ui.max_rect();
+
                         add_extra_ims(ui, &self.extra_textures_prev);
                         let fraction_h = if !self.extra_textures_prev.is_empty()
                             && !self.extra_textures_next.is_empty()
                         {
-                            0.8
+                            0.75
                         } else if !self.extra_textures_prev.is_empty()
                             || !self.extra_textures_next.is_empty()
                         {
-                            0.9
+                            0.875
                         } else {
                             1.0
                         };
+                        let mut image_surrounding_rect = ui.max_rect();
+                        image_surrounding_rect.max.y = image_surrounding_rect.min.y
+                            + ui.available_height() * (fraction_h * 10.0f32).ceil() / 10.0;
                         let image_response = self.add_image(fraction_h, ui);
                         add_extra_ims(ui, &self.extra_textures_next);
                         let mut update_texture = false;
