@@ -557,13 +557,13 @@ impl RvImageApp {
             .mousepos_view(mouse_pos_on_view)
     }
 
-    fn add_image(&mut self, ui: &mut Ui) -> Option<Response> {
+    fn add_image(&mut self, fraction_h: f32, ui: &mut Ui) -> Option<Response> {
         self.texture.as_ref().map(|texture| {
             let ui_image = detail::handle_2_image(
                 texture,
                 [self.shape_view().w as usize, self.shape_view().h as usize],
             )
-            .fit_to_fraction([1.0, 0.8].into())
+            .fit_to_fraction([1.0, fraction_h].into())
             .sense(Sense::click_and_drag());
 
             ui.add(ui_image)
@@ -658,7 +658,18 @@ impl eframe::App for RvImageApp {
                         );
                         let image_surrounding_rect = ui.max_rect();
                         add_extra_ims(ui, &self.extra_textures_prev);
-                        let image_response = self.add_image(ui);
+                        let fraction_h = if !self.extra_textures_prev.is_empty()
+                            && !self.extra_textures_next.is_empty()
+                        {
+                            0.8
+                        } else if !self.extra_textures_prev.is_empty()
+                            || !self.extra_textures_next.is_empty()
+                        {
+                            0.9
+                        } else {
+                            1.0
+                        };
+                        let image_response = self.add_image(fraction_h, ui);
                         add_extra_ims(ui, &self.extra_textures_next);
                         let mut update_texture = false;
                         if let Some(ir) = image_response {
