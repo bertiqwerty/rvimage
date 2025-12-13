@@ -53,7 +53,13 @@ pub enum Update<T> {
     No,
 }
 
-pub type UpdateImage = Update<ViewImage>;
+#[derive(Clone, Debug, Default)]
+pub struct ViewImages {
+    pub im: ViewImage,
+    pub extra_ims: Vec<ViewImage>,
+}
+pub type UpdateImage = Update<ViewImages>;
+
 // permament annotations
 pub type UpdatePermAnnos = Update<Vec<Annotation>>;
 // temporary annotation
@@ -90,8 +96,12 @@ pub struct UpdateView {
 impl UpdateView {
     pub fn new(image: &DataRaw, zoom_box: Option<BbF>) -> Self {
         let im_uncropped_view = image.bg_to_uncropped_view();
+        let extra_ims = image.extra_im_to_extra_views();
         UpdateView {
-            image: UpdateImage::Yes(im_uncropped_view),
+            image: UpdateImage::Yes(ViewImages {
+                im: im_uncropped_view,
+                extra_ims,
+            }),
             perm_annos: UpdatePermAnnos::No,
             tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),

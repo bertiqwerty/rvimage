@@ -330,6 +330,7 @@ pub(super) fn test_data() -> (World, History) {
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
     let mut world = World::from_real_im(
         im_test,
+        vec![],
         ToolsDataMap::new(),
         None,
         Some("superimage.png".to_string()),

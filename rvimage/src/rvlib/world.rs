@@ -1,4 +1,4 @@
-use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno};
+use crate::drawme::{Annotation, UpdateImage, UpdateTmpAnno, ViewImages};
 use crate::meta_data::MetaData;
 use crate::result::trace_ok_err;
 use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
@@ -268,6 +268,7 @@ macro_rules! instance_annotations_accessor {
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
     im_background: DynamicImage,
+    extra_ims: Vec<DynamicImage>,
     ui_image_rect: Option<ShapeF>,
     pub meta_data: MetaData,
     pub tools_data_map: ToolsDataMap,
@@ -277,12 +278,14 @@ impl DataRaw {
     #[must_use]
     pub fn new(
         im_background: DynamicImage,
+        extra_ims: Vec<DynamicImage>,
         tools_data_map: ToolsDataMap,
         meta_data: MetaData,
         ui_image_rect: Option<ShapeF>,
     ) -> Self {
         DataRaw {
             im_background,
+            extra_ims,
             ui_image_rect,
             meta_data,
             tools_data_map,
@@ -316,6 +319,12 @@ impl DataRaw {
     #[must_use]
     pub fn bg_to_uncropped_view(&self) -> ViewImage {
         image_util::orig_to_0_255(&self.im_background, &None)
+    }
+    pub fn extra_im_to_extra_views(&self) -> Vec<ViewImage> {
+        self.extra_ims
+            .iter()
+            .map(|im| image_util::orig_to_0_255(&im, &None))
+            .collect()
     }
 }
 
@@ -460,7 +469,10 @@ impl World {
 
     pub fn request_redraw_image(&mut self) {
         if self.data.meta_data.file_path_relative().is_some() {
-            self.update_view.image = UpdateImage::Yes(self.data.bg_to_uncropped_view());
+            self.update_view.image = UpdateImage::Yes(ViewImages {
+                im: self.data.bg_to_uncropped_view(),
+                extra_ims: self.data.extra_im_to_extra_views(),
+            });
         }
     }
 
@@ -468,6 +480,7 @@ impl World {
     #[must_use]
     pub fn from_real_im(
         im: DynamicImage,
+        extra_ims: Vec<DynamicImage>,
         tools_data: ToolsDataMap,
         ui_image_rect: Option<ShapeF>,
         file_path: Option<String>,
@@ -478,7 +491,10 @@ impl World {
             (Some(fp), Some(fsidx)) => MetaData::from_filepath(fp, fsidx, prj_path),
             _ => MetaData::default(),
         };
-        Self::new(DataRaw::new(im, tools_data, meta_data, ui_image_rect), None)
+        Self::new(
+            DataRaw::new(im, extra_ims, tools_data, meta_data, ui_image_rect),
+            None,
+        )
     }
 
     #[must_use]

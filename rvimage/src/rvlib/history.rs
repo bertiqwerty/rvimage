@@ -173,6 +173,7 @@ fn test_history() -> RvResult<()> {
     let prj_path = Path::new("");
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(im),
+        vec![],
         ToolsDataMap::new(),
         None,
         None,
@@ -189,6 +190,7 @@ fn test_history() -> RvResult<()> {
     });
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(32, 32)),
+        vec![],
         ToolsDataMap::new(),
         None,
         None,
@@ -207,6 +209,7 @@ fn test_history() -> RvResult<()> {
     hist.prev_world(&None);
     let world = World::from_real_im(
         DynamicImage::ImageRgb8(ViewImage::new(16, 16)),
+        vec![],
         ToolsDataMap::new(),
         None,
         None,

@@ -179,11 +179,13 @@ mod detail {
 struct RvImageApp {
     event_loop: MainEventLoop,
     texture: Option<TextureHandle>,
+    extra_textures: Vec<TextureHandle>,
     perm_annos: Vec<Annotation>,
     tmp_anno: Option<Annotation>,
     zoom_box: Option<BbF>,
     im_orig: ImageU8,
     im_view: ImageU8,
+    extra_ims: Vec<ImageU8>,
     events: rvlib::Events,
     last_sensed_btncodes: rvlib::LastSensedBtns,
     t_last_iterations: [f64; 3],
@@ -563,6 +565,13 @@ impl RvImageApp {
             ctx,
         ));
     }
+    fn update_extra_textures(&mut self, ctx: &Context) {
+        self.extra_textures = self
+            .extra_ims
+            .iter()
+            .map(|im| detail::clrim_2_handle(detail::image_2_colorimage(im), ctx))
+            .collect();
+    }
 }
 
 impl eframe::App for RvImageApp {
@@ -598,8 +607,10 @@ impl eframe::App for RvImageApp {
                 }
                 if let UpdateImage::Yes(im) = update_view.image {
                     time_scope!("update_texture_image");
-                    self.im_orig = im;
+                    self.im_orig = im.im;
                     self.update_texture(ctx);
+                    self.extra_ims = im.extra_ims;
+                    self.update_extra_textures(ctx);
                 }
                 let it_per_s = 1.0
                     / (self.t_last_iterations.iter().sum::<f64>()
