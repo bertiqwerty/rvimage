@@ -80,6 +80,7 @@ impl CfgLegacy {
                 connection_string_path: ab.connection_string_path,
                 container_name: ab.container_name,
                 prefix: ab.prefix,
+                blob_list_timeout_s: get_blob_list_timeout_s(),
             }),
             sort_params: SortParams::default(),
         };
@@ -205,6 +206,10 @@ impl SshCfg {
     }
 }
 
+fn get_blob_list_timeout_s() -> u64 {
+    10
+}
+
 #[cfg(feature = "azure_blob")]
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfgPrj {
@@ -212,6 +217,8 @@ pub struct AzureBlobCfgPrj {
     pub connection_string_path: String,
     pub container_name: String,
     pub prefix: String,
+    #[serde(default = "get_blob_list_timeout_s")]
+    pub blob_list_timeout_s: u64,
 }
 
 #[cfg(feature = "azure_blob")]

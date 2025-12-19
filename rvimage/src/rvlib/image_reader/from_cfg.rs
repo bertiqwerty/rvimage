@@ -95,6 +95,7 @@ impl ReaderFromCfg {
                     let connection_string_path =
                         PathBuf::from(&azure_cfg_prj.connection_string_path);
                     let container_name = azure_cfg_prj.container_name.clone();
+                    let blob_list_timeout_s = azure_cfg_prj.blob_list_timeout_s;
 
                     Box::new(Loader::<
                         FileCache<ReadImageFromAzureBlob, _>,
@@ -106,6 +107,7 @@ impl ReaderFromCfg {
                                 current_prj_path: cfg.current_prj_path().to_path_buf(),
                                 connection_string_path,
                                 container_name,
+                                blob_list_timeout_s,
                             },
                         },
                         n_ssh_reconnections,

@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, vec};
+use std::{fs, path::PathBuf, time::Duration, vec};
 
 use crate::{
     cache::ReadImageToCache, image_reader::core::SUPPORTED_EXTENSIONS, types::ResultImage,
@@ -8,7 +8,7 @@ use azure_storage_blobs::prelude::*;
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use rvimage_domain::{rverr, to_rv, RvResult};
-use tokio::runtime::Runtime;
+use tokio::{runtime::Runtime, time::timeout};
 
 lazy_static! {
     static ref RT: Runtime = Runtime::new().unwrap();
@@ -19,9 +19,14 @@ pub struct AzureConnectionData {
     pub current_prj_path: PathBuf,
     pub connection_string_path: PathBuf,
     pub container_name: String,
+    pub blob_list_timeout_s: u64,
 }
 
-async fn blob_list(container_client: &ContainerClient, prefix: &str) -> RvResult<Vec<String>> {
+async fn blob_list(
+    container_client: &ContainerClient,
+    prefix: &str,
+    page_timeout_s: u64,
+) -> RvResult<Vec<String>> {
     let mut res = vec![];
     let mut stream = if prefix.is_empty() {
         container_client.list_blobs().into_stream()
@@ -31,7 +36,12 @@ async fn blob_list(container_client: &ContainerClient, prefix: &str) -> RvResult
             .prefix(prefix.to_string())
             .into_stream()
     };
-    while let Some(value) = stream.next().await {
+    while let Some(value) = timeout(Duration::from_secs(page_timeout_s), stream.next())
+        .await
+        .map_err(|_| {
+            rverr!("timeout while listing Azure blobs, waited more than {page_timeout_s} seconds; error: tokio::time::Elapased")
+        })?
+    {
         let page = value.map_err(|e| {
             rverr!(
                 "could not list blobs for container '{}' due to '{:?}'",
@@ -59,6 +69,7 @@ async fn download_blob(container_client: &ContainerClient, blob_name: &str) -> R
 #[derive(Clone)]
 pub struct ReadImageFromAzureBlob {
     container_client: ContainerClient,
+    page_timeout_s: u64,
 }
 
 impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
@@ -95,7 +106,10 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
             connection_string.storage_credentials().map_err(to_rv)?,
         );
         let container_client = blob_service_client.container_client(conn_data.container_name);
-        Ok(Self { container_client })
+        Ok(Self {
+            container_client,
+            page_timeout_s: conn_data.blob_list_timeout_s,
+        })
     }
 
     fn read(&self, blob_name: &str) -> ResultImage {
@@ -104,8 +118,11 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
     }
 
     fn ls(&self, prefix: &str) -> RvResult<Vec<String>> {
-        let res = RT.block_on(blob_list(&self.container_client, prefix));
-        res
+        RT.block_on(blob_list(
+            &self.container_client,
+            prefix,
+            self.page_timeout_s,
+        ))
     }
 
     fn file_info(&self, _: &str) -> RvResult<String> {
