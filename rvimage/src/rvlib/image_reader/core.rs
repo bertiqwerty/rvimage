@@ -24,7 +24,7 @@ pub trait LoadImageForGui {
         -> AsyncResultImage;
     #[allow(dead_code)]
     fn read_cached_image(
-        &self,
+        &mut self,
         file_selected_idx: usize,
         abs_file_paths: &[&str],
     ) -> AsyncResultImage;
@@ -100,7 +100,7 @@ where
         loaded
     }
     fn read_cached_image(
-        &self,
+        &mut self,
         file_selected_idx: usize,
         abs_file_paths: &[&str],
     ) -> AsyncResultImage {

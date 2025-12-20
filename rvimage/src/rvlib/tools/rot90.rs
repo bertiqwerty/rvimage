@@ -1,3 +1,4 @@
+use image::DynamicImage;
 use rvimage_domain::{RvResult, ShapeI};
 
 use crate::{
@@ -48,6 +49,21 @@ fn rot90_instannos_once(world: &mut World, shape: ShapeI) -> RvResult<()> {
     rot!(BRUSH_NAME, brush);
     rot!(BBOX_NAME, bbox);
     Ok(())
+}
+
+pub fn rotate90(world: &World, im: DynamicImage, file: &str) -> RvResult<DynamicImage> {
+    let data = world.data.tools_data_map[ACTOR_NAME].specifics.rot90()?;
+    let data_of_file = data.annotations_map().get(file);
+    Ok(if let Some((nrot, _)) = &data_of_file {
+        match nrot {
+            NRotations::Zero => im,
+            NRotations::One => im.rotate270(),
+            NRotations::Two => im.rotate180(),
+            NRotations::Three => im.rotate90(),
+        }
+    } else {
+        im
+    })
 }
 
 /// rotate 90 degrees counter clockwise

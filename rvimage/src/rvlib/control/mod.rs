@@ -7,7 +7,7 @@ use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::tools::{BBOX_NAME, BRUSH_NAME};
+use crate::tools::{rotate90, BBOX_NAME, BRUSH_NAME};
 use crate::tools_data::{coco_io::read_coco, ToolSpecifics, ToolsDataMap};
 use crate::types::ExtraIms;
 use crate::util::version_label;
@@ -19,6 +19,7 @@ use crate::{defer_file_removal, measure_time};
 use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use egui::ahash::HashSet;
+use image::{DynamicImage, ImageBuffer};
 use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
@@ -625,8 +626,8 @@ impl Control {
             Some(x) => Ok(x?),
         }
     }
-    pub fn read_cached_image(&self, file_label_selected_idx: usize) -> AsyncResultImage {
-        let wrapped_image = self.reader.as_ref().and_then(|r| {
+    pub fn read_cached_image(&mut self, file_label_selected_idx: usize) -> AsyncResultImage {
+        let wrapped_image = self.reader.as_mut().and_then(|r| {
             self.paths_navigator.paths_selector().as_ref().map(|ps| {
                 let ffp = ps.filtered_abs_file_paths();
                 r.read_cached_image(file_label_selected_idx, &ffp)
@@ -823,6 +824,25 @@ impl Control {
         )
     }
 
+    fn load_thumbnails(&mut self, world: &World, start: usize, end: usize) -> Vec<DynamicImage> {
+        (start..end)
+            .flat_map(|idx| {
+                let path = self
+                    .paths_navigator
+                    .file_path(idx)
+                    .map(|p| p.path_absolute().to_string())
+                    .ok_or_else(|| rverr!("index does not have path"));
+                path.and_then(|p| {
+                    let in_cache_im = self
+                        .read_cached_image(idx)
+                        .map(|im| im.and_then(|im| trace_ok_err(rotate90(world, im.im, &p))));
+                    in_cache_im
+                        .map(|im| im.unwrap_or(DynamicImage::ImageRgb8(ImageBuffer::new(10, 10))))
+                })
+            })
+            .collect()
+    }
+
     pub fn load_new_image_if_triggered(
         &mut self,
         world: &World,
@@ -858,24 +878,16 @@ impl Control {
                                 } else {
                                     0
                                 };
-                                let prev_images = (prev_start..*selected)
-                                    .flat_map(|idx| {
-                                        self.read_image(idx).map(|im| im.map(|im| im.im))
-                                    })
-                                    .flatten()
-                                    .collect();
+                                let prev_images =
+                                    self.load_thumbnails(&new_world, prev_start, *selected);
                                 let n = self.paths_navigator.len_filtered().unwrap_or(0);
                                 let next_end = if n > *selected + 1 + self.cfg.usr.n_next_thumbs {
                                     selected + 1 + self.cfg.usr.n_prev_thumbs
                                 } else {
                                     n
                                 };
-                                let next_images = (*selected + 1..next_end)
-                                    .flat_map(|idx| {
-                                        self.read_image(idx).map(|im| im.map(|im| im.im))
-                                    })
-                                    .flatten()
-                                    .collect();
+                                let next_images =
+                                    self.load_thumbnails(&new_world, *selected + 1, next_end);
                                 ExtraIms::new(prev_images, next_images)
                             } else {
                                 ExtraIms::default()

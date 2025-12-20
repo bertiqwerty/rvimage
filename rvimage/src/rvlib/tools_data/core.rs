@@ -600,7 +600,9 @@ pub fn polygon_to_geofig(
             Ok(GeoFig::BB(bb))
         } else {
             if !bb.all_corners_close(encl_bb) {
-                let msg = format!("bounding box and polygon enclosing box do not match. using bb. bb: {bb:?}, poly: {encl_bb:?}");
+                let msg = format!(
+                    "bounding box and polygon enclosing box do not match. using bb. bb: {bb:?}, poly: {encl_bb:?}"
+                );
                 warn(&msg);
             }
             // check if the poly is just a bounding box

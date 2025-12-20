@@ -17,7 +17,7 @@ pub trait Cache<A> {
         abs_file_paths: &[&str],
     ) -> AsyncResultImage;
     fn load_if_in_cache(
-        &self,
+        &mut self,
         selected_file_idx: usize,
         abs_file_paths: &[&str],
     ) -> AsyncResultImage;

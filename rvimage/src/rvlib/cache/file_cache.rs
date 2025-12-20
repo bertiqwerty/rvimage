@@ -7,7 +7,7 @@ use crate::{
     threadpool::ThreadPoolQueued,
     types::{AsyncResultImage, ImageInfoPair},
 };
-use rvimage_domain::{to_rv, RvError, RvResult};
+use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 
 use serde::{Deserialize, Serialize};
 
@@ -258,35 +258,11 @@ where
             let (file, th_res) = elt;
             self.cached_paths.insert(file, th_res);
         }
-        let selected_file = &files[selected_file_idx];
-        let selected_file_state = &self.cached_paths[*selected_file];
-        match selected_file_state {
-            ThreadResult::Ok(path_info_pair) => {
-                let LocalImagePathInfoPair { path, info } = path_info_pair;
-                image_util::read_image(path).map(|im| {
-                    Some(ImageInfoPair {
-                        im,
-                        info: info.clone(),
-                    })
-                })
-            }
-            ThreadResult::Running(job_id) => {
-                let checked = self.check_running_thread(*job_id, selected_file)?;
-                if let Some(checked) = checked {
-                    let LocalImagePathInfoPair { path, info } = checked;
-                    image_util::read_image(&path).map(|im| Some(ImageInfoPair { im, info }))
-                } else {
-                    Ok(None)
-                }
-            }
-        }
+        self.load_if_in_cache(selected_file_idx, files)
     }
-    fn load_if_in_cache(
-        &self,
-        selected_file_idx: usize,
-        abs_file_paths: &[&str],
-    ) -> AsyncResultImage {
-        let selected_file = &abs_file_paths[selected_file_idx];
+
+    fn load_if_in_cache(&mut self, selected_file_idx: usize, files: &[&str]) -> AsyncResultImage {
+        let selected_file = &files[selected_file_idx];
         let selected_file_state = self.cached_paths.get(*selected_file);
         match selected_file_state {
             Some(ThreadResult::Ok(path_info_pair)) => {
@@ -298,7 +274,16 @@ where
                     })
                 })
             }
-            _ => Ok(None),
+            Some(ThreadResult::Running(job_id)) => {
+                let checked = self.check_running_thread(*job_id, selected_file)?;
+                if let Some(checked) = checked {
+                    let LocalImagePathInfoPair { path, info } = checked;
+                    image_util::read_image(&path).map(|im| Some(ImageInfoPair { im, info }))
+                } else {
+                    Ok(None)
+                }
+            }
+            None => Err(rverr!("{selected_file} not in cache but should be")),
         }
     }
     fn new(args: FileCacheArgs<RA>) -> RvResult<Self> {
