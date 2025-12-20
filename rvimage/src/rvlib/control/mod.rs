@@ -427,6 +427,7 @@ impl Control {
     }
     pub fn load(&mut self, prj_path: PathBuf) -> RvResult<ToolsDataMap> {
         tracing::info!("loading project from {prj_path:?}");
+        self.thumbnail_cache.clear();
 
         // check if project is already opened by someone
         let lockusr = read_user_from_lockfile(&prj_path)?;
@@ -695,6 +696,7 @@ impl Control {
 
     pub fn open_relative_folder(&mut self, new_folder: String) -> RvResult<()> {
         tracing::info!("new opened folder {new_folder}");
+        self.thumbnail_cache.clear();
         self.make_reader(self.cfg.clone())?;
         let current_prj_path = match self.cfg.prj.connection {
             Connection::Local => Some(self.cfg.current_prj_path()),
