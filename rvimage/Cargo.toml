@@ -38,8 +38,8 @@ base64 = "0.22.1"
 conv = "0.3.3"
 dirs = "6.0.0"
 edit = "0.1.5"
-egui = "0.33.2"
-eframe = { version = "0.33.2", default-features = false, features = [
+egui = "0.33.3"
+eframe = { version = "0.33.3", default-features = false, features = [
     # "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
@@ -52,11 +52,11 @@ httparse = "1.10.1"
 image = "0.25.8"
 imageproc = "0.25.0"
 lazy_static = "1.5.0"
-log = "0.4.28"
+log = "0.4.29"
 percent-encoding = "2.3.2"
 rand = "0.9.2"
 regex = "1.11.3"
-reqwest = { version = "0.12.23", features = ["blocking", "json", "multipart"] }
+reqwest = { version = "0.12.26", features = ["blocking", "json", "multipart"] }
 rfd = "0.16.0"
 rusttype = "0.9.3"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -65,18 +65,18 @@ ssh2 = { version = "0.9.5", features = [
     "vendored-openssl",
     "openssl-on-win32",
 ] }
-toml = "0.9.5"
+toml = "0.9.9"
 walkdir = "2.5.0"
 tokio = { version = "1.47.1", optional = true, features = ["rt-multi-thread", "time"] }
 uuid = { version = "1.18.1", features = ["v4", "fast-rng"] }
 exmex = "0.20.5"
-tracing = "0.1.41"
-tracing-subscriber = "0.3.20"
-tracing-appender = "0.2.3"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
+tracing-appender = "0.2.4"
 backtrace = "0.3.75"
-zip = "6.0.0"
+zip = "7.0.0"
 rvimage-domain = "0.4.10"
-clap = { version = "4.5.47", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 chrono = { version = "0.4.42", default-features = false, features = [
     "std",
     "clock",
