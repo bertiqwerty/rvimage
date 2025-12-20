@@ -1,7 +1,7 @@
 
 [package]
 authors = ["Behrang Shafei"]
-edition = "2021"
+edition = "2024"
 name = "rvimage-domain"
 license = "MIT OR Apache-2.0"
 description = "Process elements in the image domain such as polygons or bounding boxes for RV Image"
