@@ -19,9 +19,11 @@ use crate::{defer_file_removal, measure_time};
 use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use egui::ahash::HashSet;
+use image::imageops::FilterType;
 use image::{DynamicImage, ImageBuffer};
 use rvimage_domain::{RvError, RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -357,6 +359,7 @@ pub struct Control {
     pub loading_screen_animation_counter: u128,
     pub log_export_path: Option<PathBuf>,
     save_handle: Option<JoinHandle<()>>,
+    thumbnail_cache: HashMap<String, DynamicImage>,
 }
 
 impl Control {
@@ -833,11 +836,23 @@ impl Control {
                     .map(|p| p.path_absolute().to_string())
                     .ok_or_else(|| rverr!("index does not have path"));
                 path.and_then(|p| {
-                    let in_cache_im = self
-                        .read_cached_image(idx)
-                        .map(|im| im.and_then(|im| trace_ok_err(rotate90(world, im.im, &p))));
-                    in_cache_im
-                        .map(|im| im.unwrap_or(DynamicImage::ImageRgb8(ImageBuffer::new(10, 10))))
+                    if let Some(im) = self.thumbnail_cache.get(&p) {
+                        Ok(im.clone())
+                    } else {
+                        let in_cache_im = self.read_cached_image(idx).map(|im| {
+                            im.and_then(|im| {
+                                let im_thumb = im.im.resize(200, 100, FilterType::Lanczos3);
+                                let im_rotated_thumb =
+                                    trace_ok_err(rotate90(world, im_thumb.clone(), &p));
+                                im_rotated_thumb.inspect(|im| {
+                                    self.thumbnail_cache.insert(p.clone(), im.clone());
+                                })
+                            })
+                        });
+                        in_cache_im.map(|im| {
+                            im.unwrap_or(DynamicImage::ImageRgb8(ImageBuffer::new(10, 10)))
+                        })
+                    }
                 })
             })
             .collect()
@@ -950,7 +965,6 @@ use {
         tools_data::{BboxToolData, ToolsData},
     },
     rvimage_domain::{ShapeI, make_test_bbs},
-    std::collections::HashMap,
     std::str::FromStr,
 };
 #[cfg(test)]
