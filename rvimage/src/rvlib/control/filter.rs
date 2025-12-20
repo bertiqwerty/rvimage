@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use exmex::prelude::*;
-use exmex::{ops_factory, BinOp, ExError, MakeOperators, MatchLiteral, Operator};
+use exmex::{BinOp, ExError, MakeOperators, MatchLiteral, Operator, ops_factory};
 
 use crate::result::ignore_error;
 use crate::tools::ATTRIBUTES_NAME;
@@ -10,7 +10,7 @@ use crate::tools_data::parameters::PARAM_INTERVAL_SEPARATOR;
 use crate::tools_data::{Annotate, InstanceAnnotate, ToolSpecifics};
 use crate::tools_data::{LabelInfo, ToolsDataMap};
 
-use rvimage_domain::{rverr, RvError, RvResult};
+use rvimage_domain::{RvError, RvResult, rverr};
 
 fn contains_label<T>(
     label: &str,
@@ -80,27 +80,25 @@ impl FilterPredicate {
                 ))?;
                 let (attr_name, attr_val_str) = attr_tuple;
                 let mut found = false;
-                if let Some(tdm) = tdm {
-                    if let Some(data) = tdm.get(ATTRIBUTES_NAME) {
-                        if let Some(attr_val) =
-                            ignore_error(data.specifics.attributes()).and_then(|d| {
-                                d.get_annos(path)
-                                    .and_then(|annos| annos.get(attr_name.trim()))
-                            })
-                        {
-                            if attr_val_str.contains(PARAM_INTERVAL_SEPARATOR) {
-                                match attr_val.in_domain_str(attr_val_str.trim()) {
-                                    Ok(b) => {
-                                        found = b;
-                                    }
-                                    Err(_) => {
-                                        found = attr_val.corresponds_to_str(attr_val_str.trim())?;
-                                    }
-                                }
-                            } else {
+                if let Some(tdm) = tdm
+                    && let Some(data) = tdm.get(ATTRIBUTES_NAME)
+                    && let Some(attr_val) =
+                        ignore_error(data.specifics.attributes()).and_then(|d| {
+                            d.get_annos(path)
+                                .and_then(|annos| annos.get(attr_name.trim()))
+                        })
+                {
+                    if attr_val_str.contains(PARAM_INTERVAL_SEPARATOR) {
+                        match attr_val.in_domain_str(attr_val_str.trim()) {
+                            Ok(b) => {
+                                found = b;
+                            }
+                            Err(_) => {
                                 found = attr_val.corresponds_to_str(attr_val_str.trim())?;
                             }
                         }
+                    } else {
+                        found = attr_val.corresponds_to_str(attr_val_str.trim())?;
                     }
                 }
 

@@ -25,18 +25,15 @@ pub fn pick_by_connection(ctrl: &mut Control, resp: &Response) -> RvResult<bool>
                 None
             }
         }
-        Connection::Ssh => {
-            let picklist_res = picklist::pick(
-                ctrl.cfg
-                    .prj
-                    .ssh
-                    .remote_folder_paths
-                    .iter()
-                    .map(|s| s.as_str()),
-                resp,
-            );
-            picklist_res
-        }
+        Connection::Ssh => picklist::pick(
+            ctrl.cfg
+                .prj
+                .ssh
+                .remote_folder_paths
+                .iter()
+                .map(|s| s.as_str()),
+            resp,
+        ),
         Connection::PyHttp => {
             let picklist_res = picklist::pick(
                 ctrl.cfg

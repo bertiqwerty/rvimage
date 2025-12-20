@@ -2,7 +2,7 @@ use ssh2::Session;
 
 use super::core::SUPPORTED_EXTENSIONS;
 use crate::{cache::ReadImageToCache, cfg::SshCfg, ssh, types::ResultImage};
-use rvimage_domain::{to_rv, RvResult};
+use rvimage_domain::{RvResult, to_rv};
 
 #[derive(Clone)]
 pub struct ReadImageFromSsh {

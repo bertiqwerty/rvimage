@@ -7,4 +7,4 @@ mod picklist;
 mod scroll_area;
 mod tools_menus;
 mod ui_util;
-pub use crate::menu::main::{are_tools_active, Menu, ToolSelectMenu};
+pub use crate::menu::main::{Menu, ToolSelectMenu, are_tools_active};

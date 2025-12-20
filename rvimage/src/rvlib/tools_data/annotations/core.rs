@@ -1,5 +1,5 @@
-use crate::{tools_data::InstanceAnnotate, util::true_indices, InstanceLabelDisplay, ShapeI};
-use rvimage_domain::{rverr, BbF, RvResult};
+use crate::{InstanceLabelDisplay, ShapeI, tools_data::InstanceAnnotate, util::true_indices};
+use rvimage_domain::{BbF, RvResult, rverr};
 use serde::{Deserialize, Serialize};
 use std::mem;
 
@@ -57,10 +57,10 @@ where
         cat_idx_current: Option<usize>,
         show_only_current: Option<bool>,
     ) -> bool {
-        if let (Some(show_only_current), Some(idx_current)) = (show_only_current, cat_idx_current) {
-            if show_only_current {
-                return self.cat_idxs()[elt_idx] == idx_current;
-            }
+        if let (Some(show_only_current), Some(idx_current)) = (show_only_current, cat_idx_current)
+            && show_only_current
+        {
+            return self.cat_idxs()[elt_idx] == idx_current;
         }
         true
     }

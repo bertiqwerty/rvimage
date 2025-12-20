@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{util::true_indices, GeoFig};
+use crate::{GeoFig, util::true_indices};
 use rvimage_domain::{BbF, CoordinateBox, OutOfBoundsMode, PtF, ShapeF, ShapeI, TPtF};
 
 use super::core::{resize_bbs, resize_bbs_inds};

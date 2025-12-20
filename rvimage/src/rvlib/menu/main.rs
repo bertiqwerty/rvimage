@@ -16,7 +16,7 @@ use crate::{
     util::version_label,
 };
 use egui::{Context, Popup, Response, RichText, Ui};
-use rvimage_domain::{rverr, RvResult};
+use rvimage_domain::{RvResult, rverr};
 use std::{
     f32, mem,
     path::{Path, PathBuf},

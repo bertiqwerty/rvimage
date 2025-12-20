@@ -1,6 +1,6 @@
 use image::{GenericImageView, ImageBuffer, Rgb};
 
-use rvimage_domain::{pos_transform, BbF, Calc, PtF, ShapeI, TPtF};
+use rvimage_domain::{BbF, Calc, PtF, ShapeI, TPtF, pos_transform};
 
 pub type ImageU8 = ImageBuffer<Rgb<u8>, Vec<u8>>;
 
@@ -36,10 +36,10 @@ pub fn pos_from_orig_pos(
     shape_win: ShapeI,
     zoom_box: &Option<BbF>,
 ) -> Option<PtF> {
-    if let Some(zb) = zoom_box {
-        if !zb.contains(orig_pos) {
-            return None;
-        }
+    if let Some(zb) = zoom_box
+        && !zb.contains(orig_pos)
+    {
+        return None;
     }
     Some(pos_transform(
         orig_pos,

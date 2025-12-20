@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, fmt::Debug, path::Path};
 
-use rvimage_domain::{rverr, to_rv, RvResult};
+use rvimage_domain::{RvResult, rverr, to_rv};
 use serde::Serialize;
 
 use crate::{

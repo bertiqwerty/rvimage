@@ -5,8 +5,8 @@ use std::{
 };
 
 use egui::{
-    text::{CCursor, CCursorRange},
     FontSelection, Response, TextBuffer, TextEdit, Ui,
+    text::{CCursor, CCursorRange},
 };
 use tracing::warn;
 
@@ -104,8 +104,7 @@ where
     Num: egui::emath::Numeric,
 {
     ui_with_deactivated_tools_on_keys(are_tools_active, || {
-        let slider = ui.add(egui::Slider::new(value, range.clone()).text(text));
-        slider
+        ui.add(egui::Slider::new(value, range.clone()).text(text))
     })
 }
 

@@ -1,35 +1,34 @@
 use std::{cmp::Ordering, iter, iter::empty, mem};
 
 use crate::{
+    GeoFig, Polygon,
     cfg::ExportPath,
     history::{History, Record},
     meta_data::MetaData,
     result::trace_ok_err,
     tools::{
-        core::{
-            change_annos, check_instance_label_display_change, label_change_key, on_selection_keys,
-            Mover, ReleasedKey,
-        },
         BBOX_NAME,
+        core::{
+            Mover, ReleasedKey, change_annos, check_instance_label_display_change,
+            label_change_key, on_selection_keys,
+        },
     },
     tools_data::{
-        self,
+        self, BboxToolData, ExportAsCoco, InstanceAnnotate, Rot90ToolData,
         annotations::{BboxAnnotations, SplitMode},
-        BboxToolData, ExportAsCoco, InstanceAnnotate, Rot90ToolData,
     },
-    util::{true_indices, Visibility},
+    util::{Visibility, true_indices},
     world::World,
-    GeoFig, Polygon,
 };
 use rvimage_domain::{
-    self, max_from_partial, min_from_partial, shape_unscaled, BbF, OutOfBoundsMode, Point, PtF,
-    RvResult, ShapeF, TPtF,
+    self, BbF, OutOfBoundsMode, Point, PtF, RvResult, ShapeF, TPtF, max_from_partial,
+    min_from_partial, shape_unscaled,
 };
 
 use super::core::{
-    current_cat_idx, get_annos, get_annos_if_some, get_annos_mut, get_instance_label_display,
-    get_options, get_options_mut, get_specific, get_specific_mut, get_visible, DataAccessors,
-    InstanceAnnoAccessors, ACTOR_NAME,
+    ACTOR_NAME, DataAccessors, InstanceAnnoAccessors, current_cat_idx, get_annos,
+    get_annos_if_some, get_annos_mut, get_instance_label_display, get_options, get_options_mut,
+    get_specific, get_specific_mut, get_visible,
 };
 
 const CORNER_TOL_DENOMINATOR: f64 = 5000.0;
@@ -303,10 +302,10 @@ pub(super) fn on_mouse_released_right(
         }
         if mouse_pos.is_some() {
             let annos = get_annos(&world);
-            if let Some(annos) = annos {
-                if (0..annos.selected_mask().len()).any(|i| annos.selected_mask()[i]) {
-                    history.push(Record::new(world.clone(), ACTOR_NAME));
-                }
+            if annos.map(|annos| (0..annos.selected_mask().len()).any(|i| annos.selected_mask()[i]))
+                == Some(true)
+            {
+                history.push(Record::new(world.clone(), ACTOR_NAME));
             }
         }
     }
@@ -488,28 +487,28 @@ pub(super) fn on_mouse_released_left(
             if let Some((bb_idx, vertex_idx)) = close_corner {
                 // move an existing corner
                 let annos = get_annos_mut(&mut world);
-                if let Some(annos) = annos {
-                    if annos.is_of_current_label(bb_idx, cat_idx_current, show_only_current) {
-                        let geo = annos.remove(bb_idx);
-                        match geo {
-                            GeoFig::BB(bb) => {
-                                let oppo_corner = bb.opposite_corner(vertex_idx);
-                                prev_pos.prev_pos.push(oppo_corner);
+                if let Some(annos) = annos
+                    && annos.is_of_current_label(bb_idx, cat_idx_current, show_only_current)
+                {
+                    let geo = annos.remove(bb_idx);
+                    match geo {
+                        GeoFig::BB(bb) => {
+                            let oppo_corner = bb.opposite_corner(vertex_idx);
+                            prev_pos.prev_pos.push(oppo_corner);
+                        }
+                        GeoFig::Poly(poly) => {
+                            let n_vertices = poly.points().len();
+                            prev_pos.prev_pos = vec![];
+                            prev_pos.prev_pos.reserve(n_vertices);
+                            for idx in (vertex_idx + 1)..(n_vertices) {
+                                prev_pos.prev_pos.push(poly.points()[idx]);
                             }
-                            GeoFig::Poly(poly) => {
-                                let n_vertices = poly.points().len();
-                                prev_pos.prev_pos = vec![];
-                                prev_pos.prev_pos.reserve(n_vertices);
-                                for idx in (vertex_idx + 1)..(n_vertices) {
-                                    prev_pos.prev_pos.push(poly.points()[idx]);
-                                }
-                                for idx in 0..vertex_idx {
-                                    prev_pos.prev_pos.push(poly.points()[idx]);
-                                }
+                            for idx in 0..vertex_idx {
+                                prev_pos.prev_pos.push(poly.points()[idx]);
                             }
                         }
-                        prev_pos.move_corner_idx = Some(prev_pos.prev_pos.len() - 1);
                     }
+                    prev_pos.move_corner_idx = Some(prev_pos.prev_pos.len() - 1);
                 }
             } else {
                 match split_mode {
@@ -709,7 +708,7 @@ use {
     crate::tracing_setup::init_tracing_for_tests,
     crate::types::{ExtraIms, ViewImage},
     image::DynamicImage,
-    rvimage_domain::{make_test_bbs, make_test_geos, BbI, ShapeI},
+    rvimage_domain::{BbI, ShapeI, make_test_bbs, make_test_geos},
 };
 
 #[cfg(test)]

@@ -7,27 +7,28 @@
 use clap::Parser;
 
 use egui::{
-    epaint::{CircleShape, PathShape, RectShape, TextShape},
-    text::LayoutJob,
     Color32, Context, CornerRadius, IconData, Pos2, Rect, Response, Sense, Shape, Stroke,
     StrokeKind, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportBuilder, ViewportCommand,
     Visuals,
+    epaint::{CircleShape, PathShape, RectShape, TextShape},
+    text::LayoutJob,
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
-use rvimage_domain::{to_rv, BbF, Canvas, PtF, RvResult, ShapeF, TPtF, TPtI};
+use rvimage_domain::{BbF, Canvas, PtF, RvResult, ShapeF, TPtF, TPtI, to_rv};
 use rvlib::{
+    Annotation, BboxAnnotation, BrushAnnotation, ExtraViews, GeoFig, InstanceAnnotate,
+    InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, UpdateExtraImages, UpdateImage,
+    UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
     cfg::{Cfg, ExportPath, ExportPathConnection},
     control::Control,
-    file_util::{osstr_to_str, DEFAULT_HOMEDIR},
+    file_util::{DEFAULT_HOMEDIR, osstr_to_str},
     result::trace_ok_err,
     time_scope, to_per_file_crowd,
     tools::{self, BBOX_NAME, BRUSH_NAME},
     tracing_setup,
     view::{self, ImageU8},
-    write_coco, Annotation, BboxAnnotation, BrushAnnotation, ExtraViews, GeoFig, InstanceAnnotate,
-    InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, UpdateExtraImages, UpdateImage,
-    UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
+    write_coco,
 };
 use std::{iter, mem, ops::Deref, panic, path::Path, time::Instant};
 use tracing::error;
@@ -37,8 +38,8 @@ mod detail {
 
     use egui::{Color32, ColorImage, Context, Image, Pos2, TextureHandle, TextureOptions, Vec2};
     use image::{ImageBuffer, Rgb};
-    use rvimage_domain::{access_mask_abs, BbF, Canvas, PtF, PtI, TPtF};
-    use rvlib::{color_with_intensity, view, ShapeI};
+    use rvimage_domain::{BbF, Canvas, PtF, PtI, TPtF, access_mask_abs};
+    use rvlib::{ShapeI, color_with_intensity, view};
 
     pub(super) fn setup_custom_fonts(ctx: &egui::Context) {
         // Start with the default fonts (we will be adding to them rather than replacing them).
@@ -506,11 +507,11 @@ impl RvImageApp {
         self.im_view = im_view;
     }
     fn draw_annos(&mut self, ui: &mut Ui, update_texture: bool) {
-        if let Some(texture) = self.texture.as_mut() {
-            if update_texture {
-                let im = detail::image_2_colorimage(&self.im_view);
-                texture.set(im, TextureOptions::NEAREST);
-            }
+        if let Some(texture) = self.texture.as_mut()
+            && update_texture
+        {
+            let im = detail::image_2_colorimage(&self.im_view);
+            texture.set(im, TextureOptions::NEAREST);
         }
         ui.painter()
             .add(Shape::Vec(self.egui_perm_bbox_shapes.clone()));

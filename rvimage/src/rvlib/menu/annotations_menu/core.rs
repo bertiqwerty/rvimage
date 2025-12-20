@@ -1,11 +1,11 @@
 use egui::Ui;
-use rvimage_domain::{rverr, RvResult};
+use rvimage_domain::{RvResult, rverr};
 
 use crate::{
+    InstanceAnnotate, ToolsDataMap,
     file_util::PathPair,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
-    tools_data::{annotations::InstanceAnnotations, AnnotationsMap, ToolSpecifics},
-    InstanceAnnotate, ToolsDataMap,
+    tools_data::{AnnotationsMap, ToolSpecifics, annotations::InstanceAnnotations},
 };
 
 #[derive(Clone, Copy, Default)]

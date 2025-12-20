@@ -1,8 +1,8 @@
-use httparse::{Request, EMPTY_HEADER};
-use rvimage_domain::{rverr, to_rv, RvResult};
+use httparse::{EMPTY_HEADER, Request};
+use rvimage_domain::{RvResult, rverr, to_rv};
 use std::{
     fmt::Debug,
-    io::{prelude::*, Read},
+    io::{Read, prelude::*},
     net::TcpListener,
     str,
     sync::mpsc::{self, Receiver, Sender},

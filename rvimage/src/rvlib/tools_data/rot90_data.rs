@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{implement_annotate, implement_annotations_getters, ShapeI};
+use crate::{ShapeI, implement_annotate, implement_annotations_getters};
 
 use super::label_map::LabelMap;
 

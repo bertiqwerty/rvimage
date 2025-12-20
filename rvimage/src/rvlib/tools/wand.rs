@@ -3,17 +3,17 @@ use std::path::Path;
 use image::codecs::png::PngEncoder;
 use image::{self, DynamicImage, ExtendedColorType, ImageEncoder};
 use reqwest::blocking::multipart;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 
-use rvimage_domain::{rverr, to_rv, BbF, Canvas, GeoFig, RvResult};
+use rvimage_domain::{BbF, Canvas, GeoFig, RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
 use crate::result::trace_ok_err;
+use crate::tools_data::LabelInfo;
 use crate::tools_data::annotations::InstanceAnnotations;
 use crate::tools_data::parameters::ParamMap;
-use crate::tools_data::LabelInfo;
-use crate::{file_util, InstanceAnnotate};
+use crate::{InstanceAnnotate, file_util};
 
 #[allow(dead_code)]
 pub struct ImageForPrediction<'a> {
@@ -78,10 +78,10 @@ impl RestWand {
     pub fn new(mut url: String, authorization: Option<&str>) -> Self {
         let client = reqwest::blocking::Client::new();
         let mut headers = HeaderMap::new();
-        if let Some(s) = authorization {
-            if let Some(s) = trace_ok_err(HeaderValue::from_str(s)) {
-                headers.insert(AUTHORIZATION, s);
-            }
+        if let Some(s) = authorization
+            && let Some(s) = trace_ok_err(HeaderValue::from_str(s))
+        {
+            headers.insert(AUTHORIZATION, s);
         }
         while url.ends_with('/') && !url.is_empty() {
             url = url[..url.len() - 1].into();

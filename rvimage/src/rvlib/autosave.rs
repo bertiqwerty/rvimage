@@ -6,7 +6,7 @@ use std::{
 };
 
 use lazy_static::lazy_static;
-use rvimage_domain::{to_rv, RvResult};
+use rvimage_domain::{RvResult, to_rv};
 
 use crate::{file_util::osstr_to_str, result::trace_ok_err};
 
@@ -37,14 +37,12 @@ pub fn list_files(
     for entry in fs::read_dir(homefolder).map_err(to_rv)? {
         let entry = entry.map_err(to_rv)?;
         let path = entry.path();
-        if let Some(filename) = path.file_name().and_then(|name| name.to_str()) {
-            if let Some(date) = extract_date(filename) {
-                if start_date.map(|sd| date >= sd) != Some(false)
-                    && end_date.map(|ed| date <= ed) != Some(false)
-                {
-                    res.push(path);
-                }
-            }
+        if let Some(filename) = path.file_name().and_then(|name| name.to_str())
+            && let Some(date) = extract_date(filename)
+            && start_date.map(|sd| date >= sd) != Some(false)
+            && end_date.map(|ed| date <= ed) != Some(false)
+        {
+            res.push(path);
         }
     }
     Ok(res)

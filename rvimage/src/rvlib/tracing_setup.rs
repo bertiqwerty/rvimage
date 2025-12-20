@@ -4,7 +4,7 @@ use std::{cell::RefCell, io};
 use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
-    fmt::{writer::MakeWriterExt, Layer},
+    fmt::{Layer, writer::MakeWriterExt},
     prelude::*,
 };
 

@@ -4,11 +4,11 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use tracing::info;
 
-use crate::{cfg::ExportPath, util::Visibility, ShapeI};
-use rvimage_domain::{
-    rle_image_to_bb, rle_to_mask, rverr, Canvas, GeoFig, Point, Polygon, RvResult,
-};
+use crate::{ShapeI, cfg::ExportPath, util::Visibility};
 use rvimage_domain::{BbF, PtF, TPtF, TPtI};
+use rvimage_domain::{
+    Canvas, GeoFig, Point, Polygon, RvResult, rle_image_to_bb, rle_to_mask, rverr,
+};
 
 use super::annotations::InstanceAnnotations;
 use super::label_map::LabelMap;
@@ -583,11 +583,7 @@ pub fn polygon_to_geofig(
                 x: (coco_data[idx] * w_factor),
                 y: (coco_data[idx + 1] * h_factor),
             };
-            if bb.contains(p) {
-                Some(p)
-            } else {
-                None
-            }
+            if bb.contains(p) { Some(p) } else { None }
         })
         .collect();
     let poly = Polygon::from_vec(poly_points);

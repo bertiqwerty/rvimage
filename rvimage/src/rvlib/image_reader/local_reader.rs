@@ -3,7 +3,7 @@ use walkdir::WalkDir;
 use crate::{cache::ReadImageToCache, file_util, image_util, types::ResultImage};
 
 use super::core::{CloneDummy, SUPPORTED_EXTENSIONS};
-use rvimage_domain::{to_rv, RvResult};
+use rvimage_domain::{RvResult, to_rv};
 
 fn read_image_paths(path: &str) -> RvResult<Vec<String>> {
     WalkDir::new(path)

@@ -1,12 +1,12 @@
 use crate::{
     cache::FileCacheCfgArgs,
-    file_util::{self, path_to_str, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR},
+    file_util::{self, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR, path_to_str},
     result::trace_ok_err,
     sort_params::SortParams,
     ssh,
 };
-use rvimage_domain::{rverr, to_rv, RvResult};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use rvimage_domain::{RvResult, rverr, to_rv};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     fmt::Debug,
     fs,
@@ -365,13 +365,13 @@ impl Cfg {
         trace_ok_err(fs::create_dir_all(&tmp_homedir));
         if let Some(home_folder) = &cfg.usr.home_folder {
             let usrcfg_path = get_cfg_path_usr(Path::new(home_folder));
-            if usrcfg_path.exists() {
-                if let Some(filename) = usrcfg_path.file_name() {
-                    trace_ok_err(fs::copy(
-                        &usrcfg_path,
-                        Path::new(&tmp_homedir).join(filename),
-                    ));
-                }
+            if usrcfg_path.exists()
+                && let Some(filename) = usrcfg_path.file_name()
+            {
+                trace_ok_err(fs::copy(
+                    &usrcfg_path,
+                    Path::new(&tmp_homedir).join(filename),
+                ));
             }
         }
         cfg.usr.home_folder = Some(tmp_homedir);

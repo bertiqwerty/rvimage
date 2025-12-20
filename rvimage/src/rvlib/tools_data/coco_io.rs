@@ -11,23 +11,23 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{
+    GeoFig,
     cfg::ExportPath,
-    file_util::{self, path_to_str, PathPair},
+    file_util::{self, PathPair, path_to_str},
     image_util,
     meta_data::MetaData,
     result::trace_ok_warn,
     tools_data::core::polygon_to_geofig,
     util::version_label,
-    GeoFig,
 };
-use rvimage_domain::{rverr, to_rv, RvError, RvResult};
 use rvimage_domain::{BbF, Canvas, ShapeI, TPtF};
+use rvimage_domain::{RvError, RvResult, rverr, to_rv};
 
 use super::{
+    BboxToolData, BrushToolData, InstanceAnnotate, InstanceExportData, Rot90ToolData,
     annotations::InstanceAnnotations,
     brush_data::BrushAnnoMap,
-    core::{new_random_colors, CocoSegmentation, ExportAsCoco},
-    BboxToolData, BrushToolData, InstanceAnnotate, InstanceExportData, Rot90ToolData,
+    core::{CocoSegmentation, ExportAsCoco, new_random_colors},
 };
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -644,7 +644,7 @@ use {
         tracing_setup::init_tracing_for_tests,
     },
     file_util::DEFAULT_TMPDIR,
-    rvimage_domain::{make_test_bbs, BbI},
+    rvimage_domain::{BbI, make_test_bbs},
     std::{fs, str::FromStr},
 };
 #[cfg(test)]

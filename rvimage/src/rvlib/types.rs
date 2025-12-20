@@ -1,4 +1,4 @@
-use image::{imageops::FilterType, DynamicImage, ImageBuffer, Rgb};
+use image::{DynamicImage, ImageBuffer, Rgb, imageops::FilterType};
 
 use rvimage_domain::RvResult;
 

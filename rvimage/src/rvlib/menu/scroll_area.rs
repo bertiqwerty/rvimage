@@ -72,10 +72,8 @@ pub fn scroll_area_file_selector(
             *selected_filtered_label_idx = Some(filtered_label_idx);
         }
     };
-    if scroll_to_selected_label {
-        if let Some(tr) = target_rect {
-            ui.scroll_to_rect(tr, Some(Align::Center));
-        }
+    if scroll_to_selected_label && let Some(tr) = target_rect {
+        ui.scroll_to_rect(tr, Some(Align::Center));
     }
     let scroll = egui::ScrollArea::vertical()
         .max_height(scroll_height)

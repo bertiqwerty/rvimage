@@ -2,16 +2,16 @@ use brush_data::BrushToolData;
 use std::{cmp::Ordering, mem, sync::mpsc::Receiver, thread};
 
 use super::{
+    BRUSH_NAME, Manipulate,
     core::{
-        change_annos, check_autopaste, check_erase_mode, check_instance_label_display_change,
-        deselect_all, instance_label_display_sort, label_change_key, map_held_key,
-        map_released_key, on_selection_keys, HeldKey, Mover, ReleasedKey,
+        HeldKey, Mover, ReleasedKey, change_annos, check_autopaste, check_erase_mode,
+        check_instance_label_display_change, deselect_all, instance_label_display_sort,
+        label_change_key, map_held_key, map_released_key, on_selection_keys,
     },
     instance_anno_shared::get_rot90_data,
-    Manipulate, BRUSH_NAME,
 };
 use crate::{
-    annotations_accessor_mut,
+    Annotation, BrushAnnotation, Line, ShapeI, annotations_accessor_mut,
     cfg::ExportPath,
     events::{Events, KeyCode},
     history::{History, Record},
@@ -23,16 +23,16 @@ use crate::{
         instance_anno_shared::{check_cocoimport, predictive_labeling},
     },
     tools_data::{
-        self,
+        self, ExportAsCoco, InstanceAnnotate, LabelInfo, Rot90ToolData,
         annotations::{BrushAnnotations, InstanceAnnotations},
         brush_data::{self, MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         coco_io::to_per_file_crowd,
-        vis_from_lfoption, ExportAsCoco, InstanceAnnotate, LabelInfo, Rot90ToolData,
+        vis_from_lfoption,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
     world::World,
-    world_annotations_accessor, Annotation, BrushAnnotation, Line, ShapeI,
+    world_annotations_accessor,
 };
 use rvimage_domain::{BrushLine, Canvas, PtF, TPtF};
 
@@ -165,18 +165,17 @@ fn mouse_pressed_left(events: &Events, mut world: World) -> World {
         let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
         if let (Some(mp), Some(options)) = (events.mouse_pos_on_orig, options) {
             let erase = options.core.erase;
-            if !erase {
-                if let (Some(d), Some(cat_idx)) = (get_specific_mut(&mut world), idx_current) {
-                    let line = Line::from(mp);
-                    d.tmp_line = Some((
-                        BrushLine {
-                            line,
-                            intensity: options.intensity,
-                            thickness: options.thickness,
-                        },
-                        cat_idx,
-                    ));
-                }
+            if !erase && let (Some(d), Some(cat_idx)) = (get_specific_mut(&mut world), idx_current)
+            {
+                let line = Line::from(mp);
+                d.tmp_line = Some((
+                    BrushLine {
+                        line,
+                        intensity: options.intensity,
+                        thickness: options.thickness,
+                    },
+                    cat_idx,
+                ));
             }
         }
         set_visible(&mut world);
@@ -246,12 +245,12 @@ fn check_selected_intensity_thickness(mut world: World) -> World {
     let options = get_options(&world).copied();
     let annos = get_annos_mut(&mut world);
     let mut any_selected = false;
-    if let (Some(annos), Some(options)) = (annos, options) {
-        if options.is_selection_change_needed {
-            for brushline in annos.selected_elts_iter_mut() {
-                brushline.intensity = options.intensity;
-                any_selected = true;
-            }
+    if let (Some(annos), Some(options)) = (annos, options)
+        && options.is_selection_change_needed
+    {
+        for brushline in annos.selected_elts_iter_mut() {
+            brushline.intensity = options.intensity;
+            any_selected = true;
         }
     }
     let options_mut = get_options_mut(&mut world);

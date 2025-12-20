@@ -1,36 +1,36 @@
 use crate::{
-    annotations_accessor_mut,
+    GeoFig, Polygon, annotations_accessor_mut,
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     history::{History, Record},
     instance_annotations_accessor, make_tool_transform,
     result::trace_ok_err,
     tools::{
+        BBOX_NAME, Manipulate,
         core::{
-            check_autopaste, check_erase_mode, check_recolorboxes, check_trigger_history_update,
-            check_trigger_redraw, deselect_all, instance_label_display_sort, map_released_key,
-            Mover,
+            Mover, check_autopaste, check_erase_mode, check_recolorboxes,
+            check_trigger_history_update, check_trigger_redraw, deselect_all,
+            instance_label_display_sort, map_released_key,
         },
         instance_anno_shared::{check_cocoimport, get_rot90_data, predictive_labeling},
-        Manipulate, BBOX_NAME,
     },
     tools_data::{
-        annotations::BboxAnnotations, bbox_data, vis_from_lfoption, LabelInfo,
-        OUTLINE_THICKNESS_CONVERSION,
+        LabelInfo, OUTLINE_THICKNESS_CONVERSION, annotations::BboxAnnotations, bbox_data,
+        vis_from_lfoption,
     },
     tools_data_accessors, tools_data_accessors_objects,
     util::Visibility,
     world::World,
-    world_annotations_accessor, GeoFig, Polygon,
+    world_annotations_accessor,
 };
-use rvimage_domain::{shape_unscaled, BbF, Circle, PtF, TPtF};
+use rvimage_domain::{BbF, Circle, PtF, TPtF, shape_unscaled};
 use std::{iter, mem, sync::mpsc::Receiver, time::Instant};
 
 use super::on_events::{
-    change_annos_bbox, closest_corner, export_if_triggered, find_close_vertex, import_coco,
-    move_corner_tol, on_key_released, on_mouse_held_left, on_mouse_held_right,
-    on_mouse_released_left, on_mouse_released_right, KeyReleasedParams, MouseHeldLeftParams,
-    MouseReleaseParams, PrevPos,
+    KeyReleasedParams, MouseHeldLeftParams, MouseReleaseParams, PrevPos, change_annos_bbox,
+    closest_corner, export_if_triggered, find_close_vertex, import_coco, move_corner_tol,
+    on_key_released, on_mouse_held_left, on_mouse_held_right, on_mouse_released_left,
+    on_mouse_released_right,
 };
 pub const ACTOR_NAME: &str = "Bbox";
 const MISSING_ANNO_MSG: &str = "bbox annotations have not yet been initialized";
@@ -79,75 +79,75 @@ fn show_grab_ball(
     last_proximal_circle_check: Option<Instant>,
     options: Option<&bbox_data::Options>,
 ) -> Instant {
-    if last_proximal_circle_check.map(|lc| lc.elapsed().as_millis()) > Some(2) {
-        if let Some(mp) = mp {
-            if prev_pos.prev_pos.is_empty() {
-                let label_info = get_label_info(world);
-                let geos = get_annos_if_some(world).map(|a| {
-                    (0..a.elts().len())
-                        .filter(|elt_idx| {
-                            let cur = label_info.map(|li| li.cat_idx_current);
-                            let show_only_current = label_info.map(|li| li.show_only_current);
-                            a.is_of_current_label(*elt_idx, cur, show_only_current)
-                        })
-                        .map(|elt_idx| (elt_idx, &a.elts()[elt_idx]))
-                });
-                if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
-                    let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
-                    let tolerance = move_corner_tol(unscaled);
-                    find_close_vertex(mp, geos, tolerance)
-                }) {
-                    let annos = get_annos(world);
-                    let corner_point = annos.map(|a| &a.elts()[bb_idx]).map(|a| a.point(c_idx));
-                    let data = get_specific_mut(world);
-                    if let (Some(data), Some(corner_point), Some(options)) =
-                        (data, corner_point, options)
-                    {
-                        data.highlight_circles = vec![Circle {
-                            center: corner_point,
-                            radius: TPtF::from(options.outline_thickness)
-                                / OUTLINE_THICKNESS_CONVERSION
-                                * 2.5,
-                        }];
-                        let vis = get_visible(world);
-                        world.request_redraw_annotations(BBOX_NAME, vis);
-                    }
-                } else {
-                    let data = get_specific_mut(world);
-                    let n_circles = data.as_ref().map_or(0, |d| d.highlight_circles.len());
-                    if let Some(data) = data {
-                        data.highlight_circles = vec![];
-                    }
-                    if n_circles > 0 {
-                        let vis = get_visible(world);
-                        world.request_redraw_annotations(BBOX_NAME, vis);
-                    }
-                }
-            } else {
-                let (c_idx, c_dist) = closest_corner(mp, prev_pos.prev_pos.iter().copied());
+    if last_proximal_circle_check.map(|lc| lc.elapsed().as_millis()) > Some(2)
+        && let Some(mp) = mp
+    {
+        if prev_pos.prev_pos.is_empty() {
+            let label_info = get_label_info(world);
+            let geos = get_annos_if_some(world).map(|a| {
+                (0..a.elts().len())
+                    .filter(|elt_idx| {
+                        let cur = label_info.map(|li| li.cat_idx_current);
+                        let show_only_current = label_info.map(|li| li.show_only_current);
+                        a.is_of_current_label(*elt_idx, cur, show_only_current)
+                    })
+                    .map(|elt_idx| (elt_idx, &a.elts()[elt_idx]))
+            });
+            if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
                 let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
                 let tolerance = move_corner_tol(unscaled);
-                if c_dist < tolerance {
-                    let center = prev_pos.prev_pos[c_idx];
-                    let data = get_specific_mut(world);
-                    if let (Some(data), Some(options)) = (data, options) {
-                        data.highlight_circles = vec![Circle {
-                            center,
-                            radius: TPtF::from(options.outline_thickness)
-                                / OUTLINE_THICKNESS_CONVERSION
-                                * 3.5,
-                        }];
-                        let vis = get_visible(world);
-                        world.request_redraw_annotations(BBOX_NAME, vis);
-                    }
-                } else {
-                    let data = get_specific_mut(world);
-                    if let Some(data) = data {
-                        data.highlight_circles = vec![];
-                    }
+                find_close_vertex(mp, geos, tolerance)
+            }) {
+                let annos = get_annos(world);
+                let corner_point = annos.map(|a| &a.elts()[bb_idx]).map(|a| a.point(c_idx));
+                let data = get_specific_mut(world);
+                if let (Some(data), Some(corner_point), Some(options)) =
+                    (data, corner_point, options)
+                {
+                    data.highlight_circles = vec![Circle {
+                        center: corner_point,
+                        radius: TPtF::from(options.outline_thickness)
+                            / OUTLINE_THICKNESS_CONVERSION
+                            * 2.5,
+                    }];
                     let vis = get_visible(world);
                     world.request_redraw_annotations(BBOX_NAME, vis);
                 }
+            } else {
+                let data = get_specific_mut(world);
+                let n_circles = data.as_ref().map_or(0, |d| d.highlight_circles.len());
+                if let Some(data) = data {
+                    data.highlight_circles = vec![];
+                }
+                if n_circles > 0 {
+                    let vis = get_visible(world);
+                    world.request_redraw_annotations(BBOX_NAME, vis);
+                }
+            }
+        } else {
+            let (c_idx, c_dist) = closest_corner(mp, prev_pos.prev_pos.iter().copied());
+            let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
+            let tolerance = move_corner_tol(unscaled);
+            if c_dist < tolerance {
+                let center = prev_pos.prev_pos[c_idx];
+                let data = get_specific_mut(world);
+                if let (Some(data), Some(options)) = (data, options) {
+                    data.highlight_circles = vec![Circle {
+                        center,
+                        radius: TPtF::from(options.outline_thickness)
+                            / OUTLINE_THICKNESS_CONVERSION
+                            * 3.5,
+                    }];
+                    let vis = get_visible(world);
+                    world.request_redraw_annotations(BBOX_NAME, vis);
+                }
+            } else {
+                let data = get_specific_mut(world);
+                if let Some(data) = data {
+                    data.highlight_circles = vec![];
+                }
+                let vis = get_visible(world);
+                world.request_redraw_annotations(BBOX_NAME, vis);
             }
         }
     }
@@ -429,48 +429,47 @@ impl Manipulate for Bbox {
             let in_menu_selected_label = current_cat_idx(&world);
             if let (Some(in_menu_selected_label), Some(mp)) =
                 (in_menu_selected_label, events.mouse_pos_on_orig)
+                && !self.prev_pos.prev_pos.is_empty()
             {
-                if !self.prev_pos.prev_pos.is_empty() {
-                    let geo = if self.prev_pos.prev_pos.len() == 1 {
-                        GeoFig::BB(BbF::from_points(mp, self.prev_pos.prev_pos[0]))
-                    } else {
-                        GeoFig::Poly(
-                            Polygon::from_vec(
-                                self.prev_pos
-                                    .prev_pos
-                                    .iter()
-                                    .chain(iter::once(&mp))
-                                    .copied()
-                                    .collect::<Vec<_>>(),
-                            )
-                            .unwrap(),
+                let geo = if self.prev_pos.prev_pos.len() == 1 {
+                    GeoFig::BB(BbF::from_points(mp, self.prev_pos.prev_pos[0]))
+                } else {
+                    GeoFig::Poly(
+                        Polygon::from_vec(
+                            self.prev_pos
+                                .prev_pos
+                                .iter()
+                                .chain(iter::once(&mp))
+                                .copied()
+                                .collect::<Vec<_>>(),
                         )
-                    };
-                    // animation
-                    let circles = get_specific(&world).map(|d| d.highlight_circles.clone());
-                    let label_info = get_specific(&world).map(|d| &d.label_info);
+                        .unwrap(),
+                    )
+                };
+                // animation
+                let circles = get_specific(&world).map(|d| d.highlight_circles.clone());
+                let label_info = get_specific(&world).map(|d| &d.label_info);
 
-                    if let (Some(circles), Some(label_info)) = (circles, label_info) {
-                        let label = Some(label_info.labels()[in_menu_selected_label].clone());
-                        let color = label_info.colors()[in_menu_selected_label];
-                        let anno = BboxAnnotation {
-                            geofig: geo,
-                            label,
-                            fill_color: Some(color),
-                            fill_alpha: 0,
-                            outline: Stroke {
-                                color,
-                                thickness: TPtF::from(options.outline_thickness) / 4.0,
-                            },
-                            outline_alpha: options.outline_alpha,
-                            is_selected: None,
-                            highlight_circles: circles,
-                            instance_label_display: options.core.instance_label_display,
-                        };
-                        let vis = get_visible(&world);
-                        world.request_redraw_annotations(BBOX_NAME, vis);
-                        world.request_redraw_tmp_anno(Annotation::Bbox(anno));
-                    }
+                if let (Some(circles), Some(label_info)) = (circles, label_info) {
+                    let label = Some(label_info.labels()[in_menu_selected_label].clone());
+                    let color = label_info.colors()[in_menu_selected_label];
+                    let anno = BboxAnnotation {
+                        geofig: geo,
+                        label,
+                        fill_color: Some(color),
+                        fill_alpha: 0,
+                        outline: Stroke {
+                            color,
+                            thickness: TPtF::from(options.outline_thickness) / 4.0,
+                        },
+                        outline_alpha: options.outline_alpha,
+                        is_selected: None,
+                        highlight_circles: circles,
+                        instance_label_display: options.core.instance_label_display,
+                    };
+                    let vis = get_visible(&world);
+                    world.request_redraw_annotations(BBOX_NAME, vis);
+                    world.request_redraw_tmp_anno(Annotation::Bbox(anno));
                 }
             }
         }
@@ -521,8 +520,8 @@ impl Manipulate for Bbox {
 #[cfg(test)]
 use {
     super::on_events::test_data,
-    crate::cfg::{ExportPath, ExportPathConnection},
     crate::Event,
+    crate::cfg::{ExportPath, ExportPathConnection},
     std::{path::PathBuf, thread, time::Duration},
 };
 #[test]

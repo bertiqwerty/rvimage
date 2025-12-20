@@ -1,22 +1,22 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
-use crate::autosave::{autosave, AUTOSAVE_INTERVAL_S};
+use crate::autosave::{AUTOSAVE_INTERVAL_S, autosave};
 use crate::control::{Control, Info};
 use crate::drawme::ImageInfo;
 use crate::events::{Events, KeyCode};
-use crate::file_util::{get_prj_name, DEFAULT_PRJ_PATH};
+use crate::file_util::{DEFAULT_PRJ_PATH, get_prj_name};
 use crate::history::{History, Record};
-use crate::menu::{are_tools_active, Menu, ToolSelectMenu};
+use crate::menu::{Menu, ToolSelectMenu, are_tools_active};
 use crate::result::trace_ok_err;
 use crate::tools::{
-    make_tool_vec, Manipulate, ToolState, ToolWrapper, ALWAYS_ACTIVE_ZOOM, BBOX_NAME, ZOOM_NAME,
+    ALWAYS_ACTIVE_ZOOM, BBOX_NAME, Manipulate, ToolState, ToolWrapper, ZOOM_NAME, make_tool_vec,
 };
 use crate::types::ExtraIms;
 use crate::util::Visibility;
 use crate::world::World;
 use crate::{
-    apply_tool_method_mut, httpserver, image_util, measure_time, Annotation, ToolsDataMap,
-    UpdateView,
+    Annotation, ToolsDataMap, UpdateView, apply_tool_method_mut, httpserver, image_util,
+    measure_time,
 };
 use egui::Context;
 use image::{DynamicImage, GenericImageView};
@@ -233,27 +233,26 @@ impl MainEventLoop {
             if let (Some(idx_active), Some(_)) = (
                 self.recently_clicked_tool_idx,
                 &self.world.data.meta_data.file_path_absolute(),
-            ) {
-                if !self.ctrl.flags().is_loading_screen_active {
-                    // first deactivate, then activate
-                    for (i, t) in self.tools.iter_mut().enumerate() {
-                        if i != idx_active && t.is_active() && !t.is_always_active() {
-                            let meta_data = self.ctrl.meta_data(
-                                self.ctrl.file_selected_idx,
-                                Some(self.ctrl.flags().is_loading_screen_active),
-                            );
-                            self.world.data.meta_data = meta_data;
-                            self.world = t.deactivate(mem::take(&mut self.world));
-                        }
+            ) && !self.ctrl.flags().is_loading_screen_active
+            {
+                // first deactivate, then activate
+                for (i, t) in self.tools.iter_mut().enumerate() {
+                    if i != idx_active && t.is_active() && !t.is_always_active() {
+                        let meta_data = self.ctrl.meta_data(
+                            self.ctrl.file_selected_idx,
+                            Some(self.ctrl.flags().is_loading_screen_active),
+                        );
+                        self.world.data.meta_data = meta_data;
+                        self.world = t.deactivate(mem::take(&mut self.world));
                     }
-                    for (i, t) in self.tools.iter_mut().enumerate() {
-                        if i == idx_active {
-                            (self.world, self.history) = t
-                                .activate(mem::take(&mut self.world), mem::take(&mut self.history));
-                        }
-                    }
-                    self.recently_clicked_tool_idx = None;
                 }
+                for (i, t) in self.tools.iter_mut().enumerate() {
+                    if i == idx_active {
+                        (self.world, self.history) =
+                            t.activate(mem::take(&mut self.world), mem::take(&mut self.history));
+                    }
+                }
+                self.recently_clicked_tool_idx = None;
             }
 
             if e.held_alt() && e.pressed(KeyCode::Q) {
@@ -441,22 +440,22 @@ impl MainEventLoop {
                 };
                 self.world.update_view.image_info = Some(s);
             }
-            if let Some(n_autosaves) = self.ctrl.cfg.usr.n_autosaves {
-                if self.autosave_timer.elapsed().as_secs() > AUTOSAVE_INTERVAL_S {
-                    self.autosave_timer = Instant::now();
-                    let homefolder = self.ctrl.cfg.home_folder().to_string();
-                    let current_prj_path = self.ctrl.cfg.current_prj_path().to_path_buf();
-                    let save_prj = |prj_path| {
-                        self.ctrl
-                            .save(prj_path, &self.world.data.tools_data_map, false)
-                    };
-                    trace_ok_err(autosave(
-                        &current_prj_path,
-                        homefolder,
-                        n_autosaves,
-                        save_prj,
-                    ));
-                }
+            if let Some(n_autosaves) = self.ctrl.cfg.usr.n_autosaves
+                && self.autosave_timer.elapsed().as_secs() > AUTOSAVE_INTERVAL_S
+            {
+                self.autosave_timer = Instant::now();
+                let homefolder = self.ctrl.cfg.home_folder().to_string();
+                let current_prj_path = self.ctrl.cfg.current_prj_path().to_path_buf();
+                let save_prj = |prj_path| {
+                    self.ctrl
+                        .save(prj_path, &self.world.data.tools_data_map, false)
+                };
+                trace_ok_err(autosave(
+                    &current_prj_path,
+                    homefolder,
+                    n_autosaves,
+                    save_prj,
+                ));
             }
 
             Ok((

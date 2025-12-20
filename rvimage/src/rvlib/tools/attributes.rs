@@ -9,9 +9,9 @@ use crate::{
     make_tool_transform,
     result::trace_ok_err,
     tools_data::{
+        AttributesToolData,
         attributes_data::set_attrmap_val,
         parameters::{ParamMap, ParamVal},
-        AttributesToolData,
     },
     tools_data_accessors,
     world::World,
@@ -198,14 +198,14 @@ impl Manipulate for Attributes {
             (world, history) = add_attribute(world, history, false);
         }
         let attr_data = get_specific_mut(&mut world);
-        if let Some(attr_data) = attr_data {
-            if let Some(rename_src_idx) = attr_data.options.rename_src_idx {
-                let from_name = &attr_data.attr_names()[rename_src_idx].clone();
-                let to_name = &attr_data.new_attr_name.clone();
-                tracing::info!("Rename attribute {from_name} to {to_name}");
-                attr_data.rename(from_name, to_name);
-                attr_data.options.rename_src_idx = None;
-            }
+        if let Some(attr_data) = attr_data
+            && let Some(rename_src_idx) = attr_data.options.rename_src_idx
+        {
+            let from_name = &attr_data.attr_names()[rename_src_idx].clone();
+            let to_name = &attr_data.new_attr_name.clone();
+            tracing::info!("Rename attribute {from_name} to {to_name}");
+            attr_data.rename(from_name, to_name);
+            attr_data.options.rename_src_idx = None;
         }
         let is_update_triggered = get_specific(&world).map(|d| d.options.is_update_triggered);
         if is_update_triggered == Some(true) {
@@ -244,17 +244,17 @@ impl Manipulate for Attributes {
             };
             let annos_str = get_specific(&world)
                 .and_then(|d| trace_ok_err(d.serialize_annotations(key_filter)));
-            if let (Some(annos_str), Some(data)) = (annos_str, get_specific(&world)) {
-                if trace_ok_err(data.export_path.conn.write(
+            if let (Some(annos_str), Some(data)) = (annos_str, get_specific(&world))
+                && trace_ok_err(data.export_path.conn.write(
                     &annos_str,
                     &data.export_path.path,
                     ssh_cfg.as_ref(),
                 ))
                 .is_some()
-                {
-                    info!("exported annotations to {:?}", data.export_path.path);
-                }
+            {
+                info!("exported annotations to {:?}", data.export_path.path);
             }
+
             if let Some(export_triggered) =
                 get_specific_mut(&mut world).map(|d| &mut d.options.import_export_trigger)
             {

@@ -8,9 +8,9 @@ use crate::{
 };
 
 use super::{
+    AccessInstanceData, AttributesToolData, BboxToolData, BrushToolData, InstanceAnnotate,
     annotations::InstanceAnnotations,
     parameters::{ParamMap, ParamVal},
-    AccessInstanceData, AttributesToolData, BboxToolData, BrushToolData, InstanceAnnotate,
 };
 
 fn iter_attributes_of_files<'a>(

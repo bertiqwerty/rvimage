@@ -7,7 +7,7 @@ use azure_storage::ConnectionString;
 use azure_storage_blobs::prelude::*;
 use futures::StreamExt;
 use lazy_static::lazy_static;
-use rvimage_domain::{rverr, to_rv, RvResult};
+use rvimage_domain::{RvResult, rverr, to_rv};
 use tokio::{runtime::Runtime, time::timeout};
 
 lazy_static! {

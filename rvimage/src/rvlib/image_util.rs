@@ -2,8 +2,8 @@ use core::cmp::Ordering::{Greater, Less};
 use std::ops::{Add, Sub};
 
 use image::{
-    buffer::ConvertBuffer, DynamicImage, GenericImage, GenericImageView, ImageBuffer, Luma, Pixel,
-    Rgb, Rgba,
+    DynamicImage, GenericImage, GenericImageView, ImageBuffer, Luma, Pixel, Rgb, Rgba,
+    buffer::ConvertBuffer,
 };
 use imageproc::definitions::Clamp;
 
@@ -11,7 +11,7 @@ use crate::{
     file_util::PixelEffect,
     types::{ResultImage, ViewImage},
 };
-use rvimage_domain::{rverr, to_rv, ShapeI};
+use rvimage_domain::{ShapeI, rverr, to_rv};
 
 pub fn read_image(path: &str) -> ResultImage {
     image::ImageReader::open(path)

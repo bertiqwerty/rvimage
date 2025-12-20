@@ -1,5 +1,5 @@
 pub use crate::types::ExtraViews;
-use crate::{tools_data::InstanceLabelDisplay, types::ViewImage, world::DataRaw, GeoFig};
+use crate::{GeoFig, tools_data::InstanceLabelDisplay, types::ViewImage, world::DataRaw};
 use rvimage_domain::{BbF, Canvas, Circle, TPtF};
 use std::default::Default;
 

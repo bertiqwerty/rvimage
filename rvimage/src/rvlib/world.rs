@@ -5,11 +5,11 @@ use crate::tools::{add_tools_initial_data, get_visible_inactive_names};
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::predictive_labeling::PredictiveLabelingData;
 use crate::tools_data::{
-    self, vis_from_lfoption, AccessInstanceData, LabelInfo, ToolSpecifics, ToolsData, ToolsDataMap,
+    self, AccessInstanceData, LabelInfo, ToolSpecifics, ToolsData, ToolsDataMap, vis_from_lfoption,
 };
 use crate::types::{ExtraIms, ExtraViews, ViewImage};
 use crate::util::Visibility;
-use crate::{image_util, InstanceAnnotate, UpdatePermAnnos, UpdateView};
+use crate::{InstanceAnnotate, UpdatePermAnnos, UpdateView, image_util};
 use image::DynamicImage;
 use rvimage_domain::{BbF, RvError, RvResult, ShapeF, ShapeI};
 use std::path::Path;

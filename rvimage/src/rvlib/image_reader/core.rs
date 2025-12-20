@@ -21,7 +21,7 @@ pub struct CloneDummy;
 pub trait LoadImageForGui {
     /// read image with index file_selected_idx  
     fn read_image(&mut self, file_selected_idx: usize, abs_file_paths: &[&str])
-        -> AsyncResultImage;
+    -> AsyncResultImage;
     #[allow(dead_code)]
     fn read_cached_image(
         &mut self,

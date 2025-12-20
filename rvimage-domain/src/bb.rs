@@ -7,15 +7,16 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    core::{
-        clamp_sub_zero, max_from_partial, max_squaredist, min_from_partial, CoordinateBox, Max,
-        Min, Shape,
-    },
     Calc, OutOfBoundsMode, Point, PtF, PtI, TPtF, TPtI, TPtS,
+    core::{
+        CoordinateBox, Max, Min, Shape, clamp_sub_zero, max_from_partial, max_squaredist,
+        min_from_partial,
+    },
 };
 use crate::{
-    result::{to_rv, RvError, RvResult},
-    rverr, ShapeI,
+    ShapeI,
+    result::{RvError, RvResult, to_rv},
+    rverr,
 };
 
 pub type BbI = BB<TPtI>;

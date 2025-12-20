@@ -1,11 +1,11 @@
 use std::{
-    collections::{btree_map, BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, btree_map},
     fmt::{Debug, Display},
     ops::Index,
     str::FromStr,
 };
 
-use rvimage_domain::{rverr, to_rv, RvResult, TPtF, TPtS};
+use rvimage_domain::{RvResult, TPtF, TPtS, rverr, to_rv};
 use serde::{Deserialize, Serialize};
 
 pub const PARAM_INTERVAL_SEPARATOR: &str = "-";

@@ -4,18 +4,18 @@ mod core;
 mod line;
 mod polygon;
 pub mod result;
-pub use bb::{BbF, BbI, BbS, BB};
+pub use bb::{BB, BbF, BbI, BbS};
 pub use canvas::{
-    access_mask_abs, access_mask_rel, canvases_to_image, mask_to_rle, rle_bb_to_image,
-    rle_image_to_bb, rle_to_mask, rle_to_mask_inplace, Canvas,
+    Canvas, access_mask_abs, access_mask_rel, canvases_to_image, mask_to_rle, rle_bb_to_image,
+    rle_image_to_bb, rle_to_mask, rle_to_mask_inplace,
 };
 pub use core::{
-    color_with_intensity, dist_lineseg_point, max_from_partial, min_from_partial, Calc, Circle,
-    CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, PtS, ShapeF, ShapeI, TPtF, TPtI, TPtS,
+    Calc, Circle, CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, PtS, ShapeF, ShapeI, TPtF, TPtI,
+    TPtS, color_with_intensity, dist_lineseg_point, max_from_partial, min_from_partial,
 };
-pub use line::{bresenham_iter, BrushLine, Line, RenderTargetOrShape};
+pub use line::{BrushLine, Line, RenderTargetOrShape, bresenham_iter};
 pub use polygon::Polygon;
-pub use result::{to_rv, RvError, RvResult};
+pub use result::{RvError, RvResult, to_rv};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]

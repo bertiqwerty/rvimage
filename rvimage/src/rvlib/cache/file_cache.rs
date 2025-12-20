@@ -7,7 +7,7 @@ use crate::{
     threadpool::ThreadPoolQueued,
     types::{AsyncResultImage, ImageInfoPair},
 };
-use rvimage_domain::{rverr, to_rv, RvError, RvResult};
+use rvimage_domain::{RvError, RvResult, rverr, to_rv};
 
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +22,7 @@ mod detail {
         str::FromStr,
     };
 
-    use rvimage_domain::{rverr, to_rv, RvResult};
+    use rvimage_domain::{RvResult, rverr, to_rv};
 
     use crate::{
         cache::ReadImageToCache, file_util, threadpool::ThreadPoolQueued, types::ResultImage,
@@ -354,7 +354,7 @@ where
 #[cfg(test)]
 use {
     crate::defer_folder_removal,
-    crate::file_util::{path_to_str, DEFAULT_TMPDIR},
+    crate::file_util::{DEFAULT_TMPDIR, path_to_str},
     crate::tracing_setup::init_tracing_for_tests,
     image::DynamicImage,
     image::{ImageBuffer, Rgb},
@@ -438,11 +438,13 @@ fn test_file_cache() {
     test(&files_str, 36).unwrap();
     for i in (14..25).chain(34..45) {
         let f = format!("{}.png", i);
-        assert!(Path::new(
-            detail::filename_in_tmpdir(f.as_str(), tmpdir_str)
-                .unwrap()
-                .as_str()
-        )
-        .exists());
+        assert!(
+            Path::new(
+                detail::filename_in_tmpdir(f.as_str(), tmpdir_str)
+                    .unwrap()
+                    .as_str()
+            )
+            .exists()
+        );
     }
 }

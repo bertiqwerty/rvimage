@@ -5,21 +5,21 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use super::annotations::InstanceAnnotations;
 use super::{
+    InstanceAnnotate,
     annotations::{BboxAnnotations, ClipboardData},
     core::{
         AccessInstanceData, AnnotationsMap, CocoSegmentation, ExportAsCoco, InstanceExportData,
         LabelInfo, OUTLINE_THICKNESS_CONVERSION,
     },
     predictive_labeling::PredictiveLabelingData,
-    InstanceAnnotate,
 };
 use crate::{
+    GeoFig,
     cfg::ExportPath,
     file_util, implement_annotate, implement_annotations_getters,
     tools_data::{annotations::SplitMode, core},
-    GeoFig,
 };
-use rvimage_domain::{rverr, BbF, Circle, PtF, RvResult, ShapeI, TPtF};
+use rvimage_domain::{BbF, Circle, PtF, RvResult, ShapeI, TPtF, rverr};
 
 /// filename -> (annotations per file, file dimensions)
 pub type BboxAnnoMap = AnnotationsMap<GeoFig>;

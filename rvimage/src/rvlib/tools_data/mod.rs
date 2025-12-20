@@ -1,7 +1,7 @@
 pub use self::core::{
-    vis_from_lfoption, AccessInstanceData, Annotate, ExportAsCoco, ImportExportTrigger, ImportMode,
-    InstanceAnnotate, InstanceExportData, LabelInfo, Options, VisibleInactiveToolsState,
-    OUTLINE_THICKNESS_CONVERSION,
+    AccessInstanceData, Annotate, ExportAsCoco, ImportExportTrigger, ImportMode, InstanceAnnotate,
+    InstanceExportData, LabelInfo, OUTLINE_THICKNESS_CONVERSION, Options,
+    VisibleInactiveToolsState, vis_from_lfoption,
 };
 pub use self::{
     attributes_data::AttributesToolData, bbox_data::BboxToolData, brush_data::BrushToolData,
@@ -9,10 +9,10 @@ pub use self::{
 };
 use crate::tools::add_tools_initial_data;
 use crate::{
-    drawme::{Annotation, BboxAnnotation, Stroke},
     BrushAnnotation,
+    drawme::{Annotation, BboxAnnotation, Stroke},
 };
-use rvimage_domain::{rverr, RvResult, TPtF};
+use rvimage_domain::{RvResult, TPtF, rverr};
 use serde::{Deserialize, Serialize};
 use std::ops::Index;
 
@@ -27,7 +27,7 @@ pub mod parameters;
 mod plot_stats;
 pub mod predictive_labeling;
 pub mod rot90_data;
-pub use core::{merge, AnnotationsMap, InstanceLabelDisplay, Options as CoreOptions};
+pub use core::{AnnotationsMap, InstanceLabelDisplay, Options as CoreOptions, merge};
 use std::collections::HashMap;
 
 macro_rules! variant_access {

@@ -3,7 +3,7 @@ use crate::{
     tools_data::ToolsDataMap,
 };
 use lazy_static::lazy_static;
-use rvimage_domain::{rverr, to_rv, RvResult};
+use rvimage_domain::{RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
 use std::{
     ffi::OsStr,

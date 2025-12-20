@@ -3,22 +3,22 @@ use crate::{
     file_util::path_to_str,
     menu::ui_util::{process_number, text_edit_multiline},
     result::trace_ok_err,
-    tools::{get_visible_inactive_names, BBOX_NAME, BRUSH_NAME},
+    tools::{BBOX_NAME, BRUSH_NAME, get_visible_inactive_names},
     tools_data::{
+        AccessInstanceData, AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions,
+        ImportExportTrigger, InstanceAnnotate, LabelInfo, OUTLINE_THICKNESS_CONVERSION,
+        ToolSpecifics, ToolsData, VisibleInactiveToolsState,
         annotations::SplitMode,
         bbox_data::BboxToolData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         parameters::{ParamMap, ParamVal},
         predictive_labeling::PredictiveLabelingData,
-        AccessInstanceData, AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions,
-        ImportExportTrigger, InstanceAnnotate, LabelInfo, ToolSpecifics, ToolsData,
-        VisibleInactiveToolsState, OUTLINE_THICKNESS_CONVERSION,
     },
     util,
 };
 use egui::Ui;
 use rvimage_domain::TPtF;
-use rvimage_domain::{to_rv, RvResult};
+use rvimage_domain::{RvResult, to_rv};
 use std::{
     fmt::{Debug, Display},
     mem,
@@ -651,10 +651,10 @@ fn existing_params_menu(
                         warn!("attr_map does not contain {attr_name}");
                     }
                 }
-                if let Some(attr_val) = attr_map.get(&attr_name) {
-                    if more_cols(ui, input_changed, idx_row, attr_val.clone()) {
-                        result.is_update_triggered = true;
-                    }
+                if let Some(attr_val) = attr_map.get(&attr_name)
+                    && more_cols(ui, input_changed, idx_row, attr_val.clone())
+                {
+                    result.is_update_triggered = true;
                 }
                 param_buffers[idx_row] = new_attr_buffer;
 

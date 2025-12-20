@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    control::Control, defer_file_removal, tracing_setup::init_tracing_for_tests, ToolsDataMap,
+    ToolsDataMap, control::Control, defer_file_removal, tracing_setup::init_tracing_for_tests,
 };
 
 pub fn get_ctrl() -> Control {

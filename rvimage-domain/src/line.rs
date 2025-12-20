@@ -1,12 +1,12 @@
 use image::{ImageBuffer, Pixel};
-use imageproc::drawing::{draw_filled_circle_mut, BresenhamLineIter};
+use imageproc::drawing::{BresenhamLineIter, draw_filled_circle_mut};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
-use crate::{rverr, BbF, OutOfBoundsMode, RvResult, BB};
+use crate::{BB, BbF, OutOfBoundsMode, RvResult, rverr};
 
 use super::core::{
-    color_with_intensity, dist_lineseg_point, max_from_partial, Point, PtF, ShapeI, TPtF,
+    Point, PtF, ShapeI, TPtF, color_with_intensity, dist_lineseg_point, max_from_partial,
 };
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq)]

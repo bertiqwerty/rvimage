@@ -2,15 +2,14 @@ use std::{cmp::Ordering, collections::HashMap, ops::RangeInclusive};
 
 use egui::Ui;
 use egui_plot::{Corner, GridMark, Legend, MarkerShape, Plot, PlotPoint, PlotPoints, Points};
-use rvimage_domain::{rverr, PtF, RvResult};
+use rvimage_domain::{PtF, RvResult, rverr};
 
 use crate::{
-    get_labelinfo_from_tdm, get_specifics_from_tdm,
+    InstanceAnnotate, ToolsDataMap, get_labelinfo_from_tdm, get_specifics_from_tdm,
     menu::ui_util::{process_number, ui_with_deactivated_tools_on_hover},
     paths_selector::PathsSelector,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
     tools_data::{AccessInstanceData, LabelInfo, PlotAnnotationStats},
-    InstanceAnnotate, ToolsDataMap,
 };
 
 use super::core::ToolChoice;
@@ -82,20 +81,20 @@ pub(super) fn anno_plots<'a>(
     let atd = tdm
         .get_specifics(ATTRIBUTES_NAME)
         .and_then(|d| d.attributes().ok());
-    if let Some(atd) = atd {
-        if tool_choice.attributes {
-            ui.collapsing("Select Attributes", |ui| {
-                for name in atd.attr_names() {
-                    if !selected_attributes.contains_key(name) {
-                        selected_attributes.insert(name.clone(), false);
-                    }
-                    let attr = selected_attributes.get_mut(name);
-                    if let Some(attr) = attr {
-                        ui.checkbox(attr, name);
-                    }
+    if let Some(atd) = atd
+        && tool_choice.attributes
+    {
+        ui.collapsing("Select Attributes", |ui| {
+            for name in atd.attr_names() {
+                if !selected_attributes.contains_key(name) {
+                    selected_attributes.insert(name.clone(), false);
                 }
-            });
-        }
+                let attr = selected_attributes.get_mut(name);
+                if let Some(attr) = attr {
+                    ui.checkbox(attr, name);
+                }
+            }
+        });
     }
     let bbox_labelinfo = get_labelinfo_from_tdm!(BBOX_NAME, tdm, bbox);
     if tool_choice.is_some(true) {
@@ -194,27 +193,24 @@ pub(super) fn anno_plots<'a>(
                     r
                 });
             });
-        if let Some(r) = plot_response {
-            if r.response.clicked() {
-                if let Some(pos) = pointer_pos {
-                    let dist =
-                        |v: PlotPoint, p: PlotPoint| (v.x - p.x).powi(2) + (v.y - p.y).powi(2);
-                    let data_point_close_to_mouse = attribute_plots
-                        .iter()
-                        .flat_map(|(_, plt)| plt.iter())
-                        .filter(|v| (v.x - pos.x).abs() <= PLOT_POINT_RADIUS as f64)
-                        .min_by(|v1, v2| {
-                            let dist1 = dist(**v1, pos);
-                            let dist2 = dist(**v2, pos);
-                            match dist1.partial_cmp(&dist2) {
-                                Some(o) => o,
-                                None => Ordering::Less,
-                            }
-                        });
-                    let index = data_point_close_to_mouse.map(|p| p.x.round() as usize);
-                    return Ok(index);
-                }
-            }
+        if plot_response.map(|r| r.response.clicked()) == Some(true)
+            && let Some(pos) = pointer_pos
+        {
+            let dist = |v: PlotPoint, p: PlotPoint| (v.x - p.x).powi(2) + (v.y - p.y).powi(2);
+            let data_point_close_to_mouse = attribute_plots
+                .iter()
+                .flat_map(|(_, plt)| plt.iter())
+                .filter(|v| (v.x - pos.x).abs() <= PLOT_POINT_RADIUS as f64)
+                .min_by(|v1, v2| {
+                    let dist1 = dist(**v1, pos);
+                    let dist2 = dist(**v2, pos);
+                    match dist1.partial_cmp(&dist2) {
+                        Some(o) => o,
+                        None => Ordering::Less,
+                    }
+                });
+            let index = data_point_close_to_mouse.map(|p| p.x.round() as usize);
+            return Ok(index);
         }
     }
     Ok(None)

@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use rvimage_domain::{rverr, to_rv, RvError, RvResult};
+use rvimage_domain::{RvError, RvResult, rverr, to_rv};
 use ssh2::{Channel, Session};
 
 use crate::cfg::SshCfg;

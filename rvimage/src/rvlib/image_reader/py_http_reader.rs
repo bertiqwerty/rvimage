@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::{cache::ReadImageToCache, file_util, types::ResultImage};
 use lazy_static::lazy_static;
 use regex::Regex;
-use rvimage_domain::{rverr, to_rv, RvResult};
+use rvimage_domain::{RvResult, rverr, to_rv};
 
 #[derive(Clone)]
 pub struct ReadImageFromPyHttp;

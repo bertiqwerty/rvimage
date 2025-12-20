@@ -3,8 +3,8 @@ use std::{fs, thread, time::Duration};
 
 #[cfg(test)]
 use rvlib::{
-    defer_file_removal, get_test_folder, tracing_setup::init_tracing_for_tests, Event, Events,
-    KeyCode, MainEventLoop,
+    Event, Events, KeyCode, MainEventLoop, defer_file_removal, get_test_folder,
+    tracing_setup::init_tracing_for_tests,
 };
 
 #[test]

@@ -4,11 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, mem};
 
 pub fn wrap_if<T>(x: T, cond: bool) -> Option<T> {
-    if cond {
-        Some(x)
-    } else {
-        None
-    }
+    if cond { Some(x) } else { None }
 }
 
 pub fn sort_by_vec<T, U>(sort_keys: &[U], mut v: Vec<T>) -> Vec<T>
@@ -25,12 +21,10 @@ where
 
 #[allow(clippy::needless_lifetimes)]
 fn xor_mask<'a>(mask: &'a [bool], other: bool) -> impl Iterator<Item = usize> + Clone + 'a {
-    let res = mask
-        .iter()
+    mask.iter()
         .enumerate()
         .filter(move |(_, is_selected)| other ^ **is_selected)
-        .map(|(i, _)| i);
-    res
+        .map(|(i, _)| i)
 }
 
 #[allow(clippy::needless_lifetimes)]

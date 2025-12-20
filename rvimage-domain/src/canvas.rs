@@ -1,12 +1,12 @@
 use image::{ImageBuffer, Luma, Pixel};
 use imageproc::drawing::draw_filled_circle_mut;
-use serde::{ser::SerializeStruct, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser::SerializeStruct};
 use std::mem;
 
-use crate::{color_with_intensity, result::RvResult, rverr, OutOfBoundsMode, ShapeI};
+use crate::{OutOfBoundsMode, ShapeI, color_with_intensity, result::RvResult, rverr};
 
 use super::{
-    line::render_line, BbF, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF, TPtI,
+    BbF, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF, TPtI, line::render_line,
 };
 
 fn line_to_mask(
@@ -490,7 +490,7 @@ where
 }
 
 #[cfg(test)]
-use super::{Line, BB};
+use super::{BB, Line};
 #[test]
 fn test_canvas_single() {
     let orig_shape = ShapeI::new(30, 30);

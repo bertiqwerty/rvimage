@@ -19,7 +19,7 @@ pub use always_active_zoom::AlwaysActiveZoom;
 pub use attributes::Attributes;
 pub use bbox::Bbox;
 pub use brush::Brush;
-pub use rot90::{rotate90, Rot90};
+pub use rot90::{Rot90, rotate90};
 use std::fmt::Debug;
 use tracing::info;
 pub use zoom::Zoom;

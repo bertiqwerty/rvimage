@@ -2,17 +2,17 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug, mem, path::Path};
 
 use crate::{
+    ShapeI,
     cfg::ExportPath,
     file_util, implement_annotate, implement_annotations_getters,
-    tools_data::parameters::{merge_attrmaps, ParamMapUntagged},
-    ShapeI,
+    tools_data::parameters::{ParamMapUntagged, merge_attrmaps},
 };
-use rvimage_domain::{to_rv, RvResult};
+use rvimage_domain::{RvResult, to_rv};
 
 use super::{
+    ImportExportTrigger,
     label_map::LabelMap,
     parameters::{ParamMap, ParamVal},
-    ImportExportTrigger,
 };
 
 pub type AttrAnnotationsMap = LabelMap<ParamMap>;

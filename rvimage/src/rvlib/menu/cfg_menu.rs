@@ -7,7 +7,7 @@ use egui::{Popup, Response, RichText, Ui, Visuals, Widget};
 use rvimage_domain::to_rv;
 
 use crate::{
-    cfg::{self, get_cfg_tmppath, write_cfg_str, AzureBlobCfgPrj, Cache, Cfg, Connection},
+    cfg::{self, AzureBlobCfgPrj, Cache, Cfg, Connection, get_cfg_tmppath, write_cfg_str},
     file_util::get_prj_name,
     menu::ui_util::text_edit_singleline,
     result::trace_ok_err,

@@ -6,16 +6,16 @@ use crate::result::trace_ok_err;
 use crate::tools_data::annotations::{ClipboardData, InstanceAnnotations};
 use crate::tools_data::attributes_data;
 use crate::tools_data::parameters::ParamVal;
-use crate::tools_data::{vis_from_lfoption, ImportExportTrigger, InstanceAnnotate, LabelInfo};
+use crate::tools_data::{ImportExportTrigger, InstanceAnnotate, LabelInfo, vis_from_lfoption};
 use crate::util::Visibility;
 use crate::world::InstanceAnnoAccess;
+use crate::{InstanceLabelDisplay, ShapeI};
 use crate::{
     events::Events,
     history::History,
     world,
     world::{MetaDataAccess, World},
 };
-use crate::{InstanceLabelDisplay, ShapeI};
 use rvimage_domain::PtF;
 use std::mem;
 

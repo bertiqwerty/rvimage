@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
+    GeoFig,
     drawme::{Annotation, BboxAnnotation, Stroke},
     events::{Events, KeyCode},
     history::History,
@@ -9,7 +10,6 @@ use crate::{
     tools_data::InstanceLabelDisplay,
     types::ViewImage,
     world::World,
-    GeoFig,
 };
 use rvimage_domain::{BbF, OutOfBoundsMode, PtF, ShapeI, TPtF};
 
@@ -136,24 +136,24 @@ impl Zoom {
     ) -> (World, History) {
         if events.held(KeyCode::MouseRight) || events.held_ctrl() {
             (self.mover, world) = move_zoom_box(self.mover, world, events.mouse_pos_on_view);
-        } else if events.held(KeyCode::MouseLeft) {
-            if let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, events.mouse_pos_on_orig) {
-                // animation
-                let bb = BbF::from_points(mps, m);
-                let white = [255, 255, 255];
-                let anno = BboxAnnotation {
-                    geofig: GeoFig::BB(bb),
-                    fill_color: None,
-                    fill_alpha: 0,
-                    outline: Stroke::from_color(white),
-                    outline_alpha: 255,
-                    label: None,
-                    is_selected: None,
-                    highlight_circles: vec![],
-                    instance_label_display: InstanceLabelDisplay::None,
-                };
-                world.request_redraw_tmp_anno(Annotation::Bbox(anno));
-            }
+        } else if events.held(KeyCode::MouseLeft)
+            && let (Some(mps), Some(m)) = (self.mouse_pressed_start_pos, events.mouse_pos_on_orig)
+        {
+            // animation
+            let bb = BbF::from_points(mps, m);
+            let white = [255, 255, 255];
+            let anno = BboxAnnotation {
+                geofig: GeoFig::BB(bb),
+                fill_color: None,
+                fill_alpha: 0,
+                outline: Stroke::from_color(white),
+                outline_alpha: 255,
+                label: None,
+                is_selected: None,
+                highlight_circles: vec![],
+                instance_label_display: InstanceLabelDisplay::None,
+            };
+            world.request_redraw_tmp_anno(Annotation::Bbox(anno));
         }
         (world, history)
     }

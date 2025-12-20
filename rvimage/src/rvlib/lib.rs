@@ -34,16 +34,16 @@ pub use drawme::{
     Annotation, BboxAnnotation, BrushAnnotation, ExtraViews, Stroke, UpdateExtraImages,
     UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateView, UpdateZoomBox,
 };
-pub use egui_mappers::{map_key, map_key_events, map_mouse_events, LastSensedBtns};
+pub use egui_mappers::{LastSensedBtns, map_key, map_key_events, map_mouse_events};
 pub use events::{Event, Events, KeyCode, ZoomAmount};
 pub use file_util::get_test_folder;
 pub use main_loop::MainEventLoop;
 pub use meta_data::MetaData;
 pub use rvimage_domain::{
-    bresenham_iter, color_with_intensity, BbI, BrushLine, GeoFig, Line, Polygon, ShapeI,
+    BbI, BrushLine, GeoFig, Line, Polygon, ShapeI, bresenham_iter, color_with_intensity,
 };
 pub use tools_data::{
-    coco_io::{read_coco, to_per_file_crowd, write_coco},
     InstanceAnnotate, InstanceLabelDisplay, Rot90ToolData, ToolsDataMap,
+    coco_io::{read_coco, to_per_file_crowd, write_coco},
 };
 pub use util::Defer;

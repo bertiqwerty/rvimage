@@ -330,22 +330,14 @@ fn unsigned_dist<T>(x1: T, x2: T) -> T
 where
     T: Sub<Output = T> + PartialOrd,
 {
-    if x1 > x2 {
-        x1 - x2
-    } else {
-        x2 - x1
-    }
+    if x1 > x2 { x1 - x2 } else { x2 - x1 }
 }
 
 pub fn clamp_sub_zero<T>(x1: T, x2: T) -> T
 where
     T: Calc,
 {
-    if x1 < x2 {
-        T::zero()
-    } else {
-        x1 - x2
-    }
+    if x1 < x2 { T::zero() } else { x1 - x2 }
 }
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Point<T> {
@@ -621,27 +613,31 @@ fn test_rot() {
     let p = PtF { x: 2.5, y: 1.0 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtF { x: 1.0, y: 2.5 }));
-    assert!(p
-        .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1))));
+    assert!(
+        p.rot90_with_image_ntimes(shape, 2)
+            .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1)))
+    );
 
     let shape = Shape::new(5, 10);
     let p = PtS { x: 1, y: 2 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtS { x: 2, y: 3 }));
-    assert!(p
-        .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1))));
+    assert!(
+        p.rot90_with_image_ntimes(shape, 2)
+            .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1)))
+    );
     let p = PtF { x: 1.0, y: 2.0 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtF { x: 2.0, y: 4.0 }));
-    assert!(p
-        .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1))));
+    assert!(
+        p.rot90_with_image_ntimes(shape, 2)
+            .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1)))
+    );
     let p = PtF { x: 2.0, y: 4.0 };
     let p_rot_1 = p.rot90_with_image(shape);
     assert!(p_rot_1.is_close_to(PtF { x: 4.0, y: 3.0 }));
-    assert!(p
-        .rot90_with_image_ntimes(shape, 2)
-        .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1))));
+    assert!(
+        p.rot90_with_image_ntimes(shape, 2)
+            .is_close_to(p_rot_1.rot90_with_image(shape.rot90_with_image_ntimes(1)))
+    );
 }

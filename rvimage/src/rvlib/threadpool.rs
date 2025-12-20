@@ -1,4 +1,4 @@
-use rvimage_domain::{to_rv, RvError, RvResult};
+use rvimage_domain::{RvError, RvResult, to_rv};
 use tracing::{error, info};
 
 use std::{

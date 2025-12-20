@@ -52,11 +52,11 @@ impl PathsNavigator {
         })
     }
     fn pn(&mut self, f: fn(usize, usize) -> usize) {
-        if let Some(idx) = self.file_label_selected_idx {
-            if let Some(ps) = &self.paths_selector {
-                self.file_label_selected_idx = Some(f(idx, ps.len_filtered()));
-                self.scroll_to_selected_label = true;
-            }
+        if let Some(idx) = self.file_label_selected_idx
+            && let Some(ps) = &self.paths_selector
+        {
+            self.file_label_selected_idx = Some(f(idx, ps.len_filtered()));
+            self.scroll_to_selected_label = true;
         }
     }
     pub fn next(&mut self) {
@@ -82,10 +82,8 @@ impl PathsNavigator {
     }
     /// makes sure the idx actually exists
     pub fn select_label_idx(&mut self, filtered_label_idx: Option<usize>) {
-        if let (Some(idx), Some(ps)) = (filtered_label_idx, self.paths_selector()) {
-            if idx < ps.len_filtered() {
-                self.file_label_selected_idx = Some(idx);
-            }
+        if filtered_label_idx < self.paths_selector().map(|ps| ps.len_filtered()) {
+            self.scroll_to_selected_label = true;
         }
     }
     pub fn export_filtered_filelist<P>(&self, export_path: P, filter_str: &str) -> RvResult<()>

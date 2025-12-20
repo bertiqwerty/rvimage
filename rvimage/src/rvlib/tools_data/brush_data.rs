@@ -1,21 +1,21 @@
 #[cfg(test)]
 use super::annotations::InstanceAnnotations;
 use super::{
+    InstanceAnnotate, InstanceExportData,
     annotations::{BrushAnnotations, ClipboardData},
     core::{
         self, AccessInstanceData, AnnotationsMap, CocoRle, CocoSegmentation, ExportAsCoco,
         LabelInfo,
     },
-    InstanceAnnotate, InstanceExportData,
 };
 use crate::{
-    cfg::ExportPath, result::trace_ok_warn,
-    tools_data::predictive_labeling::PredictiveLabelingData, BrushLine,
+    BrushLine, cfg::ExportPath, result::trace_ok_warn,
+    tools_data::predictive_labeling::PredictiveLabelingData,
 };
 use crate::{implement_annotate, implement_annotations_getters};
 use rvimage_domain::{
-    access_mask_abs, access_mask_rel, mask_to_rle, rle_bb_to_image, rverr, BbF, Canvas, PtF, PtI,
-    PtS, RvResult, ShapeI, TPtF, TPtI, TPtS, BB,
+    BB, BbF, Canvas, PtF, PtI, PtS, RvResult, ShapeI, TPtF, TPtI, TPtS, access_mask_abs,
+    access_mask_rel, mask_to_rle, rle_bb_to_image, rverr,
 };
 
 use serde::{Deserialize, Serialize};
@@ -244,11 +244,7 @@ impl InstanceAnnotate for Canvas {
     fn dist_to_boundary(&self, p: PtF) -> TPtF {
         let mut min_dist = TPtF::MAX;
         let to_coord = |x| {
-            if x > 0.0 {
-                x as TPtI
-            } else {
-                TPtI::MAX
-            }
+            if x > 0.0 { x as TPtI } else { TPtI::MAX }
         };
         // we need this to check whether p is a foreground pixel in case
         // it inside the bounding box of the canvas

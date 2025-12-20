@@ -1,12 +1,12 @@
 mod core;
 mod plot;
 use chrono::{DateTime, Local};
-use core::{iter_files_of_instance_tool, FilterRelation, ToolChoice};
+use core::{FilterRelation, ToolChoice, iter_files_of_instance_tool};
 use egui::{Popup, Response, RichText, Ui, Widget};
 use egui_plot::PlotPoint;
-use plot::{anno_plots, Selection};
-use rvimage_domain::{rverr, to_rv, RvResult};
-use serde::{de::DeserializeOwned, Serialize};
+use plot::{Selection, anno_plots};
+use rvimage_domain::{RvResult, rverr, to_rv};
+use serde::{Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
     f64, fs, iter, mem,
@@ -14,18 +14,18 @@ use std::{
 };
 
 use crate::{
-    autosave::{list_files, make_timespan, AUTOSAVE_KEEP_N_DAYS},
-    control::{paths_navigator::PathsNavigator, Control},
+    InstanceAnnotate,
+    autosave::{AUTOSAVE_KEEP_N_DAYS, list_files, make_timespan},
+    control::{Control, paths_navigator::PathsNavigator},
     file_util::{self, PathPair},
     get_annos_from_tdm, get_labelinfo_from_tdm,
     paths_selector::PathsSelector,
     result::trace_ok_err,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
     tools_data::{
-        parameters::ParamVal, AccessInstanceData, AnnotationsMap, AttributesToolData, LabelInfo,
-        ToolSpecifics, ToolsDataMap,
+        AccessInstanceData, AnnotationsMap, AttributesToolData, LabelInfo, ToolSpecifics,
+        ToolsDataMap, parameters::ParamVal,
     },
-    InstanceAnnotate,
 };
 
 use super::{
@@ -651,10 +651,10 @@ fn anno_stats(
     if !tool_choice.is_some(skip_attributes) {
         *stats_compute_results = None;
     } else {
-        if ui.button("(Re-)compute stats of filtered files").clicked() {
-            if let Some(filepaths) = filepaths {
-                *stats_compute_results = Some(collect_stats(tdm, &filepaths, tool_choice)?);
-            }
+        if ui.button("(Re-)compute stats of filtered files").clicked()
+            && let Some(filepaths) = filepaths
+        {
+            *stats_compute_results = Some(collect_stats(tdm, &filepaths, tool_choice)?);
         }
         if let Some(stats_compute_results) = stats_compute_results {
             if !stats_compute_results.is_empty() {

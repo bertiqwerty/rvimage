@@ -1,14 +1,14 @@
-use crate::cfg::{get_log_folder, Connection, ExportPath, ExportPathConnection, PyHttpReaderCfg};
+use crate::cfg::{Connection, ExportPath, ExportPathConnection, PyHttpReaderCfg, get_log_folder};
 use crate::file_util::{
-    osstr_to_str, to_stem_str, PathPair, SavedCfg, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME,
-    DEFAULT_PRJ_PATH,
+    DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH, PathPair, SavedCfg, osstr_to_str,
+    to_stem_str,
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::tools::{rotate90, BBOX_NAME, BRUSH_NAME};
-use crate::tools_data::{coco_io::read_coco, ToolSpecifics, ToolsDataMap};
+use crate::tools::{BBOX_NAME, BRUSH_NAME, rotate90};
+use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::ExtraIms;
 use crate::util::version_label;
 use crate::world::World;
@@ -20,7 +20,7 @@ use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use egui::ahash::HashSet;
 use image::{DynamicImage, ImageBuffer};
-use rvimage_domain::{rverr, to_rv, RvError, RvResult};
+use rvimage_domain::{RvError, RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::io::Write;
@@ -49,10 +49,10 @@ mod detail {
         cfg::{Cfg, CfgPrj},
         control::SavePrjData,
         defer_file_removal,
-        file_util::{self, tf_to_annomap_key, SavedCfg, DEFAULT_HOMEDIR},
+        file_util::{self, DEFAULT_HOMEDIR, SavedCfg, tf_to_annomap_key},
         result::trace_ok_err,
-        tools::{add_tools_initial_data, ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME},
-        tools_data::{merge, ToolsDataMap},
+        tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, ROT90_NAME, add_tools_initial_data},
+        tools_data::{ToolsDataMap, merge},
         toolsdata_by_name,
         util::version_label,
         world::World,
@@ -949,7 +949,7 @@ use {
         file_util::DEFAULT_TMPDIR,
         tools_data::{BboxToolData, ToolsData},
     },
-    rvimage_domain::{make_test_bbs, ShapeI},
+    rvimage_domain::{ShapeI, make_test_bbs},
     std::collections::HashMap,
     std::str::FromStr,
 };

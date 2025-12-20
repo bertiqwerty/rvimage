@@ -2,7 +2,7 @@ use image::DynamicImage;
 use rvimage_domain::{RvResult, ShapeI};
 
 use crate::{
-    annotations_accessor_mut,
+    InstanceAnnotate, annotations_accessor_mut,
     events::{Events, KeyCode},
     history::{History, Record},
     make_tool_transform,
@@ -10,11 +10,11 @@ use crate::{
     tools_data::{annotations::InstanceAnnotations, rot90_data::NRotations},
     util::Visibility,
     world::World,
-    world_annotations_accessor, InstanceAnnotate,
+    world_annotations_accessor,
 };
 use std::mem;
 
-use super::{bbox, brush, Manipulate, BBOX_NAME, BRUSH_NAME};
+use super::{BBOX_NAME, BRUSH_NAME, Manipulate, bbox, brush};
 
 pub const ACTOR_NAME: &str = "Rot90";
 annotations_accessor_mut!(ACTOR_NAME, rot90_mut, "Rotation 90 didn't work", NRotations);
