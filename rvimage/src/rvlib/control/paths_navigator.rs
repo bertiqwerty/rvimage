@@ -82,8 +82,10 @@ impl PathsNavigator {
     }
     /// makes sure the idx actually exists
     pub fn select_label_idx(&mut self, filtered_label_idx: Option<usize>) {
-        if filtered_label_idx < self.paths_selector().map(|ps| ps.len_filtered()) {
-            self.scroll_to_selected_label = true;
+        if let (Some(idx), Some(ps)) = (filtered_label_idx, self.paths_selector())
+            && idx < ps.len_filtered()
+        {
+            self.file_label_selected_idx = Some(idx);
         }
     }
     pub fn export_filtered_filelist<P>(&self, export_path: P, filter_str: &str) -> RvResult<()>
