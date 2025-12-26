@@ -7,9 +7,9 @@ use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::tools::{BBOX_NAME, BRUSH_NAME, rotate90};
+use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
 use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
-use crate::types::ExtraIms;
+use crate::types::{ExtraIms, ExtraMeta};
 use crate::util::version_label;
 use crate::world::World;
 use crate::{
@@ -829,7 +829,12 @@ impl Control {
         )
     }
 
-    fn load_thumbnails(&mut self, world: &World, start: usize, end: usize) -> Vec<DynamicImage> {
+    fn load_thumbnails(
+        &mut self,
+        world: &World,
+        start: usize,
+        end: usize,
+    ) -> (Vec<DynamicImage>, Vec<ExtraMeta>) {
         (start..end)
             .flat_map(|idx| {
                 let path = self
@@ -837,8 +842,19 @@ impl Control {
                     .file_path(idx)
                     .map(|p| p.path_absolute().to_string())
                     .ok_or_else(|| rverr!("index does not have path"));
+
                 path.and_then(|p| {
-                    if let Some(im) = self.thumbnail_cache.get(&p) {
+                    let attrmap = world
+                        .data
+                        .tools_data_map
+                        .get(ATTRIBUTES_NAME)
+                        .and_then(|d| trace_ok_err(d.specifics.attributes()))
+                        .and_then(|d| d.get_annos(&p));
+                    let meta = ExtraMeta {
+                        abs_file_path: p.clone(),
+                        attrs: attrmap.cloned(),
+                    };
+                    let im = if let Some(im) = self.thumbnail_cache.get(&p) {
                         Ok(im.clone())
                     } else {
                         let in_cache_im = self.read_cached_image(idx).map(|im| {
@@ -854,10 +870,13 @@ impl Control {
                         in_cache_im.map(|im| {
                             im.unwrap_or(DynamicImage::ImageRgb8(ImageBuffer::new(10, 10)))
                         })
-                    }
+                    };
+                    im.map(|im| (im, meta))
                 })
             })
-            .collect()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .unzip()
     }
 
     pub fn load_new_image_if_triggered(
@@ -895,7 +914,7 @@ impl Control {
                                 } else {
                                     0
                                 };
-                                let prev_images =
+                                let (prev_images, prev_meta) =
                                     self.load_thumbnails(&new_world, prev_start, *selected);
                                 let n = self.paths_navigator.len_filtered().unwrap_or(0);
                                 let next_end = if n > *selected + 1 + self.cfg.usr.n_next_thumbs {
@@ -903,13 +922,15 @@ impl Control {
                                 } else {
                                     n
                                 };
-                                let next_images =
+                                let (next_images, next_meta) =
                                     self.load_thumbnails(&new_world, *selected + 1, next_end);
                                 ExtraIms::new(
                                     prev_images,
                                     next_images,
                                     self.cfg.usr.thumb_w_max,
                                     self.cfg.usr.thumb_h_max,
+                                    prev_meta,
+                                    next_meta,
                                 )
                             } else {
                                 ExtraIms::default()

@@ -334,6 +334,8 @@ impl DataRaw {
                 .iter()
                 .map(|im| image_util::orig_to_0_255(im, &None))
                 .collect(),
+            prev_meta: self.extra_ims.prev_meta.clone(),
+            next_meta: self.extra_ims.next_meta.clone(),
         }
     }
 }
