@@ -66,6 +66,8 @@ impl CfgLegacy {
             },
             n_prev_thumbs: get_default_n_thumbs(),
             n_next_thumbs: get_default_n_thumbs(),
+            thumb_w_max: get_default_thumb_w_max(),
+            thumb_h_max: get_default_thumb_h_max(),
             hide_thumbs: true,
         };
         let prj = CfgPrj {
@@ -289,6 +291,12 @@ pub enum Style {
 fn get_default_n_thumbs() -> usize {
     4
 }
+fn get_default_thumb_w_max() -> u32 {
+    200
+}
+fn get_default_thumb_h_max() -> u32 {
+    100
+}
 
 fn get_default_n_autosaves() -> Option<u8> {
     Some(2)
@@ -321,6 +329,10 @@ pub struct CfgUsr {
     pub n_prev_thumbs: usize,
     #[serde(default = "get_default_n_thumbs")]
     pub n_next_thumbs: usize,
+    #[serde(default = "get_default_thumb_w_max")]
+    pub thumb_w_max: u32,
+    #[serde(default = "get_default_thumb_h_max")]
+    pub thumb_h_max: u32,
     #[serde(default)]
     pub hide_thumbs: bool,
 }

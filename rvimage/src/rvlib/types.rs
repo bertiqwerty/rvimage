@@ -18,14 +18,19 @@ pub struct ExtraIms {
     pub next_ims: Vec<DynamicImage>,
 }
 impl ExtraIms {
-    pub fn new(mut prev_ims: Vec<DynamicImage>, mut next_ims: Vec<DynamicImage>) -> Self {
+    pub fn new(
+        mut prev_ims: Vec<DynamicImage>,
+        mut next_ims: Vec<DynamicImage>,
+        w_max: u32,
+        h_max: u32,
+    ) -> Self {
         prev_ims = prev_ims
             .iter()
-            .map(|im| im.resize(200, 100, FilterType::Lanczos3))
+            .map(|im| im.resize(w_max, h_max, FilterType::Lanczos3))
             .collect();
         next_ims = next_ims
             .iter()
-            .map(|im| im.resize(200, 100, FilterType::Lanczos3))
+            .map(|im| im.resize(w_max, h_max, FilterType::Lanczos3))
             .collect();
         ExtraIms { prev_ims, next_ims }
     }

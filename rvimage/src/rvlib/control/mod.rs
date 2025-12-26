@@ -905,7 +905,12 @@ impl Control {
                                 };
                                 let next_images =
                                     self.load_thumbnails(&new_world, *selected + 1, next_end);
-                                ExtraIms::new(prev_images, next_images)
+                                ExtraIms::new(
+                                    prev_images,
+                                    next_images,
+                                    self.cfg.usr.thumb_w_max,
+                                    self.cfg.usr.thumb_h_max,
+                                )
                             } else {
                                 ExtraIms::default()
                             };
