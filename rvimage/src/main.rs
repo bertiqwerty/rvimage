@@ -176,18 +176,26 @@ mod detail {
     }
 }
 
-fn add_extra_ims(ui: &mut Ui, textures: &[TextureHandle]) {
+fn add_extra_ims<'a>(
+    ui: &mut Ui,
+    textures: &[TextureHandle],
+    file_labels: impl Iterator<Item = &'a str>,
+) -> Option<&'a str> {
+    let mut clicked_file_label: Option<&'a str> = None;
     let f = |ui: &mut Ui| {
-        for texture in textures {
+        for (texture, fl) in textures.iter().zip(file_labels) {
             let ui_image =
                 detail::handle_2_image(texture, texture.size()).sense(Sense::click_and_drag());
 
-            ui.add(ui_image);
+            if ui.add(ui_image).clicked() {
+                clicked_file_label = Some(fl);
+            }
         }
     };
     ui.horizontal(|ui| {
         f(ui);
     });
+    clicked_file_label
 }
 #[derive(Default)]
 struct RvImageApp {
@@ -209,6 +217,7 @@ struct RvImageApp {
     egui_tmp_shapes: [Option<Shape>; 2],
     image_rect: Option<Rect>,
     prev_image_rect_size: Option<Vec2>,
+    request_file_label_to_load: Option<String>,
 }
 
 impl RvImageApp {
@@ -609,9 +618,11 @@ impl eframe::App for RvImageApp {
                 self.image_rect
                     .map(|ir| ShapeF::new(ir.width().into(), ir.height().into())),
                 mem::take(&mut self.tmp_anno),
+                self.request_file_label_to_load.as_deref(),
                 ctx,
             )
         };
+        self.request_file_label_to_load = None;
         if let Ok((update_view, prj_name)) = res {
             let title = if prj_name.is_empty() {
                 "RV Image".to_string()
@@ -661,7 +672,17 @@ impl eframe::App for RvImageApp {
                             .truncate(),
                         );
 
-                        add_extra_ims(ui, &self.extra_textures_prev);
+                        let clicked_file_label = add_extra_ims(
+                            ui,
+                            &self.extra_textures_prev,
+                            self.extra_ims
+                                .prev_meta
+                                .iter()
+                                .map(|m| m.file_label.as_str()),
+                        );
+                        if let Some(cfl) = clicked_file_label {
+                            self.request_file_label_to_load = Some(cfl.to_string());
+                        }
                         let fraction_h = if !self.extra_textures_prev.is_empty()
                             && !self.extra_textures_next.is_empty()
                         {
@@ -677,7 +698,17 @@ impl eframe::App for RvImageApp {
                         image_surrounding_rect.max.y = image_surrounding_rect.min.y
                             + ui.available_height() * (fraction_h * 10.0f32).ceil() / 10.0;
                         let image_response = self.add_image(fraction_h, ui);
-                        add_extra_ims(ui, &self.extra_textures_next);
+                        let clicked_file_label = add_extra_ims(
+                            ui,
+                            &self.extra_textures_next,
+                            self.extra_ims
+                                .next_meta
+                                .iter()
+                                .map(|m| m.file_label.as_str()),
+                        );
+                        if let Some(cfl) = clicked_file_label {
+                            self.request_file_label_to_load = Some(cfl.to_string());
+                        }
                         let mut update_texture = false;
                         if let Some(ir) = image_response {
                             // react to resizing the image rect

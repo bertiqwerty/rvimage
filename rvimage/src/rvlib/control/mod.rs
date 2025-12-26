@@ -837,13 +837,18 @@ impl Control {
     ) -> (Vec<DynamicImage>, Vec<ExtraMeta>) {
         (start..end)
             .flat_map(|idx| {
-                let path = self
+                let path = trace_ok_err(
+                    self.paths_navigator
+                        .file_path(idx)
+                        .map(|p| p.path_absolute().to_string())
+                        .ok_or_else(|| rverr!("index does not have path")),
+                );
+                let file_label = self
                     .paths_navigator
-                    .file_path(idx)
-                    .map(|p| p.path_absolute().to_string())
-                    .ok_or_else(|| rverr!("index does not have path"));
+                    .paths_selector()
+                    .and_then(|ps| ps.file_label_of_idx(idx));
 
-                path.and_then(|p| {
+                if let (Some(p), Some(file_label)) = (path, file_label) {
                     let attrmap = world
                         .data
                         .tools_data_map
@@ -851,11 +856,11 @@ impl Control {
                         .and_then(|d| trace_ok_err(d.specifics.attributes()))
                         .and_then(|d| d.get_annos(&p));
                     let meta = ExtraMeta {
-                        abs_file_path: p.clone(),
+                        file_label: file_label.to_string(),
                         attrs: attrmap.cloned(),
                     };
                     let im = if let Some(im) = self.thumbnail_cache.get(&p) {
-                        Ok(im.clone())
+                        Some(im.clone())
                     } else {
                         let in_cache_im = self.read_cached_image(idx).map(|im| {
                             im.and_then(|im| {
@@ -867,12 +872,14 @@ impl Control {
                                 })
                             })
                         });
-                        in_cache_im.map(|im| {
+                        trace_ok_err(in_cache_im.map(|im| {
                             im.unwrap_or(DynamicImage::ImageRgb8(ImageBuffer::new(10, 10)))
-                        })
+                        }))
                     };
                     im.map(|im| (im, meta))
-                })
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>()
             .into_iter()

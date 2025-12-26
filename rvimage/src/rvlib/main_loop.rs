@@ -177,6 +177,7 @@ impl MainEventLoop {
         e: &Events,
         ui_image_rect: Option<ShapeF>,
         tmp_anno_buffer: Option<Annotation>,
+        request_file_label_to_load: Option<&str>,
         ctx: &Context,
     ) -> RvResult<(UpdateView, &str)> {
         measure_time!("whole iteration", {
@@ -315,6 +316,13 @@ impl MainEventLoop {
                 self.world.set_zoom_box(None);
             }
 
+            // check for file load request from image/thumbnail UI
+            if let Some(file_label) = request_file_label_to_load {
+                self.ctrl.paths_navigator.select_file_label(file_label);
+                self.ctrl
+                    .paths_navigator
+                    .activate_scroll_to_selected_label();
+            }
             // check for new image requests from http server
             let rx_match = &self.rx_from_http.as_ref().map(|rx| rx.try_iter().last());
             if let Some(Some(Ok(file_label))) = rx_match {

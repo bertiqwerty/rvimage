@@ -24,25 +24,33 @@ fn test_main() {
     let mut main_loop = MainEventLoop::new(Some(test_file.clone()));
     let events = Events::default();
     egui::__run_test_ctx(|ctx| {
-        main_loop.one_iteration(&events, None, None, ctx).unwrap();
+        main_loop
+            .one_iteration(&events, None, None, None, ctx)
+            .unwrap();
     });
     main_loop
         .load_prj_during_startup(Some(test_file.clone()))
         .unwrap();
     thread::sleep(Duration::from_millis(1));
     egui::__run_test_ctx(|ctx| {
-        main_loop.one_iteration(&events, None, None, ctx).unwrap();
+        main_loop
+            .one_iteration(&events, None, None, None, ctx)
+            .unwrap();
     });
     thread::sleep(Duration::from_millis(1));
     main_loop.import_prj(&test_file_2).unwrap();
     egui::__run_test_ctx(|ctx| {
-        main_loop.one_iteration(&events, None, None, ctx).unwrap();
+        main_loop
+            .one_iteration(&events, None, None, None, ctx)
+            .unwrap();
     });
     thread::sleep(Duration::from_millis(1));
     let events =
         Events::default().events(vec![Event::Held(KeyCode::Ctrl), Event::Pressed(KeyCode::S)]);
     egui::__run_test_ctx(|ctx| {
-        main_loop.one_iteration(&events, None, None, ctx).unwrap();
+        main_loop
+            .one_iteration(&events, None, None, None, ctx)
+            .unwrap();
     });
     // lets wait for the file being written
     thread::sleep(Duration::from_millis(2000));

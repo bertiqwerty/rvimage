@@ -49,7 +49,7 @@ impl ExtraIms {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExtraMeta {
-    pub abs_file_path: String,
+    pub file_label: String,
     pub attrs: Option<ParamMap>,
 }
 
