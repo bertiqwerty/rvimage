@@ -472,6 +472,8 @@ impl Default for Cfg {
         cfg.usr.current_prj_path = Some(DEFAULT_PRJ_PATH.to_path_buf());
         cfg.usr.n_prev_thumbs = get_default_n_thumbs();
         cfg.usr.n_next_thumbs = get_default_n_thumbs();
+        cfg.usr.thumb_w_max = get_default_thumb_w_max();
+        cfg.usr.thumb_h_max = get_default_thumb_h_max();
         cfg.usr.hide_thumbs = true;
         cfg
     }
