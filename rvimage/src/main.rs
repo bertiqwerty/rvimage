@@ -17,7 +17,7 @@ use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
 use rvimage_domain::{BbF, Canvas, PtF, RvResult, ShapeF, TPtF, TPtI, to_rv};
 use rvlib::{
-    Annotation, BboxAnnotation, BrushAnnotation, ExtraViews, GeoFig, InstanceAnnotate,
+    Annotation, BboxAnnotation, BrushAnnotation, ExtraMeta, ExtraViews, GeoFig, InstanceAnnotate,
     InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, UpdateExtraImages, UpdateImage,
     UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
     cfg::{Cfg, ExportPath, ExportPathConnection},
@@ -179,22 +179,38 @@ mod detail {
 fn add_extra_ims<'a>(
     ui: &mut Ui,
     textures: &[TextureHandle],
-    file_labels: impl Iterator<Item = &'a str>,
+    metas: &'a [ExtraMeta],
+    show_horizontally: bool,
 ) -> Option<&'a str> {
-    let mut clicked_file_label: Option<&'a str> = None;
-    let f = |ui: &mut Ui| {
-        for (texture, fl) in textures.iter().zip(file_labels) {
-            let ui_image =
-                detail::handle_2_image(texture, texture.size()).sense(Sense::click_and_drag());
+    let mut clicked_file_label = None;
+    let mut add = |ui: &mut Ui, texture, meta: &'a ExtraMeta| {
+        let ui_image =
+            detail::handle_2_image(texture, texture.size()).sense(Sense::click_and_drag());
 
-            if ui.add(ui_image).clicked() {
-                clicked_file_label = Some(fl);
-            }
+        if ui.add(ui_image).clicked() {
+            clicked_file_label = Some(meta.file_label.as_str());
         }
     };
-    ui.horizontal(|ui| {
-        f(ui);
-    });
+    if show_horizontally {
+        ui.horizontal(|ui| {
+            for (texture, meta) in textures.iter().zip(metas) {
+                add(ui, texture, meta);
+            }
+        });
+    } else {
+        egui::Grid::new("thumb-attr-list").show(ui, |ui| {
+            for (texture, meta) in textures.iter().zip(metas) {
+                add(ui, texture, meta);
+                if let Some(attrs) = &meta.attrs {
+                    for (k, v) in attrs.iter() {
+                        ui.label(k.to_string());
+                        ui.label(v.to_string());
+                    }
+                }
+                ui.end_row();
+            }
+        });
+    }
     clicked_file_label
 }
 #[derive(Default)]
@@ -623,7 +639,7 @@ impl eframe::App for RvImageApp {
             )
         };
         self.request_file_label_to_load = None;
-        if let Ok((update_view, prj_name)) = res {
+        if let Ok((update_view, show_main_image, show_thumbs, prj_name)) = res {
             let title = if prj_name.is_empty() {
                 "RV Image".to_string()
             } else {
@@ -672,16 +688,16 @@ impl eframe::App for RvImageApp {
                             .truncate(),
                         );
 
-                        let clicked_file_label = add_extra_ims(
-                            ui,
-                            &self.extra_textures_prev,
-                            self.extra_ims
-                                .prev_meta
-                                .iter()
-                                .map(|m| m.file_label.as_str()),
-                        );
-                        if let Some(cfl) = clicked_file_label {
-                            self.request_file_label_to_load = Some(cfl.to_string());
+                        if show_thumbs {
+                            let clicked_file_label = add_extra_ims(
+                                ui,
+                                &self.extra_textures_prev,
+                                &self.extra_ims.prev_meta,
+                                show_main_image,
+                            );
+                            if let Some(cfl) = clicked_file_label {
+                                self.request_file_label_to_load = Some(cfl.to_string());
+                            }
                         }
                         let fraction_h = if !self.extra_textures_prev.is_empty()
                             && !self.extra_textures_next.is_empty()
@@ -697,17 +713,21 @@ impl eframe::App for RvImageApp {
                         let mut image_surrounding_rect = ui.max_rect();
                         image_surrounding_rect.max.y = image_surrounding_rect.min.y
                             + ui.available_height() * (fraction_h * 10.0f32).ceil() / 10.0;
-                        let image_response = self.add_image(fraction_h, ui);
-                        let clicked_file_label = add_extra_ims(
-                            ui,
-                            &self.extra_textures_next,
-                            self.extra_ims
-                                .next_meta
-                                .iter()
-                                .map(|m| m.file_label.as_str()),
-                        );
-                        if let Some(cfl) = clicked_file_label {
-                            self.request_file_label_to_load = Some(cfl.to_string());
+                        let image_response = if show_main_image {
+                            self.add_image(fraction_h, ui)
+                        } else {
+                            None
+                        };
+                        if show_thumbs {
+                            let clicked_file_label = add_extra_ims(
+                                ui,
+                                &self.extra_textures_next,
+                                &self.extra_ims.next_meta,
+                                show_main_image,
+                            );
+                            if let Some(cfl) = clicked_file_label {
+                                self.request_file_label_to_load = Some(cfl.to_string());
+                            }
                         }
                         let mut update_texture = false;
                         if let Some(ir) = image_response {

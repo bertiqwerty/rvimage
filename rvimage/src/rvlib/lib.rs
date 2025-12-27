@@ -46,4 +46,5 @@ pub use tools_data::{
     InstanceAnnotate, InstanceLabelDisplay, Rot90ToolData, ToolsDataMap,
     coco_io::{read_coco, to_per_file_crowd, write_coco},
 };
+pub use types::ExtraMeta;
 pub use util::Defer;

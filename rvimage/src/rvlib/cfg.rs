@@ -69,6 +69,7 @@ impl CfgLegacy {
             thumb_w_max: get_default_thumb_w_max(),
             thumb_h_max: get_default_thumb_h_max(),
             hide_thumbs: true,
+            thumb_attrs_view: false,
         };
         let prj = CfgPrj {
             connection: self.connection,
@@ -335,12 +336,20 @@ pub struct CfgUsr {
     pub thumb_h_max: u32,
     #[serde(default)]
     pub hide_thumbs: bool,
+    #[serde(default)]
+    pub thumb_attrs_view: bool,
 }
 
 impl CfgUsr {
     pub fn get_n_autosaves(&self) -> u8 {
         self.n_autosaves
             .unwrap_or(get_default_n_autosaves().unwrap())
+    }
+    pub fn show_thumbs(&self) -> bool {
+        !self.hide_thumbs || self.thumb_attrs_view
+    }
+    pub fn show_main_image(&self) -> bool {
+        !self.thumb_attrs_view
     }
 }
 

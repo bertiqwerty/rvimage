@@ -179,7 +179,7 @@ impl MainEventLoop {
         tmp_anno_buffer: Option<Annotation>,
         request_file_label_to_load: Option<&str>,
         ctx: &Context,
-    ) -> RvResult<(UpdateView, &str)> {
+    ) -> RvResult<(UpdateView, bool, bool, &str)> {
         measure_time!("whole iteration", {
             measure_time!("part 1", {
                 self.world.set_image_rect(ui_image_rect);
@@ -468,6 +468,8 @@ impl MainEventLoop {
 
             Ok((
                 mem::take(&mut self.world.update_view),
+                self.ctrl.cfg.usr.show_main_image(),
+                self.ctrl.cfg.usr.show_thumbs(),
                 get_prj_name(self.ctrl.cfg.current_prj_path(), None),
             ))
         })

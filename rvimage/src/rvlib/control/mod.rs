@@ -915,33 +915,29 @@ impl Control {
                             self.file_selected_idx = menu_file_selected;
                             self.file_info_selected = Some(ri.info);
                             let mut new_world = world.clone();
-                            let extra_ims = if !self.cfg.usr.hide_thumbs {
-                                let prev_start = if *selected > self.cfg.usr.n_prev_thumbs {
-                                    selected - self.cfg.usr.n_prev_thumbs
-                                } else {
-                                    0
-                                };
-                                let (prev_images, prev_meta) =
-                                    self.load_thumbnails(&new_world, prev_start, *selected);
-                                let n = self.paths_navigator.len_filtered().unwrap_or(0);
-                                let next_end = if n > *selected + 1 + self.cfg.usr.n_next_thumbs {
-                                    selected + 1 + self.cfg.usr.n_prev_thumbs
-                                } else {
-                                    n
-                                };
-                                let (next_images, next_meta) =
-                                    self.load_thumbnails(&new_world, *selected + 1, next_end);
-                                ExtraIms::new(
-                                    prev_images,
-                                    next_images,
-                                    self.cfg.usr.thumb_w_max,
-                                    self.cfg.usr.thumb_h_max,
-                                    prev_meta,
-                                    next_meta,
-                                )
+                            let prev_start = if *selected > self.cfg.usr.n_prev_thumbs {
+                                selected - self.cfg.usr.n_prev_thumbs
                             } else {
-                                ExtraIms::default()
+                                0
                             };
+                            let (prev_images, prev_meta) =
+                                self.load_thumbnails(&new_world, prev_start, *selected);
+                            let n = self.paths_navigator.len_filtered().unwrap_or(0);
+                            let next_end = if n > *selected + 1 + self.cfg.usr.n_next_thumbs {
+                                selected + 1 + self.cfg.usr.n_prev_thumbs
+                            } else {
+                                n
+                            };
+                            let (next_images, next_meta) =
+                                self.load_thumbnails(&new_world, *selected + 1, next_end);
+                            let extra_ims = ExtraIms::new(
+                                prev_images,
+                                next_images,
+                                self.cfg.usr.thumb_w_max,
+                                self.cfg.usr.thumb_h_max,
+                                prev_meta,
+                                next_meta,
+                            );
                             new_world.set_extra_images(extra_ims);
                             new_world.set_background_image(ri.im);
                             new_world.reset_updateview();

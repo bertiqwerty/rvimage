@@ -54,7 +54,9 @@ pub enum Update<T> {
     No,
 }
 
+// None -> hide main image
 pub type UpdateImage = Update<ViewImage>;
+// thumbnails
 pub type UpdateExtraImages = Update<ExtraViews>;
 
 // permament annotations
