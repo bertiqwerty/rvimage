@@ -82,6 +82,6 @@ chrono = { version = "0.4.42", default-features = false, features = [
     "clock",
     "serde",
 ] }
-whoami = "1.6.1"
+whoami = "2.0.0"
 # temporary pin
 url = "2.5.7"

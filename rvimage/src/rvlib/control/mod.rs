@@ -296,10 +296,11 @@ pub struct UserPrjOpened {
 }
 impl UserPrjOpened {
     pub fn new() -> Self {
+        const UNKNOWN: &str = "Unknown";
         UserPrjOpened {
             time: Utc::now(),
-            username: whoami::username(),
-            realname: whoami::realname(),
+            username: trace_ok_err(whoami::username()).unwrap_or(UNKNOWN.into()),
+            realname: trace_ok_err(whoami::realname()).unwrap_or(UNKNOWN.into()),
         }
     }
 }
