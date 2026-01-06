@@ -11,16 +11,11 @@ use crate::result::trace_ok_err;
 use crate::tools::{
     ALWAYS_ACTIVE_ZOOM, BBOX_NAME, Manipulate, ToolState, ToolWrapper, ZOOM_NAME, make_tool_vec,
 };
-use crate::types::ExtraIms;
 use crate::util::Visibility;
 use crate::world::World;
-use crate::{
-    Annotation, ToolsDataMap, UpdateView, apply_tool_method_mut, httpserver, image_util,
-    measure_time,
-};
+use crate::{Annotation, UpdateView, apply_tool_method_mut, httpserver, image_util, measure_time};
 use egui::Context;
 use image::{DynamicImage, GenericImageView};
-use image::{ImageBuffer, Rgb};
 use rvimage_domain::{BbI, PtI, RvResult, ShapeF};
 use std::fmt::Debug;
 use std::mem;
@@ -28,9 +23,6 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::time::Instant;
 use tracing::{error, info, warn};
-
-const START_WIDTH: u32 = 640;
-const START_HEIGHT: u32 = 480;
 
 fn pos_2_string_gen<T>(im: &T, x: u32, y: u32) -> String
 where
@@ -98,18 +90,6 @@ macro_rules! activate_tool_event {
     };
 }
 
-fn empty_world() -> World {
-    World::from_real_im(
-        DynamicImage::ImageRgb8(ImageBuffer::<Rgb<u8>, _>::new(START_WIDTH, START_HEIGHT)),
-        ExtraIms::default(),
-        ToolsDataMap::new(),
-        None,
-        None,
-        Path::new(""),
-        None,
-    )
-}
-
 fn find_active_tool(tools: &[ToolState]) -> Option<&str> {
     tools
         .iter()
@@ -141,7 +121,7 @@ impl MainEventLoop {
     pub fn new(prj_file_path: Option<PathBuf>) -> Self {
         let ctrl = Control::new();
 
-        let mut world = empty_world();
+        let mut world = World::empty();
         let mut tools = make_tool_vec();
         for t in &mut tools {
             if t.is_active() {

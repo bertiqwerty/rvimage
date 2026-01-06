@@ -706,7 +706,7 @@ pub(super) fn on_key_released(
 #[cfg(test)]
 use {
     crate::tracing_setup::init_tracing_for_tests,
-    crate::types::{ExtraIms, ViewImage},
+    crate::types::{ThumbIms, ViewImage},
     image::DynamicImage,
     rvimage_domain::{BbI, ShapeI, make_test_bbs, make_test_geos},
 };
@@ -720,7 +720,7 @@ pub(super) fn test_data() -> (Option<PtF>, World, History) {
     let im_test = DynamicImage::ImageRgb8(ViewImage::new(64, 64));
     let mut world = World::from_real_im(
         im_test,
-        ExtraIms::default(),
+        ThumbIms::default(),
         ToolsDataMap::new(),
         None,
         Some("superimage.png".to_string()),

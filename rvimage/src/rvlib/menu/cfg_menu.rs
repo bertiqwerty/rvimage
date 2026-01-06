@@ -126,6 +126,7 @@ fn settings_popup(
     });
     ui.separator();
     ui.checkbox(&mut cfg.usr.hide_thumbs, "Hide Thumbnails");
+    ui.checkbox(&mut cfg.usr.thumb_attrs_view, "Show Image Attribute List");
     ui.separator();
     if ui
         .checkbox(

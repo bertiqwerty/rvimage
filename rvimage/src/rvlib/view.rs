@@ -4,6 +4,9 @@ use rvimage_domain::{BbF, Calc, PtF, ShapeI, TPtF, pos_transform};
 
 pub type ImageU8 = ImageBuffer<Rgb<u8>, Vec<u8>>;
 
+pub const START_WIDTH: u32 = 640;
+pub const START_HEIGHT: u32 = 480;
+
 /// Scales a coordinate from an axis of `size_from` to an axis of `size_to`
 pub fn scale_coord<T>(x: T, size_from: T, size_to: T) -> T
 where

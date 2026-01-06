@@ -7,13 +7,16 @@ use crate::tools_data::predictive_labeling::PredictiveLabelingData;
 use crate::tools_data::{
     self, AccessInstanceData, LabelInfo, ToolSpecifics, ToolsData, ToolsDataMap, vis_from_lfoption,
 };
-use crate::types::{ExtraIms, ExtraViews, ViewImage};
+use crate::types::{ImageMetaPair, ThumbIms, ThumbViews, ViewImage, ViewMetaPair};
 use crate::util::Visibility;
-use crate::{InstanceAnnotate, UpdatePermAnnos, UpdateView, image_util};
+use crate::view::{START_HEIGHT, START_WIDTH};
+use crate::{ImageMeta, InstanceAnnotate, UpdatePermAnnos, UpdateView, image_util};
 use image::DynamicImage;
 use rvimage_domain::{BbF, RvError, RvResult, ShapeF, ShapeI};
-use std::path::Path;
 use std::{fmt::Debug, mem};
+
+#[cfg(test)]
+use std::path::Path;
 
 pub(super) fn get<'a>(
     world: &'a World,
@@ -267,8 +270,8 @@ macro_rules! instance_annotations_accessor {
 
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
-    im_background: DynamicImage,
-    extra_ims: ExtraIms,
+    im_background: ImageMetaPair,
+    thumb_ims: ThumbIms,
     ui_image_rect: Option<ShapeF>,
     pub meta_data: MetaData,
     pub tools_data_map: ToolsDataMap,
@@ -277,15 +280,15 @@ pub struct DataRaw {
 impl DataRaw {
     #[must_use]
     pub fn new(
-        im_background: DynamicImage,
-        extra_ims: ExtraIms,
+        im_background: ImageMetaPair,
+        extra_ims: ThumbIms,
         tools_data_map: ToolsDataMap,
         meta_data: MetaData,
         ui_image_rect: Option<ShapeF>,
     ) -> Self {
         DataRaw {
             im_background,
-            extra_ims,
+            thumb_ims: extra_ims,
             ui_image_rect,
             meta_data,
             tools_data_map,
@@ -294,10 +297,10 @@ impl DataRaw {
 
     #[must_use]
     pub fn im_background(&self) -> &DynamicImage {
-        &self.im_background
+        &self.im_background.im
     }
     pub fn im_background_mut(&mut self) -> &mut DynamicImage {
-        &mut self.im_background
+        &mut self.im_background.im
     }
 
     pub fn set_image_rect(&mut self, ui_image_rect: Option<ShapeF>) {
@@ -308,34 +311,37 @@ impl DataRaw {
     where
         FI: FnMut(DynamicImage) -> DynamicImage,
     {
-        self.im_background = f_i(mem::take(&mut self.im_background));
+        self.im_background.im = f_i(mem::take(&mut self.im_background.im));
     }
 
     #[must_use]
     pub fn shape(&self) -> ShapeI {
-        ShapeI::from_im(&self.im_background)
+        ShapeI::from_im(&self.im_background.im)
     }
 
     #[must_use]
-    pub fn bg_to_uncropped_view(&self) -> ViewImage {
-        image_util::orig_to_0_255(&self.im_background, &None)
+    pub fn bg_to_uncropped_view(&self) -> ViewMetaPair {
+        ViewMetaPair {
+            im: image_util::orig_to_0_255(&self.im_background.im, &None),
+            meta: self.im_background.meta.clone(),
+        }
     }
-    pub fn extra_im_to_extra_views(&self) -> ExtraViews {
-        ExtraViews {
-            prev_ims: self
-                .extra_ims
-                .prev_ims
-                .iter()
-                .map(|im| image_util::orig_to_0_255(im, &None))
-                .collect(),
-            next_ims: self
-                .extra_ims
-                .next_ims
-                .iter()
-                .map(|im| image_util::orig_to_0_255(im, &None))
-                .collect(),
-            prev_meta: self.extra_ims.prev_meta.clone(),
-            next_meta: self.extra_ims.next_meta.clone(),
+    pub fn extra_im_to_extra_views(&self) -> ThumbViews {
+        let cvt = |ims: &[ImageMetaPair]| {
+            ims.iter()
+                .map(|im| ViewMetaPair {
+                    im: image_util::orig_to_0_255(&im.im, &None),
+                    meta: im.meta.clone(),
+                })
+                .collect()
+        };
+        ThumbViews {
+            prev_ims: cvt(&self.thumb_ims.prev_ims),
+            im: self.thumb_ims.im.as_ref().map(|im| ViewMetaPair {
+                im: image_util::orig_to_0_255(&im.im, &None),
+                meta: im.meta.clone(),
+            }),
+            next_ims: cvt(&self.thumb_ims.next_ims),
         }
     }
 }
@@ -486,10 +492,10 @@ impl World {
     }
 
     /// real image in contrast to the loading image
-    #[must_use]
+    #[cfg(test)]
     pub fn from_real_im(
         im: DynamicImage,
-        extra_ims: ExtraIms,
+        extra_ims: ThumbIms,
         tools_data: ToolsDataMap,
         ui_image_rect: Option<ShapeF>,
         file_path: Option<String>,
@@ -500,8 +506,29 @@ impl World {
             (Some(fp), Some(fsidx)) => MetaData::from_filepath(fp, fsidx, prj_path),
             _ => MetaData::default(),
         };
+        let im = ImageMetaPair {
+            im,
+            meta: ImageMeta::default(),
+        };
         Self::new(
             DataRaw::new(im, extra_ims, tools_data, meta_data, ui_image_rect),
+            None,
+        )
+    }
+    pub fn empty() -> Self {
+        let im = DynamicImage::ImageRgb8(ViewImage::new(START_WIDTH, START_HEIGHT));
+        let im = ImageMetaPair {
+            im,
+            meta: ImageMeta::default(),
+        };
+        Self::new(
+            DataRaw::new(
+                im,
+                ThumbIms::default(),
+                ToolsDataMap::new(),
+                MetaData::default(),
+                None,
+            ),
             None,
         )
     }
@@ -535,14 +562,14 @@ impl World {
     pub fn set_image_rect(&mut self, ui_image_rect: Option<ShapeF>) {
         self.data.set_image_rect(ui_image_rect);
     }
-    pub fn set_background_image(&mut self, image: DynamicImage) {
-        if ShapeI::from_im(&image) != self.shape_orig() {
+    pub fn set_background_image(&mut self, image: ImageMetaPair) {
+        if ShapeI::from_im(&image.im) != self.shape_orig() {
             self.zoom_box = None;
         }
         self.data.im_background = image;
     }
-    pub fn set_extra_images(&mut self, images: ExtraIms) {
-        self.data.extra_ims = images;
+    pub fn set_extra_images(&mut self, images: ThumbIms) {
+        self.data.thumb_ims = images;
     }
 }
 impl Debug for World {

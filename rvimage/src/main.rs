@@ -17,9 +17,9 @@ use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
 use rvimage_domain::{BbF, Canvas, PtF, RvResult, ShapeF, TPtF, TPtI, to_rv};
 use rvlib::{
-    Annotation, BboxAnnotation, BrushAnnotation, ExtraMeta, ExtraViews, GeoFig, InstanceAnnotate,
-    InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, UpdateExtraImages, UpdateImage,
-    UpdatePermAnnos, UpdateTmpAnno, UpdateZoomBox,
+    Annotation, BboxAnnotation, BrushAnnotation, GeoFig, ImageMeta, InstanceAnnotate,
+    InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, ThumbViews, UpdateImage,
+    UpdatePermAnnos, UpdateThumbImages, UpdateTmpAnno, UpdateZoomBox, ViewMetaPair,
     cfg::{Cfg, ExportPath, ExportPathConnection},
     control::Control,
     file_util::{DEFAULT_HOMEDIR, osstr_to_str},
@@ -176,14 +176,14 @@ mod detail {
     }
 }
 
-fn add_extra_ims<'a>(
+fn add_thumb_ims<'a>(
     ui: &mut Ui,
-    textures: &[TextureHandle],
-    metas: &'a [ExtraMeta],
+    textures: impl Iterator<Item = &'a TextureHandle>,
+    metas: impl Iterator<Item = &'a ImageMeta>,
     show_horizontally: bool,
 ) -> Option<&'a str> {
     let mut clicked_file_label = None;
-    let mut add = |ui: &mut Ui, texture, meta: &'a ExtraMeta| {
+    let mut add = |ui: &mut Ui, texture, meta: &'a ImageMeta| {
         let ui_image =
             detail::handle_2_image(texture, texture.size()).sense(Sense::click_and_drag());
 
@@ -193,20 +193,20 @@ fn add_extra_ims<'a>(
     };
     if show_horizontally {
         ui.horizontal(|ui| {
-            for (texture, meta) in textures.iter().zip(metas) {
+            for (texture, meta) in textures.zip(metas) {
                 add(ui, texture, meta);
             }
         });
     } else {
         egui::Grid::new("thumb-attr-list").show(ui, |ui| {
-            for (texture, meta) in textures.iter().zip(metas) {
-                add(ui, texture, meta);
+            for (texture, meta) in textures.zip(metas) {
                 if let Some(attrs) = &meta.attrs {
                     for (k, v) in attrs.iter() {
                         ui.label(k.to_string());
                         ui.label(v.to_string());
                     }
                 }
+                add(ui, texture, meta);
                 ui.end_row();
             }
         });
@@ -217,14 +217,16 @@ fn add_extra_ims<'a>(
 struct RvImageApp {
     event_loop: MainEventLoop,
     texture: Option<TextureHandle>,
-    extra_textures_prev: Vec<TextureHandle>,
-    extra_textures_next: Vec<TextureHandle>,
+    thumb_textures_prev: Vec<TextureHandle>,
+    thumb_texture_im: Option<TextureHandle>,
+    thumb_textures_next: Vec<TextureHandle>,
     perm_annos: Vec<Annotation>,
     tmp_anno: Option<Annotation>,
     zoom_box: Option<BbF>,
     im_orig: ImageU8,
+    meta_orig: ImageMeta,
     im_view: ImageU8,
-    extra_ims: ExtraViews,
+    thumb_ims: ThumbViews,
     events: rvlib::Events,
     last_sensed_btncodes: rvlib::LastSensedBtns,
     t_last_iterations: [f64; 3],
@@ -605,19 +607,20 @@ impl RvImageApp {
             ctx,
         ));
     }
-    fn update_extra_textures(&mut self, ctx: &Context) {
-        self.extra_textures_prev = self
-            .extra_ims
-            .prev_ims
-            .iter()
-            .map(|im| detail::clrim_2_handle(detail::image_2_colorimage(im), ctx))
-            .collect();
-        self.extra_textures_next = self
-            .extra_ims
-            .next_ims
-            .iter()
-            .map(|im| detail::clrim_2_handle(detail::image_2_colorimage(im), ctx))
-            .collect();
+    fn update_thumb_textures(&mut self, ctx: &Context) {
+        let totxtr = |ims: &[ViewMetaPair]| {
+            ims.iter()
+                .map(|im| detail::clrim_2_handle(detail::image_2_colorimage(&im.im), ctx))
+                .collect()
+        };
+        self.thumb_textures_prev = totxtr(&self.thumb_ims.prev_ims);
+        if let Some(im) = &self.thumb_ims.im {
+            self.thumb_texture_im = Some(detail::clrim_2_handle(
+                detail::image_2_colorimage(&im.im),
+                ctx,
+            ));
+        }
+        self.thumb_textures_next = totxtr(&self.thumb_ims.next_ims);
     }
 }
 
@@ -657,12 +660,13 @@ impl eframe::App for RvImageApp {
                     }
                     if let UpdateImage::Yes(im) = update_view.image {
                         time_scope!("update_texture_image");
-                        self.im_orig = im;
+                        self.im_orig = im.im;
+                        self.meta_orig = im.meta;
                         self.update_texture(ctx);
                     }
-                    if let UpdateExtraImages::Yes(extra_ims) = update_view.extra_ims {
-                        self.extra_ims = extra_ims;
-                        self.update_extra_textures(ctx);
+                    if let UpdateThumbImages::Yes(thumb_ims) = update_view.thumb_ims {
+                        self.thumb_ims = thumb_ims;
+                        self.update_thumb_textures(ctx);
                     }
                     let it_per_s = 1.0
                         / (self.t_last_iterations.iter().sum::<f64>()
@@ -688,23 +692,38 @@ impl eframe::App for RvImageApp {
                             .truncate(),
                         );
 
+                        let show_horizontally = show_main_image;
                         if show_thumbs {
-                            let clicked_file_label = add_extra_ims(
-                                ui,
-                                &self.extra_textures_prev,
-                                &self.extra_ims.prev_meta,
-                                show_main_image,
-                            );
+                            let (appendee_im, appendee_meta) = if show_main_image {
+                                (None, None)
+                            } else {
+                                (
+                                    self.thumb_texture_im.as_ref(),
+                                    self.thumb_ims.im.as_ref().map(|im| &im.meta),
+                                )
+                            };
+                            let prev_iter = self
+                                .thumb_textures_prev
+                                .iter()
+                                .chain(iter::once(appendee_im).flatten());
+                            let prev_iter_meta = self
+                                .thumb_ims
+                                .prev_ims
+                                .iter()
+                                .map(|im| &im.meta)
+                                .chain(iter::once(appendee_meta).flatten());
+                            let clicked_file_label =
+                                add_thumb_ims(ui, prev_iter, prev_iter_meta, show_horizontally);
                             if let Some(cfl) = clicked_file_label {
                                 self.request_file_label_to_load = Some(cfl.to_string());
                             }
                         }
-                        let fraction_h = if !self.extra_textures_prev.is_empty()
-                            && !self.extra_textures_next.is_empty()
+                        let fraction_h = if !self.thumb_textures_prev.is_empty()
+                            && !self.thumb_textures_next.is_empty()
                         {
                             0.75
-                        } else if !self.extra_textures_prev.is_empty()
-                            || !self.extra_textures_next.is_empty()
+                        } else if !self.thumb_textures_prev.is_empty()
+                            || !self.thumb_textures_next.is_empty()
                         {
                             0.875
                         } else {
@@ -719,11 +738,11 @@ impl eframe::App for RvImageApp {
                             None
                         };
                         if show_thumbs {
-                            let clicked_file_label = add_extra_ims(
+                            let clicked_file_label = add_thumb_ims(
                                 ui,
-                                &self.extra_textures_next,
-                                &self.extra_ims.next_meta,
-                                show_main_image,
+                                self.thumb_textures_next.iter(),
+                                self.thumb_ims.next_ims.iter().map(|im| &im.meta),
+                                show_horizontally,
                             );
                             if let Some(cfl) = clicked_file_label {
                                 self.request_file_label_to_load = Some(cfl.to_string());

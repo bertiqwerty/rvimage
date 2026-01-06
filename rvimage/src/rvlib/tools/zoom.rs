@@ -196,7 +196,7 @@ impl Manipulate for Zoom {
 
 #[cfg(test)]
 use {
-    crate::{tools_data::ToolsDataMap, types::ExtraIms},
+    crate::{tools_data::ToolsDataMap, types::ThumbIms},
     image::DynamicImage,
     rvimage_domain::RvResult,
     std::path::Path,
@@ -248,7 +248,7 @@ fn test_on_mouse_pressed() -> RvResult<()> {
     let prj_path = Path::new("");
     let world = World::from_real_im(
         im_orig,
-        ExtraIms::default(),
+        ThumbIms::default(),
         ToolsDataMap::new(),
         None,
         None,
@@ -271,7 +271,7 @@ fn test_on_mouse_released() -> RvResult<()> {
     let prj_path = Path::new("");
     let world = World::from_real_im(
         im_orig,
-        ExtraIms::default(),
+        ThumbIms::default(),
         ToolsDataMap::new(),
         None,
         None,

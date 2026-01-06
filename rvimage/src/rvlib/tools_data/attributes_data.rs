@@ -51,7 +51,7 @@ pub struct AttributesToolData {
     #[serde(alias = "new_attr_name_buffers")]
     new_attr_value_buffers: Vec<String>,
     // maps the filename to the number of rotations
-    annotations_map: AttrAnnotationsMap,
+    pub annotations_map: AttrAnnotationsMap,
     pub options: Options,
     pub current_attr_map: Option<ParamMap>,
     pub export_path: ExportPath,

@@ -31,8 +31,8 @@ mod util;
 pub mod view;
 pub mod world;
 pub use drawme::{
-    Annotation, BboxAnnotation, BrushAnnotation, ExtraViews, Stroke, UpdateExtraImages,
-    UpdateImage, UpdatePermAnnos, UpdateTmpAnno, UpdateView, UpdateZoomBox,
+    Annotation, BboxAnnotation, BrushAnnotation, Stroke, ThumbViews, UpdateImage, UpdatePermAnnos,
+    UpdateThumbImages, UpdateTmpAnno, UpdateView, UpdateZoomBox,
 };
 pub use egui_mappers::{LastSensedBtns, map_key, map_key_events, map_mouse_events};
 pub use events::{Event, Events, KeyCode, ZoomAmount};
@@ -46,5 +46,5 @@ pub use tools_data::{
     InstanceAnnotate, InstanceLabelDisplay, Rot90ToolData, ToolsDataMap,
     coco_io::{read_coco, to_per_file_crowd, write_coco},
 };
-pub use types::ExtraMeta;
+pub use types::{ImageMeta, ViewMetaPair};
 pub use util::Defer;

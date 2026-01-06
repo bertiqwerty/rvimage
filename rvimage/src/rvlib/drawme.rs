@@ -1,5 +1,5 @@
-pub use crate::types::ExtraViews;
-use crate::{GeoFig, tools_data::InstanceLabelDisplay, types::ViewImage, world::DataRaw};
+pub use crate::types::ThumbViews;
+use crate::{GeoFig, ViewMetaPair, tools_data::InstanceLabelDisplay, world::DataRaw};
 use rvimage_domain::{BbF, Canvas, Circle, TPtF};
 use std::default::Default;
 
@@ -55,9 +55,9 @@ pub enum Update<T> {
 }
 
 // None -> hide main image
-pub type UpdateImage = Update<ViewImage>;
+pub type UpdateImage = Update<ViewMetaPair>;
 // thumbnails
-pub type UpdateExtraImages = Update<ExtraViews>;
+pub type UpdateThumbImages = Update<ThumbViews>;
 
 // permament annotations
 pub type UpdatePermAnnos = Update<Vec<Annotation>>;
@@ -83,7 +83,7 @@ pub struct ImageInfo {
 #[derive(Clone, Debug, Default)]
 pub struct UpdateView {
     pub image: UpdateImage,
-    pub extra_ims: UpdateExtraImages,
+    pub thumb_ims: UpdateThumbImages,
     pub perm_annos: UpdatePermAnnos,
     pub tmp_annos: UpdateTmpAnno,
     pub zoom_box: UpdateZoomBox,
@@ -99,7 +99,7 @@ impl UpdateView {
         let extra_ims = image.extra_im_to_extra_views();
         UpdateView {
             image: UpdateImage::Yes(im_uncropped_view),
-            extra_ims: UpdateExtraImages::Yes(extra_ims),
+            thumb_ims: UpdateThumbImages::Yes(extra_ims),
             perm_annos: UpdatePermAnnos::No,
             tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
@@ -110,7 +110,7 @@ impl UpdateView {
     pub fn from_zoombox(zoom_box: Option<BbF>) -> Self {
         UpdateView {
             image: UpdateImage::No,
-            extra_ims: UpdateExtraImages::No,
+            thumb_ims: UpdateThumbImages::No,
             perm_annos: UpdatePermAnnos::No,
             tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),

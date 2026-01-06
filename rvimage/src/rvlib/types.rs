@@ -15,48 +15,62 @@ pub struct ImageInfoPair {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct ExtraIms {
-    pub prev_ims: Vec<DynamicImage>,
-    pub next_ims: Vec<DynamicImage>,
-    pub prev_meta: Vec<ExtraMeta>,
-    pub next_meta: Vec<ExtraMeta>,
+pub struct ImageMetaPair {
+    pub im: DynamicImage,
+    pub meta: ImageMeta,
 }
-impl ExtraIms {
-    pub fn new(
-        mut prev_ims: Vec<DynamicImage>,
-        mut next_ims: Vec<DynamicImage>,
-        w_max: u32,
-        h_max: u32,
-        prev_meta: Vec<ExtraMeta>,
-        next_meta: Vec<ExtraMeta>,
-    ) -> Self {
-        prev_ims = prev_ims
-            .iter()
-            .map(|im| im.resize(w_max, h_max, FilterType::Lanczos3))
-            .collect();
-        next_ims = next_ims
-            .iter()
-            .map(|im| im.resize(w_max, h_max, FilterType::Lanczos3))
-            .collect();
-        ExtraIms {
-            prev_ims,
-            next_ims,
-            prev_meta,
-            next_meta,
+impl ImageMetaPair {
+    fn resize(&self, w_max: u32, h_max: u32, filter_type: FilterType) -> Self {
+        Self {
+            im: self.im.resize(w_max, h_max, filter_type),
+            meta: self.meta.clone(),
         }
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct ExtraMeta {
+pub struct ViewMetaPair {
+    pub im: ViewImage,
+    pub meta: ImageMeta,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ThumbIms {
+    pub prev_ims: Vec<ImageMetaPair>,
+    pub im: Option<ImageMetaPair>,
+    pub next_ims: Vec<ImageMetaPair>,
+}
+impl ThumbIms {
+    pub fn new(
+        prev_ims: Vec<ImageMetaPair>,
+        next_ims: Vec<ImageMetaPair>,
+        im: Option<&ImageMetaPair>,
+        w_max: u32,
+        h_max: u32,
+    ) -> Self {
+        ThumbIms {
+            prev_ims: prev_ims
+                .iter()
+                .map(|im| im.resize(w_max, h_max, FilterType::Lanczos3))
+                .collect(),
+            im: im.map(|im| im.resize(w_max, h_max, FilterType::Lanczos3)),
+            next_ims: next_ims
+                .iter()
+                .map(|im| im.resize(w_max, h_max, FilterType::Lanczos3))
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ImageMeta {
     pub file_label: String,
     pub attrs: Option<ParamMap>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct ExtraViews {
-    pub prev_ims: Vec<ViewImage>,
-    pub next_ims: Vec<ViewImage>,
-    pub prev_meta: Vec<ExtraMeta>,
-    pub next_meta: Vec<ExtraMeta>,
+pub struct ThumbViews {
+    pub prev_ims: Vec<ViewMetaPair>,
+    pub im: Option<ViewMetaPair>,
+    pub next_ims: Vec<ViewMetaPair>,
 }

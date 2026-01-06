@@ -9,7 +9,7 @@ use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
 use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
-use crate::types::{ExtraIms, ExtraMeta};
+use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
 use crate::world::World;
 use crate::{
@@ -830,46 +830,52 @@ impl Control {
         )
     }
 
-    fn load_thumbnails(
-        &mut self,
-        world: &World,
-        start: usize,
-        end: usize,
-    ) -> (Vec<DynamicImage>, Vec<ExtraMeta>) {
+    fn get_path(&self, idx: usize) -> Option<String> {
+        trace_ok_err(
+            self.paths_navigator
+                .file_path(idx)
+                .map(|p| p.path_absolute().to_string())
+                .ok_or_else(|| rverr!("index does not have path")),
+        )
+    }
+
+    fn get_image_meta(&self, world: &World, idx: usize) -> Option<ImageMeta> {
+        let file_label = self
+            .paths_navigator
+            .paths_selector()
+            .and_then(|ps| ps.file_label_of_idx(idx));
+
+        file_label.map(|file_label| {
+            let attrmap = world
+                .data
+                .tools_data_map
+                .get(ATTRIBUTES_NAME)
+                .and_then(|d| trace_ok_err(d.specifics.attributes()))
+                .and_then(|d| d.get_annos(file_label));
+            ImageMeta {
+                file_label: file_label.to_string(),
+                attrs: attrmap.cloned(),
+            }
+        })
+    }
+
+    fn load_thumbnails(&mut self, world: &World, start: usize, end: usize) -> Vec<ImageMetaPair> {
         (start..end)
             .flat_map(|idx| {
-                let path = trace_ok_err(
-                    self.paths_navigator
-                        .file_path(idx)
-                        .map(|p| p.path_absolute().to_string())
-                        .ok_or_else(|| rverr!("index does not have path")),
-                );
-                let file_label = self
-                    .paths_navigator
-                    .paths_selector()
-                    .and_then(|ps| ps.file_label_of_idx(idx));
+                let path = self.get_path(idx);
+                let meta_data = self.get_image_meta(world, idx);
 
-                if let (Some(p), Some(file_label)) = (path, file_label) {
-                    let attrmap = world
-                        .data
-                        .tools_data_map
-                        .get(ATTRIBUTES_NAME)
-                        .and_then(|d| trace_ok_err(d.specifics.attributes()))
-                        .and_then(|d| d.get_annos(&p));
-                    let meta = ExtraMeta {
-                        file_label: file_label.to_string(),
-                        attrs: attrmap.cloned(),
-                    };
-                    let im = if let Some(im) = self.thumbnail_cache.get(&p) {
+                if let (Some(p), Some(meta)) = (path.as_deref(), meta_data) {
+                    let im = if let Some(im) = self.thumbnail_cache.get(p) {
                         Some(im.clone())
                     } else {
                         let in_cache_im = self.read_cached_image(idx).map(|im| {
                             im.and_then(|im| {
                                 let im_thumb = im.im.resize(200, 100, FilterType::Lanczos3);
                                 let im_rotated_thumb =
-                                    trace_ok_err(rotate90(world, im_thumb.clone(), &p));
+                                    trace_ok_err(rotate90(world, im_thumb.clone(), p));
                                 im_rotated_thumb.inspect(|im| {
-                                    self.thumbnail_cache.insert(p.clone(), im.clone());
+                                    self.thumbnail_cache.insert(p.to_string(), im.clone());
                                 })
                             })
                         });
@@ -877,14 +883,12 @@ impl Control {
                             im.unwrap_or(DynamicImage::ImageRgb8(ImageBuffer::new(10, 10)))
                         }))
                     };
-                    im.map(|im| (im, meta))
+                    im.map(|im| ImageMetaPair { im, meta })
                 } else {
                     None
                 }
             })
             .collect::<Vec<_>>()
-            .into_iter()
-            .unzip()
     }
 
     pub fn load_new_image_if_triggered(
@@ -910,9 +914,12 @@ impl Control {
                         )
                     });
                     let im_read = self.read_image(*selected)?;
-                    let new_world_idx_pair = match (abs_file_path, im_read) {
-                        (Some(fp), Some(ri)) => {
+                    let meta = self.get_image_meta(world, *selected);
+                    let new_world_idx_pair = match (abs_file_path, im_read, meta) {
+                        (Some(fp), Some(ri), Some(meta)) => {
                             tracing::info!("loading {} from {}", ri.info, fp);
+                            let im = ri.im;
+                            let im = ImageMetaPair { im, meta };
                             self.file_selected_idx = menu_file_selected;
                             self.file_info_selected = Some(ri.info);
                             let mut new_world = world.clone();
@@ -921,7 +928,7 @@ impl Control {
                             } else {
                                 0
                             };
-                            let (prev_images, prev_meta) =
+                            let prev_images =
                                 self.load_thumbnails(&new_world, prev_start, *selected);
                             let n = self.paths_navigator.len_filtered().unwrap_or(0);
                             let next_end = if n > *selected + 1 + self.cfg.usr.n_next_thumbs {
@@ -929,18 +936,17 @@ impl Control {
                             } else {
                                 n
                             };
-                            let (next_images, next_meta) =
+                            let next_images =
                                 self.load_thumbnails(&new_world, *selected + 1, next_end);
-                            let extra_ims = ExtraIms::new(
+                            let extra_ims = ThumbIms::new(
                                 prev_images,
                                 next_images,
+                                Some(&im),
                                 self.cfg.usr.thumb_w_max,
                                 self.cfg.usr.thumb_h_max,
-                                prev_meta,
-                                next_meta,
                             );
                             new_world.set_extra_images(extra_ims);
-                            new_world.set_background_image(ri.im);
+                            new_world.set_background_image(im);
                             new_world.reset_updateview();
 
                             if !self.flags.undo_redo_load {
