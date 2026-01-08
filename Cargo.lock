@@ -2278,24 +2278,6 @@ dependencies = [
 
 [[package]]
 name = "imageproc"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2393fb7808960751a52e8a154f67e7dd3f8a2ef9bd80d1553078a7b4e8ed3f0d"
-dependencies = [
- "ab_glyph",
- "approx",
- "getrandom 0.2.16",
- "image",
- "itertools 0.12.1",
- "nalgebra 0.32.6",
- "num",
- "rand 0.8.5",
- "rand_distr 0.4.3",
- "rayon",
-]
-
-[[package]]
-name = "imageproc"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3880a67ffee492100224b2ff31f4220ade971fc327c3c96faa63095a3825ea4d"
@@ -2304,11 +2286,11 @@ dependencies = [
  "approx",
  "getrandom 0.3.4",
  "image",
- "itertools 0.14.0",
- "nalgebra 0.34.1",
+ "itertools",
+ "nalgebra",
  "num",
  "rand 0.9.2",
- "rand_distr 0.5.1",
+ "rand_distr",
  "rayon",
  "rustdct",
 ]
@@ -2385,15 +2367,6 @@ name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
-
-[[package]]
-name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
-]
 
 [[package]]
 name = "itertools"
@@ -2736,21 +2709,6 @@ dependencies = [
 
 [[package]]
 name = "nalgebra"
-version = "0.32.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5c17de023a86f59ed79891b2e5d5a94c705dbe904a5b5c9c952ea6221b03e4"
-dependencies = [
- "approx",
- "matrixmultiply",
- "num-complex",
- "num-rational",
- "num-traits",
- "simba 0.8.1",
- "typenum",
-]
-
-[[package]]
-name = "nalgebra"
 version = "0.34.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4d5b3eff5cd580f93da45e64715e8c20a3996342f1e466599cf7a267a0c2f5f"
@@ -2776,7 +2734,7 @@ dependencies = [
  "num-complex",
  "num-rational",
  "num-traits",
- "simba 0.9.1",
+ "simba",
  "typenum",
 ]
 
@@ -2869,7 +2827,6 @@ version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35bd024e8b2ff75562e5f34e7f4905839deb4b22955ef5e73d2fea1b9813cb23"
 dependencies = [
- "num-bigint",
  "num-complex",
  "num-integer",
  "num-iter",
@@ -3788,16 +3745,6 @@ dependencies = [
 
 [[package]]
 name = "rand_distr"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
-dependencies = [
- "num-traits",
- "rand 0.8.5",
-]
-
-[[package]]
-name = "rand_distr"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
@@ -3831,7 +3778,7 @@ dependencies = [
  "built",
  "cfg-if",
  "interpolate_name",
- "itertools 0.14.0",
+ "itertools",
  "libc",
  "libfuzzer-sys",
  "log",
@@ -4299,7 +4246,7 @@ dependencies = [
  "futures",
  "httparse",
  "image",
- "imageproc 0.26.0",
+ "imageproc",
  "lazy_static",
  "log",
  "percent-encoding",
@@ -4308,7 +4255,7 @@ dependencies = [
  "reqwest 0.13.1",
  "rfd",
  "rusttype",
- "rvimage-domain 0.4.10",
+ "rvimage-domain 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "ssh2",
@@ -4326,12 +4273,10 @@ dependencies = [
 
 [[package]]
 name = "rvimage-domain"
-version = "0.4.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a43e35875e3b46fc1d1ea0b954e9ce2896e9086c5ac0dd512b0f4a018a76138"
+version = "0.4.11"
 dependencies = [
  "image",
- "imageproc 0.25.0",
+ "imageproc",
  "serde",
  "serde_json",
  "tracing",
@@ -4340,9 +4285,11 @@ dependencies = [
 [[package]]
 name = "rvimage-domain"
 version = "0.4.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f95e78a3d94fd6754c9510ac0c62b07a6a65740e84c523825ced38ed7395c28"
 dependencies = [
  "image",
- "imageproc 0.26.0",
+ "imageproc",
  "serde",
  "serde_json",
  "tracing",
@@ -4546,19 +4493,6 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
-
-[[package]]
-name = "simba"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "061507c94fc6ab4ba1c9a0305018408e312e17c041eb63bef8aa726fa33aceae"
-dependencies = [
- "approx",
- "num-complex",
- "num-traits",
- "paste",
- "wide",
-]
 
 [[package]]
 name = "simba"
