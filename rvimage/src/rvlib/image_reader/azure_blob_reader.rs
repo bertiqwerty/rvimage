@@ -36,10 +36,11 @@ async fn blob_list(
             .prefix(prefix.to_string())
             .into_stream()
     };
+    let container_name = container_client.container_name();
     while let Some(value) = timeout(Duration::from_secs(page_timeout_s), stream.next())
         .await
         .map_err(|_| {
-            rverr!("timeout while listing Azure blobs, waited more than {page_timeout_s} seconds; error: tokio::time::Elapased")
+            rverr!("timeout while listing Azure blobs of container {container_name}, waited more than {page_timeout_s} seconds; error: tokio::time::Elapased")
         })?
     {
         let page = value.map_err(|e| {
