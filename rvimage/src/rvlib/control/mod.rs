@@ -840,10 +840,10 @@ impl Control {
     }
 
     fn get_image_meta(&self, world: &World, idx: usize) -> Option<ImageMeta> {
-        let file_label = self
-            .paths_navigator
-            .paths_selector()
-            .and_then(|ps| ps.file_label_of_idx(idx));
+        let file_label = self.paths_navigator.paths_selector().map(|ps| {
+            let (_, file_label) = ps.filtered_idx_file_label_pairs(idx);
+            file_label
+        });
 
         file_label.map(|file_label| {
             let attrmap = world
@@ -915,6 +915,9 @@ impl Control {
                     });
                     let im_read = self.read_image(*selected)?;
                     let meta = self.get_image_meta(world, *selected);
+                    tracing::debug!("meta {}", meta.is_some());
+                    tracing::debug!("im_read {}", im_read.is_some());
+                    tracing::debug!("abs_file_path {}", abs_file_path.is_some());
                     let new_world_idx_pair = match (abs_file_path, im_read, meta) {
                         (Some(fp), Some(ri), Some(meta)) => {
                             tracing::info!("loading {} from {}", ri.info, fp);
