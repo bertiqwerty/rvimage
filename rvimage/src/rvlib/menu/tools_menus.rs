@@ -601,7 +601,7 @@ fn existing_params_menu(
     are_tools_active: &mut bool,
     mut more_cols: impl FnMut(&mut Ui, bool, usize, ParamVal) -> bool,
     mut param_buffers: Vec<String>,
-) -> RvResult<ExistingParamMenuResult> {
+) -> ExistingParamMenuResult {
     let mut result = ExistingParamMenuResult::default();
     let n_attrs = attr_map.len();
     egui::Grid::new("attributes_grid")
@@ -615,54 +615,54 @@ fn existing_params_menu(
                         panic!("BUG! could not find idx {idx_row} in params of {attr_map:?}")
                     })
                     .clone();
-                let mut new_attr_buffer = mem::take(&mut param_buffers[idx_row]);
-                ui.label(&attr_name);
-                let mut input_changed = false;
-                match attr_map.get_mut(&attr_name) {
-                    Some(ParamVal::Bool(b)) => {
-                        if ui.checkbox(b, "").changed() {
-                            input_changed = true;
+                if let Some(param_buffer) = param_buffers.get_mut(idx_row) {
+                    ui.label(&attr_name);
+                    let mut input_changed = false;
+                    match attr_map.get_mut(&attr_name) {
+                        Some(ParamVal::Bool(b)) => {
+                            if ui.checkbox(b, "").changed() {
+                                input_changed = true;
+                            }
+                        }
+                        Some(ParamVal::Float(x)) => {
+                            input_changed = update_numeric_attribute(
+                                ui,
+                                are_tools_active,
+                                x,
+                                FLOAT_LABEL,
+                                param_buffer,
+                            );
+                        }
+                        Some(ParamVal::Int(x)) => {
+                            input_changed = update_numeric_attribute(
+                                ui,
+                                are_tools_active,
+                                x,
+                                INT_LABEL,
+                                param_buffer,
+                            );
+                        }
+                        Some(ParamVal::Str(s)) => {
+                            input_changed = text_edit_singleline(ui, s, are_tools_active)
+                                .on_hover_text(TEXT_LABEL)
+                                .lost_focus();
+                        }
+                        None => {
+                            warn!("attr_map does not contain {attr_name}");
                         }
                     }
-                    Some(ParamVal::Float(x)) => {
-                        input_changed = update_numeric_attribute(
-                            ui,
-                            are_tools_active,
-                            x,
-                            FLOAT_LABEL,
-                            &mut new_attr_buffer,
-                        );
+                    if let Some(attr_val) = attr_map.get(&attr_name)
+                        && more_cols(ui, input_changed, idx_row, attr_val.clone())
+                    {
+                        result.is_update_triggered = true;
                     }
-                    Some(ParamVal::Int(x)) => {
-                        input_changed = update_numeric_attribute(
-                            ui,
-                            are_tools_active,
-                            x,
-                            INT_LABEL,
-                            &mut new_attr_buffer,
-                        );
-                    }
-                    Some(ParamVal::Str(s)) => {
-                        input_changed = text_edit_singleline(ui, s, are_tools_active)
-                            .on_hover_text(TEXT_LABEL)
-                            .lost_focus();
-                    }
-                    None => {
-                        warn!("attr_map does not contain {attr_name}");
-                    }
-                }
-                if let Some(attr_val) = attr_map.get(&attr_name)
-                    && more_cols(ui, input_changed, idx_row, attr_val.clone())
-                {
-                    result.is_update_triggered = true;
-                }
-                param_buffers[idx_row] = new_attr_buffer;
 
-                if ui.button("rename").clicked() {
-                    result.action = ExistingParamMenuAction::Rename(idx_row);
-                    result.is_update_triggered = true;
+                    if ui.button("rename").clicked() {
+                        result.action = ExistingParamMenuAction::Rename(idx_row);
+                        result.is_update_triggered = true;
+                    }
+                    ui.end_row();
                 }
-                ui.end_row();
             });
             result.buffers = param_buffers;
             if let Some(tbr) = to_be_removed {
@@ -682,7 +682,7 @@ fn existing_params_menu(
         }
     }
     result.param_map = attr_map;
-    Ok(result)
+    result
 }
 
 pub fn attributes_menu(
@@ -734,7 +734,7 @@ pub fn attributes_menu(
             are_tools_active,
             more_cols,
             param_buffers,
-        )?;
+        );
         data.current_attr_map = Some(existing_res.param_map);
         *data.attr_value_buffers_mut() = existing_res.buffers;
         data.to_propagate_attr_val = to_propagate;
@@ -824,7 +824,7 @@ pub fn predictive_labeling_menu(
         are_tools_active,
         no_more_cols,
         mem::take(&mut data.param_buffers),
-    )?;
+    );
     data.parameters = res.param_map;
     data.param_buffers = res.buffers;
     match res.action {

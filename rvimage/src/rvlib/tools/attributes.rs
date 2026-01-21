@@ -83,9 +83,21 @@ fn file_change(mut world: World) -> World {
     let data = get_specific_mut(&mut world);
 
     if let (Some(data), Some(mut annos)) = (data, annos) {
+        // add all attributes to a new file
         for (attr_name, attr_val) in data.attr_names().iter().zip(data.attr_vals().iter()) {
             if !annos.contains(attr_name) {
                 set_attrmap_val(&mut annos, attr_name, attr_val);
+            }
+        }
+
+        // the other way around, check if attributes exist in the data but not as part of the tool
+        // smells like a corrupt project file if this happens
+        for (attr_name, attr_val) in annos.iter() {
+            if !data.attr_names().contains(attr_name) {
+                tracing::warn!(
+                    "Attribute {attr_name} exists in the data but not in the tool data, adding it"
+                );
+                data.push(attr_name.clone(), attr_val.clone().reset());
             }
         }
 
