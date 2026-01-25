@@ -87,6 +87,7 @@ fn settings_popup(
             }
             if let Some(cfg_) = trace_ok_err(cfg::read_cfg_gen::<Cfg>(&tmppath)) {
                 tracing::info!("config updated with new settings");
+                tracing::info!("{:?}", cfg_);
                 *cfg = cfg_;
             }
             if let Err(e) = cfg.write() {

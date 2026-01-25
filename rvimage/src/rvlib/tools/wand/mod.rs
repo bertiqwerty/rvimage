@@ -1,3 +1,5 @@
+mod server;
+pub use server::{FastAPI, WandServer};
 use std::path::Path;
 
 use image::codecs::png::PngEncoder;

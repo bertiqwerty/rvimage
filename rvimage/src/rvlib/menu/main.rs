@@ -397,6 +397,17 @@ impl Menu {
                     self.toggle_clear_cache_on_close = false;
                 }
 
+                ui.menu_button("Wand Server", |ui| {
+                    if ui.button("Start Wand Server").clicked() {
+                        handle_error!(ctrl.start_wandserver(), self);
+                    }
+                    if ui.button("Stop Wand Server").clicked() {
+                        handle_error!(ctrl.stop_wandserver(), self);
+                    }
+                    if ui.button("Cleanup Wand Server").clicked() {
+                        handle_error!(ctrl.cleanup_wandserver(), self);
+                    }
+                });
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");
                     const CODE: &str = env!("CARGO_PKG_REPOSITORY");

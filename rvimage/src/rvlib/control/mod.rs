@@ -7,7 +7,7 @@ use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
+use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, FastAPI, WandServer, rotate90};
 use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
@@ -361,6 +361,7 @@ pub struct Control {
     pub log_export_path: Option<PathBuf>,
     save_handle: Option<JoinHandle<()>>,
     thumbnail_cache: HashMap<String, DynamicImage>,
+    wand_server: Option<FastAPI>,
 }
 
 impl Control {
@@ -659,6 +660,47 @@ impl Control {
             self.tp
                 .apply(Box::new(move || ReaderFromCfg::from_cfg(cfg)))?,
         );
+        Ok(())
+    }
+
+    pub fn start_wandserver(&mut self) -> RvResult<()> {
+        if let Some(ws) = &self.cfg.prj.wand_server {
+            let mut wand_server = FastAPI::new(
+                ws.srczip_download_url.clone(),
+                ws.setup_cmd.clone(),
+                ws.setup_args.clone(),
+                ws.local_folder
+                    .clone()
+                    .unwrap_or(format!("{}/wand_server", self.cfg.home_folder())),
+            );
+            wand_server.start_server()?;
+            self.wand_server = Some(wand_server);
+            Ok(())
+        } else {
+            Err(rverr!("Cannot start wandserver, cfg missing"))
+        }
+    }
+
+    pub fn stop_wandserver(&mut self) -> RvResult<()> {
+        if let Some(ws) = &mut self.wand_server {
+            tracing::info!("stopping wandserver...");
+            ws.stop_server()?;
+            tracing::info!("... done!");
+            Ok(())
+        } else {
+            Err(rverr!("Cannot stop wandserver, not running"))
+        }
+    }
+    pub fn cleanup_wandserver(&mut self) -> RvResult<()> {
+        if let Some(ws) = &mut self.wand_server {
+            tracing::info!("cleaning up wandserver...");
+            ws.cleanup_server()?;
+            tracing::info!("... cleaning up done.");
+            Ok(())
+        } else {
+            Err(rverr!("Cannot clean wandserver, not running"))
+        }?;
+        self.wand_server = None;
         Ok(())
     }
 

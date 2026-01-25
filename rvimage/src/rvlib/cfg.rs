@@ -86,6 +86,7 @@ impl CfgLegacy {
                 blob_list_timeout_s: get_blob_list_timeout_s(),
             }),
             sort_params: SortParams::default(),
+            wand_server: None,
         };
         Cfg { usr, prj }
     }
@@ -222,6 +223,15 @@ pub struct AzureBlobCfgPrj {
     pub prefix: String,
     #[serde(default = "get_blob_list_timeout_s")]
     pub blob_list_timeout_s: u64,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct WandServerCfg {
+    pub srczip_download_url: String,
+    pub setup_cmd: String,
+    pub setup_args: Vec<String>,
+    pub local_folder: Option<String>,
+    pub autostart: Option<bool>,
 }
 
 #[cfg(feature = "azure_blob")]
@@ -363,6 +373,7 @@ pub struct CfgPrj {
     pub azure_blob: Option<AzureBlobCfgPrj>,
     #[serde(default)]
     pub sort_params: SortParams,
+    pub wand_server: Option<WandServerCfg>,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Cfg {
