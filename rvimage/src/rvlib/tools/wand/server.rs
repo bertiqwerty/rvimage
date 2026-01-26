@@ -5,6 +5,8 @@ use std::path::Path;
 use std::process::{Child, Command};
 use zip;
 
+use crate::result::trace_ok_err;
+
 pub trait WandServer: Debug + Send + Sync {
     fn cleanup_server(&mut self) -> RvResult<()>;
     fn start_server(&mut self) -> RvResult<()>;
@@ -100,22 +102,28 @@ impl WandServer for FastAPI {
                 self.local_folder
             );
         } else {
+            tracing::info!(
+                "Copying or downloading wand server and unzipping {} to {}...",
+                self.srczip_archive_path_or_url,
+                self.local_folder
+            );
             copy_or_dl_and_unzip(&self.srczip_archive_path_or_url, &self.local_folder)?;
         }
-        tracing::info!("Starting FastAPI server...");
+        let churdir = format!(
+            "{}/{}",
+            self.local_folder,
+            self.srczip_archive_path_or_url
+                .trim_end_matches(".zip")
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+        );
+        tracing::info!("Starting wand server from folder {churdir}...");
 
         let child = Command::new(&self.setup_cmd)
             .args(&self.setup_args)
             .env("PYTHONPATH", ".")
-            .current_dir(format!(
-                "{}/{}",
-                self.local_folder,
-                self.srczip_archive_path_or_url
-                    .trim_end_matches(".zip")
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or("")
-            ))
+            .current_dir(churdir)
             .spawn()
             .map_err(to_rv)?;
         self.child = Some(child);
@@ -125,8 +133,10 @@ impl WandServer for FastAPI {
     fn cleanup_server(&mut self) -> RvResult<()> {
         // Remove the local repo folder
         if Path::new(&self.local_folder).exists() {
+            tracing::info!("Removing local folder {}...", self.local_folder);
             std::fs::remove_dir_all(&self.local_folder).map_err(to_rv)?;
         }
+        trace_ok_err(self.stop_server());
         Ok(())
     }
 
