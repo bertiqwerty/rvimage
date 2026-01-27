@@ -17,7 +17,7 @@ use super::{
 
 pub type AttrAnnotationsMap = LabelMap<ParamMap>;
 
-pub fn set_attrmap_val(attr_map: &mut ParamMap, attr_name: &str, attr_val: &ParamVal) {
+pub fn set_attrmap_val(attr_map: &mut ParamMap, attr_name: &str, attr_val: ParamVal) {
     attr_map.insert(attr_name.to_string(), attr_val.clone());
 }
 #[allow(clippy::struct_excessive_bools)]

@@ -86,7 +86,7 @@ fn file_change(mut world: World) -> World {
         // add all attributes to a new file
         for (attr_name, attr_val) in data.attr_names().iter().zip(data.attr_vals().iter()) {
             if !annos.contains(attr_name) {
-                set_attrmap_val(&mut annos, attr_name, attr_val);
+                set_attrmap_val(&mut annos, attr_name, attr_val.clone().reset());
             }
         }
 
@@ -134,9 +134,9 @@ fn add_attribute(
         } else {
             let new_attr_val = data.new_attr_val.clone();
             for (_, (val_map, _)) in data.anno_iter_mut() {
-                set_attrmap_val(val_map, &new_attr_name, &new_attr_val);
+                set_attrmap_val(val_map, &new_attr_name, new_attr_val.clone());
             }
-            set_attrmap_val(&mut attr_map_tmp, &new_attr_name, &new_attr_val);
+            set_attrmap_val(&mut attr_map_tmp, &new_attr_name, new_attr_val.clone());
             if let Some(a) = get_annos_mut(&mut world) {
                 a.clone_from(&attr_map_tmp);
             }
