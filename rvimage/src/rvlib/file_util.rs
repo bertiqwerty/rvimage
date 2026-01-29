@@ -3,12 +3,14 @@ use crate::{
     tools_data::ToolsDataMap,
 };
 use lazy_static::lazy_static;
+use reqwest::IntoUrl;
 use rvimage_domain::{RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
 use std::{
     ffi::OsStr,
     fmt::Debug,
-    fs, io,
+    fs,
+    io::{self, Cursor},
     path::{Path, PathBuf},
 };
 use tracing::{error, info};
@@ -351,8 +353,70 @@ where
         .unwrap_or_else(|_| "".to_string())
 }
 
+pub fn copy_and_unzip<P>(src_zip: P, dst_folder: P) -> RvResult<()>
+where
+    P: AsRef<Path>,
+{
+    let file = std::fs::File::open(src_zip).map_err(to_rv)?;
+    let mut archive = zip::ZipArchive::new(file).map_err(to_rv)?;
+    archive.extract(dst_folder).map_err(to_rv)
+}
+pub fn dl_and_unzip<T, P>(src_url: T, dst_folder: P) -> RvResult<()>
+where
+    T: IntoUrl,
+    P: AsRef<Path>,
+{
+    let response = reqwest::blocking::get(src_url).map_err(to_rv)?;
+    let content = response.bytes().map_err(to_rv)?;
+    let des = Cursor::new(content);
+    let mut archive = zip::ZipArchive::new(des).map_err(to_rv)?;
+    archive.extract(dst_folder).map_err(to_rv)
+}
 pub fn get_test_folder() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data")
+}
+
+pub fn copy_folder_recursively<P>(src: P, dst: P) -> RvResult<()>
+where
+    P: AsRef<Path>,
+{
+    std::fs::create_dir_all(&dst).map_err(to_rv)?;
+    for entry in std::fs::read_dir(src).map_err(to_rv)? {
+        let entry = entry.map_err(to_rv)?;
+        let file_type = entry.file_type().map_err(to_rv)?;
+        let src_path = entry.path();
+        let dst_path = dst.as_ref().join(entry.file_name());
+        if file_type.is_dir() {
+            copy_folder_recursively(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path).map_err(to_rv)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn is_url<P>(s: P) -> bool
+where
+    P: AsRef<str>,
+{
+    s.as_ref().starts_with("http://")
+        || s.as_ref().starts_with("https://")
+        || s.as_ref().starts_with("ftp://")
+}
+
+pub fn relative_to_prj_path<P>(prj_path: &Path, filepath: P) -> RvResult<PathBuf>
+where
+    P: AsRef<Path>,
+{
+    let prj_parent = prj_path.parent();
+    if let Some(prj_parent) = prj_parent
+        && !filepath.as_ref().is_absolute()
+    {
+        let full_path = prj_parent.join(filepath);
+        Ok(full_path)
+    } else {
+        Ok(filepath.as_ref().to_path_buf())
+    }
 }
 
 #[test]

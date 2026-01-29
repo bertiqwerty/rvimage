@@ -7,7 +7,7 @@ use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, FastAPI, WandServer, rotate90};
+use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, CmdServer, WandServer, rotate90};
 use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
@@ -361,7 +361,7 @@ pub struct Control {
     pub log_export_path: Option<PathBuf>,
     save_handle: Option<JoinHandle<()>>,
     thumbnail_cache: HashMap<String, DynamicImage>,
-    wand_server: Option<FastAPI>,
+    wand_server: Option<CmdServer>,
 }
 
 impl Control {
@@ -664,21 +664,21 @@ impl Control {
     }
 
     pub fn start_wandserver(&mut self) -> RvResult<()> {
-        if let Some(ws) = &self.cfg.prj.wand_server {
-            let mut wand_server = FastAPI::new(
-                ws.srczip_download_url.clone(),
-                ws.setup_cmd.clone(),
-                ws.setup_args.clone(),
-                ws.local_folder
-                    .clone()
-                    .unwrap_or(format!("{}/wand_server", self.cfg.home_folder())),
-            );
-            wand_server.start_server()?;
-            self.wand_server = Some(wand_server);
-            Ok(())
-        } else {
-            Err(rverr!("Cannot start wandserver, cfg missing"))
-        }
+        let ws = &self.cfg.prj.wand_server;
+        let mut wand_server = CmdServer::new(
+            ws.src.clone(),
+            ws.additional_files.clone(),
+            ws.setup_cmd.clone(),
+            ws.setup_args.clone(),
+            ws.install_uv.unwrap_or(true),
+            ws.local_folder
+                .clone()
+                .unwrap_or(format!("{}/wand_server", self.cfg.home_folder())),
+        );
+        let cur_prj_path = self.cfg.current_prj_path();
+        wand_server.start_server(cur_prj_path)?;
+        self.wand_server = Some(wand_server);
+        Ok(())
     }
 
     pub fn stop_wandserver(&mut self) -> RvResult<()> {

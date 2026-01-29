@@ -1,6 +1,8 @@
 use crate::{
     cache::FileCacheCfgArgs,
-    file_util::{self, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR, path_to_str},
+    file_util::{
+        self, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR, copy_and_unzip, dl_and_unzip, path_to_str,
+    },
     result::trace_ok_err,
     sort_params::SortParams,
     ssh,
@@ -86,7 +88,7 @@ impl CfgLegacy {
                 blob_list_timeout_s: get_blob_list_timeout_s(),
             }),
             sort_params: SortParams::default(),
-            wand_server: None,
+            wand_server: WandServerCfg::default(),
         };
         Cfg { usr, prj }
     }
@@ -225,12 +227,106 @@ pub struct AzureBlobCfgPrj {
     pub blob_list_timeout_s: u64,
 }
 
+#[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone)]
+pub enum CmdServerSrc {
+    LocalZip(String),
+    LocalFolder(String),
+    UrlZip(String),
+    Gitrepo(String),
+}
+impl Default for CmdServerSrc {
+    fn default() -> Self {
+        CmdServerSrc::Gitrepo("".into())
+    }
+}
+
+impl CmdServerSrc {
+    pub fn put_to_dst(&self, prj_path: &Path, dst_folder: &Path) -> RvResult<()> {
+        match self {
+            CmdServerSrc::LocalZip(zip_path) => {
+                let zip_path = file_util::relative_to_prj_path(prj_path, zip_path)?;
+                copy_and_unzip(zip_path.as_path(), dst_folder)
+            }
+            CmdServerSrc::UrlZip(url) => dl_and_unzip(url, dst_folder),
+            CmdServerSrc::LocalFolder(folder_path) => {
+                let folder_path = file_util::relative_to_prj_path(prj_path, folder_path)?;
+                std::fs::create_dir_all(dst_folder).map_err(to_rv)?;
+                file_util::copy_folder_recursively(folder_path.as_path(), dst_folder)
+                    .map_err(to_rv)?;
+                Ok(())
+            }
+            CmdServerSrc::Gitrepo(repo) => {
+                let repo = if file_util::is_url(repo) {
+                    repo.to_string()
+                } else {
+                    let repo_path = file_util::relative_to_prj_path(prj_path, repo)?;
+                    path_to_str(&repo_path)?.to_string()
+                };
+                let repo = repo.replace('\\', "/");
+                let repo_name = repo
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or(&repo)
+                    .trim_end_matches(".git");
+                let dst_folder = dst_folder.join(repo_name);
+
+                // Ensure parent directory exists, but not the clone destination
+                if let Some(parent) = dst_folder.parent() {
+                    fs::create_dir_all(parent).map_err(to_rv)?;
+                }
+
+                // gix::prepare_clone expects the destination to not exist
+                if dst_folder.exists() {
+                    fs::remove_dir_all(&dst_folder).map_err(to_rv)?;
+                }
+
+                tracing::info!("cloning git repo {repo} to {dst_folder:?}...");
+                let mut prepare = gix::prepare_clone(repo, &dst_folder).map_err(to_rv)?;
+                let (mut checkout, _) = prepare
+                    .fetch_then_checkout(
+                        gix::progress::Discard,
+                        &std::sync::atomic::AtomicBool::new(false),
+                    )
+                    .map_err(to_rv)?;
+                checkout
+                    .main_worktree(
+                        gix::progress::Discard,
+                        &std::sync::atomic::AtomicBool::new(false),
+                    )
+                    .map_err(to_rv)?;
+                Ok(())
+            }
+        }
+    }
+    pub fn relative_working_dir(&self) -> &str {
+        match self {
+            CmdServerSrc::LocalZip(zip_path) => zip_path
+                .trim_end_matches(".zip")
+                .rsplit('/')
+                .next()
+                .unwrap_or(""),
+            CmdServerSrc::UrlZip(url) => url
+                .trim_end_matches(".zip")
+                .rsplit('/')
+                .next()
+                .unwrap_or(""),
+            CmdServerSrc::Gitrepo(rep) => rep
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .trim_end_matches(".git"),
+            CmdServerSrc::LocalFolder(folder_path) => folder_path.rsplit('/').next().unwrap_or(""),
+        }
+    }
+}
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct WandServerCfg {
-    pub srczip_download_url: String,
+    pub src: CmdServerSrc,
+    pub additional_files: Vec<String>,
     pub setup_cmd: String,
     pub setup_args: Vec<String>,
     pub local_folder: Option<String>,
+    pub install_uv: Option<bool>,
     pub autostart: Option<bool>,
 }
 
@@ -373,7 +469,8 @@ pub struct CfgPrj {
     pub azure_blob: Option<AzureBlobCfgPrj>,
     #[serde(default)]
     pub sort_params: SortParams,
-    pub wand_server: Option<WandServerCfg>,
+    #[serde(default)]
+    pub wand_server: WandServerCfg,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Cfg {

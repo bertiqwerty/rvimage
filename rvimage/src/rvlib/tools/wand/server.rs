@@ -1,17 +1,12 @@
 use rvimage_domain::{RvResult, to_rv};
 use std::fmt::Debug;
-use std::io::Cursor;
+use std::fs;
 use std::path::Path;
 use std::process::{Child, Command};
-use zip;
 
+use crate::cfg::CmdServerSrc;
+use crate::file_util;
 use crate::result::trace_ok_err;
-
-pub trait WandServer: Debug + Send + Sync {
-    fn cleanup_server(&mut self) -> RvResult<()>;
-    fn start_server(&mut self) -> RvResult<()>;
-    fn stop_server(&mut self) -> RvResult<()>;
-}
 
 fn install_uv() -> RvResult<()> {
     if cfg!(target_os = "windows") {
@@ -38,85 +33,98 @@ fn install_uv() -> RvResult<()> {
     Ok(())
 }
 
-/// A Wand server implementation using FastAPI
+pub trait WandServer: Debug + Send + Sync {
+    fn cleanup_server(&mut self) -> RvResult<()>;
+    fn start_server(&mut self, prj_path: &Path) -> RvResult<()>;
+    fn stop_server(&mut self) -> RvResult<()>;
+}
+
+/// A Wand server implementation that runs an external command to start the server.
 ///
 /// # Fields
-/// - `srczip_archive_path_or_url`: Path or URL to the source zip archive
+/// - `src`: Where to get the executable/source code for the server
 /// - `setup_cmd`: Command to set up and run the server
 /// - `setup_args`: Arguments for the setup command
 /// - `local_folder`: Local folder to extract the source code, default is $HOME/wand_server
 /// - `child`: The child process running the server
 ///
 #[derive(Debug)]
-pub struct FastAPI {
-    srczip_archive_path_or_url: String,
+pub struct CmdServer {
+    src: CmdServerSrc,
+    additional_files: Vec<String>,
     setup_cmd: String,
     setup_args: Vec<String>,
-    local_folder: String,
+    local_base_folder: String,
+    install_uv: bool,
     child: Option<Child>,
 }
 
-impl FastAPI {
+impl CmdServer {
     pub fn new(
-        srczip_archive_path_or_url: String,
+        src: CmdServerSrc,
+        additional_files: Vec<String>,
         setup_cmd: String,
         setup_args: Vec<String>,
+        install_uv: bool,
         local_folder: String,
     ) -> Self {
-        FastAPI {
-            srczip_archive_path_or_url,
+        CmdServer {
+            src,
+            additional_files,
             setup_cmd,
             setup_args,
-            local_folder,
+            local_base_folder: local_folder,
+            install_uv,
             child: None,
         }
     }
 }
 
-fn copy_or_dl_and_unzip(src_zip: &str, dst_folder: &str) -> RvResult<()> {
-    if Path::new(src_zip).exists() {
-        // Local file
-        let file = std::fs::File::open(src_zip).map_err(to_rv)?;
-        let mut archive = zip::ZipArchive::new(file).map_err(to_rv)?;
-        archive.extract(dst_folder).map_err(to_rv)
-    } else {
-        // URL
-        let response = reqwest::blocking::get(src_zip).map_err(to_rv)?;
-        let content = response.bytes().map_err(to_rv)?;
-        let des = Cursor::new(content);
-        let mut archive = zip::ZipArchive::new(des).map_err(to_rv)?;
-        archive.extract(dst_folder).map_err(to_rv)
-    }
-}
+impl WandServer for CmdServer {
+    fn start_server(&mut self, prj_path: &Path) -> RvResult<()> {
+        if self.install_uv {
+            tracing::info!("Installing uv...");
+            install_uv()?;
+        }
 
-impl WandServer for FastAPI {
-    fn start_server(&mut self) -> RvResult<()> {
-        install_uv()?;
-
-        let local_repo_path = Path::new(&self.local_folder);
+        let local_repo_path =
+            Path::new(&self.local_base_folder).join(self.src.relative_working_dir());
 
         // Check if the folder already exists
         if local_repo_path.exists() && local_repo_path.read_dir().map_err(to_rv)?.next().is_some() {
             tracing::info!(
                 "Local folder {} already exists and is not empty. Skipping download.",
-                self.local_folder
+                self.local_base_folder
             );
         } else {
             tracing::info!(
-                "Copying or downloading wand server and unzipping {} to {}...",
-                self.srczip_archive_path_or_url,
-                self.local_folder
+                "Copying or downloading wand server and unzipping {:?} to {}...",
+                self.src,
+                self.local_base_folder
             );
-            copy_or_dl_and_unzip(&self.srczip_archive_path_or_url, &self.local_folder)?;
+            self.src
+                .put_to_dst(prj_path, Path::new(&self.local_base_folder))?;
+        }
+        for af in &self.additional_files {
+            let src_path = Path::new(af);
+            let src_path = file_util::relative_to_prj_path(prj_path, src_path)?;
+            let file_name = src_path
+                .file_name()
+                .ok_or_else(|| to_rv(format!("Invalid additional file path: {}", af)))?;
+            let dest_path = local_repo_path.join(file_name);
+            if !dest_path.exists() {
+                tracing::info!(
+                    "Copying additional file {} to {}...",
+                    af,
+                    dest_path.display()
+                );
+                fs::copy(src_path, dest_path).map_err(to_rv)?;
+            }
         }
         let churdir = format!(
             "{}/{}",
-            self.local_folder,
-            self.srczip_archive_path_or_url
-                .trim_end_matches(".zip")
-                .rsplit('/')
-                .next()
-                .unwrap_or("")
+            self.local_base_folder,
+            self.src.relative_working_dir()
         );
         tracing::info!("Starting wand server from folder {churdir}...");
 
@@ -127,14 +135,15 @@ impl WandServer for FastAPI {
             .spawn()
             .map_err(to_rv)?;
         self.child = Some(child);
+        tracing::info!("Wand server up and running.");
         Ok(())
     }
 
     fn cleanup_server(&mut self) -> RvResult<()> {
         // Remove the local repo folder
-        if Path::new(&self.local_folder).exists() {
-            tracing::info!("Removing local folder {}...", self.local_folder);
-            std::fs::remove_dir_all(&self.local_folder).map_err(to_rv)?;
+        if Path::new(&self.local_base_folder).exists() {
+            tracing::info!("Removing local folder {}...", self.local_base_folder);
+            fs::remove_dir_all(&self.local_base_folder).map_err(to_rv)?;
         }
         trace_ok_err(self.stop_server());
         Ok(())
@@ -147,7 +156,7 @@ impl WandServer for FastAPI {
         Ok(())
     }
 }
-impl Drop for FastAPI {
+impl Drop for CmdServer {
     fn drop(&mut self) {
         let _ = self.stop_server();
     }
