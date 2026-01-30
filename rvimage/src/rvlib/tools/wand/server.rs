@@ -151,6 +151,9 @@ impl WandServer for CmdServer {
 
     fn stop_server(&mut self) -> RvResult<()> {
         if let Some(mut child) = self.child.take() {
+            tracing::warn!(
+                "child process will be killed, but processes spawned by this might still exist"
+            );
             child.kill().map_err(to_rv)?;
         }
         Ok(())
