@@ -401,9 +401,6 @@ impl Menu {
                     if ui.button("Start Wand Server").clicked() {
                         handle_error!(ctrl.start_wandserver(), self);
                     }
-                    if ui.button("Stop Wand Server").clicked() {
-                        handle_error!(ctrl.stop_wandserver(), self);
-                    }
                     if ui.button("Cleanup Wand Server").clicked() {
                         handle_error!(ctrl.cleanup_wandserver(), self);
                     }
