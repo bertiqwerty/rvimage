@@ -1,7 +1,6 @@
 use crate::cfg::{Connection, ExportPath, ExportPathConnection, PyHttpReaderCfg, get_log_folder};
 use crate::file_util::{
     DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH, PathPair, SavedCfg, osstr_to_str,
-    to_stem_str,
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
@@ -338,6 +337,13 @@ pub enum Info {
     None,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum PrjSettingImportSection {
+    #[default]
+    All,
+    Connection,
+    WandServer,
+}
 #[derive(Default)]
 pub struct ControlFlags {
     pub undo_redo_load: bool,
@@ -478,21 +484,49 @@ impl Control {
         tracing::info!("importing annotations from {prj_path:?}");
         detail::import_annos(tools_data_map, prj_path)
     }
-    pub fn import_settings(&mut self, prj_path: &Path) -> RvResult<()> {
-        tracing::info!("importing settings from {prj_path:?}");
-        let (_, opened_folder, prj_cfg) = detail::load(prj_path)?;
+    pub fn show_settings(
+        &self,
+        prj_path: &Path,
+        import_section: PrjSettingImportSection,
+    ) -> String {
+        let (_, _, prj_cfg) = detail::load(prj_path).unwrap();
 
-        self.cfg.prj = prj_cfg;
-        let info = UserPrjOpened::new();
-        let filename = format!("{}_{info}_imported.rvi", to_stem_str(prj_path)?);
-        let prj_path_imported = prj_path
-            .parent()
-            .ok_or_else(|| rverr!("prj path needs parent folder"))?
-            .join(filename);
-        self.cfg.set_current_prj_path(prj_path_imported);
-        if let Some(of) = opened_folder {
-            self.open_relative_folder(of)?;
+        match import_section {
+            PrjSettingImportSection::All => format!("{prj_cfg:#?}"),
+            PrjSettingImportSection::Connection => match prj_cfg.connection {
+                Connection::AzureBlob => format!("AzureBlob\n{:#?}", prj_cfg.azure_blob),
+                Connection::PyHttp => format!("PyHttp\n{:#?}", prj_cfg.py_http_reader_cfg),
+                Connection::Ssh => format!("Ssh\n{:#?}", prj_cfg.ssh),
+                Connection::Local => "Local".to_string(),
+            },
+            PrjSettingImportSection::WandServer => format!("{:#?}", prj_cfg.wand_server),
         }
+    }
+    pub fn import_settings(
+        &mut self,
+        prj_path: &Path,
+        import_section: PrjSettingImportSection,
+    ) -> RvResult<()> {
+        tracing::info!("importing settings from {prj_path:?}");
+        let (_, _, prj_cfg) = detail::load(prj_path)?;
+
+        match import_section {
+            PrjSettingImportSection::All => {
+                self.cfg.prj = prj_cfg;
+            }
+            PrjSettingImportSection::Connection => {
+                self.cfg.prj.connection = prj_cfg.connection;
+                self.cfg.prj.py_http_reader_cfg = prj_cfg.py_http_reader_cfg;
+                #[cfg(feature = "azure_blob")]
+                {
+                    self.cfg.prj.azure_blob = prj_cfg.azure_blob;
+                }
+            }
+            PrjSettingImportSection::WandServer => {
+                self.cfg.prj.wand_server = prj_cfg.wand_server;
+            }
+        }
+
         Ok(())
     }
     pub fn import_both(
@@ -501,7 +535,7 @@ impl Control {
         tools_data_map: &mut ToolsDataMap,
     ) -> RvResult<()> {
         self.import_annos(prj_path, tools_data_map)?;
-        self.import_settings(prj_path)?;
+        self.import_settings(prj_path, PrjSettingImportSection::All)?;
         Ok(())
     }
     pub fn import_from_coco(

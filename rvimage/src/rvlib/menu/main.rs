@@ -1,6 +1,6 @@
 use crate::{
     cfg::ExportPathConnection,
-    control::{Control, Info},
+    control::{Control, Info, PrjSettingImportSection},
     file_util::{get_prj_name, path_to_str},
     image_reader::LoadImageForGui,
     menu::{
@@ -15,10 +15,11 @@ use crate::{
     tools_data::{ToolSpecifics, ToolsDataMap},
     util::version_label,
 };
+use core::f32;
 use egui::{Context, Popup, Response, RichText, Ui};
 use rvimage_domain::{RvResult, rverr};
 use std::{
-    f32, mem,
+    mem,
     path::{Path, PathBuf},
 };
 
@@ -180,6 +181,9 @@ pub struct Menu {
     annotations_menu_params: AnnotationsParams,
     import_coco_from_ssh: bool,
     new_file_idx_annoplot: Option<usize>,
+    prj_import_path: Option<PathBuf>,
+    prj_import_section: PrjSettingImportSection,
+    prj_settings_for_display: Option<String>,
 }
 
 impl Menu {
@@ -202,6 +206,9 @@ impl Menu {
             annotations_menu_params: AnnotationsParams::default(),
             import_coco_from_ssh: false,
             new_file_idx_annoplot: None,
+            prj_import_path: None,
+            prj_import_section: PrjSettingImportSection::All,
+            prj_settings_for_display: None,
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -298,19 +305,15 @@ impl Menu {
                         }
                         ui.close();
                     }
+
                     if ui.button("... Settings").clicked() {
-                        let prj_path = rfd::FileDialog::new()
-                            .set_title("Import Settings from Project")
+                        // First pick a project file, then open the modal to confirm import options.
+                        if let Some(prj_path) = rfd::FileDialog::new()
+                            .set_title("Pick Project to Import Settings From")
                             .add_filter("project files", &["json", "rvi"])
-                            .pick_file();
-                        if let Some(prj_path) = prj_path {
-                            handle_error!(
-                                |()| {
-                                    project_loaded = true;
-                                },
-                                ctrl.import_settings(&prj_path),
-                                self
-                            );
+                            .pick_file()
+                        {
+                            self.prj_import_path = Some(prj_path);
                         }
                         ui.close();
                     }
@@ -436,6 +439,89 @@ impl Menu {
                 });
             });
         });
+        // Show project settings import modal when a file was picked.
+        if self.prj_import_path.is_some() {
+            egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(ctx, |ui| {
+                ui.label("Project Settings Import");
+                if let Some(p) = &self.prj_import_path {
+                    ui.label(RichText::new(format!("{}", p.display())).monospace());
+                }
+                let mut changed = false;
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        if ui
+                            .radio_value(
+                                &mut self.prj_import_section,
+                                PrjSettingImportSection::All,
+                                "All",
+                            )
+                            .clicked()
+                        {
+                            changed = true;
+                        }
+                        if ui
+                            .radio_value(
+                                &mut self.prj_import_section,
+                                PrjSettingImportSection::Connection,
+                                "Connection",
+                            )
+                            .clicked()
+                        {
+                            changed = true;
+                        }
+                        if ui
+                            .radio_value(
+                                &mut self.prj_import_section,
+                                PrjSettingImportSection::WandServer,
+                                "Wand Server",
+                            )
+                            .clicked()
+                        {
+                            changed = true;
+                        }
+                    });
+                    if let Some(p) = &self.prj_import_path {
+                        if self.prj_settings_for_display.is_none() || changed {
+                            self.prj_settings_for_display =
+                                Some(ctrl.show_settings(p, self.prj_import_section));
+                        }
+                        if let Some(settings_str) = &mut self.prj_settings_for_display {
+                            egui::ScrollArea::vertical()
+                                .min_scrolled_height(500.0)
+                                .show(ui, |ui| {
+                                    ui.add(
+                                        egui::TextEdit::multiline(settings_str)
+                                            .font(egui::FontSelection::Style(
+                                                egui::TextStyle::Monospace,
+                                            ))
+                                            .desired_width(f32::INFINITY)
+                                            .desired_rows(20) // control height
+                                            .interactive(false), // make it non-editable
+                                    );
+                                });
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    let import_enabled = self.prj_import_path.is_some();
+                    if import_enabled
+                        && ui.button("Import").clicked()
+                        && let Some(prj_path) = self.prj_import_path.take()
+                    {
+                        handle_error!(
+                            |()| {
+                                project_loaded = true;
+                            },
+                            ctrl.import_settings(&prj_path, self.prj_import_section),
+                            self
+                        );
+                    }
+                    if ui.button("Cancel").clicked() {
+                        self.prj_import_path = None;
+                    }
+                });
+            });
+        }
         egui::SidePanel::left("left-main-menu").show(ctx, |ui| {
             let mut connected = false;
             handle_error!(
