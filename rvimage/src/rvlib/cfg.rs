@@ -319,6 +319,11 @@ impl CmdServerSrc {
         }
     }
 }
+
+fn get_default_on_install_uv() -> bool {
+    true
+}
+
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct WandServerCfg {
     pub src: CmdServerSrc,
@@ -326,8 +331,8 @@ pub struct WandServerCfg {
     pub setup_cmd: String,
     pub setup_args: Vec<String>,
     pub local_folder: Option<String>,
-    pub install_uv: Option<bool>,
-    pub autostart: Option<bool>,
+    #[serde(default = "get_default_on_install_uv")]
+    pub install_uv: bool,
 }
 
 #[cfg(feature = "azure_blob")]

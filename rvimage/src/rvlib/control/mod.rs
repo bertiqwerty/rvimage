@@ -704,7 +704,7 @@ impl Control {
             ws.additional_files.clone(),
             ws.setup_cmd.clone(),
             ws.setup_args.clone(),
-            ws.install_uv.unwrap_or(true),
+            ws.install_uv,
             ws.local_folder
                 .clone()
                 .unwrap_or(format!("{}/wand_server", self.cfg.home_folder())),
