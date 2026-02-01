@@ -5,9 +5,9 @@ use crate::{
     result::trace_ok_err,
     tools::{BBOX_NAME, BRUSH_NAME, get_visible_inactive_names},
     tools_data::{
-        AccessInstanceData, AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions,
-        ImportExportTrigger, InstanceAnnotate, LabelInfo, OUTLINE_THICKNESS_CONVERSION,
-        ToolSpecifics, ToolsData, VisibleInactiveToolsState,
+        AnnotationsMap, AttributesToolData, BrushToolData, CoreOptions, ImportExportTrigger,
+        InstanceAnnotate, LabelInfo, OUTLINE_THICKNESS_CONVERSION, ToolSpecifics, ToolsData,
+        VisibleInactiveToolsState,
         annotations::SplitMode,
         bbox_data::BboxToolData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
@@ -369,13 +369,7 @@ pub fn bbox_menu(
 
         egui::CollapsingHeader::new("Predictive Labeling").show(ui, |ui| {
             let mut pd = mem::take(&mut data.predictive_labeling_data);
-            trace_ok_err(predictive_labeling_menu(
-                ui,
-                &mut pd,
-                data.label_info(),
-                are_tools_active,
-                BBOX_NAME,
-            ));
+            trace_ok_err(predictive_labeling_menu(ui, &mut pd, are_tools_active));
             data.predictive_labeling_data = pd;
         });
     });
@@ -482,13 +476,7 @@ pub fn brush_menu(
         });
         egui::CollapsingHeader::new("Predictive Labeling").show(ui, |ui| {
             let mut pd = mem::take(&mut data.predictive_labeling_data);
-            trace_ok_err(predictive_labeling_menu(
-                ui,
-                &mut pd,
-                data.label_info(),
-                are_tools_active,
-                BBOX_NAME,
-            ));
+            trace_ok_err(predictive_labeling_menu(ui, &mut pd, are_tools_active));
             data.predictive_labeling_data = pd;
         });
     });
@@ -794,9 +782,7 @@ fn add_buffer_sorted(data: &mut PredictiveLabelingData) {
 pub fn predictive_labeling_menu(
     ui: &mut Ui,
     data: &mut PredictiveLabelingData,
-    label_info: &LabelInfo,
     are_tools_active: &mut bool,
-    tool_name: &'static str,
 ) -> RvResult<()> {
     ui.label("Parameters");
     let add_param;
@@ -847,24 +833,6 @@ pub fn predictive_labeling_menu(
         }
         ExistingParamMenuAction::None => (),
     };
-    // vertical checkboxes over labelnames
-    ui.label("Label names");
-    let mut active_labels = label_info
-        .labels()
-        .iter()
-        .map(|lab| data.tool_labelnames_map[tool_name].contains(lab))
-        .collect::<Vec<_>>();
-    for (text, checked) in label_info.labels().iter().zip(active_labels.iter_mut()) {
-        if ui.checkbox(checked, text).changed() {
-            if *checked {
-                if let Some(t) = data.tool_labelnames_map.get_mut(tool_name) {
-                    t.push(text.to_string())
-                }
-            } else if let Some(t) = data.tool_labelnames_map.get_mut(tool_name) {
-                t.retain(|s| s != text);
-            }
-        }
-    }
 
     text_edit_singleline(ui, &mut data.url, are_tools_active).on_hover_text("url");
 

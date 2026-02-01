@@ -1,8 +1,6 @@
-use std::{collections::HashMap, time::Instant};
+use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
-
-use crate::tools::{BBOX_NAME, BRUSH_NAME};
 
 use super::parameters::{ParamMap, ParamVal};
 
@@ -14,7 +12,6 @@ pub struct PredictiveLabelingData {
     pub parameters: ParamMap,
     pub url: String,
     pub authorization_headers: Option<String>,
-    pub tool_labelnames_map: HashMap<String, Vec<String>>,
     pub timeout_ms: usize,
     #[serde(default)]
     pub timeout_buffer: String,
@@ -51,10 +48,6 @@ impl Default for PredictiveLabelingData {
             parameters: ParamMap::default(),
             url: "http".into(),
             authorization_headers: None,
-            tool_labelnames_map: HashMap::from([
-                (BBOX_NAME.into(), vec![]),
-                (BRUSH_NAME.into(), vec![]),
-            ]),
             timeout_ms: 30000,
             timeout_buffer: "".into(),
             trigger: None,
@@ -66,7 +59,6 @@ impl Default for PredictiveLabelingData {
 impl PartialEq for PredictiveLabelingData {
     fn eq(&self, other: &Self) -> bool {
         self.authorization_headers == other.authorization_headers
-            && self.tool_labelnames_map == other.tool_labelnames_map
             && self.parameters == other.parameters
             && self.url == other.url
             && self.timeout_ms == other.timeout_ms
