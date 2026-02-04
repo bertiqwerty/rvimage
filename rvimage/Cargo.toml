@@ -90,7 +90,8 @@ whoami = "2.0.1"
 url = "2.5.8"
 gix = { version = "0.78", default-features = false, features = [
     "blocking-network-client",
-    "blocking-http-transport-reqwest",
+    "blocking-http-transport-reqwest-rust-tls",
     "credentials",
     "worktree-mutation",
+    "max-performance",
 ] }

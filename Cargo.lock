@@ -2009,11 +2009,13 @@ checksum = "6a407957e21dc5e6c87086e50e5114a2f9240f9cb11699588a6d900d53cb6c70"
 dependencies = [
  "bytes",
  "crc32fast",
+ "crossbeam-channel",
  "gix-path",
  "gix-trace",
  "gix-utils",
  "libc",
  "once_cell",
+ "parking_lot",
  "prodash",
  "thiserror 2.0.18",
  "walkdir",
@@ -2218,6 +2220,7 @@ dependencies = [
  "parking_lot",
  "smallvec",
  "thiserror 2.0.18",
+ "uluru",
 ]
 
 [[package]]
@@ -6031,6 +6034,15 @@ name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+
+[[package]]
+name = "uluru"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c8a2469e56e6e5095c82ccd3afb98dad95f7af7929aab6d8ba8d6e0f73657da"
+dependencies = [
+ "arrayvec",
+]
 
 [[package]]
 name = "unicase"
