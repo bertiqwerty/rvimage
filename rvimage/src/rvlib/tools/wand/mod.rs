@@ -1,6 +1,7 @@
 mod server;
 pub use server::{CmdServer, WandServer};
 use std::path::Path;
+use std::time::Duration;
 
 use image::codecs::png::PngEncoder;
 use image::{self, DynamicImage, ExtendedColorType, ImageEncoder};
@@ -73,11 +74,12 @@ pub struct RestWand {
     url: String,
     headers: HeaderMap,
     client: reqwest::blocking::Client,
+    timeout_ms: usize,
 }
 
 #[allow(dead_code)]
 impl RestWand {
-    pub fn new(mut url: String, authorization: Option<&str>) -> Self {
+    pub fn new(mut url: String, authorization: Option<&str>, timeout_ms: usize) -> Self {
         let client = reqwest::blocking::Client::new();
         let mut headers = HeaderMap::new();
         if let Some(s) = authorization
@@ -99,6 +101,7 @@ impl RestWand {
             url,
             headers,
             client,
+            timeout_ms,
         }
     }
 }
@@ -151,6 +154,7 @@ impl Wand for RestWand {
             .post(&url)
             .headers(self.headers.clone())
             .multipart(form)
+            .timeout(Duration::from_millis(self.timeout_ms as u64))
             .send()
             .map_err(to_rv)?;
         if response.status().is_success() {
@@ -218,7 +222,7 @@ fn test() {
     tracing::debug!("FastAPI server started");
     thread::sleep(Duration::from_secs(5));
     fn test_inner(url: &str, manifestdir: &str) {
-        let w = RestWand::new(url.into(), None);
+        let w = RestWand::new(url.into(), None, 60000);
         let p = format!("{manifestdir}/resources/rvimage-logo.png");
         let mut m = ParamMap::new();
         m.insert("some_param".into(), ParamVal::Float(Some(1.0)));

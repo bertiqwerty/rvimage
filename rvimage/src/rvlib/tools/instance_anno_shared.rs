@@ -46,9 +46,10 @@ pub fn predictive_labeling<DA>(
         let mut history = history.clone();
         let url = pred_data.url.clone();
         let parameters = pred_data.parameters.clone();
+        let timeout_ms = pred_data.timeout_ms;
         let (tx, rx) = mpsc::channel();
         let pred_thread = move || {
-            let wand = RestWand::new(url, None);
+            let wand = RestWand::new(url, None, timeout_ms);
             let im = ImageForPrediction {
                 image: world.data.im_background(),
                 path: world.data.meta_data.file_path_absolute().map(Path::new),
