@@ -185,7 +185,6 @@ use rvimage_domain::BbI;
 use std::{
     process::{Command, Stdio},
     thread,
-    time::Duration,
 };
 
 #[test]
