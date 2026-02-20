@@ -626,6 +626,7 @@ impl RvImageApp {
 
 impl eframe::App for RvImageApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        time_scope!("one_full_update");
         let start = Instant::now();
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;
@@ -653,10 +654,12 @@ impl eframe::App for RvImageApp {
             egui::CentralPanel::default().show(ctx, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
                     if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
-                        time_scope!("update_texture_zb");
-                        self.zoom_box = zb;
-                        self.update_texture(ctx);
-                        zoom_box_update = true;
+                        if self.zoom_box != zb {
+                            time_scope!("update_texture_zb");
+                            self.zoom_box = zb;
+                            self.update_texture(ctx);
+                            zoom_box_update = true;
+                        }
                     }
                     if let UpdateImage::Yes(im) = update_view.image {
                         time_scope!("update_texture_image");
