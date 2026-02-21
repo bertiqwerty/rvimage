@@ -653,13 +653,13 @@ impl eframe::App for RvImageApp {
             let mut zoom_box_update = false;
             egui::CentralPanel::default().show(ctx, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    if let UpdateZoomBox::Yes(zb) = update_view.zoom_box {
-                        if self.zoom_box != zb {
-                            time_scope!("update_texture_zb");
-                            self.zoom_box = zb;
-                            self.update_texture(ctx);
-                            zoom_box_update = true;
-                        }
+                    if let UpdateZoomBox::Yes(zb) = update_view.zoom_box
+                        && self.zoom_box != zb
+                    {
+                        time_scope!("update_texture_zb");
+                        self.zoom_box = zb;
+                        self.update_texture(ctx);
+                        zoom_box_update = true;
                     }
                     if let UpdateImage::Yes(im) = update_view.image {
                         time_scope!("update_texture_image");
