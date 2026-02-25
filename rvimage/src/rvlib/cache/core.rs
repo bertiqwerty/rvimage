@@ -11,6 +11,11 @@ pub trait ReadImageToCache<A> {
 }
 
 pub trait Cache<A> {
+    fn load_into_cache(
+        &mut self,
+        selected_file_idx: usize,
+        abs_file_paths: &[&str],
+    ) -> RvResult<bool>;
     fn load_from_cache(
         &mut self,
         selected_file_idx: usize,

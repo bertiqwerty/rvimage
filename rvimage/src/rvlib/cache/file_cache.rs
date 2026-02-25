@@ -204,6 +204,14 @@ where
             None => Ok(None),
         }
     }
+
+    fn update_cache(&mut self, cache: HashMap<String, ThreadResult>) {
+        // update cache
+        for elt in cache.into_iter() {
+            let (file, th_res) = elt;
+            self.cached_paths.insert(file, th_res);
+        }
+    }
 }
 impl<RTC, RA> Cache<FileCacheArgs<RA>> for FileCache<RTC, RA>
 where
@@ -214,6 +222,35 @@ where
     }
     fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
         self.reader.ls(folder_path)
+    }
+
+    /// Just loads a single file into the cache. Return true if the
+    /// file is in the cache.
+    fn load_into_cache(&mut self, selected_file_idx: usize, files: &[&str]) -> RvResult<bool> {
+        let filepath = files.get(selected_file_idx);
+        if let Some(fp) = filepath {
+            let tr = self.cached_paths.get(*fp);
+            match tr {
+                Some(ThreadResult::Ok(_)) => Ok(true),
+                Some(ThreadResult::Running(job_id)) => {
+                    let selected_file = &files[selected_file_idx];
+                    let checked = self.check_running_thread(*job_id, selected_file)?;
+                    Ok(checked.is_some())
+                }
+                None => {
+                    let cache = detail::preload(
+                        std::iter::once((0, *fp)),
+                        &mut self.tpq,
+                        &self.reader,
+                        &self.cachedir,
+                    )?;
+                    self.update_cache(cache);
+                    Ok(false)
+                }
+            }
+        } else {
+            Ok(false)
+        }
     }
     fn load_from_cache(&mut self, selected_file_idx: usize, files: &[&str]) -> AsyncResultImage {
         if files.is_empty() {
@@ -247,17 +284,14 @@ where
         let files_not_in_cache = prio_file_pairs
             .filter(|(_, file)| !self.cached_paths.contains_key(**file))
             .map(|(i, file)| (i, *file));
+
         let cache = detail::preload(
             files_not_in_cache,
             &mut self.tpq,
             &self.reader,
             &self.cachedir,
         )?;
-        // update cache
-        for elt in cache.into_iter() {
-            let (file, th_res) = elt;
-            self.cached_paths.insert(file, th_res);
-        }
+        self.update_cache(cache);
         self.load_if_in_cache(selected_file_idx, files)
     }
 

@@ -184,6 +184,7 @@ pub struct Menu {
     prj_import_path: Option<PathBuf>,
     prj_import_section: PrjSettingImportSection,
     prj_settings_for_display: Option<String>,
+    cache_all_progress: Option<f32>,
 }
 
 impl Menu {
@@ -209,6 +210,7 @@ impl Menu {
             prj_import_path: None,
             prj_import_section: PrjSettingImportSection::All,
             prj_settings_for_display: None,
+            cache_all_progress: None,
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -603,6 +605,26 @@ impl Menu {
                 self
             );
             ctrl.cfg.prj.sort_params = sort_params;
+            if ui.button("Pre-cache filtered images").clicked() {
+                self.cache_all_progress = Some(0.0);
+            }
+            if self.cache_all_progress.is_some() {
+                handle_error!(
+                    |prgs| {
+                        self.cache_all_progress = prgs;
+                    },
+                    ctrl.cache_all_filtered(),
+                    self
+                );
+                if let Some(prgs) = &self.cache_all_progress {
+                    ui.add(egui::ProgressBar::new(*prgs).text(
+                        RichText::new(format!("{:02}%", (prgs * 100.0).floor() as u8)).monospace(),
+                    ));
+                }
+                if self.cache_all_progress > Some(0.999) {
+                    self.cache_all_progress = None;
+                }
+            }
         });
         project_loaded
     }

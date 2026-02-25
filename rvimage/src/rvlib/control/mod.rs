@@ -17,12 +17,12 @@ use crate::{
 use crate::{defer_file_removal, measure_time};
 use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
-use egui::ahash::HashSet;
 use image::imageops::FilterType;
 use image::{DynamicImage, ImageBuffer};
 use rvimage_domain::{RvError, RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -676,6 +676,20 @@ impl Control {
         match wrapped_image {
             None => Ok(None),
             Some(x) => Ok(x?),
+        }
+    }
+    pub fn cache_all_filtered(&mut self) -> RvResult<Option<f32>> {
+        if let (Some(ps), Some(r)) = (self.paths_navigator.paths_selector(), self.reader.as_mut()) {
+            let mut n_cached = 0;
+            for filtered_idx in 0..ps.len_filtered() {
+                let ffp = ps.filtered_abs_file_paths();
+                let res = r.cache_image(filtered_idx, &ffp)?;
+                n_cached += if res { 1 } else { 0 };
+            }
+            let amount = n_cached as f32 / ps.len_filtered() as f32;
+            Ok(Some(amount))
+        } else {
+            Ok(None)
         }
     }
 
