@@ -605,7 +605,11 @@ impl Menu {
                 self
             );
             ctrl.cfg.prj.sort_params = sort_params;
-            if ui.button("Pre-cache filtered images").clicked() {
+            if ui
+                .button("Pre-cache filtered images")
+                .on_hover_text("double click")
+                .double_clicked()
+            {
                 self.cache_all_progress = Some(0.0);
             }
             if self.cache_all_progress.is_some() {
