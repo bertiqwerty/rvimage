@@ -621,9 +621,15 @@ impl Menu {
                     self
                 );
                 if let Some(prgs) = &self.cache_all_progress {
-                    ui.add(egui::ProgressBar::new(*prgs).text(
-                        RichText::new(format!("{:02}%", (prgs * 100.0).floor() as u8)).monospace(),
-                    ));
+                    ui.add(
+                        egui::ProgressBar::new(*prgs).text(
+                            RichText::new(format!(
+                                "loading images into cache {:2}%",
+                                (prgs * 100.0).floor() as u8
+                            ))
+                            .monospace(),
+                        ),
+                    );
                 }
                 if self.cache_all_progress > Some(0.999) {
                     self.cache_all_progress = None;
