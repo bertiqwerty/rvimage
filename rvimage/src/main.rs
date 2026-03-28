@@ -343,7 +343,7 @@ impl RvImageApp {
     fn text_shape(
         &self,
         color: Color32,
-        ctx: &Context,
+        ui: &egui::Ui,
         enclosing_bb: BbF,
         image_rect: &Rect,
         txt: impl ToString,
@@ -367,14 +367,14 @@ impl RvImageApp {
                 ..Default::default()
             },
         );
-        let galley = ctx.fonts_mut(|f| f.layout_job(text_job));
+        let galley = ui.ctx().fonts_mut(|f| f.layout_job(text_job));
         let x = enclosing_bb.min().x;
         let y = enclosing_bb.max().y;
 
         let p = self.orig_pos_2_egui_rect(PtF { x, y }, image_rect.min, image_rect.size());
         TextShape::new(p, galley, Color32::BLACK)
     }
-    fn update_perm_annos(&mut self, image_rect: &Rect, ctx: &Context) {
+    fn update_perm_annos(&mut self, image_rect: &Rect, ui: &Ui) {
         let shape_orig = self.shape_orig();
         let canvases = self
             .perm_annos
@@ -463,7 +463,7 @@ impl RvImageApp {
                             if let Some(label) = anno.label.as_deref() {
                                 let text_shape = self.text_shape(
                                     color,
-                                    ctx,
+                                    ui,
                                     anno.geofig.enclosing_bb(),
                                     image_rect,
                                     label,
@@ -483,7 +483,7 @@ impl RvImageApp {
                             let (egui_shape, color) = self.update_bbox_anno(anno, image_rect);
                             let text_shape = self.text_shape(
                                 color,
-                                ctx,
+                                ui,
                                 anno.geofig.enclosing_bb(),
                                 image_rect,
                                 i,
@@ -519,14 +519,14 @@ impl RvImageApp {
                     if let Some(label) = label {
                         let color = detail::rgb_2_clr(Some(color.0), fill_alpha);
                         let text_shape =
-                            self.text_shape(color, ctx, canvas.enclosing_bb(), image_rect, label);
+                            self.text_shape(color, ui, canvas.enclosing_bb(), image_rect, label);
                         self.egui_perm_brush_shapes.push(Shape::Text(text_shape));
                     }
                 }
                 _ => {
                     let color = detail::rgb_2_clr(Some(color.0), fill_alpha);
                     let text_shape =
-                        self.text_shape(color, ctx, canvas.enclosing_bb(), image_rect, i);
+                        self.text_shape(color, ui, canvas.enclosing_bb(), image_rect, i);
                     self.egui_perm_brush_shapes.push(Shape::Text(text_shape));
                 }
             }
@@ -625,10 +625,10 @@ impl RvImageApp {
 }
 
 impl eframe::App for RvImageApp {
-    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
         time_scope!("one_full_update");
         let start = Instant::now();
-        ctx.options_mut(|o| {
+        ui.ctx().options_mut(|o| {
             o.zoom_with_keyboard = false;
         });
         let res = {
@@ -639,7 +639,7 @@ impl eframe::App for RvImageApp {
                     .map(|ir| ShapeF::new(ir.width().into(), ir.height().into())),
                 mem::take(&mut self.tmp_anno),
                 self.request_file_label_to_load.as_deref(),
-                ctx,
+                ui,
             )
         };
         self.request_file_label_to_load = None;
@@ -649,27 +649,27 @@ impl eframe::App for RvImageApp {
             } else {
                 format!("RV Image - {prj_name}")
             };
-            ctx.send_viewport_cmd(ViewportCommand::Title(title));
+            ui.ctx().send_viewport_cmd(ViewportCommand::Title(title));
             let mut zoom_box_update = false;
-            egui::CentralPanel::default().show(ctx, |ui| {
+            egui::CentralPanel::default().show_inside(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
                     if let UpdateZoomBox::Yes(zb) = update_view.zoom_box
                         && self.zoom_box != zb
                     {
                         time_scope!("update_texture_zb");
                         self.zoom_box = zb;
-                        self.update_texture(ctx);
+                        self.update_texture(ui.ctx());
                         zoom_box_update = true;
                     }
                     if let UpdateImage::Yes(im) = update_view.image {
                         time_scope!("update_texture_image");
                         self.im_orig = im.im;
                         self.meta_orig = im.meta;
-                        self.update_texture(ctx);
+                        self.update_texture(ui.ctx());
                     }
                     if let UpdateThumbImages::Yes(thumb_ims) = update_view.thumb_ims {
                         self.thumb_ims = thumb_ims;
-                        self.update_thumb_textures(ctx);
+                        self.update_thumb_textures(ui.ctx());
                     }
                     let it_per_s = 1.0
                         / (self.t_last_iterations.iter().sum::<f64>()
@@ -760,7 +760,7 @@ impl eframe::App for RvImageApp {
 
                                 time_scope!("update_perm_annos_resize");
 
-                                self.update_perm_annos(&ir.rect, ctx);
+                                self.update_perm_annos(&ir.rect, ui);
 
                                 self.image_rect = Some(image_surrounding_rect);
                             }
@@ -768,7 +768,7 @@ impl eframe::App for RvImageApp {
                             if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {
                                 time_scope!("update_perm_annos_new");
                                 self.perm_annos = perm_annos;
-                                self.update_perm_annos(&ir.rect, ctx);
+                                self.update_perm_annos(&ir.rect, ui);
                                 update_texture = true;
                             }
                             match update_view.tmp_annos {
@@ -922,7 +922,7 @@ fn main() {
                             ..Style::default()
                         };
                         style.interaction.tooltip_delay = 0.01;
-                        cc.egui_ctx.set_style(style);
+                        cc.egui_ctx.set_global_style(style);
                     }
                     Ok(Box::new(RvImageApp::new(cc)))
                 }),

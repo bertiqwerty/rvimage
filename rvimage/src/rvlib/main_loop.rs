@@ -14,7 +14,6 @@ use crate::tools::{
 use crate::util::Visibility;
 use crate::world::World;
 use crate::{Annotation, UpdateView, apply_tool_method_mut, httpserver, image_util, measure_time};
-use egui::Context;
 use image::{DynamicImage, GenericImageView};
 use rvimage_domain::{BbI, PtI, RvResult, ShapeF};
 use std::fmt::Debug;
@@ -158,14 +157,14 @@ impl MainEventLoop {
         ui_image_rect: Option<ShapeF>,
         tmp_anno_buffer: Option<Annotation>,
         request_file_label_to_load: Option<&str>,
-        ctx: &Context,
+        ui: &mut egui::Ui,
     ) -> RvResult<(UpdateView, bool, bool, &str)> {
         measure_time!("whole iteration", {
             measure_time!("part 1", {
                 self.world.set_image_rect(ui_image_rect);
                 self.world.update_view.tmp_anno_buffer = tmp_anno_buffer;
                 let project_loaded_in_curr_iter = self.menu.ui(
-                    ctx,
+                    ui,
                     &mut self.ctrl,
                     &mut self.world.data.tools_data_map,
                     find_active_tool(&self.tools),
@@ -194,8 +193,8 @@ impl MainEventLoop {
                 }
             });
 
-            egui::SidePanel::right("my_panel")
-                .show(ctx, |ui| {
+            egui::Panel::right("my_panel")
+                .show_inside(ui, |ui| {
                     ui.vertical(|ui| {
                         self.tools_select_menu.ui(
                             ui,

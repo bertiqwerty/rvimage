@@ -16,7 +16,7 @@ use crate::{
     util::version_label,
 };
 use core::f32;
-use egui::{Context, Popup, Response, RichText, Ui};
+use egui::{Popup, Response, RichText, Ui};
 use rvimage_domain::{RvResult, rverr};
 use std::{
     mem,
@@ -239,13 +239,13 @@ impl Menu {
     /// Returns true if a project was loaded and if a new file load was triggered
     pub fn ui(
         &mut self,
-        ctx: &Context,
+        ui: &mut egui::Ui,
         ctrl: &mut Control,
         tools_data_map: &mut ToolsDataMap,
         active_tool_name: Option<&str>,
     ) -> bool {
         let mut project_loaded = false;
-        egui::TopBottomPanel::top("top-menu-bar").show(ctx, |ui| {
+        egui::Panel::top("top-menu-panel").show_inside(ui, |ui| {
             // Top row with open folder and settings button
             egui::MenuBar::new().ui(ui, |ui| {
                 let of_response = ui.button("Open Folder");
@@ -443,7 +443,7 @@ impl Menu {
         });
         // Show project settings import modal when a file was picked.
         if self.prj_import_path.is_some() {
-            egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(ctx, |ui| {
+            egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(ui.ctx(), |ui| {
                 ui.label("Project Settings Import");
                 if let Some(p) = &self.prj_import_path {
                     ui.label(RichText::new(format!("{}", p.display())).monospace());
@@ -524,7 +524,7 @@ impl Menu {
                 });
             });
         }
-        egui::SidePanel::left("left-main-menu").show(ctx, |ui| {
+        egui::Panel::left("left-main-menu").show_inside(ui, |ui| {
             let mut connected = false;
             handle_error!(
                 |con| {

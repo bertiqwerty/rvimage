@@ -67,6 +67,7 @@ pub fn text_edit_multiline(
             .font(FontSelection::Style(egui::TextStyle::Monospace))
             .show(ui)
             .response
+            .response
     })
 }
 pub fn text_edit_singleline(
@@ -90,7 +91,7 @@ pub fn text_edit_singleline(
                 .state
                 .store(ui.ctx(), textedit_output.response.id);
         }
-        textedit_output.response
+        textedit_output.response.response
     })
 }
 pub fn slider<Num>(

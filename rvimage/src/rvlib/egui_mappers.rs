@@ -128,6 +128,7 @@ pub fn map_mouse_events(
                 egui::Event::MouseWheel {
                     unit: _,
                     delta,
+                    phase: _,
                     modifiers,
                 } => {
                     if modifiers.ctrl {

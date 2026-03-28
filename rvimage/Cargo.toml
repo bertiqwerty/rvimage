@@ -38,15 +38,15 @@ base64 = "0.22.1"
 conv = "0.3.3"
 dirs = "6.0.0"
 edit = "0.1.5"
-egui = "0.33.3"
-eframe = { version = "0.33.3", default-features = false, features = [
+egui = "0.34.1"
+eframe = { version = "0.34.1", default-features = false, features = [
     # "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",   # Enable restoring app state when restarting the app.
     "wayland",
 ] }
-egui_plot = "0.34.0"
+egui_plot = "0.35.0"
 futures = { version = "0.3.31", optional = true }
 httparse = "1.10.1"
 image = "0.25.9"
@@ -88,10 +88,11 @@ chrono = { version = "0.4.43", default-features = false, features = [
 whoami = "2.1.0"
 # temporary pin
 url = "2.5.8"
-gix = { version = "0.80.0", default-features = false, features = [
+gix = { version = "0.81.0", default-features = false, features = [
     "blocking-network-client",
     "blocking-http-transport-reqwest-rust-tls",
     "credentials",
     "worktree-mutation",
     "max-performance",
+    "sha1",
 ] }
