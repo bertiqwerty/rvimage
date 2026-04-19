@@ -13,4 +13,4 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/bertiqwerty/rvimage"
 [dependency-groups]
-dev = ["pytest>=8.4.1"]
+dev = ["pytest>=9.0.3"]
