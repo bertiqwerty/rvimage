@@ -198,8 +198,8 @@ pub(super) fn anno_plots<'a>(
         {
             let dist = |v: PlotPoint, p: PlotPoint| (v.x - p.x).powi(2) + (v.y - p.y).powi(2);
             let data_point_close_to_mouse = attribute_plots
-                .iter()
-                .flat_map(|(_, plt)| plt.iter())
+                .values()
+                .flat_map(|plt| plt.iter())
                 .filter(|v| (v.x - pos.x).abs() <= PLOT_POINT_RADIUS as f64)
                 .min_by(|v1, v2| {
                     let dist1 = dist(**v1, pos);

@@ -721,7 +721,7 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
                 .zip(fileinfos)
                 .flat_map(|(file, info)| info.map(|i| (file, i)))
                 .collect();
-            combined.sort_by(|(_, (_, datetime1)), (_, (_, datetime2))| datetime1.cmp(datetime2));
+            combined.sort_by_key(|(_, (_, datetime))| *datetime);
 
             for (path, (mb, datetime)) in combined.iter().rev().take((n_autosaves + 5).into()) {
                 if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {

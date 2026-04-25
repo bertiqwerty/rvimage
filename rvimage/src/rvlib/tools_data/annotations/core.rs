@@ -39,7 +39,7 @@ where
         instance_label_display: InstanceLabelDisplay,
     ) -> Self {
         let mut res = Self::default();
-        for (elt, cat_idx) in elts.into_iter().zip(cat_idxs.into_iter()) {
+        for (elt, cat_idx) in elts.into_iter().zip(cat_idxs) {
             if !res.elts.contains(&elt) {
                 res.add_elt(elt, cat_idx, instance_label_display);
             }
