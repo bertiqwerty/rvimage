@@ -8,7 +8,8 @@ import git
 
 @click.command()
 @click.argument("bucketpath", type=click.Path(exists=True, file_okay=False))
-def main(bucketpath: str):
+def main(bucketpath: str | Path):
+    bucketpath = Path(bucketpath).absolute()
     repo = git.Repo(bucketpath)
     repo.remotes.origin.pull()
 
