@@ -154,6 +154,18 @@ pub fn to_name_str(p: &Path) -> RvResult<&str> {
     osstr_to_str(p.file_name())
         .map_err(|e| rverr!("to_name_str could not transform '{:?}' due to '{:?}'", p, e))
 }
+pub fn parent(p: &Path) -> RvResult<&str> {
+    let parent = p
+        .parent()
+        .ok_or_else(|| rverr!("couldn't get parent of {p:?}"))?;
+    parent.to_str().ok_or_else(|| {
+        rverr!(
+            "parent could not convert parent '{:?}' of '{:?}' to str",
+            parent,
+            p
+        )
+    })
+}
 
 pub const DEFAULT_PRJ_NAME: &str = "default";
 pub fn is_prjname_set(prj_name: &str) -> bool {

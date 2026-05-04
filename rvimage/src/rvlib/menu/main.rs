@@ -9,6 +9,7 @@ use crate::{
         cfg_menu::CfgMenu,
         file_counts::labels_and_sorting,
         open_folder,
+        scroll_area::ShowFileOptions,
         ui_util::text_edit_singleline,
     },
     tools::ToolState,
@@ -177,7 +178,7 @@ pub struct Menu {
     scroll_offset: f32,
     stats: Counts,
     text_buffers: TextBuffers,
-    show_file_idx: bool,
+    show_file_options: ShowFileOptions,
     annotations_menu_params: AnnotationsParams,
     import_coco_from_ssh: bool,
     new_file_idx_annoplot: Option<usize>,
@@ -203,7 +204,7 @@ impl Menu {
             scroll_offset: 0.0,
             stats: Counts::default(),
             text_buffers,
-            show_file_idx: true,
+            show_file_options: ShowFileOptions::default(),
             annotations_menu_params: AnnotationsParams::default(),
             import_coco_from_ssh: false,
             new_file_idx_annoplot: None,
@@ -573,7 +574,11 @@ impl Menu {
             let scroll_to_selected = ctrl.paths_navigator.scroll_to_selected_label();
             let mut filtered_label_selected_idx = ctrl.paths_navigator.file_label_selected_idx();
             if let Some(ps) = &ctrl.paths_navigator.paths_selector() {
-                ui.checkbox(&mut self.show_file_idx, "show file index");
+                ui.checkbox(&mut self.show_file_options.idx, "show file index");
+                ui.checkbox(
+                    &mut self.show_file_options.parentfolder,
+                    "show parent folder",
+                );
 
                 self.scroll_offset = menu::scroll_area::scroll_area_file_selector(
                     ui,
@@ -582,7 +587,7 @@ impl Menu {
                     ctrl.file_info_selected.as_deref(),
                     scroll_to_selected,
                     self.scroll_offset,
-                    self.show_file_idx,
+                    self.show_file_options,
                 );
                 ctrl.paths_navigator.deactivate_scroll_to_selected_label();
                 if ctrl.paths_navigator.file_label_selected_idx() != filtered_label_selected_idx {

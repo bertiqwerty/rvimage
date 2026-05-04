@@ -118,7 +118,7 @@ impl PathsNavigator {
             let unfiltered_idx_before_filter =
                 if let Some(filtered_idx) = self.file_label_selected_idx {
                     self.scroll_to_selected_label = true;
-                    let (unfiltered_idx, _) = ps.filtered_idx_file_label_pairs(filtered_idx);
+                    let (unfiltered_idx, _, _) = ps.filtered_idx_file_label_pairs(filtered_idx);
                     Some(unfiltered_idx)
                 } else {
                     None
@@ -126,9 +126,9 @@ impl PathsNavigator {
             ps.filter(filter_predicate)?;
             self.file_label_selected_idx = match unfiltered_idx_before_filter {
                 Some(unfiltered_idx) => ps
-                    .filtered_iter()
+                    .filtered_iter_idx()
                     .enumerate()
-                    .find(|(_, (uidx, _))| *uidx == unfiltered_idx)
+                    .find(|(_, uidx)| *uidx == unfiltered_idx)
                     .map(|(fidx, _)| fidx),
                 None => None,
             };

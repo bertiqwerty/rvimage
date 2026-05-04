@@ -931,7 +931,7 @@ impl Control {
 
     fn get_image_meta(&self, world: &World, idx: usize) -> Option<ImageMeta> {
         let file_label = self.paths_navigator.paths_selector().map(|ps| {
-            let (_, file_label) = ps.filtered_idx_file_label_pairs(idx);
+            let (_, _, file_label) = ps.filtered_idx_file_label_pairs(idx);
             file_label
         });
 

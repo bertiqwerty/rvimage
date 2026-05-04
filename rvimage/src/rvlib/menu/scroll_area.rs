@@ -2,6 +2,35 @@ use egui::{Align, OutputCommand, Pos2, Rect, RichText, Ui};
 
 use crate::paths_selector::PathsSelector;
 
+#[derive(Clone, Copy)]
+pub struct ShowFileOptions {
+    pub idx: bool,
+    pub parentfolder: bool,
+}
+
+impl ShowFileOptions {
+    pub fn make_file_label(&self, idx: usize, subfolder: &str, file_label: &str) -> String {
+        if self.idx && self.parentfolder {
+            format!("{idx}) {subfolder}/{file_label}")
+        } else if self.idx {
+            format!("{idx}) {file_label}")
+        } else if self.parentfolder {
+            format!("{subfolder}/{file_label}")
+        } else {
+            file_label.into()
+        }
+    }
+}
+
+impl Default for ShowFileOptions {
+    fn default() -> Self {
+        Self {
+            idx: true,
+            parentfolder: false,
+        }
+    }
+}
+
 pub fn scroll_area_file_selector(
     ui: &mut Ui,
     selected_filtered_label_idx: &mut Option<usize>,
@@ -9,7 +38,7 @@ pub fn scroll_area_file_selector(
     file_info_selected: Option<&str>,
     scroll_to_selected_label: bool,
     scroll_offset: f32,
-    show_idx: bool,
+    show_file_options: ShowFileOptions,
 ) -> f32 {
     let scroll_height = ui.available_height() - 200.0;
     let n_rows = paths_selector.len_filtered();
@@ -31,13 +60,11 @@ pub fn scroll_area_file_selector(
         },
     });
     let mut add_content = |ui: &mut Ui, filtered_label_idx: usize| {
-        let (idx, file_label) = paths_selector.filtered_idx_file_label_pairs(filtered_label_idx);
-        let file_label = RichText::new(if show_idx {
-            format!("{idx}) {file_label}")
-        } else {
-            file_label.to_string()
-        })
-        .monospace();
+        let (idx, subfolder, file_label) =
+            paths_selector.filtered_idx_file_label_pairs(filtered_label_idx);
+        let file_label =
+            RichText::new(show_file_options.make_file_label(idx, subfolder, file_label))
+                .monospace();
         let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
             let path = paths_selector.file_selected_path(filtered_label_idx);
             if let Some(path) = path {
