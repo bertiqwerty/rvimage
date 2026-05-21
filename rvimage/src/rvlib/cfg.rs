@@ -218,7 +218,7 @@ fn get_blob_list_timeout_s() -> u64 {
 }
 
 #[cfg(feature = "azure_blob")]
-#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfgPrj {
     #[serde(default)]
     pub connection_string_path: String,
@@ -228,6 +228,18 @@ pub struct AzureBlobCfgPrj {
     pub prefix: String,
     #[serde(default = "get_blob_list_timeout_s")]
     pub blob_list_timeout_s: u64,
+}
+
+impl Default for AzureBlobCfgPrj {
+    fn default() -> Self {
+        Self {
+            connection_string: "".to_string(),
+            connection_string_path: "".to_string(),
+            container_name: "".to_string(),
+            prefix: "".to_string(),
+            blob_list_timeout_s: get_blob_list_timeout_s(),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone)]
