@@ -1,4 +1,9 @@
-use std::{fs, path::PathBuf, time::Duration, vec};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    time::Duration,
+    vec,
+};
 
 use crate::{
     cache::ReadImageToCache, image_reader::core::SUPPORTED_EXTENSIONS, types::ResultImage,
@@ -14,10 +19,46 @@ lazy_static! {
     static ref RT: Runtime = Runtime::new().unwrap();
 }
 
+pub fn make_connection_string(
+    cur_prj_path: &Path,
+    connection_string_path: &str,
+    connection_string: &str,
+) -> RvResult<String> {
+    if connection_string.trim().len() > 0 {
+        Ok(connection_string.to_string())
+    } else {
+        let csp = PathBuf::from(connection_string_path);
+        let csp = if csp.is_absolute() {
+            csp
+        } else {
+            cur_prj_path
+                .parent()
+                .expect("current project file cannot be in no parent directory")
+                .join(csp)
+        };
+        let connection_string = fs::read_to_string(&csp).map_err(to_rv)?;
+        let line_with_cs = connection_string.lines().find(|line| {
+            let line = line.trim();
+            !line.starts_with('#') && (line.to_lowercase().contains("connection_string"))
+                || line.to_lowercase().contains("azure_connection_string")
+        });
+        Ok(if let Some(line_with_cs) = line_with_cs {
+            line_with_cs
+                .split_once('=')
+                .map(|(_, cs)| cs.trim().to_string())
+                .ok_or(rverr!(
+                    "cannot parse connection string from line {:?}",
+                    line_with_cs
+                ))?
+        } else {
+            connection_string
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct AzureConnectionData {
-    pub current_prj_path: PathBuf,
-    pub connection_string_path: PathBuf,
+    pub connection_string: String,
     pub container_name: String,
     pub blob_list_timeout_s: u64,
 }
@@ -75,32 +116,7 @@ pub struct ReadImageFromAzureBlob {
 
 impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
     fn new(conn_data: AzureConnectionData) -> RvResult<Self> {
-        let constr_path = if conn_data.connection_string_path.is_absolute() {
-            conn_data.connection_string_path
-        } else {
-            conn_data
-                .current_prj_path
-                .parent()
-                .expect("current project file cannot be in no parent directory")
-                .join(conn_data.connection_string_path)
-        };
-        let connection_string = fs::read_to_string(&constr_path).map_err(to_rv)?;
-        let line_with_cs = connection_string.lines().find(|line| {
-            !line.starts_with('#') && (line.to_lowercase().contains("connection_string"))
-                || line.to_lowercase().contains("azure_connection_string")
-        });
-        let connection_string = if let Some(line_with_cs) = line_with_cs {
-            line_with_cs
-                .split_once('=')
-                .map(|(_, cs)| cs.trim().to_string())
-                .ok_or(rverr!(
-                    "cannot parse connection string from line {:?}",
-                    line_with_cs
-                ))?
-        } else {
-            connection_string
-        };
-
+        let connection_string = conn_data.connection_string;
         let connection_string = ConnectionString::new(&connection_string).map_err(to_rv)?;
         let blob_service_client = BlobServiceClient::new(
             connection_string.account_name.unwrap(),

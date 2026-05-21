@@ -9,7 +9,7 @@ use rvimage_domain::to_rv;
 use crate::{
     cfg::{self, AzureBlobCfgPrj, Cache, Cfg, Connection, get_cfg_tmppath, write_cfg_str},
     file_util::get_prj_name,
-    menu::ui_util::text_edit_singleline,
+    menu::ui_util::{slider, text_edit_singleline},
     result::trace_ok_err,
 };
 
@@ -22,6 +22,10 @@ fn azure_cfg_menu(
     egui::Grid::new("azure-cfg-menu")
         .num_columns(2)
         .show(ui, |ui| {
+            ui.label("Connection str");
+            text_edit_singleline(ui, &mut azure_cfg.connection_string, are_tools_active)
+                .on_hover_text(azure_cfg.connection_string.clone());
+            ui.end_row();
             ui.label("Connection str path");
             text_edit_singleline(ui, &mut azure_cfg.connection_string_path, are_tools_active)
                 .on_hover_text(azure_cfg.connection_string_path.clone());
@@ -46,6 +50,16 @@ fn azure_cfg_menu(
             ui.label("Prefix/folder");
             text_edit_singleline(ui, &mut azure_cfg.prefix, are_tools_active)
                 .on_hover_text(azure_cfg.prefix.clone());
+            ui.end_row();
+            ui.label("");
+            slider(
+                ui,
+                are_tools_active,
+                &mut azure_cfg.blob_list_timeout_s,
+                1u64..=3600u64,
+                "timout in s",
+            )
+            .on_hover_text(azure_cfg.prefix.clone());
         });
 }
 

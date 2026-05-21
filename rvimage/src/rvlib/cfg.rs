@@ -83,6 +83,7 @@ impl CfgLegacy {
             },
             azure_blob: self.azure_blob_cfg.map(|ab| AzureBlobCfgPrj {
                 connection_string_path: ab.connection_string_path,
+                connection_string: "".into(),
                 container_name: ab.container_name,
                 prefix: ab.prefix,
                 blob_list_timeout_s: get_blob_list_timeout_s(),
@@ -221,6 +222,8 @@ fn get_blob_list_timeout_s() -> u64 {
 pub struct AzureBlobCfgPrj {
     #[serde(default)]
     pub connection_string_path: String,
+    #[serde(default)]
+    pub connection_string: String,
     pub container_name: String,
     pub prefix: String,
     #[serde(default = "get_blob_list_timeout_s")]

@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::{
     cache::{FileCache, FileCacheArgs, NoCache},
@@ -86,14 +86,14 @@ impl ReaderFromCfg {
                 }
                 #[cfg(feature = "azure_blob")]
                 (Connection::AzureBlob, Cache::FileCache) => {
+                    use crate::image_reader::azure_blob_reader::make_connection_string;
+
                     let cache_args = cfg.usr.file_cache_args.clone();
                     let azure_cfg_prj = cfg
                         .prj
                         .azure_blob
                         .as_ref()
                         .ok_or_else(|| rverr!("no azure cfg found"))?;
-                    let connection_string_path =
-                        PathBuf::from(&azure_cfg_prj.connection_string_path);
                     let container_name = azure_cfg_prj.container_name.clone();
                     let blob_list_timeout_s = azure_cfg_prj.blob_list_timeout_s;
 
@@ -104,8 +104,11 @@ impl ReaderFromCfg {
                         FileCacheArgs {
                             cfg_args: cache_args,
                             reader_args: AzureConnectionData {
-                                current_prj_path: cfg.current_prj_path().to_path_buf(),
-                                connection_string_path,
+                                connection_string: make_connection_string(
+                                    cfg.current_prj_path(),
+                                    &azure_cfg_prj.connection_string_path,
+                                    &azure_cfg_prj.connection_string,
+                                )?,
                                 container_name,
                                 blob_list_timeout_s,
                             },
