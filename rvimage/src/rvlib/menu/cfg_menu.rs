@@ -7,7 +7,10 @@ use egui::{Popup, Response, RichText, Ui, Visuals, Widget};
 use rvimage_domain::to_rv;
 
 use crate::{
-    cfg::{self, AzureBlobCfgPrj, Cache, Cfg, Connection, get_cfg_tmppath, write_cfg_str},
+    cfg::{
+        self, AzureBlobCfgPrj, AzureBlobCfgUsr, Cache, Cfg, Connection, get_cfg_tmppath,
+        write_cfg_str,
+    },
     file_util::get_prj_name,
     menu::ui_util::{slider, text_edit_singleline},
     result::trace_ok_err,
@@ -15,7 +18,8 @@ use crate::{
 
 fn azure_cfg_menu(
     ui: &mut Ui,
-    azure_cfg: &mut AzureBlobCfgPrj,
+    azure_cfg_prj: &mut AzureBlobCfgPrj,
+    azure_cfg_usr: &mut AzureBlobCfgUsr,
     curprjpath: Option<&Path>,
     are_tools_active: &mut bool,
 ) {
@@ -23,12 +27,16 @@ fn azure_cfg_menu(
         .num_columns(2)
         .show(ui, |ui| {
             ui.label("Connection str");
-            text_edit_singleline(ui, &mut azure_cfg.connection_string, are_tools_active)
-                .on_hover_text(azure_cfg.connection_string.clone());
+            text_edit_singleline(ui, &mut azure_cfg_usr.connection_string, are_tools_active)
+                .on_hover_text(azure_cfg_usr.connection_string.clone());
             ui.end_row();
             ui.label("Connection str path");
-            text_edit_singleline(ui, &mut azure_cfg.connection_string_path, are_tools_active)
-                .on_hover_text(azure_cfg.connection_string_path.clone());
+            text_edit_singleline(
+                ui,
+                &mut azure_cfg_prj.connection_string_path,
+                are_tools_active,
+            )
+            .on_hover_text(azure_cfg_prj.connection_string_path.clone());
             if ui.button("browse").clicked() {
                 let csf = rfd::FileDialog::new().pick_file();
                 if let Some(csf) = csf {
@@ -36,30 +44,30 @@ fn azure_cfg_menu(
                         .and_then(|cpp| csf.strip_prefix(cpp).map_err(to_rv).ok())
                         .and_then(|rp| rp.to_str());
                     if let Some(relpath) = relpath {
-                        azure_cfg.connection_string_path = relpath.to_string();
+                        azure_cfg_prj.connection_string_path = relpath.to_string();
                     } else if let Some(csf_s) = csf.to_str() {
-                        azure_cfg.connection_string_path = csf_s.to_string();
+                        azure_cfg_prj.connection_string_path = csf_s.to_string();
                     }
                 }
             }
             ui.end_row();
             ui.label("Blob container name");
-            text_edit_singleline(ui, &mut azure_cfg.container_name, are_tools_active)
-                .on_hover_text(azure_cfg.container_name.clone());
+            text_edit_singleline(ui, &mut azure_cfg_prj.container_name, are_tools_active)
+                .on_hover_text(azure_cfg_prj.container_name.clone());
             ui.end_row();
             ui.label("Prefix/folder");
-            text_edit_singleline(ui, &mut azure_cfg.prefix, are_tools_active)
-                .on_hover_text(azure_cfg.prefix.clone());
+            text_edit_singleline(ui, &mut azure_cfg_prj.prefix, are_tools_active)
+                .on_hover_text(azure_cfg_prj.prefix.clone());
             ui.end_row();
             ui.label("");
             slider(
                 ui,
                 are_tools_active,
-                &mut azure_cfg.blob_list_timeout_s,
+                &mut azure_cfg_prj.blob_list_timeout_s,
                 1u64..=3600u64,
                 "timout in s",
             )
-            .on_hover_text(azure_cfg.prefix.clone());
+            .on_hover_text(azure_cfg_prj.prefix.clone());
         });
 }
 
@@ -180,14 +188,27 @@ fn settings_popup(
     #[cfg(feature = "azure_blob")]
     if cfg.prj.connection == Connection::AzureBlob {
         let curprjpath = cfg.current_prj_path().parent().map(|cpp| cpp.to_path_buf());
-        let azure_cfg = match &mut cfg.prj.azure_blob {
+        let azure_cfg_prj = match &mut cfg.prj.azure_blob {
             Some(cfg) => cfg,
             None => {
                 cfg.prj.azure_blob = Some(AzureBlobCfgPrj::default());
                 cfg.prj.azure_blob.as_mut().unwrap()
             }
         };
-        azure_cfg_menu(ui, azure_cfg, curprjpath.as_deref(), are_tools_active);
+        let azure_cfg_usr = match &mut cfg.usr.azure_blob {
+            Some(cfg) => cfg,
+            None => {
+                cfg.usr.azure_blob = Some(AzureBlobCfgUsr::default());
+                cfg.usr.azure_blob.as_mut().unwrap()
+            }
+        };
+        azure_cfg_menu(
+            ui,
+            azure_cfg_prj,
+            azure_cfg_usr,
+            curprjpath.as_deref(),
+            are_tools_active,
+        );
     }
     ui.separator();
     ui.horizontal(|ui| {

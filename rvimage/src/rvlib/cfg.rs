@@ -72,6 +72,7 @@ impl CfgLegacy {
             thumb_h_max: get_default_thumb_h_max(),
             hide_thumbs: true,
             thumb_attrs_view: false,
+            azure_blob: None,
         };
         let prj = CfgPrj {
             connection: self.connection,
@@ -83,7 +84,6 @@ impl CfgLegacy {
             },
             azure_blob: self.azure_blob_cfg.map(|ab| AzureBlobCfgPrj {
                 connection_string_path: ab.connection_string_path,
-                connection_string: "".into(),
                 container_name: ab.container_name,
                 prefix: ab.prefix,
                 blob_list_timeout_s: get_blob_list_timeout_s(),
@@ -222,24 +222,29 @@ fn get_blob_list_timeout_s() -> u64 {
 pub struct AzureBlobCfgPrj {
     #[serde(default)]
     pub connection_string_path: String,
-    #[serde(default)]
-    pub connection_string: String,
     pub container_name: String,
     pub prefix: String,
     #[serde(default = "get_blob_list_timeout_s")]
     pub blob_list_timeout_s: u64,
 }
 
+#[cfg(feature = "azure_blob")]
 impl Default for AzureBlobCfgPrj {
     fn default() -> Self {
         Self {
-            connection_string: "".to_string(),
             connection_string_path: "".to_string(),
             container_name: "".to_string(),
             prefix: "".to_string(),
             blob_list_timeout_s: get_blob_list_timeout_s(),
         }
     }
+}
+
+#[cfg(feature = "azure_blob")]
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct AzureBlobCfgUsr {
+    #[serde(default)]
+    pub connection_string: String,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone)]
@@ -354,6 +359,7 @@ pub struct WandServerCfg {
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfg {
     pub prj: AzureBlobCfgPrj,
+    pub usr: AzureBlobCfgUsr,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
@@ -464,6 +470,8 @@ pub struct CfgUsr {
     pub hide_thumbs: bool,
     #[serde(default)]
     pub thumb_attrs_view: bool,
+    #[serde(default)]
+    pub azure_blob: Option<AzureBlobCfgUsr>,
 }
 
 impl CfgUsr {
@@ -534,10 +542,17 @@ impl Cfg {
     }
     #[cfg(feature = "azure_blob")]
     pub fn azure_blob_cfg(&self) -> Option<AzureBlobCfg> {
-        self.prj
-            .azure_blob
-            .as_ref()
-            .map(|prj| AzureBlobCfg { prj: prj.clone() })
+        match (self.prj.azure_blob.as_ref(), self.usr.azure_blob.as_ref()) {
+            (Some(prj), Some(usr)) => Some(AzureBlobCfg {
+                prj: prj.clone(),
+                usr: usr.clone(),
+            }),
+            (Some(prj), None) => Some(AzureBlobCfg {
+                prj: prj.clone(),
+                usr: AzureBlobCfgUsr::default(),
+            }),
+            _ => None,
+        }
     }
     pub fn home_folder(&self) -> &str {
         let ef = self.usr.home_folder.as_deref();

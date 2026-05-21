@@ -94,6 +94,13 @@ impl ReaderFromCfg {
                         .azure_blob
                         .as_ref()
                         .ok_or_else(|| rverr!("no azure cfg found"))?;
+                    let connection_string = cfg
+                        .usr
+                        .azure_blob
+                        .as_ref()
+                        .map(|usrcfg| usrcfg.connection_string.as_str())
+                        .unwrap_or("");
+
                     let container_name = azure_cfg_prj.container_name.clone();
                     let blob_list_timeout_s = azure_cfg_prj.blob_list_timeout_s;
 
@@ -107,7 +114,7 @@ impl ReaderFromCfg {
                                 connection_string: make_connection_string(
                                     cfg.current_prj_path(),
                                     &azure_cfg_prj.connection_string_path,
-                                    &azure_cfg_prj.connection_string,
+                                    connection_string,
                                 )?,
                                 container_name,
                                 blob_list_timeout_s,
