@@ -24,9 +24,7 @@ pub fn make_connection_string(
     connection_string_path: &str,
     connection_string: &str,
 ) -> RvResult<String> {
-    if connection_string.trim().len() > 0 {
-        Ok(connection_string.to_string())
-    } else {
+    if connection_string.trim().is_empty() {
         let csp = PathBuf::from(connection_string_path);
         let csp = if csp.is_absolute() {
             csp
@@ -53,6 +51,8 @@ pub fn make_connection_string(
         } else {
             connection_string
         })
+    } else {
+        Ok(connection_string.to_string())
     }
 }
 
