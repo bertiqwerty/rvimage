@@ -19,12 +19,13 @@ use crate::{
     control::{Control, paths_navigator::PathsNavigator},
     file_util::{self, PathPair},
     get_annos_from_tdm, get_labelinfo_from_tdm,
+    parameters::ParamVal,
     paths_selector::PathsSelector,
     result::trace_ok_err,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
     tools_data::{
         AccessInstanceData, AnnotationsMap, AttributesToolData, LabelInfo, ToolSpecifics,
-        ToolsDataMap, parameters::ParamVal,
+        ToolsDataMap,
     },
 };
 

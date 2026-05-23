@@ -6,20 +6,24 @@ use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, CmdServer, WandServer, rotate90};
+use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
 use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
 use crate::world::World;
 use crate::{
-    cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
+    cfg::Cfg,
+    image_reader::ReaderFromCfg,
+    threadpool::ThreadPool,
+    types::AsyncResultImage,
+    wand_util::{CmdServer, WandServer},
 };
 use crate::{defer_file_removal, measure_time};
 use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use image::imageops::FilterType;
 use image::{DynamicImage, ImageBuffer};
-use rvimage_domain::{RvError, RvResult, rverr, to_rv};
+use rvimage_domain::{Canvas, GeoFig, RvError, RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -750,6 +754,10 @@ impl Control {
         }?;
         self.wand_server = None;
         Ok(())
+    }
+    pub fn submit_prj_to_wandannotator(&self, tools_data_map: &ToolsDataMap) {
+        // self.cfg.prj.wand_prj_annotator.
+        // let rdata = self.cfg.prj.wand_prj_annotator;
     }
 
     pub fn export_logs(&self, dst: &Path) -> RvResult<()> {

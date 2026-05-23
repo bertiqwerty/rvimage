@@ -10,7 +10,7 @@ use crate::{
         file_counts::labels_and_sorting,
         open_folder,
         scroll_area::ShowFileOptions,
-        ui_util::text_edit_singleline,
+        ui_util::{removable_rows, text_edit_multiline, text_edit_singleline},
     },
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
@@ -168,6 +168,8 @@ pub struct TextBuffers {
     pub label_propagation: String,
     pub label_deletion: String,
     pub import_coco_from_ssh_path: String,
+    pub wand_prj_annotator_comment: String,
+    pub wand_prj_annotator_exclfolder: String,
 }
 
 pub struct Menu {
@@ -186,15 +188,18 @@ pub struct Menu {
     prj_import_section: PrjSettingImportSection,
     prj_settings_for_display: Option<String>,
     cache_all_progress: Option<f32>,
+    show_wandprjannotator: bool,
 }
 
 impl Menu {
     fn new() -> Self {
         let text_buffers = TextBuffers {
-            filter_string: "".to_string(),
-            label_propagation: "".to_string(),
-            label_deletion: "".to_string(),
-            import_coco_from_ssh_path: "path on ssh server".to_string(),
+            filter_string: "".into(),
+            label_propagation: "".into(),
+            label_deletion: "".into(),
+            import_coco_from_ssh_path: "path on ssh server".into(),
+            wand_prj_annotator_comment: "".into(),
+            wand_prj_annotator_exclfolder: "".into(),
         };
         Self {
             window_open: true,
@@ -212,6 +217,7 @@ impl Menu {
             prj_import_section: PrjSettingImportSection::All,
             prj_settings_for_display: None,
             cache_all_progress: None,
+            show_wandprjannotator: false,
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -403,7 +409,12 @@ impl Menu {
                     self.toggle_clear_cache_on_close = false;
                 }
 
-                ui.menu_button("Wand Server", |ui| {
+                ui.menu_button("Wand", |ui| {
+                    if ui.button("Ask Wand for annotations").clicked() {
+                        self.show_wandprjannotator = true;
+                        // handle_error!(ctrl.ask_wand_for_prj_annotations(), self);
+                    }
+                    ui.separator();
                     if ui.button("Start Wand Server").clicked() {
                         handle_error!(ctrl.start_wandserver(), self);
                     }
@@ -411,6 +422,101 @@ impl Menu {
                         handle_error!(ctrl.cleanup_wandserver(), self);
                     }
                 });
+                if self.show_wandprjannotator {
+                    egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(
+                        ui.ctx(),
+                        |ui| {
+                            ui.heading("Wand to annotate all filtered project images");
+                            let wpa = &ctrl.cfg.prj.wand_prj_annotator;
+                            let len_cmt = wpa.comments.len();
+                            let len_ans = wpa.server_messages.len();
+
+                            for i in 0..(len_cmt.max(len_ans)) {
+                                if i < len_cmt {
+                                    let mut job = egui::text::LayoutJob::default();
+                                    job.halign = egui::Align::RIGHT; // LEFT, Center, or RIGHT
+                                    job.append(
+                                        &wpa.comments[i],
+                                        0.0,
+                                        egui::TextFormat {
+                                            italics: true,
+                                            ..Default::default()
+                                        },
+                                    );
+                                    ui.label(job);
+
+                                    ui.separator();
+                                }
+                                if i < len_ans {
+                                    ui.label("Response:");
+                                    ui.label(&wpa.server_messages[i]);
+                                    ui.separator();
+                                }
+                            }
+
+                            text_edit_multiline(
+                                ui,
+                                &mut self.text_buffers.wand_prj_annotator_comment,
+                                &mut self.are_tools_active,
+                            );
+
+                            if ui.button("Add comment").clicked() {
+                                if !self
+                                    .text_buffers
+                                    .wand_prj_annotator_comment
+                                    .trim()
+                                    .is_empty()
+                                {
+                                    ctrl.cfg.prj.wand_prj_annotator.comments.push(mem::take(
+                                        &mut self.text_buffers.wand_prj_annotator_comment,
+                                    ));
+                                }
+                            }
+                            text_edit_singleline(
+                                ui,
+                                &mut self.text_buffers.wand_prj_annotator_exclfolder,
+                                &mut self.are_tools_active,
+                            );
+                            if ui.button("Add folder to exclude").clicked() {
+                                if !self
+                                    .text_buffers
+                                    .wand_prj_annotator_exclfolder
+                                    .trim()
+                                    .is_empty()
+                                {
+                                    ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.push(
+                                        mem::take(
+                                            &mut self.text_buffers.wand_prj_annotator_exclfolder,
+                                        ),
+                                    )
+                                }
+                            }
+
+                            let n_folders =
+                                ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.len();
+                            ui.separator();
+                            if n_folders == 0 {
+                                ui.label("Folders to exclude");
+                                let idx_remove = removable_rows(ui, n_folders, |ui, idx| {
+                                    ui.label(
+                                        &ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude[idx],
+                                    );
+                                });
+                                if let Some(idx) = idx_remove {
+                                    // ctrl.cfg
+                                    // .prj
+                                    // .wand_prj_annotator
+                                    // .subfolder_to_exclude
+                                    // .remove(idx);
+                                }
+                                ui.separator();
+                            }
+                            if ui.button("Close").clicked() {
+                                self.show_wandprjannotator = false;
+                            }
+                        },
+                    );
+                }
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");
                     const CODE: &str = env!("CARGO_PKG_REPOSITORY");

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import Protocol, Self, TypeVar
-from collections.abc import Iterable
 
 import numpy as np
 from pydantic import BaseModel, model_serializer, model_validator
@@ -204,11 +203,6 @@ class BboxAnnos(BaseModel):
             return zb
 
 
-class BboxData(BaseModel):
-    annos: BboxAnnos
-    labelinfo: Labelinfo
-
-
 class Canvas(BaseModel):
     rle: list[int]
     bb: BbI
@@ -286,8 +280,13 @@ class BrushAnnos(BaseModel):
         _keep_inds(self, inds)
 
 
+class BboxData(BaseModel):
+    annos: BboxAnnos | dict[str, BboxAnnos]
+    labelinfo: Labelinfo
+
+
 class BrushData(BaseModel):
-    annos: BrushAnnos
+    annos: BrushAnnos | dict[str, BrushAnnos]
     labelinfo: Labelinfo
 
 
@@ -297,5 +296,5 @@ class InputAnnotationData(BaseModel):
 
 
 class OutputAnnotationData(BaseModel):
-    bbox: BboxAnnos | None
-    brush: BrushAnnos | None
+    bbox: BboxAnnos | dict[str, BboxAnnos] | None
+    brush: BrushAnnos | dict[str, BrushAnnos] | None

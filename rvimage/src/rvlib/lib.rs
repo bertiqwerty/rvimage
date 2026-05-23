@@ -17,7 +17,9 @@ pub mod image_util;
 pub mod main_loop;
 pub mod menu;
 mod meta_data;
+mod parameters;
 mod paths_selector;
+mod rest_data;
 pub mod result;
 mod sort_params;
 mod ssh;
@@ -29,6 +31,8 @@ pub mod tracing_setup;
 mod types;
 mod util;
 pub mod view;
+mod wand_prj_annotator;
+mod wand_util;
 pub mod world;
 pub use drawme::{
     Annotation, BboxAnnotation, BrushAnnotation, Stroke, ThumbViews, UpdateImage, UpdatePermAnnos,

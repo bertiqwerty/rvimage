@@ -90,6 +90,7 @@ impl CfgLegacy {
             }),
             sort_params: SortParams::default(),
             wand_server: WandServerCfg::default(),
+            wand_prj_annotator: WandProjectAnnotatorCfg::default(),
         };
         Cfg { usr, prj }
     }
@@ -355,6 +356,34 @@ pub struct WandServerCfg {
     pub install_uv: bool,
 }
 
+fn get_wandprjannotator_default_timeout() -> usize {
+    30000
+}
+
+/// In contrast to annotations of the currently opened image in the tool's predictive labelling setting,
+/// this wand-cfg is about annotating the whole project.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct WandProjectAnnotatorCfg {
+    pub url: String,
+    #[serde(default = "get_wandprjannotator_default_timeout")]
+    pub timeout_ms: usize,
+    pub comments: Vec<String>,
+    pub server_messages: Vec<String>,
+    pub subfolder_to_exclude: Vec<String>,
+}
+
+impl Default for WandProjectAnnotatorCfg {
+    fn default() -> Self {
+        Self {
+            url: "".into(),
+            timeout_ms: get_wandprjannotator_default_timeout(),
+            comments: Vec::new(),
+            server_messages: Vec::new(),
+            subfolder_to_exclude: Vec::new(),
+        }
+    }
+}
+
 #[cfg(feature = "azure_blob")]
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfg {
@@ -499,6 +528,8 @@ pub struct CfgPrj {
     pub sort_params: SortParams,
     #[serde(default)]
     pub wand_server: WandServerCfg,
+    #[serde(default)]
+    pub wand_prj_annotator: WandProjectAnnotatorCfg,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Cfg {

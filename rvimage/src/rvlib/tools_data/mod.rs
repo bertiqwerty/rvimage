@@ -23,7 +23,6 @@ pub mod brush_data;
 pub mod coco_io;
 mod core;
 mod label_map;
-pub mod parameters;
 mod plot_stats;
 pub mod predictive_labeling;
 pub mod rot90_data;

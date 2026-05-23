@@ -164,3 +164,22 @@ where
         None
     }
 }
+
+pub fn removable_rows(
+    ui: &mut Ui,
+    n_rows: usize,
+    mut make_row: impl FnMut(&mut Ui, usize),
+) -> Option<usize> {
+    let mut to_be_removed = None;
+    for idx in 0..n_rows {
+        if ui
+            .button("x")
+            .on_hover_text("double click😈")
+            .double_clicked()
+        {
+            to_be_removed = Some(idx);
+        }
+        make_row(ui, idx)
+    }
+    to_be_removed
+}

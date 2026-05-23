@@ -4,13 +4,13 @@ use rvimage_domain::{Canvas, GeoFig, PtF, RvResult};
 
 use crate::{
     file_util::PathPair,
+    parameters::{ParamMap, ParamVal},
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
 };
 
 use super::{
     AccessInstanceData, AttributesToolData, BboxToolData, BrushToolData, InstanceAnnotate,
     annotations::InstanceAnnotations,
-    parameters::{ParamMap, ParamVal},
 };
 
 fn iter_attributes_of_files<'a>(
