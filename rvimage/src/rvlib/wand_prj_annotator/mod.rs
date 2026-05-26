@@ -18,7 +18,7 @@ pub struct AnnosWithInfo<'a, T>
 where
     T: InstanceAnnotate,
 {
-    pub annos: HashMap<&'a str, &'a InstanceAnnotations<T>>,
+    pub annos: Vec<(&'a str, &'a InstanceAnnotations<T>)>,
     pub labelinfo: &'a LabelInfo,
 }
 #[derive(Serialize, Clone)]
@@ -40,7 +40,7 @@ impl<'a> WandPrjAnnotationsInput<'a> {
                 (
                     am.iter()
                         .map(|(k, (v, _))| (k.as_str(), v))
-                        .collect::<HashMap<&str, &InstanceAnnotations<GeoFig>>>(),
+                        .collect::<Vec<(&str, &InstanceAnnotations<GeoFig>)>>(),
                     li,
                 )
             })
@@ -57,7 +57,7 @@ impl<'a> WandPrjAnnotationsInput<'a> {
                 (
                     am.iter()
                         .map(|(k, (v, _))| (k.as_str(), v))
-                        .collect::<HashMap<&str, &InstanceAnnotations<Canvas>>>(),
+                        .collect::<Vec<(&str, &InstanceAnnotations<Canvas>)>>(),
                     li,
                 )
             })
@@ -94,7 +94,7 @@ pub struct RestWandPrjAnnotator {
 impl RestWandPrjAnnotator {
     pub fn new(url: String, authorization: Option<&str>, timeout_ms: usize) -> Self {
         Self {
-            data: RestData::new(url, authorization, timeout_ms, "predict"),
+            data: RestData::new(url, authorization, timeout_ms, "predict_many"),
         }
     }
 }
@@ -110,8 +110,42 @@ impl WandPrjAnnotator for RestWandPrjAnnotator {
         let form = multipart::Form::new()
             .part("parameters", multipart::Part::text(param_json_str))
             .part("input_annotations", multipart::Part::text(annos_json_str));
-        Ok(WandPrjAnnotationsOutput::default())
+        self.data.send(form, None)
     }
 }
 
-pub fn submit(tools_data_map: &ToolsDataMap) {}
+#[cfg(test)]
+use crate::{defer, test_helpers::start_resttestserver};
+#[cfg(test)]
+use rvimage_domain::{BbF, BbI};
+
+#[cfg(test)]
+use std::{thread, time::Duration};
+#[test]
+fn test_testserver() {
+    let (manifestdir, mut child) = start_resttestserver();
+    defer!(|| child.kill().expect("Failed to kill the server"));
+    thread::sleep(Duration::from_secs(5));
+    let url = "http://127.0.0.1:8000/";
+    let w = RestWandPrjAnnotator::new(url.into(), None, 60000);
+    let bbox_annos = InstanceAnnotations::from_elts_cats(
+        vec![GeoFig::BB(BbF::from_arr(&[0.0, 0.0, 5.0, 5.0]))],
+        vec![1],
+    );
+    let c = Canvas::from_box(BbI::from_arr(&[11, 11, 5, 5]), 1.0);
+    let brush_annos = InstanceAnnotations::from_elts_cats(vec![c], vec![1]);
+    let labelinfo = LabelInfo::default();
+    let bbox_dummy = AnnosWithInfo {
+        annos: vec![("file1.png", &bbox_annos)],
+        labelinfo: &labelinfo,
+    };
+    let brush_dummy = AnnosWithInfo {
+        annos: vec![("file1.png", &brush_annos)],
+        labelinfo: &labelinfo,
+    };
+    let annos = WandPrjAnnotationsInput {
+        bbox: Some(bbox_dummy),
+        brush: Some(brush_dummy),
+    };
+    let output = w.predict(annos, None).unwrap();
+}

@@ -75,10 +75,21 @@ class BboxAnnos(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def resolve_bb_poly(cls, data: dict) -> dict:
+    def resolve_bb_poly(
+        cls, data: dict | list[tuple[str, dict]]
+    ) -> dict | list[tuple[str, dict]]:
         # remove the type-info from the dict
-        if len(data["elts"]) > 0 and isinstance(data["elts"][0], dict):
-            data["elts"] = [next(v for v in d.values()) for d in data["elts"]]
+        if isinstance(data, dict):
+            if len(data["elts"]) > 0 and isinstance(data["elts"][0], dict):
+                data["elts"] = [next(v for v in d.values()) for d in data["elts"]]
+        else:
+            for _, perimage_data in data:
+                if len(perimage_data["elts"]) > 0 and isinstance(
+                    perimage_data["elts"][0], dict
+                ):
+                    perimage_data["elts"] = [
+                        next(v for v in d.values()) for d in perimage_data["elts"]
+                    ]
         return data
 
     @model_validator(mode="after")
@@ -281,12 +292,12 @@ class BrushAnnos(BaseModel):
 
 
 class BboxData(BaseModel):
-    annos: BboxAnnos | dict[str, BboxAnnos]
+    annos: BboxAnnos | list[tuple[str, BboxAnnos]]
     labelinfo: Labelinfo
 
 
 class BrushData(BaseModel):
-    annos: BrushAnnos | dict[str, BrushAnnos]
+    annos: BrushAnnos | list[tuple[str, BrushAnnos]]
     labelinfo: Labelinfo
 
 
@@ -296,5 +307,5 @@ class InputAnnotationData(BaseModel):
 
 
 class OutputAnnotationData(BaseModel):
-    bbox: BboxAnnos | dict[str, BboxAnnos] | None
-    brush: BrushAnnos | dict[str, BrushAnnos] | None
+    bbox: BboxAnnos | list[tuple[str, BboxAnnos]] | None
+    brush: BrushAnnos | list[tuple[str, BrushAnnos]] | None

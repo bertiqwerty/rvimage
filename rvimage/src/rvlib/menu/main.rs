@@ -431,28 +431,32 @@ impl Menu {
                             let len_cmt = wpa.comments.len();
                             let len_ans = wpa.server_messages.len();
 
-                            for i in 0..(len_cmt.max(len_ans)) {
-                                if i < len_cmt {
-                                    let mut job = egui::text::LayoutJob::default();
-                                    job.halign = egui::Align::RIGHT; // LEFT, Center, or RIGHT
-                                    job.append(
-                                        &wpa.comments[i],
-                                        0.0,
-                                        egui::TextFormat {
-                                            italics: true,
-                                            ..Default::default()
-                                        },
-                                    );
-                                    ui.label(job);
+                            egui::ScrollArea::vertical()
+                                .max_height(300.0)
+                                .show(ui, |ui| {
+                                    for i in 0..(len_cmt.max(len_ans)) {
+                                        if i < len_cmt {
+                                            let mut job = egui::text::LayoutJob::default();
+                                            job.halign = egui::Align::RIGHT; // LEFT, Center, or RIGHT
+                                            job.append(
+                                                &wpa.comments[i],
+                                                0.0,
+                                                egui::TextFormat {
+                                                    italics: true,
+                                                    ..Default::default()
+                                                },
+                                            );
+                                            ui.label(job);
 
-                                    ui.separator();
-                                }
-                                if i < len_ans {
-                                    ui.label("Response:");
-                                    ui.label(&wpa.server_messages[i]);
-                                    ui.separator();
-                                }
-                            }
+                                            ui.separator();
+                                        }
+                                        if i < len_ans {
+                                            ui.label("Response:");
+                                            ui.label(&wpa.server_messages[i]);
+                                            ui.separator();
+                                        }
+                                    }
+                                });
 
                             text_edit_multiline(
                                 ui,
@@ -460,18 +464,25 @@ impl Menu {
                                 &mut self.are_tools_active,
                             );
 
-                            if ui.button("Add comment").clicked() {
-                                if !self
-                                    .text_buffers
-                                    .wand_prj_annotator_comment
-                                    .trim()
-                                    .is_empty()
-                                {
-                                    ctrl.cfg.prj.wand_prj_annotator.comments.push(mem::take(
-                                        &mut self.text_buffers.wand_prj_annotator_comment,
-                                    ));
+                            ui.horizontal(|ui| {
+                                if ui.button("Add comment").clicked() {
+                                    if !self
+                                        .text_buffers
+                                        .wand_prj_annotator_comment
+                                        .trim()
+                                        .is_empty()
+                                    {
+                                        ctrl.cfg.prj.wand_prj_annotator.comments.push(mem::take(
+                                            &mut self.text_buffers.wand_prj_annotator_comment,
+                                        ));
+                                    }
                                 }
-                            }
+                                if ui.button("Clear").clicked() {
+                                    ctrl.cfg.prj.wand_prj_annotator.comments.clear();
+                                    ctrl.cfg.prj.wand_prj_annotator.server_messages.clear();
+                                }
+                            });
+                            ui.separator();
                             text_edit_singleline(
                                 ui,
                                 &mut self.text_buffers.wand_prj_annotator_exclfolder,
@@ -495,21 +506,30 @@ impl Menu {
                             let n_folders =
                                 ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.len();
                             ui.separator();
-                            if n_folders == 0 {
+                            if n_folders > 0 {
                                 ui.label("Folders to exclude");
-                                let idx_remove = removable_rows(ui, n_folders, |ui, idx| {
-                                    ui.label(
-                                        &ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude[idx],
-                                    );
+                                let mut idx_remove = None;
+                                egui::Grid::new("label_grid").num_columns(2).show(ui, |ui| {
+                                    idx_remove = removable_rows(ui, n_folders, |ui, idx| {
+                                        ui.label(
+                                            &ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude
+                                                [idx],
+                                        );
+                                        ui.end_row();
+                                    });
                                 });
                                 if let Some(idx) = idx_remove {
-                                    // ctrl.cfg
-                                    // .prj
-                                    // .wand_prj_annotator
-                                    // .subfolder_to_exclude
-                                    // .remove(idx);
+                                    ctrl.cfg
+                                        .prj
+                                        .wand_prj_annotator
+                                        .subfolder_to_exclude
+                                        .remove(idx);
                                 }
                                 ui.separator();
+                            }
+                            if ui.button("submit").clicked() {
+                                self.show_wandprjannotator = false;
+                                ctrl.submit_prj_to_wandannotator(tools_data_map);
                             }
                             if ui.button("Close").clicked() {
                                 self.show_wandprjannotator = false;

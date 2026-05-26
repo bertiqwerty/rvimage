@@ -23,7 +23,7 @@ use chrono::{DateTime, Utc};
 use detail::{create_lock_file, lock_file_path, read_user_from_lockfile};
 use image::imageops::FilterType;
 use image::{DynamicImage, ImageBuffer};
-use rvimage_domain::{Canvas, GeoFig, RvError, RvResult, rverr, to_rv};
+use rvimage_domain::{RvError, RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -755,6 +755,7 @@ impl Control {
         self.wand_server = None;
         Ok(())
     }
+
     pub fn submit_prj_to_wandannotator(&self, tools_data_map: &ToolsDataMap) {
         // self.cfg.prj.wand_prj_annotator.
         // let rdata = self.cfg.prj.wand_prj_annotator;
