@@ -436,8 +436,10 @@ impl Menu {
                                 .show(ui, |ui| {
                                     for i in 0..(len_cmt.max(len_ans)) {
                                         if i < len_cmt {
-                                            let mut job = egui::text::LayoutJob::default();
-                                            job.halign = egui::Align::RIGHT; // LEFT, Center, or RIGHT
+                                            let mut job = egui::text::LayoutJob {
+                                                halign: egui::Align::RIGHT,
+                                                ..Default::default()
+                                            };
                                             job.append(
                                                 &wpa.comments[i],
                                                 0.0,
@@ -465,17 +467,16 @@ impl Menu {
                             );
 
                             ui.horizontal(|ui| {
-                                if ui.button("Add comment").clicked() {
-                                    if !self
+                                if ui.button("Add comment").clicked()
+                                    && !self
                                         .text_buffers
                                         .wand_prj_annotator_comment
                                         .trim()
                                         .is_empty()
-                                    {
-                                        ctrl.cfg.prj.wand_prj_annotator.comments.push(mem::take(
-                                            &mut self.text_buffers.wand_prj_annotator_comment,
-                                        ));
-                                    }
+                                {
+                                    ctrl.cfg.prj.wand_prj_annotator.comments.push(mem::take(
+                                        &mut self.text_buffers.wand_prj_annotator_comment,
+                                    ));
                                 }
                                 if ui.button("Clear").clicked() {
                                     ctrl.cfg.prj.wand_prj_annotator.comments.clear();
@@ -488,19 +489,16 @@ impl Menu {
                                 &mut self.text_buffers.wand_prj_annotator_exclfolder,
                                 &mut self.are_tools_active,
                             );
-                            if ui.button("Add folder to exclude").clicked() {
-                                if !self
+                            if ui.button("Add folder to exclude").clicked()
+                                && !self
                                     .text_buffers
                                     .wand_prj_annotator_exclfolder
                                     .trim()
                                     .is_empty()
-                                {
-                                    ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.push(
-                                        mem::take(
-                                            &mut self.text_buffers.wand_prj_annotator_exclfolder,
-                                        ),
-                                    )
-                                }
+                            {
+                                ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.push(
+                                    mem::take(&mut self.text_buffers.wand_prj_annotator_exclfolder),
+                                )
                             }
 
                             let n_folders =
@@ -529,7 +527,27 @@ impl Menu {
                             }
                             if ui.button("submit").clicked() {
                                 self.show_wandprjannotator = false;
-                                ctrl.submit_prj_to_wandannotator(tools_data_map);
+                                let files = ctrl.paths_navigator.paths_selector().map(|ps| {
+                                    ps.filtered_abs_file_paths()
+                                        .iter()
+                                        .map(|p| p.to_string())
+                                        .collect::<Vec<String>>()
+                                });
+                                if let Some(files) = files {
+                                    let folders_to_exclude = ctrl
+                                        .cfg
+                                        .prj
+                                        .wand_prj_annotator
+                                        .subfolder_to_exclude
+                                        .clone();
+                                    ctrl.submit_prj_to_wandannotator(
+                                        tools_data_map,
+                                        &files,
+                                        &folders_to_exclude,
+                                    );
+                                } else {
+                                    tracing::warn!("No files selected to submit to wand annotator");
+                                }
                             }
                             if ui.button("Close").clicked() {
                                 self.show_wandprjannotator = false;

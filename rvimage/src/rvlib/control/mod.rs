@@ -10,6 +10,9 @@ use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
 use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
+use crate::wand_prj_annotator::{
+    RestWandPrjAnnotator, WandPrjAnnotationsInput, WandPrjAnnotationsOutput, WandPrjAnnotator,
+};
 use crate::world::World;
 use crate::{
     cfg::Cfg,
@@ -30,6 +33,7 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use std::{fs, mem};
@@ -372,6 +376,7 @@ pub struct Control {
     save_handle: Option<JoinHandle<()>>,
     thumbnail_cache: HashMap<String, DynamicImage>,
     wand_server: Option<CmdServer>,
+    wand_prj_annotator_rx: Option<mpsc::Receiver<WandPrjAnnotationsOutput>>,
 }
 
 impl Control {
@@ -756,9 +761,63 @@ impl Control {
         Ok(())
     }
 
-    pub fn submit_prj_to_wandannotator(&self, tools_data_map: &ToolsDataMap) {
-        // self.cfg.prj.wand_prj_annotator.
-        // let rdata = self.cfg.prj.wand_prj_annotator;
+    pub fn submit_prj_to_wandannotator(
+        &mut self,
+        tools_data_map: &ToolsDataMap,
+        files: &[String],
+        folders_to_exclude: &[String],
+    ) {
+        if self.wand_prj_annotator_rx.is_some() {
+            tracing::warn!("cannot submit project to wand annotator, annotator already running");
+        } else {
+            let tdm = tools_data_map.clone();
+            let (tx, rx) = mpsc::channel();
+            self.wand_prj_annotator_rx = Some(rx);
+
+            thread::scope(|s| {
+                let input = WandPrjAnnotationsInput::from_tdm(&tdm, files, folders_to_exclude);
+                let url = self.cfg.prj.wand_prj_annotator.url.clone();
+                let headers = self.cfg.usr.wand_prj_annotator_headers.as_deref();
+                let timeout = self.cfg.prj.wand_prj_annotator.timeout_ms;
+
+                let wand_prj_annotator = RestWandPrjAnnotator::new(url, headers, timeout);
+                s.spawn(move || {
+                    tracing::info!("submitting project to wand annotator...");
+                    let output = trace_ok_err(wand_prj_annotator.predict(input, None));
+                    if let Some(output) = output {
+                        trace_ok_err(tx.send(output));
+                    } else {
+                        tracing::error!("submission to wand annotator failed");
+                        trace_ok_err(tx.send(WandPrjAnnotationsOutput::default()));
+                    }
+
+                    tracing::info!("... submission done!");
+                });
+            });
+        }
+    }
+    pub fn check_wand_prj_annotator_output(
+        &mut self,
+        tools_data_map: &mut ToolsDataMap,
+    ) -> RvResult<bool> {
+        if let Some(rx) = &self.wand_prj_annotator_rx {
+            match rx.try_recv() {
+                Ok(output) => {
+                    tracing::info!("received output from wand annotator, applying to project...");
+                    let res = output.resolve_into_tdm(tools_data_map);
+                    tracing::info!("... applying done!");
+                    self.wand_prj_annotator_rx = None;
+                    res.map(|_| true)
+                }
+                Err(mpsc::TryRecvError::Empty) => Ok(false),
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.wand_prj_annotator_rx = None;
+                    Err(rverr!("wand annotator channel disconnected"))
+                }
+            }
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn export_logs(&self, dst: &Path) -> RvResult<()> {

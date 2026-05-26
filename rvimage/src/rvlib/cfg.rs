@@ -3,6 +3,7 @@ use crate::{
     file_util::{
         self, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR, copy_and_unzip, dl_and_unzip, path_to_str,
     },
+    parameters::ParamMap,
     result::trace_ok_err,
     sort_params::SortParams,
     ssh,
@@ -73,6 +74,7 @@ impl CfgLegacy {
             hide_thumbs: true,
             thumb_attrs_view: false,
             azure_blob: None,
+            wand_prj_annotator_headers: None,
         };
         let prj = CfgPrj {
             connection: self.connection,
@@ -368,6 +370,7 @@ pub struct WandProjectAnnotatorCfg {
     #[serde(default = "get_wandprjannotator_default_timeout")]
     pub timeout_ms: usize,
     pub comments: Vec<String>,
+    pub params: Option<ParamMap>,
     pub server_messages: Vec<String>,
     pub subfolder_to_exclude: Vec<String>,
 }
@@ -378,6 +381,7 @@ impl Default for WandProjectAnnotatorCfg {
             url: "".into(),
             timeout_ms: get_wandprjannotator_default_timeout(),
             comments: Vec::new(),
+            params: None,
             server_messages: Vec::new(),
             subfolder_to_exclude: Vec::new(),
         }
@@ -501,6 +505,8 @@ pub struct CfgUsr {
     pub thumb_attrs_view: bool,
     #[serde(default)]
     pub azure_blob: Option<AzureBlobCfgUsr>,
+    #[serde(default)]
+    pub wand_prj_annotator_headers: Option<String>,
 }
 
 impl CfgUsr {

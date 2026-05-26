@@ -1,15 +1,18 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use reqwest::blocking::multipart;
-use rvimage_domain::{Canvas, GeoFig, RvResult, to_rv};
+use rvimage_domain::{Canvas, GeoFig, RvResult, ShapeI, to_rv};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     InstanceAnnotate, ToolsDataMap,
     parameters::ParamMap,
     rest_data::RestData,
+    result::trace_ok_err,
     tools::{BBOX_NAME, BRUSH_NAME},
-    tools_data::{AccessInstanceData, LabelInfo, annotations::InstanceAnnotations},
+    tools_data::{
+        AccessInstanceData, ExportAsCoco, LabelInfo, LabelMap, annotations::InstanceAnnotations,
+    },
     wand_util::serialize_or_default,
 };
 
@@ -28,7 +31,19 @@ pub struct WandPrjAnnotationsInput<'a> {
 }
 
 impl<'a> WandPrjAnnotationsInput<'a> {
-    pub fn from_tdm(tools_data_map: &'a ToolsDataMap) -> Self {
+    pub fn from_tdm(
+        tools_data_map: &'a ToolsDataMap,
+        files: &'a [String],
+        folders_to_exclude: &'a [String],
+    ) -> Self {
+        let files_wo_excluded_folders = files
+            .iter()
+            .filter(|f| {
+                !folders_to_exclude
+                    .iter()
+                    .any(|excluded| Path::new(f).ancestors().any(|a| a == Path::new(excluded)))
+            })
+            .collect::<Vec<_>>();
         let bbox = tools_data_map
             .get_specifics(BBOX_NAME)
             .and_then(|s| {
@@ -38,8 +53,9 @@ impl<'a> WandPrjAnnotationsInput<'a> {
             })
             .map(|(am, li)| {
                 (
-                    am.iter()
-                        .map(|(k, (v, _))| (k.as_str(), v))
+                    files_wo_excluded_folders
+                        .iter()
+                        .flat_map(|f| am.get(f).map(|(annos, _)| (f.as_str(), annos)))
                         .collect::<Vec<(&str, &InstanceAnnotations<GeoFig>)>>(),
                     li,
                 )
@@ -68,8 +84,25 @@ impl<'a> WandPrjAnnotationsInput<'a> {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct WandPrjAnnotationsOutput {
-    pub bbox: Option<HashMap<String, InstanceAnnotations<GeoFig>>>,
-    pub brush: Option<HashMap<String, InstanceAnnotations<Canvas>>>,
+    pub bbox: Option<HashMap<String, (InstanceAnnotations<GeoFig>, ShapeI)>>,
+    pub brush: Option<HashMap<String, (InstanceAnnotations<Canvas>, ShapeI)>>,
+}
+impl WandPrjAnnotationsOutput {
+    pub fn resolve_into_tdm(self, tools_data_map: &mut ToolsDataMap) -> RvResult<()> {
+        if let Some(bbox) = self.bbox
+            && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
+            && let Some(bbox_data) = trace_ok_err(s.bbox_mut())
+        {
+            bbox_data.set_annotations_map(LabelMap::from(bbox))?;
+        }
+        if let Some(brush) = self.brush
+            && let Some(s) = tools_data_map.get_specifics_mut(BRUSH_NAME)
+            && let Some(brush_data) = trace_ok_err(s.brush_mut())
+        {
+            brush_data.set_annotations_map(LabelMap::from(brush))?;
+        }
+        Ok(())
+    }
 }
 
 pub trait WandPrjAnnotator {
@@ -123,7 +156,7 @@ use rvimage_domain::{BbF, BbI};
 use std::{thread, time::Duration};
 #[test]
 fn test_testserver() {
-    let (manifestdir, mut child) = start_resttestserver();
+    let (_, mut child) = start_resttestserver();
     defer!(|| child.kill().expect("Failed to kill the server"));
     thread::sleep(Duration::from_secs(5));
     let url = "http://127.0.0.1:8000/";
@@ -147,5 +180,5 @@ fn test_testserver() {
         bbox: Some(bbox_dummy),
         brush: Some(brush_dummy),
     };
-    let output = w.predict(annos, None).unwrap();
+    w.predict(annos, None).unwrap();
 }
