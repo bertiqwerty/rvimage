@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use exmex::prelude::*;
 use exmex::{BinOp, ExError, MakeOperators, MatchLiteral, Operator, ops_factory};
+use regex::Regex;
 
 use crate::parameters::PARAM_INTERVAL_SEPARATOR;
 use crate::result::ignore_error;
@@ -9,6 +10,8 @@ use crate::tools::ATTRIBUTES_NAME;
 use crate::tools_data::annotations::InstanceAnnotations;
 use crate::tools_data::{Annotate, InstanceAnnotate, ToolSpecifics};
 use crate::tools_data::{LabelInfo, ToolsDataMap};
+
+use std::sync::LazyLock;
 
 use rvimage_domain::{RvError, RvResult, rverr};
 
@@ -241,9 +244,8 @@ impl MatchLiteral for PathMatcher {
         {
             None
         } else {
-            exmex::lazy_static::lazy_static! {
-                static ref RE_VAR_NAME_EXACT: exmex::regex::Regex = exmex::regex::Regex::new(r"^[a-zA-z0-9\\/\-:. ]+").unwrap();
-            }
+            static RE_VAR_NAME_EXACT: LazyLock<Regex> =
+                LazyLock::new(|| Regex::new(r"^[a-zA-z0-9\\/\-:. ]+").unwrap());
             RE_VAR_NAME_EXACT.find(text).map(|m| m.as_str())
         }
     }
