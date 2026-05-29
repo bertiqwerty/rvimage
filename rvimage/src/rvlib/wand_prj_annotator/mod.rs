@@ -35,15 +35,16 @@ impl<'a> WandPrjAnnotationsInput<'a> {
         tools_data_map: &'a ToolsDataMap,
         files: &'a [String],
         folders_to_exclude: &'a [String],
-    ) -> Self {
+    ) -> (Self, Vec<&'a String>) {
         let files_wo_excluded_folders = files
             .iter()
             .filter(|f| {
                 !folders_to_exclude
                     .iter()
-                    .any(|excluded| Path::new(f).ancestors().any(|a| a == Path::new(excluded)))
+                    .any(|excluded| Path::new(f).ancestors().any(|a| a.ends_with(excluded)))
             })
             .collect::<Vec<_>>();
+        tracing::warn!("{files_wo_excluded_folders:?}");
         let bbox = tools_data_map
             .get_specifics(BBOX_NAME)
             .and_then(|s| {
@@ -78,7 +79,7 @@ impl<'a> WandPrjAnnotationsInput<'a> {
                 )
             })
             .map(|(annos, labelinfo)| AnnosWithInfo { annos, labelinfo });
-        Self { bbox, brush }
+        (Self { bbox, brush }, files_wo_excluded_folders)
     }
 }
 
@@ -118,6 +119,7 @@ pub trait WandPrjAnnotator {
         &self,
         annotations_input: WandPrjAnnotationsInput<'a>,
         parameters: Option<&ParamMap>,
+        files: &[&String],
     ) -> RvResult<WandPrjAnnotationsOutput>;
 }
 
@@ -137,12 +139,15 @@ impl WandPrjAnnotator for RestWandPrjAnnotator {
         &self,
         annos_input: WandPrjAnnotationsInput<'a>,
         parameters: Option<&ParamMap>,
+        files: &[&String],
     ) -> RvResult<WandPrjAnnotationsOutput> {
         let annos_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
         let param_json_str = serialize_or_default(parameters)?;
+        let files_json_str = serde_json::to_string(files).map_err(to_rv)?;
         let form = multipart::Form::new()
             .part("parameters", multipart::Part::text(param_json_str))
-            .part("input_annotations", multipart::Part::text(annos_json_str));
+            .part("input_annotations", multipart::Part::text(annos_json_str))
+            .part("files", multipart::Part::text(files_json_str));
         self.data.send(form, None)
     }
 }
@@ -180,5 +185,5 @@ fn test_testserver() {
         bbox: Some(bbox_dummy),
         brush: Some(brush_dummy),
     };
-    w.predict(annos, None).unwrap();
+    w.predict(annos, None, &[]).unwrap();
 }
