@@ -232,7 +232,7 @@ impl AttributesToolData {
                 attr_map.insert(attr_name.clone(), attr_val);
             }
         } else {
-            let attr_map = ParamMap::from((self.attr_names[idx].clone(), attr_val));
+            let attr_map = ParamMap::from([(self.attr_names[idx].clone(), attr_val)]);
             self.annotations_map
                 .insert(filename.to_string(), (attr_map, image_shape));
         }

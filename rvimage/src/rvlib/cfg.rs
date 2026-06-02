@@ -370,6 +370,7 @@ pub struct WandProjectAnnotatorCfg {
     #[serde(default = "get_wandprjannotator_default_timeout")]
     pub timeout_ms: usize,
     pub comments: Vec<String>,
+    pub prj_name: String,
     pub params: Option<ParamMap>,
     pub server_messages: Vec<String>,
     pub subfolder_to_exclude: Vec<String>,
@@ -384,6 +385,7 @@ impl Default for WandProjectAnnotatorCfg {
             params: None,
             server_messages: Vec::new(),
             subfolder_to_exclude: Vec::new(),
+            prj_name: "".to_string(),
         }
     }
 }

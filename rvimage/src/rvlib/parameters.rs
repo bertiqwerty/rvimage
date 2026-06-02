@@ -175,10 +175,10 @@ impl ParamMap {
         self.data.is_empty()
     }
 }
-impl From<(String, ParamVal)> for ParamMap {
-    fn from(data: (String, ParamVal)) -> Self {
+impl<const N: usize> From<[(String, ParamVal); N]> for ParamMap {
+    fn from(data: [(String, ParamVal); N]) -> Self {
         Self {
-            data: BTreeMap::from([data]),
+            data: BTreeMap::from(data),
         }
     }
 }
@@ -264,7 +264,7 @@ pub fn merge_attrmaps(mut existing_map: ParamMap, new_map: ParamMap) -> ParamMap
 #[test]
 fn test_equal() {
     fn make(k: &str, v: ParamVal) -> ParamMap {
-        ParamMap::from((k.to_string(), v))
+        ParamMap::from([(k.to_string(), v)])
     }
     let map1 = make("a", ParamVal::Float(Some(f64::NAN)));
     let map2 = make("a", ParamVal::Float(Some(f64::NAN)));

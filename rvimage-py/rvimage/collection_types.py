@@ -55,6 +55,11 @@ def _keep_inds(obj: _AnnotationProtocol, inds: list[int]):
     obj.selected_mask = [obj.selected_mask[i] for i in inds]
 
 
+class ShapeI(BaseModel):
+    w: int
+    h: int
+
+
 class Labelinfo(BaseModel):
     new_label: str
     labels: list[str]
@@ -307,5 +312,5 @@ class InputAnnotationData(BaseModel):
 
 
 class OutputAnnotationData(BaseModel):
-    bbox: BboxAnnos | list[tuple[str, BboxAnnos]] | None
-    brush: BrushAnnos | list[tuple[str, BrushAnnos]] | None
+    bbox: BboxAnnos | list[tuple[str, tuple[BboxAnnos, ShapeI]]] | None
+    brush: BrushAnnos | list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None

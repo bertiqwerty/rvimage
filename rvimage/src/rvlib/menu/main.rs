@@ -410,7 +410,7 @@ impl Menu {
                 }
 
                 ui.menu_button("Wand", |ui| {
-                    if ui.button("Ask Wand for annotations").clicked() {
+                    if ui.button("Predict").clicked() {
                         self.show_wandprjannotator = true;
                         // handle_error!(ctrl.ask_wand_for_prj_annotations(), self);
                     }
@@ -525,7 +525,7 @@ impl Menu {
                                 }
                                 ui.separator();
                             }
-                            if ui.button("submit").clicked() {
+                            if ui.button("Submit").clicked() {
                                 self.show_wandprjannotator = false;
                                 let files = ctrl.paths_navigator.paths_selector().map(|ps| {
                                     ps.filtered_abs_file_paths()
@@ -549,6 +549,7 @@ impl Menu {
                                     tracing::warn!("No files selected to submit to wand annotator");
                                 }
                             }
+                            ui.separator();
                             if ui.button("Close").clicked() {
                                 self.show_wandprjannotator = false;
                             }

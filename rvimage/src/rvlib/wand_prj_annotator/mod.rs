@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use reqwest::blocking::multipart;
 use rvimage_domain::{Canvas, GeoFig, RvResult, ShapeI, to_rv};
@@ -85,8 +85,8 @@ impl<'a> WandPrjAnnotationsInput<'a> {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct WandPrjAnnotationsOutput {
-    pub bbox: Option<HashMap<String, (InstanceAnnotations<GeoFig>, ShapeI)>>,
-    pub brush: Option<HashMap<String, (InstanceAnnotations<Canvas>, ShapeI)>>,
+    pub bbox: Option<Vec<(String, (InstanceAnnotations<GeoFig>, ShapeI))>>,
+    pub brush: Option<Vec<(String, (InstanceAnnotations<Canvas>, ShapeI))>>,
 }
 impl WandPrjAnnotationsOutput {
     pub fn resolve_into_tdm(self, tools_data_map: &mut ToolsDataMap) -> RvResult<()> {
@@ -94,13 +94,13 @@ impl WandPrjAnnotationsOutput {
             && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
             && let Some(bbox_data) = trace_ok_err(s.bbox_mut())
         {
-            bbox_data.set_annotations_map(LabelMap::from(bbox))?;
+            bbox_data.set_annotations_map(LabelMap::from_iter(bbox.into_iter()))?;
         }
         if let Some(brush) = self.brush
             && let Some(s) = tools_data_map.get_specifics_mut(BRUSH_NAME)
             && let Some(brush_data) = trace_ok_err(s.brush_mut())
         {
-            brush_data.set_annotations_map(LabelMap::from(brush))?;
+            brush_data.set_annotations_map(LabelMap::from_iter(brush.into_iter()))?;
         }
         Ok(())
     }

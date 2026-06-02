@@ -1,6 +1,6 @@
 use crate::cfg::{Connection, ExportPath, ExportPathConnection, PyHttpReaderCfg, get_log_folder};
 use crate::file_util::{
-    DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH, PathPair, SavedCfg, osstr_to_str,
+    self, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH, PathPair, SavedCfg, osstr_to_str,
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
@@ -775,34 +775,62 @@ impl Control {
             let (tx, rx) = mpsc::channel();
             self.wand_prj_annotator_rx = Some(rx);
 
-            thread::scope(|s| {
-                let (input, files) = WandPrjAnnotationsInput::from_tdm(&tdm, files, folders_to_exclude);
-                let url = self.cfg.prj.wand_prj_annotator.url.clone();
-                let headers = self.cfg.usr.wand_prj_annotator_headers.as_deref();
-                let timeout = self.cfg.prj.wand_prj_annotator.timeout_ms;
-                let comment = self
-                    .cfg
-                    .prj
-                    .wand_prj_annotator
-                    .comments
-                    .iter()
-                    .last()
-                    .cloned()
-                    .map(|c| ParamMap::from(("comment".to_string(), ParamVal::Str(c))));
-                let wand_prj_annotator = RestWandPrjAnnotator::new(url, headers, timeout);
-                s.spawn(move || {
+            let url = self.cfg.prj.wand_prj_annotator.url.clone();
+            let headers = self.cfg.usr.wand_prj_annotator_headers.clone();
+            let timeout = self.cfg.prj.wand_prj_annotator.timeout_ms;
+            let files = files.iter().map(|f| (*f).clone()).collect::<Vec<_>>();
+            let folders_to_exclude = folders_to_exclude
+                .iter()
+                .map(|f| (*f).clone())
+                .collect::<Vec<_>>();
+            let prj_name = if !self.cfg.prj.wand_prj_annotator.prj_name.is_empty() {
+                self.cfg.prj.wand_prj_annotator.prj_name.clone()
+            } else {
+                file_util::get_prj_name(
+                    self.cfg.current_prj_path(),
+                    self.opened_folder().map(|p| p.path_relative()),
+                )
+                .to_string()
+            };
+            let comment = self
+                .cfg
+                .prj
+                .wand_prj_annotator
+                .comments
+                .iter()
+                .last()
+                .cloned()
+                .map(|c| {
+                    ParamMap::from([
+                        ("comment".to_string(), ParamVal::Str(c)),
+                        ("prj_name".to_string(), ParamVal::Str(prj_name)),
+                    ])
+                });
+            thread::spawn(move || {
+                let (input, files) =
+                    WandPrjAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
+
+                if comment.is_none() {
+                    tracing::error!(
+                        "submission failed, you need to describe the task with a comment"
+                    );
+                } else {
+                    let wand_prj_annotator =
+                        RestWandPrjAnnotator::new(url, headers.as_deref(), timeout);
                     tracing::info!("submitting project to wand annotator...");
-                    let output = trace_ok_err(wand_prj_annotator.predict(input, comment.as_ref(), &files));
+                    let output =
+                        trace_ok_err(wand_prj_annotator.predict(input, comment.as_ref(), &files));
                     if let Some(output) = output {
                         trace_ok_err(tx.send(output));
                     } else {
-                        tracing::error!("submission to wand annotator failed");
+                        tracing::error!(
+                            "Processing failed with wand annotator failed. Prediction returned an error."
+                        );
                         trace_ok_err(tx.send(WandPrjAnnotationsOutput::default()));
                     }
-
-                    tracing::info!("... submission done!");
-                });
+                }
             });
+            tracing::info!("... submission done!");
         }
     }
     pub fn check_wand_prj_annotator_output(
