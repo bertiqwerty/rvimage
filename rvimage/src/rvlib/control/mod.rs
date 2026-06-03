@@ -377,7 +377,7 @@ pub struct Control {
     save_handle: Option<JoinHandle<()>>,
     thumbnail_cache: HashMap<String, DynamicImage>,
     wand_server: Option<CmdServer>,
-    wand_prj_annotator_rx: Option<mpsc::Receiver<WandPrjAnnotationsOutput>>,
+    wand_prj_annotator_rx: Option<mpsc::Receiver<(WandPrjAnnotationsOutput, String)>>,
 }
 
 impl Control {
@@ -792,45 +792,49 @@ impl Control {
                 )
                 .to_string()
             };
-            let comment = self
-                .cfg
-                .prj
-                .wand_prj_annotator
-                .comments
+            let msgs = self.cfg.prj.wand_prj_annotator.messages.clone();
+            // make sure the last message contains a comment and no responses yet
+            let last_comment_solo = msgs
                 .iter()
                 .last()
-                .cloned()
-                .map(|c| {
-                    ParamMap::from([
-                        ("comment".to_string(), ParamVal::Str(c)),
-                        ("prj_name".to_string(), ParamVal::Str(prj_name)),
-                    ])
-                });
-            thread::spawn(move || {
-                let (input, files) =
-                    WandPrjAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
+                .map(|last_msg| {
+                    last_msg.response.is_none()
+                        && last_msg.success_assessment.is_none()
+                        && !last_msg.comment.is_empty()
+                })
+                .unwrap_or(false);
 
-                if comment.is_none() {
-                    tracing::error!(
-                        "submission failed, you need to describe the task with a comment"
-                    );
-                } else {
+            if last_comment_solo {
+                let params = ParamMap::from([("prj_name".to_string(), ParamVal::Str(prj_name))]);
+
+                thread::spawn(move || {
+                    let (input, files) =
+                        WandPrjAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
+
                     let wand_prj_annotator =
                         RestWandPrjAnnotator::new(url, headers.as_deref(), timeout);
                     tracing::info!("submitting project to wand annotator...");
-                    let output =
-                        trace_ok_err(wand_prj_annotator.predict(input, comment.as_ref(), &files));
+                    let output = trace_ok_err(wand_prj_annotator.predict(
+                        input,
+                        Some(&params),
+                        &files,
+                        &msgs,
+                    ));
                     if let Some(output) = output {
                         trace_ok_err(tx.send(output));
                     } else {
                         tracing::error!(
                             "Processing failed with wand annotator failed. Prediction returned an error."
                         );
-                        trace_ok_err(tx.send(WandPrjAnnotationsOutput::default()));
+                        trace_ok_err(tx.send((WandPrjAnnotationsOutput::default(), "".into())));
                     }
-                }
-            });
-            tracing::info!("... submission done!");
+                });
+                tracing::info!("... submission done!");
+            } else {
+                tracing::error!(
+                    "Could not submit to Wand. The last message needs a comment without response"
+                );
+            }
         }
     }
     pub fn check_wand_prj_annotator_output(
@@ -839,11 +843,18 @@ impl Control {
     ) -> RvResult<bool> {
         if let Some(rx) = &self.wand_prj_annotator_rx {
             match rx.try_recv() {
-                Ok(output) => {
+                Ok((output, server_response)) => {
                     tracing::info!("received output from wand annotator, applying to project...");
                     let res = output.resolve_into_tdm(tools_data_map);
                     tracing::info!("... applying done!");
                     self.wand_prj_annotator_rx = None;
+
+                    if !server_response.trim().is_empty()
+                        && let [.., last] = &mut self.cfg.prj.wand_prj_annotator.messages[..]
+                    {
+                        last.response = Some(server_response);
+                        last.success_assessment = Some(50u8);
+                    }
                     res.map(|_| true)
                 }
                 Err(mpsc::TryRecvError::Empty) => Ok(false),

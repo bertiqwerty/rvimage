@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     InstanceAnnotate, ToolsDataMap,
+    cfg::WandPrjMessage,
     parameters::ParamMap,
     rest_data::RestData,
     result::trace_ok_err,
@@ -120,7 +121,8 @@ pub trait WandPrjAnnotator {
         annotations_input: WandPrjAnnotationsInput<'a>,
         parameters: Option<&ParamMap>,
         files: &[&String],
-    ) -> RvResult<WandPrjAnnotationsOutput>;
+        communication: &[WandPrjMessage],
+    ) -> RvResult<(WandPrjAnnotationsOutput, String)>;
 }
 
 pub struct RestWandPrjAnnotator {
@@ -140,14 +142,20 @@ impl WandPrjAnnotator for RestWandPrjAnnotator {
         annos_input: WandPrjAnnotationsInput<'a>,
         parameters: Option<&ParamMap>,
         files: &[&String],
-    ) -> RvResult<WandPrjAnnotationsOutput> {
+        communication: &[WandPrjMessage],
+    ) -> RvResult<(WandPrjAnnotationsOutput, String)> {
         let annos_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
         let param_json_str = serialize_or_default(parameters)?;
         let files_json_str = serde_json::to_string(files).map_err(to_rv)?;
+        let communication_json_str = serde_json::to_string(communication).map_err(to_rv)?;
         let form = multipart::Form::new()
             .part("parameters", multipart::Part::text(param_json_str))
             .part("input_annotations", multipart::Part::text(annos_json_str))
-            .part("files", multipart::Part::text(files_json_str));
+            .part("files", multipart::Part::text(files_json_str))
+            .part(
+                "communication",
+                multipart::Part::text(communication_json_str),
+            );
         self.data.send(form, None)
     }
 }
@@ -185,5 +193,5 @@ fn test_testserver() {
         bbox: Some(bbox_dummy),
         brush: Some(brush_dummy),
     };
-    w.predict(annos, None, &[]).unwrap();
+    w.predict(annos, None, &[], &[]).unwrap();
 }

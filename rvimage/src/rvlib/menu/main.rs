@@ -1,5 +1,5 @@
 use crate::{
-    cfg::ExportPathConnection,
+    cfg::{ExportPathConnection, WandPrjMessage},
     control::{Control, Info, PrjSettingImportSection},
     file_util::{get_prj_name, path_to_str},
     image_reader::LoadImageForGui,
@@ -10,7 +10,7 @@ use crate::{
         file_counts::labels_and_sorting,
         open_folder,
         scroll_area::ShowFileOptions,
-        ui_util::{removable_rows, text_edit_multiline, text_edit_singleline},
+        ui_util::{removable_rows, slider, text_edit_multiline, text_edit_singleline},
     },
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
@@ -423,42 +423,78 @@ impl Menu {
                     }
                 });
                 if self.show_wandprjannotator {
+                    let mut assess_tmp = ctrl
+                        .cfg
+                        .prj
+                        .wand_prj_annotator
+                        .messages
+                        .iter()
+                        .last()
+                        .and_then(|msg| msg.success_assessment);
                     egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(
                         ui.ctx(),
                         |ui| {
                             ui.heading("Wand to annotate all filtered project images");
                             let wpa = &ctrl.cfg.prj.wand_prj_annotator;
-                            let len_cmt = wpa.comments.len();
-                            let len_ans = wpa.server_messages.len();
-
+                            let len_msgs = wpa.messages.len();
+                            let mut idx_to_remove = None;
+                            ui.separator();
                             egui::ScrollArea::vertical()
                                 .max_height(300.0)
                                 .show(ui, |ui| {
-                                    for i in 0..(len_cmt.max(len_ans)) {
-                                        if i < len_cmt {
-                                            let mut job = egui::text::LayoutJob {
-                                                halign: egui::Align::RIGHT,
+                                    idx_to_remove = removable_rows(ui, len_msgs, |ui, idx| {
+                                        let mut job = egui::text::LayoutJob {
+                                            halign: egui::Align::RIGHT,
+                                            ..Default::default()
+                                        };
+                                        job.append(
+                                            &wpa.messages[idx].comment,
+                                            0.0,
+                                            egui::TextFormat {
+                                                italics: true,
                                                 ..Default::default()
-                                            };
-                                            job.append(
-                                                &wpa.comments[i],
-                                                0.0,
-                                                egui::TextFormat {
-                                                    italics: true,
-                                                    ..Default::default()
-                                                },
-                                            );
-                                            ui.label(job);
+                                            },
+                                        );
+                                        ui.label(job);
 
-                                            ui.separator();
+                                        if let Some(response) = &wpa.messages[idx].response {
+                                            egui::CollapsingHeader::new("Response")
+                                                .id_salt(idx)
+                                                .show(ui, |ui| {
+                                                    ui.label(response);
+                                                });
+                                        } else {
+                                            assess_tmp = None;
                                         }
-                                        if i < len_ans {
-                                            ui.label("Response:");
-                                            ui.label(&wpa.server_messages[i]);
-                                            ui.separator();
+                                        if let Some(assess) = assess_tmp.as_mut() {
+                                            if idx < len_msgs.saturating_sub(1) {
+                                                ui.label(
+                                                    &wpa.messages[idx]
+                                                        .success_assessment
+                                                        .map(|a| format!("{a}"))
+                                                        .unwrap_or("".to_string()),
+                                                );
+                                            } else {
+                                                slider(
+                                                    ui,
+                                                    &mut self.are_tools_active,
+                                                    assess,
+                                                    0..=100,
+                                                    "assess result",
+                                                );
+                                            }
                                         }
-                                    }
+                                        ui.separator();
+                                    });
                                 });
+                            if let Some(idx) = idx_to_remove {
+                                ctrl.cfg.prj.wand_prj_annotator.messages.remove(idx);
+                            }
+                            if let Some(assess_last) =
+                                ctrl.cfg.prj.wand_prj_annotator.messages.iter_mut().last()
+                            {
+                                assess_last.success_assessment = assess_tmp;
+                            }
 
                             text_edit_multiline(
                                 ui,
@@ -474,13 +510,14 @@ impl Menu {
                                         .trim()
                                         .is_empty()
                                 {
-                                    ctrl.cfg.prj.wand_prj_annotator.comments.push(mem::take(
-                                        &mut self.text_buffers.wand_prj_annotator_comment,
-                                    ));
+                                    ctrl.cfg.prj.wand_prj_annotator.messages.push(
+                                        WandPrjMessage::from_comment(mem::take(
+                                            &mut self.text_buffers.wand_prj_annotator_comment,
+                                        )),
+                                    );
                                 }
                                 if ui.button("Clear").clicked() {
-                                    ctrl.cfg.prj.wand_prj_annotator.comments.clear();
-                                    ctrl.cfg.prj.wand_prj_annotator.server_messages.clear();
+                                    ctrl.cfg.prj.wand_prj_annotator.messages.clear();
                                 }
                             });
                             ui.separator();

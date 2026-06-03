@@ -362,6 +362,21 @@ fn get_wandprjannotator_default_timeout() -> usize {
     30000
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct WandPrjMessage {
+    pub comment: String,
+    pub response: Option<String>,
+    pub success_assessment: Option<u8>,
+}
+impl WandPrjMessage {
+    pub fn from_comment(cmt: String) -> Self {
+        Self {
+            comment: cmt,
+            response: None,
+            success_assessment: None,
+        }
+    }
+}
 /// In contrast to annotations of the currently opened image in the tool's predictive labelling setting,
 /// this wand-cfg is about annotating the whole project.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -369,10 +384,9 @@ pub struct WandProjectAnnotatorCfg {
     pub url: String,
     #[serde(default = "get_wandprjannotator_default_timeout")]
     pub timeout_ms: usize,
-    pub comments: Vec<String>,
+    pub messages: Vec<WandPrjMessage>,
     pub prj_name: String,
     pub params: Option<ParamMap>,
-    pub server_messages: Vec<String>,
     pub subfolder_to_exclude: Vec<String>,
 }
 
@@ -381,10 +395,10 @@ impl Default for WandProjectAnnotatorCfg {
         Self {
             url: "".into(),
             timeout_ms: get_wandprjannotator_default_timeout(),
-            comments: Vec::new(),
+            messages: Vec::new(),
             params: None,
-            server_messages: Vec::new(),
             subfolder_to_exclude: Vec::new(),
+
             prj_name: "".to_string(),
         }
     }
