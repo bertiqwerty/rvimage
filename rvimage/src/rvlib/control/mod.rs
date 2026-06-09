@@ -853,7 +853,6 @@ impl Control {
                         && let [.., last] = &mut self.cfg.prj.wand_prj_annotator.messages[..]
                     {
                         last.response = Some(server_response);
-                        last.success_assessment = Some(50u8);
                     }
                     res.map(|_| true)
                 }

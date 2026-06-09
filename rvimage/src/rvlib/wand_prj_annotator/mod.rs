@@ -45,7 +45,6 @@ impl<'a> WandPrjAnnotationsInput<'a> {
                     .any(|excluded| Path::new(f).ancestors().any(|a| a.ends_with(excluded)))
             })
             .collect::<Vec<_>>();
-        tracing::warn!("{files_wo_excluded_folders:?}");
         let bbox = tools_data_map
             .get_specifics(BBOX_NAME)
             .and_then(|s| {

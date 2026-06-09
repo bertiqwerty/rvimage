@@ -457,24 +457,31 @@ impl Menu {
                                         );
                                         ui.label(job);
 
-                                        if let Some(response) = &wpa.messages[idx].response {
+                                        if idx < len_msgs.saturating_sub(1) {
+                                            ui.label(
+                                                &wpa.messages[idx]
+                                                    .success_assessment
+                                                    .map(|a| format!("assessment {a}"))
+                                                    .unwrap_or("".to_string()),
+                                            );
+                                        } else if let Some(response) = &wpa.messages[idx].response {
                                             egui::CollapsingHeader::new("Response")
                                                 .id_salt(idx)
                                                 .show(ui, |ui| {
                                                     ui.label(response);
                                                 });
-                                        } else {
-                                            assess_tmp = None;
-                                        }
-                                        if let Some(assess) = assess_tmp.as_mut() {
-                                            if idx < len_msgs.saturating_sub(1) {
-                                                ui.label(
-                                                    &wpa.messages[idx]
-                                                        .success_assessment
-                                                        .map(|a| format!("{a}"))
-                                                        .unwrap_or("".to_string()),
-                                                );
-                                            } else {
+                                            let mut assess_checkbx = assess_tmp.is_some();
+                                            if ui
+                                                .checkbox(&mut assess_checkbx, "assess result")
+                                                .clicked()
+                                            {
+                                                if assess_checkbx {
+                                                    assess_tmp = Some(50u8);
+                                                } else {
+                                                    assess_tmp = None;
+                                                }
+                                            }
+                                            if let Some(assess) = assess_tmp.as_mut() {
                                                 slider(
                                                     ui,
                                                     &mut self.are_tools_active,
@@ -484,6 +491,7 @@ impl Menu {
                                                 );
                                             }
                                         }
+
                                         ui.separator();
                                     });
                                 });
