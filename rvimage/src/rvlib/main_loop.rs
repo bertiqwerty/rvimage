@@ -169,6 +169,8 @@ impl MainEventLoop {
                     &mut self.world.data.tools_data_map,
                     find_active_tool(&self.tools),
                 );
+                self.ctrl
+                    .check_wand_prj_annotator_output(&mut self.world.data.tools_data_map)?;
                 self.world.data.meta_data.ssh_cfg = Some(self.ctrl.cfg.ssh_cfg());
                 if project_loaded_in_curr_iter {
                     for t in &mut self.tools {

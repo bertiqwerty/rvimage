@@ -1,22 +1,18 @@
-mod server;
-pub use server::{CmdServer, WandServer};
 use std::path::Path;
-use std::time::Duration;
 
 use image::codecs::png::PngEncoder;
 use image::{self, DynamicImage, ExtendedColorType, ImageEncoder};
 use reqwest::blocking::multipart;
-use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 
-use rvimage_domain::{BbF, Canvas, GeoFig, RvResult, rverr, to_rv};
+use rvimage_domain::{BbF, Canvas, GeoFig, RvResult, to_rv};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
-use crate::result::trace_ok_err;
-use crate::tools_data::LabelInfo;
-use crate::tools_data::annotations::InstanceAnnotations;
-use crate::tools_data::parameters::ParamMap;
+use crate::parameters::ParamMap;
+use crate::rest_data::RestData;
+use crate::wand_util::serialize_or_default;
 use crate::{InstanceAnnotate, file_util};
+use crate::{tools_data::LabelInfo, tools_data::annotations::InstanceAnnotations};
 
 #[allow(dead_code)]
 pub struct ImageForPrediction<'a> {
@@ -71,37 +67,13 @@ pub trait Wand {
 }
 
 pub struct RestWand {
-    url: String,
-    headers: HeaderMap,
-    client: reqwest::blocking::Client,
-    timeout_ms: usize,
+    data: RestData,
 }
 
-#[allow(dead_code)]
 impl RestWand {
-    pub fn new(mut url: String, authorization: Option<&str>, timeout_ms: usize) -> Self {
-        let client = reqwest::blocking::Client::new();
-        let mut headers = HeaderMap::new();
-        if let Some(s) = authorization
-            && let Some(s) = trace_ok_err(HeaderValue::from_str(s))
-        {
-            headers.insert(AUTHORIZATION, s);
-        }
-        while url.ends_with('/') && !url.is_empty() {
-            url = url[..url.len() - 1].into();
-        }
-
-        let url = if url.split('/').next_back() == Some("predict") {
-            url
-        } else {
-            format!("{url}/predict")
-        };
-
+    pub fn new(url: String, authorization: Option<&str>, timeout_ms: usize) -> Self {
         Self {
-            url,
-            headers,
-            client,
-            timeout_ms,
+            data: RestData::new(url, authorization, timeout_ms, "predict"),
         }
     }
 }
@@ -131,12 +103,7 @@ impl Wand for RestWand {
             "tmpfile.png".into()
         };
         let annos_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
-        let param_json_str = if let Some(p) = parameters {
-            serde_json::to_string(p)
-        } else {
-            serde_json::to_string(&ParamMap::default())
-        }
-        .map_err(to_rv)?;
+        let param_json_str = serialize_or_default(parameters)?;
         let zoom_box_json_str = serde_json::to_string(&zoom_box).map_err(to_rv)?;
         let form = multipart::Form::new()
             .part(
@@ -146,81 +113,32 @@ impl Wand for RestWand {
             .part("parameters", multipart::Part::text(param_json_str))
             .part("input_annotations", multipart::Part::text(annos_json_str))
             .part("zoom_box", multipart::Part::text(zoom_box_json_str));
-        let url = format!("{}?active_tool={active_tool}", self.url);
+        let query_params = format!("active_tool={active_tool}");
 
-        tracing::info!("Sending predictive labeling request to {url}");
-        let response = self
-            .client
-            .post(&url)
-            .headers(self.headers.clone())
-            .multipart(form)
-            .timeout(Duration::from_millis(self.timeout_ms as u64))
-            .send()
-            .map_err(to_rv)?;
-        if response.status().is_success() {
-            let segs = response.json::<WandAnnotationsOutput>().map_err(to_rv)?;
-            Ok(segs)
-        } else {
-            let status = response.status();
-            let err_msg = response
-                .text()
-                .unwrap_or("no error message available".into());
-            Err(rverr!(
-                "predictive labelling failed with status {} and error message '{}'",
-                status,
-                err_msg
-            ))
-        }
+        self.data.send(form, Some(query_params.as_str()))
     }
 }
 
 #[cfg(test)]
 use crate::{
-    defer, tools::BBOX_NAME, tools_data::parameters::ParamVal,
+    defer, parameters::ParamVal, test_helpers::start_resttestserver, tools::BBOX_NAME,
     tracing_setup::init_tracing_for_tests,
 };
 #[cfg(test)]
 use rvimage_domain::BbI;
 #[cfg(test)]
-use std::{
-    process::{Command, Stdio},
-    thread,
-};
+use std::{thread, time::Duration};
 
 #[test]
 fn test() {
     init_tracing_for_tests();
-    let manifestdir = env!("CARGO_MANIFEST_DIR").replace("\\", "/");
-    let mut child = if cfg!(target_os = "windows") {
-        let script_addr = format!("{manifestdir}/resources/test_data/scripts/start_restserver.bat");
-        Command::new(script_addr)
-            .arg(&manifestdir)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .expect("failed to start FastAPI server")
-    } else {
-        let script = format!(
-            r#"
-                export PYTHONPATH=../rvimage-py
-                cd {manifestdir}/../rest-testserver
-                uv run --no-cache fastapi run run.py&
-            "#
-        );
-
-        Command::new("bash")
-            .arg("-c")
-            .arg(script)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .expect("failed to start FastAPI server")
-    };
+    let (manifestdir, mut child) = start_resttestserver();
     defer!(|| child.kill().expect("Failed to kill the server"));
 
     tracing::debug!("FastAPI server started");
     thread::sleep(Duration::from_secs(5));
     fn test_inner(url: &str, manifestdir: &str) {
+        tracing::info!("Testing with url: {url}");
         let w = RestWand::new(url.into(), None, 60000);
         let p = format!("{manifestdir}/resources/rvimage-logo.png");
         let mut m = ParamMap::new();
@@ -246,6 +164,7 @@ fn test() {
             bbox: Some(bbox_dummy),
             brush: Some(brush_dummy),
         };
+        tracing::info!("Sending prediction request");
         let seg = w
             .predict(
                 ImageForPrediction {
@@ -258,6 +177,8 @@ fn test() {
                 Some(BbF::from_arr(&[0.0, 0.0, 1.5, 1.5])),
             )
             .unwrap();
+
+        tracing::info!("... received response, checking results");
         let WandAnnotationsOutput {
             bbox: ret_bbox_data,
             brush: ret_brush_data,

@@ -3,6 +3,7 @@ use crate::{
     file_util::{
         self, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR, copy_and_unzip, dl_and_unzip, path_to_str,
     },
+    parameters::ParamMap,
     result::trace_ok_err,
     sort_params::SortParams,
     ssh,
@@ -73,6 +74,7 @@ impl CfgLegacy {
             hide_thumbs: true,
             thumb_attrs_view: false,
             azure_blob: None,
+            wand_prj_annotator_headers: None,
         };
         let prj = CfgPrj {
             connection: self.connection,
@@ -90,6 +92,7 @@ impl CfgLegacy {
             }),
             sort_params: SortParams::default(),
             wand_server: WandServerCfg::default(),
+            wand_prj_annotator: WandProjectAnnotatorCfg::default(),
         };
         Cfg { usr, prj }
     }
@@ -355,6 +358,52 @@ pub struct WandServerCfg {
     pub install_uv: bool,
 }
 
+fn get_wandprjannotator_default_timeout() -> usize {
+    30000
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct WandPrjMessage {
+    pub comment: String,
+    pub response: Option<String>,
+    pub success_assessment: Option<u8>,
+}
+impl WandPrjMessage {
+    pub fn from_comment(cmt: String) -> Self {
+        Self {
+            comment: cmt,
+            response: None,
+            success_assessment: None,
+        }
+    }
+}
+/// In contrast to annotations of the currently opened image in the tool's predictive labelling setting,
+/// this wand-cfg is about annotating the whole project.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct WandProjectAnnotatorCfg {
+    pub url: String,
+    #[serde(default = "get_wandprjannotator_default_timeout")]
+    pub timeout_ms: usize,
+    pub messages: Vec<WandPrjMessage>,
+    pub prj_name: String,
+    pub params: Option<ParamMap>,
+    pub subfolder_to_exclude: Vec<String>,
+}
+
+impl Default for WandProjectAnnotatorCfg {
+    fn default() -> Self {
+        Self {
+            url: "".into(),
+            timeout_ms: get_wandprjannotator_default_timeout(),
+            messages: Vec::new(),
+            params: None,
+            subfolder_to_exclude: Vec::new(),
+
+            prj_name: "".to_string(),
+        }
+    }
+}
+
 #[cfg(feature = "azure_blob")]
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfg {
@@ -472,6 +521,8 @@ pub struct CfgUsr {
     pub thumb_attrs_view: bool,
     #[serde(default)]
     pub azure_blob: Option<AzureBlobCfgUsr>,
+    #[serde(default)]
+    pub wand_prj_annotator_headers: Option<String>,
 }
 
 impl CfgUsr {
@@ -499,6 +550,8 @@ pub struct CfgPrj {
     pub sort_params: SortParams,
     #[serde(default)]
     pub wand_server: WandServerCfg,
+    #[serde(default)]
+    pub wand_prj_annotator: WandProjectAnnotatorCfg,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Cfg {

@@ -1,5 +1,5 @@
 use crate::{
-    cfg::ExportPathConnection,
+    cfg::{ExportPathConnection, WandPrjMessage},
     control::{Control, Info, PrjSettingImportSection},
     file_util::{get_prj_name, path_to_str},
     image_reader::LoadImageForGui,
@@ -10,7 +10,7 @@ use crate::{
         file_counts::labels_and_sorting,
         open_folder,
         scroll_area::ShowFileOptions,
-        ui_util::text_edit_singleline,
+        ui_util::{removable_rows, slider, text_edit_multiline, text_edit_singleline},
     },
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
@@ -168,6 +168,8 @@ pub struct TextBuffers {
     pub label_propagation: String,
     pub label_deletion: String,
     pub import_coco_from_ssh_path: String,
+    pub wand_prj_annotator_comment: String,
+    pub wand_prj_annotator_exclfolder: String,
 }
 
 pub struct Menu {
@@ -186,15 +188,18 @@ pub struct Menu {
     prj_import_section: PrjSettingImportSection,
     prj_settings_for_display: Option<String>,
     cache_all_progress: Option<f32>,
+    show_wandprjannotator: bool,
 }
 
 impl Menu {
     fn new() -> Self {
         let text_buffers = TextBuffers {
-            filter_string: "".to_string(),
-            label_propagation: "".to_string(),
-            label_deletion: "".to_string(),
-            import_coco_from_ssh_path: "path on ssh server".to_string(),
+            filter_string: "".into(),
+            label_propagation: "".into(),
+            label_deletion: "".into(),
+            import_coco_from_ssh_path: "path on ssh server".into(),
+            wand_prj_annotator_comment: "".into(),
+            wand_prj_annotator_exclfolder: "".into(),
         };
         Self {
             window_open: true,
@@ -212,6 +217,7 @@ impl Menu {
             prj_import_section: PrjSettingImportSection::All,
             prj_settings_for_display: None,
             cache_all_progress: None,
+            show_wandprjannotator: false,
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -403,7 +409,12 @@ impl Menu {
                     self.toggle_clear_cache_on_close = false;
                 }
 
-                ui.menu_button("Wand Server", |ui| {
+                ui.menu_button("Wand", |ui| {
+                    if ui.button("Predict").clicked() {
+                        self.show_wandprjannotator = true;
+                        // handle_error!(ctrl.ask_wand_for_prj_annotations(), self);
+                    }
+                    ui.separator();
                     if ui.button("Start Wand Server").clicked() {
                         handle_error!(ctrl.start_wandserver(), self);
                     }
@@ -411,6 +422,185 @@ impl Menu {
                         handle_error!(ctrl.cleanup_wandserver(), self);
                     }
                 });
+                if self.show_wandprjannotator {
+                    let mut assess_tmp = ctrl
+                        .cfg
+                        .prj
+                        .wand_prj_annotator
+                        .messages
+                        .iter()
+                        .last()
+                        .and_then(|msg| msg.success_assessment);
+                    egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(
+                        ui.ctx(),
+                        |ui| {
+                            ui.heading("Wand to annotate all filtered project images");
+                            let wpa = &ctrl.cfg.prj.wand_prj_annotator;
+                            let len_msgs = wpa.messages.len();
+                            let mut idx_to_remove = None;
+                            ui.separator();
+                            egui::ScrollArea::vertical()
+                                .max_height(300.0)
+                                .show(ui, |ui| {
+                                    idx_to_remove = removable_rows(ui, len_msgs, |ui, idx| {
+                                        let mut job = egui::text::LayoutJob {
+                                            halign: egui::Align::RIGHT,
+                                            ..Default::default()
+                                        };
+                                        job.append(
+                                            &wpa.messages[idx].comment,
+                                            0.0,
+                                            egui::TextFormat {
+                                                italics: true,
+                                                ..Default::default()
+                                            },
+                                        );
+                                        ui.label(job);
+
+                                        if idx < len_msgs.saturating_sub(1) {
+                                            ui.label(
+                                                wpa.messages[idx]
+                                                    .success_assessment
+                                                    .map(|a| format!("assessment {a}"))
+                                                    .unwrap_or("".to_string()),
+                                            );
+                                        } else if let Some(response) = &wpa.messages[idx].response {
+                                            egui::CollapsingHeader::new("Response")
+                                                .id_salt(idx)
+                                                .show(ui, |ui| {
+                                                    ui.label(response);
+                                                });
+                                            let mut assess_checkbx = assess_tmp.is_some();
+                                            if ui
+                                                .checkbox(&mut assess_checkbx, "assess result")
+                                                .clicked()
+                                            {
+                                                if assess_checkbx {
+                                                    assess_tmp = Some(50u8);
+                                                } else {
+                                                    assess_tmp = None;
+                                                }
+                                            }
+                                            if let Some(assess) = assess_tmp.as_mut() {
+                                                slider(
+                                                    ui,
+                                                    &mut self.are_tools_active,
+                                                    assess,
+                                                    0..=100,
+                                                    "assess result",
+                                                );
+                                            }
+                                        }
+
+                                        ui.separator();
+                                    });
+                                });
+                            if let Some(idx) = idx_to_remove {
+                                ctrl.cfg.prj.wand_prj_annotator.messages.remove(idx);
+                            }
+                            if let Some(assess_last) =
+                                ctrl.cfg.prj.wand_prj_annotator.messages.iter_mut().last()
+                            {
+                                assess_last.success_assessment = assess_tmp;
+                            }
+
+                            text_edit_multiline(
+                                ui,
+                                &mut self.text_buffers.wand_prj_annotator_comment,
+                                &mut self.are_tools_active,
+                            );
+
+                            ui.horizontal(|ui| {
+                                if ui.button("Add comment").clicked()
+                                    && !self
+                                        .text_buffers
+                                        .wand_prj_annotator_comment
+                                        .trim()
+                                        .is_empty()
+                                {
+                                    ctrl.cfg.prj.wand_prj_annotator.messages.push(
+                                        WandPrjMessage::from_comment(mem::take(
+                                            &mut self.text_buffers.wand_prj_annotator_comment,
+                                        )),
+                                    );
+                                }
+                                if ui.button("Clear").clicked() {
+                                    ctrl.cfg.prj.wand_prj_annotator.messages.clear();
+                                }
+                            });
+                            ui.separator();
+                            text_edit_singleline(
+                                ui,
+                                &mut self.text_buffers.wand_prj_annotator_exclfolder,
+                                &mut self.are_tools_active,
+                            );
+                            if ui.button("Add folder to exclude").clicked()
+                                && !self
+                                    .text_buffers
+                                    .wand_prj_annotator_exclfolder
+                                    .trim()
+                                    .is_empty()
+                            {
+                                ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.push(
+                                    mem::take(&mut self.text_buffers.wand_prj_annotator_exclfolder),
+                                )
+                            }
+
+                            let n_folders =
+                                ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.len();
+                            ui.separator();
+                            if n_folders > 0 {
+                                ui.label("Folders to exclude");
+                                let mut idx_remove = None;
+                                egui::Grid::new("label_grid").num_columns(2).show(ui, |ui| {
+                                    idx_remove = removable_rows(ui, n_folders, |ui, idx| {
+                                        ui.label(
+                                            &ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude
+                                                [idx],
+                                        );
+                                        ui.end_row();
+                                    });
+                                });
+                                if let Some(idx) = idx_remove {
+                                    ctrl.cfg
+                                        .prj
+                                        .wand_prj_annotator
+                                        .subfolder_to_exclude
+                                        .remove(idx);
+                                }
+                                ui.separator();
+                            }
+                            if ui.button("Submit").clicked() {
+                                self.show_wandprjannotator = false;
+                                let files = ctrl.paths_navigator.paths_selector().map(|ps| {
+                                    ps.filtered_abs_file_paths()
+                                        .iter()
+                                        .map(|p| p.to_string())
+                                        .collect::<Vec<String>>()
+                                });
+                                if let Some(files) = files {
+                                    let folders_to_exclude = ctrl
+                                        .cfg
+                                        .prj
+                                        .wand_prj_annotator
+                                        .subfolder_to_exclude
+                                        .clone();
+                                    ctrl.submit_prj_to_wandannotator(
+                                        tools_data_map,
+                                        &files,
+                                        &folders_to_exclude,
+                                    );
+                                } else {
+                                    tracing::warn!("No files selected to submit to wand annotator");
+                                }
+                            }
+                            ui.separator();
+                            if ui.button("Close").clicked() {
+                                self.show_wandprjannotator = false;
+                            }
+                        },
+                    );
+                }
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");
                     const CODE: &str = env!("CARGO_PKG_REPOSITORY");

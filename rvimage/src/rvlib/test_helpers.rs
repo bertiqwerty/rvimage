@@ -1,6 +1,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    process::{Child, Command, Stdio},
     thread,
     time::Duration,
 };
@@ -38,4 +39,34 @@ pub fn prj_load(file: &str) -> ToolsDataMap {
     thread::sleep(Duration::from_millis(5));
     assert_eq!(tdm, pre_tdm);
     tdm
+}
+
+pub fn start_resttestserver() -> (String, Child) {
+    let manifestdir = env!("CARGO_MANIFEST_DIR").replace("\\", "/");
+    let child = if cfg!(target_os = "windows") {
+        let script_addr = format!("{manifestdir}/resources/test_data/scripts/start_restserver.bat");
+        Command::new(script_addr)
+            .arg(&manifestdir)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("failed to start FastAPI server")
+    } else {
+        let script = format!(
+            r#"
+                export PYTHONPATH=../rvimage-py
+                cd {manifestdir}/../rest-testserver
+                uv run --no-cache fastapi run run.py&
+            "#
+        );
+
+        Command::new("bash")
+            .arg("-c")
+            .arg(script)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("failed to start FastAPI server")
+    };
+    (manifestdir, child)
 }

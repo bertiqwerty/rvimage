@@ -126,7 +126,7 @@ impl From<ParamValUntagged> for ParamVal {
 pub type ParamMapUntagged = HashMap<String, ParamValUntagged>;
 
 // { attribute name: attribute value }
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct ParamMap {
     #[serde(flatten)]
     data: BTreeMap<String, ParamVal>,
@@ -175,10 +175,10 @@ impl ParamMap {
         self.data.is_empty()
     }
 }
-impl From<(String, ParamVal)> for ParamMap {
-    fn from(data: (String, ParamVal)) -> Self {
+impl<const N: usize> From<[(String, ParamVal); N]> for ParamMap {
+    fn from(data: [(String, ParamVal); N]) -> Self {
         Self {
-            data: BTreeMap::from([data]),
+            data: BTreeMap::from(data),
         }
     }
 }
@@ -214,6 +214,39 @@ impl From<HashMap<String, ParamValUntagged>> for ParamMap {
         }
     }
 }
+impl PartialEq for ParamMap {
+    fn eq(&self, other: &Self) -> bool {
+        for (self_k, self_v) in &self.data {
+            if let Some(other_v) = other.get(self_k) {
+                match (self_v, other_v) {
+                    (ParamVal::Float(Some(x1)), ParamVal::Float(Some(x2))) => {
+                        if x1.is_finite() && x2.is_finite() && (x1 - x2).abs() > 1e-8 {
+                            return false;
+                        }
+
+                        if x1.is_nan() && !x2.is_nan() || !x1.is_nan() && x2.is_nan() {
+                            return false;
+                        }
+                    }
+                    (v1, v2) => {
+                        if v1 != v2 {
+                            return false;
+                        }
+                    }
+                }
+            } else {
+                return false;
+            };
+        }
+        for other_k in other.data.keys() {
+            if !self.data.contains_key(other_k) {
+                return false;
+            }
+        }
+        true
+    }
+}
+impl Eq for ParamMap {}
 
 pub fn merge_attrmaps(mut existing_map: ParamMap, new_map: ParamMap) -> ParamMap {
     for (new_name, new_val) in new_map {
@@ -226,4 +259,52 @@ pub fn merge_attrmaps(mut existing_map: ParamMap, new_map: ParamMap) -> ParamMap
         }
     }
     existing_map
+}
+
+#[test]
+fn test_equal() {
+    fn make(k: &str, v: ParamVal) -> ParamMap {
+        ParamMap::from([(k.to_string(), v)])
+    }
+    let map1 = make("a", ParamVal::Float(Some(f64::NAN)));
+    let map2 = make("a", ParamVal::Float(Some(f64::NAN)));
+    assert_eq!(map1, map2);
+    let map1 = make("a", ParamVal::Float(Some(f64::INFINITY)));
+    let map2 = make("a", ParamVal::Float(Some(f64::INFINITY)));
+    assert_eq!(map1, map2);
+    let map1 = make("a", ParamVal::Float(Some(f64::INFINITY)));
+    let map2 = make("a", ParamVal::Float(Some(f64::NAN)));
+    assert_ne!(map1, map2);
+    let map1 = make("a", ParamVal::Float(Some(0.1)));
+    let map2 = make("a", ParamVal::Float(Some(0.1)));
+    assert_eq!(map1, map2);
+    let map2 = make("a", ParamVal::Float(Some(0.10000000001)));
+    assert_eq!(map1, map2);
+    let map2 = make("a", ParamVal::Float(Some(0.10001)));
+    assert_ne!(map1, map2);
+    let map2 = make("a", ParamVal::Int(Some(1)));
+    assert_ne!(map1, map2);
+    let map1 = make("a", ParamVal::Int(Some(1)));
+    assert_eq!(map1, map2);
+    let map2 = make("a", ParamVal::Int(Some(1)));
+    assert_eq!(map1, map2);
+    let map1 = make("a", ParamVal::Bool(true));
+    assert_ne!(map1, map2);
+    let map2 = make("a", ParamVal::Bool(true));
+    assert_eq!(map1, map2);
+    let map2 = make("a", ParamVal::Bool(false));
+    assert_ne!(map1, map2);
+    let map1 = make("a", ParamVal::Str("hello".into()));
+    let map2 = make("a", ParamVal::Str("hello".into()));
+    assert_eq!(map1, map2);
+    let map1 = make("a", ParamVal::Str("hello".into()));
+    let map2 = make("a", ParamVal::Str("hello1".into()));
+    assert_ne!(map1, map2);
+    let map1 = make("a", ParamVal::Str("hello".into()));
+    let map2 = make("b", ParamVal::Str("hello".into()));
+    assert_ne!(map1, map2);
+    let map1 = make("a", ParamVal::Str("hello".into()));
+    let mut map2 = make("a", ParamVal::Str("hello".into()));
+    map2.insert("b".into(), ParamVal::Str("hello1".into()));
+    assert_ne!(map1, map2);
 }

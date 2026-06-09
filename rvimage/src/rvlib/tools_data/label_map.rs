@@ -93,6 +93,14 @@ where
         &self.map[index]
     }
 }
+impl<T> From<HashMap<String, (T, ShapeI)>> for LabelMap<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+    fn from(map: HashMap<String, (T, ShapeI)>) -> Self {
+        Self { map }
+    }
+}
 impl<T> LabelMap<T>
 where
     T: Serialize + DeserializeOwned,

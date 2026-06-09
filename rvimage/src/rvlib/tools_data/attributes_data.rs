@@ -5,15 +5,11 @@ use crate::{
     ShapeI,
     cfg::ExportPath,
     file_util, implement_annotate, implement_annotations_getters,
-    tools_data::parameters::{ParamMapUntagged, merge_attrmaps},
+    parameters::{ParamMap, ParamMapUntagged, ParamVal, merge_attrmaps},
 };
 use rvimage_domain::{RvResult, to_rv};
 
-use super::{
-    ImportExportTrigger,
-    label_map::LabelMap,
-    parameters::{ParamMap, ParamVal},
-};
+use super::{ImportExportTrigger, label_map::LabelMap};
 
 pub type AttrAnnotationsMap = LabelMap<ParamMap>;
 
@@ -236,7 +232,7 @@ impl AttributesToolData {
                 attr_map.insert(attr_name.clone(), attr_val);
             }
         } else {
-            let attr_map = ParamMap::from((self.attr_names[idx].clone(), attr_val));
+            let attr_map = ParamMap::from([(self.attr_names[idx].clone(), attr_val)]);
             self.annotations_map
                 .insert(filename.to_string(), (attr_map, image_shape));
         }

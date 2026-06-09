@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use super::parameters::{ParamMap, ParamVal};
+use crate::parameters::{ParamMap, ParamVal};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PredictiveLabelingData {

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import Protocol, Self, TypeVar
-from collections.abc import Iterable
 
 import numpy as np
 from pydantic import BaseModel, model_serializer, model_validator
@@ -56,6 +55,11 @@ def _keep_inds(obj: _AnnotationProtocol, inds: list[int]):
     obj.selected_mask = [obj.selected_mask[i] for i in inds]
 
 
+class ShapeI(BaseModel):
+    w: int
+    h: int
+
+
 class Labelinfo(BaseModel):
     new_label: str
     labels: list[str]
@@ -76,10 +80,21 @@ class BboxAnnos(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def resolve_bb_poly(cls, data: dict) -> dict:
+    def resolve_bb_poly(
+        cls, data: dict | list[tuple[str, dict]]
+    ) -> dict | list[tuple[str, dict]]:
         # remove the type-info from the dict
-        if len(data["elts"]) > 0 and isinstance(data["elts"][0], dict):
-            data["elts"] = [next(v for v in d.values()) for d in data["elts"]]
+        if isinstance(data, dict):
+            if len(data["elts"]) > 0 and isinstance(data["elts"][0], dict):
+                data["elts"] = [next(v for v in d.values()) for d in data["elts"]]
+        else:
+            for _, perimage_data in data:
+                if len(perimage_data["elts"]) > 0 and isinstance(
+                    perimage_data["elts"][0], dict
+                ):
+                    perimage_data["elts"] = [
+                        next(v for v in d.values()) for d in perimage_data["elts"]
+                    ]
         return data
 
     @model_validator(mode="after")
@@ -204,11 +219,6 @@ class BboxAnnos(BaseModel):
             return zb
 
 
-class BboxData(BaseModel):
-    annos: BboxAnnos
-    labelinfo: Labelinfo
-
-
 class Canvas(BaseModel):
     rle: list[int]
     bb: BbI
@@ -286,8 +296,13 @@ class BrushAnnos(BaseModel):
         _keep_inds(self, inds)
 
 
+class BboxData(BaseModel):
+    annos: BboxAnnos | list[tuple[str, BboxAnnos]]
+    labelinfo: Labelinfo
+
+
 class BrushData(BaseModel):
-    annos: BrushAnnos
+    annos: BrushAnnos | list[tuple[str, BrushAnnos]]
     labelinfo: Labelinfo
 
 
@@ -297,5 +312,5 @@ class InputAnnotationData(BaseModel):
 
 
 class OutputAnnotationData(BaseModel):
-    bbox: BboxAnnos | None
-    brush: BrushAnnos | None
+    bbox: BboxAnnos | list[tuple[str, tuple[BboxAnnos, ShapeI]]] | None
+    brush: BrushAnnos | list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None

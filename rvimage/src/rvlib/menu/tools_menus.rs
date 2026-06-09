@@ -1,7 +1,8 @@
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
     file_util::path_to_str,
-    menu::ui_util::{process_number, text_edit_multiline},
+    menu::ui_util::{process_number, removable_rows, text_edit_multiline},
+    parameters::{ParamMap, ParamVal},
     result::trace_ok_err,
     tools::{BBOX_NAME, BRUSH_NAME, get_visible_inactive_names},
     tools_data::{
@@ -11,7 +12,6 @@ use crate::{
         annotations::SplitMode,
         bbox_data::BboxToolData,
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
-        parameters::{ParamMap, ParamVal},
         predictive_labeling::PredictiveLabelingData,
     },
     util,
@@ -30,24 +30,6 @@ use tracing::{info, warn};
 
 use super::ui_util::{slider, text_edit_singleline};
 
-fn removable_rows(
-    ui: &mut Ui,
-    n_rows: usize,
-    mut make_row: impl FnMut(&mut Ui, usize),
-) -> Option<usize> {
-    let mut to_be_removed = None;
-    for idx in 0..n_rows {
-        if ui
-            .button("x")
-            .on_hover_text("double click😈")
-            .double_clicked()
-        {
-            to_be_removed = Some(idx);
-        }
-        make_row(ui, idx)
-    }
-    to_be_removed
-}
 enum LabelEditMode {
     Add,
     Rename,

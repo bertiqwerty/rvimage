@@ -22,7 +22,6 @@ pub use brush::Brush;
 pub use rot90::{Rot90, rotate90};
 use std::fmt::Debug;
 use tracing::info;
-pub use wand::{CmdServer, WandServer};
 pub use zoom::Zoom;
 pub const BBOX_NAME: &str = bbox::ACTOR_NAME;
 pub const BRUSH_NAME: &str = brush::ACTOR_NAME;

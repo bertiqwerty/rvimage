@@ -2,7 +2,7 @@ use image::{DynamicImage, ImageBuffer, Rgb, imageops::FilterType};
 
 use rvimage_domain::RvResult;
 
-use crate::tools_data::parameters::ParamMap;
+use crate::parameters::ParamMap;
 
 pub type ViewImage = ImageBuffer<Rgb<u8>, Vec<u8>>;
 pub type ResultImage = RvResult<DynamicImage>;

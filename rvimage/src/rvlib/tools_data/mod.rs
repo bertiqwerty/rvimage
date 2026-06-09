@@ -5,7 +5,8 @@ pub use self::core::{
 };
 pub use self::{
     attributes_data::AttributesToolData, bbox_data::BboxToolData, brush_data::BrushToolData,
-    coco_io::write_coco, plot_stats::PlotAnnotationStats, rot90_data::Rot90ToolData,
+    coco_io::write_coco, label_map::LabelMap, plot_stats::PlotAnnotationStats,
+    rot90_data::Rot90ToolData,
 };
 use crate::tools::add_tools_initial_data;
 use crate::{
@@ -23,7 +24,6 @@ pub mod brush_data;
 pub mod coco_io;
 mod core;
 mod label_map;
-pub mod parameters;
 mod plot_stats;
 pub mod predictive_labeling;
 pub mod rot90_data;

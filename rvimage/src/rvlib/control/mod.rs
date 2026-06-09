@@ -1,18 +1,26 @@
 use crate::cfg::{Connection, ExportPath, ExportPathConnection, PyHttpReaderCfg, get_log_folder};
 use crate::file_util::{
-    DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH, PathPair, SavedCfg, osstr_to_str,
+    self, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH, PathPair, SavedCfg, osstr_to_str,
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
+use crate::parameters::{ParamMap, ParamVal};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
-use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, CmdServer, WandServer, rotate90};
+use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
 use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
+use crate::wand_prj_annotator::{
+    RestWandPrjAnnotator, WandPrjAnnotationsInput, WandPrjAnnotationsOutput, WandPrjAnnotator,
+};
 use crate::world::World;
 use crate::{
-    cfg::Cfg, image_reader::ReaderFromCfg, threadpool::ThreadPool, types::AsyncResultImage,
+    cfg::Cfg,
+    image_reader::ReaderFromCfg,
+    threadpool::ThreadPool,
+    types::AsyncResultImage,
+    wand_util::{CmdServer, WandServer},
 };
 use crate::{defer_file_removal, measure_time};
 use chrono::{DateTime, Utc};
@@ -26,6 +34,7 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use std::{fs, mem};
@@ -368,6 +377,7 @@ pub struct Control {
     save_handle: Option<JoinHandle<()>>,
     thumbnail_cache: HashMap<String, DynamicImage>,
     wand_server: Option<CmdServer>,
+    wand_prj_annotator_rx: Option<mpsc::Receiver<(WandPrjAnnotationsOutput, String)>>,
 }
 
 impl Control {
@@ -750,6 +760,111 @@ impl Control {
         }?;
         self.wand_server = None;
         Ok(())
+    }
+
+    pub fn submit_prj_to_wandannotator(
+        &mut self,
+        tools_data_map: &ToolsDataMap,
+        files: &[String],
+        folders_to_exclude: &[String],
+    ) {
+        if self.wand_prj_annotator_rx.is_some() {
+            tracing::warn!("cannot submit project to wand annotator, annotator already running");
+        } else {
+            let tdm = tools_data_map.clone();
+            let (tx, rx) = mpsc::channel();
+            self.wand_prj_annotator_rx = Some(rx);
+
+            let url = self.cfg.prj.wand_prj_annotator.url.clone();
+            let headers = self.cfg.usr.wand_prj_annotator_headers.clone();
+            let timeout = self.cfg.prj.wand_prj_annotator.timeout_ms;
+            let files = files.iter().map(|f| (*f).clone()).collect::<Vec<_>>();
+            let folders_to_exclude = folders_to_exclude
+                .iter()
+                .map(|f| (*f).clone())
+                .collect::<Vec<_>>();
+            let prj_name = if !self.cfg.prj.wand_prj_annotator.prj_name.is_empty() {
+                self.cfg.prj.wand_prj_annotator.prj_name.clone()
+            } else {
+                file_util::get_prj_name(
+                    self.cfg.current_prj_path(),
+                    self.opened_folder().map(|p| p.path_relative()),
+                )
+                .to_string()
+            };
+            let msgs = self.cfg.prj.wand_prj_annotator.messages.clone();
+            // make sure the last message contains a comment and no responses yet
+            let last_comment_solo = msgs
+                .iter()
+                .last()
+                .map(|last_msg| {
+                    last_msg.response.is_none()
+                        && last_msg.success_assessment.is_none()
+                        && !last_msg.comment.is_empty()
+                })
+                .unwrap_or(false);
+
+            if last_comment_solo {
+                let params = ParamMap::from([("prj_name".to_string(), ParamVal::Str(prj_name))]);
+
+                thread::spawn(move || {
+                    let (input, files) =
+                        WandPrjAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
+
+                    let wand_prj_annotator =
+                        RestWandPrjAnnotator::new(url, headers.as_deref(), timeout);
+                    tracing::info!("submitting project to wand annotator...");
+                    let output = trace_ok_err(wand_prj_annotator.predict(
+                        input,
+                        Some(&params),
+                        &files,
+                        &msgs,
+                    ));
+                    if let Some(output) = output {
+                        trace_ok_err(tx.send(output));
+                    } else {
+                        tracing::error!(
+                            "Processing failed with wand annotator failed. Prediction returned an error."
+                        );
+                        trace_ok_err(tx.send((WandPrjAnnotationsOutput::default(), "".into())));
+                    }
+                });
+                tracing::info!("... submission done!");
+            } else {
+                tracing::error!(
+                    "Could not submit to Wand. The last message needs a comment without response"
+                );
+            }
+        }
+    }
+    pub fn check_wand_prj_annotator_output(
+        &mut self,
+        tools_data_map: &mut ToolsDataMap,
+    ) -> RvResult<bool> {
+        if let Some(rx) = &self.wand_prj_annotator_rx {
+            match rx.try_recv() {
+                Ok((output, server_response)) => {
+                    tracing::info!("received output from wand annotator, applying to project...");
+                    let res = output.resolve_into_tdm(tools_data_map);
+                    tracing::info!("... applying done!");
+                    self.wand_prj_annotator_rx = None;
+
+                    if !server_response.trim().is_empty()
+                        && let [.., last] = &mut self.cfg.prj.wand_prj_annotator.messages[..]
+                    {
+                        last.response = Some(server_response);
+                    }
+                    res.map(|_| true)
+                }
+                Err(mpsc::TryRecvError::Empty) => Ok(false),
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.wand_prj_annotator_rx = None;
+                    Err(rverr!("wand annotator channel disconnected"))
+                }
+            }
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn export_logs(&self, dst: &Path) -> RvResult<()> {

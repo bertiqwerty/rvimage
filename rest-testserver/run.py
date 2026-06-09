@@ -47,16 +47,19 @@ async def predict(
     print(f"image shape {im.shape}")
     zb = TypeAdapter(BbF | None).validate_json(zoom_box)
     print(zb)
+    print(input_annotations)
     data = InputAnnotationData.model_validate_json(input_annotations)
     parameters = json.loads(parameters)
     bbd = data.bbox
     brd = data.brush
     resulting_mask = np.zeros(im.shape[:2], dtype=np.uint8)
     resulting_mask[31:40, 21:30] = 1
+    print("bbox from mask")
     bbox_annos = BboxAnnos.from_mask(resulting_mask, 0)
     resulting_mask = np.zeros(im.shape[:2], dtype=np.uint8)
     resulting_mask[30, 23:26] = 1
     resulting_mask[76:80, 5] = 1
+    print("brush from mask")
     brush_annos = BrushAnnos.from_mask(resulting_mask, 0)
 
     logger.info(brush_annos)
@@ -69,3 +72,13 @@ async def predict(
         brush=brush_annos,
     )
     return oad
+
+
+@app.post("/predict_many", response_model=OutputAnnotationData)
+async def predict_many(
+    parameters: Annotated[str, Form(...)],
+    input_annotations: Annotated[str, Form(...)],
+) -> OutputAnnotationData:
+    json.loads(parameters)
+    InputAnnotationData.model_validate_json(input_annotations)
+    return OutputAnnotationData(bbox=None, brush=None)
