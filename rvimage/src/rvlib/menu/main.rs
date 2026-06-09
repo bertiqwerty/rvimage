@@ -459,7 +459,7 @@ impl Menu {
 
                                         if idx < len_msgs.saturating_sub(1) {
                                             ui.label(
-                                                &wpa.messages[idx]
+                                                wpa.messages[idx]
                                                     .success_assessment
                                                     .map(|a| format!("assessment {a}"))
                                                     .unwrap_or("".to_string()),

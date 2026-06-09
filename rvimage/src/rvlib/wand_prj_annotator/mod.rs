@@ -83,10 +83,13 @@ impl<'a> WandPrjAnnotationsInput<'a> {
     }
 }
 
+pub type BboxOutput = Option<Vec<(String, (InstanceAnnotations<GeoFig>, ShapeI))>>;
+pub type BrushOutput = Option<Vec<(String, (InstanceAnnotations<Canvas>, ShapeI))>>;
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct WandPrjAnnotationsOutput {
-    pub bbox: Option<Vec<(String, (InstanceAnnotations<GeoFig>, ShapeI))>>,
-    pub brush: Option<Vec<(String, (InstanceAnnotations<Canvas>, ShapeI))>>,
+    pub bbox: BboxOutput,
+    pub brush: BrushOutput,
 }
 impl WandPrjAnnotationsOutput {
     pub fn resolve_into_tdm(self, tools_data_map: &mut ToolsDataMap) -> RvResult<()> {
@@ -94,13 +97,13 @@ impl WandPrjAnnotationsOutput {
             && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
             && let Some(bbox_data) = trace_ok_err(s.bbox_mut())
         {
-            bbox_data.set_annotations_map(LabelMap::from_iter(bbox.into_iter()))?;
+            bbox_data.set_annotations_map(LabelMap::from_iter(bbox))?;
         }
         if let Some(brush) = self.brush
             && let Some(s) = tools_data_map.get_specifics_mut(BRUSH_NAME)
             && let Some(brush_data) = trace_ok_err(s.brush_mut())
         {
-            brush_data.set_annotations_map(LabelMap::from_iter(brush.into_iter()))?;
+            brush_data.set_annotations_map(LabelMap::from_iter(brush))?;
         }
         Ok(())
     }
