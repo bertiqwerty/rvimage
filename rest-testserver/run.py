@@ -6,12 +6,14 @@ from fastapi import FastAPI, File, Form, Query, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, BaseModel
+
 from rvimage.collection_types import (
     BboxAnnos,
     BrushAnnos,
     InputAnnotationData,
     OutputAnnotationData,
+    WandPrjMessage,
 )
 from rvimage.converters import decode_bytes_into_rgbarray
 from rvimage.domain import BbF
@@ -74,11 +76,28 @@ async def predict(
     return oad
 
 
-@app.post("/predict_many", response_model=OutputAnnotationData)
+class DummyParams(BaseModel):
+    a: int | None = None
+    b: str | None = None
+
+
+@app.post("/predict_many")
 async def predict_many(
-    parameters: Annotated[str, Form(...)],
+    prj_name: Annotated[str, Form(...)],
     input_annotations: Annotated[str, Form(...)],
-) -> OutputAnnotationData:
-    json.loads(parameters)
+    files: Annotated[str, Form(...)],
+    communication: Annotated[str, Form(...)],
+    parameters: Annotated[str, Form(...)],
+) -> tuple[OutputAnnotationData, str]:
     InputAnnotationData.model_validate_json(input_annotations)
-    return OutputAnnotationData(bbox=None, brush=None)
+    file_list = json.loads(files)
+    comms: list[WandPrjMessage] = [
+        WandPrjMessage.model_validate(m) for m in json.loads(communication)
+    ]
+    params = DummyParams.model_validate_json(parameters)
+    print(f"project name: {prj_name}")
+    print(f"files: {file_list}")
+    print(f"communication: {comms}")
+    print(f"parameters: {params}")
+
+    return (OutputAnnotationData(bbox=None, brush=None), "method_description")

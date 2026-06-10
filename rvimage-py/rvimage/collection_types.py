@@ -314,3 +314,17 @@ class InputAnnotationData(BaseModel):
 class OutputAnnotationData(BaseModel):
     bbox: BboxAnnos | list[tuple[str, tuple[BboxAnnos, ShapeI]]] | None
     brush: BrushAnnos | list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None
+
+
+class WandPrjMessage(BaseModel):
+    comment: str
+    response: str | None = None
+    success_assessment: int | None = None
+
+
+def validate_params(values: dict) -> dict:
+    if isinstance(values, dict):
+        for field_k, field_v in values.items():
+            if isinstance(field_v, dict):
+                values[field_k] = next(iter(field_v.values()))
+    return values

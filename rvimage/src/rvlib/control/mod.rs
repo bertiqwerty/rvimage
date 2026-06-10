@@ -4,7 +4,6 @@ use crate::file_util::{
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
-use crate::parameters::{ParamMap, ParamVal};
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
@@ -805,8 +804,6 @@ impl Control {
                 .unwrap_or(false);
 
             if last_comment_solo {
-                let params = ParamMap::from([("prj_name".to_string(), ParamVal::Str(prj_name))]);
-
                 thread::spawn(move || {
                     let (input, files) =
                         WandPrjAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
@@ -814,12 +811,9 @@ impl Control {
                     let wand_prj_annotator =
                         RestWandPrjAnnotator::new(url, headers.as_deref(), timeout);
                     tracing::info!("submitting project to wand annotator...");
-                    let output = trace_ok_err(wand_prj_annotator.predict(
-                        input,
-                        Some(&params),
-                        &files,
-                        &msgs,
-                    ));
+                    let output = trace_ok_err(
+                        wand_prj_annotator.predict(&prj_name, input, &files, &msgs, None),
+                    );
                     if let Some(output) = output {
                         trace_ok_err(tx.send(output));
                     } else {

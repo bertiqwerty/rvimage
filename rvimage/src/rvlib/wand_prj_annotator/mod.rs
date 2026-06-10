@@ -120,10 +120,11 @@ pub trait WandPrjAnnotator {
     ///
     fn predict<'a>(
         &self,
+        prj_name: &'a str,
         annotations_input: WandPrjAnnotationsInput<'a>,
-        parameters: Option<&ParamMap>,
         files: &[&String],
         communication: &[WandPrjMessage],
+        parameters: Option<&ParamMap>,
     ) -> RvResult<(WandPrjAnnotationsOutput, String)>;
 }
 
@@ -141,23 +142,25 @@ impl RestWandPrjAnnotator {
 impl WandPrjAnnotator for RestWandPrjAnnotator {
     fn predict<'a>(
         &self,
+        prj_name: &'a str,
         annos_input: WandPrjAnnotationsInput<'a>,
-        parameters: Option<&ParamMap>,
         files: &[&String],
         communication: &[WandPrjMessage],
+        parameters: Option<&ParamMap>,
     ) -> RvResult<(WandPrjAnnotationsOutput, String)> {
         let annos_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
         let param_json_str = serialize_or_default(parameters)?;
         let files_json_str = serde_json::to_string(files).map_err(to_rv)?;
         let communication_json_str = serde_json::to_string(communication).map_err(to_rv)?;
         let form = multipart::Form::new()
-            .part("parameters", multipart::Part::text(param_json_str))
+            .part("prj_name", multipart::Part::text(prj_name.to_string()))
             .part("input_annotations", multipart::Part::text(annos_json_str))
             .part("files", multipart::Part::text(files_json_str))
             .part(
                 "communication",
                 multipart::Part::text(communication_json_str),
-            );
+            )
+            .part("parameters", multipart::Part::text(param_json_str));
         self.data.send(form, None)
     }
 }
@@ -173,7 +176,7 @@ use std::{thread, time::Duration};
 fn test_testserver() {
     let (_, mut child) = start_resttestserver();
     defer!(|| child.kill().expect("Failed to kill the server"));
-    thread::sleep(Duration::from_secs(5));
+    thread::sleep(Duration::from_secs(10));
     let url = "http://127.0.0.1:8000/";
     let w = RestWandPrjAnnotator::new(url.into(), None, 60000);
     let bbox_annos = InstanceAnnotations::from_elts_cats(
@@ -195,5 +198,6 @@ fn test_testserver() {
         bbox: Some(bbox_dummy),
         brush: Some(brush_dummy),
     };
-    w.predict(annos, None, &[], &[]).unwrap();
+    let (_, s) = w.predict("dummy", annos, &[], &[], None).unwrap();
+    assert_eq!("method_description", s);
 }
