@@ -150,7 +150,9 @@ where
     }
 
     pub fn select(&mut self, box_idx: usize) {
-        self.selected_mask[box_idx] = true;
+        if let Some(sm) = self.selected_mask.get_mut(box_idx) {
+            *sm = true;
+        }
     }
 
     pub fn select_multi(&mut self, box_idxs: impl Iterator<Item = usize>) {
@@ -197,10 +199,12 @@ where
         }
     }
 
-    pub fn label_selected(&mut self, cat_id: usize) {
+    pub fn label_selected(&mut self, cat_idx: usize) {
         let selected_inds = true_indices(&self.selected_mask);
         for idx in selected_inds {
-            self.cat_idxs[idx] = cat_id;
+            if let Some(selected_idx) = self.cat_idxs.get_mut(idx) {
+                *selected_idx = cat_idx;
+            }
         }
     }
 
@@ -227,9 +231,11 @@ where
         let keep_indices = (0..self.elts.len()).filter(|i| !indices.contains(i));
         self.elts = keep_indices
             .clone()
-            .map(|i| mem::take(&mut self.elts[i]))
+            .flat_map(|i| self.elts.get_mut(i).map(|elt| mem::take(elt)))
             .collect::<Vec<_>>();
-        self.cat_idxs = keep_indices.map(|i| self.cat_idxs[i]).collect::<Vec<_>>();
+        self.cat_idxs = keep_indices
+            .flat_map(|i| self.cat_idxs.get(i).copied())
+            .collect::<Vec<_>>();
         self.selected_mask = vec![false; self.elts.len()];
     }
 
@@ -253,9 +259,11 @@ where
         let selected_inds = true_indices(annos.selected_mask());
         let selected_elts = selected_inds
             .clone()
-            .map(|idx| annos.elts()[idx].clone())
+            .flat_map(|idx| annos.elts().get(idx).cloned())
             .collect();
-        let cat_idxs = selected_inds.map(|idx| annos.cat_idxs()[idx]).collect();
+        let cat_idxs = selected_inds
+            .flat_map(|idx| annos.cat_idxs().get(idx).copied())
+            .collect();
         ClipboardData {
             elts: selected_elts,
             cat_idxs,
@@ -279,8 +287,10 @@ where
     F: Fn(BbF) -> Option<BbF>,
 {
     for idx in bb_inds {
-        if let Some(bb) = resize(bbs[idx]) {
-            bbs[idx] = bb;
+        if let Some(bb) = bbs.get_mut(idx)
+            && let Some(bb_resized) = resize(*bb)
+        {
+            *bb = bb_resized;
         }
     }
     bbs

@@ -189,6 +189,8 @@ impl InstanceAnnotate for Canvas {
     fn enclosing_bb(&self) -> BbF {
         self.bb.into()
     }
+
+    #[allow(clippy::indexing_slicing)]
     fn rot90_with_image_ntimes(self, shape: ShapeI, n: u8) -> RvResult<Self> {
         let bb = self.bb;
         let bb_s: BB<TPtS> = BB::from(self.bb);

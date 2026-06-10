@@ -101,7 +101,9 @@ fn file_change(mut world: World) -> World {
         // put string representations of the attribute values into the buffer
         let attr_buffers = propagate_buffer(attr_buffers, &data.to_propagate_attr_val);
         for (i, buffer) in attr_buffers.into_iter().enumerate() {
-            *data.attr_value_buffer_mut(i) = buffer;
+            if let Some(attr_buffer) = data.attr_value_buffer_mut(i) {
+                *attr_buffer = buffer;
+            }
         }
 
         annos = propagate_annos(annos, data.attr_names(), &data.to_propagate_attr_val);

@@ -290,16 +290,17 @@ impl CocoExportData {
                             options.is_export_absolute,
                             file_path,
                         ))
-                        .map(|(bb_f, segmentation)| {
+                        .and_then(|(bb_f, segmentation)| {
                             box_id += 1;
-                            CocoAnnotation {
+                            let cat_id = export_data.cat_ids.get(*cat_idx);
+                            cat_id.map(|cat_id| CocoAnnotation {
                                 id: box_id - 1,
                                 image_id: image_idx as u32,
-                                category_id: export_data.cat_ids[*cat_idx],
+                                category_id: *cat_id,
                                 bbox: bb_f,
                                 segmentation,
                                 area: Some(bb_f[2] * bb_f[3]),
-                            }
+                            })
                         })
                     })
                     .collect::<Vec<_>>();
@@ -382,87 +383,87 @@ impl CocoExportData {
             "suppressing further warnings during coco import",
         );
         for coco_anno in self.annotations {
-            let (file_path, w_coco, h_coco) = id_image_map[&coco_anno.image_id];
+            if let Some((file_path, w_coco, h_coco)) = id_image_map.get(&coco_anno.image_id) {
+                // The annotations in the coco files created by RV Image are stored
+                // ignoring any orientation meta-data. Hence, if the image has been loaded
+                // and rotated with RV Image we correct the rotation.
+                let n_rotations = get_n_rotations(rotation_data, file_path);
+                let shape_coco = ShapeI::new(*w_coco, *h_coco);
 
-            // The annotations in the coco files created by RV Image are stored
-            // ignoring any orientation meta-data. Hence, if the image has been loaded
-            // and rotated with RV Image we correct the rotation.
-            let n_rotations = get_n_rotations(rotation_data, file_path);
-            let shape_coco = ShapeI::new(w_coco, h_coco);
+                let path_as_key = if file_path.starts_with("http") {
+                    file_util::url_encode(file_path)
+                } else {
+                    file_path.to_string()
+                };
 
-            let path_as_key = if file_path.starts_with("http") {
-                file_util::url_encode(file_path)
-            } else {
-                file_path.to_string()
-            };
+                let cat_idx = cat_ids
+                    .iter()
+                    .position(|cat_id| *cat_id == coco_anno.category_id)
+                    .ok_or_else(|| {
+                        rverr!(
+                            "could not find cat id {}, we only have {:?}",
+                            coco_anno.category_id,
+                            cat_ids
+                        )
+                    })?;
+                let coords_absolute = coco_anno.bbox.iter().any(|x| *x > 1.0);
+                let (w_factor, h_factor) = if coords_absolute {
+                    (1.0, 1.0)
+                } else {
+                    (f64::from(*w_coco), f64::from(*h_coco))
+                };
+                let bbox = [
+                    (w_factor * coco_anno.bbox[0]),
+                    (h_factor * coco_anno.bbox[1]),
+                    (w_factor * coco_anno.bbox[2]),
+                    (h_factor * coco_anno.bbox[3]),
+                ];
 
-            let cat_idx = cat_ids
-                .iter()
-                .position(|cat_id| *cat_id == coco_anno.category_id)
-                .ok_or_else(|| {
-                    rverr!(
-                        "could not find cat id {}, we only have {:?}",
-                        coco_anno.category_id,
-                        cat_ids
-                    )
-                })?;
-            let coords_absolute = coco_anno.bbox.iter().any(|x| *x > 1.0);
-            let (w_factor, h_factor) = if coords_absolute {
-                (1.0, 1.0)
-            } else {
-                (f64::from(w_coco), f64::from(h_coco))
-            };
-            let bbox = [
-                (w_factor * coco_anno.bbox[0]),
-                (h_factor * coco_anno.bbox[1]),
-                (w_factor * coco_anno.bbox[2]),
-                (h_factor * coco_anno.bbox[3]),
-            ];
+                let mut insert_geo = |geo| {
+                    insert_elt(
+                        geo,
+                        &mut annotations_bbox,
+                        cat_idx,
+                        n_rotations,
+                        path_as_key.clone(),
+                        shape_coco,
+                    );
+                };
 
-            let mut insert_geo = |geo| {
-                insert_elt(
-                    geo,
-                    &mut annotations_bbox,
-                    cat_idx,
-                    n_rotations,
-                    path_as_key.clone(),
-                    shape_coco,
-                );
-            };
+                let bb = BbF::from(&bbox);
 
-            let bb = BbF::from(&bbox);
-
-            match coco_anno.segmentation {
-                Some(CocoSegmentation::Polygon(poly)) => {
-                    let geofig = if poly.is_empty() {
-                        Ok(GeoFig::BB(bb))
-                    } else {
-                        polygon_to_geofig(&poly, w_factor, h_factor, bb, |s| warner.warn(s))
-                    };
-                    if let Ok(geofig) = geofig {
-                        insert_geo(geofig);
-                    } else {
-                        warner.warn(&format!("invalid segmentation in coco file {file_path}"));
+                match coco_anno.segmentation {
+                    Some(CocoSegmentation::Polygon(poly)) => {
+                        let geofig = if poly.is_empty() {
+                            Ok(GeoFig::BB(bb))
+                        } else {
+                            polygon_to_geofig(&poly, w_factor, h_factor, bb, |s| warner.warn(s))
+                        };
+                        if let Ok(geofig) = geofig {
+                            insert_geo(geofig);
+                        } else {
+                            warner.warn(&format!("invalid segmentation in coco file {file_path}"));
+                        }
                     }
-                }
-                Some(CocoSegmentation::Rle(rle)) => {
-                    let canvas = rle.to_canvas(bb);
-                    if let Ok(canvas) = canvas {
-                        insert_elt(
-                            canvas,
-                            &mut annotations_brush,
-                            cat_idx,
-                            n_rotations,
-                            path_as_key,
-                            shape_coco,
-                        );
-                    } else {
-                        warner.warn(&format!("invalid segmentation in coco file {file_path}"));
+                    Some(CocoSegmentation::Rle(rle)) => {
+                        let canvas = rle.to_canvas(bb);
+                        if let Ok(canvas) = canvas {
+                            insert_elt(
+                                canvas,
+                                &mut annotations_brush,
+                                cat_idx,
+                                n_rotations,
+                                path_as_key,
+                                shape_coco,
+                            );
+                        } else {
+                            warner.warn(&format!("invalid segmentation in coco file {file_path}"));
+                        }
                     }
-                }
-                _ => {
-                    let geo = GeoFig::BB(bb);
-                    insert_geo(geo);
+                    _ => {
+                        let geo = GeoFig::BB(bb);
+                        insert_geo(geo);
+                    }
                 }
             }
         }
@@ -530,20 +531,30 @@ pub fn to_per_file_crowd(brush_annotations_map: &mut BrushAnnoMap) {
         if let Some(max_catidx) = annos.cat_idxs().iter().max() {
             let mut canvas_idxes_of_cats = vec![vec![]; max_catidx + 1];
             for i in 0..(annos.elts().len()) {
-                canvas_idxes_of_cats[annos.cat_idxs()[i]].push(i);
+                if let Some(cat_idxs) = annos
+                    .cat_idxs()
+                    .get(i)
+                    .and_then(|idx| canvas_idxes_of_cats.get_mut(*idx))
+                {
+                    cat_idxs.push(i);
+                }
             }
             let mut merged_canvases = vec![None; max_catidx + 1];
             for (cat_idx, canvas_idxes) in canvas_idxes_of_cats.iter().enumerate() {
                 let mut merged_canvas: Option<Canvas> = None;
                 for canvas_idx in canvas_idxes {
-                    let elt = &annos.elts()[*canvas_idx];
-                    if let Some(merged_canvas) = &mut merged_canvas {
-                        *merged_canvas = mem::take(merged_canvas).merge(elt);
-                    } else {
-                        merged_canvas = Some(elt.clone());
+                    let elt = &annos.elts().get(*canvas_idx);
+                    if let Some(elt) = elt {
+                        if let Some(merged_canvas) = &mut merged_canvas {
+                            *merged_canvas = mem::take(merged_canvas).merge(elt);
+                        } else {
+                            merged_canvas = Some((*elt).clone());
+                        }
                     }
                 }
-                merged_canvases[cat_idx] = merged_canvas;
+                if let Some(mc) = merged_canvases.get_mut(cat_idx) {
+                    *mc = merged_canvas;
+                };
             }
             let mut cat_idxes = vec![];
             let elts = merged_canvases

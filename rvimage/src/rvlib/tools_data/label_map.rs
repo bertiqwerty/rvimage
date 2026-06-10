@@ -83,6 +83,8 @@ where
         }
     }
 }
+
+#[allow(clippy::indexing_slicing)]
 impl<T> Index<&str> for LabelMap<T>
 where
     T: Serialize + DeserializeOwned,

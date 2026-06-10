@@ -69,12 +69,15 @@ fn propagate_attributes(
 ) -> RvResult<()> {
     let to_prop = mem::take(&mut data.to_propagate_attr_val);
 
-    let prop_anno_shape = data.get_shape(paths[0].path_relative()).ok_or_else(|| {
-        rverr!(
-            "expecting annotations to be propagated exists for {:?}",
-            paths[0]
-        )
-    })?;
+    let prop_anno_shape = paths
+        .first()
+        .and_then(|path| data.get_shape(path.path_relative()))
+        .ok_or_else(|| {
+            rverr!(
+                "expecting annotations to be propagated exists for {:?}",
+                paths.first()
+            )
+        })?;
     for (idx_to_prop, attr_val_to_prop) in &to_prop {
         for p in paths {
             data.set_attr_val(

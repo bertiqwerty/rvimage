@@ -138,21 +138,26 @@ impl ToolSpecifics {
                                 true
                             }
                         })
-                        .map(|((geo, cat_idx), is_selected)| {
-                            Annotation::Bbox(BboxAnnotation {
-                                geofig: geo.clone(),
-                                fill_color: Some(colors[*cat_idx]),
-                                fill_alpha: bb_data.options.fill_alpha,
-                                label: Some(labels[*cat_idx].clone()),
-                                outline: Stroke {
-                                    thickness: TPtF::from(bb_data.options.outline_thickness)
-                                        / OUTLINE_THICKNESS_CONVERSION,
-                                    color: colors[*cat_idx],
-                                },
-                                outline_alpha: bb_data.options.outline_alpha,
-                                is_selected: Some(*is_selected),
-                                highlight_circles: bb_data.highlight_circles.clone(),
-                                instance_label_display: bb_data.options.core.instance_label_display,
+                        .flat_map(|((geo, cat_idx), is_selected)| {
+                            colors.get(*cat_idx).map(|color| {
+                                Annotation::Bbox(BboxAnnotation {
+                                    geofig: geo.clone(),
+                                    fill_color: colors.get(*cat_idx).cloned(),
+                                    fill_alpha: bb_data.options.fill_alpha,
+                                    label: labels.get(*cat_idx).cloned(),
+                                    outline: Stroke {
+                                        thickness: TPtF::from(bb_data.options.outline_thickness)
+                                            / OUTLINE_THICKNESS_CONVERSION,
+                                        color: *color,
+                                    },
+                                    outline_alpha: bb_data.options.outline_alpha,
+                                    is_selected: Some(*is_selected),
+                                    highlight_circles: bb_data.highlight_circles.clone(),
+                                    instance_label_display: bb_data
+                                        .options
+                                        .core
+                                        .instance_label_display,
+                                })
                             })
                         })
                         .collect::<Vec<Annotation>>();
@@ -179,14 +184,19 @@ impl ToolSpecifics {
                                 true
                             }
                         })
-                        .map(|((brush_line, cat_idx), is_selected)| {
-                            Annotation::Brush(BrushAnnotation {
-                                canvas: brush_line.clone(),
-                                color: colors[*cat_idx],
-                                label: Some(labels[*cat_idx].clone()),
-                                is_selected: Some(*is_selected),
-                                fill_alpha: br_data.options.fill_alpha,
-                                instance_display_label: br_data.options.core.instance_label_display,
+                        .flat_map(|((brush_line, cat_idx), is_selected)| {
+                            colors.get(*cat_idx).map(|color| {
+                                Annotation::Brush(BrushAnnotation {
+                                    canvas: brush_line.clone(),
+                                    color: *color,
+                                    label: labels.get(*cat_idx).cloned(),
+                                    is_selected: Some(*is_selected),
+                                    fill_alpha: br_data.options.fill_alpha,
+                                    instance_display_label: br_data
+                                        .options
+                                        .core
+                                        .instance_label_display,
+                                })
                             })
                         })
                         .collect::<Vec<Annotation>>();
@@ -291,6 +301,8 @@ impl Default for ToolsDataMap {
         Self::new()
     }
 }
+
+#[allow(clippy::indexing_slicing)]
 impl Index<&str> for ToolsDataMap {
     type Output = ToolsData;
     fn index(&self, index: &str) -> &Self::Output {

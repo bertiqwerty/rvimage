@@ -17,6 +17,7 @@ pub const OUTLINE_THICKNESS_CONVERSION: TPtF = 10.0;
 
 const DEFAULT_LABEL: &str = "rvimage_fg";
 
+#[allow(clippy::indexing_slicing)]
 fn color_dist(c1: [u8; 3], c2: [u8; 3]) -> f32 {
     let square_d = |i| (f32::from(c1[i]) - f32::from(c2[i])).powi(2);
     (square_d(0) + square_d(1) + square_d(2)).sqrt()
@@ -213,7 +214,9 @@ impl VisibleInactiveToolsState {
         }
     }
     pub fn set_show(&mut self, idx: usize, is_visible: bool) {
-        self.show_mask[idx] = is_visible;
+        if let Some(show_mask) = self.show_mask.get_mut(idx) {
+            *show_mask = is_visible;
+        }
     }
 }
 
@@ -224,6 +227,7 @@ pub fn random_clr() -> [u8; 3] {
     [r, g, b]
 }
 
+#[allow(clippy::indexing_slicing)]
 fn argmax_clr_dist(picklist: &[[u8; 3]], legacylist: &[[u8; 3]]) -> [u8; 3] {
     let (idx, _) = picklist
         .iter()
@@ -295,7 +299,9 @@ where
             let (elts, cat_idxs, _) = v2.separate_data();
             v1.extend(
                 elts.into_iter(),
-                cat_idxs.into_iter().map(|old_idx| idx_map[old_idx]),
+                cat_idxs
+                    .into_iter()
+                    .flat_map(|old_idx| idx_map.get(old_idx).copied()),
                 s,
                 InstanceLabelDisplay::default(),
             );
@@ -304,7 +310,7 @@ where
             let (elts, cat_idxs, _) = v2.separate_data();
             let cat_idxs = cat_idxs
                 .into_iter()
-                .map(|old_idx| idx_map[old_idx])
+                .flat_map(|old_idx| idx_map.get(old_idx).copied())
                 .collect::<Vec<_>>();
             let v2 =
                 InstanceAnnotations::new_relaxed(elts, cat_idxs, InstanceLabelDisplay::default());
@@ -386,7 +392,9 @@ impl LabelInfo {
         if self.labels.contains(&label) {
             Err(rverr!("label '{label}' already exists"))
         } else {
-            self.labels[idx] = label;
+            if let Some(self_label) = self.labels.get_mut(idx) {
+                *self_label = label;
+            }
             Ok(())
         }
     }
@@ -561,6 +569,7 @@ pub enum CocoSegmentation {
     Rle(CocoRle),
 }
 
+#[allow(clippy::indexing_slicing)]
 pub fn polygon_to_geofig(
     poly: &[Vec<TPtF>],
     w_factor: f64,
@@ -568,7 +577,7 @@ pub fn polygon_to_geofig(
     bb: BbF,
     mut warn: impl FnMut(&str),
 ) -> RvResult<GeoFig> {
-    if poly.len() > 1 {
+    if poly.len() != 1 {
         return Err(rverr!(
             "multiple polygons per box not supported. ignoring all but first."
         ));

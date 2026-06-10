@@ -7,6 +7,7 @@ pub fn wrap_if<T>(x: T, cond: bool) -> Option<T> {
     if cond { Some(x) } else { None }
 }
 
+#[allow(clippy::indexing_slicing)]
 pub fn sort_by_vec<T, U>(sort_keys: &[U], mut v: Vec<T>) -> Vec<T>
 where
     T: Default,

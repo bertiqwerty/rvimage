@@ -102,31 +102,52 @@ impl AttributesToolData {
         self.merge_map(other.annotations_map);
         self
     }
+
+    #[allow(clippy::indexing_slicing)]
     pub fn push(&mut self, attr_name: String, attr_val: ParamVal) {
         if !self.attr_names.contains(&attr_name) {
             self.attr_names.push(attr_name);
             self.attr_vals.push(attr_val);
             self.new_attr_value_buffers.push(String::new());
             // current map is sorted, hence we need to sort also the lists of attributes
-            let mut idxs = (0..self.attr_names.len()).collect::<Vec<_>>();
-            idxs.sort_unstable_by_key(|&i| &self.attr_names[i]);
-            self.attr_names = idxs.iter().map(|i| self.attr_names[*i].clone()).collect();
-            self.attr_vals = idxs.iter().map(|i| self.attr_vals[*i].clone()).collect();
-            self.new_attr_value_buffers = idxs
-                .iter()
-                .map(|i| self.new_attr_value_buffers[*i].clone())
-                .collect();
+
+            let attr_names_len = self.attr_names.len();
+            let attr_vals_len = self.attr_vals.len();
+            let new_attr_value_buffer_len = self.new_attr_value_buffers.len();
+            let is_data_consistent =
+                attr_names_len == attr_vals_len && attr_names_len == new_attr_value_buffer_len;
+            if is_data_consistent {
+                let mut idxs = (0..attr_names_len).collect::<Vec<_>>();
+
+                idxs.sort_unstable_by_key(|&i| &self.attr_names[i]);
+                self.attr_names = idxs.iter().map(|i| self.attr_names[*i].clone()).collect();
+                self.attr_vals = idxs.iter().map(|i| self.attr_vals[*i].clone()).collect();
+                self.new_attr_value_buffers = idxs
+                    .iter()
+                    .map(|i| self.new_attr_value_buffers[*i].clone())
+                    .collect();
+            } else {
+                tracing::error!("Incosistency detected when adding attrinbute. We skip sorting.");
+                tracing::error!("attr names:\n{:?}", self.attr_names);
+                tracing::error!("val names:\n{:?}", self.attr_vals);
+                tracing::error!("new attr value buffers:\n{:?}", self.new_attr_value_buffers);
+            }
         }
     }
     pub fn remove_attr(&mut self, idx: usize) {
-        for (_, (attr_map, _)) in self.annotations_map.iter_mut() {
-            attr_map.remove(&self.attr_names[idx]);
-        }
-        let removed_name = self.attr_names.remove(idx);
-        self.attr_vals.remove(idx);
-        self.new_attr_value_buffers.remove(idx);
-        if let Some(current_attr_map) = &mut self.current_attr_map {
-            current_attr_map.remove(&removed_name);
+        if let Some(attr_name) = self.attr_names.get(idx)
+            && idx < self.attr_vals.len()
+            && idx < self.new_attr_value_buffers.len()
+        {
+            for (_, (attr_map, _)) in self.annotations_map.iter_mut() {
+                attr_map.remove(attr_name);
+            }
+            let removed_name = self.attr_names.remove(idx);
+            self.attr_vals.remove(idx);
+            self.new_attr_value_buffers.remove(idx);
+            if let Some(current_attr_map) = &mut self.current_attr_map {
+                current_attr_map.remove(&removed_name);
+            }
         }
     }
     pub fn attr_names(&self) -> &Vec<String> {
@@ -135,8 +156,8 @@ impl AttributesToolData {
     pub fn attr_vals(&self) -> &Vec<ParamVal> {
         &self.attr_vals
     }
-    pub fn attr_value_buffer_mut(&mut self, idx: usize) -> &mut String {
-        &mut self.new_attr_value_buffers[idx]
+    pub fn attr_value_buffer_mut(&mut self, idx: usize) -> Option<&mut String> {
+        self.new_attr_value_buffers.get_mut(idx)
     }
     pub fn attr_value_buffers_mut(&mut self) -> &mut Vec<String> {
         &mut self.new_attr_value_buffers
@@ -223,16 +244,15 @@ impl AttributesToolData {
             .annotations_map
             .get_mut(filename)
             .map(|(attr_map, _)| attr_map);
-        if let Some(attr_map) = attr_map {
-            let attr_name = &self.attr_names[idx];
+        if let (Some(attr_name), Some(attr_map)) = (self.attr_names.get(idx), attr_map) {
             let current_attr_val = attr_map.get_mut(attr_name);
             if let Some(current_attr_val) = current_attr_val {
                 *current_attr_val = attr_val;
             } else {
                 attr_map.insert(attr_name.clone(), attr_val);
             }
-        } else {
-            let attr_map = ParamMap::from([(self.attr_names[idx].clone(), attr_val)]);
+        } else if let Some(attr_name) = self.attr_names.get(idx) {
+            let attr_map = ParamMap::from([(attr_name.clone(), attr_val)]);
             self.annotations_map
                 .insert(filename.to_string(), (attr_map, image_shape));
         }
