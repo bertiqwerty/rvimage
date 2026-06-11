@@ -13,7 +13,7 @@ from rvimage.collection_types import (
     BrushAnnos,
     InputAnnotationData,
     OutputAnnotationData,
-    WandPrjMessage,
+    WandManyMessage,
 )
 from rvimage.converters import decode_bytes_into_rgbarray
 from rvimage.domain import BbF
@@ -91,8 +91,8 @@ async def predict_many(
 ) -> tuple[OutputAnnotationData, str]:
     InputAnnotationData.model_validate_json(input_annotations)
     file_list = json.loads(files)
-    comms: list[WandPrjMessage] = [
-        WandPrjMessage.model_validate(m) for m in json.loads(communication)
+    comms: list[WandManyMessage] = [
+        WandManyMessage.model_validate(m) for m in json.loads(communication)
     ]
     params = DummyParams.model_validate_json(parameters)
     print(f"project name: {prj_name}")

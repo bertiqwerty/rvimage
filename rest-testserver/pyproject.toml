@@ -8,7 +8,7 @@ dependencies = [
     "fastapi[standard]>=0.115.12",
     "loguru>=0.7.3",
     "opencv-python-headless>=4.11.0.86",
-    "rvimage>=0.1.2",
+    "rvimage>=0.1.7",
 ]
 
 [tool.uv.sources]

@@ -316,7 +316,7 @@ class OutputAnnotationData(BaseModel):
     brush: BrushAnnos | list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None
 
 
-class WandPrjMessage(BaseModel):
+class WandManyMessage(BaseModel):
     comment: str
     response: str | None = None
     success_assessment: int | None = None

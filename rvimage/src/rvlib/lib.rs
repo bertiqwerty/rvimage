@@ -32,7 +32,7 @@ pub mod tracing_setup;
 mod types;
 mod util;
 pub mod view;
-mod wand_prj_annotator;
+mod wand_many;
 mod wand_util;
 pub mod world;
 pub use drawme::{

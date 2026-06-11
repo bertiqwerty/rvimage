@@ -1,5 +1,5 @@
 use crate::{
-    cfg::{ExportPathConnection, WandPrjMessage},
+    cfg::{ExportPathConnection, WandManyMessage},
     control::{Control, Info, PrjSettingImportSection},
     file_util::{get_prj_name, path_to_str},
     image_reader::LoadImageForGui,
@@ -168,8 +168,8 @@ pub struct TextBuffers {
     pub label_propagation: String,
     pub label_deletion: String,
     pub import_coco_from_ssh_path: String,
-    pub wand_prj_annotator_comment: String,
-    pub wand_prj_annotator_exclfolder: String,
+    pub wand_many_comment: String,
+    pub wand_many_exclfolder: String,
 }
 
 pub struct Menu {
@@ -188,7 +188,7 @@ pub struct Menu {
     prj_import_section: PrjSettingImportSection,
     prj_settings_for_display: Option<String>,
     cache_all_progress: Option<f32>,
-    show_wandprjannotator: bool,
+    show_wandmany: bool,
 }
 
 impl Menu {
@@ -198,8 +198,8 @@ impl Menu {
             label_propagation: "".into(),
             label_deletion: "".into(),
             import_coco_from_ssh_path: "path on ssh server".into(),
-            wand_prj_annotator_comment: "".into(),
-            wand_prj_annotator_exclfolder: "".into(),
+            wand_many_comment: "".into(),
+            wand_many_exclfolder: "".into(),
         };
         Self {
             window_open: true,
@@ -217,7 +217,7 @@ impl Menu {
             prj_import_section: PrjSettingImportSection::All,
             prj_settings_for_display: None,
             cache_all_progress: None,
-            show_wandprjannotator: false,
+            show_wandmany: false,
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -411,8 +411,7 @@ impl Menu {
 
                 ui.menu_button("Wand", |ui| {
                     if ui.button("Predict").clicked() {
-                        self.show_wandprjannotator = true;
-                        // handle_error!(ctrl.ask_wand_for_prj_annotations(), self);
+                        self.show_wandmany = true;
                     }
                     ui.separator();
                     if ui.button("Start Wand Server").clicked() {
@@ -422,11 +421,11 @@ impl Menu {
                         handle_error!(ctrl.cleanup_wandserver(), self);
                     }
                 });
-                if self.show_wandprjannotator {
+                if self.show_wandmany {
                     let mut assess_tmp = ctrl
                         .cfg
                         .prj
-                        .wand_prj_annotator
+                        .wand_many
                         .messages
                         .iter()
                         .last()
@@ -435,7 +434,7 @@ impl Menu {
                         ui.ctx(),
                         |ui| {
                             ui.heading("Wand to annotate all filtered project images");
-                            let wpa = &ctrl.cfg.prj.wand_prj_annotator;
+                            let wpa = &ctrl.cfg.prj.wand_many;
                             let len_msgs = wpa.messages.len();
                             let mut idx_to_remove = None;
                             ui.separator();
@@ -496,82 +495,68 @@ impl Menu {
                                     });
                                 });
                             if let Some(idx) = idx_to_remove {
-                                ctrl.cfg.prj.wand_prj_annotator.messages.remove(idx);
+                                ctrl.cfg.prj.wand_many.messages.remove(idx);
                             }
                             if let Some(assess_last) =
-                                ctrl.cfg.prj.wand_prj_annotator.messages.iter_mut().last()
+                                ctrl.cfg.prj.wand_many.messages.iter_mut().last()
                             {
                                 assess_last.success_assessment = assess_tmp;
                             }
 
                             text_edit_multiline(
                                 ui,
-                                &mut self.text_buffers.wand_prj_annotator_comment,
+                                &mut self.text_buffers.wand_many_comment,
                                 &mut self.are_tools_active,
                             );
 
                             ui.horizontal(|ui| {
                                 if ui.button("Add comment").clicked()
-                                    && !self
-                                        .text_buffers
-                                        .wand_prj_annotator_comment
-                                        .trim()
-                                        .is_empty()
+                                    && !self.text_buffers.wand_many_comment.trim().is_empty()
                                 {
-                                    ctrl.cfg.prj.wand_prj_annotator.messages.push(
-                                        WandPrjMessage::from_comment(mem::take(
-                                            &mut self.text_buffers.wand_prj_annotator_comment,
+                                    ctrl.cfg.prj.wand_many.messages.push(
+                                        WandManyMessage::from_comment(mem::take(
+                                            &mut self.text_buffers.wand_many_comment,
                                         )),
                                     );
                                 }
                                 if ui.button("Clear").clicked() {
-                                    ctrl.cfg.prj.wand_prj_annotator.messages.clear();
+                                    ctrl.cfg.prj.wand_many.messages.clear();
                                 }
                             });
                             ui.separator();
                             text_edit_singleline(
                                 ui,
-                                &mut self.text_buffers.wand_prj_annotator_exclfolder,
+                                &mut self.text_buffers.wand_many_exclfolder,
                                 &mut self.are_tools_active,
                             );
                             if ui.button("Add folder to exclude").clicked()
-                                && !self
-                                    .text_buffers
-                                    .wand_prj_annotator_exclfolder
-                                    .trim()
-                                    .is_empty()
+                                && !self.text_buffers.wand_many_exclfolder.trim().is_empty()
                             {
-                                ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.push(
-                                    mem::take(&mut self.text_buffers.wand_prj_annotator_exclfolder),
-                                )
+                                ctrl.cfg
+                                    .prj
+                                    .wand_many
+                                    .subfolder_to_exclude
+                                    .push(mem::take(&mut self.text_buffers.wand_many_exclfolder))
                             }
 
-                            let n_folders =
-                                ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude.len();
+                            let n_folders = ctrl.cfg.prj.wand_many.subfolder_to_exclude.len();
                             ui.separator();
                             if n_folders > 0 {
                                 ui.label("Folders to exclude");
                                 let mut idx_remove = None;
                                 egui::Grid::new("label_grid").num_columns(2).show(ui, |ui| {
                                     idx_remove = removable_rows(ui, n_folders, |ui, idx| {
-                                        ui.label(
-                                            &ctrl.cfg.prj.wand_prj_annotator.subfolder_to_exclude
-                                                [idx],
-                                        );
+                                        ui.label(&ctrl.cfg.prj.wand_many.subfolder_to_exclude[idx]);
                                         ui.end_row();
                                     });
                                 });
                                 if let Some(idx) = idx_remove {
-                                    ctrl.cfg
-                                        .prj
-                                        .wand_prj_annotator
-                                        .subfolder_to_exclude
-                                        .remove(idx);
+                                    ctrl.cfg.prj.wand_many.subfolder_to_exclude.remove(idx);
                                 }
                                 ui.separator();
                             }
                             if ui.button("Submit").clicked() {
-                                self.show_wandprjannotator = false;
+                                self.show_wandmany = false;
                                 let files = ctrl.paths_navigator.paths_selector().map(|ps| {
                                     ps.filtered_abs_file_paths()
                                         .iter()
@@ -579,12 +564,8 @@ impl Menu {
                                         .collect::<Vec<String>>()
                                 });
                                 if let Some(files) = files {
-                                    let folders_to_exclude = ctrl
-                                        .cfg
-                                        .prj
-                                        .wand_prj_annotator
-                                        .subfolder_to_exclude
-                                        .clone();
+                                    let folders_to_exclude =
+                                        ctrl.cfg.prj.wand_many.subfolder_to_exclude.clone();
                                     ctrl.submit_prj_to_wandannotator(
                                         tools_data_map,
                                         &files,
@@ -596,7 +577,7 @@ impl Menu {
                             }
                             ui.separator();
                             if ui.button("Close").clicked() {
-                                self.show_wandprjannotator = false;
+                                self.show_wandmany = false;
                             }
                         },
                     );

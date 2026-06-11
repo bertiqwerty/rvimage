@@ -408,14 +408,19 @@ fn annotations(
                     tdm,
                     &filepaths,
                     params.tool_choice_delprop,
-                    FilterRelation::Missing,
+                    params.filter_relation_deletion,
                 )?;
+                tracing::warn!("{absent_files:?}");
                 let absent_files = absent_files
                     .into_iter()
                     .map(|(_, af, tn, _)| (af.to_string(), tn))
                     .collect::<Vec<_>>();
                 if absent_files.is_empty() {
-                    tracing::info!("no missing annotations to delete")
+                    let txt = params.filter_relation_deletion.select(
+                        "no images with annotations in the file list",
+                        "no images in the annotation files that are missing from the file list",
+                    );
+                    tracing::info!(txt);
                 }
                 for (af, tool_name) in absent_files {
                     tracing::info!("deleting annotations of {af} for tool {tool_name}");

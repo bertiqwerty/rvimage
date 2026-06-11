@@ -8,7 +8,7 @@ use crate::{
     tools_data::{AnnotationsMap, ToolSpecifics, annotations::InstanceAnnotations},
 };
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub enum FilterRelation {
     // files that are contained in the list of filtered files
     #[default]
@@ -36,7 +36,7 @@ impl FilterRelation {
         }
     }
 }
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq, Debug)]
 pub struct ToolChoice {
     pub brush: bool,
     pub bbox: bool,

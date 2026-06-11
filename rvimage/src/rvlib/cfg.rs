@@ -74,7 +74,7 @@ impl CfgLegacy {
             hide_thumbs: true,
             thumb_attrs_view: false,
             azure_blob: None,
-            wand_prj_annotator_headers: None,
+            wand_many_headers: None,
         };
         let prj = CfgPrj {
             connection: self.connection,
@@ -92,7 +92,7 @@ impl CfgLegacy {
             }),
             sort_params: SortParams::default(),
             wand_server: WandServerCfg::default(),
-            wand_prj_annotator: WandProjectAnnotatorCfg::default(),
+            wand_many: WandManyCfg::default(),
         };
         Cfg { usr, prj }
     }
@@ -358,17 +358,17 @@ pub struct WandServerCfg {
     pub install_uv: bool,
 }
 
-fn get_wandprjannotator_default_timeout() -> usize {
+fn get_wandmany_default_timeout() -> usize {
     30000
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct WandPrjMessage {
+pub struct WandManyMessage {
     pub comment: String,
     pub response: Option<String>,
     pub success_assessment: Option<u8>,
 }
-impl WandPrjMessage {
+impl WandManyMessage {
     pub fn from_comment(cmt: String) -> Self {
         Self {
             comment: cmt,
@@ -380,21 +380,21 @@ impl WandPrjMessage {
 /// In contrast to annotations of the currently opened image in the tool's predictive labelling setting,
 /// this wand-cfg is about annotating the whole project.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct WandProjectAnnotatorCfg {
+pub struct WandManyCfg {
     pub url: String,
-    #[serde(default = "get_wandprjannotator_default_timeout")]
+    #[serde(default = "get_wandmany_default_timeout")]
     pub timeout_ms: usize,
-    pub messages: Vec<WandPrjMessage>,
+    pub messages: Vec<WandManyMessage>,
     pub prj_name: String,
     pub params: Option<ParamMap>,
     pub subfolder_to_exclude: Vec<String>,
 }
 
-impl Default for WandProjectAnnotatorCfg {
+impl Default for WandManyCfg {
     fn default() -> Self {
         Self {
             url: "".into(),
-            timeout_ms: get_wandprjannotator_default_timeout(),
+            timeout_ms: get_wandmany_default_timeout(),
             messages: Vec::new(),
             params: None,
             subfolder_to_exclude: Vec::new(),
@@ -522,7 +522,7 @@ pub struct CfgUsr {
     #[serde(default)]
     pub azure_blob: Option<AzureBlobCfgUsr>,
     #[serde(default)]
-    pub wand_prj_annotator_headers: Option<String>,
+    pub wand_many_headers: Option<String>,
 }
 
 impl CfgUsr {
@@ -551,7 +551,7 @@ pub struct CfgPrj {
     #[serde(default)]
     pub wand_server: WandServerCfg,
     #[serde(default)]
-    pub wand_prj_annotator: WandProjectAnnotatorCfg,
+    pub wand_many: WandManyCfg,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Cfg {

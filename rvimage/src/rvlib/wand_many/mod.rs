@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     InstanceAnnotate, ToolsDataMap,
-    cfg::WandPrjMessage,
+    cfg::WandManyMessage,
     parameters::ParamMap,
     rest_data::RestData,
     result::trace_ok_err,
@@ -87,11 +87,11 @@ pub type BboxOutput = Option<Vec<(String, (InstanceAnnotations<GeoFig>, ShapeI))
 pub type BrushOutput = Option<Vec<(String, (InstanceAnnotations<Canvas>, ShapeI))>>;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct WandPrjAnnotationsOutput {
+pub struct WandManyOutput {
     pub bbox: BboxOutput,
     pub brush: BrushOutput,
 }
-impl WandPrjAnnotationsOutput {
+impl WandManyOutput {
     pub fn resolve_into_tdm(self, tools_data_map: &mut ToolsDataMap) -> RvResult<()> {
         if let Some(bbox) = self.bbox
             && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
@@ -109,7 +109,7 @@ impl WandPrjAnnotationsOutput {
     }
 }
 
-pub trait WandPrjAnnotator {
+pub trait WandMany {
     /// Predictions for the whole project
     ///
     /// # Arguments
@@ -123,15 +123,15 @@ pub trait WandPrjAnnotator {
         prj_name: &'a str,
         annotations_input: WandPrjAnnotationsInput<'a>,
         files: &[&String],
-        communication: &[WandPrjMessage],
+        communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
-    ) -> RvResult<(WandPrjAnnotationsOutput, String)>;
+    ) -> RvResult<(WandManyOutput, String)>;
 }
 
-pub struct RestWandPrjAnnotator {
+pub struct RestWandMany {
     data: RestData,
 }
-impl RestWandPrjAnnotator {
+impl RestWandMany {
     pub fn new(url: String, authorization: Option<&str>, timeout_ms: usize) -> Self {
         Self {
             data: RestData::new(url, authorization, timeout_ms, "predict_many"),
@@ -139,15 +139,15 @@ impl RestWandPrjAnnotator {
     }
 }
 
-impl WandPrjAnnotator for RestWandPrjAnnotator {
+impl WandMany for RestWandMany {
     fn predict<'a>(
         &self,
         prj_name: &'a str,
         annos_input: WandPrjAnnotationsInput<'a>,
         files: &[&String],
-        communication: &[WandPrjMessage],
+        communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
-    ) -> RvResult<(WandPrjAnnotationsOutput, String)> {
+    ) -> RvResult<(WandManyOutput, String)> {
         let annos_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
         let param_json_str = serialize_or_default(parameters)?;
         let files_json_str = serde_json::to_string(files).map_err(to_rv)?;
@@ -178,7 +178,7 @@ fn test_testserver() {
     defer!(|| child.kill().expect("Failed to kill the server"));
     thread::sleep(Duration::from_secs(10));
     let url = "http://127.0.0.1:8000/";
-    let w = RestWandPrjAnnotator::new(url.into(), None, 60000);
+    let w = RestWandMany::new(url.into(), None, 60000);
     let bbox_annos = InstanceAnnotations::from_elts_cats(
         vec![GeoFig::BB(BbF::from_arr(&[0.0, 0.0, 5.0, 5.0]))],
         vec![1],
