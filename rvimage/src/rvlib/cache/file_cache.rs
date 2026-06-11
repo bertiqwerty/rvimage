@@ -238,7 +238,9 @@ where
                         let checked = self.check_running_thread(*job_id, selected_file)?;
                         Ok(checked.is_some())
                     } else {
-                        Err(rverr!("selected file idx is out of bounds"))
+                        Err(rverr!(
+                            "selected file idx {selected_file_idx} is out of bounds"
+                        ))
                     }
                 }
                 None => {
