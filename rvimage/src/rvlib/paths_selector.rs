@@ -12,17 +12,17 @@ use crate::{
 fn list_file_labels(
     file_paths: &[PathPair],
     mut filter_predicate: impl FnMut(&str) -> bool,
-) -> RvResult<Vec<(usize, String, String)>> {
+) -> RvResult<Vec<FilteredIdxFileLabel>> {
     file_paths
         .iter()
         .enumerate()
         .filter(|(_, p)| filter_predicate(p.path_relative()))
         .map(|(i, p)| {
-            Ok((
+            Ok(FilteredIdxFileLabel::from((
                 i,
                 file_util::parent(Path::new(p.path_relative()))?.to_string(),
                 file_util::to_name_str(Path::new(p.path_relative()))?.to_string(),
-            ))
+            )))
         })
         .collect::<RvResult<Vec<_>>>()
 }
@@ -58,10 +58,27 @@ fn make_folder_label(folder_path: Option<&str>) -> RvResult<String> {
     }
 }
 
+pub struct FilteredIdxFileLabel {
+    pub idx: usize,
+    pub parent: String,
+    pub filename: String,
+}
+
+impl From<(usize, String, String)> for FilteredIdxFileLabel {
+    fn from(value: (usize, String, String)) -> Self {
+        let (idx, parent, filename) = value;
+        FilteredIdxFileLabel {
+            idx,
+            parent,
+            filename,
+        }
+    }
+}
+
 pub struct PathsSelector {
     file_paths: Vec<PathPair>,
     // idx, relative parent, filename, index necessary due to filtering
-    filtered_file_labels: Vec<(usize, String, String)>,
+    filtered_file_labels: Vec<FilteredIdxFileLabel>,
     folder_label: String,
 }
 
@@ -70,7 +87,7 @@ impl PathsSelector {
         if label_idx >= self.filtered_file_labels.len() {
             None
         } else {
-            Some(self.filtered_file_labels[label_idx].0)
+            Some(self.filtered_file_labels[label_idx].idx)
         }
     }
 
@@ -131,33 +148,32 @@ impl PathsSelector {
         Ok(())
     }
 
-    pub fn filtered_idx_file_label_pairs(&self, idx: usize) -> (usize, &str, &str) {
-        let (idx, subfolder, file_label) = &self.filtered_file_labels[idx];
-        (*idx, subfolder, file_label)
+    pub fn filtered_idx_file_label_pairs(&self, idx: usize) -> Option<&FilteredIdxFileLabel> {
+        self.filtered_file_labels.get(idx)
     }
     pub fn len_filtered(&self) -> usize {
         self.filtered_file_labels.len()
     }
     pub fn filtered_iter_idx(&self) -> impl Iterator<Item = usize> {
-        self.filtered_file_labels.iter().map(|(idx, _, _)| *idx)
+        self.filtered_file_labels.iter().map(|ffl| ffl.idx)
     }
 
     pub fn filtered_idx_file_paths_pairs(&self) -> Vec<(usize, &PathPair)> {
         self.filtered_file_labels
             .iter()
-            .flat_map(|(idx, _, _)| self.file_paths.get(*idx).map(|p| (*idx, p)))
+            .flat_map(|ffl| self.file_paths.get(ffl.idx).map(|p| (ffl.idx, p)))
             .collect()
     }
     pub fn filtered_file_paths(&self) -> Vec<&PathPair> {
         self.filtered_file_labels
             .iter()
-            .flat_map(|(idx, _, _)| self.file_paths.get(*idx))
+            .flat_map(|ffl| self.file_paths.get(ffl.idx))
             .collect()
     }
     pub fn filtered_abs_file_paths(&self) -> Vec<&str> {
         self.filtered_file_labels
             .iter()
-            .flat_map(|(idx, _, _)| self.file_paths.get(*idx).map(|p| p.path_absolute()))
+            .flat_map(|ffl| self.file_paths.get(ffl.idx).map(|p| p.path_absolute()))
             .collect()
     }
 
@@ -168,7 +184,7 @@ impl PathsSelector {
         let filelist = self
             .filtered_file_labels
             .iter()
-            .flat_map(|(idx, _, _)| self.file_paths.get(*idx).map(|p| p.path_relative()))
+            .flat_map(|ffl| self.file_paths.get(ffl.idx).map(|p| p.path_relative()))
             .collect::<Vec<_>>();
 
         #[derive(Serialize)]
@@ -196,14 +212,14 @@ impl PathsSelector {
         self.filtered_file_labels
             .iter()
             .enumerate()
-            .find(|(_, (_, _, fl))| fl == file_label)
+            .find(|(_, ffl)| ffl.filename == file_label)
             .map(|(idx, _)| idx)
     }
 
     pub fn file_label_of_idx(&self, file_idx: usize) -> Option<&str> {
         self.filtered_file_labels
             .iter()
-            .find(|(idx, _, _)| *idx == file_idx)
-            .map(|(_, _, fl)| fl.as_str())
+            .find(|ffl| ffl.idx == file_idx)
+            .map(|ffl| ffl.filename.as_str())
     }
 }

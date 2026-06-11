@@ -60,43 +60,47 @@ pub fn scroll_area_file_selector(
         },
     });
     let mut add_content = |ui: &mut Ui, filtered_label_idx: usize| {
-        let (idx, subfolder, file_label) =
-            paths_selector.filtered_idx_file_label_pairs(filtered_label_idx);
-        let file_label =
-            RichText::new(show_file_options.make_file_label(idx, subfolder, file_label))
-                .monospace();
-        let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
-            let path = paths_selector.file_selected_path(filtered_label_idx);
-            if let Some(path) = path {
-                let sl_ = ui.selectable_label(true, file_label);
-                let sl_ = if let Some(fis) = file_info_selected {
-                    sl_.on_hover_text(
-                        RichText::new(format!("{}\n{fis}", path.path_absolute())).monospace(),
-                    )
+        let fif = paths_selector.filtered_idx_file_label_pairs(filtered_label_idx);
+        if let Some(ffl) = fif {
+            let file_label = RichText::new(show_file_options.make_file_label(
+                ffl.idx,
+                &ffl.parent,
+                &ffl.filename,
+            ))
+            .monospace();
+            let sl = if *selected_filtered_label_idx == Some(filtered_label_idx) {
+                let path = paths_selector.file_selected_path(filtered_label_idx);
+                if let Some(path) = path {
+                    let sl_ = ui.selectable_label(true, file_label);
+                    let sl_ = if let Some(fis) = file_info_selected {
+                        sl_.on_hover_text(
+                            RichText::new(format!("{}\n{fis}", path.path_absolute())).monospace(),
+                        )
+                    } else {
+                        sl_.on_hover_text(path.path_absolute())
+                    };
+                    if scroll_to_selected_label {
+                        sl_.scroll_to_me(Some(Align::Center));
+                    }
+                    sl_
                 } else {
-                    sl_.on_hover_text(path.path_absolute())
-                };
-                if scroll_to_selected_label {
-                    sl_.scroll_to_me(Some(Align::Center));
+                    ui.selectable_label(false, file_label)
                 }
-                sl_
             } else {
                 ui.selectable_label(false, file_label)
+            };
+            if sl.clicked_by(egui::PointerButton::Secondary) {
+                // copy to clipboard
+                if let Some(fsp) = paths_selector.file_selected_path(filtered_label_idx) {
+                    ui.output_mut(|po| {
+                        po.commands
+                            .push(OutputCommand::CopyText(fsp.path_absolute().to_string()));
+                    });
+                }
             }
-        } else {
-            ui.selectable_label(false, file_label)
-        };
-        if sl.clicked_by(egui::PointerButton::Secondary) {
-            // copy to clipboard
-            if let Some(fsp) = paths_selector.file_selected_path(filtered_label_idx) {
-                ui.output_mut(|po| {
-                    po.commands
-                        .push(OutputCommand::CopyText(fsp.path_absolute().to_string()));
-                });
+            if sl.clicked() {
+                *selected_filtered_label_idx = Some(filtered_label_idx);
             }
-        }
-        if sl.clicked() {
-            *selected_filtered_label_idx = Some(filtered_label_idx);
         }
     };
     if scroll_to_selected_label && let Some(tr) = target_rect {

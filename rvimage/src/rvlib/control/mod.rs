@@ -934,8 +934,12 @@ impl Control {
     }
 
     pub fn file_label(&self, idx: usize) -> &str {
-        match self.paths_navigator.paths_selector() {
-            Some(ps) => ps.filtered_idx_file_label_pairs(idx).1,
+        match self
+            .paths_navigator
+            .paths_selector()
+            .and_then(|ps| ps.filtered_idx_file_label_pairs(idx))
+        {
+            Some(ffl) => ffl.filename.as_str(),
             None => "",
         }
     }
@@ -1032,9 +1036,9 @@ impl Control {
     }
 
     fn get_image_meta(&self, world: &World, idx: usize) -> Option<ImageMeta> {
-        let file_label = self.paths_navigator.paths_selector().map(|ps| {
-            let (_, _, file_label) = ps.filtered_idx_file_label_pairs(idx);
-            file_label
+        let file_label = self.paths_navigator.paths_selector().and_then(|ps| {
+            ps.filtered_idx_file_label_pairs(idx)
+                .map(|ffl| &ffl.filename)
         });
 
         file_label.map(|file_label| {

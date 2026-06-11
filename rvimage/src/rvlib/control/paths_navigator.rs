@@ -118,8 +118,8 @@ impl PathsNavigator {
             let unfiltered_idx_before_filter =
                 if let Some(filtered_idx) = self.file_label_selected_idx {
                     self.scroll_to_selected_label = true;
-                    let (unfiltered_idx, _, _) = ps.filtered_idx_file_label_pairs(filtered_idx);
-                    Some(unfiltered_idx)
+                    ps.filtered_idx_file_label_pairs(filtered_idx)
+                        .map(|ffl| ffl.idx)
                 } else {
                     None
                 };
