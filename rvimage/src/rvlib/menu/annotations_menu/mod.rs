@@ -53,7 +53,10 @@ pub fn propagate_instance_annotations<T>(
 where
     T: InstanceAnnotate,
 {
-    let prop_anno_shape = annotations_map.get_pp(paths[0]).cloned();
+    let prop_anno_shape = paths
+        .first()
+        .and_then(|p| annotations_map.get_pp(p))
+        .cloned();
     if let Some((prop_anno, shape)) = prop_anno_shape {
         for p in paths {
             annotations_map.insert_pp(p, (prop_anno.clone(), shape));
@@ -231,6 +234,7 @@ where
             }
         ));
         egui::Grid::new("annotations-menu-grid").show(ui, |ui| {
+            #[allow(clippy::indexing_slicing)]
             for p in &parents[0..max_n_folders.min(parents.len())] {
                 let p_label = egui::RichText::new(p.to_str().unwrap_or("")).monospace();
                 let n_annos_of_subfolders = egui::RichText::new(format!(
@@ -467,15 +471,16 @@ fn annotations(
                         Some("Double click! Annotations will be deleted! 💀"),
                     );
                     if let Some(ps) = paths_navigator.paths_selector() {
+                        #[allow(clippy::indexing_slicing)]
                         if let Some(n_prop) = n_prop {
                             let end = (selected_file_idx + n_prop).min(ps.len_filtered());
                             let range = selected_file_idx..end;
                             let paths = &ps.filtered_file_paths()[range];
                             if !paths.is_empty() {
                                 tracing::info!(
-                                    "propagating {} labels from {}",
+                                    "propagating {} labels from {:?}",
                                     paths.len(),
-                                    paths[0].path_relative()
+                                    paths.first().map(|p|p.path_relative())
                                 );
                                 trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
@@ -489,12 +494,13 @@ fn annotations(
                         if let Some(n_del) = n_del {
                             let end = (selected_file_idx + n_del).min(ps.len_filtered());
                             let range = selected_file_idx..end;
-                            let paths = &ps.filtered_file_paths()[range];
-                            if !paths.is_empty() {
+                            let paths_ = ps.filtered_file_paths();
+                            let paths_range = paths_.get(range);
+                            if let Some(paths) = paths_range && !paths.is_empty() {
                                 tracing::info!(
-                                    "deleting {} labels from {}",
+                                    "deleting {} labels from {:?}",
                                     paths.len(),
-                                    paths[0].path_relative()
+                                    paths.first().map(|first|first.path_relative())
                                 );
                                 trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
@@ -507,9 +513,8 @@ fn annotations(
                                         delete_subsequent_annos_of_tool(tdm, ATTRIBUTES_NAME, paths)
                                     },
                                 ));
-                            }
+                            }}
                         }
-                    }
                 });
         } else {
             ui.label("no file selected");
@@ -543,13 +548,17 @@ impl AnnoStatsRecord {
             } else {
                 0
             };
-            res[i] = AnnoStatsRecord {
-                tool_name,
-                cat_name: label_info.labels()[*cat_idx].clone(),
-                count: *count as u64,
-                count_per_file: *count as f64 / n_files_filtered_thistool_anycat as f64,
-                n_files_filtered_thistool_anycat,
-            };
+            if let (Some(res), Some(cat_name)) =
+                (res.get_mut(i), label_info.labels().get(*cat_idx).cloned())
+            {
+                *res = AnnoStatsRecord {
+                    tool_name,
+                    cat_name,
+                    count: *count as u64,
+                    count_per_file: *count as f64 / n_files_filtered_thistool_anycat as f64,
+                    n_files_filtered_thistool_anycat,
+                };
+            }
         }
         res
     }

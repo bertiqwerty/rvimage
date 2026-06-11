@@ -60,7 +60,8 @@ impl History {
     }
 
     pub fn current_record(&self) -> Option<Record> {
-        self.current_idx.map(|idx| self.records[idx].clone())
+        self.current_idx
+            .and_then(|idx| self.records.get(idx).cloned())
     }
 
     pub fn push(&mut self, record: Record) {
@@ -102,11 +103,10 @@ impl History {
         match self.current_idx {
             Some(idx) if pred(idx) => {
                 self.current_idx = Some(idx_change(idx));
-                Some(
-                    self.records[idx_change(idx)]
-                        .clone()
-                        .convert_to_im_idx_pair(),
-                )
+                self.records
+                    .get(idx_change(idx))
+                    .cloned()
+                    .map(|r| r.convert_to_im_idx_pair())
             }
             _ => None,
         }

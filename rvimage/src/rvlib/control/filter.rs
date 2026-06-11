@@ -24,10 +24,13 @@ where
     T: InstanceAnnotate + PartialEq + Clone + Default,
 {
     if let Some(annos) = annos {
-        annos
-            .cat_idxs()
-            .iter()
-            .any(|cat_idx| label_info.labels()[*cat_idx].contains(label))
+        annos.cat_idxs().iter().any(|cat_idx| {
+            label_info
+                .labels()
+                .get(*cat_idx)
+                .map(|label_| label_.contains(label))
+                == Some(true)
+        })
     } else {
         false
     }

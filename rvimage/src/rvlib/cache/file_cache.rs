@@ -233,9 +233,13 @@ where
             match tr {
                 Some(ThreadResult::Ok(_)) => Ok(true),
                 Some(ThreadResult::Running(job_id)) => {
-                    let selected_file = &files[selected_file_idx];
-                    let checked = self.check_running_thread(*job_id, selected_file)?;
-                    Ok(checked.is_some())
+                    let selected_file = &files.get(selected_file_idx);
+                    if let Some(selected_file) = selected_file {
+                        let checked = self.check_running_thread(*job_id, selected_file)?;
+                        Ok(checked.is_some())
+                    } else {
+                        Err(rverr!("selected file idx is out of bounds"))
+                    }
                 }
                 None => {
                     let cache = detail::preload(
@@ -264,20 +268,24 @@ where
         };
         let indices_to_iterate = start_idx..end_idx;
         let n_max_possible_files = self.n_prev_images + self.n_next_images + 1;
-        let prio_file_pairs = indices_to_iterate.map(|idx| {
-            (
-                n_max_possible_files
-                    - (selected_file_idx as i32 - idx as i32).unsigned_abs() as usize,
-                &files[idx],
-            )
+        let prio_file_pairs = indices_to_iterate.flat_map(|idx| {
+            files.get(idx).map(|f| {
+                (
+                    n_max_possible_files
+                        - (selected_file_idx as i32 - idx as i32).unsigned_abs() as usize,
+                    f,
+                )
+            })
         });
         // update priorities of in cache files
         let files_in_cache = prio_file_pairs
             .clone()
             .filter(|(_, file)| self.cached_paths.contains_key(**file));
         for (prio, file) in files_in_cache {
-            if let ThreadResult::Running(job_id) = self.cached_paths[*file] {
-                self.tpq.update_prio(job_id, Some(prio))?;
+            if let Some(cp) = self.cached_paths.get(*file)
+                && let ThreadResult::Running(job_id) = cp
+            {
+                self.tpq.update_prio(*job_id, Some(prio))?;
             }
         }
         // trigger caching of not in cache files
@@ -296,7 +304,9 @@ where
     }
 
     fn load_if_in_cache(&mut self, selected_file_idx: usize, files: &[&str]) -> AsyncResultImage {
-        let selected_file = &files[selected_file_idx];
+        let selected_file = files
+            .get(selected_file_idx)
+            .ok_or_else(|| rverr!("file with idx {selected_file_idx} does not exist"))?;
         let selected_file_state = self.cached_paths.get(*selected_file);
         match selected_file_state {
             Some(ThreadResult::Ok(path_info_pair)) => {

@@ -184,11 +184,9 @@ mod detail {
         ];
         let off_center_dim = |c_idx: usize, counter_mod: usize, rgb: &[u8; 3]| {
             let mut res = *rgb;
-            for (rgb_idx, val) in rgb.iter().enumerate() {
+            for val in res.iter_mut() {
                 if counter_mod != c_idx {
-                    res[rgb_idx] = (*val as f32 * 0.7) as u8;
-                } else {
-                    res[rgb_idx] = *val;
+                    *val = (*val as f32 * 0.7) as u8;
                 }
             }
             res

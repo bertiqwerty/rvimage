@@ -442,55 +442,54 @@ impl Menu {
                                 .max_height(300.0)
                                 .show(ui, |ui| {
                                     idx_to_remove = removable_rows(ui, len_msgs, |ui, idx| {
-                                        let mut job = egui::text::LayoutJob {
-                                            halign: egui::Align::RIGHT,
-                                            ..Default::default()
-                                        };
-                                        job.append(
-                                            &wpa.messages[idx].comment,
-                                            0.0,
-                                            egui::TextFormat {
-                                                italics: true,
+                                        if let Some(msg) = wpa.messages.get(idx) {
+                                            let mut job = egui::text::LayoutJob {
+                                                halign: egui::Align::RIGHT,
                                                 ..Default::default()
-                                            },
-                                        );
-                                        ui.label(job);
-
-                                        if idx < len_msgs.saturating_sub(1) {
-                                            ui.label(
-                                                wpa.messages[idx]
-                                                    .success_assessment
-                                                    .map(|a| format!("assessment {a}"))
-                                                    .unwrap_or("".to_string()),
+                                            };
+                                            job.append(
+                                                &msg.comment,
+                                                0.0,
+                                                egui::TextFormat {
+                                                    italics: true,
+                                                    ..Default::default()
+                                                },
                                             );
-                                        } else if let Some(response) = &wpa.messages[idx].response {
-                                            egui::CollapsingHeader::new("Response")
-                                                .id_salt(idx)
-                                                .show(ui, |ui| {
-                                                    ui.label(response);
-                                                });
-                                            let mut assess_checkbx = assess_tmp.is_some();
-                                            if ui
-                                                .checkbox(&mut assess_checkbx, "assess result")
-                                                .clicked()
-                                            {
-                                                if assess_checkbx {
-                                                    assess_tmp = Some(50u8);
-                                                } else {
-                                                    assess_tmp = None;
+                                            ui.label(job);
+                                            if idx < len_msgs.saturating_sub(1) {
+                                                ui.label(
+                                                    msg.success_assessment
+                                                        .map(|a| format!("assessment {a}"))
+                                                        .unwrap_or("".to_string()),
+                                                );
+                                            } else if let Some(response) = &msg.response {
+                                                egui::CollapsingHeader::new("Response")
+                                                    .id_salt(idx)
+                                                    .show(ui, |ui| {
+                                                        ui.label(response);
+                                                    });
+                                                let mut assess_checkbx = assess_tmp.is_some();
+                                                if ui
+                                                    .checkbox(&mut assess_checkbx, "assess result")
+                                                    .clicked()
+                                                {
+                                                    if assess_checkbx {
+                                                        assess_tmp = Some(50u8);
+                                                    } else {
+                                                        assess_tmp = None;
+                                                    }
+                                                }
+                                                if let Some(assess) = assess_tmp.as_mut() {
+                                                    slider(
+                                                        ui,
+                                                        &mut self.are_tools_active,
+                                                        assess,
+                                                        0..=100,
+                                                        "assess result",
+                                                    );
                                                 }
                                             }
-                                            if let Some(assess) = assess_tmp.as_mut() {
-                                                slider(
-                                                    ui,
-                                                    &mut self.are_tools_active,
-                                                    assess,
-                                                    0..=100,
-                                                    "assess result",
-                                                );
-                                            }
                                         }
-
                                         ui.separator();
                                     });
                                 });
@@ -546,8 +545,12 @@ impl Menu {
                                 let mut idx_remove = None;
                                 egui::Grid::new("label_grid").num_columns(2).show(ui, |ui| {
                                     idx_remove = removable_rows(ui, n_folders, |ui, idx| {
-                                        ui.label(&ctrl.cfg.prj.wand_many.subfolder_to_exclude[idx]);
-                                        ui.end_row();
+                                        if let Some(folder) =
+                                            ctrl.cfg.prj.wand_many.subfolder_to_exclude.get(idx)
+                                        {
+                                            ui.label(folder);
+                                            ui.end_row();
+                                        }
                                     });
                                 });
                                 if let Some(idx) = idx_remove {

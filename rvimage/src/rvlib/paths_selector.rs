@@ -87,7 +87,7 @@ impl PathsSelector {
         if label_idx >= self.filtered_file_labels.len() {
             None
         } else {
-            Some(self.filtered_file_labels[label_idx].idx)
+            self.filtered_file_labels.get(label_idx).map(|ffl| ffl.idx)
         }
     }
 
@@ -140,7 +140,7 @@ impl PathsSelector {
 
     pub fn file_selected_path(&self, filtered_label_idx: usize) -> Option<&PathPair> {
         let idx = self.label_idx_2_path_idx(filtered_label_idx);
-        idx.map(|idx| &self.file_paths[idx])
+        idx.and_then(|idx| self.file_paths.get(idx))
     }
 
     pub fn filter(&mut self, filter_predicate: impl FnMut(&str) -> bool) -> RvResult<()> {

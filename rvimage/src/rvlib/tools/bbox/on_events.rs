@@ -689,7 +689,7 @@ pub(super) fn on_key_released(
                                     )
                                 })
                             })
-                            .and_then(|bb| annos.cat_idxs().get(idx).map(|anno| (bb, anno)))
+                            .zip(annos.cat_idxs().get(idx))
                         });
                         let translated_bbs =
                             translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();

@@ -115,27 +115,31 @@ where
     let n_rows = label_info.labels().len();
     egui::Grid::new("label_grid").num_columns(3).show(ui, |ui| {
         to_be_removed = removable_rows(ui, n_rows, |ui, label_idx| {
-            let label = &label_info.labels()[label_idx];
-            let checked = label_idx == label_info.cat_idx_current;
-            let label = if show_only_current && checked {
-                egui::RichText::new(label).monospace().strong().italics()
-            } else {
-                egui::RichText::new(label).monospace()
-            };
-            if ui.selectable_label(checked, label).clicked() {
-                if checked {
-                    show_only_current = !label_info.show_only_current;
-                    show_only_change = true;
+            let label = label_info.labels().get(label_idx);
+            if let Some(label) = label {
+                let checked = label_idx == label_info.cat_idx_current;
+                let label = if show_only_current && checked {
+                    egui::RichText::new(label).monospace().strong().italics()
+                } else {
+                    egui::RichText::new(label).monospace()
+                };
+                if ui.selectable_label(checked, label).clicked() {
+                    if checked {
+                        show_only_current = !label_info.show_only_current;
+                        show_only_change = true;
+                    }
+                    new_idx = label_idx;
                 }
-                new_idx = label_idx;
             }
-            let rgb = label_info.colors()[label_idx];
-            ui.label(
-                egui::RichText::new("■")
-                    .heading()
-                    .strong()
-                    .color(egui::Color32::from_rgb(rgb[0], rgb[1], rgb[2])),
-            );
+            let rgb = label_info.colors().get(label_idx);
+            if let Some(rgb) = rgb {
+                ui.label(
+                    egui::RichText::new("■")
+                        .heading()
+                        .strong()
+                        .color(egui::Color32::from_rgb(rgb[0], rgb[1], rgb[2])),
+                );
+            }
             ui.end_row();
         });
     });

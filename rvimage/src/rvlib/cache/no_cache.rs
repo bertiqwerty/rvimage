@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::types::{AsyncResultImage, ImageInfoPair};
 
 use super::{Cache, ReadImageToCache};
-use rvimage_domain::RvResult;
+use rvimage_domain::{RvResult, rverr};
 
 pub struct NoCache<RTC, RA>
 where
@@ -14,7 +14,9 @@ where
 }
 impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
     fn load_if_in_cache(&mut self, selected_file_idx: usize, files: &[&str]) -> AsyncResultImage {
-        let path = &files[selected_file_idx];
+        let path = files
+            .get(selected_file_idx)
+            .ok_or_else(|| rverr!("file with idx {selected_file_idx} does not exist"))?;
         self.reader.read(path).map(|im| {
             Some(ImageInfoPair {
                 im,

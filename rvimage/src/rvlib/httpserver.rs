@@ -68,6 +68,7 @@ pub fn launch(address: String) -> LaunchResultType {
         let mut buffer = vec![0; 4096];
         // since the requests will only change the shown image, they will be handled sequentially
         for stream in listener.incoming() {
+            #[allow(clippy::indexing_slicing)]
             let stream_processing_result: RvResult<HandleResult> = {
                 let mut stream = stream.map_err(to_rv)?;
                 stream.read(&mut buffer).map_err(to_rv)?;
