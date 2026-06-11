@@ -1,3 +1,4 @@
+#![allow(clippy::indexing_slicing)]
 use std::{
     fmt::Debug,
     io::{Read, Write},

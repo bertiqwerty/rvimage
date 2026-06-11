@@ -85,13 +85,14 @@ fn show_grab_ball(
         if prev_pos.prev_pos.is_empty() {
             let label_info = get_label_info(world);
             let geos = get_annos_if_some(world).map(|a| {
-                (0..a.elts().len())
-                    .filter(|elt_idx| {
+                a.iter()
+                    .enumerate()
+                    .filter(|(elt_idx, _)| {
                         let cur = label_info.map(|li| li.cat_idx_current);
                         let show_only_current = label_info.map(|li| li.show_only_current);
                         a.is_of_current_label(*elt_idx, cur, show_only_current)
                     })
-                    .map(|elt_idx| (elt_idx, &a.elts()[elt_idx]))
+                    .map(|(elt_idx, (geo, _, _))| (elt_idx, geo))
             });
             if let Some((bb_idx, c_idx)) = geos.and_then(|geos| {
                 let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
@@ -99,7 +100,7 @@ fn show_grab_ball(
                 find_close_vertex(mp, geos, tolerance)
             }) {
                 let annos = get_annos(world);
-                let corner_point = annos.map(|a| &a.elts()[bb_idx]).map(|a| a.point(c_idx));
+                let corner_point = annos.and_then(|a| a.elts().get(bb_idx).map(|a| a.point(c_idx)));
                 let data = get_specific_mut(world);
                 if let (Some(data), Some(corner_point), Some(options)) =
                     (data, corner_point, options)
@@ -128,12 +129,13 @@ fn show_grab_ball(
             let (c_idx, c_dist) = closest_corner(mp, prev_pos.prev_pos.iter().copied());
             let unscaled = shape_unscaled(world.zoom_box(), world.shape_orig());
             let tolerance = move_corner_tol(unscaled);
-            if c_dist < tolerance {
-                let center = prev_pos.prev_pos[c_idx];
+            if c_dist < tolerance
+                && let Some(center) = prev_pos.prev_pos.get(c_idx)
+            {
                 let data = get_specific_mut(world);
                 if let (Some(data), Some(options)) = (data, options) {
                     data.highlight_circles = vec![Circle {
-                        center,
+                        center: *center,
                         radius: TPtF::from(options.outline_thickness)
                             / OUTLINE_THICKNESS_CONVERSION
                             * 3.5,
@@ -427,12 +429,14 @@ impl Manipulate for Bbox {
             world = check_trigger_redraw::<DataAccessors>(world, BBOX_NAME);
 
             let in_menu_selected_label = current_cat_idx(&world);
-            if let (Some(in_menu_selected_label), Some(mp)) =
-                (in_menu_selected_label, events.mouse_pos_on_orig)
-                && !self.prev_pos.prev_pos.is_empty()
+            if let (Some(in_menu_selected_label), Some(mp), Some(pp_first)) = (
+                in_menu_selected_label,
+                events.mouse_pos_on_orig,
+                self.prev_pos.prev_pos.first(),
+            ) && !self.prev_pos.prev_pos.is_empty()
             {
                 let geo = if self.prev_pos.prev_pos.len() == 1 {
-                    GeoFig::BB(BbF::from_points(mp, self.prev_pos.prev_pos[0]))
+                    GeoFig::BB(BbF::from_points(mp, *pp_first))
                 } else {
                     GeoFig::Poly(
                         Polygon::from_vec(
@@ -450,16 +454,19 @@ impl Manipulate for Bbox {
                 let circles = get_specific(&world).map(|d| d.highlight_circles.clone());
                 let label_info = get_specific(&world).map(|d| &d.label_info);
 
-                if let (Some(circles), Some(label_info)) = (circles, label_info) {
-                    let label = Some(label_info.labels()[in_menu_selected_label].clone());
-                    let color = label_info.colors()[in_menu_selected_label];
+                if let (Some(circles), Some(label_info)) = (circles, label_info)
+                    && let (Some(label), Some(color)) = (
+                        label_info.labels().get(in_menu_selected_label),
+                        label_info.colors().get(in_menu_selected_label),
+                    )
+                {
                     let anno = BboxAnnotation {
                         geofig: geo,
-                        label,
-                        fill_color: Some(color),
+                        label: Some(label.clone()),
+                        fill_color: Some(*color),
                         fill_alpha: 0,
                         outline: Stroke {
-                            color,
+                            color: *color,
                             thickness: TPtF::from(options.outline_thickness) / 4.0,
                         },
                         outline_alpha: options.outline_alpha,

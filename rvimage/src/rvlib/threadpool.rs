@@ -1,3 +1,4 @@
+#![allow(clippy::indexing_slicing)]
 use rvimage_domain::{RvError, RvResult, to_rv};
 use tracing::{error, info};
 

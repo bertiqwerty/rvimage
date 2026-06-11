@@ -145,19 +145,19 @@ impl PathsSelector {
     pub fn filtered_idx_file_paths_pairs(&self) -> Vec<(usize, &PathPair)> {
         self.filtered_file_labels
             .iter()
-            .map(|(idx, _, _)| (*idx, &self.file_paths[*idx]))
+            .flat_map(|(idx, _, _)| self.file_paths.get(*idx).map(|p| (*idx, p)))
             .collect()
     }
     pub fn filtered_file_paths(&self) -> Vec<&PathPair> {
         self.filtered_file_labels
             .iter()
-            .map(|(idx, _, _)| &self.file_paths[*idx])
+            .flat_map(|(idx, _, _)| self.file_paths.get(*idx))
             .collect()
     }
     pub fn filtered_abs_file_paths(&self) -> Vec<&str> {
         self.filtered_file_labels
             .iter()
-            .map(|(idx, _, _)| self.file_paths[*idx].path_absolute())
+            .flat_map(|(idx, _, _)| self.file_paths.get(*idx).map(|p| p.path_absolute()))
             .collect()
     }
 
@@ -168,7 +168,7 @@ impl PathsSelector {
         let filelist = self
             .filtered_file_labels
             .iter()
-            .map(|(idx, _, _)| self.file_paths[*idx].path_relative())
+            .flat_map(|(idx, _, _)| self.file_paths.get(*idx).map(|p| p.path_relative()))
             .collect::<Vec<_>>();
 
         #[derive(Serialize)]

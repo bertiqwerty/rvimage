@@ -605,7 +605,12 @@ impl Mover {
         } else {
             None
         };
-        self.mouse_pos_history[self.idx_next_history_update % N_HIST_ELTS] = self.mouse_pos_start;
+        if let Some(mph) = self
+            .mouse_pos_history
+            .get_mut(self.idx_next_history_update % N_HIST_ELTS)
+        {
+            *mph = self.mouse_pos_start;
+        }
         self.mouse_pos_start = mouse_pos;
         self.idx_next_history_update = self.idx_next_history_update.wrapping_add(1);
         res

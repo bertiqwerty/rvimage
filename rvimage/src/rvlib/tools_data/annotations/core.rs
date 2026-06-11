@@ -47,8 +47,8 @@ where
         res
     }
 
-    pub fn edit(&mut self, elt_idx: usize) -> &mut T {
-        &mut self.elts[elt_idx]
+    pub fn edit(&mut self, elt_idx: usize) -> Option<&mut T> {
+        self.elts.get_mut(elt_idx)
     }
 
     pub fn is_of_current_label(
@@ -60,7 +60,7 @@ where
         if let (Some(show_only_current), Some(idx_current)) = (show_only_current, cat_idx_current)
             && show_only_current
         {
-            return self.cat_idxs()[elt_idx] == idx_current;
+            return self.cat_idxs().get(elt_idx) == Some(&idx_current);
         }
         true
     }
@@ -131,7 +131,9 @@ where
         self.elts.is_empty()
     }
     pub fn deselect(&mut self, box_idx: usize) {
-        self.selected_mask[box_idx] = false;
+        if let Some(selected) = self.selected_mask.get_mut(box_idx) {
+            *selected = false;
+        }
     }
 
     pub fn deselect_all(&mut self) {
@@ -141,8 +143,8 @@ where
     }
 
     pub fn toggle_selection(&mut self, elt_idx: usize) {
-        let is_selected = self.selected_mask[elt_idx];
-        if is_selected {
+        let is_selected = self.selected_mask.get(elt_idx);
+        if is_selected == Some(&true) {
             self.deselect(elt_idx);
         } else {
             self.select(elt_idx);

@@ -83,8 +83,9 @@ fn draw_erase_circle(mut world: World, mp: PtF) -> World {
             let to_be_removed_line_idx = find_closest_canvas(annos, mp, |idx| {
                 annos.is_of_current_label(idx, idx_current, show_only_current)
             });
-            if let Some((idx, _)) = to_be_removed_line_idx {
-                let canvas = annos.edit(idx);
+            if let Some((idx, _)) = to_be_removed_line_idx
+                && let Some(canvas) = annos.edit(idx)
+            {
                 trace_ok_err(canvas.draw_circle(mp, options.thickness, 0));
             }
         };
@@ -104,7 +105,7 @@ fn mouse_released(events: &Events, mut world: World, mut history: History) -> (W
             });
             if let Some((idx, dist)) = to_be_selected_line_idx {
                 if dist < max_select_dist(shape_orig) {
-                    if annos.selected_mask()[idx] {
+                    if annos.selected_mask().get(idx) == Some(&true) {
                         annos.deselect(idx);
                     } else {
                         annos.select(idx);
@@ -315,7 +316,7 @@ pub(super) fn on_mouse_held_right(
             if let Some(annos) = annos {
                 let (mut elts, cat_idxs, selected_mask) = mem::take(annos).separate_data();
                 for (i, anno) in elts.iter_mut().enumerate() {
-                    if selected_mask[i] {
+                    if selected_mask.get(i) == Some(&true) {
                         anno.follow_movement(mpo_from, mpo_to, orig_shape);
                     }
                 }
@@ -383,7 +384,10 @@ impl Brush {
                         if let (Some(line), Some(color)) = (
                             line,
                             get_specific(&world)
-                                .map(|d| d.label_info.colors()[d.label_info.cat_idx_current]),
+                                .and_then(|d| {
+                                    d.label_info.colors().get(d.label_info.cat_idx_current)
+                                })
+                                .copied(),
                         ) {
                             let orig_shape = world.shape_orig();
                             let canvas_with_new_buffer = || {

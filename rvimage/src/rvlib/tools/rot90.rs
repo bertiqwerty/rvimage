@@ -52,6 +52,7 @@ fn rot90_instannos_once(world: &mut World, shape: ShapeI) -> RvResult<()> {
 }
 
 pub fn rotate90(world: &World, im: DynamicImage, file: &str) -> RvResult<DynamicImage> {
+    #[allow(clippy::indexing_slicing)]
     let data = world.data.tools_data_map[ACTOR_NAME].specifics.rot90()?;
     let data_of_file = data.annotations_map().get(file);
     Ok(if let Some((nrot, _)) = &data_of_file {

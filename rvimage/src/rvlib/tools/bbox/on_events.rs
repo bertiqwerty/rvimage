@@ -116,7 +116,8 @@ fn shorter_path(
     move_corner_idx: usize,
     points: Vec<PtF>,
 ) -> RvResult<Vec<PtF>> {
-    if let Some(mp) = points.last().copied() {
+    #[allow(clippy::indexing_slicing)]
+    if let (Some(first_point), Some(mp)) = (points.first().copied(), points.last().copied()) {
         if close_point_idx < move_corner_idx && move_corner_idx < points.len() {
             let path_forward = points[move_corner_idx..]
                 .iter()
@@ -138,7 +139,7 @@ fn shorter_path(
                 .zip(path_from_closest.clone().skip(1))
                 .map(|(p1, p2)| p1.dist_square(p2).sqrt())
                 .sum::<TPtF>()
-                + mp.dist_square(&points[0]).sqrt();
+                + mp.dist_square(&first_point).sqrt();
             if length_from_closest > length_to_closest {
                 Ok(path_forward.copied().collect::<Vec<_>>())
             } else {
@@ -271,15 +272,18 @@ pub(super) fn on_mouse_released_right(
             match prev_pos.prev_pos.len().cmp(&1) {
                 Ordering::Equal => {
                     // second click new bb
-                    let pp = prev_pos.prev_pos[0];
-                    if (mp.x - pp.x).abs() > 1.0 && (mp.y - pp.y).abs() > 1.0 {
+                    let pp = prev_pos.prev_pos.first();
+                    if let Some(pp) = pp
+                        && (mp.x - pp.x).abs() > 1.0
+                        && (mp.y - pp.y).abs() > 1.0
+                    {
                         let mp = match split_mode {
                             SplitMode::Horizontal => (last_click.x, mp.y).into(),
                             SplitMode::Vertical => (mp.x, last_click.y).into(),
                             SplitMode::None => mp,
                         };
                         let add_annos = |annos: &mut BboxAnnotations| {
-                            annos.add_bb(BbF::from_points(mp, pp), in_menu_selected_label, ild);
+                            annos.add_bb(BbF::from_points(mp, *pp), in_menu_selected_label, ild);
                         };
                         change_annos_bbox(&mut world, add_annos);
                         history.push(Record::new(world.clone(), ACTOR_NAME));
@@ -302,9 +306,7 @@ pub(super) fn on_mouse_released_right(
         }
         if mouse_pos.is_some() {
             let annos = get_annos(&world);
-            if annos.map(|annos| (0..annos.selected_mask().len()).any(|i| annos.selected_mask()[i]))
-                == Some(true)
-            {
+            if annos.map(|annos| annos.selected_mask().iter().any(|mask| *mask)) == Some(true) {
                 history.push(Record::new(world.clone(), ACTOR_NAME));
             }
         }
@@ -334,10 +336,15 @@ pub(super) fn on_mouse_held_left(
                     && last_dist > min_distance_start_end
                     && first_pp.dist_square(&mp).sqrt() > min_distance_start_end
                 {
-                    let ls = (pp[n_pp - 2], pp[n_pp - 1]);
-                    let dist_to_ls = rvimage_domain::dist_lineseg_point(&ls, mp);
-                    if last_dist * 0.2 + dist_to_ls * 0.8 > params.distance {
-                        params.prev_pos.prev_pos.push(mp);
+                    let ls = pp.last().and_then(|last| {
+                        pp.get(n_pp - 2)
+                            .map(|one_before_last| (*one_before_last, *last))
+                    });
+                    if let Some(ls) = &ls {
+                        let dist_to_ls = rvimage_domain::dist_lineseg_point(ls, mp);
+                        if last_dist * 0.2 + dist_to_ls * 0.8 > params.distance {
+                            params.prev_pos.prev_pos.push(mp);
+                        }
                     }
                 }
             } else if let Some(mp) = mouse_pos {
@@ -433,10 +440,14 @@ pub(super) fn on_mouse_released_left(
                         // All boxes that have overlap with this new selection box will be selected. If no box
                         // is selected only the currently clicked box will be selected.
                         annos.select(i);
-                        let newly_selected_bb = &annos.elts()[i];
+                        let newly_selected_bb = annos.elts().get(i);
                         let sel_indxs = true_indices(annos.selected_mask());
                         if let Some((p1, p2, _)) = sel_indxs
-                            .map(|i| newly_selected_bb.max_squaredist(&annos.elts()[i]))
+                            .flat_map(|i| {
+                                annos.elts().get(i).and_then(|anno| {
+                                    newly_selected_bb.map(|nsbb| nsbb.max_squaredist(anno))
+                                })
+                            })
                             .max_by(|(_, _, d1), (_, _, d2)| max_from_partial(d1, d2))
                         {
                             let spanned_bb = BbF::from_points(p1, p2);
@@ -501,10 +512,14 @@ pub(super) fn on_mouse_released_left(
                             prev_pos.prev_pos = vec![];
                             prev_pos.prev_pos.reserve(n_vertices);
                             for idx in (vertex_idx + 1)..(n_vertices) {
-                                prev_pos.prev_pos.push(poly.points()[idx]);
+                                if let Some(p) = poly.points().get(idx) {
+                                    prev_pos.prev_pos.push(*p);
+                                }
                             }
                             for idx in 0..vertex_idx {
-                                prev_pos.prev_pos.push(poly.points()[idx]);
+                                if let Some(p) = poly.points().get(idx) {
+                                    prev_pos.prev_pos.push(*p);
+                                }
                             }
                         }
                     }
@@ -660,22 +675,26 @@ pub(super) fn on_key_released(
                     let first_selected_idx = true_indices(annos.selected_mask()).next();
                     if let Some(first_idx) = first_selected_idx {
                         let translated = selected_inds.filter_map(|idx| {
-                            let geo = annos.elts()[idx].clone();
-                            let first = &annos.elts()[first_idx];
-                            geo.translate(
-                                Point {
-                                    x: x_shift - first.enclosing_bb().min().x,
-                                    y: y_shift - first.enclosing_bb().min().y,
-                                },
-                                shape_orig,
-                                OutOfBoundsMode::Deny,
-                            )
-                            .map(|bb| (bb, annos.cat_idxs()[idx]))
+                            let geo = annos.elts().get(idx).cloned();
+                            let first = &annos.elts().get(first_idx);
+                            geo.and_then(|geo| {
+                                first.and_then(|first| {
+                                    geo.translate(
+                                        Point {
+                                            x: x_shift - first.enclosing_bb().min().x,
+                                            y: y_shift - first.enclosing_bb().min().y,
+                                        },
+                                        shape_orig,
+                                        OutOfBoundsMode::Deny,
+                                    )
+                                })
+                            })
+                            .and_then(|bb| annos.cat_idxs().get(idx).map(|anno| (bb, anno)))
                         });
                         let translated_bbs =
                             translated.clone().map(|(bb, _)| bb).collect::<Vec<_>>();
                         let translated_cat_ids =
-                            translated.map(|(_, cat_id)| cat_id).collect::<Vec<_>>();
+                            translated.map(|(_, cat_id)| *cat_id).collect::<Vec<_>>();
 
                         if !translated_bbs.is_empty() {
                             annos.extend(

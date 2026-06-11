@@ -17,7 +17,11 @@ fn resize_bbs_by_key(
         .flat_map(|shiftee_idx| {
             bbs.iter()
                 .enumerate()
-                .filter(|(_, t)| candidate_key(t).is_close_to(shiftee_key(&bbs[shiftee_idx])))
+                .filter(|(_, t)| {
+                    bbs.get(shiftee_idx)
+                        .map(|bb_shiftee| candidate_key(t).is_close_to(shiftee_key(bb_shiftee)))
+                        == Some(true)
+                })
                 .map(|(i, _)| i)
                 .collect::<Vec<_>>()
         })

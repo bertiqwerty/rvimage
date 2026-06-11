@@ -40,16 +40,17 @@ fn shift(
     );
 
     for oth_idx in selected_others_indices {
-        if let Some(translated) = geos[oth_idx].clone().translate(
-            (x_shift, y_shift).into(),
-            shape_orig,
-            OutOfBoundsMode::Deny,
-        ) {
-            geos[oth_idx] = translated;
+        let translated = geos.get(oth_idx).cloned().and_then(|geo| {
+            geo.translate((x_shift, y_shift).into(), shape_orig, OutOfBoundsMode::Deny)
+        });
+        if let (Some(translated), Some(geo)) = (translated, geos.get_mut(oth_idx)) {
+            *geo = translated;
         }
     }
     for (bb_idx, bb) in bb_indices.iter().zip(bbs.iter()) {
-        geos[*bb_idx] = GeoFig::BB(*bb);
+        if let Some(geo) = geos.get_mut(*bb_idx) {
+            *geo = GeoFig::BB(*bb);
+        }
     }
     geos
 }

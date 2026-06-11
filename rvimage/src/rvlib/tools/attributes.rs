@@ -39,7 +39,10 @@ fn propagate_annos(
     to_propagate: &[(usize, ParamVal)],
 ) -> ParamMap {
     for (attr_idx, val) in to_propagate {
-        if let Some(attr_val) = annos.get_mut(&attr_names[*attr_idx]) {
+        if let Some(attr_val) = attr_names
+            .get(*attr_idx)
+            .and_then(|attr_name| annos.get_mut(attr_name))
+        {
             *attr_val = val.clone();
         }
     }
@@ -69,7 +72,9 @@ fn propagate_buffer(
     to_propagate: &[(usize, ParamVal)],
 ) -> Vec<String> {
     for (attr_idx, val) in to_propagate {
-        attribute_buffer[*attr_idx] = val.to_string();
+        if let Some(ab) = attribute_buffer.get_mut(*attr_idx) {
+            *ab = val.to_string();
+        }
     }
     attribute_buffer
 }
@@ -212,11 +217,15 @@ impl Manipulate for Attributes {
         if let Some(attr_data) = attr_data
             && let Some(rename_src_idx) = attr_data.options.rename_src_idx
         {
-            let from_name = &attr_data.attr_names()[rename_src_idx].clone();
+            let from_name = attr_data.attr_names().get(rename_src_idx).cloned();
             let to_name = &attr_data.new_attr_name.clone();
-            tracing::info!("Rename attribute {from_name} to {to_name}");
-            attr_data.rename(from_name, to_name);
-            attr_data.options.rename_src_idx = None;
+            if let Some(from_name) = from_name {
+                tracing::info!("Rename attribute {from_name} to {to_name}");
+                attr_data.rename(&from_name, to_name);
+                attr_data.options.rename_src_idx = None;
+            } else {
+                tracing::error!("could not rename attribute {from_name:?} to {to_name}");
+            }
         }
         let is_update_triggered = get_specific(&world).map(|d| d.options.is_update_triggered);
         if is_update_triggered == Some(true) {
