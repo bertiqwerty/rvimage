@@ -3,6 +3,7 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
 #![forbid(unsafe_code)]
+#![warn(clippy::indexing_slicing)]
 
 use clap::Parser;
 
@@ -160,6 +161,7 @@ mod detail {
                         if let Some(current_clr) = current_clr {
                             let alpha = f32::from(fill_alpha) / 255.0;
                             let mut clr = color.0;
+                            #[allow(clippy::indexing_slicing)]
                             for i in 0..3 {
                                 clr[i] = (f32::from(clr[i]) * alpha
                                     + f32::from(current_clr[i]) * (1.0 - alpha))
@@ -443,8 +445,8 @@ impl RvImageApp {
                 Annotation::Brush(_) => None,
             })
             .collect::<Vec<_>>();
-        if !bbox_annos.is_empty() {
-            let ild = bbox_annos[0].instance_label_display;
+        if let Some(first_bbox_anno) = bbox_annos.first() {
+            let ild = first_bbox_anno.instance_label_display;
             match ild {
                 InstanceLabelDisplay::None => {
                     self.egui_perm_bbox_shapes = bbox_annos
@@ -801,11 +803,17 @@ impl eframe::App for RvImageApp {
                 });
             });
         }
-        let n_millis = self.t_last_iterations.len();
-        for i in 0..(n_millis - 1) {
-            self.t_last_iterations[i] = self.t_last_iterations[i + 1];
+
+        #[allow(clippy::indexing_slicing)]
+        {
+            let n_millis = self.t_last_iterations.len();
+            for i in 0..(n_millis - 1) {
+                self.t_last_iterations[i] = self.t_last_iterations[i + 1];
+            }
+            if let Some(last) = self.t_last_iterations.last_mut() {
+                *last = start.elapsed().as_secs_f64()
+            }
         }
-        self.t_last_iterations[n_millis - 1] = start.elapsed().as_secs_f64();
     }
 }
 
