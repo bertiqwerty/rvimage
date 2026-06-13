@@ -1,23 +1,10 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{cmp::Ordering, mem};
+use std::cmp::Ordering;
 
 pub fn wrap_if<T>(x: T, cond: bool) -> Option<T> {
     if cond { Some(x) } else { None }
-}
-
-#[allow(clippy::indexing_slicing)]
-pub fn sort_by_vec<T, U>(sort_keys: &[U], mut v: Vec<T>) -> Vec<T>
-where
-    T: Default,
-    U: Ord,
-{
-    let mut idxs = (0..sort_keys.len()).collect::<Vec<_>>();
-    idxs.sort_unstable_by_key(|&i| &sort_keys[i]);
-    idxs.iter()
-        .map(|i| mem::take(&mut v[*i]))
-        .collect::<Vec<_>>()
 }
 
 #[allow(clippy::needless_lifetimes)]

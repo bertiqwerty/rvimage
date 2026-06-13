@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, Form, Query, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
-from pydantic import TypeAdapter, BaseModel
+from pydantic import TypeAdapter, BaseModel, model_validator
 
 from rvimage.collection_types import (
     BboxAnnos,
@@ -14,6 +14,7 @@ from rvimage.collection_types import (
     InputAnnotationData,
     OutputAnnotationData,
     WandManyMessage,
+    validate_params,
 )
 from rvimage.converters import decode_bytes_into_rgbarray
 from rvimage.domain import BbF
@@ -79,6 +80,11 @@ async def predict(
 class DummyParams(BaseModel):
     a: int | None = None
     b: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, v):
+        return validate_params(v)
 
 
 @app.post("/predict_many")

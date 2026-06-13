@@ -7,6 +7,9 @@ use crate::{
     parameters::{ParamMap, ParamVal},
 };
 
+pub fn no_more_cols(_: &mut Ui, input_changed: bool, _: usize, _: ParamVal) -> bool {
+    input_changed
+}
 pub const FLOAT_LABEL: &str = "Float";
 pub const INT_LABEL: &str = "Int";
 pub const TEXT_LABEL: &str = "Text";
@@ -52,6 +55,23 @@ pub fn add_parameter_menu<'a>(
         (new_param_name, new_param_val, false)
     }
 }
+pub fn add_buffer_sorted(
+    param_map: &ParamMap,
+    new_name_buffer: &String,
+    new_value_buffer: String,
+    value_buffers: &mut Vec<String>,
+) {
+    let insert_idx = param_map
+        .keys()
+        .enumerate()
+        .find(|(_, key)| key > &new_name_buffer)
+        .map(|(idx, _)| idx);
+    if let Some(insert_idx) = insert_idx {
+        value_buffers.insert(insert_idx, new_value_buffer);
+    } else {
+        value_buffers.push(new_value_buffer);
+    }
+}
 
 #[derive(Default)]
 pub enum ExistingParamMenuAction {
@@ -65,8 +85,43 @@ pub enum ExistingParamMenuAction {
 pub struct ExistingParamMenuResult {
     pub action: ExistingParamMenuAction,
     pub buffers: Vec<String>,
-    pub is_update_triggered: bool,
+    pub has_value_changed: bool,
     pub param_map: ParamMap,
+}
+impl ExistingParamMenuResult {
+    pub fn apply(
+        self,
+        param_map: &mut ParamMap,
+        param_value_buffers: &mut Vec<String>,
+        new_param_name_buffer: &String,
+    ) {
+        *param_map = self.param_map;
+        *param_value_buffers = self.buffers;
+        match self.action {
+            ExistingParamMenuAction::Remove(idx) => {
+                let name = param_map.keys().nth(idx).cloned();
+                if let Some(name) = name {
+                    param_map.remove(&name);
+                    param_value_buffers.remove(idx);
+                }
+            }
+            ExistingParamMenuAction::Rename(idx) => {
+                let name = param_map.keys().nth(idx).cloned();
+                if let Some(name) = name {
+                    let value = param_map.remove(&name).unwrap();
+                    let value_buffer = param_value_buffers.remove(idx);
+                    add_buffer_sorted(
+                        param_map,
+                        new_param_name_buffer,
+                        value_buffer,
+                        param_value_buffers,
+                    );
+                    param_map.insert(new_param_name_buffer.to_string(), value);
+                }
+            }
+            ExistingParamMenuAction::None => (),
+        };
+    }
 }
 
 pub fn existing_params_menu(
@@ -74,7 +129,7 @@ pub fn existing_params_menu(
     mut attr_map: ParamMap,
     are_tools_active: &mut bool,
     mut more_cols: impl FnMut(&mut Ui, bool, usize, ParamVal) -> bool,
-    mut param_buffers: Vec<String>,
+    mut param_value_buffers: Vec<String>,
 ) -> ExistingParamMenuResult {
     let mut result = ExistingParamMenuResult::default();
     let n_attrs = attr_map.len();
@@ -89,7 +144,7 @@ pub fn existing_params_menu(
                         panic!("BUG! could not find idx {idx_row} in params of {attr_map:?}")
                     })
                     .clone();
-                if let Some(param_buffer) = param_buffers.get_mut(idx_row) {
+                if let Some(param_buffer) = param_value_buffers.get_mut(idx_row) {
                     ui.label(&attr_name);
                     let mut input_changed = false;
                     match attr_map.get_mut(&attr_name) {
@@ -128,17 +183,17 @@ pub fn existing_params_menu(
                     if let Some(attr_val) = attr_map.get(&attr_name)
                         && more_cols(ui, input_changed, idx_row, attr_val.clone())
                     {
-                        result.is_update_triggered = true;
+                        result.has_value_changed = true;
                     }
 
                     if ui.button("rename").clicked() {
                         result.action = ExistingParamMenuAction::Rename(idx_row);
-                        result.is_update_triggered = true;
+                        result.has_value_changed = true;
                     }
                     ui.end_row();
                 }
             });
-            result.buffers = param_buffers;
+            result.buffers = param_value_buffers;
             if let Some(tbr) = to_be_removed {
                 result.action = ExistingParamMenuAction::Remove(tbr);
             }
@@ -150,11 +205,42 @@ pub fn existing_params_menu(
                     .on_hover_text(TEXT_LABEL)
                     .lost_focus();
                 if input_changed {
-                    result.is_update_triggered = true;
+                    result.has_value_changed = true;
                 }
             });
         }
     }
     result.param_map = attr_map;
     result
+}
+
+#[test]
+fn test_add_buffer_sorted() {
+    let mut param_map = ParamMap::new();
+    let mut value_buffers = Vec::new();
+    add_buffer_sorted(
+        &param_map,
+        &"b".to_string(),
+        "2".to_string(),
+        &mut value_buffers,
+    );
+    param_map.insert("b".to_string(), ParamVal::from(2));
+    add_buffer_sorted(
+        &param_map,
+        &"a".to_string(),
+        "1".to_string(),
+        &mut value_buffers,
+    );
+    param_map.insert("a".to_string(), ParamVal::from(1));
+    add_buffer_sorted(
+        &param_map,
+        &"c".to_string(),
+        "3".to_string(),
+        &mut value_buffers,
+    );
+    param_map.insert("c".to_string(), ParamVal::from(3));
+    assert_eq!(
+        value_buffers,
+        vec!["1".to_string(), "2".to_string(), "3".to_string()]
+    );
 }

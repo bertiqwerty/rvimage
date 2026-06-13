@@ -1,8 +1,13 @@
 use crate::{
     cfg::{ExportPath, ExportPathConnection},
     file_util::path_to_str,
-    menu::params_menu::{ExistingParamMenuAction, add_parameter_menu, existing_params_menu},
-    menu::ui_util::{process_number, removable_rows},
+    menu::{
+        params_menu::{
+            ExistingParamMenuAction, add_buffer_sorted, add_parameter_menu, existing_params_menu,
+            no_more_cols,
+        },
+        ui_util::{process_number, removable_rows},
+    },
     parameters::ParamVal,
     result::trace_ok_err,
     tools::{BBOX_NAME, BRUSH_NAME, get_visible_inactive_names},
@@ -15,7 +20,6 @@ use crate::{
         brush_data::{MAX_INTENSITY, MAX_THICKNESS, MIN_INTENSITY, MIN_THICKNESS},
         predictive_labeling::PredictiveLabelingData,
     },
-    util,
 };
 use egui::Ui;
 use rvimage_domain::TPtF;
@@ -477,10 +481,6 @@ pub fn brush_menu(
     })
 }
 
-fn no_more_cols(_: &mut Ui, input_changed: bool, _: usize, _: ParamVal) -> bool {
-    input_changed
-}
-
 pub fn attributes_menu(
     ui: &mut Ui,
     mut window_open: bool,
@@ -511,7 +511,7 @@ pub fn attributes_menu(
             .any(|(idx_attr, _)| *idx_attr == idx_row);
         if ui
             .selectable_label(checked, "propagate")
-            .on_hover_text("propaget attribute value to next opened image")
+            .on_hover_text("propagate attribute value to next opened image")
             .clicked()
         {
             if checked {
@@ -543,7 +543,7 @@ pub fn attributes_menu(
             }
             ExistingParamMenuAction::None => (),
         }
-        if existing_res.is_update_triggered {
+        if existing_res.has_value_changed {
             data.options.is_update_triggered = true;
         }
     }
@@ -576,17 +576,6 @@ pub fn attributes_menu(
     })
 }
 
-fn add_buffer_sorted(data: &mut PredictiveLabelingData) {
-    let parameter_names = data
-        .parameters
-        .keys()
-        .cloned()
-        .chain(std::iter::once(data.new_param_name_buffer.clone()))
-        .collect::<Vec<_>>();
-    data.param_buffers.push("".to_string());
-    data.param_buffers = util::sort_by_vec(&parameter_names, mem::take(&mut data.param_buffers));
-}
-
 pub fn predictive_labeling_menu(
     ui: &mut Ui,
     data: &mut PredictiveLabelingData,
@@ -606,7 +595,12 @@ pub fn predictive_labeling_menu(
         are_tools_active,
     );
     if add_param {
-        add_buffer_sorted(data);
+        add_buffer_sorted(
+            &data.parameters,
+            &data.new_param_name_buffer,
+            "".to_string(),
+            &mut data.param_buffers,
+        );
         data.parameters.insert(
             mem::take(&mut data.new_param_name_buffer),
             mem::take(&mut data.new_param_val_buffer),
@@ -619,28 +613,11 @@ pub fn predictive_labeling_menu(
         no_more_cols,
         mem::take(&mut data.param_buffers),
     );
-    data.parameters = res.param_map;
-    data.param_buffers = res.buffers;
-    match res.action {
-        ExistingParamMenuAction::Remove(idx) => {
-            let name = data.parameters.keys().nth(idx).cloned();
-            if let Some(name) = name {
-                data.parameters.remove(&name);
-                data.param_buffers.remove(idx);
-            }
-        }
-        ExistingParamMenuAction::Rename(idx) => {
-            let name = data.parameters.keys().nth(idx).cloned();
-            if let Some(name) = name {
-                let value = data.parameters.remove(&name).unwrap();
-                data.new_param_name_buffer.remove(idx);
-                add_buffer_sorted(data);
-                data.parameters
-                    .insert(data.new_param_name_buffer.clone(), value);
-            }
-        }
-        ExistingParamMenuAction::None => (),
-    };
+    res.apply(
+        &mut data.parameters,
+        &mut data.param_buffers,
+        &data.new_param_name_buffer,
+    );
 
     text_edit_singleline(ui, &mut data.url, are_tools_active).on_hover_text("url");
 

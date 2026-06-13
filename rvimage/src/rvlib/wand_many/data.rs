@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::parameters::ParamMap;
+use crate::parameters::{ParamMap, ParamVal};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct WandManyMessage {
@@ -21,6 +21,11 @@ impl WandManyMessage {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct WandManyData {
     pub messages: Vec<WandManyMessage>,
-    pub params: Option<ParamMap>,
     pub subfolders_to_exclude: Vec<String>,
+    pub existing_param_names: Vec<String>,
+    pub param_map: ParamMap,
+
+    pub param_value_buffers: Vec<String>,
+    pub new_param_name_buffer: String,
+    pub new_param_val_buffer: ParamVal,
 }

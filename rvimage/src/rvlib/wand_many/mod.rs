@@ -27,12 +27,12 @@ where
     pub labelinfo: &'a LabelInfo,
 }
 #[derive(Serialize, Clone)]
-pub struct WandPrjAnnotationsInput<'a> {
+pub struct WandManyAnnotationsInput<'a> {
     pub bbox: Option<AnnosWithInfo<'a, GeoFig>>,
     pub brush: Option<AnnosWithInfo<'a, Canvas>>,
 }
 
-impl<'a> WandPrjAnnotationsInput<'a> {
+impl<'a> WandManyAnnotationsInput<'a> {
     pub fn from_tdm(
         tools_data_map: &'a ToolsDataMap,
         files: &'a [String],
@@ -122,7 +122,7 @@ pub trait WandMany {
     fn predict<'a>(
         &self,
         prj_name: &'a str,
-        annotations_input: WandPrjAnnotationsInput<'a>,
+        annotations_input: WandManyAnnotationsInput<'a>,
         files: &[&String],
         communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
@@ -144,7 +144,7 @@ impl WandMany for RestWandMany {
     fn predict<'a>(
         &self,
         prj_name: &'a str,
-        annos_input: WandPrjAnnotationsInput<'a>,
+        annos_input: WandManyAnnotationsInput<'a>,
         files: &[&String],
         communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
@@ -167,7 +167,7 @@ impl WandMany for RestWandMany {
 }
 
 #[cfg(test)]
-use crate::{defer, test_helpers::start_resttestserver};
+use crate::{defer, parameters::ParamVal, test_helpers::start_resttestserver};
 #[cfg(test)]
 use rvimage_domain::{BbF, BbI};
 
@@ -195,10 +195,14 @@ fn test_testserver() {
         annos: vec![("file1.png", &brush_annos)],
         labelinfo: &labelinfo,
     };
-    let annos = WandPrjAnnotationsInput {
+    let annos = WandManyAnnotationsInput {
         bbox: Some(bbox_dummy),
         brush: Some(brush_dummy),
     };
-    let (_, s) = w.predict("dummy", annos, &[], &[], None).unwrap();
+    let mut param_map = ParamMap::new();
+    param_map.insert("a".to_string(), ParamVal::from(42));
+    let (_, s) = w
+        .predict("dummy", annos, &[], &[], Some(&param_map))
+        .unwrap();
     assert_eq!("method_description", s);
 }

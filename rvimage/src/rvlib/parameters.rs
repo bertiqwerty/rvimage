@@ -121,7 +121,17 @@ impl From<ParamValUntagged> for ParamVal {
         }
     }
 }
+impl From<TPtS> for ParamVal {
+    fn from(n: TPtS) -> Self {
+        ParamVal::Int(Some(n))
+    }
+}
 
+impl From<TPtF> for ParamVal {
+    fn from(x: TPtF) -> Self {
+        ParamVal::Float(Some(x))
+    }
+}
 // just for deserialization
 pub type ParamMapUntagged = HashMap<String, ParamValUntagged>;
 

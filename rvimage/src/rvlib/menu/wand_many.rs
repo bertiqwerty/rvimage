@@ -2,7 +2,10 @@ use egui::Ui;
 use std::mem;
 
 use crate::{
-    menu::ui_util::{removable_rows, slider, text_edit_multiline, text_edit_singleline},
+    menu::{
+        params_menu::{add_buffer_sorted, add_parameter_menu, existing_params_menu, no_more_cols},
+        ui_util::{removable_rows, slider, text_edit_multiline, text_edit_singleline},
+    },
     paths_selector::PathsSelector,
     wand_many::{WandManyData, WandManyMessage},
 };
@@ -91,7 +94,40 @@ pub fn wand_many_menu(
                 data.messages.clear();
             }
         });
-        ui.separator();
+        egui::CollapsingHeader::new("Parameters").show(ui, |ui| {
+            let mut new_param_name = mem::take(&mut data.new_param_name_buffer);
+            let mut new_param_val = mem::take(&mut data.new_param_val_buffer);
+            let add_param;
+            (new_param_name, new_param_val, add_param) = add_parameter_menu(
+                ui,
+                new_param_name,
+                new_param_val,
+                data.param_map.keys(),
+                are_tools_active,
+            );
+            if add_param {
+                tracing::info!("Adding parameter {new_param_name}");
+                add_buffer_sorted(
+                    &data.param_map,
+                    &new_param_name,
+                    "".to_string(),
+                    &mut data.param_value_buffers,
+                );
+                data.param_map.insert(new_param_name, new_param_val);
+            } else {
+                data.new_param_name_buffer = new_param_name;
+                data.new_param_val_buffer = new_param_val;
+            }
+            let params = mem::take(&mut data.param_map);
+            let value_buffers = mem::take(&mut data.param_value_buffers);
+            let res =
+                existing_params_menu(ui, params, are_tools_active, no_more_cols, value_buffers);
+            res.apply(
+                &mut data.param_map,
+                &mut data.param_value_buffers,
+                &data.new_param_name_buffer,
+            );
+        });
         text_edit_singleline(ui, exclfolder_buffer, are_tools_active);
         if ui.button("Add folder to exclude").clicked() && !exclfolder_buffer.trim().is_empty() {
             data.subfolders_to_exclude

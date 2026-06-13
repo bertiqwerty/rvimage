@@ -11,7 +11,7 @@ use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
 use crate::wand_many::{
-    RestWandMany, WandMany, WandManyData, WandManyOutput, WandPrjAnnotationsInput,
+    RestWandMany, WandMany, WandManyAnnotationsInput, WandManyData, WandManyOutput,
 };
 use crate::world::World;
 use crate::{
@@ -825,7 +825,7 @@ impl Control {
             if last_comment_solo {
                 thread::spawn(move || {
                     let (input, files) =
-                        WandPrjAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
+                        WandManyAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
 
                     let wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
                     tracing::info!("submitting project to wand annotator...");
