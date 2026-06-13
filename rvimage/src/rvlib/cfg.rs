@@ -3,7 +3,6 @@ use crate::{
     file_util::{
         self, DEFAULT_PRJ_PATH, DEFAULT_TMPDIR, copy_and_unzip, dl_and_unzip, path_to_str,
     },
-    parameters::ParamMap,
     result::trace_ok_err,
     sort_params::SortParams,
     ssh,
@@ -362,21 +361,6 @@ fn get_wandmany_default_timeout() -> usize {
     30000
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct WandManyMessage {
-    pub comment: String,
-    pub response: Option<String>,
-    pub success_assessment: Option<u8>,
-}
-impl WandManyMessage {
-    pub fn from_comment(cmt: String) -> Self {
-        Self {
-            comment: cmt,
-            response: None,
-            success_assessment: None,
-        }
-    }
-}
 /// In contrast to annotations of the currently opened image in the tool's predictive labelling setting,
 /// this wand-cfg is about annotating the whole project.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -384,10 +368,7 @@ pub struct WandManyCfg {
     pub url: String,
     #[serde(default = "get_wandmany_default_timeout")]
     pub timeout_ms: usize,
-    pub messages: Vec<WandManyMessage>,
     pub prj_name: String,
-    pub params: Option<ParamMap>,
-    pub subfolder_to_exclude: Vec<String>,
 }
 
 impl Default for WandManyCfg {
@@ -395,10 +376,6 @@ impl Default for WandManyCfg {
         Self {
             url: "".into(),
             timeout_ms: get_wandmany_default_timeout(),
-            messages: Vec::new(),
-            params: None,
-            subfolder_to_exclude: Vec::new(),
-
             prj_name: "".to_string(),
         }
     }

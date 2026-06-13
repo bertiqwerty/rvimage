@@ -9,7 +9,6 @@ use crate::{
     tools_data::{AnnotationsMap, BboxToolData, BrushToolData, InstanceAnnotate, ToolsDataMap},
 };
 
-use super::main::TextBuffers;
 #[derive(Default)]
 pub(super) struct Counts {
     pub n_files_filtered_info: Option<String>,
@@ -39,7 +38,6 @@ pub fn labels_and_sorting(
     filename_sort_type: &mut SortParams,
     ctrl: &mut Control,
     tools_data_map: &mut ToolsDataMap,
-    text_buffers: &mut TextBuffers,
     stats: &mut Counts,
 ) -> RvResult<()> {
     if ui.button("Export filtered filelist").clicked() {
@@ -49,7 +47,7 @@ pub fn labels_and_sorting(
             .save_file();
         if let Some(ep) = export_path {
             ctrl.paths_navigator
-                .export_filtered_filelist(ep, &text_buffers.filter_string)?
+                .export_filtered_filelist(ep, &ctrl.data.filter_buffer)?
         }
     }
     let mut clicked_nat = false;

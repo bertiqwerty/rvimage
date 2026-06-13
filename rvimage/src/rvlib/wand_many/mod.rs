@@ -1,3 +1,5 @@
+mod data;
+pub use data::{WandManyData, WandManyMessage};
 use std::path::Path;
 
 use reqwest::blocking::multipart;
@@ -6,7 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     InstanceAnnotate, ToolsDataMap,
-    cfg::WandManyMessage,
     parameters::ParamMap,
     rest_data::RestData,
     result::trace_ok_err,

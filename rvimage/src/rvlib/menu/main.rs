@@ -165,7 +165,6 @@ fn save_dialog_in_prjfolder(prj_path: &Path, opened_folder: Option<&str>) -> Opt
 
 #[derive(Default)]
 pub struct TextBuffers {
-    pub filter_string: String,
     pub label_propagation: String,
     pub label_deletion: String,
     pub import_coco_from_ssh_path: String,
@@ -195,7 +194,6 @@ pub struct Menu {
 impl Menu {
     fn new() -> Self {
         let text_buffers = TextBuffers {
-            filter_string: "".into(),
             label_propagation: "".into(),
             label_deletion: "".into(),
             import_coco_from_ssh_path: "path on ssh server".into(),
@@ -422,23 +420,18 @@ impl Menu {
                         handle_error!(ctrl.cleanup_wandserver(), self);
                     }
                 });
-                if self.show_wandmany {
-                    let cfg = &mut ctrl.cfg.prj.wand_many;
-                    if let Some((files, folders_to_exclude)) = wand_many_menu(
+                if self.show_wandmany
+                    && let Some((files, folders_to_exclude)) = wand_many_menu(
                         ui,
-                        cfg,
+                        &mut ctrl.data.wand_many,
                         &mut self.are_tools_active,
                         &mut self.text_buffers.wand_many_comment,
                         &mut self.text_buffers.wand_many_exclfolder,
                         &mut self.show_wandmany,
                         ctrl.paths_navigator.paths_selector(),
-                    ) {
-                        ctrl.submit_prj_to_wandannotator(
-                            tools_data_map,
-                            &files,
-                            &folders_to_exclude,
-                        );
-                    }
+                    )
+                {
+                    ctrl.submit_prj_to_wandannotator(tools_data_map, &files, &folders_to_exclude);
                 }
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");
@@ -572,16 +565,13 @@ impl Menu {
                 ui.label(RichText::from("Connecting...").text_style(egui::TextStyle::Monospace));
             }
 
-            let filter_txt_field = text_edit_singleline(
-                ui,
-                &mut self.text_buffers.filter_string,
-                &mut self.are_tools_active,
-            );
+            let filter_txt_field =
+                text_edit_singleline(ui, &mut ctrl.data.filter_buffer, &mut self.are_tools_active);
 
             if filter_txt_field.changed() {
                 handle_error!(
                     ctrl.paths_navigator.filter(
-                        &self.text_buffers.filter_string,
+                        &ctrl.data.filter_buffer,
                         tools_data_map,
                         active_tool_name
                     ),
@@ -628,14 +618,7 @@ impl Menu {
             ui.separator();
             let mut sort_params = ctrl.cfg.prj.sort_params;
             handle_error!(
-                labels_and_sorting(
-                    ui,
-                    &mut sort_params,
-                    ctrl,
-                    tools_data_map,
-                    &mut self.text_buffers,
-                    &mut self.stats,
-                ),
+                labels_and_sorting(ui, &mut sort_params, ctrl, tools_data_map, &mut self.stats,),
                 self
             );
             ctrl.cfg.prj.sort_params = sort_params;

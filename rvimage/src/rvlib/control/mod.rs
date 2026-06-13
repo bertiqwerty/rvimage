@@ -10,7 +10,9 @@ use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
 use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
-use crate::wand_many::{RestWandMany, WandMany, WandManyOutput, WandPrjAnnotationsInput};
+use crate::wand_many::{
+    RestWandMany, WandMany, WandManyData, WandManyOutput, WandPrjAnnotationsInput,
+};
 use crate::world::World;
 use crate::{
     cfg::Cfg,
@@ -62,6 +64,7 @@ mod detail {
         tools_data::{ToolsDataMap, merge},
         toolsdata_by_name,
         util::version_label,
+        wand_many::WandManyData,
         world::World,
     };
     use rvimage_domain::ShapeI;
@@ -158,6 +161,8 @@ mod detail {
         tools_data_map: &ToolsDataMap,
         prj_file_path: &Path,
         cfg: &Cfg,
+        wand_many_data: &WandManyData,
+        filter_string: &str,
     ) -> RvResult<()> {
         // we need to write the cfg for correct prj-path mapping during serialization
         // of annotations
@@ -167,6 +172,8 @@ mod detail {
             opened_folder: opened_folder.map(|of| of.to_string()),
             tools_data_map: tdm.clone(),
             cfg: SavedCfg::CfgPrj(cfg.prj.clone()),
+            wand_many_data: Some(wand_many_data.clone()),
+            filter_string: Some(filter_string.to_string()),
         };
         tracing::info!("saved to {prj_file_path:?}");
         create_lock_file(prj_file_path)?;
@@ -331,6 +338,10 @@ pub struct SavePrjData {
     pub opened_folder: Option<String>,
     pub tools_data_map: ToolsDataMap,
     pub cfg: SavedCfg,
+    #[serde(default)]
+    pub wand_many_data: Option<WandManyData>,
+    #[serde(default)]
+    pub filter_string: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -354,12 +365,20 @@ pub struct ControlFlags {
     pub is_loading_screen_active: bool,
 }
 
+// Project data to be serialized except cfg and tools data.
+#[derive(Default)]
+pub struct PrjData {
+    pub opened_folder: Option<PathPair>,
+    pub wand_many: WandManyData,
+    pub filter_buffer: String,
+}
+
 #[derive(Default)]
 pub struct Control {
+    pub data: PrjData,
     pub reader: Option<ReaderFromCfg>,
     pub info: Info,
     pub paths_navigator: PathsNavigator,
-    pub opened_folder: Option<PathPair>,
     tp: ThreadPool<RvResult<ReaderFromCfg>>,
     last_open_folder_job_id: Option<u128>,
     pub cfg: Cfg,
@@ -618,12 +637,16 @@ impl Control {
         let tdm = tools_data_map.clone();
         let cfg = self.cfg.clone();
         self.wait_for_save();
+        let wand_many_data = self.data.wand_many.clone();
+        let filter_string = self.data.filter_buffer.clone();
         let handle = thread::spawn(move || {
             trace_ok_err(detail::save(
                 opened_folder.as_ref().map(|of| of.path_relative()),
                 &tdm,
                 prj_path.as_path(),
                 &cfg,
+                &wand_many_data,
+                &filter_string,
             ));
         });
         self.save_handle = Some(handle);
@@ -787,7 +810,7 @@ impl Control {
                 )
                 .to_string()
             };
-            let msgs = self.cfg.prj.wand_many.messages.clone();
+            let msgs = self.data.wand_many.messages.clone();
             // make sure the last message contains a comment and no responses yet
             let last_comment_solo = msgs
                 .iter()
@@ -835,7 +858,7 @@ impl Control {
                     self.wand_many_rx = None;
 
                     if !server_response.trim().is_empty()
-                        && let [.., last] = &mut self.cfg.prj.wand_many.messages[..]
+                        && let [.., last] = &mut self.data.wand_many.messages[..]
                     {
                         last.response = Some(server_response);
                     }
@@ -893,12 +916,12 @@ impl Control {
             Connection::Local => Some(self.cfg.current_prj_path()),
             _ => None,
         };
-        self.opened_folder = Some(PathPair::from_relative_path(new_folder, current_prj_path));
+        self.data.opened_folder = Some(PathPair::from_relative_path(new_folder, current_prj_path));
         Ok(())
     }
 
     pub fn load_opened_folder_content(&mut self, sort_params: SortParams) -> RvResult<()> {
-        if let (Some(opened_folder), Some(reader)) = (&self.opened_folder, &self.reader) {
+        if let (Some(opened_folder), Some(reader)) = (&self.data.opened_folder, &self.reader) {
             let prj_folder = self.cfg.current_prj_path();
             let selector = reader.open_folder(opened_folder.path_absolute(), prj_folder)?;
             self.paths_navigator = PathsNavigator::new(Some(selector), sort_params)?;
@@ -947,7 +970,7 @@ impl Control {
     }
 
     fn opened_folder(&self) -> Option<&PathPair> {
-        self.opened_folder.as_ref()
+        self.data.opened_folder.as_ref()
     }
 
     pub fn connection_data(&self) -> RvResult<ConnectionData> {
@@ -1013,14 +1036,14 @@ impl Control {
         self.flags.undo_redo_load = true;
         detail::idx_change_check(
             self.file_selected_idx,
-            history.next_world(&self.opened_folder),
+            history.next_world(&self.data.opened_folder),
         )
     }
     pub fn undo(&mut self, history: &mut History) -> Option<(World, Option<usize>)> {
         self.flags.undo_redo_load = true;
         detail::idx_change_check(
             self.file_selected_idx,
-            history.prev_world(&self.opened_folder),
+            history.prev_world(&self.data.opened_folder),
         )
     }
 
@@ -1154,6 +1177,7 @@ impl Control {
                                     actor: LOAD_ACTOR_NAME,
                                     file_label_idx: self.file_selected_idx,
                                     opened_folder: self
+                                        .data
                                         .opened_folder
                                         .as_ref()
                                         .map(|of| of.path_absolute().to_string()),
@@ -1272,7 +1296,15 @@ fn test_save_load() {
     let export_folder = cfg.tmpdir();
     let export_file = PathBuf::new().join(export_folder).join("export.json");
     let opened_folder = Some(opened_folder_name.to_string());
-    detail::save(opened_folder.as_deref(), &tdm, &export_file, &cfg).unwrap();
+    detail::save(
+        opened_folder.as_deref(),
+        &tdm,
+        &export_file,
+        &cfg,
+        &WandManyData::default(),
+        "",
+    )
+    .unwrap();
 
     defer_file_removal!(&export_file);
 
