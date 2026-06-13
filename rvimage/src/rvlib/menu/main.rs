@@ -1,5 +1,5 @@
 use crate::{
-    cfg::{ExportPathConnection, WandManyMessage},
+    cfg::ExportPathConnection,
     control::{Control, Info, PrjSettingImportSection},
     file_util::{get_prj_name, path_to_str},
     image_reader::LoadImageForGui,
@@ -10,7 +10,8 @@ use crate::{
         file_counts::labels_and_sorting,
         open_folder,
         scroll_area::ShowFileOptions,
-        ui_util::{removable_rows, slider, text_edit_multiline, text_edit_singleline},
+        ui_util::text_edit_singleline,
+        wand_many::wand_many_menu,
     },
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
@@ -422,168 +423,22 @@ impl Menu {
                     }
                 });
                 if self.show_wandmany {
-                    let mut assess_tmp = ctrl
-                        .cfg
-                        .prj
-                        .wand_many
-                        .messages
-                        .iter()
-                        .last()
-                        .and_then(|msg| msg.success_assessment);
-                    egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(
-                        ui.ctx(),
-                        |ui| {
-                            ui.heading("Wand to annotate all filtered project images");
-                            let wpa = &ctrl.cfg.prj.wand_many;
-                            let len_msgs = wpa.messages.len();
-                            let mut idx_to_remove = None;
-                            ui.separator();
-                            egui::ScrollArea::vertical()
-                                .max_height(300.0)
-                                .show(ui, |ui| {
-                                    idx_to_remove = removable_rows(ui, len_msgs, |ui, idx| {
-                                        if let Some(msg) = wpa.messages.get(idx) {
-                                            let mut job = egui::text::LayoutJob {
-                                                halign: egui::Align::RIGHT,
-                                                ..Default::default()
-                                            };
-                                            job.append(
-                                                &msg.comment,
-                                                0.0,
-                                                egui::TextFormat {
-                                                    italics: true,
-                                                    ..Default::default()
-                                                },
-                                            );
-                                            ui.label(job);
-                                            if idx < len_msgs.saturating_sub(1) {
-                                                ui.label(
-                                                    msg.success_assessment
-                                                        .map(|a| format!("assessment {a}"))
-                                                        .unwrap_or("".to_string()),
-                                                );
-                                            } else if let Some(response) = &msg.response {
-                                                egui::CollapsingHeader::new("Response")
-                                                    .id_salt(idx)
-                                                    .show(ui, |ui| {
-                                                        ui.label(response);
-                                                    });
-                                                let mut assess_checkbx = assess_tmp.is_some();
-                                                if ui
-                                                    .checkbox(&mut assess_checkbx, "assess result")
-                                                    .clicked()
-                                                {
-                                                    if assess_checkbx {
-                                                        assess_tmp = Some(50u8);
-                                                    } else {
-                                                        assess_tmp = None;
-                                                    }
-                                                }
-                                                if let Some(assess) = assess_tmp.as_mut() {
-                                                    slider(
-                                                        ui,
-                                                        &mut self.are_tools_active,
-                                                        assess,
-                                                        0..=100,
-                                                        "assess result",
-                                                    );
-                                                }
-                                            }
-                                        }
-                                        ui.separator();
-                                    });
-                                });
-                            if let Some(idx) = idx_to_remove {
-                                ctrl.cfg.prj.wand_many.messages.remove(idx);
-                            }
-                            if let Some(assess_last) =
-                                ctrl.cfg.prj.wand_many.messages.iter_mut().last()
-                            {
-                                assess_last.success_assessment = assess_tmp;
-                            }
-
-                            text_edit_multiline(
-                                ui,
-                                &mut self.text_buffers.wand_many_comment,
-                                &mut self.are_tools_active,
-                            );
-
-                            ui.horizontal(|ui| {
-                                if ui.button("Add comment").clicked()
-                                    && !self.text_buffers.wand_many_comment.trim().is_empty()
-                                {
-                                    ctrl.cfg.prj.wand_many.messages.push(
-                                        WandManyMessage::from_comment(mem::take(
-                                            &mut self.text_buffers.wand_many_comment,
-                                        )),
-                                    );
-                                }
-                                if ui.button("Clear").clicked() {
-                                    ctrl.cfg.prj.wand_many.messages.clear();
-                                }
-                            });
-                            ui.separator();
-                            text_edit_singleline(
-                                ui,
-                                &mut self.text_buffers.wand_many_exclfolder,
-                                &mut self.are_tools_active,
-                            );
-                            if ui.button("Add folder to exclude").clicked()
-                                && !self.text_buffers.wand_many_exclfolder.trim().is_empty()
-                            {
-                                ctrl.cfg
-                                    .prj
-                                    .wand_many
-                                    .subfolder_to_exclude
-                                    .push(mem::take(&mut self.text_buffers.wand_many_exclfolder))
-                            }
-
-                            let n_folders = ctrl.cfg.prj.wand_many.subfolder_to_exclude.len();
-                            ui.separator();
-                            if n_folders > 0 {
-                                ui.label("Folders to exclude");
-                                let mut idx_remove = None;
-                                egui::Grid::new("label_grid").num_columns(2).show(ui, |ui| {
-                                    idx_remove = removable_rows(ui, n_folders, |ui, idx| {
-                                        if let Some(folder) =
-                                            ctrl.cfg.prj.wand_many.subfolder_to_exclude.get(idx)
-                                        {
-                                            ui.label(folder);
-                                            ui.end_row();
-                                        }
-                                    });
-                                });
-                                if let Some(idx) = idx_remove {
-                                    ctrl.cfg.prj.wand_many.subfolder_to_exclude.remove(idx);
-                                }
-                                ui.separator();
-                            }
-                            if ui.button("Submit").clicked() {
-                                self.show_wandmany = false;
-                                let files = ctrl.paths_navigator.paths_selector().map(|ps| {
-                                    ps.filtered_abs_file_paths()
-                                        .iter()
-                                        .map(|p| p.to_string())
-                                        .collect::<Vec<String>>()
-                                });
-                                if let Some(files) = files {
-                                    let folders_to_exclude =
-                                        ctrl.cfg.prj.wand_many.subfolder_to_exclude.clone();
-                                    ctrl.submit_prj_to_wandannotator(
-                                        tools_data_map,
-                                        &files,
-                                        &folders_to_exclude,
-                                    );
-                                } else {
-                                    tracing::warn!("No files selected to submit to wand annotator");
-                                }
-                            }
-                            ui.separator();
-                            if ui.button("Close").clicked() {
-                                self.show_wandmany = false;
-                            }
-                        },
-                    );
+                    let cfg = &mut ctrl.cfg.prj.wand_many;
+                    if let Some((files, folders_to_exclude)) = wand_many_menu(
+                        ui,
+                        cfg,
+                        &mut self.are_tools_active,
+                        &mut self.text_buffers.wand_many_comment,
+                        &mut self.text_buffers.wand_many_exclfolder,
+                        &mut self.show_wandmany,
+                        ctrl.paths_navigator.paths_selector(),
+                    ) {
+                        ctrl.submit_prj_to_wandannotator(
+                            tools_data_map,
+                            &files,
+                            &folders_to_exclude,
+                        );
+                    }
                 }
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");

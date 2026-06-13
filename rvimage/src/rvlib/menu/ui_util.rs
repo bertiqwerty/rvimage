@@ -183,3 +183,25 @@ pub fn removable_rows(
     }
     to_be_removed
 }
+
+pub fn update_numeric_attribute<T>(
+    ui: &mut Ui,
+    are_tools_active: &mut bool,
+    x: &mut Option<T>,
+    attr_type_label: &str,
+    new_attr_buffer: &mut String,
+) -> bool
+where
+    T: Display + FromStr + Debug,
+    <T as FromStr>::Err: Debug,
+{
+    let (input_changed, new_val) =
+        process_number(ui, are_tools_active, attr_type_label, new_attr_buffer);
+    if let Some(new_val) = new_val {
+        *x = Some(new_val);
+    }
+    if new_attr_buffer.is_empty() {
+        *x = None;
+    }
+    input_changed
+}
