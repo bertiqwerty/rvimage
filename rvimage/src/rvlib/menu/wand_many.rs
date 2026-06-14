@@ -30,7 +30,7 @@ pub fn wand_many_menu(
         .last()
         .and_then(|msg| msg.success_assessment);
     egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(ui.ctx(), |ui| {
-        ui.heading("Wand to annotate all filtered project images");
+        ui.heading("Apply wand to annotate filtered files");
         let len_msgs = data.messages.len();
         let mut idx_to_remove = None;
         egui::CollapsingHeader::new("Parameters").show(ui, |ui| {
