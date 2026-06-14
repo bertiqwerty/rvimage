@@ -216,7 +216,15 @@ mod detail {
             }
         }
     }
-    pub(super) fn load(file_path: &Path) -> RvResult<(ToolsDataMap, Option<String>, CfgPrj)> {
+    pub(super) fn load(
+        file_path: &Path,
+    ) -> RvResult<(
+        ToolsDataMap,
+        Option<String>,
+        CfgPrj,
+        Option<WandManyData>,
+        Option<String>,
+    )> {
         let s = file_util::read_to_string(file_path)?;
 
         let save_data = serde_json::from_str::<SavePrjData>(s.as_str()).map_err(to_rv)?;
@@ -228,6 +236,8 @@ mod detail {
             add_tools_initial_data(save_data.tools_data_map),
             save_data.opened_folder,
             cfg_prj,
+            save_data.wand_many_data,
+            save_data.filter_string,
         ))
     }
 
@@ -255,7 +265,7 @@ mod detail {
         }
     }
     pub fn import_annos(cur_tdm: &mut ToolsDataMap, file_path: &Path) -> RvResult<()> {
-        let (mut loaded_tdm, _, _) = load(file_path)?;
+        let (mut loaded_tdm, _, _, _, _) = load(file_path)?;
 
         if fill_empty_curtdm(BBOX_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty {
             let cur_bbox = toolsdata_by_name!(BBOX_NAME, bbox_mut, cur_tdm);
@@ -443,11 +453,11 @@ impl Control {
                 );
                 defer_file_removal!(&copied_file_path);
                 trace_ok_err(fs::copy(input_prj_path, &copied_file_path));
-                let (tdm, _, _) = detail::load(input_prj_path)?;
+                let (tdm, _, _, _, _) = detail::load(input_prj_path)?;
                 tdm
             } else {
                 // are in the same parent folder, i.e., we replace with the last manual save
-                let (tdm, _, _) = detail::load(input_prj_path)?;
+                let (tdm, _, _, _, _) = detail::load(input_prj_path)?;
                 tdm
             };
             self.set_current_prj_path(cur_prj_path)?;
@@ -485,7 +495,7 @@ impl Control {
         // their path correctly
         self.set_current_prj_path(prj_path.clone())?;
         self.cfg.write()?;
-        let (tools_data_map, to_be_opened_folder, read_cfg) =
+        let (tools_data_map, to_be_opened_folder, read_cfg, wand_many_data, filter_string) =
             detail::load(&prj_path).inspect_err(|_| {
                 self.cfg.unset_current_prj_path();
                 trace_ok_err(self.cfg.write());
@@ -494,6 +504,12 @@ impl Control {
             self.open_relative_folder(of)?;
         }
         self.cfg.prj = read_cfg;
+        if let Some(wand_many_data) = wand_many_data {
+            self.data.wand_many = wand_many_data;
+        }
+        if let Some(filter_string) = filter_string {
+            self.data.filter_buffer = filter_string;
+        }
         // save cfg of loaded project
         trace_ok_err(self.cfg.write());
         Ok(tools_data_map)
@@ -513,7 +529,7 @@ impl Control {
         prj_path: &Path,
         import_section: PrjSettingImportSection,
     ) -> String {
-        let (_, _, prj_cfg) = detail::load(prj_path).unwrap();
+        let (_, _, prj_cfg, _, _) = detail::load(prj_path).unwrap();
 
         match import_section {
             PrjSettingImportSection::All => format!("{prj_cfg:#?}"),
@@ -532,7 +548,7 @@ impl Control {
         import_section: PrjSettingImportSection,
     ) -> RvResult<()> {
         tracing::info!("importing settings from {prj_path:?}");
-        let (_, _, prj_cfg) = detail::load(prj_path)?;
+        let (_, _, prj_cfg, _, _) = detail::load(prj_path)?;
 
         match import_section {
             PrjSettingImportSection::All => {
@@ -811,41 +827,24 @@ impl Control {
                 .to_string()
             };
             let msgs = self.data.wand_many.messages.clone();
-            // make sure the last message contains a comment and no responses yet
-            let last_comment_solo = msgs
-                .iter()
-                .last()
-                .map(|last_msg| {
-                    last_msg.response.is_none()
-                        && last_msg.success_assessment.is_none()
-                        && !last_msg.comment.is_empty()
-                })
-                .unwrap_or(false);
 
-            if last_comment_solo {
-                thread::spawn(move || {
-                    let (input, files) =
-                        WandManyAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
+            thread::spawn(move || {
+                let (input, files) =
+                    WandManyAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
 
-                    let wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
-                    tracing::info!("submitting project to wand annotator...");
-                    let output =
-                        trace_ok_err(wand_many.predict(&prj_name, input, &files, &msgs, None));
-                    if let Some(output) = output {
-                        trace_ok_err(tx.send(output));
-                    } else {
-                        tracing::error!(
-                            "Processing failed with wand annotator failed. Prediction returned an error."
-                        );
-                        trace_ok_err(tx.send((WandManyOutput::default(), "".into())));
-                    }
-                });
-                tracing::info!("... submission done!");
-            } else {
-                tracing::error!(
-                    "Could not submit to Wand. The last message needs a comment without response"
-                );
-            }
+                let wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
+                tracing::info!("submitting project to wand annotator...");
+                let output = trace_ok_err(wand_many.predict(&prj_name, input, &files, &msgs, None));
+                if let Some(output) = output {
+                    trace_ok_err(tx.send(output));
+                } else {
+                    tracing::error!(
+                        "Processing failed with wand annotator failed. Prediction returned an error."
+                    );
+                    trace_ok_err(tx.send((WandManyOutput::default(), "".into())));
+                }
+            });
+            tracing::info!("... submission done!");
         }
     }
     pub fn check_wand_many_output(&mut self, tools_data_map: &mut ToolsDataMap) -> RvResult<bool> {
@@ -1308,7 +1307,7 @@ fn test_save_load() {
 
     defer_file_removal!(&export_file);
 
-    let (tdm_imported, _, cfg_imported) = detail::load(&export_file).unwrap();
+    let (tdm_imported, _, cfg_imported, _, _) = detail::load(&export_file).unwrap();
     assert_eq!(tdm, tdm_imported);
     assert_eq!(cfg.prj, cfg_imported);
 }

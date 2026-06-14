@@ -29,71 +29,6 @@ pub fn wand_many_menu(
         ui.heading("Wand to annotate all filtered project images");
         let len_msgs = data.messages.len();
         let mut idx_to_remove = None;
-        ui.separator();
-        egui::ScrollArea::vertical()
-            .max_height(300.0)
-            .show(ui, |ui| {
-                idx_to_remove = removable_rows(ui, len_msgs, |ui, idx| {
-                    if let Some(msg) = data.messages.get(idx) {
-                        let mut job = egui::text::LayoutJob {
-                            halign: egui::Align::RIGHT,
-                            ..Default::default()
-                        };
-                        job.append(
-                            &msg.comment,
-                            0.0,
-                            egui::TextFormat {
-                                italics: true,
-                                ..Default::default()
-                            },
-                        );
-                        ui.label(job);
-                        if idx < len_msgs.saturating_sub(1) {
-                            ui.label(
-                                msg.success_assessment
-                                    .map(|a| format!("assessment {a}"))
-                                    .unwrap_or("".to_string()),
-                            );
-                        } else if let Some(response) = &msg.response {
-                            egui::CollapsingHeader::new("Response")
-                                .id_salt(idx)
-                                .show(ui, |ui| {
-                                    ui.label(response);
-                                });
-                            let mut assess_checkbx = assess_tmp.is_some();
-                            if ui.checkbox(&mut assess_checkbx, "assess result").clicked() {
-                                if assess_checkbx {
-                                    assess_tmp = Some(50u8);
-                                } else {
-                                    assess_tmp = None;
-                                }
-                            }
-                            if let Some(assess) = assess_tmp.as_mut() {
-                                slider(ui, are_tools_active, assess, 0..=100, "assess result");
-                            }
-                        }
-                    }
-                    ui.separator();
-                });
-            });
-        if let Some(idx) = idx_to_remove {
-            data.messages.remove(idx);
-        }
-        if let Some(assess_last) = data.messages.iter_mut().last() {
-            assess_last.success_assessment = assess_tmp;
-        }
-
-        text_edit_multiline(ui, comment_buffer, are_tools_active);
-
-        ui.horizontal(|ui| {
-            if ui.button("Add comment").clicked() && !comment_buffer.trim().is_empty() {
-                data.messages
-                    .push(WandManyMessage::from_comment(mem::take(comment_buffer)));
-            }
-            if ui.button("Clear").clicked() {
-                data.messages.clear();
-            }
-        });
         egui::CollapsingHeader::new("Parameters").show(ui, |ui| {
             let mut new_param_name = mem::take(&mut data.new_param_name_buffer);
             let mut new_param_val = mem::take(&mut data.new_param_val_buffer);
@@ -128,30 +63,102 @@ pub fn wand_many_menu(
                 &data.new_param_name_buffer,
             );
         });
-        text_edit_singleline(ui, exclfolder_buffer, are_tools_active);
-        if ui.button("Add folder to exclude").clicked() && !exclfolder_buffer.trim().is_empty() {
-            data.subfolders_to_exclude
-                .push(mem::take(exclfolder_buffer))
-        }
-
-        let n_folders = data.subfolders_to_exclude.len();
         ui.separator();
-        if n_folders > 0 {
-            ui.label("Folders to exclude");
-            let mut idx_remove = None;
-            egui::Grid::new("label_grid").num_columns(2).show(ui, |ui| {
-                idx_remove = removable_rows(ui, n_folders, |ui, idx| {
-                    if let Some(folder) = data.subfolders_to_exclude.get(idx) {
-                        ui.label(folder);
-                        ui.end_row();
-                    }
+        egui::CollapsingHeader::new("Comments").show(ui, |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(300.0)
+                .show(ui, |ui| {
+                    idx_to_remove = removable_rows(ui, len_msgs, |ui, idx| {
+                        if let Some(msg) = data.messages.get(idx) {
+                            let mut job = egui::text::LayoutJob {
+                                halign: egui::Align::RIGHT,
+                                ..Default::default()
+                            };
+                            job.append(
+                                &msg.comment,
+                                0.0,
+                                egui::TextFormat {
+                                    italics: true,
+                                    ..Default::default()
+                                },
+                            );
+                            ui.label(job);
+                            if idx < len_msgs.saturating_sub(1) {
+                                ui.label(
+                                    msg.success_assessment
+                                        .map(|a| format!("assessment {a}"))
+                                        .unwrap_or("".to_string()),
+                                );
+                            } else if let Some(response) = &msg.response {
+                                egui::CollapsingHeader::new("Response").id_salt(idx).show(
+                                    ui,
+                                    |ui| {
+                                        ui.label(response);
+                                    },
+                                );
+                                let mut assess_checkbx = assess_tmp.is_some();
+                                if ui.checkbox(&mut assess_checkbx, "assess result").clicked() {
+                                    if assess_checkbx {
+                                        assess_tmp = Some(50u8);
+                                    } else {
+                                        assess_tmp = None;
+                                    }
+                                }
+                                if let Some(assess) = assess_tmp.as_mut() {
+                                    slider(ui, are_tools_active, assess, 0..=100, "assess result");
+                                }
+                            }
+                        }
+                        ui.separator();
+                    });
                 });
-            });
-            if let Some(idx) = idx_remove {
-                data.subfolders_to_exclude.remove(idx);
+            if let Some(idx) = idx_to_remove {
+                data.messages.remove(idx);
             }
+            if let Some(assess_last) = data.messages.iter_mut().last() {
+                assess_last.success_assessment = assess_tmp;
+            }
+
+            text_edit_multiline(ui, comment_buffer, are_tools_active);
+
+            ui.horizontal(|ui| {
+                if ui.button("Add comment").clicked() && !comment_buffer.trim().is_empty() {
+                    data.messages
+                        .push(WandManyMessage::from_comment(mem::take(comment_buffer)));
+                }
+                if ui.button("Clear").clicked() {
+                    data.messages.clear();
+                }
+            });
+        });
+        ui.separator();
+        egui::CollapsingHeader::new("Folders to exclude").show(ui, |ui| {
+            text_edit_singleline(ui, exclfolder_buffer, are_tools_active);
+            if ui.button("Add folder to exclude").clicked() && !exclfolder_buffer.trim().is_empty()
+            {
+                data.subfolders_to_exclude
+                    .push(mem::take(exclfolder_buffer))
+            }
+
+            let n_folders = data.subfolders_to_exclude.len();
             ui.separator();
-        }
+            if n_folders > 0 {
+                ui.label("Folders to exclude");
+                let mut idx_remove = None;
+                egui::Grid::new("label_grid").num_columns(2).show(ui, |ui| {
+                    idx_remove = removable_rows(ui, n_folders, |ui, idx| {
+                        if let Some(folder) = data.subfolders_to_exclude.get(idx) {
+                            ui.label(folder);
+                            ui.end_row();
+                        }
+                    });
+                });
+                if let Some(idx) = idx_remove {
+                    data.subfolders_to_exclude.remove(idx);
+                }
+            }
+        });
+        ui.separator();
         if ui.button("Submit").clicked() {
             *show_wandmany = false;
             let files = paths_selector.map(|ps| {

@@ -427,17 +427,19 @@ fn annotations(
                     tracing::info!(txt);
                 }
                 for (af, tool_name) in absent_files {
-                    tracing::info!("deleting annotations of {af} for tool {tool_name}");
+                    tracing::info!("deleting annotations of {af} for tool {tool_name}...");
                     if tool_name == BBOX_NAME {
                         let tools_data = tdm.get_mut(tool_name);
                         if let Some(td) = tools_data {
                             td.specifics.bbox_mut()?.annotations_map.remove(&af);
+                            tracing::info!("...done.");
                         }
                     }
                     if tool_name == BRUSH_NAME {
                         let tools_data = tdm.get_mut(tool_name);
                         if let Some(td) = tools_data {
                             td.specifics.brush_mut()?.annotations_map.remove(&af);
+                            tracing::info!("...done.");
                         }
                     }
                 }
