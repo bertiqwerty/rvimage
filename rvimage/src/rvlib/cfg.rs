@@ -358,7 +358,7 @@ pub struct WandServerCfg {
 }
 
 fn get_wandmany_default_timeout() -> usize {
-    30000
+    600
 }
 
 /// In contrast to annotations of the currently opened image in the tool's predictive labelling setting,
@@ -367,7 +367,7 @@ fn get_wandmany_default_timeout() -> usize {
 pub struct WandManyCfg {
     pub url: String,
     #[serde(default = "get_wandmany_default_timeout")]
-    pub timeout_ms: usize,
+    pub timeout_s: usize,
     pub prj_name: String,
 }
 
@@ -375,7 +375,7 @@ impl Default for WandManyCfg {
     fn default() -> Self {
         Self {
             url: "".into(),
-            timeout_ms: get_wandmany_default_timeout(),
+            timeout_s: get_wandmany_default_timeout(),
             prj_name: "".to_string(),
         }
     }

@@ -2,9 +2,13 @@ use egui::Ui;
 use std::mem;
 
 use crate::{
+    cfg::WandManyCfg,
     menu::{
+        main::WandManyMenuBuffers,
         params_menu::{add_buffer_sorted, add_parameter_menu, existing_params_menu, no_more_cols},
-        ui_util::{removable_rows, slider, text_edit_multiline, text_edit_singleline},
+        ui_util::{
+            process_number, removable_rows, slider, text_edit_multiline, text_edit_singleline,
+        },
     },
     paths_selector::PathsSelector,
     wand_many::{WandManyData, WandManyMessage},
@@ -13,9 +17,9 @@ use crate::{
 pub fn wand_many_menu(
     ui: &mut Ui,
     data: &mut WandManyData,
+    cfg: &mut WandManyCfg,
     are_tools_active: &mut bool,
-    comment_buffer: &mut String,
-    exclfolder_buffer: &mut String,
+    buffers: &mut WandManyMenuBuffers,
     show_wandmany: &mut bool,
     paths_selector: Option<&PathsSelector>,
 ) -> Option<(Vec<String>, Vec<String>)> {
@@ -119,12 +123,13 @@ pub fn wand_many_menu(
                 assess_last.success_assessment = assess_tmp;
             }
 
-            text_edit_multiline(ui, comment_buffer, are_tools_active);
+            text_edit_multiline(ui, &mut buffers.comment, are_tools_active);
 
             ui.horizontal(|ui| {
-                if ui.button("Add comment").clicked() && !comment_buffer.trim().is_empty() {
-                    data.messages
-                        .push(WandManyMessage::from_comment(mem::take(comment_buffer)));
+                if ui.button("Add comment").clicked() && !buffers.comment.trim().is_empty() {
+                    data.messages.push(WandManyMessage::from_comment(mem::take(
+                        &mut buffers.comment,
+                    )));
                 }
                 if ui.button("Clear").clicked() {
                     data.messages.clear();
@@ -133,11 +138,11 @@ pub fn wand_many_menu(
         });
         ui.separator();
         egui::CollapsingHeader::new("Folders to exclude").show(ui, |ui| {
-            text_edit_singleline(ui, exclfolder_buffer, are_tools_active);
-            if ui.button("Add folder to exclude").clicked() && !exclfolder_buffer.trim().is_empty()
+            text_edit_singleline(ui, &mut buffers.exclfolder, are_tools_active);
+            if ui.button("Add folder to exclude").clicked() && !buffers.exclfolder.trim().is_empty()
             {
                 data.subfolders_to_exclude
-                    .push(mem::take(exclfolder_buffer))
+                    .push(mem::take(&mut buffers.exclfolder))
             }
 
             let n_folders = data.subfolders_to_exclude.len();
@@ -156,6 +161,20 @@ pub fn wand_many_menu(
                 if let Some(idx) = idx_remove {
                     data.subfolders_to_exclude.remove(idx);
                 }
+            }
+        });
+        ui.separator();
+        egui::CollapsingHeader::new("Server settings").show(ui, |ui| {
+            text_edit_singleline(ui, &mut cfg.url, are_tools_active).on_hover_text("url");
+            let timeout_label = "timeout (s)";
+            if buffers.timeout.is_empty() {
+                buffers.timeout = cfg.timeout_s.to_string();
+            }
+            if let (has_changed, Some(timeout)) =
+                process_number(ui, are_tools_active, timeout_label, &mut buffers.timeout)
+                && has_changed
+            {
+                cfg.timeout_s = timeout;
             }
         });
         ui.separator();

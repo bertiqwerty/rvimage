@@ -811,7 +811,7 @@ impl Control {
 
             let url = self.cfg.prj.wand_many.url.clone();
             let headers = self.cfg.usr.wand_many_headers.clone();
-            let timeout = self.cfg.prj.wand_many.timeout_ms;
+            let timeout = self.cfg.prj.wand_many.timeout_s;
             let files = files.iter().map(|f| (*f).clone()).collect::<Vec<_>>();
             let folders_to_exclude = folders_to_exclude
                 .iter()

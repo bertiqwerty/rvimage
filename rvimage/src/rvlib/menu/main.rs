@@ -164,12 +164,17 @@ fn save_dialog_in_prjfolder(prj_path: &Path, opened_folder: Option<&str>) -> Opt
 }
 
 #[derive(Default)]
+pub struct WandManyMenuBuffers {
+    pub comment: String,
+    pub exclfolder: String,
+    pub timeout: String,
+}
+#[derive(Default)]
 pub struct TextBuffers {
     pub label_propagation: String,
     pub label_deletion: String,
     pub import_coco_from_ssh_path: String,
-    pub wand_many_comment: String,
-    pub wand_many_exclfolder: String,
+    pub wand_many_buffers: WandManyMenuBuffers,
 }
 
 pub struct Menu {
@@ -197,8 +202,7 @@ impl Menu {
             label_propagation: "".into(),
             label_deletion: "".into(),
             import_coco_from_ssh_path: "path on ssh server".into(),
-            wand_many_comment: "".into(),
-            wand_many_exclfolder: "".into(),
+            wand_many_buffers: WandManyMenuBuffers::default(),
         };
         Self {
             window_open: true,
@@ -424,9 +428,9 @@ impl Menu {
                     && let Some((files, folders_to_exclude)) = wand_many_menu(
                         ui,
                         &mut ctrl.data.wand_many,
+                        &mut ctrl.cfg.prj.wand_many,
                         &mut self.are_tools_active,
-                        &mut self.text_buffers.wand_many_comment,
-                        &mut self.text_buffers.wand_many_exclfolder,
+                        &mut self.text_buffers.wand_many_buffers,
                         &mut self.show_wandmany,
                         ctrl.paths_navigator.paths_selector(),
                     )

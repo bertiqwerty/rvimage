@@ -133,9 +133,9 @@ pub struct RestWandMany {
     data: RestData,
 }
 impl RestWandMany {
-    pub fn new(url: String, authorization: Option<&str>, timeout_ms: usize) -> Self {
+    pub fn new(url: String, authorization: Option<&str>, timeout_s: usize) -> Self {
         Self {
-            data: RestData::new(url, authorization, timeout_ms, "predict_many"),
+            data: RestData::new(url, authorization, timeout_s * 1000, "predict_many"),
         }
     }
 }
