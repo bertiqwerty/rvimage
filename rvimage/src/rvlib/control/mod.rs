@@ -216,15 +216,14 @@ mod detail {
             }
         }
     }
-    pub(super) fn load(
-        file_path: &Path,
-    ) -> RvResult<(
-        ToolsDataMap,
-        Option<String>,
-        CfgPrj,
-        Option<WandManyData>,
-        Option<String>,
-    )> {
+    pub struct LoadedPrj {
+        pub tdm: ToolsDataMap,
+        pub opened_folder: Option<String>,
+        pub cfg_prj: CfgPrj,
+        pub wand_many_data: Option<WandManyData>,
+        pub filter_string: Option<String>,
+    }
+    pub(super) fn load(file_path: &Path) -> RvResult<LoadedPrj> {
         let s = file_util::read_to_string(file_path)?;
 
         let save_data = serde_json::from_str::<SavePrjData>(s.as_str()).map_err(to_rv)?;
@@ -232,13 +231,13 @@ mod detail {
             SavedCfg::CfgLegacy(cfg) => cfg.to_cfg().prj,
             SavedCfg::CfgPrj(cfg_prj) => cfg_prj,
         };
-        Ok((
-            add_tools_initial_data(save_data.tools_data_map),
-            save_data.opened_folder,
+        Ok(LoadedPrj {
+            tdm: add_tools_initial_data(save_data.tools_data_map),
+            opened_folder: save_data.opened_folder,
             cfg_prj,
-            save_data.wand_many_data,
-            save_data.filter_string,
-        ))
+            wand_many_data: save_data.wand_many_data,
+            filter_string: save_data.filter_string,
+        })
     }
 
     #[derive(PartialEq)]
@@ -265,11 +264,11 @@ mod detail {
         }
     }
     pub fn import_annos(cur_tdm: &mut ToolsDataMap, file_path: &Path) -> RvResult<()> {
-        let (mut loaded_tdm, _, _, _, _) = load(file_path)?;
+        let mut loaded = load(file_path)?;
 
-        if fill_empty_curtdm(BBOX_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty {
+        if fill_empty_curtdm(BBOX_NAME, cur_tdm, &mut loaded.tdm) == FillResult::BothNotEmpty {
             let cur_bbox = toolsdata_by_name!(BBOX_NAME, bbox_mut, cur_tdm);
-            let loaded_bbox = toolsdata_by_name!(BBOX_NAME, bbox_mut, loaded_tdm);
+            let loaded_bbox = toolsdata_by_name!(BBOX_NAME, bbox_mut, loaded.tdm);
             let cur_annos = mem::take(&mut cur_bbox.annotations_map);
             let cur_li = mem::take(&mut cur_bbox.label_info);
             let loaded_annos = mem::take(&mut loaded_bbox.annotations_map);
@@ -279,9 +278,9 @@ mod detail {
             cur_bbox.label_info = merged_li;
         }
 
-        if fill_empty_curtdm(BRUSH_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty {
+        if fill_empty_curtdm(BRUSH_NAME, cur_tdm, &mut loaded.tdm) == FillResult::BothNotEmpty {
             let cur_brush = toolsdata_by_name!(BRUSH_NAME, brush_mut, cur_tdm);
-            let loaded_brush = toolsdata_by_name!(BRUSH_NAME, brush_mut, loaded_tdm);
+            let loaded_brush = toolsdata_by_name!(BRUSH_NAME, brush_mut, loaded.tdm);
             let cur_annos = mem::take(&mut cur_brush.annotations_map);
             let cur_li = mem::take(&mut cur_brush.label_info);
             let loaded_annos = mem::take(&mut loaded_brush.annotations_map);
@@ -291,16 +290,16 @@ mod detail {
             cur_brush.label_info = merged_li;
         }
 
-        if fill_empty_curtdm(ROT90_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty {
+        if fill_empty_curtdm(ROT90_NAME, cur_tdm, &mut loaded.tdm) == FillResult::BothNotEmpty {
             let cur_rot90 = toolsdata_by_name!(ROT90_NAME, rot90_mut, cur_tdm);
-            let loaded_rot90 = toolsdata_by_name!(ROT90_NAME, rot90_mut, loaded_tdm);
+            let loaded_rot90 = toolsdata_by_name!(ROT90_NAME, rot90_mut, loaded.tdm);
             *cur_rot90 = mem::take(cur_rot90).merge(mem::take(loaded_rot90));
         }
 
-        if fill_empty_curtdm(ATTRIBUTES_NAME, cur_tdm, &mut loaded_tdm) == FillResult::BothNotEmpty
+        if fill_empty_curtdm(ATTRIBUTES_NAME, cur_tdm, &mut loaded.tdm) == FillResult::BothNotEmpty
         {
             let cur_attr = toolsdata_by_name!(ATTRIBUTES_NAME, attributes_mut, cur_tdm);
-            let loaded_attr = toolsdata_by_name!(ATTRIBUTES_NAME, attributes_mut, loaded_tdm);
+            let loaded_attr = toolsdata_by_name!(ATTRIBUTES_NAME, attributes_mut, loaded.tdm);
             *cur_attr = mem::take(cur_attr).merge(mem::take(loaded_attr));
         }
         Ok(())
@@ -453,12 +452,12 @@ impl Control {
                 );
                 defer_file_removal!(&copied_file_path);
                 trace_ok_err(fs::copy(input_prj_path, &copied_file_path));
-                let (tdm, _, _, _, _) = detail::load(input_prj_path)?;
-                tdm
+                let loaded = detail::load(input_prj_path)?;
+                loaded.tdm
             } else {
                 // are in the same parent folder, i.e., we replace with the last manual save
-                let (tdm, _, _, _, _) = detail::load(input_prj_path)?;
-                tdm
+                let loaded = detail::load(input_prj_path)?;
+                loaded.tdm
             };
             self.set_current_prj_path(cur_prj_path)?;
             self.cfg.write()?;
@@ -495,24 +494,23 @@ impl Control {
         // their path correctly
         self.set_current_prj_path(prj_path.clone())?;
         self.cfg.write()?;
-        let (tools_data_map, to_be_opened_folder, read_cfg, wand_many_data, filter_string) =
-            detail::load(&prj_path).inspect_err(|_| {
-                self.cfg.unset_current_prj_path();
-                trace_ok_err(self.cfg.write());
-            })?;
-        if let Some(of) = to_be_opened_folder {
+        let loaded = detail::load(&prj_path).inspect_err(|_| {
+            self.cfg.unset_current_prj_path();
+            trace_ok_err(self.cfg.write());
+        })?;
+        if let Some(of) = loaded.opened_folder {
             self.open_relative_folder(of)?;
         }
-        self.cfg.prj = read_cfg;
-        if let Some(wand_many_data) = wand_many_data {
+        self.cfg.prj = loaded.cfg_prj;
+        if let Some(wand_many_data) = loaded.wand_many_data {
             self.data.wand_many = wand_many_data;
         }
-        if let Some(filter_string) = filter_string {
+        if let Some(filter_string) = loaded.filter_string {
             self.data.filter_buffer = filter_string;
         }
         // save cfg of loaded project
         trace_ok_err(self.cfg.write());
-        Ok(tools_data_map)
+        Ok(loaded.tdm)
     }
 
     fn wait_for_save(&mut self) {
@@ -529,7 +527,8 @@ impl Control {
         prj_path: &Path,
         import_section: PrjSettingImportSection,
     ) -> String {
-        let (_, _, prj_cfg, _, _) = detail::load(prj_path).unwrap();
+        let loaded = detail::load(prj_path).unwrap();
+        let prj_cfg = loaded.cfg_prj;
 
         match import_section {
             PrjSettingImportSection::All => format!("{prj_cfg:#?}"),
@@ -548,7 +547,8 @@ impl Control {
         import_section: PrjSettingImportSection,
     ) -> RvResult<()> {
         tracing::info!("importing settings from {prj_path:?}");
-        let (_, _, prj_cfg, _, _) = detail::load(prj_path)?;
+        let loaded = detail::load(prj_path)?;
+        let prj_cfg = loaded.cfg_prj;
 
         match import_section {
             PrjSettingImportSection::All => {
@@ -1307,7 +1307,7 @@ fn test_save_load() {
 
     defer_file_removal!(&export_file);
 
-    let (tdm_imported, _, cfg_imported, _, _) = detail::load(&export_file).unwrap();
-    assert_eq!(tdm, tdm_imported);
-    assert_eq!(cfg.prj, cfg_imported);
+    let loaded = detail::load(&export_file).unwrap();
+    assert_eq!(tdm, loaded.tdm);
+    assert_eq!(cfg.prj, loaded.cfg_prj);
 }
