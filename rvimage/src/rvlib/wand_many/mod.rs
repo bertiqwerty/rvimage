@@ -124,9 +124,17 @@ pub trait WandMany {
         prj_name: &'a str,
         annotations_input: WandManyAnnotationsInput<'a>,
         files: &[&String],
+        selected_file_idx: Option<usize>,
         communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
     ) -> RvResult<(WandManyOutput, String)>;
+}
+
+#[derive(Serialize)]
+struct RestWandQueryParams {
+    prj_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected_file_idx: Option<usize>,
 }
 
 pub struct RestWandMany {
@@ -146,6 +154,7 @@ impl WandMany for RestWandMany {
         prj_name: &'a str,
         annos_input: WandManyAnnotationsInput<'a>,
         files: &[&String],
+        selected_file_idx: Option<usize>,
         communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
     ) -> RvResult<(WandManyOutput, String)> {
@@ -153,8 +162,11 @@ impl WandMany for RestWandMany {
         let param_json_str = serialize_or_default(parameters)?;
         let files_json_str = serde_json::to_string(files).map_err(to_rv)?;
         let communication_json_str = serde_json::to_string(communication).map_err(to_rv)?;
+        let query_params = RestWandQueryParams {
+            prj_name: prj_name.to_string(),
+            selected_file_idx,
+        };
         let form = multipart::Form::new()
-            .part("prj_name", multipart::Part::text(prj_name.to_string()))
             .part("input_annotations", multipart::Part::text(annos_json_str))
             .part("files", multipart::Part::text(files_json_str))
             .part(
@@ -162,7 +174,7 @@ impl WandMany for RestWandMany {
                 multipart::Part::text(communication_json_str),
             )
             .part("parameters", multipart::Part::text(param_json_str));
-        self.data.send(form, None)
+        self.data.send(form, Some(&query_params))
     }
 }
 
@@ -202,7 +214,7 @@ fn test_testserver() {
     let mut param_map = ParamMap::new();
     param_map.insert("a".to_string(), ParamVal::from(42));
     let (_, s) = w
-        .predict("dummy", annos, &[], &[], Some(&param_map))
+        .predict("dummy", annos, &[], None, &[], Some(&param_map))
         .unwrap();
     assert_eq!("method_description", s);
 }

@@ -5,7 +5,7 @@ use reqwest::{
     header::{AUTHORIZATION, HeaderMap, HeaderValue},
 };
 use rvimage_domain::{RvResult, rverr, to_rv};
-use serde::de::DeserializeOwned;
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::result::trace_ok_err;
 
@@ -46,23 +46,20 @@ impl RestData {
             timeout_ms,
         }
     }
-    pub fn send<O>(&self, form: multipart::Form, query_params: Option<&str>) -> RvResult<O>
+    pub fn send<Q, O>(&self, form: multipart::Form, query_params: Option<&Q>) -> RvResult<O>
     where
+        Q: Serialize,
         O: DeserializeOwned,
     {
         tracing::info!("Sending predictive labeling request to {}", self.url);
-        let url_with_query = query_params.map(|qp| format!("{}?{}", self.url, qp));
-        let url = if let Some(url_wq) = &url_with_query {
-            tracing::info!("Full URL with query parameters: {url_wq}");
-            url_wq
+
+        let request = self.client.post(&self.url).headers(self.headers.clone());
+        let request = if let Some(qp) = query_params {
+            request.query(qp)
         } else {
-            tracing::info!("Using base URL, no query parameters provided: {}", self.url);
-            &self.url
+            request
         };
-        let response = self
-            .client
-            .post(url)
-            .headers(self.headers.clone())
+        let response = request
             .multipart(form)
             .timeout(Duration::from_millis(self.timeout_ms as u64))
             .send()

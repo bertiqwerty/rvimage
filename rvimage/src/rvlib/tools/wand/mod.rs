@@ -66,6 +66,11 @@ pub trait Wand {
     ) -> RvResult<WandAnnotationsOutput>;
 }
 
+#[derive(Serialize)]
+pub struct WandQueryParams {
+    active_tool: &'static str,
+}
+
 pub struct RestWand {
     data: RestData,
 }
@@ -113,9 +118,9 @@ impl Wand for RestWand {
             .part("parameters", multipart::Part::text(param_json_str))
             .part("input_annotations", multipart::Part::text(annos_json_str))
             .part("zoom_box", multipart::Part::text(zoom_box_json_str));
-        let query_params = format!("active_tool={active_tool}");
+        let query_params = WandQueryParams { active_tool };
 
-        self.data.send(form, Some(query_params.as_str()))
+        self.data.send(form, Some(&query_params))
     }
 }
 

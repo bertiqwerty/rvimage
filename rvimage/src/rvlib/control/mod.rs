@@ -796,14 +796,15 @@ impl Control {
         Ok(())
     }
 
-    pub fn submit_prj_to_wandannotator(
+    pub fn submit_files_to_wand(
         &mut self,
         tools_data_map: &ToolsDataMap,
         files: &[String],
+        selected_file_idx: Option<usize>,
         folders_to_exclude: &[String],
     ) {
         if self.wand_many_rx.is_some() {
-            tracing::warn!("cannot submit project to wand annotator, annotator already running");
+            tracing::warn!("cannot submit files to wand, already running");
         } else {
             let tdm = tools_data_map.clone();
             let (tx, rx) = mpsc::channel();
@@ -833,13 +834,20 @@ impl Control {
                     WandManyAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
 
                 let wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
-                tracing::info!("submitting project to wand annotator...");
-                let output = trace_ok_err(wand_many.predict(&prj_name, input, &files, &msgs, None));
+                tracing::info!("submitting files to wand...");
+                let output = trace_ok_err(wand_many.predict(
+                    &prj_name,
+                    input,
+                    &files,
+                    selected_file_idx,
+                    &msgs,
+                    None,
+                ));
                 if let Some(output) = output {
                     trace_ok_err(tx.send(output));
                 } else {
                     tracing::error!(
-                        "Processing failed with wand annotator failed. Prediction returned an error."
+                        "Processing files failed with wand failed. Prediction returned an error."
                     );
                     trace_ok_err(tx.send((WandManyOutput::default(), "".into())));
                 }
@@ -851,7 +859,7 @@ impl Control {
         if let Some(rx) = &self.wand_many_rx {
             match rx.try_recv() {
                 Ok((output, server_response)) => {
-                    tracing::info!("received output from wand annotator, applying to project...");
+                    tracing::info!("received output from wand, applying to files...");
                     let res = output.resolve_into_tdm(tools_data_map);
                     tracing::info!("... applying done!");
                     self.wand_many_rx = None;
@@ -866,7 +874,7 @@ impl Control {
                 Err(mpsc::TryRecvError::Empty) => Ok(false),
                 Err(mpsc::TryRecvError::Disconnected) => {
                     self.wand_many_rx = None;
-                    Err(rverr!("wand annotator channel disconnected"))
+                    Err(rverr!("wand-many channel disconnected"))
                 }
             }
         } else {

@@ -89,11 +89,12 @@ class DummyParams(BaseModel):
 
 @app.post("/predict_many")
 async def predict_many(
-    prj_name: Annotated[str, Form(...)],
     input_annotations: Annotated[str, Form(...)],
     files: Annotated[str, Form(...)],
     communication: Annotated[str, Form(...)],
     parameters: Annotated[str, Form(...)],
+    prj_name: str,
+    selected_file_idx: int | None = None,
 ) -> tuple[OutputAnnotationData, str]:
     InputAnnotationData.model_validate_json(input_annotations)
     file_list = json.loads(files)
@@ -102,6 +103,7 @@ async def predict_many(
     ]
     params = DummyParams.model_validate_json(parameters)
     print(f"project name: {prj_name}")
+    print(f"selected file index: {selected_file_idx}")
     print(f"files: {file_list}")
     print(f"communication: {comms}")
     print(f"parameters: {params}")

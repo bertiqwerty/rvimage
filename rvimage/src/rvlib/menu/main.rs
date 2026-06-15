@@ -435,7 +435,12 @@ impl Menu {
                         ctrl.paths_navigator.paths_selector(),
                     )
                 {
-                    ctrl.submit_prj_to_wandannotator(tools_data_map, &files, &folders_to_exclude);
+                    ctrl.submit_files_to_wand(
+                        tools_data_map,
+                        &files,
+                        ctrl.file_selected_idx,
+                        &folders_to_exclude,
+                    );
                 }
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");
