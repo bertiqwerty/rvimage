@@ -241,6 +241,7 @@ impl CocoExportData {
         let images = export_data
             .annotations
             .iter()
+            .filter(|(_, (annos, _, _))| !annos.is_empty())
             .enumerate()
             .map(make_image_map)
             .collect::<Vec<_>>();
