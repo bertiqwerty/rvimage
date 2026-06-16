@@ -5,7 +5,7 @@ use crate::{
     meta_data::MetaData,
     result::trace_ok_err,
     tools::{
-        bbox, brush,
+        attributes, bbox, brush,
         wand::{AnnosWithInfo, ImageForPrediction, RestWand, Wand, WandAnnotationsInput},
     },
     tools_data::{ExportAsCoco, ImportMode, Rot90ToolData, merge},
@@ -58,6 +58,7 @@ pub fn predictive_labeling<DA>(
             let brush_annos = brush::get_annos_if_some(&world);
             let bbox_label_info = bbox::get_label_info(&world);
             let brush_label_info = brush::get_label_info(&world);
+            let attrs = attributes::get_annos(&world);
 
             let predictions = trace_ok_err(wand.predict(
                 im,
@@ -70,6 +71,7 @@ pub fn predictive_labeling<DA>(
                     brush: brush_annos.and_then(|annos| {
                         brush_label_info.map(|labelinfo| AnnosWithInfo { labelinfo, annos })
                     }),
+                    attributes: attrs,
                 },
                 *world.zoom_box(),
             ));

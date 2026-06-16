@@ -33,6 +33,7 @@ where
 pub struct WandAnnotationsInput<'a> {
     pub bbox: Option<AnnosWithInfo<'a, GeoFig>>,
     pub brush: Option<AnnosWithInfo<'a, Canvas>>,
+    pub attributes: Option<&'a ParamMap>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -165,9 +166,12 @@ fn test() {
             annos: &brush_annos,
             labelinfo: &labelinfo,
         };
+
+        let attributes_dummy = ParamMap::from([("param_name".to_string(), ParamVal::from(0.5))]);
         let annos = WandAnnotationsInput {
             bbox: Some(bbox_dummy),
             brush: Some(brush_dummy),
+            attributes: Some(&attributes_dummy),
         };
         tracing::info!("Sending prediction request");
         let seg = w

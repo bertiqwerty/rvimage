@@ -42,6 +42,7 @@ where
     T: Clone + Serialize + DeserializeOwned,
 {
     for p in paths {
+        tracing::warn!("deleting {p:?}");
         annotations_map.remove_pp(p);
     }
     Ok(())
@@ -130,7 +131,7 @@ fn delete_subsequent_annos_of_tool(
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Close {
     Yes,
     No,
@@ -431,14 +432,16 @@ fn annotations(
                     if tool_name == BBOX_NAME {
                         let tools_data = tdm.get_mut(tool_name);
                         if let Some(td) = tools_data {
-                            td.specifics.bbox_mut()?.annotations_map.remove(&af);
+                            let am = &mut td.specifics.bbox_mut()?.annotations_map;
+                            am.remove(&af);
                             tracing::info!("...done.");
                         }
                     }
                     if tool_name == BRUSH_NAME {
                         let tools_data = tdm.get_mut(tool_name);
                         if let Some(td) = tools_data {
-                            td.specifics.brush_mut()?.annotations_map.remove(&af);
+                            let am = &mut td.specifics.brush_mut()?.annotations_map;
+                            am.remove(&af);
                             tracing::info!("...done.");
                         }
                     }
@@ -661,7 +664,7 @@ fn collect_stats(
 
 fn anno_stats(
     ui: &mut Ui,
-    tdm: &mut ToolsDataMap,
+    tdm: &ToolsDataMap,
     stats_compute_results: &mut Option<Vec<AnnoStatsRecord>>,
     tool_choice: ToolChoice,
     paths_selector: Option<&PathsSelector>,
@@ -764,20 +767,21 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
     (close, tdm)
 }
 
+#[derive(Debug)]
 struct AnnotationsMenuResult {
     pub close: Close,
-    pub tdm: Option<ToolsDataMap>,
+    pub project_loaded: bool,
     pub new_file_idx: Option<usize>,
 }
 fn annotations_popup(
     ui: &mut Ui,
     ctrl: &mut Control,
-    in_tdm: &mut ToolsDataMap,
+    inout_tdm: &mut ToolsDataMap,
     are_tools_active: &mut bool,
     anno_params: &mut AnnotationsParams,
 ) -> RvResult<AnnotationsMenuResult> {
     let mut close = Close::No;
-    let mut tdm = None;
+    let mut project_loaded = false;
     let mut new_file_idx = Ok(None);
     let mut rvresult = Ok(());
     let mut update_rvresult = |r: RvResult<()>| {
@@ -786,7 +790,12 @@ fn annotations_popup(
         }
     };
     egui::CollapsingHeader::new("Restore Annotations").show(ui, |ui| {
+        let tdm;
         (close, tdm) = autosaves(ui, ctrl, close);
+        if let Some(tdm) = tdm {
+            project_loaded = true;
+            *inout_tdm = tdm;
+        }
     });
     ui.separator();
     egui::CollapsingHeader::new("Delete or Propagate Annotations").show(ui, |ui| {
@@ -794,12 +803,13 @@ fn annotations_popup(
         anno_params.tool_choice_delprop.ui(ui, skip_attrs);
         let r = annotations(
             ui,
-            in_tdm,
+            inout_tdm,
             are_tools_active,
             anno_params,
             &ctrl.paths_navigator,
         );
-        update_rvresult(r);
+        let err = r.as_ref().map(|_| ()).map_err(|e| e.clone());
+        update_rvresult(err);
     });
     ui.separator();
     egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
@@ -807,7 +817,7 @@ fn annotations_popup(
         anno_params.tool_choice_stats.ui(ui, skip_attrs);
         let r = anno_stats(
             ui,
-            in_tdm,
+            inout_tdm,
             &mut anno_params.stats_result,
             anno_params.tool_choice_stats,
             ctrl.paths_navigator.paths_selector(),
@@ -820,7 +830,7 @@ fn annotations_popup(
         anno_params.tool_choice_plot.ui(ui, skip_attrs);
         new_file_idx = anno_plots(
             ui,
-            in_tdm,
+            inout_tdm,
             anno_params.tool_choice_plot,
             ctrl.paths_navigator.paths_selector(),
             are_tools_active,
@@ -841,7 +851,7 @@ fn annotations_popup(
     rvresult?;
     Ok(AnnotationsMenuResult {
         close,
-        tdm,
+        project_loaded,
         new_file_idx: new_file_idx?,
     })
 }
@@ -889,10 +899,7 @@ impl Widget for AutosaveMenu<'_> {
                 ));
                 let close = matches!(anno_menu_res.as_ref().map(|a| a.close), Some(Close::Yes));
                 if let Some(anno_menu_res) = anno_menu_res {
-                    if let Some(tdm) = anno_menu_res.tdm {
-                        *self.tdm = tdm;
-                        *self.project_loaded = true;
-                    }
+                    *self.project_loaded = anno_menu_res.project_loaded;
                     *self.new_file_idx = anno_menu_res.new_file_idx;
                 }
                 if close {

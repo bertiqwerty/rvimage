@@ -71,10 +71,7 @@ async def predict(
     bbox_annos.extend(None if bbd is None else bbd.annos)
     brush_annos.extend(None if brd is None else brd.annos)
 
-    oad = OutputAnnotationData(
-        bbox=bbox_annos,
-        brush=brush_annos,
-    )
+    oad = OutputAnnotationData(bbox=bbox_annos, brush=brush_annos, attributes=None)
     return oad
 
 
