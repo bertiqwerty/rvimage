@@ -721,7 +721,7 @@ requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.12" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "opencv-python-headless", specifier = ">=4.11.0.86" },
-    { name = "rvimage", directory = "../rvimage-py" },
+    { name = "rvimage", editable = "../rvimage-py" },
 ]
 
 [[package]]
@@ -821,8 +821,8 @@ wheels = [
 
 [[package]]
 name = "rvimage"
-version = "0.1.7"
-source = { directory = "../rvimage-py" }
+version = "0.1.8"
+source = { editable = "../rvimage-py" }
 dependencies = [
     { name = "numpy" },
     { name = "opencv-python-headless" },

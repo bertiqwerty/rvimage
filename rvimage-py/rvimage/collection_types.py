@@ -4,7 +4,12 @@ from collections.abc import Callable, Iterable, Sequence
 from typing import Protocol, Self, TypeVar
 
 import numpy as np
-from pydantic import BaseModel, model_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    model_serializer,
+    model_validator,
+    field_validator,
+)
 
 from rvimage.converters import (
     extract_polys_from_mask,
@@ -306,14 +311,27 @@ class BrushData(BaseModel):
     labelinfo: Labelinfo
 
 
+AttributeMap = dict[str, float | int | str | bool | None]
+Attributes = AttributeMap | list[tuple[str, AttributeMap]]
+
+
 class InputAnnotationData(BaseModel):
     bbox: BboxData | None
     brush: BrushData | None
+    attributes: Attributes | None
+
+    @field_validator("attributes", mode="before")
+    @classmethod
+    def flatten_attributes(cls, data: AttributeMap | list[tuple[str, AttributeMap]]):
+        if data is not None:
+            data = flatten_list_of_params(data)
+        return data
 
 
 class OutputAnnotationData(BaseModel):
     bbox: BboxAnnos | list[tuple[str, tuple[BboxAnnos, ShapeI]]] | None
     brush: BrushAnnos | list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None
+    attributes: AttributeMap | list[tuple[str, tuple[AttributeMap, ShapeI]]] | None
 
 
 class WandManyMessage(BaseModel):
@@ -322,9 +340,18 @@ class WandManyMessage(BaseModel):
     success_assessment: int | None = None
 
 
-def validate_params(values: dict) -> dict:
+def flatten_params(values: dict) -> dict:
     if isinstance(values, dict):
         for field_k, field_v in values.items():
             if isinstance(field_v, dict):
                 values[field_k] = next(iter(field_v.values()))
     return values
+
+
+def flatten_list_of_params(
+    values: dict | list[tuple[str, dict]],
+) -> dict | list[tuple[str, dict]]:
+    if isinstance(values, dict):
+        return flatten_params(values)
+    else:
+        return [(k, flatten_params(v)) for k, v in values]

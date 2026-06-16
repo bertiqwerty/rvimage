@@ -8,8 +8,8 @@ dependencies = [
     "fastapi[standard]>=0.115.12",
     "loguru>=0.7.3",
     "opencv-python-headless>=4.11.0.86",
-    "rvimage>=0.1.7",
+    "rvimage>=0.1.8",
 ]
 
 [tool.uv.sources]
-rvimage = { path = "../rvimage-py" }
+rvimage = { path = "../rvimage-py",  editable = true }

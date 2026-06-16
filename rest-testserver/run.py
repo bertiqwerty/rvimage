@@ -6,7 +6,7 @@ from fastapi import FastAPI, File, Form, Query, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
-from pydantic import TypeAdapter, BaseModel, model_validator
+from pydantic import BaseModel, TypeAdapter, model_validator
 
 from rvimage.collection_types import (
     BboxAnnos,
@@ -14,7 +14,8 @@ from rvimage.collection_types import (
     InputAnnotationData,
     OutputAnnotationData,
     WandManyMessage,
-    validate_params,
+    flatten_params,
+    ShapeI,
 )
 from rvimage.converters import decode_bytes_into_rgbarray
 from rvimage.domain import BbF
@@ -84,7 +85,14 @@ class DummyParams(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def validate(cls, v):
-        return validate_params(v)
+        return flatten_params(v)
+
+
+class AttributeMap(BaseModel):
+    param_name: int
+
+
+Attributes = list[tuple[str, AttributeMap]]
 
 
 @app.post("/predict_many")
@@ -96,7 +104,9 @@ async def predict_many(
     prj_name: str,
     selected_file_idx: int | None = None,
 ) -> tuple[OutputAnnotationData, str]:
-    InputAnnotationData.model_validate_json(input_annotations)
+    annos = InputAnnotationData.model_validate_json(input_annotations)
+    attributes = TypeAdapter(Attributes).validate_python(annos.attributes)
+    print(attributes)
     file_list = json.loads(files)
     comms: list[WandManyMessage] = [
         WandManyMessage.model_validate(m) for m in json.loads(communication)
@@ -108,4 +118,12 @@ async def predict_many(
     print(f"communication: {comms}")
     print(f"parameters: {params}")
 
-    return (OutputAnnotationData(bbox=None, brush=None), "method_description")
+    output_attributes = []
+    for f, _ in attributes:
+        a_shape_tuple = AttributeMap(param_name=123).model_dump(), ShapeI(w=100, h=200)
+        output_attributes.append((f, a_shape_tuple))
+
+    return (
+        OutputAnnotationData(bbox=None, brush=None, attributes=output_attributes),
+        "method_description",
+    )
