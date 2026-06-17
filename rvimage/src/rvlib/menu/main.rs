@@ -10,7 +10,7 @@ use crate::{
         file_counts::labels_and_sorting,
         open_folder,
         scroll_area::ShowFileOptions,
-        ui_util::text_edit_singleline,
+        ui_util::{button_confirmed, text_edit_singleline},
         wand_many::wand_many_menu,
     },
     tools::ToolState,
@@ -631,11 +631,12 @@ impl Menu {
                 self
             );
             ctrl.cfg.prj.sort_params = sort_params;
-            if ui
-                .button("Pre-cache filtered images")
-                .on_hover_text("double click")
-                .double_clicked()
-            {
+            if button_confirmed(
+                ui,
+                "Pre-cache filtered images",
+                "Pre-cache filtered Images",
+                "Might take a while, are you sure?",
+            ) {
                 self.cache_all_progress = Some(0.0);
             }
             if self.cache_all_progress.is_some() {

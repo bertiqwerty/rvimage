@@ -172,11 +172,7 @@ pub fn removable_rows(
 ) -> Option<usize> {
     let mut to_be_removed = None;
     for idx in 0..n_rows {
-        if ui
-            .button("x")
-            .on_hover_text("double click😈")
-            .double_clicked()
-        {
+        if button_confirmed(ui, "x", "Delete", "Are you sure?") {
             to_be_removed = Some(idx);
         }
         make_row(ui, idx)
@@ -204,4 +200,44 @@ where
         *x = None;
     }
     input_changed
+}
+
+pub fn button_confirmed<'a>(
+    ui: &mut egui::Ui,
+    button_txt: impl egui::IntoAtoms<'a>,
+    modal_title: impl Into<egui::RichText>,
+    modal_txt: impl Into<egui::WidgetText>,
+) -> bool {
+    let modal_id = ui.make_persistent_id("auto_inline_modal");
+
+    let button_clicked = ui.button(button_txt).clicked();
+
+    let ctx = ui.ctx();
+    let mut confirmed = false;
+
+    if button_clicked {
+        ctx.data_mut(|data| data.insert_temp(modal_id, true));
+    }
+
+    let is_open: bool = ctx.data(|data| data.get_temp(modal_id).unwrap_or(false));
+
+    if is_open {
+        egui::Modal::new(modal_id).show(ctx, |ui| {
+            ui.heading(modal_title);
+            ui.label(modal_txt);
+
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                if ui.button("Okay").clicked() {
+                    confirmed = true;
+                    ui.ctx().data_mut(|data| data.insert_temp(modal_id, false));
+                }
+                if ui.button("Cancel").clicked() {
+                    ui.ctx().data_mut(|data| data.insert_temp(modal_id, false));
+                }
+            });
+        });
+    }
+
+    confirmed
 }

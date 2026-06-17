@@ -19,6 +19,7 @@ use crate::{
     control::{Control, paths_navigator::PathsNavigator},
     file_util::{self, PathPair},
     get_annos_from_tdm, get_labelinfo_from_tdm,
+    menu::ui_util::button_confirmed,
     parameters::ParamVal,
     paths_selector::PathsSelector,
     result::trace_ok_err,
@@ -247,11 +248,12 @@ where
                         .sum::<usize>()
                 ))
                 .monospace();
-                if ui
-                    .button("x")
-                    .on_hover_text("double-click to delete all annotations in this folder")
-                    .double_clicked()
-                {
+                if button_confirmed(
+                    ui,
+                    "x",
+                    "Delete all annotations",
+                    format!("Are you sure you want to delete all annotations in {p:?}?"),
+                ) {
                     tracing::info!("deleting annotations of {p:?}");
                     let to_del = annos_map_mut
                         .keys()
@@ -400,11 +402,7 @@ fn annotations(
             "Delete annotations of files missing from the file list",
         );
 
-        if ui
-            .button(txt)
-            .on_hover_text("Are you sure? Double click!💀")
-            .double_clicked()
-        {
+        if button_confirmed(ui, txt, "Delete annotations", "Are you sure?") {
             let filepaths = paths_navigator
                 .paths_selector()
                 .map(|ps| ps.filtered_idx_file_paths_pairs());
@@ -748,11 +746,12 @@ fn autosaves(ui: &mut Ui, ctrl: &mut Control, mut close: Close) -> (Close, Optio
 
             for (path, (mb, datetime)) in combined.iter().rev().take((n_autosaves + 5).into()) {
                 if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
-                    if ui
-                        .button(egui::RichText::new(file_name).monospace())
-                        .on_hover_text("double click to apply, LOSS(💀) of unsaved data")
-                        .double_clicked()
-                    {
+                    if button_confirmed(
+                        ui,
+                        egui::RichText::new(file_name).monospace(),
+                        "Apply Autosave",
+                        "Are you sure you want to apply this autosave? LOSS(💀) of unsaved data!",
+                    ) {
                         tdm = trace_ok_err(ctrl.replace_with_save(path));
                         close = Close::Yes;
                     }
