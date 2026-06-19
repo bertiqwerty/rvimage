@@ -14,6 +14,25 @@ use crate::{
     wand_many::{WandManyData, WandManyMessage},
 };
 
+pub fn predict(
+    paths_selector: Option<&PathsSelector>,
+    data: &WandManyData,
+) -> Option<(Vec<String>, Vec<String>)> {
+    let files = paths_selector.map(|ps| {
+        ps.filtered_abs_file_paths()
+            .iter()
+            .map(|p| p.to_string())
+            .collect::<Vec<String>>()
+    });
+    if let Some(files) = files {
+        let subfolders_to_exclude = data.subfolders_to_exclude.clone();
+        Some((files.clone(), subfolders_to_exclude))
+    } else {
+        tracing::warn!("No files selected to submit to wand annotator");
+        None
+    }
+}
+
 pub fn wand_many_menu(
     ui: &mut Ui,
     data: &mut WandManyData,
@@ -178,20 +197,9 @@ pub fn wand_many_menu(
             }
         });
         ui.separator();
-        if ui.button("Submit").clicked() {
+        if ui.button("Predict").clicked() {
             *show_wandmany = false;
-            let files = paths_selector.map(|ps| {
-                ps.filtered_abs_file_paths()
-                    .iter()
-                    .map(|p| p.to_string())
-                    .collect::<Vec<String>>()
-            });
-            if let Some(files) = files {
-                let subfolders_to_exclude = data.subfolders_to_exclude.clone();
-                to_submit = Some((files.clone(), subfolders_to_exclude));
-            } else {
-                tracing::warn!("No files selected to submit to wand annotator");
-            }
+            to_submit = predict(paths_selector, &data);
         }
         ui.separator();
         if ui.button("Close").clicked() {

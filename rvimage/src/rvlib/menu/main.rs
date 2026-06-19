@@ -11,7 +11,7 @@ use crate::{
         open_folder,
         scroll_area::ShowFileOptions,
         ui_util::{button_confirmed, text_edit_singleline},
-        wand_many::wand_many_menu,
+        wand_many::{self, wand_many_menu},
     },
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
@@ -414,6 +414,19 @@ impl Menu {
 
                 ui.menu_button("Wand", |ui| {
                     if ui.button("Predict").clicked() {
+                        if let Some((files, folders_to_exclude)) = wand_many::predict(
+                            ctrl.paths_navigator.paths_selector(),
+                            &ctrl.data.wand_many,
+                        ) {
+                            ctrl.submit_files_to_wand(
+                                tools_data_map,
+                                &files,
+                                ctrl.file_selected_idx,
+                                &folders_to_exclude,
+                            );
+                        }
+                    }
+                    if ui.button("Settings").clicked() {
                         self.show_wandmany = true;
                     }
                     ui.separator();

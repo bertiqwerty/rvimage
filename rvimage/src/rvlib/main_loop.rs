@@ -169,8 +169,14 @@ impl MainEventLoop {
                     &mut self.world.data.tools_data_map,
                     find_active_tool(&self.tools),
                 );
-                self.ctrl
+                let new_annos = self
+                    .ctrl
                     .check_wand_many_output(&mut self.world.data.tools_data_map)?;
+                if new_annos && let Some(active_tool_name) = find_active_tool(&self.tools) {
+                    self.world
+                        .request_redraw_annotations(active_tool_name, Visibility::All);
+                }
+
                 self.world.data.meta_data.ssh_cfg = Some(self.ctrl.cfg.ssh_cfg());
                 if project_loaded_in_curr_iter {
                     for t in &mut self.tools {

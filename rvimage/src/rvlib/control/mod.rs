@@ -830,8 +830,12 @@ impl Control {
             let msgs = self.data.wand_many.messages.clone();
             let param_map = self.data.wand_many.param_map.clone();
             thread::spawn(move || {
-                let (input, files) =
-                    WandManyAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
+                let (input, files, selected_file_idx) = WandManyAnnotationsInput::from_tdm(
+                    &tdm,
+                    &files,
+                    &folders_to_exclude,
+                    selected_file_idx,
+                );
 
                 let wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
                 tracing::info!("submitting files to wand...");

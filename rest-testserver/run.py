@@ -13,6 +13,8 @@ from rvimage.collection_types import (
     BrushAnnos,
     InputAnnotationData,
     OutputAnnotationData,
+    InputAnnotationManyData,
+    OutputAnnotationManyData,
     WandManyMessage,
     flatten_params,
     ShapeI,
@@ -102,8 +104,8 @@ async def predict_many(
     parameters: Annotated[str, Form(...)],
     prj_name: str,
     selected_file_idx: int | None = None,
-) -> tuple[OutputAnnotationData, str]:
-    annos = InputAnnotationData.model_validate_json(input_annotations)
+) -> tuple[OutputAnnotationManyData, str]:
+    annos = InputAnnotationManyData.model_validate_json(input_annotations)
     attributes = TypeAdapter(Attributes).validate_python(annos.attributes)
     print(attributes)
     file_list = json.loads(files)
@@ -123,6 +125,6 @@ async def predict_many(
         output_attributes.append((f, a_shape_tuple))
 
     return (
-        OutputAnnotationData(bbox=None, brush=None, attributes=output_attributes),
+        OutputAnnotationManyData(bbox=None, brush=None, attributes=output_attributes),
         "method_description",
     )

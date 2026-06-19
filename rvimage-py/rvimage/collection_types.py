@@ -301,37 +301,70 @@ class BrushAnnos(BaseModel):
         _keep_inds(self, inds)
 
 
-class BboxData(BaseModel):
-    annos: BboxAnnos | list[tuple[str, BboxAnnos]]
+class InputBboxData(BaseModel):
+    annos: BboxAnnos
     labelinfo: Labelinfo
 
 
-class BrushData(BaseModel):
-    annos: BrushAnnos | list[tuple[str, BrushAnnos]]
+class InputBrushData(BaseModel):
+    annos: BrushAnnos
     labelinfo: Labelinfo
 
 
 AttributeMap = dict[str, float | int | str | bool | None]
-Attributes = AttributeMap | list[tuple[str, AttributeMap]]
 
 
 class InputAnnotationData(BaseModel):
-    bbox: BboxData | None
-    brush: BrushData | None
+    bbox: InputBboxData | None
+    brush: InputBrushData | None
+    attributes: AttributeMap | None
+
+    @field_validator("attributes", mode="before")
+    @classmethod
+    def flatten_attributes(cls, data: AttributeMap):
+        if data is not None:
+            data = flatten_params(data)
+        return data
+
+
+class InputBboxManyData(BaseModel):
+    annos: list[tuple[str, BboxAnnos]]
+    labelinfo: Labelinfo
+
+
+class InputBrushManyData(BaseModel):
+    annos: list[tuple[str, BrushAnnos]]
+    labelinfo: Labelinfo
+
+
+Attributes = list[tuple[str, AttributeMap]]
+
+
+class InputAnnotationManyData(BaseModel):
+    bbox: InputBboxManyData | None
+    brush: InputBrushManyData | None
     attributes: Attributes | None
 
     @field_validator("attributes", mode="before")
     @classmethod
-    def flatten_attributes(cls, data: AttributeMap | list[tuple[str, AttributeMap]]):
+    def flatten_attributes(cls, data: list[tuple[str, AttributeMap]]):
         if data is not None:
             data = flatten_list_of_params(data)
         return data
 
 
 class OutputAnnotationData(BaseModel):
-    bbox: BboxAnnos | list[tuple[str, tuple[BboxAnnos, ShapeI]]] | None
-    brush: BrushAnnos | list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None
-    attributes: AttributeMap | list[tuple[str, tuple[AttributeMap, ShapeI]]] | None
+    bbox: BboxAnnos | None
+    brush: BrushAnnos | None
+    attributes: AttributeMap | None
+
+
+class OutputAnnotationManyData(BaseModel):
+    bbox: list[tuple[str, tuple[BboxAnnos, ShapeI]]] | None
+    brush: list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None
+    attributes: list[tuple[str, tuple[AttributeMap, ShapeI]]] | None
+    server_message: str | None = None
+    artifact_link: str | None = None
 
 
 class WandManyMessage(BaseModel):
@@ -349,9 +382,6 @@ def flatten_params(values: dict) -> dict:
 
 
 def flatten_list_of_params(
-    values: dict | list[tuple[str, dict]],
-) -> dict | list[tuple[str, dict]]:
-    if isinstance(values, dict):
-        return flatten_params(values)
-    else:
-        return [(k, flatten_params(v)) for k, v in values]
+    values: list[tuple[str, dict]],
+) -> list[tuple[str, dict]]:
+    return [(k, flatten_params(v)) for k, v in values]

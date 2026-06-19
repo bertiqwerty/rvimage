@@ -12,9 +12,7 @@ use crate::{
     rest_data::RestData,
     result::trace_ok_err,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
-    tools_data::{
-        AccessInstanceData, ExportAsCoco, LabelInfo, LabelMap, annotations::InstanceAnnotations,
-    },
+    tools_data::{AccessInstanceData, LabelInfo, annotations::InstanceAnnotations},
     wand_util::serialize_or_default,
 };
 
@@ -41,15 +39,25 @@ impl<'a> WandManyAnnotationsInput<'a> {
         tools_data_map: &'a ToolsDataMap,
         files: &'a [String],
         folders_to_exclude: &'a [String],
-    ) -> (Self, Vec<&'a String>) {
+        selected_file_idx: Option<usize>,
+    ) -> (Self, Vec<&'a String>, Option<usize>) {
+        let mut sfidx_reduction_count = 0;
         let files_wo_excluded_folders = files
             .iter()
-            .filter(|f| {
-                !folders_to_exclude
-                    .iter()
-                    .any(|excluded| Path::new(f).ancestors().any(|a| a.ends_with(excluded)))
+            .enumerate()
+            .filter(|(idx, f)| {
+                !folders_to_exclude.iter().any(|excluded| {
+                    let is_in_excluded = Path::new(f).ancestors().any(|a| a.ends_with(excluded));
+                    if is_in_excluded && Some(*idx) <= selected_file_idx {
+                        sfidx_reduction_count += 1;
+                    }
+                    is_in_excluded
+                })
             })
+            .map(|(_, f)| f)
             .collect::<Vec<_>>();
+        let selected_file_idx =
+            selected_file_idx.map(|sfidx| sfidx.saturating_sub(sfidx_reduction_count));
         macro_rules! collect {
             ($tool_name:expr, $T:ty, $access:ident) => {
                 tools_data_map
@@ -73,8 +81,8 @@ impl<'a> WandManyAnnotationsInput<'a> {
         }
 
         let bbox = collect!(BBOX_NAME, GeoFig, bbox);
-
         let brush = collect!(BRUSH_NAME, Canvas, brush);
+
         let attributes = tools_data_map.get_specifics(ATTRIBUTES_NAME).and_then(|s| {
             s.attributes()
                 .map(|at| {
@@ -92,6 +100,7 @@ impl<'a> WandManyAnnotationsInput<'a> {
                 attributes,
             },
             files_wo_excluded_folders,
+            selected_file_idx,
         )
     }
 }
@@ -105,26 +114,34 @@ pub struct WandManyOutput {
     pub bbox: BboxOutput,
     pub brush: BrushOutput,
     pub attributes: AttributesOutput,
+    pub server_message: Option<String>,
+    pub artifact_link: Option<String>,
 }
 impl WandManyOutput {
     pub fn resolve_into_tdm(self, tools_data_map: &mut ToolsDataMap) -> RvResult<()> {
-        if let Some(bbox) = self.bbox
+        if let Some(wand_out_bbox) = self.bbox
             && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
             && let Some(bbox_data) = trace_ok_err(s.bbox_mut())
         {
-            bbox_data.set_annotations_map(LabelMap::from_iter(bbox))?;
+            for (filename, annos) in wand_out_bbox {
+                tracing::info!("replacing bbox annotations for {filename} with wand output");
+                bbox_data.annotations_map.insert(filename, annos);
+            }
         }
-        if let Some(brush) = self.brush
+        if let Some(wand_out_brush) = self.brush
             && let Some(s) = tools_data_map.get_specifics_mut(BRUSH_NAME)
             && let Some(brush_data) = trace_ok_err(s.brush_mut())
         {
-            brush_data.set_annotations_map(LabelMap::from_iter(brush))?;
+            for (filename, annos) in wand_out_brush {
+                tracing::info!("replacing brush annotations for {filename} with wand output");
+                brush_data.annotations_map.insert(filename, annos);
+            }
         }
-        if let Some(attributes) = self.attributes
+        if let Some(wand_out_attributes) = self.attributes
             && let Some(s) = tools_data_map.get_specifics_mut(ATTRIBUTES_NAME)
             && let Some(attributes_data) = trace_ok_err(s.attributes_mut())
         {
-            for (filename, (attributes_of_file, shape)) in attributes {
+            for (filename, (attributes_of_file, shape)) in wand_out_attributes {
                 attributes_data
                     .annotations_map
                     .insert(filename, (ParamMap::from(attributes_of_file), shape));

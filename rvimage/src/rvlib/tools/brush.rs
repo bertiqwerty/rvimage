@@ -232,14 +232,26 @@ fn find_closest_canvas(
         .map(|(i, cvs)| {
             (
                 i,
+                cvs,
                 cvs.dist_to_boundary(p) * if cvs.contains(p) { 0.0 } else { 1.0 },
             )
         })
-        .filter(|(i, _)| predicate(*i))
-        .min_by(|(_, x), (_, y)| match x.partial_cmp(y) {
-            Some(o) => o,
-            None => Ordering::Greater,
+        .filter(|(i, _, _)| predicate(*i))
+        .min_by(|(_, x_cvs, x), (_, y_cvs, y)| {
+            fn area(cvs: &Canvas) -> u64 {
+                cvs.mask.iter().map(|a| u64::from(*a)).sum::<u64>()
+            }
+            match x.partial_cmp(y) {
+                Some(o) => match o {
+                    // in case both objects have equal distance from the mouse
+                    // we select the smaller one
+                    Ordering::Equal => area(*x_cvs).cmp(&area(*y_cvs)),
+                    _ => o,
+                },
+                None => Ordering::Greater,
+            }
         })
+        .map(|(i, _, x)| (i, x))
 }
 
 fn check_selected_intensity_thickness(mut world: World) -> World {
