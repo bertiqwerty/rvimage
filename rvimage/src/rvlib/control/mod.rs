@@ -400,7 +400,7 @@ pub struct Control {
     save_handle: Option<JoinHandle<()>>,
     thumbnail_cache: HashMap<String, DynamicImage>,
     wand_server: Option<CmdServer>,
-    wand_many_rx: Option<mpsc::Receiver<(WandManyOutput, String)>>,
+    wand_many_rx: Option<mpsc::Receiver<WandManyOutput>>,
 }
 
 impl Control {
@@ -853,7 +853,7 @@ impl Control {
                     tracing::error!(
                         "Processing files failed with wand failed. Prediction returned an error."
                     );
-                    trace_ok_err(tx.send((WandManyOutput::default(), "".into())));
+                    trace_ok_err(tx.send(WandManyOutput::default()));
                 }
             });
             tracing::info!("... submission done!");
@@ -862,18 +862,21 @@ impl Control {
     pub fn check_wand_many_output(&mut self, tools_data_map: &mut ToolsDataMap) -> RvResult<bool> {
         if let Some(rx) = &self.wand_many_rx {
             match rx.try_recv() {
-                Ok((output, server_response)) => {
+                Ok(output) => {
                     tracing::info!("received output from wand, applying to files...");
-                    let res = output.resolve_into_tdm(tools_data_map);
+                    let server_response = output.resolve_into_tdm(tools_data_map)?;
                     tracing::info!("... applying done!");
+                    if let Some(al) = server_response.as_ref().and_then(|sr| sr.artifact_link.as_ref()) {
+                        tracing::info!("received artifact link\n{al}");
+                    }
                     self.wand_many_rx = None;
 
-                    if !server_response.trim().is_empty()
+                    if let Some(smsg) = server_response.map(|sr| sr.msg)
                         && let [.., last] = &mut self.data.wand_many.messages[..]
                     {
-                        last.response = Some(server_response);
+                        last.response = Some(smsg);
                     }
-                    res.map(|_| true)
+                    Ok(true)
                 }
                 Err(mpsc::TryRecvError::Empty) => Ok(false),
                 Err(mpsc::TryRecvError::Disconnected) => {

@@ -21,6 +21,7 @@ impl WandManyMessage {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct WandManyData {
     pub messages: Vec<WandManyMessage>,
+    pub artifact_links: Vec<(usize, String)>,
     pub subfolders_to_exclude: Vec<String>,
     pub existing_param_names: Vec<String>,
     pub param_map: ParamMap,

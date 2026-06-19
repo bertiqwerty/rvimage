@@ -110,15 +110,22 @@ pub type BrushOutput = Option<Vec<(String, (InstanceAnnotations<Canvas>, ShapeI)
 pub type AttributesOutput = Option<Vec<(String, (ParamMapUntagged, ShapeI))>>;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
+pub struct ServerResponse {
+    pub msg: String,
+    pub artifact_link: Option<String>,
+}
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct WandManyOutput {
     pub bbox: BboxOutput,
     pub brush: BrushOutput,
     pub attributes: AttributesOutput,
-    pub server_message: Option<String>,
-    pub artifact_link: Option<String>,
+    pub server_response: Option<ServerResponse>,
 }
 impl WandManyOutput {
-    pub fn resolve_into_tdm(self, tools_data_map: &mut ToolsDataMap) -> RvResult<()> {
+    pub fn resolve_into_tdm(
+        self,
+        tools_data_map: &mut ToolsDataMap,
+    ) -> RvResult<Option<ServerResponse>> {
         if let Some(wand_out_bbox) = self.bbox
             && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
             && let Some(bbox_data) = trace_ok_err(s.bbox_mut())
@@ -147,7 +154,7 @@ impl WandManyOutput {
                     .insert(filename, (ParamMap::from(attributes_of_file), shape));
             }
         }
-        Ok(())
+        Ok(self.server_response)
     }
 }
 
@@ -168,7 +175,7 @@ pub trait WandMany {
         selected_file_idx: Option<usize>,
         communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
-    ) -> RvResult<(WandManyOutput, String)>;
+    ) -> RvResult<WandManyOutput>;
 }
 
 #[derive(Serialize)]
@@ -198,7 +205,7 @@ impl WandMany for RestWandMany {
         selected_file_idx: Option<usize>,
         communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
-    ) -> RvResult<(WandManyOutput, String)> {
+    ) -> RvResult<WandManyOutput> {
         let annos_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
         let param_json_str = serialize_or_default(parameters)?;
         let files_json_str = serde_json::to_string(files).map_err(to_rv)?;
@@ -259,9 +266,9 @@ fn test_testserver() {
     param_map.insert("a".to_string(), ParamVal::from(42));
     param_map.insert("c".to_string(), ParamVal::from(true));
     param_map.insert("d".to_string(), ParamVal::from("thestr".to_string()));
-    let (output, s) = w
+    let output = w
         .predict("dummy", annos, &[], None, &[], Some(&param_map))
         .unwrap();
-    assert_eq!("method_description", s);
+    assert_eq!("method_description", output.server_response.unwrap().msg);
     println!("attributes {:?}", output.attributes);
 }
