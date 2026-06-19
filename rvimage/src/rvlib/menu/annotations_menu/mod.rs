@@ -413,7 +413,6 @@ fn annotations(
                     params.tool_choice_delprop,
                     params.filter_relation_deletion,
                 )?;
-                tracing::warn!("{absent_files:?}");
                 let absent_files = absent_files
                     .into_iter()
                     .map(|(_, af, tn, _)| (af.to_string(), tn))
@@ -459,19 +458,22 @@ fn annotations(
                         ui,
                         &mut params.text_buffers.label_propagation,
                         are_tools_active,
-                        "propagate labels",
+                        "Propagate labels",
                         "number of following images to propagate label to",
-                        Some("Double click! Annotations will be overriden if already existent!\n\
-                              Image shapes as part of annotation information will also be propagated! 💀"),
+                        Some((
+                            "Propagate labels 💀",
+                            "Annotations will be overriden if already existent! \
+                         Image shapes as part of annotation information will also be propagated!",
+                        )),
                     );
                     ui.end_row();
                     let n_del: Option<usize> = ui_util::button_triggerable_number(
                         ui,
                         &mut params.text_buffers.label_deletion,
                         are_tools_active,
-                        "delete labels",
+                        "Delete labels",
                         "number of following images to delete label from",
-                        Some("Double click! Annotations will be deleted! 💀"),
+                        Some(("Delete labels 💀", "Annotations will be deleted!")),
                     );
                     if let Some(ps) = paths_navigator.paths_selector() {
                         #[allow(clippy::indexing_slicing)]
@@ -483,7 +485,7 @@ fn annotations(
                                 tracing::info!(
                                     "propagating {} labels from {:?}",
                                     paths.len(),
-                                    paths.first().map(|p|p.path_relative())
+                                    paths.first().map(|p| p.path_relative())
                                 );
                                 trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
@@ -499,11 +501,13 @@ fn annotations(
                             let range = selected_file_idx..end;
                             let paths_ = ps.filtered_file_paths();
                             let paths_range = paths_.get(range);
-                            if let Some(paths) = paths_range && !paths.is_empty() {
+                            if let Some(paths) = paths_range
+                                && !paths.is_empty()
+                            {
                                 tracing::info!(
                                     "deleting {} labels from {:?}",
                                     paths.len(),
-                                    paths.first().map(|first|first.path_relative())
+                                    paths.first().map(|first| first.path_relative())
                                 );
                                 trace_ok_err(params.tool_choice_delprop.run_mut(
                                     ui,
@@ -516,8 +520,9 @@ fn annotations(
                                         delete_subsequent_annos_of_tool(tdm, ATTRIBUTES_NAME, paths)
                                     },
                                 ));
-                            }}
+                            }
                         }
+                    }
                 });
         } else {
             ui.label("no file selected");

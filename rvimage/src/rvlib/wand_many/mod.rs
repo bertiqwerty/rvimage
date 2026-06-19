@@ -240,6 +240,8 @@ fn test_testserver() {
     };
     let mut param_map = ParamMap::new();
     param_map.insert("a".to_string(), ParamVal::from(42));
+    param_map.insert("c".to_string(), ParamVal::from(true));
+    param_map.insert("d".to_string(), ParamVal::from("thestr".to_string()));
     let (output, s) = w
         .predict("dummy", annos, &[], None, &[], Some(&param_map))
         .unwrap();

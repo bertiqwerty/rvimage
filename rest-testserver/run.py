@@ -76,8 +76,10 @@ async def predict(
 
 
 class DummyParams(BaseModel):
-    a: int | None = None
+    a: int | None
     b: str | None = None
+    c: bool
+    d: str
 
     @model_validator(mode="before")
     @classmethod

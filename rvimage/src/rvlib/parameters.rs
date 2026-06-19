@@ -132,6 +132,16 @@ impl From<TPtF> for ParamVal {
         ParamVal::Float(Some(x))
     }
 }
+impl From<bool> for ParamVal {
+    fn from(x: bool) -> Self {
+        ParamVal::Bool(x)
+    }
+}
+impl From<String> for ParamVal {
+    fn from(x: String) -> Self {
+        ParamVal::Str(x)
+    }
+}
 // just for deserialization
 pub type ParamMapUntagged = HashMap<String, ParamValUntagged>;
 

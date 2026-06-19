@@ -828,7 +828,7 @@ impl Control {
                 .to_string()
             };
             let msgs = self.data.wand_many.messages.clone();
-
+            let param_map = self.data.wand_many.param_map.clone();
             thread::spawn(move || {
                 let (input, files) =
                     WandManyAnnotationsInput::from_tdm(&tdm, &files, &folders_to_exclude);
@@ -841,7 +841,7 @@ impl Control {
                     &files,
                     selected_file_idx,
                     &msgs,
-                    None,
+                    Some(&param_map),
                 ));
                 if let Some(output) = output {
                     trace_ok_err(tx.send(output));

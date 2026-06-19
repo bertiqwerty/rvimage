@@ -142,18 +142,17 @@ pub fn button_triggerable_number<T>(
     are_tools_active: &mut bool,
     btn_label: &str,
     tool_tip: &str,
-    warning_tool_tip_btn: Option<&str>,
+    confirmation_msgs: Option<(&str, &str)>,
 ) -> Option<T>
 where
     T: Display + FromStr,
     <T as FromStr>::Err: Debug,
 {
     let _ = process_number::<T>(ui, are_tools_active, tool_tip, buffer);
-    let btn = ui.button(btn_label);
-    let clicked = if let Some(warning) = warning_tool_tip_btn {
-        btn.on_hover_text(warning).double_clicked()
+    let clicked = if let Some((title, msg)) = confirmation_msgs {
+        button_confirmed(ui, btn_label, title, msg)
     } else {
-        btn.clicked()
+        ui.button(btn_label).clicked()
     };
     if clicked {
         buffer
@@ -205,10 +204,13 @@ where
 pub fn button_confirmed<'a>(
     ui: &mut egui::Ui,
     button_txt: impl egui::IntoAtoms<'a>,
-    modal_title: impl Into<egui::RichText>,
-    modal_txt: impl Into<egui::WidgetText>,
+    modal_title: impl Into<egui::RichText> + Debug,
+    modal_txt: impl Into<egui::WidgetText> + Debug,
 ) -> bool {
-    let modal_id = ui.make_persistent_id("auto_inline_modal");
+    let modal_id = ui.make_persistent_id(format!(
+        "auto_inline_modal, {:?}, {:?}",
+        &modal_title, &modal_txt
+    ));
 
     let button_clicked = ui.button(button_txt).clicked();
 
