@@ -866,16 +866,24 @@ impl Control {
                     tracing::info!("received output from wand, applying to files...");
                     let server_response = output.resolve_into_tdm(tools_data_map)?;
                     tracing::info!("... applying done!");
-                    if let Some(al) = server_response.as_ref().and_then(|sr| sr.artifact_link.as_ref()) {
+                    self.wand_many_rx = None;
+                    if let Some(al) = server_response
+                        .as_ref()
+                        .and_then(|sr| sr.artifact_link.as_ref())
+                    {
+                        let n_msgs = self.data.wand_many.messages.len();
+                        self.data
+                            .wand_many
+                            .artifact_links
+                            .push((n_msgs, al.clone()));
                         tracing::info!("received artifact link\n{al}");
                     }
-                    self.wand_many_rx = None;
-
                     if let Some(smsg) = server_response.map(|sr| sr.msg)
                         && let [.., last] = &mut self.data.wand_many.messages[..]
                     {
                         last.response = Some(smsg);
                     }
+
                     Ok(true)
                 }
                 Err(mpsc::TryRecvError::Empty) => Ok(false),

@@ -359,12 +359,16 @@ class OutputAnnotationData(BaseModel):
     attributes: AttributeMap | None
 
 
+class ServerResponse(BaseModel):
+    msg: str
+    artifact_link: str | None
+
+
 class OutputAnnotationManyData(BaseModel):
     bbox: list[tuple[str, tuple[BboxAnnos, ShapeI]]] | None
     brush: list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None
     attributes: list[tuple[str, tuple[AttributeMap, ShapeI]]] | None
-    server_message: str | None = None
-    artifact_link: str | None = None
+    server_response: ServerResponse | None = None
 
 
 class WandManyMessage(BaseModel):

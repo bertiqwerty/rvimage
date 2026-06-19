@@ -18,6 +18,7 @@ from rvimage.collection_types import (
     WandManyMessage,
     flatten_params,
     ShapeI,
+    ServerResponse,
 )
 from rvimage.converters import decode_bytes_into_rgbarray
 from rvimage.domain import BbF
@@ -104,7 +105,7 @@ async def predict_many(
     parameters: Annotated[str, Form(...)],
     prj_name: str,
     selected_file_idx: int | None = None,
-) -> tuple[OutputAnnotationManyData, str]:
+) -> OutputAnnotationManyData:
     annos = InputAnnotationManyData.model_validate_json(input_annotations)
     attributes = TypeAdapter(Attributes).validate_python(annos.attributes)
     print(attributes)
@@ -124,7 +125,11 @@ async def predict_many(
         a_shape_tuple = AttributeMap(param_name=123).model_dump(), ShapeI(w=100, h=200)
         output_attributes.append((f, a_shape_tuple))
 
-    return (
-        OutputAnnotationManyData(bbox=None, brush=None, attributes=output_attributes),
-        "method_description",
+    return OutputAnnotationManyData(
+        bbox=None,
+        brush=None,
+        attributes=output_attributes,
+        server_response=ServerResponse(
+            msg="method_description", artifact_link="some_link"
+        ),
     )

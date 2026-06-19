@@ -269,6 +269,13 @@ fn test_testserver() {
     let output = w
         .predict("dummy", annos, &[], None, &[], Some(&param_map))
         .unwrap();
-    assert_eq!("method_description", output.server_response.unwrap().msg);
+    assert_eq!(
+        "method_description",
+        output.server_response.as_ref().unwrap().msg
+    );
+    assert_eq!(
+        "some_link",
+        output.server_response.unwrap().artifact_link.unwrap()
+    );
     println!("attributes {:?}", output.attributes);
 }

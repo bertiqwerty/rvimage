@@ -199,7 +199,7 @@ pub fn wand_many_menu(
         ui.separator();
         if ui.button("Predict").clicked() {
             *show_wandmany = false;
-            to_submit = predict(paths_selector, &data);
+            to_submit = predict(paths_selector, data);
         }
         ui.separator();
         if ui.button("Close").clicked() {

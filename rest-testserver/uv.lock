@@ -821,7 +821,7 @@ wheels = [
 
 [[package]]
 name = "rvimage"
-version = "0.1.9"
+version = "0.1.10"
 source = { editable = "../rvimage-py" }
 dependencies = [
     { name = "numpy" },

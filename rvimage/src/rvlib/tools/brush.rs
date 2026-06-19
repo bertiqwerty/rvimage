@@ -245,7 +245,7 @@ fn find_closest_canvas(
                 Some(o) => match o {
                     // in case both objects have equal distance from the mouse
                     // we select the smaller one
-                    Ordering::Equal => area(*x_cvs).cmp(&area(*y_cvs)),
+                    Ordering::Equal => area(x_cvs).cmp(&area(y_cvs)),
                     _ => o,
                 },
                 None => Ordering::Greater,
