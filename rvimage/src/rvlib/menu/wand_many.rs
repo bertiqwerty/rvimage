@@ -5,7 +5,10 @@ use crate::{
     cfg::WandManyCfg,
     menu::{
         main::WandManyMenuBuffers,
-        params_menu::{add_buffer_sorted, add_parameter_menu, existing_params_menu, no_more_cols},
+        params_menu::{
+            add_buffer_sorted, add_parameter_menu, existing_params_menu, no_more_cols,
+            parammap_from_strtypes,
+        },
         ui_util::{
             process_number, removable_rows, slider, text_edit_multiline, text_edit_singleline,
         },
@@ -75,6 +78,13 @@ pub fn wand_many_menu(
             } else {
                 data.new_param_name_buffer = new_param_name;
                 data.new_param_val_buffer = new_param_val;
+            }
+            if let Some(pmap) =
+                parammap_from_strtypes(ui, &mut data.strtypes_buffer, are_tools_active)
+            {
+                tracing::info!("new parameter map {pmap:?}");
+                data.param_value_buffers = vec!["".into(); pmap.len()];
+                data.param_map = pmap;
             }
             let params = mem::take(&mut data.param_map);
             let value_buffers = mem::take(&mut data.param_value_buffers);

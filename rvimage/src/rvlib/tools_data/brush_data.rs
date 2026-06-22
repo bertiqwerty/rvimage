@@ -49,7 +49,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             thickness: 15.0,
-            intensity: 0.5,
+            intensity: 1.0,
             is_selection_change_needed: false,
             core: core::Options::default(),
             fill_alpha: default_alpha(),

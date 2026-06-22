@@ -23,10 +23,10 @@ pub struct WandManyData {
     pub messages: Vec<WandManyMessage>,
     pub artifact_links: Vec<(usize, String)>,
     pub subfolders_to_exclude: Vec<String>,
-    pub existing_param_names: Vec<String>,
     pub param_map: ParamMap,
 
     pub param_value_buffers: Vec<String>,
     pub new_param_name_buffer: String,
+    pub strtypes_buffer: String,
     pub new_param_val_buffer: ParamVal,
 }

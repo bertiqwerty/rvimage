@@ -21,39 +21,61 @@ pub fn add_parameter_menu<'a>(
     mut existing_param_names: impl Iterator<Item = &'a String>,
     are_tools_active: &mut bool,
 ) -> (String, ParamVal, bool) {
-    ui.horizontal(|ui| {
-        egui::ComboBox::from_label("")
-            .selected_text(format!(
-                "{:?}",
-                match new_param_val {
-                    ParamVal::Float(_) => FLOAT_LABEL,
-                    ParamVal::Int(_) => INT_LABEL,
-                    ParamVal::Str(_) => TEXT_LABEL,
-                    ParamVal::Bool(_) => BOOL_LABEL,
-                }
-            ))
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut new_param_val, ParamVal::Float(None), FLOAT_LABEL);
-                ui.selectable_value(&mut new_param_val, ParamVal::Int(None), INT_LABEL);
-                ui.selectable_value(&mut new_param_val, ParamVal::Str(String::new()), TEXT_LABEL);
-                ui.selectable_value(&mut new_param_val, ParamVal::Bool(false), BOOL_LABEL);
-            });
-    });
-    text_edit_singleline(ui, &mut new_param_name, are_tools_active);
-    if ui.button("add").clicked() {
-        if existing_param_names.any(|pm| pm == &new_param_name) {
-            tracing::error!(
-                "attribute {:?} already exists, we do not re-create it",
-                new_param_name
-            );
-            (new_param_name, new_param_val, false)
+    let mut added = false;
+    egui::CollapsingHeader::new("Add parameter").show(ui, |ui| {
+        ui.horizontal(|ui| {
+            egui::ComboBox::from_label("")
+                .selected_text(format!(
+                    "{:?}",
+                    match new_param_val {
+                        ParamVal::Float(_) => FLOAT_LABEL,
+                        ParamVal::Int(_) => INT_LABEL,
+                        ParamVal::Str(_) => TEXT_LABEL,
+                        ParamVal::Bool(_) => BOOL_LABEL,
+                    }
+                ))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut new_param_val, ParamVal::Float(None), FLOAT_LABEL);
+                    ui.selectable_value(&mut new_param_val, ParamVal::Int(None), INT_LABEL);
+                    ui.selectable_value(
+                        &mut new_param_val,
+                        ParamVal::Str(String::new()),
+                        TEXT_LABEL,
+                    );
+                    ui.selectable_value(&mut new_param_val, ParamVal::Bool(false), BOOL_LABEL);
+                });
+        });
+        text_edit_singleline(ui, &mut new_param_name, are_tools_active);
+        if ui.button("add").clicked() {
+            if existing_param_names.any(|pm| pm == &new_param_name) {
+                tracing::error!(
+                    "attribute {:?} already exists, we do not re-create it",
+                    new_param_name
+                );
+                added = false;
+            } else {
+                // only case where we add a new attribute and hence return true
+                added = true;
+            }
         } else {
-            // only case where we add a new attribute and hence return true
-            (new_param_name, new_param_val, true)
+            added = false;
         }
-    } else {
-        (new_param_name, new_param_val, false)
-    }
+    });
+    (new_param_name, new_param_val, added)
+}
+pub fn parammap_from_strtypes(
+    ui: &mut Ui,
+    strtype_buffer: &mut String,
+    are_tools_active: &mut bool,
+) -> Option<ParamMap> {
+    let mut outmap = None;
+    egui::CollapsingHeader::new("Parse string").show(ui, |ui| {
+        text_edit_multiline(ui, strtype_buffer, are_tools_active);
+        if ui.button("Parse into parameters").clicked() {
+            outmap = Some(ParamMap::from(strtype_buffer.as_str()));
+        }
+    });
+    outmap
 }
 pub fn add_buffer_sorted(
     param_map: &ParamMap,

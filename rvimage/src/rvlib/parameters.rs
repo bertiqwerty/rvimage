@@ -94,6 +94,20 @@ impl ParamVal {
             }
         })
     }
+    pub fn from_strtype_default(value: &str) -> RvResult<Self> {
+        let lc = value.trim().to_lowercase();
+        if lc == "bool" {
+            Ok(Self::Bool(false))
+        } else if lc == "int" {
+            Ok(Self::Int(None))
+        } else if lc == "float" {
+            Ok(Self::Float(None))
+        } else if lc == "str" {
+            Ok(Self::Str("".into()))
+        } else {
+            Err(rverr!("cannot create ParamVal from {value}"))
+        }
+    }
 }
 
 impl Display for ParamVal {
@@ -193,6 +207,22 @@ impl ParamMap {
     }
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+}
+impl From<&str> for ParamMap {
+    fn from(value: &str) -> Self {
+        let mut param_map = Self::default();
+        for line in value.split('\n') {
+            let mut split_iter = line.split(':');
+            let n = split_iter.next();
+            let t = split_iter.next();
+            if let (Some(n), Some(t)) = (n, t)
+                && let Ok(pv) = ParamVal::from_strtype_default(t)
+            {
+                param_map.insert(n.trim().into(), pv);
+            }
+        }
+        param_map
     }
 }
 impl<const N: usize> From<[(String, ParamVal); N]> for ParamMap {
@@ -327,4 +357,17 @@ fn test_equal() {
     let mut map2 = make("a", ParamVal::Str("hello".into()));
     map2.insert("b".into(), ParamVal::Str("hello1".into()));
     assert_ne!(map1, map2);
+}
+
+#[test]
+fn test_from_strtype() {
+    let strtype = "a: int\nb:bool\nc:str\nd:float";
+    let param_map = ParamMap::from(strtype);
+    let reference = ParamMap::from([
+        ("a".to_string(), ParamVal::Int(None)),
+        ("b".to_string(), ParamVal::Bool(false)),
+        ("d".to_string(), ParamVal::Float(None)),
+        ("c".to_string(), ParamVal::Str("".into())),
+    ]);
+    assert_eq!(param_map, reference);
 }
