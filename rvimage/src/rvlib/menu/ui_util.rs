@@ -164,6 +164,16 @@ where
     }
 }
 
+fn nth_row_idx(idx: usize) -> String {
+    let nth = match idx % 10 {
+        0 => "st",
+        1 => "nd",
+        2 => "rd",
+        _ => "th",
+    };
+    format!("{}{nth}", idx + 1)
+}
+
 pub fn removable_rows(
     ui: &mut Ui,
     n_rows: usize,
@@ -171,7 +181,8 @@ pub fn removable_rows(
 ) -> Option<usize> {
     let mut to_be_removed = None;
     for idx in 0..n_rows {
-        if button_confirmed(ui, "x", "Delete", "Are you sure?") {
+        let msg = format!("Are you sure to delete the {} row?", nth_row_idx(idx));
+        if button_confirmed(ui, "x", "Delete", msg) {
             to_be_removed = Some(idx);
         }
         make_row(ui, idx)
