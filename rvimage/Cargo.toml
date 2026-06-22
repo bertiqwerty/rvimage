@@ -91,9 +91,7 @@ chrono = { version = "0.4.44", default-features = false, features = [
     "serde",
 ] }
 whoami = "2.1.2"
-# temporary pin
-url = "2.5.8"
-gix = { version = "0.84.0", default-features = false, features = [
+gix = { version = "0.85.0", default-features = false, features = [
     "blocking-network-client",
     "blocking-http-transport-reqwest-rust-tls",
     "credentials",
