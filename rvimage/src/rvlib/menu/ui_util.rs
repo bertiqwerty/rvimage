@@ -165,13 +165,17 @@ where
 }
 
 fn nth_row_idx(idx: usize) -> String {
-    let nth = match idx % 10 {
-        0 => "st",
-        1 => "nd",
-        2 => "rd",
-        _ => "th",
+    let idx_based_on_1 = idx + 1;
+    let nth = match idx_based_on_1 % 100 {
+        11..=13 => "th",
+        _ => match idx_based_on_1 % 10 {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th",
+        },
     };
-    format!("{}{nth}", idx + 1)
+    format!("{}{nth}", idx_based_on_1)
 }
 
 pub fn removable_rows(
@@ -253,4 +257,14 @@ pub fn button_confirmed<'a>(
     }
 
     confirmed
+}
+
+#[test]
+fn test_nth() {
+    assert_eq!(nth_row_idx(0), "1st".to_string());
+    assert_eq!(nth_row_idx(1), "2nd".to_string());
+    assert_eq!(nth_row_idx(2), "3rd".to_string());
+    assert_eq!(nth_row_idx(3), "4th".to_string());
+    assert_eq!(nth_row_idx(111), "112th".to_string());
+    assert_eq!(nth_row_idx(11120), "11121st".to_string());
 }
