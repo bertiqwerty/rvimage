@@ -266,5 +266,7 @@ fn test_nth() {
     assert_eq!(nth_row_idx(2), "3rd".to_string());
     assert_eq!(nth_row_idx(3), "4th".to_string());
     assert_eq!(nth_row_idx(111), "112th".to_string());
+    assert_eq!(nth_row_idx(10), "11th".to_string());
+    assert_eq!(nth_row_idx(12), "13th".to_string());
     assert_eq!(nth_row_idx(11120), "11121st".to_string());
 }
