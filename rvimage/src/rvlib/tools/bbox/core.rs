@@ -319,6 +319,7 @@ impl Bbox {
     ) -> (World, History) {
         let params = KeyReleasedParams {
             is_ctrl_held: events.held_ctrl(),
+            is_shift_held: events.held_shift(),
             released_key: map_released_key(events),
         };
         world = check_erase_mode::<DataAccessors>(params.released_key, set_visible, world);

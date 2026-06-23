@@ -190,6 +190,7 @@ fn key_released(events: &Events, mut world: World, mut history: History) -> (Wor
         history,
         released_key,
         events.held_ctrl(),
+        events.held_shift(),
         BRUSH_NAME,
     );
     let mut trigger_redraw = false;

@@ -622,6 +622,7 @@ pub(super) fn on_mouse_released_left(
 
 pub(super) struct KeyReleasedParams {
     pub is_ctrl_held: bool,
+    pub is_shift_held: bool,
     pub released_key: ReleasedKey,
 }
 
@@ -645,6 +646,7 @@ pub(super) fn on_key_released(
         history,
         params.released_key,
         params.is_ctrl_held,
+        params.is_shift_held,
         BBOX_NAME,
     );
     world = check_instance_label_display_change::<_, DataAccessors, InstanceAnnoAccessors>(
@@ -767,6 +769,7 @@ fn test_key_released() {
     let (_, mut world, history) = test_data();
     let make_params = |released_key, is_ctrl_held| KeyReleasedParams {
         is_ctrl_held,
+        is_shift_held: false,
         released_key,
     };
     let annos = get_annos_mut(&mut world).unwrap();

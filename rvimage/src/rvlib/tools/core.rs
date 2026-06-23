@@ -455,6 +455,7 @@ pub(super) fn on_selection_keys<T, DA, IA>(
     mut history: History,
     key: ReleasedKey,
     is_ctrl_held: bool,
+    is_shift_held: bool,
     actor: &'static str,
 ) -> (World, History)
 where
@@ -474,20 +475,27 @@ where
             });
             let options = DA::get_core_options_mut(&mut world);
             if options.map(|o| o.visible) == Some(true) {
-                if let (Some(current_active), Some(a)) =
-                    (current_active_idx, IA::get_annos_mut(&mut world))
-                {
-                    let relevant_indices = a
+                let zoom_box = world.zoom_box().clone();
+                if let Some(a) = IA::get_annos_mut(&mut world) {
+                    let relevant_idxs = a
                         .cat_idxs()
                         .iter()
+                        .zip(a.elts().iter())
                         .enumerate()
-                        .filter(|(_, cat_idx)| **cat_idx == current_active)
-                        .map(|(i, _)| i)
+                        .filter(|(_, (cat_idx, elt))| {
+                            current_active_idx
+                                .map(|caidx| caidx == **cat_idx)
+                                .unwrap_or(true)
+                                && (zoom_box
+                                    .map(|zb| zb.contains_bb(elt.enclosing_bb()))
+                                    .unwrap_or(true)
+                                    || !is_shift_held)
+                        })
+                        .map(|(idx, _)| idx)
                         .collect::<Vec<_>>();
-                    a.select_multi(relevant_indices.into_iter());
-                } else if let Some(a) = IA::get_annos_mut(&mut world) {
-                    a.select_all();
-                };
+                    a.select_multi(relevant_idxs.into_iter());
+                }
+                
                 let vis = vis_from_lfoption(DA::get_label_info(&world), true);
                 world.request_redraw_annotations(actor, vis);
             }
