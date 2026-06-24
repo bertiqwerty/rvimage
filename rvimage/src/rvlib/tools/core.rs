@@ -475,7 +475,7 @@ where
             });
             let options = DA::get_core_options_mut(&mut world);
             if options.map(|o| o.visible) == Some(true) {
-                let zoom_box = world.zoom_box().clone();
+                let zoom_box = *world.zoom_box();
                 if let Some(a) = IA::get_annos_mut(&mut world) {
                     let relevant_idxs = a
                         .cat_idxs()
@@ -495,7 +495,7 @@ where
                         .collect::<Vec<_>>();
                     a.select_multi(relevant_idxs.into_iter());
                 }
-                
+
                 let vis = vis_from_lfoption(DA::get_label_info(&world), true);
                 world.request_redraw_annotations(actor, vis);
             }
