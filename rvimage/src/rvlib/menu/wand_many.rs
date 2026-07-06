@@ -116,29 +116,38 @@ pub fn wand_many_menu(
                                 },
                             );
                             ui.label(job);
-                            if idx < len_msgs.saturating_sub(1) {
-                                ui.label(
-                                    msg.success_assessment
-                                        .map(|a| format!("assessment {a}"))
-                                        .unwrap_or("".to_string()),
-                                );
-                            } else if let Some(response) = &msg.response {
+                            if let Some(response) = &msg.response {
                                 egui::CollapsingHeader::new("Response").id_salt(idx).show(
                                     ui,
                                     |ui| {
                                         ui.label(response);
                                     },
                                 );
-                                let mut assess_checkbx = assess_tmp.is_some();
-                                if ui.checkbox(&mut assess_checkbx, "assess result").clicked() {
-                                    if assess_checkbx {
-                                        assess_tmp = Some(50u8);
-                                    } else {
-                                        assess_tmp = None;
+                                if idx < len_msgs.saturating_sub(1) {
+                                    ui.label(
+                                        msg.success_assessment
+                                            .map(|a| format!("assessment {a}"))
+                                            .unwrap_or("".to_string()),
+                                    );
+                                } else {
+                                    let mut assess_checkbx = assess_tmp.is_some();
+
+                                    if ui.checkbox(&mut assess_checkbx, "assess result").clicked() {
+                                        if assess_checkbx {
+                                            assess_tmp = Some(50);
+                                        } else {
+                                            assess_tmp = None;
+                                        }
                                     }
-                                }
-                                if let Some(assess) = assess_tmp.as_mut() {
-                                    slider(ui, are_tools_active, assess, 0..=100, "assess result");
+                                    if let Some(assess) = assess_tmp.as_mut() {
+                                        slider(
+                                            ui,
+                                            are_tools_active,
+                                            assess,
+                                            0..=100,
+                                            "assess result",
+                                        );
+                                    }
                                 }
                             }
                         }
