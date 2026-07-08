@@ -13,7 +13,7 @@ use tracing::info;
 use crate::{
     GeoFig,
     cfg::ExportPath,
-    file_util::{self, PathPair, path_to_str},
+    file_util::{self, PathPair, path_to_str, tf_to_annomap_key},
     image_util,
     meta_data::MetaData,
     result::trace_ok_warn,
@@ -345,6 +345,7 @@ impl CocoExportData {
         self,
         coco_file: ExportPath,
         rotation_data: Option<&Rot90ToolData>,
+        prj_path: Option<&Path>,
     ) -> RvResult<(BboxToolData, BrushToolData)> {
         let cat_ids: Vec<u32> = self.categories.iter().map(|coco_cat| coco_cat.id).collect();
         let labels: Vec<String> = self
@@ -394,9 +395,8 @@ impl CocoExportData {
                 let path_as_key = if file_path.starts_with("http") {
                     file_util::url_encode(file_path)
                 } else {
-                    file_path.to_string()
-                }
-                .replace('\\', "/");
+                    tf_to_annomap_key(file_path.to_string(), prj_path)
+                };
 
                 let cat_idx = cat_ids
                     .iter()
@@ -644,7 +644,7 @@ pub fn read_coco(
         .conn
         .read(&coco_inpath, meta_data.ssh_cfg.as_ref())?;
     let read_data: CocoExportData = serde_json::from_str(coco_str.as_str()).map_err(to_rv)?;
-    read_data.convert_to_toolsdata(coco_file.clone(), rotation_data)
+    read_data.convert_to_toolsdata(coco_file.clone(), rotation_data, meta_data.prj_path())
 }
 
 #[cfg(test)]
@@ -1137,7 +1137,8 @@ fn test_warner() {
 
 #[test]
 fn test_coco_import_slash_normalization() {
-    fn test() {
+    fn test(prj_path: Option<PathBuf>) {
+        let are_keys_relative = prj_path.is_some();
         let meta = MetaData::new(
             None,
             None,
@@ -1146,7 +1147,7 @@ fn test_coco_import_slash_normalization() {
             None,
             Some(TEST_DATA_FOLDER.to_string()),
             MetaDataFlags::default(),
-            None,
+            prj_path,
         );
         let coco_file = ExportPath {
             path: PathBuf::from(format!("{TEST_DATA_FOLDER}catids_01_coco_win_slash.json")),
@@ -1162,6 +1163,10 @@ fn test_coco_import_slash_normalization() {
         let (read_bb_bsl, _) = read_coco(&meta, &coco_file, None).unwrap();
 
         assert_eq!(read_bb_sl.annotations_map, read_bb_bsl.annotations_map);
+        for k in read_bb_sl.annotations_map.keys() {
+            assert!(k.starts_with("c:/") != are_keys_relative);
+        }
     }
-    test();
+    test(None);
+    test(Some(PathBuf::from("c:/x/prj.json")));
 }
