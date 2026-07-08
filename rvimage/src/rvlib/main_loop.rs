@@ -202,7 +202,7 @@ impl MainEventLoop {
             });
 
             egui::Panel::right("my_panel")
-                .show_inside(ui, |ui| {
+                .show(ui, |ui| {
                     ui.vertical(|ui| {
                         self.tools_select_menu.ui(
                             ui,

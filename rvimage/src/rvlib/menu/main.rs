@@ -255,7 +255,7 @@ impl Menu {
         active_tool_name: Option<&str>,
     ) -> bool {
         let mut project_loaded = false;
-        egui::Panel::top("top-menu-panel").show_inside(ui, |ui| {
+        egui::Panel::top("top-menu-panel").show(ui, |ui| {
             // Top row with open folder and settings button
             egui::MenuBar::new().ui(ui, |ui| {
                 let of_response = ui.button("Open Folder");
@@ -569,7 +569,7 @@ impl Menu {
                 });
             });
         }
-        egui::Panel::left("left-main-menu").show_inside(ui, |ui| {
+        egui::Panel::left("left-main-menu").show(ui, |ui| {
             let mut connected = false;
             handle_error!(
                 |con| {

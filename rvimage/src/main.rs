@@ -653,7 +653,7 @@ impl eframe::App for RvImageApp {
             };
             ui.ctx().send_viewport_cmd(ViewportCommand::Title(title));
             let mut zoom_box_update = false;
-            egui::CentralPanel::default().show_inside(ui, |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
                     if let UpdateZoomBox::Yes(zb) = update_view.zoom_box
                         && self.zoom_box != zb
