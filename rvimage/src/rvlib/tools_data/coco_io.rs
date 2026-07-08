@@ -395,7 +395,8 @@ impl CocoExportData {
                     file_util::url_encode(file_path)
                 } else {
                     file_path.to_string()
-                };
+                }
+                .replace('\\', "/");
 
                 let cat_idx = cat_ids
                     .iter()
@@ -1132,4 +1133,35 @@ fn test_warner() {
     assert_eq!(warner.warn_str("b"), Some("b"));
     assert_eq!(warner.warn_str("a"), Some(suppress_msg));
     assert_eq!(warner.warn_str("a"), None);
+}
+
+#[test]
+fn test_coco_import_slash_normalization() {
+    fn test() {
+        let meta = MetaData::new(
+            None,
+            None,
+            ConnectionData::None,
+            None,
+            None,
+            Some(TEST_DATA_FOLDER.to_string()),
+            MetaDataFlags::default(),
+            None,
+        );
+        let coco_file = ExportPath {
+            path: PathBuf::from(format!("{TEST_DATA_FOLDER}catids_01_coco_win_slash.json")),
+            conn: ExportPathConnection::Local,
+        };
+        let (read_bb_sl, _) = read_coco(&meta, &coco_file, None).unwrap();
+        let coco_file = ExportPath {
+            path: PathBuf::from(format!(
+                "{TEST_DATA_FOLDER}catids_01_coco_win_backslash.json"
+            )),
+            conn: ExportPathConnection::Local,
+        };
+        let (read_bb_bsl, _) = read_coco(&meta, &coco_file, None).unwrap();
+
+        assert_eq!(read_bb_sl.annotations_map, read_bb_bsl.annotations_map);
+    }
+    test();
 }
