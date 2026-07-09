@@ -105,6 +105,11 @@ impl Rot90 {
         world = rot90(world, NRotations::One, skip_annos);
         if let Some(anno) = get_annos_mut(&mut world) {
             *anno = anno.increase();
+            tracing::info!(
+                "Image rotated by 90°. Image has been rotated {} {}.",
+                anno.to_num(),
+                if anno.to_num() == 1 { "time" } else { "times" }
+            );
         }
         history.push(Record::new(world.clone(), ACTOR_NAME));
         (world, history)
