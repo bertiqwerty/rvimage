@@ -29,4 +29,5 @@ pub struct WandManyData {
     pub new_param_name_buffer: String,
     pub strtypes_buffer: String,
     pub new_param_val_buffer: ParamVal,
+    pub is_wandmany_running: bool,
 }

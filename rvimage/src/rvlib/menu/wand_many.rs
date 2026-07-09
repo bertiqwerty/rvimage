@@ -36,6 +36,14 @@ pub fn predict(
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub enum WandManyMenuResult {
+    Submit((Vec<String>, Vec<String>)),
+    #[default]
+    Nothing,
+    Cancel,
+}
+
 pub fn wand_many_menu(
     ui: &mut Ui,
     data: &mut WandManyData,
@@ -44,8 +52,8 @@ pub fn wand_many_menu(
     buffers: &mut WandManyMenuBuffers,
     show_wandmany: &mut bool,
     paths_selector: Option<&PathsSelector>,
-) -> Option<(Vec<String>, Vec<String>)> {
-    let mut to_submit = None;
+) -> WandManyMenuResult {
+    let mut to_submit = WandManyMenuResult::Nothing;
     let mut assess_tmp = data
         .messages
         .iter()
@@ -216,9 +224,13 @@ pub fn wand_many_menu(
             }
         });
         ui.separator();
-        if ui.button("Predict").clicked() {
+        if data.is_wandmany_running && ui.button("Cancel running prediction").clicked() {
+            to_submit = WandManyMenuResult::Cancel;
+        } else if !data.is_wandmany_running && ui.button("Predict").clicked() {
             *show_wandmany = false;
-            to_submit = predict(paths_selector, data);
+            to_submit = predict(paths_selector, data)
+                .map(WandManyMenuResult::Submit)
+                .unwrap_or(WandManyMenuResult::Nothing);
         }
         ui.separator();
         if ui.button("Close").clicked() {

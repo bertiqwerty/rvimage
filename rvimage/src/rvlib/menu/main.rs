@@ -11,7 +11,7 @@ use crate::{
         open_folder,
         scroll_area::ShowFileOptions,
         ui_util::{button_confirmed, text_edit_singleline},
-        wand_many::{self, wand_many_menu},
+        wand_many::{self, WandManyMenuResult, wand_many_menu},
     },
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
@@ -437,8 +437,9 @@ impl Menu {
                         handle_error!(ctrl.cleanup_wandserver(), self);
                     }
                 });
-                if self.show_wandmany
-                    && let Some((files, folders_to_exclude)) = wand_many_menu(
+                if self.show_wandmany {
+                    ctrl.data.wand_many.is_wandmany_running = ctrl.is_wandmany_running();
+                    let result = wand_many_menu(
                         ui,
                         &mut ctrl.data.wand_many,
                         &mut ctrl.cfg.prj.wand_many,
@@ -446,14 +447,17 @@ impl Menu {
                         &mut self.text_buffers.wand_many_buffers,
                         &mut self.show_wandmany,
                         ctrl.paths_navigator.paths_selector(),
-                    )
-                {
-                    ctrl.submit_files_to_wand(
-                        tools_data_map,
-                        &files,
-                        ctrl.file_selected_idx,
-                        &folders_to_exclude,
                     );
+                    if let WandManyMenuResult::Submit((files, folders_to_exclude)) = result {
+                        ctrl.submit_files_to_wand(
+                            tools_data_map,
+                            &files,
+                            ctrl.file_selected_idx,
+                            &folders_to_exclude,
+                        );
+                    } else if let WandManyMenuResult::Cancel = result {
+                        ctrl.cancel_wandmany();
+                    }
                 }
                 ui.menu_button("Help", |ui| {
                     ui.label("RV Image\n");

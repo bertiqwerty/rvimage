@@ -404,6 +404,9 @@ pub struct Control {
 }
 
 impl Control {
+    pub fn is_wandmany_running(&self) -> bool {
+        self.wand_many_rx.is_some()
+    }
     pub fn http_address(&self) -> String {
         self.cfg.http_address().to_string()
     }
@@ -803,7 +806,7 @@ impl Control {
         selected_file_idx: Option<usize>,
         folders_to_exclude: &[String],
     ) {
-        if self.wand_many_rx.is_some() {
+        if self.is_wandmany_running() {
             tracing::warn!("cannot submit files to wand, already running");
         } else {
             let tdm = tools_data_map.clone();
@@ -895,6 +898,10 @@ impl Control {
         } else {
             Ok(false)
         }
+    }
+    pub fn cancel_wandmany(&mut self) {
+        self.wand_many_rx = None;
+        tracing::info!("Wand-many cancelled. Ignoring any output from wand-many server.");
     }
 
     pub fn export_logs(&self, dst: &Path) -> RvResult<()> {
