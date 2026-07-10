@@ -224,7 +224,7 @@ pub fn button_confirmed<'a>(
 ) -> bool {
     let modal_id = ui.make_persistent_id(format!(
         "auto_inline_modal, {:?}, {:?}",
-        &modal_title, &modal_txt
+        modal_title, modal_txt
     ));
 
     let button_clicked = ui.button(button_txt).clicked();

@@ -59,7 +59,7 @@ pub fn version_label() -> String {
         let is_dirty = GIT_DIRTY == "true";
         format!(
             "Version {}{}\n",
-            &GIT_DESC,
+            GIT_DESC,
             if is_dirty { " DIRTY" } else { "" }
         )
     }

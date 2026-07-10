@@ -152,7 +152,7 @@ impl Debug for History {
                     "actor {}, file label idx {:?}, {:?}, folder label {:?}",
                     r.actor,
                     r.file_label_idx,
-                    &r.world.data.shape(),
+                    r.world.data.shape(),
                     r.opened_folder
                 ))
                 .collect::<Vec<_>>()
