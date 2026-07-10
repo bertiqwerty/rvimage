@@ -413,11 +413,12 @@ impl Menu {
                 }
 
                 ui.menu_button("Wand", |ui| {
-                    if ui.button("Predict").clicked()
-                        && let Some((files, folders_to_exclude)) = wand_many::predict(
-                            ctrl.paths_navigator.paths_selector(),
-                            &ctrl.data.wand_many,
-                        )
+                    let to_submit = wand_many::predict_button(
+                        ui,
+                        &ctrl.data.wand_many,
+                        ctrl.paths_navigator.paths_selector(),
+                    );
+                    if let Some(WandManyMenuResult::Submit((files, folders_to_exclude))) = to_submit
                     {
                         ctrl.submit_files_to_wand(
                             tools_data_map,
@@ -425,6 +426,8 @@ impl Menu {
                             ctrl.file_selected_idx,
                             &folders_to_exclude,
                         );
+                    } else if let Some(WandManyMenuResult::Cancel) = to_submit {
+                        ctrl.cancel_wandmany();
                     }
                     if ui.button("Settings").clicked() {
                         self.show_wandmany = true;

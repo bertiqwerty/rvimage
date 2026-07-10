@@ -17,6 +17,24 @@ use crate::{
     wand_many::{WandManyData, WandManyMessage},
 };
 
+pub fn predict_button(
+    ui: &mut Ui,
+    data: &WandManyData,
+    paths_selector: Option<&PathsSelector>,
+) -> Option<WandManyMenuResult> {
+    let mut to_submit = None;
+    if data.is_wandmany_running && ui.button("Cancel running prediction").clicked() {
+        to_submit = Some(WandManyMenuResult::Cancel);
+    } else if !data.is_wandmany_running && ui.button("Predict").clicked() {
+        to_submit = Some(
+            predict(paths_selector, data)
+                .map(WandManyMenuResult::Submit)
+                .unwrap_or(WandManyMenuResult::Nothing),
+        );
+    }
+    to_submit
+}
+
 pub fn predict(
     paths_selector: Option<&PathsSelector>,
     data: &WandManyData,
@@ -224,13 +242,8 @@ pub fn wand_many_menu(
             }
         });
         ui.separator();
-        if data.is_wandmany_running && ui.button("Cancel running prediction").clicked() {
-            to_submit = WandManyMenuResult::Cancel;
-        } else if !data.is_wandmany_running && ui.button("Predict").clicked() {
-            *show_wandmany = false;
-            to_submit = predict(paths_selector, data)
-                .map(WandManyMenuResult::Submit)
-                .unwrap_or(WandManyMenuResult::Nothing);
+        if let Some(to_submit_) = predict_button(ui, data, paths_selector) {
+            to_submit = to_submit_;
         }
         ui.separator();
         if ui.button("Close").clicked() {
