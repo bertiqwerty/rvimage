@@ -5410,7 +5410,7 @@ dependencies = [
  "reqwest 0.13.4",
  "rfd",
  "rusttype",
- "rvimage-domain 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rvimage-domain",
  "serde",
  "serde_json",
  "ssh2",
@@ -5428,19 +5428,6 @@ dependencies = [
 [[package]]
 name = "rvimage-domain"
 version = "0.4.12"
-dependencies = [
- "image",
- "imageproc",
- "serde",
- "serde_json",
- "tracing",
-]
-
-[[package]]
-name = "rvimage-domain"
-version = "0.4.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79aa7ea90cb3c3888fd158e2004695fcdd8aed788d4d1bc6fd49d95af8900778"
 dependencies = [
  "image",
  "imageproc",

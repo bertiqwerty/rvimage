@@ -7,7 +7,8 @@ use tracing::info;
 use crate::{ShapeI, cfg::ExportPath, util::Visibility};
 use rvimage_domain::{BbF, PtF, TPtF, TPtI};
 use rvimage_domain::{
-    Canvas, GeoFig, Point, Polygon, RvResult, rle_image_to_bb, rle_to_mask, rverr,
+    Canvas, GeoFig, Point, Polygon, RvResult, rle_image_to_bb_colmajor, rle_image_to_bb_rowmajor,
+    rle_to_mask_rowmajor, rverr,
 };
 
 use super::annotations::InstanceAnnotations;
@@ -549,10 +550,24 @@ pub struct CocoRle {
 }
 
 impl CocoRle {
-    pub fn to_canvas(&self, bb: BbF) -> RvResult<Canvas> {
+    /// Convert the Coco RLE to a [`Canvas`].
+    ///
+    /// `legacy_rowmajor` selects the RLE order: Coco/RV Image now uses
+    /// column-major counts with `size = [height, width]`, while Coco files
+    /// exported by older RV Image versions used row-major counts with
+    /// `size = [width, height]`.
+    pub fn to_canvas(&self, bb: BbF, legacy_rowmajor: bool) -> RvResult<Canvas> {
         let bb = bb.into();
-        let rle_bb = rle_image_to_bb(&self.counts, bb, ShapeI::from(self.size))?;
-        let mask = rle_to_mask(&rle_bb, bb.w, bb.h);
+        let rle_bb = if legacy_rowmajor {
+            // legacy RV Image: size = [width, height], row-major counts
+            let shape_im = ShapeI::new(self.size.0, self.size.1);
+            rle_image_to_bb_rowmajor(&self.counts, bb, shape_im)?
+        } else {
+            // Coco convention: size = [height, width], column-major counts
+            let shape_im = ShapeI::new(self.size.1, self.size.0);
+            rle_image_to_bb_colmajor(&self.counts, bb, shape_im)?
+        };
+        let mask = rle_to_mask_rowmajor(&rle_bb, bb.w, bb.h);
         let intensity = self.intensity.unwrap_or(1.0);
         Ok(Canvas {
             bb,

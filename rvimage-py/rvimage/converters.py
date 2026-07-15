@@ -2,41 +2,25 @@ from collections.abc import Sequence, Iterable
 import numpy as np
 import cv2
 
+from rvimage._rle import mask_to_rle as _mask_to_rle, rle_to_mask as _rle_to_mask
 from rvimage.domain import BbF, BbI, Point
 
 
-def rle_to_mask(rle: list[int], value: float, mask: np.ndarray | BbI) -> np.ndarray:
+def rle_to_mask(
+    rle: list[int],
+    value: float,
+    mask: np.ndarray | BbI,
+    column_major: bool = False,
+) -> np.ndarray:
     if isinstance(mask, BbI):
-        mask = np.zeros((mask.h, mask.w), dtype=np.uint8)
+        h, w = mask.h, mask.w
     else:
-        mask = mask
-    shape = mask.shape[:2]
-    flat_mask = mask.ravel()
-    pos = 0
-    for i, n_elts in enumerate(rle):
-        if i % 2 == 1:
-            flat_mask[pos : pos + n_elts] = value
-        pos = pos + n_elts
-    return flat_mask.reshape(shape)
+        h, w = mask.shape[:2]
+    return _rle_to_mask(rle, w, h, value, column_major=column_major)
 
 
-def mask_to_rle(mask: np.ndarray) -> list[int]:
-    mask_w, mask_h = mask.shape
-    flat_mask = mask.flatten()
-    rle = []
-    current_run = 0
-    current_value = 0
-    for y in range(mask_h):
-        for x in range(mask_w):
-            value = flat_mask[int(y * mask_w + x)]
-            if value == current_value:
-                current_run += 1
-            else:
-                rle.append(current_run)
-                current_run = 1
-                current_value = value
-    rle.append(current_run)
-    return rle
+def mask_to_rle(mask: np.ndarray, column_major: bool = False) -> list[int]:
+    return _mask_to_rle(mask, column_major=column_major)
 
 
 def fill_bbs_on_mask(

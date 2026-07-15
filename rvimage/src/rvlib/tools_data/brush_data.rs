@@ -15,7 +15,7 @@ use crate::{
 use crate::{implement_annotate, implement_annotations_getters};
 use rvimage_domain::{
     BB, BbF, Canvas, PtF, PtI, PtS, RvResult, ShapeI, TPtF, TPtI, TPtS, access_mask_abs,
-    access_mask_rel, mask_to_rle, rle_bb_to_image, rverr,
+    access_mask_rel, mask_to_rle_rowmajor, rle_bb_to_image_colmajor, rverr,
 };
 
 use serde::{Deserialize, Serialize};
@@ -222,13 +222,14 @@ impl InstanceAnnotate for Canvas {
         _is_export_absolute: bool,
     ) -> RvResult<Option<core::CocoSegmentation>> {
         if self.bb.is_contained_in_image(shape_im) {
-            let rle_bb = mask_to_rle(&self.mask, self.bb.w, self.bb.h);
+            let rle_bb = mask_to_rle_rowmajor(&self.mask, self.bb.w, self.bb.h);
 
-            let rle_im = trace_ok_warn(rle_bb_to_image(&rle_bb, self.bb, shape_im));
+            let rle_im = trace_ok_warn(rle_bb_to_image_colmajor(&rle_bb, self.bb, shape_im));
             Ok(rle_im.map(|rle_im| {
                 CocoSegmentation::Rle(CocoRle {
                     counts: rle_im,
-                    size: (shape_im.w, shape_im.h),
+                    // Coco stores the size as [height, width]
+                    size: (shape_im.h, shape_im.w),
                     intensity: Some(self.intensity),
                 })
             }))

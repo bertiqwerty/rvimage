@@ -6,8 +6,9 @@ mod polygon;
 pub mod result;
 pub use bb::{BB, BbF, BbI, BbS};
 pub use canvas::{
-    Canvas, access_mask_abs, access_mask_rel, canvases_to_image, mask_to_rle, rle_bb_to_image,
-    rle_image_to_bb, rle_to_mask, rle_to_mask_inplace,
+    Canvas, access_mask_abs, access_mask_rel, canvases_to_image, mask_to_rle_rowmajor,
+    rle_bb_to_image_colmajor, rle_image_to_bb_colmajor, rle_image_to_bb_rowmajor,
+    rle_to_mask_rowmajor, rle_to_mask_rowmajor_inplace,
 };
 pub use core::{
     Calc, Circle, CoordinateBox, OutOfBoundsMode, Point, PtF, PtI, PtS, ShapeF, ShapeI, TPtF, TPtI,

@@ -14,6 +14,13 @@ from rvimage.converters import (
     mask_to_rle,
     rle_to_mask,
 )
+from rvimage.coco import (
+    RleOrder,
+    coco_rle_to_mask,
+    detect_rle_order,
+    iter_rle_masks,
+    mask_to_coco_rle,
+)
 from rvimage.domain import BbF, BbI, Point, Poly
 
 
@@ -319,6 +326,95 @@ def test_equals():
     assert poly3.equals(poly4)
 
 
+def _rle_of(flat):
+    counts = []
+    run = 0
+    val = 0
+    for v in flat:
+        if v == val:
+            run += 1
+        else:
+            counts.append(run)
+            run = 1
+            val = int(v)
+    counts.append(run)
+    return counts
+
+
+def test_coco_rle_roundtrip_nonsquare():
+    # non-square: height=4, width=6
+    truth = np.zeros((4, 6), dtype=np.uint8)
+    truth[1, 2] = 1
+    truth[2, 2] = 1
+    truth[2, 3] = 1
+    truth[0, 5] = 1
+    truth[3, 0] = 1
+
+    seg = mask_to_coco_rle(truth)
+    assert seg["size"] == [4, 6]  # coco: [height, width]
+    decoded = coco_rle_to_mask(seg["counts"], seg["size"])
+    assert decoded.shape == truth.shape
+    assert np.array_equal(decoded, truth)
+
+
+def test_coco_rle_order_detection():
+    truth = np.zeros((4, 6), dtype=np.uint8)
+    truth[1, 2] = 1
+    truth[2, 3] = 1
+    truth[3, 0] = 1
+
+    # legacy RV export: row-major counts, size = [width, height], RV signature
+    old_rv = dict(
+        counts=_rle_of(truth.flatten(order="C")),
+        size=[6, 4],
+        info={"description": "created with RV Image Version v0.3.3"},
+    )
+    # new RV export: column-major, size = [height, width], explicit marker
+    new_rv = dict(
+        counts=_rle_of(truth.flatten(order="F")),
+        size=[4, 6],
+        info={
+            "description": "created with RV Image Version v0.8.0",
+            "rvimage_rle_order": "column_major",
+        },
+    )
+    # external coco: column-major, size = [height, width], no signature
+    external = dict(
+        counts=_rle_of(truth.flatten(order="F")),
+        size=[4, 6],
+        info={"description": "Created by BASF"},
+    )
+
+    assert detect_rle_order(old_rv["info"]) == RleOrder.ROW_MAJOR
+    assert detect_rle_order(new_rv["info"]) == RleOrder.COLUMN_MAJOR
+    assert detect_rle_order(external["info"]) == RleOrder.COLUMN_MAJOR
+    assert detect_rle_order(None) == RleOrder.COLUMN_MAJOR
+
+    for f in (old_rv, new_rv, external):
+        order = detect_rle_order(f["info"])
+        mask = coco_rle_to_mask(f["counts"], f["size"], order)
+        assert mask.shape == truth.shape
+        assert np.array_equal(mask, truth)
+
+
+def test_iter_rle_masks():
+    truth = np.zeros((4, 6), dtype=np.uint8)
+    truth[0, 0] = 1
+    truth[3, 5] = 1
+    coco = {
+        "info": {"rvimage_rle_order": "column_major"},
+        "annotations": [
+            {"id": 1, "segmentation": mask_to_coco_rle(truth)},
+            {"id": 2, "segmentation": [[0.0, 0.0, 1.0, 1.0]]},  # polygon: skipped
+        ],
+    }
+    results = list(iter_rle_masks(coco))
+    assert len(results) == 1
+    ann, mask = results[0]
+    assert ann["id"] == 1
+    assert np.array_equal(mask, truth)
+
+
 if __name__ == "__main__":
     test_len_validator()
     test_equals()
@@ -332,3 +428,6 @@ if __name__ == "__main__":
     test_validation()
     test_rle()
     test_polygon()
+    test_coco_rle_roundtrip_nonsquare()
+    test_coco_rle_order_detection()
+    test_iter_rle_masks()

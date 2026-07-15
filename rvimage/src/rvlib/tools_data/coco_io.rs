@@ -30,10 +30,26 @@ use super::{
     core::{CocoSegmentation, ExportAsCoco, new_random_colors},
 };
 
+/// Order in which the Coco RLE `counts` are laid out. Current RV Image / Coco
+/// files use [`RleOrder::ColumnMajor`]; Coco files exported by older RV Image
+/// versions used [`RleOrder::RowMajor`].
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum RleOrder {
+    RowMajor,
+    ColumnMajor,
+}
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct CocoInfo {
     description: String,
+    /// RLE order marker written by RV Image. Current versions write
+    /// [`RleOrder::ColumnMajor`] (the Coco convention). Older RV Image exports
+    /// do not have this field and used row-major order.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rvimage_rle_order: Option<RleOrder>,
 }
+
 impl Display for CocoInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.description)
@@ -228,6 +244,7 @@ impl CocoExportData {
         );
         let info = CocoInfo {
             description: info_str,
+            rvimage_rle_order: Some(RleOrder::ColumnMajor),
         };
         let export_data =
             InstanceExportData::from_tools_data(&options, label_info, coco_file, anno_map);
@@ -359,6 +376,16 @@ impl CocoExportData {
         } else {
             new_random_colors(labels.len())
         };
+        // Determine the RLE order of the file. Current RV Image / Coco files use
+        // column-major counts. Coco files exported by older RV Image versions
+        // used row-major counts and are detected via the RV Image signature in
+        // the description (external Coco files without the signature are assumed
+        // to follow the column-major Coco convention).
+        let is_legacy_rowmajor = match self.info.rvimage_rle_order {
+            Some(RleOrder::RowMajor) => true,
+            Some(RleOrder::ColumnMajor) => false,
+            None => self.info.description.contains("created with RV Image"),
+        };
         let id_image_map = self
             .images
             .iter()
@@ -448,7 +475,7 @@ impl CocoExportData {
                         }
                     }
                     Some(CocoSegmentation::Rle(rle)) => {
-                        let canvas = rle.to_canvas(bb);
+                        let canvas = rle.to_canvas(bb, is_legacy_rowmajor);
                         if let Ok(canvas) = canvas {
                             insert_elt(
                                 canvas,
@@ -830,7 +857,9 @@ fn test_coco_export() {
             {
                 assert_eq!(a, b, "annos at index {} differ", i);
             }
-            assert_eq!(name, read_name);
+            // paths are normalized to forward slashes on import, so compare
+            // separator-agnostically
+            assert_eq!(name.replace('\\', "/"), read_name.replace('\\', "/"));
             assert_eq!(shape, read_shape);
         }
         no_image_dups(coco_file);

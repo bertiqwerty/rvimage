@@ -5,9 +5,7 @@ use std::mem;
 
 use crate::{OutOfBoundsMode, ShapeI, color_with_intensity, result::RvResult, rverr};
 
-use super::{
-    BbF, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF, TPtI, line::render_line,
-};
+use super::{BbF, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF, line::render_line};
 
 fn line_to_mask(
     line: &BrushLine,
@@ -73,7 +71,7 @@ fn line_to_mask(
 }
 
 #[must_use]
-pub fn mask_to_rle(mask: &[u8], mask_w: u32, mask_h: u32) -> Vec<u32> {
+pub fn mask_to_rle_rowmajor(mask: &[u8], mask_w: u32, mask_h: u32) -> Vec<u32> {
     let mut rle = Vec::new();
     let mut current_run = 0;
     let mut current_value = 0;
@@ -93,7 +91,7 @@ pub fn mask_to_rle(mask: &[u8], mask_w: u32, mask_h: u32) -> Vec<u32> {
     rle
 }
 
-pub fn rle_to_mask_inplace(rle: &[u32], mask: &mut [u8], w: u32) {
+pub fn rle_to_mask_rowmajor_inplace(rle: &[u32], mask: &mut [u8], w: u32) {
     for (i, &run) in rle.iter().enumerate() {
         let value = i % 2;
         let start = rle.iter().take(i).sum::<u32>();
@@ -109,139 +107,96 @@ pub fn rle_to_mask_inplace(rle: &[u32], mask: &mut [u8], w: u32) {
 }
 
 #[must_use]
-pub fn rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
+pub fn rle_to_mask_rowmajor(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
     let mut mask = vec![0; (w * h) as usize];
-    rle_to_mask_inplace(rle, &mut mask, w);
+    rle_to_mask_rowmajor_inplace(rle, &mut mask, w);
     mask
 }
 
-fn idx_bb_to_pixim(idx_bb: u32, bb: BbI) -> PtI {
-    PtI {
-        y: idx_bb / bb.w,
-        x: idx_bb % bb.w,
-    } + bb.min()
-}
-
-fn idx_bb_to_im(idx_bb: u32, bb: BbI, w_im: TPtI) -> u32 {
-    let p_im = idx_bb_to_pixim(idx_bb, bb);
-    p_im.y * w_im + p_im.x
-}
-
-fn idx_im_to_bb(idx_im: u32, bb: BbI, w_im: TPtI) -> Option<u32> {
-    let p_im = PtI {
-        x: idx_im % w_im,
-        y: idx_im / w_im,
-    };
-    if bb.contains(p_im) {
-        let p = p_im - bb.min();
-        Some(p.y * bb.w + p.x)
-    } else {
-        None
-    }
-}
-/// The input rle is computed with respect to the bounding box coordinates
-/// the result is with respect to image coordinates
-pub fn rle_bb_to_image(rle_bb: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
-    if !bb.is_contained_in_image(shape_im) {
-        Err(rverr!(
-            "Bounding box {} is not contained in image with shape {:?}",
-            bb,
-            shape_im
-        ))
-    } else {
-        // degenerate cases with all zeros
-        if rle_bb.len() == 1 {
-            return Ok(vec![shape_im.w * shape_im.h]);
-        }
-        // or leading rows with complete zeros
-        let n_zero_rows = rle_bb[0] / bb.w;
-        let bb = BbI::from_arr(&[bb.x, bb.y + n_zero_rows, bb.w, bb.h - n_zero_rows]);
-        let rle_0_correction = n_zero_rows * bb.w;
-        // or zeros at the end
-        let n_zero_rows = if rle_bb.len() % 2 == 1 {
-            rle_bb.iter().last().unwrap() / bb.w
-        } else {
-            0
-        };
-        let bb = BbI::from_arr(&[bb.x, bb.y, bb.w, bb.h - n_zero_rows]);
-        let rle_1_correction = n_zero_rows * bb.w;
-
-        let mut rle_im = vec![];
-        let offset = idx_bb_to_im(0, bb, shape_im.w);
-        rle_im.push(offset + rle_bb[0] - rle_0_correction);
-        let mut prev_idx = rle_im[0] - 1;
-        for i in 1..rle_bb.len() {
-            let sum_correction = rle_0_correction
-                + if i == rle_bb.len() - 1 {
-                    rle_1_correction
-                } else {
-                    0
-                };
-            let im_idx = idx_bb_to_im(
-                rle_bb[..=i].iter().sum::<u32>() - 1 - sum_correction,
-                bb,
-                shape_im.w,
-            );
-            let p = PtI {
-                x: im_idx % shape_im.w,
-                y: im_idx / shape_im.w,
-            };
-            let p_prev = PtI {
-                x: prev_idx % shape_im.w,
-                y: prev_idx / shape_im.w,
-            };
-            let is_foreground_run = i % 2 == 1;
-            let row_span = p.y - p_prev.y;
-            if is_foreground_run {
-                if row_span == 0 {
-                    rle_im.push(p.x - p_prev.x);
-                } else {
-                    let n_elts = bb.max().x - p_prev.x;
-                    // in case of complete zero rows this can be zero
-                    if n_elts > 0 {
-                        rle_im.push(n_elts);
-                        for _ in 0..(row_span - 1) {
-                            rle_im.push(shape_im.w - bb.w);
-                            rle_im.push(bb.w);
-                        }
-                        rle_im.push(shape_im.w - bb.w);
-                    }
-                    rle_im.push(p.x + 1 - bb.x);
-                }
-                if i == rle_bb.len() - 1 {
-                    rle_im.push(
-                        bb.x + bb.w - 1 - p.x + shape_im.w * (shape_im.h - p.y - 1) + shape_im.w
-                            - (bb.w + bb.x),
-                    );
-                }
+/// Column-major (Fortran order) run-length encoding of a row-major stored mask.
+///
+/// This is the ordering used by the Coco RLE format.
+fn mask_to_rle_colmajor(mask: &[u8], w: u32, h: u32) -> Vec<u32> {
+    let mut rle = Vec::new();
+    let mut current_run = 0;
+    let mut current_value = 0;
+    for x in 0..w {
+        for y in 0..h {
+            let value = mask[(y * w + x) as usize];
+            if value == current_value {
+                current_run += 1;
             } else {
-                let n_elts = if row_span == 0 {
-                    p.x - p_prev.x
-                } else {
-                    bb.x_max() + 1 - p_prev.x + (row_span - 1) * shape_im.w + shape_im.w - bb.w
-                        + p.x
-                        - bb.x
-                };
-                let n_elts = if p.x == bb.x_max() && i < rle_bb.len() - 1 {
-                    n_elts + shape_im.w - bb.w
-                } else {
-                    n_elts
-                };
-                let n_elts = if i == rle_bb.len() - 1 {
-                    n_elts + shape_im.w - (bb.w + bb.x) + shape_im.w * (shape_im.h - p.y - 1)
-                } else {
-                    n_elts
-                };
-                rle_im.push(n_elts);
+                rle.push(current_run);
+                current_run = 1;
+                current_value = value;
             }
-            prev_idx = im_idx;
         }
-        Ok(rle_im)
     }
+    rle.push(current_run);
+    rle
 }
-/// The input rle is computed with respect to the image coordinates
-/// the result is with respect to bounding box coordinates
-pub fn rle_image_to_bb(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
+
+/// Decode a column-major (Fortran order) run-length encoding into a row-major
+/// stored mask.
+fn colmajor_rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
+    let mut mask = vec![0u8; (w * h) as usize];
+    let mut linear = 0u32;
+    for (i, &run) in rle.iter().enumerate() {
+        if i % 2 == 1 {
+            for k in linear..(linear + run) {
+                let x = k / h;
+                let y = k % h;
+                let idx = (y * w + x) as usize;
+                if idx < mask.len() {
+                    mask[idx] = 1;
+                }
+            }
+        }
+        linear += run;
+    }
+    mask
+}
+
+/// Decode a row-major (C order) run-length encoding into a row-major stored
+/// mask.
+///
+/// This corresponds to the legacy RV Image RLE order (used by Coco files
+/// exported before RV Image switched to the column-major Coco convention).
+fn rowmajor_rle_to_mask(rle: &[u32], w: u32, h: u32) -> Vec<u8> {
+    let mut mask = vec![0u8; (w * h) as usize];
+    let mut linear = 0u32;
+    for (i, &run) in rle.iter().enumerate() {
+        if i % 2 == 1 {
+            for k in linear..(linear + run) {
+                let idx = k as usize;
+                if idx < mask.len() {
+                    mask[idx] = 1;
+                }
+            }
+        }
+        linear += run;
+    }
+    mask
+}
+
+/// Extract the bounding-box region from a full row-major image mask and encode
+/// it in row-major order.
+fn im_mask_to_bb_rle(im_mask: &[u8], bb: BbI, shape_im: ShapeI) -> Vec<u32> {
+    let mut bb_mask = vec![0u8; (bb.w * bb.h) as usize];
+    for y in 0..bb.h {
+        for x in 0..bb.w {
+            let ix = bb.x + x;
+            let iy = bb.y + y;
+            bb_mask[(y * bb.w + x) as usize] = im_mask[(iy * shape_im.w + ix) as usize];
+        }
+    }
+    mask_to_rle_rowmajor(&bb_mask, bb.w, bb.h)
+}
+
+/// The input rle is computed with respect to the bounding box coordinates in
+/// row-major order, the result is with respect to image coordinates in
+/// column-major (Coco/Fortran) order.
+pub fn rle_bb_to_image_colmajor(rle_bb: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
     if !bb.is_contained_in_image(shape_im) {
         Err(rverr!(
             "Bounding box {} is not contained in image with shape {:?}",
@@ -249,24 +204,53 @@ pub fn rle_image_to_bb(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Ve
             shape_im
         ))
     } else {
-        // degenerate cases with all zeros
-        if rle_im.len() == 1 {
-            return Ok(vec![bb.w * bb.h]);
-        }
-        let mut mask = vec![0; (bb.w * bb.h) as usize];
-
-        for (i, run) in rle_im.iter().enumerate() {
-            let is_foreground_run = i % 2 == 1;
-            if is_foreground_run {
-                let start = rle_im.iter().take(i).sum::<u32>();
-                for idx in start..(start + run) {
-                    if let Some(idx_bb) = idx_im_to_bb(idx, bb, shape_im.w) {
-                        mask[idx_bb as usize] = 1;
-                    }
+        // decode the row-major bounding-box rle into a row-major bb mask
+        let bb_mask = rle_to_mask_rowmajor(rle_bb, bb.w, bb.h);
+        // place the bb mask into a full row-major image mask
+        let mut im_mask = vec![0u8; (shape_im.w * shape_im.h) as usize];
+        for y in 0..bb.h {
+            for x in 0..bb.w {
+                if bb_mask[(y * bb.w + x) as usize] != 0 {
+                    let ix = bb.x + x;
+                    let iy = bb.y + y;
+                    im_mask[(iy * shape_im.w + ix) as usize] = 1;
                 }
             }
         }
-        Ok(mask_to_rle(&mask, bb.w, bb.h))
+        // encode the image mask in column-major (Coco) order
+        Ok(mask_to_rle_colmajor(&im_mask, shape_im.w, shape_im.h))
+    }
+}
+/// The input rle is computed with respect to the image coordinates in
+/// column-major (Coco/Fortran) order, the result is with respect to bounding
+/// box coordinates in row-major order.
+pub fn rle_image_to_bb_colmajor(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
+    if !bb.is_contained_in_image(shape_im) {
+        Err(rverr!(
+            "Bounding box {} is not contained in image with shape {:?}",
+            bb,
+            shape_im
+        ))
+    } else {
+        // decode the column-major image rle into a full row-major image mask
+        let im_mask = colmajor_rle_to_mask(rle_im, shape_im.w, shape_im.h);
+        Ok(im_mask_to_bb_rle(&im_mask, bb, shape_im))
+    }
+}
+/// Legacy variant of [`rle_image_to_bb`] where the input rle is computed with
+/// respect to the image coordinates in row-major (C) order. Used to import Coco
+/// files exported by older RV Image versions.
+pub fn rle_image_to_bb_rowmajor(rle_im: &[u32], bb: BbI, shape_im: ShapeI) -> RvResult<Vec<u32>> {
+    if !bb.is_contained_in_image(shape_im) {
+        Err(rverr!(
+            "Bounding box {} is not contained in image with shape {:?}",
+            bb,
+            shape_im
+        ))
+    } else {
+        // decode the row-major image rle into a full row-major image mask
+        let im_mask = rowmajor_rle_to_mask(rle_im, shape_im.w, shape_im.h);
+        Ok(im_mask_to_bb_rle(&im_mask, bb, shape_im))
     }
 }
 
@@ -425,7 +409,10 @@ impl Serialize for Canvas {
         S: serde::Serializer,
     {
         let mut state = serializer.serialize_struct("Canvas", 3)?;
-        state.serialize_field("rle", &mask_to_rle(&self.mask, self.bb.w, self.bb.h))?;
+        state.serialize_field(
+            "rle",
+            &mask_to_rle_rowmajor(&self.mask, self.bb.w, self.bb.h),
+        )?;
         state.serialize_field("bb", &self.bb)?;
         state.serialize_field("intensity", &self.intensity)?;
         state.end()
@@ -451,7 +438,7 @@ impl<'de> Deserialize<'de> for Canvas {
         let read = CanvasOrBl::deserialize(deserializer)?;
         match read {
             CanvasOrBl::Canvas(canvas_de) => {
-                let mask = rle_to_mask(&canvas_de.rle, canvas_de.bb.w, canvas_de.bb.h);
+                let mask = rle_to_mask_rowmajor(&canvas_de.rle, canvas_de.bb.w, canvas_de.bb.h);
                 Ok(Self {
                     mask,
                     bb: canvas_de.bb,
@@ -518,105 +505,156 @@ fn test_canvas_single() {
 
 #[test]
 fn test_rle() {
-    fn test(bb: BbI, shape: ShapeI, rle_bb: &[u32], rle_im_ref: &[u32], skip_rec: bool) {
-        let rle_im = rle_bb_to_image(rle_bb, bb, shape).unwrap();
-        assert_eq!(rle_im, rle_im_ref);
+    fn test(
+        bb: BbI,
+        shape: ShapeI,
+        rle_bb: &[u32],
+        rle_im_ref_col: &[u32],
+        rle_im_ref_row: &[u32],
+        skip_rec: bool,
+    ) {
+        // column-major (Coco) export + import round-trip
+        let rle_im = rle_bb_to_image_colmajor(rle_bb, bb, shape).unwrap();
+        assert_eq!(rle_im, rle_im_ref_col);
         assert_eq!(rle_im.iter().sum::<u32>(), shape.w * shape.h);
-        let rle_bb_rec = rle_image_to_bb(&rle_im, bb, shape).unwrap();
+        let rle_bb_rec = rle_image_to_bb_colmajor(&rle_im, bb, shape).unwrap();
         if !skip_rec {
             assert_eq!(rle_bb_rec, rle_bb);
+        }
+        // legacy row-major import: decode the independent row-major image rle
+        // of the same mask and check it reconstructs the bb rle
+        assert_eq!(rle_im_ref_row.iter().sum::<u32>(), shape.w * shape.h);
+        let rle_bb_rec_row = rle_image_to_bb_rowmajor(rle_im_ref_row, bb, shape).unwrap();
+        if !skip_rec {
+            assert_eq!(rle_bb_rec_row, rle_bb);
         }
     }
     let rle_bb = [1, 1, 4, 1, 1];
     let bb = BbI::from_arr(&[1, 1, 2, 4]);
     let shape = ShapeI::new(4, 6);
-    let rle_im_ref = [6, 1, 10, 1, 6];
-    test(bb, shape, &rle_bb, &rle_im_ref, false);
+    let rle_im_col = [10, 1, 2, 1, 10];
+    let rle_im_row = [6, 1, 10, 1, 6];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, false);
 
     let rle_bb = [0, 3, 1, 2];
     let bb = BbI::from_arr(&[3, 2, 2, 3]);
     let shape = ShapeI::new(6, 6);
-    let rle_im_ref = [15, 2, 4, 1, 5, 2, 7];
-    test(bb, shape, &rle_bb, &rle_im_ref, false);
+    let rle_im_col = [20, 3, 3, 1, 1, 1, 7];
+    let rle_im_row = [15, 2, 4, 1, 5, 2, 7];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, false);
 
     let rle_bb = [0, 1, 3];
     let bb = BbI::from_arr(&[2, 2, 2, 2]);
     let shape = ShapeI::new(6, 6);
-    let rle_im_ref = [14, 1, 21];
-    test(bb, shape, &rle_bb, &rle_im_ref, true);
+    let rle_im_col = [14, 1, 21];
+    let rle_im_row = [14, 1, 21];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, true);
 
     let rle_bb = [1, 2, 1];
     let bb = BbI::from_arr(&[1, 1, 2, 2]);
     let shape = ShapeI::new(6, 4);
-    let rle_im_ref = [8, 1, 4, 1, 10];
-    test(bb, shape, &rle_bb, &rle_im_ref, false);
+    let rle_im_col = [6, 1, 2, 1, 14];
+    let rle_im_row = [8, 1, 4, 1, 10];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, false);
 
     let rle_bb = vec![0, 2, 2, 2];
     let bb = BbI::from_arr(&[3, 2, 2, 3]);
     let shape = ShapeI::new(6, 6);
-    let rle_im_ref = vec![15, 2, 10, 2, 7];
-    test(bb, shape, &rle_bb, &rle_im_ref, false);
+    let rle_im_col = vec![20, 1, 1, 1, 3, 1, 1, 1, 7];
+    let rle_im_row = vec![15, 2, 10, 2, 7];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, false);
 
     let rle_bb = vec![3, 1];
     let bb = BbI::from_arr(&[1, 1, 2, 2]);
     let shape = ShapeI::new(6, 6);
-    let rle_im_ref = vec![14, 1, 21];
-    test(bb, shape, &rle_bb, &rle_im_ref, true);
+    let rle_im_col = vec![14, 1, 21];
+    let rle_im_row = vec![14, 1, 21];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, true);
 
     let rle_bb = vec![6];
     let bb = BbI::from_arr(&[2, 1, 2, 3]);
     let shape = ShapeI::new(6, 6);
-    let rle_im_ref = vec![36];
-    test(bb, shape, &rle_bb, &rle_im_ref, false);
+    let rle_im_col = vec![36];
+    let rle_im_row = vec![36];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, false);
 
     let rle_bb = vec![0, 6];
     let bb = BbI::from_arr(&[2, 1, 2, 3]);
     let shape = ShapeI::new(6, 6);
-    let rle_im_ref = vec![8, 2, 4, 2, 4, 2, 14];
-    test(bb, shape, &rle_bb, &rle_im_ref, false);
+    let rle_im_col = vec![13, 3, 3, 3, 14];
+    let rle_im_row = vec![8, 2, 4, 2, 4, 2, 14];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, false);
 
     let rle_bb = vec![0, 1, 2, 1];
     let bb = BbI::from_arr(&[1, 1, 2, 2]);
     let shape = ShapeI::new(6, 8);
-    let rle_im_ref = vec![7, 1, 6, 1, 33];
-    test(bb, shape, &rle_bb, &rle_im_ref, false);
+    let rle_im_col = vec![9, 1, 8, 1, 29];
+    let rle_im_row = vec![7, 1, 6, 1, 33];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, false);
 
     let rle_bb = vec![1, 4, 1];
     let bb = BbI::from_arr(&[1, 1, 2, 3]);
     let shape = ShapeI::new(6, 6);
-    let rle_im_ref = vec![8, 1, 4, 2, 4, 1, 16];
-    test(bb, shape, &rle_bb, &rle_im_ref, false);
+    let rle_im_col = vec![8, 2, 3, 2, 21];
+    let rle_im_row = vec![8, 1, 4, 2, 4, 1, 16];
+    test(bb, shape, &rle_bb, &rle_im_col, &rle_im_row, false);
 
     let mask = vec![0, 1, 0, 0, 0, 0, 1, 0];
-    let rle = mask_to_rle(&mask, 2, 4);
+    let rle = mask_to_rle_rowmajor(&mask, 2, 4);
     assert_eq!(rle, vec![1, 1, 4, 1, 1]);
 
     let mask = vec![0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let rle = mask_to_rle(&mask, 3, 3);
+    let rle = mask_to_rle_rowmajor(&mask, 3, 3);
     assert_eq!(rle, vec![9]);
-    let mask2 = rle_to_mask(&rle, 3, 3);
+    let mask2 = rle_to_mask_rowmajor(&rle, 3, 3);
     assert_eq!(mask, mask2);
 
     let mask = vec![1, 1, 1, 1, 1, 1, 1, 1, 1];
-    let rle = mask_to_rle(&mask, 3, 3);
+    let rle = mask_to_rle_rowmajor(&mask, 3, 3);
     assert_eq!(rle, vec![0, 9]);
-    let mask2 = rle_to_mask(&rle, 3, 3);
+    let mask2 = rle_to_mask_rowmajor(&rle, 3, 3);
     assert_eq!(mask, mask2);
 
     let mask = vec![1, 0, 0, 1, 1, 1, 0, 0, 0];
-    let rle = mask_to_rle(&mask, 3, 3);
+    let rle = mask_to_rle_rowmajor(&mask, 3, 3);
     assert_eq!(rle, vec![0, 1, 2, 3, 3]);
-    let mask2 = rle_to_mask(&rle, 3, 3);
+    let mask2 = rle_to_mask_rowmajor(&rle, 3, 3);
     assert_eq!(mask, mask2);
+}
 
-    let bb = BbI::from_arr(&[5, 10, 4, 8]);
-    let shape_im = ShapeI::new(100, 200);
-    let x = idx_bb_to_im(0, bb, shape_im.w);
-    assert_eq!(x, 1005);
-    let x = idx_bb_to_im(1, bb, shape_im.w);
-    assert_eq!(x, 1006);
-    let x = idx_bb_to_im(3, bb, shape_im.w);
-    assert_eq!(x, 1008);
+#[test]
+fn test_rle_image_order() {
+    // non-square image: width w=4, height h=3
+    let shape = ShapeI::new(4, 3);
+    let bb = BbI::from_arr(&[0, 0, 4, 3]); // full image
+    // mask (row-major, w=4, h=3): fg at (x=1,y=0), (x=2,y=1), (x=0,y=2)
+    #[rustfmt::skip]
+    let mask = vec![
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        1, 0, 0, 0,
+    ];
+    // the bb spans the whole image, so the bb rle equals the row-major image rle
+    let bb_rle = mask_to_rle_rowmajor(&mask, 4, 3);
+    assert_eq!(bb_rle, vec![1, 1, 4, 1, 1, 1, 3]);
+
+    // legacy row-major image rle (== bb rle here) decodes back to the bb rle
+    let rle_im_row = vec![1, 1, 4, 1, 1, 1, 3];
+    assert_eq!(
+        rle_image_to_bb_rowmajor(&rle_im_row, bb, shape).unwrap(),
+        bb_rle
+    );
+
+    // column-major (Coco) image rle of the same mask decodes to the same bb rle
+    let rle_im_col = vec![2, 2, 3, 1, 4];
+    assert_eq!(rle_im_col.iter().sum::<u32>(), shape.w * shape.h);
+    assert_eq!(
+        rle_image_to_bb_colmajor(&rle_im_col, bb, shape).unwrap(),
+        bb_rle
+    );
+
+    // the two image-level encodings genuinely differ (order matters)
+    assert_ne!(rle_im_row, rle_im_col);
 }
 
 #[test]
