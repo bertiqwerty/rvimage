@@ -55,14 +55,12 @@ pub fn pos_from_orig_pos(
 #[must_use]
 pub fn from_orig(im_orig: &ImageU8, zoom_box: Option<BbF>) -> ImageU8 {
     if let Some(zoom_box) = zoom_box {
-        im_orig
-            .view(
-                zoom_box.x.round() as u32,
-                zoom_box.y.round() as u32,
-                zoom_box.w.round() as u32,
-                zoom_box.h.round() as u32,
-            )
-            .to_image()
+        let (img_w, img_h) = (im_orig.width(), im_orig.height());
+        let x = (zoom_box.x.round() as u32).min(img_w);
+        let y = (zoom_box.y.round() as u32).min(img_h);
+        let w = (zoom_box.w.round() as u32).min(img_w - x);
+        let h = (zoom_box.h.round() as u32).min(img_h - y);
+        im_orig.view(x, y, w, h).to_image()
     } else {
         im_orig.clone()
     }
