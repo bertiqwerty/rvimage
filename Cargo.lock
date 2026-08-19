@@ -5434,7 +5434,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rvimage"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "azure_storage",
  "azure_storage_blobs",
