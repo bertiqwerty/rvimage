@@ -210,9 +210,7 @@ impl VisibleInactiveToolsState {
         self.show_mask.iter_mut()
     }
     pub fn hide_all(&mut self) {
-        for show in &mut self.show_mask {
-            *show = false;
-        }
+        self.show_mask.fill(false);
     }
     pub fn set_show(&mut self, idx: usize, is_visible: bool) {
         if let Some(show_mask) = self.show_mask.get_mut(idx) {

@@ -137,9 +137,7 @@ where
     }
 
     pub fn deselect_all(&mut self) {
-        for s in &mut self.selected_mask {
-            *s = false;
-        }
+        self.selected_mask.fill(false);
     }
 
     pub fn toggle_selection(&mut self, elt_idx: usize) {
