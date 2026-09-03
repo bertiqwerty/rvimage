@@ -125,6 +125,9 @@ async def predict_many(
         a_shape_tuple = AttributeMap(param_name=123).model_dump(), ShapeI(w=100, h=200)
         output_attributes.append((f, a_shape_tuple))
 
+    print("------------")
+    print(annos.brush.labelinfo)
+
     return OutputAnnotationManyData(
         bbox=None,
         brush=None,
@@ -132,4 +135,6 @@ async def predict_many(
         server_response=ServerResponse(
             msg="method_description", artifact_link="some_link"
         ),
+        new_bbox_labels=annos.bbox.labelinfo,
+        new_brush_labels=annos.brush.labelinfo,
     )

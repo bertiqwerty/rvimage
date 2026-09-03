@@ -65,7 +65,7 @@ class ShapeI(BaseModel):
     h: int
 
 
-class Labelinfo(BaseModel):
+class LabelInfo(BaseModel):
     new_label: str
     labels: list[str]
     colors: list[list[int]]
@@ -303,12 +303,12 @@ class BrushAnnos(BaseModel):
 
 class InputBboxData(BaseModel):
     annos: BboxAnnos
-    labelinfo: Labelinfo
+    labelinfo: LabelInfo
 
 
 class InputBrushData(BaseModel):
     annos: BrushAnnos
-    labelinfo: Labelinfo
+    labelinfo: LabelInfo
 
 
 AttributeMap = dict[str, float | int | str | bool | None]
@@ -329,12 +329,12 @@ class InputAnnotationData(BaseModel):
 
 class InputBboxManyData(BaseModel):
     annos: list[tuple[str, BboxAnnos]]
-    labelinfo: Labelinfo
+    labelinfo: LabelInfo
 
 
 class InputBrushManyData(BaseModel):
     annos: list[tuple[str, BrushAnnos]]
-    labelinfo: Labelinfo
+    labelinfo: LabelInfo
 
 
 Attributes = list[tuple[str, AttributeMap]]
@@ -369,6 +369,8 @@ class OutputAnnotationManyData(BaseModel):
     brush: list[tuple[str, tuple[BrushAnnos, ShapeI]]] | None
     attributes: list[tuple[str, tuple[AttributeMap, ShapeI]]] | None
     server_response: ServerResponse | None = None
+    new_bbox_labels: LabelInfo | None = None
+    new_brush_labels: LabelInfo | None = None
 
 
 class WandManyMessage(BaseModel):

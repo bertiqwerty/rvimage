@@ -12,7 +12,7 @@ use crate::{
     rest_data::RestData,
     result::trace_ok_err,
     tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME},
-    tools_data::{AccessInstanceData, LabelInfo, annotations::InstanceAnnotations},
+    tools_data::{AccessInstanceData, ExportAsCoco, LabelInfo, annotations::InstanceAnnotations},
     wand_util::serialize_or_default,
 };
 
@@ -109,15 +109,17 @@ pub type BboxOutput = Option<Vec<(String, (InstanceAnnotations<GeoFig>, ShapeI))
 pub type BrushOutput = Option<Vec<(String, (InstanceAnnotations<Canvas>, ShapeI))>>;
 pub type AttributesOutput = Option<Vec<(String, (ParamMapUntagged, ShapeI))>>;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct ServerResponse {
     pub msg: String,
     pub artifact_link: Option<String>,
 }
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct WandManyOutput {
     pub bbox: BboxOutput,
     pub brush: BrushOutput,
+    pub new_bbox_labels: Option<LabelInfo>,
+    pub new_brush_labels: Option<LabelInfo>,
     pub attributes: AttributesOutput,
     pub server_response: Option<ServerResponse>,
 }
@@ -126,6 +128,12 @@ impl WandManyOutput {
         self,
         tools_data_map: &mut ToolsDataMap,
     ) -> RvResult<Option<ServerResponse>> {
+        if let Some(info) = self.new_bbox_labels
+            && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
+            && let Some(bbox_data) = trace_ok_err(s.bbox_mut())
+        {
+            bbox_data.set_labelinfo(info);
+        }
         if let Some(wand_out_bbox) = self.bbox
             && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
             && let Some(bbox_data) = trace_ok_err(s.bbox_mut())
@@ -134,6 +142,12 @@ impl WandManyOutput {
                 tracing::info!("replacing bbox annotations for {filename} with wand output");
                 bbox_data.annotations_map.insert(filename, annos);
             }
+        }
+        if let Some(info) = self.new_brush_labels
+            && let Some(s) = tools_data_map.get_specifics_mut(BRUSH_NAME)
+            && let Some(brush_data) = trace_ok_err(s.brush_mut())
+        {
+            brush_data.set_labelinfo(info);
         }
         if let Some(wand_out_brush) = self.brush
             && let Some(s) = tools_data_map.get_specifics_mut(BRUSH_NAME)
@@ -246,14 +260,19 @@ fn test_testserver() {
     );
     let c = Canvas::from_box(BbI::from_arr(&[11, 11, 5, 5]), 1.0);
     let brush_annos = InstanceAnnotations::from_elts_cats(vec![c], vec![1]);
-    let labelinfo = LabelInfo::default();
+    let mut labelinfo_bbox = LabelInfo::default();
+    labelinfo_bbox.push("bb1".to_string(), None, None).unwrap();
     let bbox_dummy = AnnosWithInfo {
         annos: vec![("file1.png", &bbox_annos)],
-        labelinfo: &labelinfo,
+        labelinfo: &labelinfo_bbox,
     };
+    let mut labelinfo_brush = LabelInfo::default();
+    labelinfo_brush
+        .push("brush1".to_string(), None, None)
+        .unwrap();
     let brush_dummy = AnnosWithInfo {
         annos: vec![("file1.png", &brush_annos)],
-        labelinfo: &labelinfo,
+        labelinfo: &labelinfo_brush,
     };
     let pm = ParamMap::from([("param_name".to_string(), ParamVal::from(1))]);
     let attributes = vec![("filename", &pm)];
@@ -267,8 +286,19 @@ fn test_testserver() {
     param_map.insert("c".to_string(), ParamVal::from(true));
     param_map.insert("d".to_string(), ParamVal::from("thestr".to_string()));
     let output = w
-        .predict("dummy", annos, &[], None, &[], Some(&param_map))
+        .predict("dummy", annos.clone(), &[], None, &[], Some(&param_map))
         .unwrap();
+
+    let mut tdm = ToolsDataMap::new();
+    output.clone().resolve_into_tdm(&mut tdm).unwrap();
+    assert_eq!(
+        annos.bbox.as_ref().unwrap().labelinfo,
+        &output.new_bbox_labels.unwrap()
+    );
+    assert_eq!(
+        annos.brush.unwrap().labelinfo,
+        &output.new_brush_labels.unwrap()
+    );
     assert_eq!(
         "method_description",
         output.server_response.as_ref().unwrap().msg
@@ -278,4 +308,12 @@ fn test_testserver() {
         output.server_response.unwrap().artifact_link.unwrap()
     );
     println!("attributes {:?}", output.attributes);
+    assert_eq!(
+        tdm[BBOX_NAME].specifics.bbox().unwrap().label_info,
+        labelinfo_bbox
+    );
+    assert_eq!(
+        tdm[BRUSH_NAME].specifics.brush().unwrap().label_info,
+        labelinfo_brush
+    );
 }
