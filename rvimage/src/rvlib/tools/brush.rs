@@ -95,7 +95,8 @@ fn draw_erase_circle(mut world: World, mp: PtF) -> World {
     world
 }
 fn mouse_released(events: &Events, mut world: World, mut history: History) -> (World, History) {
-    if events.held_ctrl() {
+    if events.held_ctrl() || events.held_alt() {
+        let in_menu_selected_label = get_specific(&world).map(|d| d.label_info.cat_idx_current);
         let shape_orig = world.shape_orig();
         let show_only_current = get_specific(&world).map(|d| d.label_info.show_only_current);
         let idx_current = get_specific(&world).map(|d| d.label_info.cat_idx_current);
@@ -105,10 +106,19 @@ fn mouse_released(events: &Events, mut world: World, mut history: History) -> (W
             });
             if let Some((idx, dist)) = to_be_selected_line_idx {
                 if dist < max_select_dist(shape_orig) {
-                    if annos.selected_mask().get(idx) == Some(&true) {
-                        annos.deselect(idx);
+                    if events.held_ctrl() {
+                        if annos.selected_mask().get(idx) == Some(&true) {
+                            annos.deselect(idx);
+                        } else {
+                            annos.select(idx);
+                        }
                     } else {
+                        // alt
+                        annos.deselect_all();
                         annos.select(idx);
+                        if let Some(selected) = in_menu_selected_label {
+                            annos.label_selected(selected);
+                        }
                     }
                 } else {
                     world =
