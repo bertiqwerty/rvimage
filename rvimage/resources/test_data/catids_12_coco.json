@@ -47,6 +47,7 @@
         {
             "id": 0,
             "image_id": 0,
+            "file_name": "http://localhost:5000/+nowhere.png",
             "category_id": 1,
             "area": 16.0,
             "bbox": [
@@ -60,6 +61,7 @@
         {
             "id": 1,
             "image_id": 0,
+            "file_name": "http://localhost:5000/+nowhere.png",
             "category_id": 2,
             "segmentation": [[]],
             "area": 16.0,
@@ -74,6 +76,7 @@
         {
             "id": 2,
             "image_id": 1,
+            "file_name": "http://localhost:5000/+nowhere2.png",
             "category_id": 1,
             "bbox": [
                 1,

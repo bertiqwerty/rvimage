@@ -47,6 +47,7 @@
         {
             "id": 0,
             "image_id": 0,
+            "file_name": "nowhere.png",
             "category_id": 1,
             "segmentation": [[]],
             "bbox": [
@@ -60,6 +61,7 @@
         {
             "id": 1,
             "image_id": 0,
+            "file_name": "nowhere.png",
             "category_id": 2,
             "segmentation": [[]],
             "bbox": [
@@ -73,6 +75,7 @@
         {
             "id": 2,
             "image_id": 1,
+            "file_name": "nowhere2.png",
             "category_id": 1,
             "segmentation": [[]],
             "bbox": [

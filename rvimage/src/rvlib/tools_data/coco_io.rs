@@ -74,6 +74,7 @@ struct CocoBboxCategory {
 struct CocoAnnotation {
     id: u32,
     image_id: u32,
+    file_name: String,
     category_id: u32,
     bbox: [TPtF; 4],
     segmentation: Option<CocoSegmentation>,
@@ -314,6 +315,7 @@ impl CocoExportData {
                             cat_id.map(|cat_id| CocoAnnotation {
                                 id: box_id - 1,
                                 image_id: image_idx as u32,
+                                file_name: file_path.clone(),
                                 category_id: *cat_id,
                                 bbox: bb_f,
                                 segmentation,
@@ -386,20 +388,11 @@ impl CocoExportData {
             Some(RleOrder::ColumnMajor) => false,
             None => self.info.description.contains("created with RV Image"),
         };
-        let id_image_map = self
+        let filename_image_map = self
             .images
             .iter()
-            .map(|coco_image: &CocoImage| {
-                Ok((
-                    coco_image.id,
-                    (
-                        coco_image.file_name.as_str(),
-                        coco_image.width,
-                        coco_image.height,
-                    ),
-                ))
-            })
-            .collect::<RvResult<HashMap<u32, (&str, u32, u32)>>>()?;
+            .map(|image| (image.file_name.as_str(), (image.width, image.height)))
+            .collect::<HashMap<_, _>>();
 
         let mut annotations_bbox: HashMap<String, (Vec<GeoFig>, Vec<usize>, ShapeI)> =
             HashMap::new();
@@ -412,12 +405,20 @@ impl CocoExportData {
             "suppressing further warnings during coco import",
         );
         for coco_anno in self.annotations {
-            if let Some((file_path, w_coco, h_coco)) = id_image_map.get(&coco_anno.image_id) {
+            let file_path = coco_anno.file_name.as_str();
+            let (w_coco, h_coco) = filename_image_map.get(file_path).copied().ok_or_else(|| {
+                rverr!(
+                    "could not find image {:?} referenced by annotation {}",
+                    file_path,
+                    coco_anno.id
+                )
+            })?;
+            {
                 // The annotations in the coco files created by RV Image are stored
                 // ignoring any orientation meta-data. Hence, if the image has been loaded
                 // and rotated with RV Image we correct the rotation.
                 let n_rotations = get_n_rotations(rotation_data, file_path);
-                let shape_coco = ShapeI::new(*w_coco, *h_coco);
+                let shape_coco = ShapeI::new(w_coco, h_coco);
 
                 let path_as_key = if file_path.starts_with("http") {
                     file_util::url_encode(file_path)
@@ -439,7 +440,7 @@ impl CocoExportData {
                 let (w_factor, h_factor) = if coords_absolute {
                     (1.0, 1.0)
                 } else {
-                    (f64::from(*w_coco), f64::from(*h_coco))
+                    (f64::from(w_coco), f64::from(h_coco))
                 };
                 let bbox = [
                     (w_factor * coco_anno.bbox[0]),
@@ -666,12 +667,20 @@ pub fn read_coco(
     coco_file: &ExportPath,
     rotation_data: Option<&Rot90ToolData>,
 ) -> RvResult<(BboxToolData, BrushToolData)> {
+    let start = std::time::Instant::now();
     let coco_inpath = get_cocofilepath(meta_data, coco_file)?;
     let coco_str = coco_file
         .conn
         .read(&coco_inpath, meta_data.ssh_cfg.as_ref())?;
     let read_data: CocoExportData = serde_json::from_str(coco_str.as_str()).map_err(to_rv)?;
-    read_data.convert_to_toolsdata(coco_file.clone(), rotation_data, meta_data.prj_path())
+    let read_data =
+        read_data.convert_to_toolsdata(coco_file.clone(), rotation_data, meta_data.prj_path())?;
+    tracing::info!("done reading coco data");
+    tracing::info!(
+        "reading coco data took {} seconds",
+        start.elapsed().as_secs_f32()
+    );
+    Ok(read_data)
 }
 
 #[cfg(test)]
@@ -907,6 +916,62 @@ fn test_coco_export() {
     let file = Path::new("http://localhost:8000/some_path/xyz.png");
     test_br(file, Some(folder), false);
     test_bb(file, Some(folder), false);
+}
+
+#[test]
+fn test_coco_sparse_annotations_roundtrip_by_filename() {
+    let shape = ShapeI::new(128, 16);
+    let mut source = BboxToolData::new();
+
+    for image_idx in 0..64 {
+        let filename = format!("image_{image_idx:02}.png");
+        let annotations = if image_idx % 2 == 0 {
+            InstanceAnnotations::from_elts_cats(
+                vec![GeoFig::BB(BbF::from_arr(&[
+                    image_idx as f64,
+                    1.0,
+                    1.0,
+                    1.0,
+                ]))],
+                vec![0],
+            )
+        } else {
+            InstanceAnnotations::default()
+        };
+        source
+            .annotations_map
+            .insert(filename, (annotations, shape));
+    }
+
+    let mut expected = source.annotations_map.clone();
+    expected.retain(|_, (annotations, _)| !annotations.is_empty());
+
+    let coco = CocoExportData::from_tools_data(source, None, None, false);
+    let (imported, _) = coco
+        .convert_to_toolsdata(ExportPath::default(), None, None)
+        .unwrap();
+
+    assert_eq!(imported.annotations_map, expected);
+}
+
+#[test]
+fn test_coco_import_requires_annotation_filename() {
+    let json = r#"{
+        "info": {"description": "test"},
+        "images": [{"id": 0, "width": 1, "height": 1, "file_name": "image.png"}],
+        "annotations": [{
+            "id": 0,
+            "image_id": 0,
+            "category_id": 1,
+            "bbox": [0.0, 0.0, 1.0, 1.0],
+            "segmentation": null,
+            "area": 1.0
+        }],
+        "categories": [{"id": 1, "name": "label"}]
+    }"#;
+
+    let error = serde_json::from_str::<CocoExportData>(json).unwrap_err();
+    assert!(error.to_string().contains("file_name"));
 }
 
 #[cfg(test)]
