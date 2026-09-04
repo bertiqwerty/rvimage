@@ -230,8 +230,8 @@ There two main ways to draw a polygon or a box:
 | left click                                                                         | draw circle if not in erase mode, else erase close brush stroke |
 | hold left mouse                                                                    | draw brush if not in erase mode                                 |
 | <kbd>E</kbd>                                                                       | activate erase mode                                             |
-| <kbd>Ctrl</kbd> + click with left mouse                                            | select brush                                                    |
-| <kbd>Alt</kbd> + left click on box                                                   | select brush and deselect others and switch to currently selected label      |
+| <kbd>Ctrl</kbd> + left click on brush stroke                                          | select brush                                                    |
+| <kbd>Alt</kbd> + left click on brush stroke                                                  | select brush and deselect others and switch to currently selected label      |
 | <kbd>Ctrl</kbd> + <kbd>C</kbd>/<kbd>V</kbd>/<kbd>A</kbd>/<kbd>H</kbd>/<kbd>D</kbd>/<kbd>L</kbd> | see bounding box tool                                           |
 | <kbd>Delete</kbd>                                                                  | delete selected strokes                                         |
 | change label                                                                       | labels of selected strokes are changed                          |
