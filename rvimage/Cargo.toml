@@ -36,7 +36,7 @@ azure_storage = { version = "0.21.0", optional = true }
 azure_storage_blobs = { version = "0.21.0", optional = true }
 base64 = "0.23.1"
 conv = "0.3.3"
-dirs = "6.0.0"
+dirs = "7.0.0"
 edit = "0.1.5"
 egui = "0.36.1"
 eframe = { version = "0.36.1", default-features = false, features = [
