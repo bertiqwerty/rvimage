@@ -560,6 +560,13 @@ pub trait Manipulate {
     fn on_filechange(&mut self, world: World, history: History) -> (World, History) {
         (world, history)
     }
+    /// Called before the world switches to a new file, while `meta_data` still
+    /// points at the file that is about to be left. Tools can use this to flush
+    /// state that is still pending (e.g. in a menu) into the old file's
+    /// annotations. Default: no-op.
+    fn before_file_change(&mut self, world: World) -> World {
+        world
+    }
     fn on_always_active_zoom(&mut self, world: World, history: History) -> (World, History) {
         (world, history)
     }

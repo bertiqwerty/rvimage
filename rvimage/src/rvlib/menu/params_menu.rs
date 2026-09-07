@@ -196,7 +196,7 @@ pub fn existing_params_menu(
                         Some(ParamVal::Str(s)) => {
                             input_changed = text_edit_singleline(ui, s, are_tools_active)
                                 .on_hover_text(TEXT_LABEL)
-                                .lost_focus();
+                                .changed();
                         }
                         None => {
                             tracing::warn!("attr_map does not contain {attr_name}");
@@ -225,7 +225,7 @@ pub fn existing_params_menu(
             egui::CollapsingHeader::new(format!("Edit {name}")).show(ui, |ui| {
                 let input_changed = text_edit_multiline(ui, s, are_tools_active)
                     .on_hover_text(TEXT_LABEL)
-                    .lost_focus();
+                    .changed();
                 if input_changed {
                     result.has_value_changed = true;
                 }

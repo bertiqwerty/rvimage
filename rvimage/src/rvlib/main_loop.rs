@@ -335,6 +335,15 @@ impl MainEventLoop {
             }
 
             let world_idx_pair = measure_time!("load image", {
+                // Give tools the chance to flush pending state into the file
+                // that is about to be left, before the world switches files.
+                if self.ctrl.is_file_change_pending() {
+                    for t in &mut self.tools {
+                        if t.is_active() {
+                            self.world = t.before_file_change(mem::take(&mut self.world));
+                        }
+                    }
+                }
                 // load new image if requested by a menu click or by the http server
                 if e.held_ctrl() && e.pressed(KeyCode::Z) {
                     info!("undo");

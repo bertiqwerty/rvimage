@@ -78,6 +78,27 @@ fn propagate_buffer(
     }
     attribute_buffer
 }
+/// Copies a pending attribute edit from the menu (`current_attr_map`) into the
+/// world's annotations. Returns true if an update was applied.
+fn apply_menu_update(world: &mut World) -> bool {
+    let is_update_triggered = get_specific(world).map(|d| d.options.is_update_triggered);
+    if is_update_triggered == Some(true) {
+        info!("update attr");
+        let current_from_menu_clone = get_specific(world).and_then(|d| d.current_attr_map.clone());
+        if let (Some(mut cfm), Some(anno)) = (current_from_menu_clone, get_annos_mut(world)) {
+            *anno = mem::take(&mut cfm);
+        }
+        if let Some(update_current_attr_map) =
+            get_specific_mut(world).map(|d| &mut d.options.is_update_triggered)
+        {
+            *update_current_attr_map = false;
+        }
+        true
+    } else {
+        false
+    }
+}
+
 fn file_change(mut world: World) -> World {
     use_currentimageshape_for_annos(&mut world);
     let attr_buffers = get_buffers(&world);
@@ -202,6 +223,13 @@ impl Manipulate for Attributes {
     fn on_filechange(&mut self, world: World, history: History) -> (World, History) {
         (file_change(world), history)
     }
+    fn before_file_change(&mut self, mut world: World) -> World {
+        // Flush an edit that is still pending in the menu (e.g. the text field
+        // kept focus, so the tool events did not run) into the annotations of
+        // the file that is about to be left. Otherwise the edit would be lost.
+        apply_menu_update(&mut world);
+        world
+    }
     fn events_tf(
         &mut self,
         mut world: World,
@@ -225,22 +253,6 @@ impl Manipulate for Attributes {
                 attr_data.options.rename_src_idx = None;
             } else {
                 tracing::error!("could not rename attribute {from_name:?} to {to_name}");
-            }
-        }
-        let is_update_triggered = get_specific(&world).map(|d| d.options.is_update_triggered);
-        if is_update_triggered == Some(true) {
-            info!("update attr");
-            let current_from_menu_clone =
-                get_specific(&world).and_then(|d| d.current_attr_map.clone());
-            if let (Some(mut cfm), Some(anno)) =
-                (current_from_menu_clone, get_annos_mut(&mut world))
-            {
-                *anno = mem::take(&mut cfm);
-            }
-            if let Some(update_current_attr_map) =
-                get_specific_mut(&mut world).map(|d| &mut d.options.is_update_triggered)
-            {
-                *update_current_attr_map = false;
             }
         }
         (world, history) = check_remove(world, history);
