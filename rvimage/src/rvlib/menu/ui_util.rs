@@ -10,20 +10,18 @@ use egui::{
 };
 use tracing::warn;
 
+/// Tool activity is recomputed every frame: the menus reset `are_tools_active`
+/// to `true` at the start of their update, and here we only ever deactivate
+/// based on the current widget state.
 fn ui_with_deactivated_tools(
     are_tools_active: &mut bool,
     mut f_ui: impl FnMut() -> Response,
-    event_activate: impl Fn(&Response) -> bool,
-    event_deactivate: impl Fn(&Response) -> bool,
+    is_deactivating: impl Fn(&Response) -> bool,
 ) -> Response {
     let response = f_ui();
-    *are_tools_active = if event_deactivate(&response) {
-        false
-    } else if event_activate(&response) {
-        true
-    } else {
-        *are_tools_active
-    };
+    if is_deactivating(&response) {
+        *are_tools_active = false;
+    }
     response
 }
 
@@ -31,23 +29,13 @@ pub fn ui_with_deactivated_tools_on_keys(
     are_tools_active: &mut bool,
     f_ui: impl FnMut() -> Response,
 ) -> Response {
-    ui_with_deactivated_tools(
-        are_tools_active,
-        f_ui,
-        |response| response.lost_focus(),
-        |response| response.gained_focus(),
-    )
+    ui_with_deactivated_tools(are_tools_active, f_ui, |response| response.has_focus())
 }
 pub fn ui_with_deactivated_tools_on_hover(
     are_tools_active: &mut bool,
     f_ui: impl FnMut() -> Response,
 ) -> Response {
-    ui_with_deactivated_tools(
-        are_tools_active,
-        f_ui,
-        |response| !response.hovered(),
-        |response| response.hovered(),
-    )
+    ui_with_deactivated_tools(are_tools_active, f_ui, |response| response.hovered())
 }
 
 pub fn text_edit_with_deactivated_tools<S: TextBuffer>(

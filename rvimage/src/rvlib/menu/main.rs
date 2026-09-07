@@ -99,6 +99,8 @@ impl ToolSelectMenu {
         tools: &mut [ToolState],
         tools_menu_map: &mut ToolsDataMap,
     ) -> RvResult<()> {
+        // recomputed every frame, widgets deactivate the tools while focused
+        self.are_tools_active = true;
         ui.horizontal_top(|ui| {
             self.recently_activated_tool = tools
                 .iter_mut()
@@ -255,6 +257,8 @@ impl Menu {
         active_tool_name: Option<&str>,
     ) -> bool {
         let mut project_loaded = false;
+        // recomputed every frame, widgets deactivate the tools while focused
+        self.are_tools_active = true;
         egui::Panel::top("top-menu-panel").show(ui, |ui| {
             // Top row with open folder and settings button
             egui::MenuBar::new().ui(ui, |ui| {
