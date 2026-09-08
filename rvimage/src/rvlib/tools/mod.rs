@@ -154,8 +154,8 @@ impl ToolState {
         (world, history) = apply_tool_method_mut!(self, on_filechange, world, history);
         (world, history)
     }
-    pub fn before_file_change(&mut self, world: World) -> World {
-        apply_tool_method_mut!(self, before_file_change, world)
+    pub fn update(&mut self, world: World) -> World {
+        apply_tool_method_mut!(self, update, world)
     }
     pub fn deactivate(&mut self, mut world: World) -> World {
         if self.is_active {

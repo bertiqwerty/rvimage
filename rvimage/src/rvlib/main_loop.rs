@@ -335,13 +335,11 @@ impl MainEventLoop {
             }
 
             let world_idx_pair = measure_time!("load image", {
-                // Give tools the chance to flush pending state into the file
-                // that is about to be left, before the world switches files.
-                if self.ctrl.is_file_change_pending() {
-                    for t in &mut self.tools {
-                        if t.is_active() {
-                            self.world = t.before_file_change(mem::take(&mut self.world));
-                        }
+                // Regular per-frame update that runs regardless of whether tools
+                // are active. Lets tools flush pending menu state, e.g. attribute edits.
+                for t in &mut self.tools {
+                    if t.is_active() {
+                        self.world = t.update(mem::take(&mut self.world));
                     }
                 }
                 // load new image if requested by a menu click or by the http server

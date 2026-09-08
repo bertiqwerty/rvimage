@@ -413,12 +413,6 @@ impl Control {
     pub fn flags(&self) -> &ControlFlags {
         &self.flags
     }
-    /// True if a different file is selected in the menu than the one currently
-    /// loaded, i.e. a file change will be triggered in this iteration.
-    pub fn is_file_change_pending(&self) -> bool {
-        self.file_selected_idx != self.paths_navigator.file_label_selected_idx()
-            || self.flags.is_loading_screen_active
-    }
     pub fn reload(&mut self, sort_params: Option<SortParams>) -> RvResult<()> {
         tracing::info!("reload");
         if let Some(reader) = &mut self.reader {

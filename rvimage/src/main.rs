@@ -215,6 +215,9 @@ fn add_thumb_ims<'a>(
     }
     clicked_file_label
 }
+
+const N_LAST_ITERATIONS: usize = 3;
+
 #[derive(Default)]
 struct RvImageApp {
     event_loop: MainEventLoop,
@@ -231,7 +234,7 @@ struct RvImageApp {
     thumb_ims: ThumbViews,
     events: rvlib::Events,
     last_sensed_btncodes: rvlib::LastSensedBtns,
-    t_last_iterations: [f64; 3],
+    t_last_iterations: [f64; N_LAST_ITERATIONS],
     egui_perm_bbox_shapes: Vec<Shape>,
     egui_perm_brush_shapes: Vec<Shape>,
     egui_tmp_shapes: [Option<Shape>; 2],
@@ -674,8 +677,7 @@ impl eframe::App for RvImageApp {
                         self.update_thumb_textures(ui.ctx());
                     }
                     let it_per_s = 1.0
-                        / (self.t_last_iterations.iter().sum::<f64>()
-                            / self.t_last_iterations.len() as f64);
+                        / (self.t_last_iterations.iter().sum::<f64>() / N_LAST_ITERATIONS as f64);
                     let it_str = if it_per_s > 200.0 {
                         "200+".to_string()
                     } else {
@@ -806,8 +808,7 @@ impl eframe::App for RvImageApp {
 
         #[allow(clippy::indexing_slicing)]
         {
-            let n_millis = self.t_last_iterations.len();
-            for i in 0..(n_millis - 1) {
+            for i in 0..(N_LAST_ITERATIONS - 1) {
                 self.t_last_iterations[i] = self.t_last_iterations[i + 1];
             }
             if let Some(last) = self.t_last_iterations.last_mut() {

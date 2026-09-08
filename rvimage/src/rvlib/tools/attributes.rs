@@ -223,10 +223,9 @@ impl Manipulate for Attributes {
     fn on_filechange(&mut self, world: World, history: History) -> (World, History) {
         (file_change(world), history)
     }
-    fn before_file_change(&mut self, mut world: World) -> World {
-        // Flush an edit that is still pending in the menu (e.g. the text field
-        // kept focus, so the tool events did not run) into the annotations of
-        // the file that is about to be left. Otherwise the edit would be lost.
+    fn update(&mut self, mut world: World) -> World {
+        // Flush an edit that is still pending in the menu into the annotations.
+        // Runs every frame so the edit is applied while typing.
         apply_menu_update(&mut world);
         world
     }
