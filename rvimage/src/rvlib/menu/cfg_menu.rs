@@ -26,9 +26,11 @@ fn azure_cfg_menu(
     egui::Grid::new("azure-cfg-menu")
         .num_columns(2)
         .show(ui, |ui| {
-            ui.label("Connection str");
+            ui.label("SAS URL or connection str");
             text_edit_singleline(ui, &mut azure_cfg_usr.connection_string, are_tools_active)
-                .on_hover_text(azure_cfg_usr.connection_string.clone());
+                .on_hover_text(
+                    "SAS URL or SAS connection string (BlobEndpoint=...;SharedAccessSignature=...)",
+                );
             ui.end_row();
             ui.label("Connection str path");
             text_edit_singleline(
