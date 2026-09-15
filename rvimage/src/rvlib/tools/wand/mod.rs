@@ -127,13 +127,14 @@ impl Wand for RestWand {
 
 #[cfg(test)]
 use crate::{
-    defer, parameters::ParamVal, test_helpers::start_resttestserver, tools::BBOX_NAME,
+    defer,
+    parameters::ParamVal,
+    test_helpers::{start_resttestserver, wait_for_server_ready},
+    tools::BBOX_NAME,
     tracing_setup::init_tracing_for_tests,
 };
 #[cfg(test)]
 use rvimage_domain::BbI;
-#[cfg(test)]
-use std::{thread, time::Duration};
 
 #[test]
 fn test() {
@@ -142,7 +143,7 @@ fn test() {
     defer!(|| child.kill().expect("Failed to kill the server"));
 
     tracing::debug!("FastAPI server started");
-    thread::sleep(Duration::from_secs(5));
+    wait_for_server_ready("http://127.0.0.1:8000");
     fn test_inner(url: &str, manifestdir: &str) {
         tracing::info!("Testing with url: {url}");
         let w = RestWand::new(url.into(), None, 60000);

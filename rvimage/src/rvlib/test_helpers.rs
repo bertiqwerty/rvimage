@@ -70,3 +70,30 @@ pub fn start_resttestserver() -> (String, Child) {
     };
     (manifestdir, child)
 }
+
+/// Polls the rest test server's `/ping` endpoint until it responds or the timeout elapses,
+/// so tests don't race a fixed sleep against variable server startup (dependency downloads, binding).
+pub fn wait_for_server_ready(base_url: &str) {
+    let ping_url = format!("{}/ping", base_url.trim_end_matches('/'));
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .expect("failed to build readiness http client");
+    let overall_timeout = Duration::from_secs(120);
+    let start = std::time::Instant::now();
+    let mut last_err = None;
+    while start.elapsed() < overall_timeout {
+        match client.get(&ping_url).send() {
+            Ok(resp) if resp.status().is_success() => {
+                tracing::info!("rest test server ready after {:?}", start.elapsed());
+                return;
+            }
+            Ok(resp) => last_err = Some(format!("status {}", resp.status())),
+            Err(e) => last_err = Some(e.to_string()),
+        }
+        thread::sleep(Duration::from_millis(250));
+    }
+    panic!(
+        "rest test server at {ping_url} not ready within {overall_timeout:?}; last error: {last_err:?}"
+    );
+}

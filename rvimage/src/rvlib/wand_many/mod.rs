@@ -241,18 +241,20 @@ impl WandMany for RestWandMany {
 }
 
 #[cfg(test)]
-use crate::{defer, parameters::ParamVal, test_helpers::start_resttestserver};
+use crate::{
+    defer,
+    parameters::ParamVal,
+    test_helpers::{start_resttestserver, wait_for_server_ready},
+};
 #[cfg(test)]
 use rvimage_domain::{BbF, BbI};
-#[cfg(test)]
-use std::{thread, time::Duration};
 
 #[test]
 fn test_testserver() {
     let (_, mut child) = start_resttestserver();
     defer!(|| child.kill().expect("Failed to kill the server"));
-    thread::sleep(Duration::from_secs(20));
     let url = "http://127.0.0.1:8000/";
+    wait_for_server_ready(url);
     let w = RestWandMany::new(url.into(), None, 60000);
     let bbox_annos = InstanceAnnotations::from_elts_cats(
         vec![GeoFig::BB(BbF::from_arr(&[0.0, 0.0, 5.0, 5.0]))],
