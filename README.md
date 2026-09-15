@@ -132,7 +132,7 @@ address = "address:port"  # port is usually 22
 server_addresses = ['http://localhost:8000/']
 
 [prj.azure_blob]
-# With a connection string you can view the images inside a blob storage.
+# With a SAS connection string or URL you can view the images inside a blob storage.
 # The connection_string_path should point to file that contains just the 
 # connection string or a line with 
 # `CONNECTION_STRING = ` or `AZURE_CONNECTION_STRING = `.
