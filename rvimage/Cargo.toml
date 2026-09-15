@@ -45,6 +45,7 @@ eframe = { version = "0.36.1", default-features = false, features = [
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",   # Enable restoring app state when restarting the app.
     "wayland",
+    "links"
 ] }
 egui_plot = "0.37.0"
 futures = { version = "0.3.34", optional = true }

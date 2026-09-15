@@ -215,9 +215,14 @@ impl From<&str> for ParamMap {
         for line in value.split('\n') {
             let mut split_iter = line.split(':');
             let n = split_iter.next();
-            let t = split_iter.next();
+            let t = split_iter.next().and_then(|t| t.split("=").next());
             if let (Some(n), Some(t)) = (n, t)
-                && let Ok(pv) = ParamVal::from_strtype_default(t)
+                && let Ok(pv) = ParamVal::from_strtype_default(
+                    &t.replace(" ", "")
+                        .replace("|None", "")
+                        .replace("Optional[", "")
+                        .replace("]", ""),
+                )
             {
                 param_map.insert(n.trim().into(), pv);
             }
@@ -368,6 +373,33 @@ fn test_from_strtype() {
         ("b".to_string(), ParamVal::Bool(false)),
         ("d".to_string(), ParamVal::Float(None)),
         ("c".to_string(), ParamVal::Str("".into())),
+    ]);
+    assert_eq!(param_map, reference);
+    let strtype = "a: int | None\nb: Optional[bool]\n#x\nc:str\nd:float";
+    let param_map = ParamMap::from(strtype);
+    let reference = ParamMap::from([
+        ("a".to_string(), ParamVal::Int(None)),
+        ("b".to_string(), ParamVal::Bool(false)),
+        ("d".to_string(), ParamVal::Float(None)),
+        ("c".to_string(), ParamVal::Str("".into())),
+    ]);
+    assert_eq!(param_map, reference);
+
+    let strtype = r"   do_this_thing: bool
+    do_another_thing: bool = False
+    keep_a_region: bool | None = None
+    # bla comments, bla (Responses API) instead of the
+    # bla backends.
+    worlds_to_keep : int | None = None
+    n_things : int | None
+";
+    let param_map = ParamMap::from(strtype);
+    let reference = ParamMap::from([
+        ("do_this_thing".to_string(), ParamVal::Bool(false)),
+        ("do_another_thing".to_string(), ParamVal::Bool(false)),
+        ("keep_a_region".to_string(), ParamVal::Bool(false)),
+        ("worlds_to_keep".to_string(), ParamVal::Int(None)),
+        ("n_things".to_string(), ParamVal::Int(None)),
     ]);
     assert_eq!(param_map, reference);
 }

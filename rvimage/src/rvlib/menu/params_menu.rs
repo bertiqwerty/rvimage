@@ -70,7 +70,11 @@ pub fn parammap_from_strtypes(
 ) -> Option<ParamMap> {
     let mut outmap = None;
     egui::CollapsingHeader::new("Parse string").show(ui, |ui| {
-        text_edit_multiline(ui, strtype_buffer, are_tools_active);
+        egui::ScrollArea::vertical()
+            .max_height(400.0)
+            .show(ui, |ui| {
+                text_edit_multiline(ui, strtype_buffer, are_tools_active);
+            });
         if ui.button("Parse into parameters").clicked() {
             outmap = Some(ParamMap::from(strtype_buffer.as_str()));
         }
@@ -223,12 +227,14 @@ pub fn existing_params_menu(
     for (name, val) in attr_map.iter_mut() {
         if let ParamVal::Str(s) = val {
             egui::CollapsingHeader::new(format!("Edit {name}")).show(ui, |ui| {
-                let input_changed = text_edit_multiline(ui, s, are_tools_active)
-                    .on_hover_text(TEXT_LABEL)
-                    .changed();
-                if input_changed {
-                    result.has_value_changed = true;
-                }
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    let input_changed = text_edit_multiline(ui, s, are_tools_active)
+                        .on_hover_text(TEXT_LABEL)
+                        .changed();
+                    if input_changed {
+                        result.has_value_changed = true;
+                    }
+                });
             });
         }
     }

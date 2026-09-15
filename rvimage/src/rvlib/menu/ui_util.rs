@@ -52,7 +52,7 @@ pub fn text_edit_multiline(
 ) -> Response {
     text_edit_with_deactivated_tools(text, are_tools_active, |text| {
         TextEdit::multiline(text)
-            .font(FontSelection::Style(egui::TextStyle::Monospace))
+            .code_editor()
             .show(ui)
             .response
             .response
