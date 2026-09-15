@@ -251,7 +251,7 @@ use std::{thread, time::Duration};
 fn test_testserver() {
     let (_, mut child) = start_resttestserver();
     defer!(|| child.kill().expect("Failed to kill the server"));
-    thread::sleep(Duration::from_secs(10));
+    thread::sleep(Duration::from_secs(20));
     let url = "http://127.0.0.1:8000/";
     let w = RestWandMany::new(url.into(), None, 60000);
     let bbox_annos = InstanceAnnotations::from_elts_cats(
