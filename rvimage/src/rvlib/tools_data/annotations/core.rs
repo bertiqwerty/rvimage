@@ -48,12 +48,16 @@ where
     }
 
     pub fn is_selection_of_equal_cat(&self) -> bool {
-        let first_cat_idx = self.cat_idxs.first();
-        self.selected_mask
+        let mut cat_idx_iter = self
+            .selected_mask
             .iter()
             .enumerate()
             .filter(|(_, is_selected)| **is_selected)
-            .all(|(elt_idx, _)| self.cat_idxs.get(elt_idx) == first_cat_idx)
+            .map(|(elt_idx, _)| self.cat_idxs.get(elt_idx));
+        match cat_idx_iter.next() {
+            None => true,
+            Some(first) => cat_idx_iter.all(|cidx| cidx == first),
+        }
     }
 
     pub fn pop_selected(&mut self) -> RvResult<(Vec<T>, Vec<usize>)>
