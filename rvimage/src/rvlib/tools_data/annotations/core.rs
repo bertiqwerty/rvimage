@@ -47,6 +47,42 @@ where
         res
     }
 
+    pub fn is_selection_of_equal_cat(&self) -> bool {
+        let first_cat_idx = self.cat_idxs.first();
+        self.selected_mask
+            .iter()
+            .enumerate()
+            .filter(|(_, is_selected)| **is_selected)
+            .all(|(elt_idx, _)| self.cat_idxs.get(elt_idx) == first_cat_idx)
+    }
+
+    pub fn pop_selected(&mut self) -> RvResult<(Vec<T>, Vec<usize>)>
+    where
+        T: Default,
+    {
+        let result = self
+            .selected_mask
+            .iter()
+            .enumerate()
+            .filter(|(_, is_selected)| **is_selected)
+            .map(|(elt_idx, _)| {
+                Ok((
+                    mem::take(
+                        self.elts
+                            .get_mut(elt_idx)
+                            .ok_or_else(|| rverr!("elt missing"))?,
+                    ),
+                    *self
+                        .cat_idxs
+                        .get(elt_idx)
+                        .ok_or_else(|| rverr!("cat idx missing"))?,
+                ))
+            })
+            .collect::<RvResult<Vec<(T, usize)>>>()?;
+        self.remove_selected();
+        Ok(result.into_iter().unzip())
+    }
+
     pub fn edit(&mut self, elt_idx: usize) -> Option<&mut T> {
         self.elts.get_mut(elt_idx)
     }

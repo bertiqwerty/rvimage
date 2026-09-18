@@ -196,47 +196,48 @@ There two main ways to draw a polygon or a box:
 1. One corner per left-click for a polygon. Finish by right-click. One left-click and one right-clicks for a box.
 2. Drag the left mouse button. A polygon will follow you mouse.
 
-| event                                                                                | action                                                                                   |
-| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| drag and release left mouse                                                          | draw polygon                                                                             |
-| first left click                                                                     | start drawing mode                                                                       |
-| $n$-th left click with $n>1$                                                         | add polygon vertex                                                                       |
-| right click                                                                          | finish drawing box or polygon                                                            |
-| <kbd>Alt</kbd> + left click during box/polygon drawing                               | delete last vertex added                                                                 |
-| left click on corner of box                                                          | start drawing mode and move vertex                                                       |
-| <kbd>Ctrl</kbd> + left click on box                                                  | select box                                                                               |
-| <kbd>Alt</kbd> + left click on box                                                   | select box and deselect others and switch to currently selected label                    |
-| hold right button                                                                    | move selected boxes                                                                      |
-| <kbd>Shift</kbd> + left click on box                                                 | select all boxes with overlap with the maximal span of this box and other selected boxes |
-| <kbd>Ctrl</kbd> + <kbd>A</kbd>                                                       | select all boxes                                                                         |
-| <kbd>Delete</kbd>                                                                    | remove selected boxes                                                                    |
-| <kbd>Ctrl</kbd> + <kbd>D</kbd>                                                       | deselect all boxes                                                                       |
-| <kbd>Ctrl</kbd> + <kbd>H</kbd>                                                       | hide all boxes                                                                           |
-| <kbd>C</kbd>                                                                         | clone selected boxes at mouse position and move selection to new box                     |
-| <kbd>Ctrl</kbd> + <kbd>C</kbd>                                                       | copy all selected boxes to clipboard                                                     |
-| <kbd>Ctrl</kbd> + <kbd>V</kbd>                                                       | paste boxes without existing duplicate from clipboard                                    |
-| <kbd>V</kbd>                                                                         | activate auto-paste on image change                                                      |
-| <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>                   | move bottom right corner of all selected boxes                                           |
-| <kbd>Ctrl</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd> | move top left corner of all selected boxes                                               |
-| <kbd>Alt</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>  | move all selected boxes                                                                  |
-| change label                                                                         | labels of selected boxes/polygons are changed                                            |
-| <kbd>L</kbd> | Toggle label display between none, index-sorted-left-right, index-sorted-top-bottom, and category                                            |
+| event                                                                                | action                                                                                            |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| drag and release left mouse                                                          | draw polygon                                                                                      |
+| first left click                                                                     | start drawing mode                                                                                |
+| $n$-th left click with $n>1$                                                         | add polygon vertex                                                                                |
+| right click                                                                          | finish drawing box or polygon                                                                     |
+| <kbd>Alt</kbd> + left click during box/polygon drawing                               | delete last vertex added                                                                          |
+| left click on corner of box                                                          | start drawing mode and move vertex                                                                |
+| <kbd>Ctrl</kbd> + left click on box                                                  | select box                                                                                        |
+| <kbd>Alt</kbd> + left click on box                                                   | select box and deselect others and switch to currently selected label                             |
+| hold right button                                                                    | move selected boxes                                                                               |
+| <kbd>Shift</kbd> + left click on box                                                 | select all boxes with overlap with the maximal span of this box and other selected boxes          |
+| <kbd>Ctrl</kbd> + <kbd>A</kbd>                                                       | select all boxes                                                                                  |
+| <kbd>Delete</kbd>                                                                    | remove selected boxes                                                                             |
+| <kbd>Ctrl</kbd> + <kbd>D</kbd>                                                       | deselect all boxes                                                                                |
+| <kbd>Ctrl</kbd> + <kbd>H</kbd>                                                       | hide all boxes                                                                                    |
+| <kbd>C</kbd>                                                                         | clone selected boxes at mouse position and move selection to new box                              |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd>                                                       | copy all selected boxes to clipboard                                                              |
+| <kbd>Ctrl</kbd> + <kbd>V</kbd>                                                       | paste boxes without existing duplicate from clipboard                                             |
+| <kbd>V</kbd>                                                                         | activate auto-paste on image change                                                               |
+| <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>                   | move bottom right corner of all selected boxes                                                    |
+| <kbd>Ctrl</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd> | move top left corner of all selected boxes                                                        |
+| <kbd>Alt</kbd> + <kbd>Left⬅</kbd>/<kbd>Right➡</kbd>/<kbd>Up⬆</kbd>/<kbd>Down⬇</kbd>  | move all selected boxes                                                                           |
+| change label                                                                         | labels of selected boxes/polygons are changed                                                     |
+| <kbd>L</kbd>                                                                         | Toggle label display between none, index-sorted-left-right, index-sorted-top-bottom, and category |
 
 
 ### Brush Tool
 
-| event                                                                              | action                                                          |
-| ---------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| left click                                                                         | draw circle if not in erase mode, else erase close brush stroke |
-| hold left mouse                                                                    | draw brush if not in erase mode                                 |
-| <kbd>E</kbd>                                                                       | activate erase mode                                             |
-| <kbd>Ctrl</kbd> + left click on brush stroke                                          | select brush                                                    |
-| <kbd>Alt</kbd> + left click on brush stroke                                                  | select brush and deselect others and switch to currently selected label      |
-| <kbd>Ctrl</kbd> + <kbd>C</kbd>/<kbd>V</kbd>/<kbd>A</kbd>/<kbd>H</kbd>/<kbd>D</kbd>/<kbd>L</kbd> | see bounding box tool                                           |
-| <kbd>Delete</kbd>                                                                  | delete selected strokes                                         |
-| change label                                                                       | labels of selected strokes are changed                          |
-| <kbd>T</kbd>/<kbd>I</kbd>                                                          | increase thickness/intensity                                    |
-| <kbd>Alt</kbd> + <kbd>T</kbd>/<kbd>I</kbd>                                         | decrease thickness/intensity                                    |
+| event                                                                                           | action                                                                   |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| left click                                                                                      | draw circle if not in erase mode, else erase close brush stroke          |
+| hold left mouse                                                                                 | draw brush if not in erase mode                                          |
+| <kbd>E</kbd>                                                                                    | activate erase mode                                                      |
+| <kbd>Ctrl</kbd> + left click on brush stroke                                                    | select brush                                                             |
+| <kbd>Alt</kbd> + left click on brush stroke                                                     | select brush and deselect others and switch to currently selected label  |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd>/<kbd>V</kbd>/<kbd>A</kbd>/<kbd>H</kbd>/<kbd>D</kbd>/<kbd>L</kbd> | see bounding box tool                                                    |
+| <kbd>Delete</kbd>                                                                               | delete selected strokes                                                  |
+| change label                                                                                    | labels of selected strokes are changed                                   |
+| <kbd>T</kbd>/<kbd>I</kbd>                                                                       | increase thickness/intensity                                             |
+| <kbd>Alt</kbd> + <kbd>T</kbd>/<kbd>I</kbd>                                                      | decrease thickness/intensity                                             |
+| <kbd>Ctrl</kbd> + <kbd>M</kbd>                                                                  | Merge selected instances into one instance if they are in the same class |
 
 
 ---
