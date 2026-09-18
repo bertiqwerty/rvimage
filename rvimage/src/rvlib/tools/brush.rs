@@ -222,6 +222,7 @@ fn key_released(events: &Events, mut world: World, mut history: History) -> (Wor
             world.request_redraw_annotations(BRUSH_NAME, vis);
         }
         ReleasedKey::M if events.held_ctrl() => {
+            tracing::info!("merging instances");
             let ild = get_options(&world)
                 .map(|o| o.core.instance_label_display)
                 .unwrap_or_default();
@@ -233,12 +234,31 @@ fn key_released(events: &Events, mut world: World, mut history: History) -> (Wor
                 && let Some(cat_idx) = selected_cat_idxs.first()
                 && let Some(first) = selected_elts.iter_mut().next()
             {
-                tracing::info!("merging instances");
                 let mut merged = mem::take(first);
                 for elt in selected_elts.iter().skip(1) {
                     merged = merged.merge(elt);
                 }
                 annos.add_elt(merged, *cat_idx, ild);
+                history.push(Record::new(world.clone(), ACTOR_NAME));
+            }
+            let vis = get_visible(&world);
+            world.request_redraw_annotations(ACTOR_NAME, vis);
+        }
+        ReleasedKey::M if events.held_alt() => {
+            tracing::info!("splitting instances");
+            let ild = get_options(&world)
+                .map(|o| o.core.instance_label_display)
+                .unwrap_or_default();
+
+            if let Some(annos) = get_annos_mut(&mut world)
+                && let Some((selected_elts, selected_cat_idxs)) = trace_ok_err(annos.pop_selected())
+            {
+                for (elt, cat_idx) in selected_elts.iter().zip(selected_cat_idxs.iter()) {
+                    let splitted = elt.split();
+                    for s in splitted {
+                        annos.add_elt(s, *cat_idx, ild);
+                    }
+                }
                 history.push(Record::new(world.clone(), ACTOR_NAME));
             }
             let vis = get_visible(&world);

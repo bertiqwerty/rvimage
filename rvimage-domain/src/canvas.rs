@@ -1,6 +1,10 @@
 use image::{ImageBuffer, Luma, Pixel};
-use imageproc::drawing::draw_filled_circle_mut;
+use imageproc::{
+    drawing::draw_filled_circle_mut,
+    region_labelling::{Connectivity, connected_components},
+};
 use serde::{Deserialize, Serialize, ser::SerializeStruct};
+
 use std::mem;
 
 use crate::{OutOfBoundsMode, ShapeI, color_with_intensity, result::RvResult, rverr};
@@ -289,6 +293,87 @@ pub struct Canvas {
 }
 
 impl Canvas {
+    pub fn split(&self) -> Vec<Self> {
+        // `canvases_to_image` renders at absolute bb coordinates, so render a
+        // copy shifted to the origin into the bb-sized buffer.
+        let offset = self.bb.min();
+        let local = Canvas {
+            mask: self.mask.clone(),
+            bb: BbI {
+                x: 0,
+                y: 0,
+                w: self.bb.w,
+                h: self.bb.h,
+            },
+            intensity: self.intensity,
+        };
+        let image = canvases_to_image(
+            std::iter::once(&local),
+            RenderTargetOrShape::Shape(self.bb.shape()),
+            Luma([255]),
+        );
+        let labeled_image = connected_components(&image, Connectivity::Four, Luma([0]));
+        let max_label = labeled_image.iter().max();
+        if let Some(max_label) = max_label {
+            // Track (x_min, y_min, x_max, y_max) per label; labels run 1..=max_label.
+            let mut boxes: Vec<Option<(u32, u32, u32, u32)>> = vec![None; *max_label as usize + 1];
+            for y in 0..image.height() {
+                for x in 0..image.width() {
+                    let label = labeled_image.get_pixel(x, y).0[0];
+
+                    if label == 0 {
+                        continue;
+                    }
+                    if let Some(entry) = boxes.get_mut(label as usize) {
+                        match entry {
+                            Some((x_min, y_min, x_max, y_max)) => {
+                                *x_min = (*x_min).min(x);
+                                *y_min = (*y_min).min(y);
+                                *x_max = (*x_max).max(x);
+                                *y_max = (*y_max).max(y);
+                            }
+                            None => *entry = Some((x, y, x, y)),
+                        }
+                    }
+                }
+            }
+
+            boxes
+                .iter()
+                .enumerate()
+                .flat_map(|(idx, corners)| corners.map(|corners| (idx, corners)))
+                .map(|(idx, (x_min, y_min, x_max, y_max))| {
+                    let b = BbI {
+                        x: x_min,
+                        y: y_min,
+                        w: x_max - x_min + 1,
+                        h: y_max - y_min + 1,
+                    };
+                    let mut mask = vec![0u8; (b.w * b.h) as usize];
+                    for y in 0..b.h {
+                        for x in 0..b.w {
+                            if labeled_image.get_pixel(x + b.x, y + b.y).0[0] as usize == idx {
+                                mask[(y * b.w + x) as usize] = 1;
+                            }
+                        }
+                    }
+                    Canvas {
+                        mask,
+                        bb: BbI {
+                            x: b.x + offset.x,
+                            y: b.y + offset.y,
+                            w: b.w,
+                            h: b.h,
+                        },
+                        intensity: self.intensity,
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     pub fn from_line_extended(
         line: &BrushLine,
         orig_shape: ShapeI,

@@ -238,6 +238,7 @@ There two main ways to draw a polygon or a box:
 | <kbd>T</kbd>/<kbd>I</kbd>                                                                       | increase thickness/intensity                                             |
 | <kbd>Alt</kbd> + <kbd>T</kbd>/<kbd>I</kbd>                                                      | decrease thickness/intensity                                             |
 | <kbd>Ctrl</kbd> + <kbd>M</kbd>                                                                  | Merge selected instances into one instance if they are in the same class |
+| <kbd>Alt </kbd> + <kbd>M</kbd>                                                                  | Split selected instances into their connected components                 |
 
 
 ---
