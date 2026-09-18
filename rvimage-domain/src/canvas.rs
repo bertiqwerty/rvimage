@@ -450,7 +450,13 @@ impl Canvas {
             };
 
             if thickness <= 1.1 {
-                im.put_pixel(center.x as u32, center.y as u32, color);
+                if center.x >= 0
+                    && center.y >= 0
+                    && (center.x as u32) < self.bb.w
+                    && (center.y as u32) < self.bb.h
+                {
+                    im.put_pixel(center.x as u32, center.y as u32, color);
+                }
             } else {
                 draw_filled_circle_mut(
                     &mut im,
