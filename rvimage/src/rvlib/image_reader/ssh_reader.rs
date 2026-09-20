@@ -1,7 +1,12 @@
+use std::path::{Path, PathBuf};
+
 use ssh2::Session;
 
 use super::core::SUPPORTED_EXTENSIONS;
-use crate::{cache::ReadImageToCache, cfg::SshCfg, ssh, types::ResultImage};
+use crate::{
+    cache::ReadImageToCache, cfg::SshCfg, image_reader::core::upload_via_bytes, ssh,
+    types::ResultImage,
+};
 use rvimage_domain::{RvResult, to_rv};
 
 #[derive(Clone)]
@@ -28,5 +33,10 @@ impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
 
     fn file_info(&self, path: &str) -> RvResult<String> {
         ssh::file_info(path, &self.sess)
+    }
+    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()> {
+        upload_via_bytes(src_files, target_folder, |buffer, target_path| {
+            ssh::write_bytes(&buffer, Path::new(target_path), &self.sess)
+        })
     }
 }

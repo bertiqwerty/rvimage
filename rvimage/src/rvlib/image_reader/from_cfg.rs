@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
     cache::{FileCache, FileCacheArgs, NoCache},
@@ -172,5 +172,8 @@ impl LoadImageForGui for ReaderFromCfg {
     }
     fn cache_size_in_mb(&mut self) -> f64 {
         self.reader.cache_size_in_mb()
+    }
+    fn upload(&self, src_files: &[PathBuf], abs_target_folder: &str) -> RvResult<()> {
+        self.reader.upload(src_files, abs_target_folder)
     }
 }

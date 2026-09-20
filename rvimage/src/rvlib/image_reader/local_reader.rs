@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use walkdir::WalkDir;
 
 use crate::{cache::ReadImageToCache, file_util, image_util, types::ResultImage};
@@ -37,5 +39,11 @@ impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
     }
     fn file_info(&self, path: &str) -> RvResult<String> {
         Ok(file_util::local_file_info(path))
+    }
+    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()> {
+        for sf in src_files {
+            std::fs::copy(sf, Path::new(target_folder).join(target_folder)).map_err(to_rv)?;
+        }
+        Ok(())
     }
 }

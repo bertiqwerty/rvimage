@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     ffi::OsStr,
     fmt::Debug,
-    fs,
-    io::{self, Cursor},
+    fs::{self, File},
+    io::{self, Cursor, Read},
     path::{Path, PathBuf},
 };
 use tracing::{error, info};
@@ -429,6 +429,16 @@ where
     } else {
         Ok(filepath.as_ref().to_path_buf())
     }
+}
+
+pub fn read_to_bytes<P>(p: P) -> RvResult<Vec<u8>>
+where
+    P: AsRef<Path>,
+{
+    let mut local_file = File::open(p).map_err(to_rv)?;
+    let mut buffer = Vec::new();
+    local_file.read_to_end(&mut buffer).map_err(to_rv)?;
+    Ok(buffer)
 }
 
 #[test]

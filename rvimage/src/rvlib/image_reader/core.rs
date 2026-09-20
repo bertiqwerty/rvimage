@@ -1,9 +1,9 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
 use crate::cache::Cache;
-use crate::file_util::PathPair;
+use crate::file_util::{self, PathPair};
 use crate::paths_selector::PathsSelector;
 use crate::result::trace_ok_err;
 use crate::types::AsyncResultImage;
@@ -34,6 +34,7 @@ pub trait LoadImageForGui {
     fn cache_size_in_mb(&mut self) -> f64;
     fn clear_cache(&mut self) -> RvResult<()>;
     fn toggle_clear_cache_on_close(&mut self);
+    fn upload(&self, src_files: &[PathBuf], abs_target_folder: &str) -> RvResult<()>;
 }
 
 pub struct Loader<C, CA>
@@ -123,7 +124,29 @@ where
 
         PathsSelector::new(file_paths, Some(abs_folder_path.to_string()))
     }
+    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()> {
+        self.cache.upload(src_files, target_folder)
+    }
     fn cache_size_in_mb(&mut self) -> f64 {
         self.cache.size_in_mb()
     }
+}
+
+pub fn upload_via_bytes(
+    src_files: &[PathBuf],
+    target_folder: &str,
+    mut fn_upload: impl FnMut(Vec<u8>, &str) -> RvResult<()>,
+) -> RvResult<()> {
+    let n_files = src_files.len();
+    for (i, sf) in src_files.iter().enumerate() {
+        let filename = file_util::to_name_str(sf)?;
+        let buffer = file_util::read_to_bytes(sf)?;
+        let target_path = format!("{target_folder}/{filename}");
+        fn_upload(buffer, &target_path)?;
+        if i % 10 == 0 {
+            tracing::info!("uploading... ({}/{n_files})", i + 1);
+        }
+    }
+    tracing::info!("uploaded {n_files} images");
+    Ok(())
 }

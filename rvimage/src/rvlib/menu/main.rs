@@ -1,7 +1,7 @@
 use crate::{
     cfg::ExportPathConnection,
     control::{Control, Info, PrjSettingImportSection},
-    file_util::{get_prj_name, path_to_str},
+    file_util::{self, get_prj_name, path_to_str},
     image_reader::LoadImageForGui,
     menu::{
         self,
@@ -179,6 +179,14 @@ pub struct TextBuffers {
     pub wand_many_buffers: WandManyMenuBuffers,
 }
 
+#[derive(Default)]
+struct UploadCreateState {
+    target_folder_buffer: String,
+    folder_selection_options: Vec<String>,
+    folder_selection: Option<usize>,
+    show_new_modal: bool,
+}
+
 pub struct Menu {
     window_open: bool, // Only show the egui window when true.
     info_message: Info,
@@ -196,6 +204,7 @@ pub struct Menu {
     prj_settings_for_display: Option<String>,
     cache_all_progress: Option<f32>,
     show_wandmany: bool,
+    upload_create_state: UploadCreateState,
 }
 
 impl Menu {
@@ -223,6 +232,7 @@ impl Menu {
             prj_settings_for_display: None,
             cache_all_progress: None,
             show_wandmany: false,
+            upload_create_state: UploadCreateState::default(),
         }
     }
     pub fn popup(&mut self, info: Info) {
@@ -590,6 +600,106 @@ impl Menu {
                 self
             );
             if connected {
+                if ui.button("+").clicked() {
+                    self.upload_create_state.show_new_modal = true;
+                }
+                if self.upload_create_state.show_new_modal {
+                    egui::modal::Modal::new(egui::Id::new("upload+create+folder")).show(
+                        ui.ctx(),
+                        |ui| {
+                            egui::Resize::default()
+                                .default_height(120.0)
+                                .default_width(220.0)
+                                .show(ui, |ui| {
+                                    ui.heading("Upload");
+
+                                    if let Some(ps) = ctrl.paths_navigator.paths_selector()
+                                        && egui::CollapsingHeader::new("Select target folder")
+                                            .show(ui, |ui| {
+                                                egui::ScrollArea::vertical()
+                                                    .max_height(300.0)
+                                                    .show(ui, |ui| {
+                                                        for (i, opt) in self
+                                                            .upload_create_state
+                                                            .folder_selection_options
+                                                            .iter()
+                                                            .enumerate()
+                                                        {
+                                                            if ui
+                                                                .selectable_label(
+                                                                    Some(i)
+                                                                        == self
+                                                                            .upload_create_state
+                                                                            .folder_selection,
+                                                                    opt,
+                                                                )
+                                                                .clicked()
+                                                            {
+                                                                self.upload_create_state
+                                                                    .folder_selection = Some(i);
+                                                                self.upload_create_state
+                                                                    .target_folder_buffer =
+                                                                    opt.clone();
+                                                            }
+                                                        }
+                                                    });
+                                            })
+                                            .header_response
+                                            .clicked()
+                                    {
+                                        let file_paths = ps.filtered_abs_file_paths();
+                                        let mut folders: Vec<&str> = vec![];
+
+                                        for p in
+                                            file_paths.iter().flat_map(|p| Path::new(p).parent())
+                                        {
+                                            if let Ok(p) = file_util::path_to_str(p)
+                                                && !folders.contains(&p)
+                                            {
+                                                folders.push(p);
+                                            }
+                                        }
+                                        folders.sort();
+                                        self.upload_create_state.folder_selection_options = folders
+                                            .into_iter()
+                                            .map(|s| {
+                                                if s.is_empty() {
+                                                    ".".to_string()
+                                                } else {
+                                                    s.to_owned()
+                                                }
+                                            })
+                                            .collect();
+                                    }
+                                    if ui.button("Upload images").clicked() {
+                                        self.upload_create_state.show_new_modal = false;
+                                        let src_files = rfd::FileDialog::new().pick_files();
+                                        if let (Some(r), Some(src_files)) =
+                                            (&ctrl.reader, &src_files)
+                                        {
+                                            handle_error!(
+                                                r.upload(
+                                                    src_files,
+                                                    &self.upload_create_state.target_folder_buffer,
+                                                ),
+                                                self
+                                            );
+                                            handle_error!(ctrl.reload(None), self);
+                                        }
+                                    }
+                                    text_edit_singleline(
+                                        ui,
+                                        &mut self.upload_create_state.target_folder_buffer,
+                                        &mut self.are_tools_active,
+                                    );
+
+                                    if ui.button("Close").clicked() {
+                                        self.upload_create_state.show_new_modal = false;
+                                    }
+                                });
+                        },
+                    );
+                }
                 ui.label(
                     RichText::from(ctrl.opened_folder_label().unwrap_or(""))
                         .text_style(egui::TextStyle::Monospace),

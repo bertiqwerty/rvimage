@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::types::{AsyncResultImage, ResultImage};
 
 use rvimage_domain::RvResult;
@@ -8,6 +10,7 @@ pub trait ReadImageToCache<A> {
     fn new(args: A) -> RvResult<Self>
     where
         Self: Sized;
+    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()>;
 }
 
 pub trait Cache<A> {
@@ -33,4 +36,5 @@ pub trait Cache<A> {
     fn size_in_mb(&mut self) -> f64;
     fn clear(&mut self) -> RvResult<()>;
     fn toggle_clear_on_close(&mut self);
+    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()>;
 }

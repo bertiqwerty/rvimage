@@ -6,11 +6,13 @@ use std::{
 };
 
 use crate::{
-    cache::ReadImageToCache, image_reader::core::SUPPORTED_EXTENSIONS, types::ResultImage,
+    cache::ReadImageToCache,
+    image_reader::core::{SUPPORTED_EXTENSIONS, upload_via_bytes},
+    types::ResultImage,
 };
-use azure_core::http::Url;
+use azure_core::http::{RequestContent, Url};
 use azure_storage_blob::{BlobContainerClient, models::BlobContainerClientListBlobsOptions};
-use futures::TryStreamExt;
+use futures::{TryFutureExt, TryStreamExt};
 use lazy_static::lazy_static;
 use rvimage_domain::{RvResult, rverr, to_rv};
 use std::sync::Arc;
@@ -179,5 +181,16 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
 
     fn file_info(&self, _: &str) -> RvResult<String> {
         Err(rverr!("cannot read file info from azure blob"))
+    }
+    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()> {
+        upload_via_bytes(src_files, target_folder, |buffer, target_path| {
+            RT.block_on(
+                self.container_client
+                    .blob_client(&target_path.replace("./", ""))
+                    .upload(RequestContent::from(buffer), None)
+                    .map_err(to_rv),
+            )
+            .map(|_| ())
+        })
     }
 }
