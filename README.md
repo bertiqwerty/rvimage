@@ -209,6 +209,7 @@ There two main ways to draw a polygon or a box:
 | hold right button                                                                    | move selected boxes                                                                               |
 | <kbd>Shift</kbd> + left click on box                                                 | select all boxes with overlap with the maximal span of this box and other selected boxes          |
 | <kbd>Ctrl</kbd> + <kbd>A</kbd>                                                       | select all boxes                                                                                  |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd>                                    | select all visible boxes                                                                          |
 | <kbd>Delete</kbd>                                                                    | remove selected boxes                                                                             |
 | <kbd>Ctrl</kbd> + <kbd>D</kbd>                                                       | deselect all boxes                                                                                |
 | <kbd>Ctrl</kbd> + <kbd>H</kbd>                                                       | hide all boxes                                                                                    |
@@ -233,6 +234,7 @@ There two main ways to draw a polygon or a box:
 | <kbd>Ctrl</kbd> + left click on brush stroke                                                    | select brush                                                             |
 | <kbd>Alt</kbd> + left click on brush stroke                                                     | select brush and deselect others and switch to currently selected label  |
 | <kbd>Ctrl</kbd> + <kbd>C</kbd>/<kbd>V</kbd>/<kbd>A</kbd>/<kbd>H</kbd>/<kbd>D</kbd>/<kbd>L</kbd> | see bounding box tool                                                    |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd>                                               | see bounding box tool                                                    |
 | <kbd>Delete</kbd>                                                                               | delete selected strokes                                                  |
 | change label                                                                                    | labels of selected strokes are changed                                   |
 | <kbd>T</kbd>/<kbd>I</kbd>                                                                       | increase thickness/intensity                                             |
