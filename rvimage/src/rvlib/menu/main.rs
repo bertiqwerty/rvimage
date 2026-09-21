@@ -671,6 +671,11 @@ impl Menu {
                                             })
                                             .collect();
                                     }
+                                    text_edit_singleline(
+                                        ui,
+                                        &mut self.upload_create_state.target_folder_buffer,
+                                        &mut self.are_tools_active,
+                                    );
                                     if ui.button("Upload images").clicked() {
                                         self.upload_create_state.show_new_modal = false;
                                         let src_files = rfd::FileDialog::new().pick_files();
@@ -687,12 +692,6 @@ impl Menu {
                                             handle_error!(ctrl.reload(None), self);
                                         }
                                     }
-                                    text_edit_singleline(
-                                        ui,
-                                        &mut self.upload_create_state.target_folder_buffer,
-                                        &mut self.are_tools_active,
-                                    );
-
                                     if ui.button("Close").clicked() {
                                         self.upload_create_state.show_new_modal = false;
                                     }
