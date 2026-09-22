@@ -58,6 +58,18 @@ pub fn text_edit_multiline(
             .response
     })
 }
+pub fn text_edit_singleline_noselect(
+    ui: &mut Ui,
+    text: &mut String,
+    are_tools_active: &mut bool,
+) -> Response {
+    text_edit_with_deactivated_tools(text, are_tools_active, |text| {
+        let textedit_output = TextEdit::singleline(text)
+            .font(FontSelection::Style(egui::TextStyle::Monospace))
+            .show(ui);
+        textedit_output.response.response
+    })
+}
 pub fn text_edit_singleline(
     ui: &mut Ui,
     text: &mut String,

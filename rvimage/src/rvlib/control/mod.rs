@@ -455,12 +455,13 @@ impl Control {
                 let n_files = src_files.len();
                 for (i, sf) in src_files.iter().enumerate() {
                     if terminate_rx.try_recv() == Ok(true) {
+                        tracing::info!("upload cancelled");
                         return Ok(());
                     }
                     uploader(sf, &abs_target_folder)?;
                     progress = (i + 1) as f32 / n_files as f32;
                     if i % 100 == 0 {
-                        tracing::info!("uploaded {} of {n_files} files...", i + 1)
+                        tracing::info!("uploaded {} of {n_files} files...", i + 1);
                     }
                     progress_tx.send(progress).map_err(to_rv)?;
                 }

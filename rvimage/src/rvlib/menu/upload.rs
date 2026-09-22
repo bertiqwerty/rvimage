@@ -5,13 +5,13 @@ use egui::{RichText, Ui};
 use rvimage_domain::RvResult;
 
 use crate::image_reader::SUPPORTED_EXTENSIONS;
-use crate::{control::Control, file_util, menu::ui_util::text_edit_singleline};
+use crate::menu::ui_util::text_edit_singleline_noselect;
+use crate::{control::Control, file_util};
 
 #[derive(Default)]
 pub struct UploadCreateState {
     pub target_folder_buffer: String,
     pub folder_selection_options: Vec<String>,
-    pub folder_selection: Option<usize>,
     pub show_new_modal: bool,
 }
 
@@ -33,7 +33,7 @@ pub fn upload(
                     ui.add(
                         egui::ProgressBar::new(upload_progress).text(
                             RichText::new(format!(
-                                "loading images into cache {:2}%",
+                                "uploading images {:2}%",
                                 (upload_progress * 100.0).floor() as u8
                             ))
                             .monospace(),
@@ -49,19 +49,8 @@ pub fn upload(
                                 egui::ScrollArea::vertical()
                                     .max_height(300.0)
                                     .show(ui, |ui| {
-                                        for (i, opt) in upload_create_state
-                                            .folder_selection_options
-                                            .iter()
-                                            .enumerate()
-                                        {
-                                            if ui
-                                                .selectable_label(
-                                                    Some(i) == upload_create_state.folder_selection,
-                                                    opt,
-                                                )
-                                                .clicked()
-                                            {
-                                                upload_create_state.folder_selection = Some(i);
+                                        for opt in &upload_create_state.folder_selection_options {
+                                            if ui.button(opt).clicked() {
                                                 upload_create_state.target_folder_buffer =
                                                     opt.clone();
                                             }
@@ -93,7 +82,7 @@ pub fn upload(
                             })
                             .collect();
                     }
-                    text_edit_singleline(
+                    text_edit_singleline_noselect(
                         ui,
                         &mut upload_create_state.target_folder_buffer,
                         are_tools_active,
