@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    cache::{FileCache, FileCacheArgs, NoCache},
+    cache::{FileCache, FileCacheArgs, ImageUploader, NoCache},
     cfg::{Cache, Cfg, Connection},
     paths_selector::PathsSelector,
     types::AsyncResultImage,
@@ -173,7 +173,7 @@ impl LoadImageForGui for ReaderFromCfg {
     fn cache_size_in_mb(&mut self) -> f64 {
         self.reader.cache_size_in_mb()
     }
-    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+    fn make_uploader(&self) -> ImageUploader {
         self.reader.make_uploader()
     }
 }

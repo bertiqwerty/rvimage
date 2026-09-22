@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path};
 
 use crate::{
-    cache::core::Cache,
+    cache::{ImageUploader, core::Cache},
     defer_file_removal, file_util, image_util,
     result::trace_ok_err,
     threadpool::ThreadPoolQueued,
@@ -223,7 +223,7 @@ where
     fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
         self.reader.ls(folder_path)
     }
-    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+    fn make_uploader(&self) -> ImageUploader {
         self.reader.make_uploader()
     }
 
@@ -435,7 +435,7 @@ fn test_file_cache() {
             fn file_info(&self, _: &str) -> RvResult<String> {
                 Ok("".to_string())
             }
-            fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+            fn make_uploader(&self) -> ImageUploader {
                 Box::new(|_: &Path, _: &str| Err(rverr!("upload via py http impossible")))
             }
         }

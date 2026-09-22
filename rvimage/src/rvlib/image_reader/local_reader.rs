@@ -2,7 +2,11 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
-use crate::{cache::ReadImageToCache, file_util, image_util, types::ResultImage};
+use crate::{
+    cache::{ImageUploader, ReadImageToCache},
+    file_util, image_util,
+    types::ResultImage,
+};
 
 use super::core::{CloneDummy, SUPPORTED_EXTENSIONS};
 use rvimage_domain::{RvResult, to_rv};
@@ -40,7 +44,7 @@ impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
     fn file_info(&self, path: &str) -> RvResult<String> {
         Ok(file_util::local_file_info(path))
     }
-    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+    fn make_uploader(&self) -> ImageUploader {
         Box::new(|src_file: &Path, target_folder: &str| -> RvResult<()> {
             std::fs::copy(src_file, Path::new(target_folder).join(target_folder)).map_err(to_rv)?;
             Ok(())

@@ -124,7 +124,7 @@ where
 
         PathsSelector::new(file_paths, Some(abs_folder_path.to_string()))
     }
-    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+    fn make_uploader(&self) -> ImageUploader {
         self.cache.make_uploader()
     }
     fn cache_size_in_mb(&mut self) -> f64 {

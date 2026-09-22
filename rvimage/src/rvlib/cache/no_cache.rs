@@ -1,6 +1,9 @@
-use std::{marker::PhantomData, path::Path};
+use std::marker::PhantomData;
 
-use crate::types::{AsyncResultImage, ImageInfoPair};
+use crate::{
+    cache::ImageUploader,
+    types::{AsyncResultImage, ImageInfoPair},
+};
 
 use super::{Cache, ReadImageToCache};
 use rvimage_domain::{RvResult, rverr};
@@ -44,7 +47,7 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
     fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
         self.reader.ls(folder_path)
     }
-    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+    fn make_uploader(&self) -> ImageUploader {
         self.reader.make_uploader()
     }
     fn new(args: RA) -> RvResult<Self> {

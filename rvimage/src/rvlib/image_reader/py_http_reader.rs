@@ -1,6 +1,10 @@
 use std::{path::Path, time::Duration};
 
-use crate::{cache::ReadImageToCache, file_util, types::ResultImage};
+use crate::{
+    cache::{ImageUploader, ReadImageToCache},
+    file_util,
+    types::ResultImage,
+};
 use lazy_static::lazy_static;
 use regex::Regex;
 use rvimage_domain::{RvResult, rverr, to_rv};
@@ -56,7 +60,7 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
     fn file_info(&self, _: &str) -> RvResult<String> {
         Err(rverr!("http reader cannot read file info"))
     }
-    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+    fn make_uploader(&self) -> ImageUploader {
         Box::new(|_: &Path, _: &str| Err(rverr!("upload via py http impossible")))
     }
 }

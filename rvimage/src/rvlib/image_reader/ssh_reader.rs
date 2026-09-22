@@ -4,7 +4,10 @@ use ssh2::Session;
 
 use super::core::SUPPORTED_EXTENSIONS;
 use crate::{
-    cache::ReadImageToCache, cfg::SshCfg, image_reader::core::upload_via_bytes, ssh,
+    cache::{ImageUploader, ReadImageToCache},
+    cfg::SshCfg,
+    image_reader::core::upload_via_bytes,
+    ssh,
     types::ResultImage,
 };
 use rvimage_domain::{RvResult, to_rv};
@@ -34,7 +37,7 @@ impl ReadImageToCache<SshCfg> for ReadImageFromSsh {
     fn file_info(&self, path: &str) -> RvResult<String> {
         ssh::file_info(path, &self.sess)
     }
-    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+    fn make_uploader(&self) -> ImageUploader {
         let sess = self.sess.clone();
         Box::new(
             move |src_file: &Path, target_folder: &str| -> RvResult<()> {
