@@ -429,10 +429,10 @@ impl Control {
         }
     }
     pub fn upload_terminate(&mut self) -> RvResult<()> {
-        self.upload_progress = None;
         if let Some(upload_progress) = &mut self.upload_progress {
             upload_progress.terminate_tx.send(true).map_err(to_rv)?;
         }
+        self.upload_progress = None;
         Ok(())
     }
     pub fn upload(
