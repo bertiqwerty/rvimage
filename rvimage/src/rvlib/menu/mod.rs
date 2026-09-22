@@ -8,5 +8,6 @@ mod picklist;
 mod scroll_area;
 mod tools_menus;
 mod ui_util;
+mod upload;
 mod wand_many;
 pub use crate::menu::main::{Menu, ToolSelectMenu, are_tools_active};

@@ -33,7 +33,7 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use std::{fs, mem};
@@ -382,6 +382,12 @@ pub struct PrjData {
     pub filter_buffer: String,
 }
 
+struct Upload {
+    progress: f32,
+    progress_rx: Receiver<f32>,
+    terminate_tx: Sender<bool>,
+}
+
 #[derive(Default)]
 pub struct Control {
     pub data: PrjData,
@@ -389,6 +395,7 @@ pub struct Control {
     pub info: Info,
     pub paths_navigator: PathsNavigator,
     tp: ThreadPool<RvResult<ReaderFromCfg>>,
+    tp_upload: ThreadPool<RvResult<()>>,
     last_open_folder_job_id: Option<u128>,
     pub cfg: Cfg,
     pub file_loaded: Option<usize>,
@@ -401,9 +408,76 @@ pub struct Control {
     thumbnail_cache: HashMap<String, DynamicImage>,
     wand_server: Option<CmdServer>,
     wand_many_rx: Option<mpsc::Receiver<WandManyOutput>>,
+    upload_progress: Option<Upload>,
 }
 
 impl Control {
+    pub fn upload_progress(&mut self) -> Option<f32> {
+        let current_val = self.upload_progress.as_ref().map(|up| up.progress);
+        if current_val == Some(1.0) {
+            self.upload_progress = None;
+        }
+        if let Some(up) = self.upload_progress.as_mut() {
+            if let Ok(val) = up.progress_rx.try_recv() {
+                up.progress = val;
+                Some(val)
+            } else {
+                Some(up.progress)
+            }
+        } else {
+            None
+        }
+    }
+    pub fn upload_terminate(&mut self) -> RvResult<()> {
+        self.upload_progress = None;
+        if let Some(upload_progress) = &mut self.upload_progress {
+            upload_progress.terminate_tx.send(true).map_err(to_rv)?;
+        }
+        Ok(())
+    }
+    pub fn upload(
+        &mut self,
+        src_files: Option<&[PathBuf]>,
+        abs_target_folder: &str,
+    ) -> RvResult<()> {
+        if self.upload_progress.is_none()
+            && let (Some(src_files), Some(r)) = (src_files, self.reader.as_ref())
+        {
+            tracing::info!("Trigerring upload...");
+            let uploader = r.make_uploader();
+            let src_files = src_files.to_vec();
+            let abs_target_folder = abs_target_folder.to_string();
+            let (progress_tx, progress_rx) = mpsc::channel();
+            let (terminate_tx, terminate_rx) = mpsc::channel();
+            let upload_func = move || {
+                tracing::info!("starting upload...");
+                let mut progress;
+                let n_files = src_files.len();
+                for (i, sf) in src_files.iter().enumerate() {
+                    if terminate_rx.try_recv() == Ok(true) {
+                        return Ok(());
+                    }
+                    uploader(sf, &abs_target_folder)?;
+                    progress = (i + 1) as f32 / n_files as f32;
+                    if i % 100 == 0 {
+                        tracing::info!("uploaded {} of {n_files} files...", i + 1)
+                    }
+                    progress_tx.send(progress).map_err(to_rv)?;
+                }
+                tracing::info!("upload  of {n_files} images done");
+                Ok(())
+            };
+            self.tp_upload.apply(Box::new(upload_func))?;
+            self.upload_progress = Some(Upload {
+                progress: 0.0,
+                progress_rx,
+                terminate_tx,
+            });
+            Ok(())
+        } else {
+            Err(rverr!("upload already running"))
+        }
+    }
     pub fn is_wandmany_running(&self) -> bool {
         self.wand_many_rx.is_some()
     }

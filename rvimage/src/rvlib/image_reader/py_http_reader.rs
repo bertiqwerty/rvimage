@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Duration};
+use std::{path::Path, time::Duration};
 
 use crate::{cache::ReadImageToCache, file_util, types::ResultImage};
 use lazy_static::lazy_static;
@@ -56,7 +56,7 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
     fn file_info(&self, _: &str) -> RvResult<String> {
         Err(rverr!("http reader cannot read file info"))
     }
-    fn upload(&self, _src_files: &[PathBuf], _target_folder: &str) -> RvResult<()> {
-        Err(rverr!("upload via py http impossible"))
+    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+        Box::new(|_: &Path, _: &str| Err(rverr!("upload via py http impossible")))
     }
 }

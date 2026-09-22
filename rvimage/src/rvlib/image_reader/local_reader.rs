@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use walkdir::WalkDir;
 
@@ -40,10 +40,10 @@ impl ReadImageToCache<CloneDummy> for ReadImageFromPath {
     fn file_info(&self, path: &str) -> RvResult<String> {
         Ok(file_util::local_file_info(path))
     }
-    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()> {
-        for sf in src_files {
-            std::fs::copy(sf, Path::new(target_folder).join(target_folder)).map_err(to_rv)?;
-        }
-        Ok(())
+    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+        Box::new(|src_file: &Path, target_folder: &str| -> RvResult<()> {
+            std::fs::copy(src_file, Path::new(target_folder).join(target_folder)).map_err(to_rv)?;
+            Ok(())
+        })
     }
 }

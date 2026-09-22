@@ -1,10 +1,4 @@
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    fs,
-    marker::PhantomData,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, fmt::Debug, fs, marker::PhantomData, path::Path};
 
 use crate::{
     cache::core::Cache,
@@ -229,8 +223,8 @@ where
     fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
         self.reader.ls(folder_path)
     }
-    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()> {
-        self.reader.upload(src_files, target_folder)
+    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+        self.reader.make_uploader()
     }
 
     /// Just loads a single file into the cache. Return true if the
@@ -441,8 +435,8 @@ fn test_file_cache() {
             fn file_info(&self, _: &str) -> RvResult<String> {
                 Ok("".to_string())
             }
-            fn upload(&self, _src_files: &[PathBuf], _target_folder: &str) -> RvResult<()> {
-                Ok(())
+            fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+                Box::new(|_: &Path, _: &str| Err(rverr!("upload via py http impossible")))
             }
         }
 

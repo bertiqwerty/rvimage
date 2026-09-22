@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    cache::ReadImageToCache,
+    cache::{ImageUploader, ReadImageToCache},
     image_reader::core::{SUPPORTED_EXTENSIONS, upload_via_bytes},
     types::ResultImage,
 };
@@ -182,15 +182,20 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
     fn file_info(&self, _: &str) -> RvResult<String> {
         Err(rverr!("cannot read file info from azure blob"))
     }
-    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()> {
-        upload_via_bytes(src_files, target_folder, |buffer, target_path| {
-            RT.block_on(
-                self.container_client
-                    .blob_client(&target_path.replace("./", ""))
-                    .upload(RequestContent::from(buffer), None)
-                    .map_err(to_rv),
-            )
-            .map(|_| ())
-        })
+    fn make_uploader(&self) -> ImageUploader {
+        let client = self.container_client.clone();
+        Box::new(
+            move |src_file: &Path, target_folder: &str| -> RvResult<()> {
+                upload_via_bytes(src_file, target_folder, |buffer, target_path| {
+                    RT.block_on(
+                        client
+                            .blob_client(&target_path.replace("./", ""))
+                            .upload(RequestContent::from(buffer), None)
+                            .map_err(to_rv),
+                    )
+                    .map(|_| ())
+                })
+            },
+        )
     }
 }

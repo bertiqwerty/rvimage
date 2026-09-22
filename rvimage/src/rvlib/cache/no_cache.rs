@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, path::PathBuf};
+use std::{marker::PhantomData, path::Path};
 
 use crate::types::{AsyncResultImage, ImageInfoPair};
 
@@ -44,8 +44,8 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
     fn ls(&self, folder_path: &str) -> RvResult<Vec<String>> {
         self.reader.ls(folder_path)
     }
-    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()> {
-        self.reader.upload(src_files, target_folder)
+    fn make_uploader(&self) -> Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static> {
+        self.reader.make_uploader()
     }
     fn new(args: RA) -> RvResult<Self> {
         Ok(Self {

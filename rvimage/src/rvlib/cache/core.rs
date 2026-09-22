@@ -1,8 +1,11 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::types::{AsyncResultImage, ResultImage};
 
 use rvimage_domain::RvResult;
+
+pub type ImageUploader = Box<dyn Fn(&Path, &str) -> RvResult<()> + Send + 'static>;
+
 pub trait ReadImageToCache<A> {
     fn read(&self, abs_path: &str) -> ResultImage;
     fn file_info(&self, abs_path: &str) -> RvResult<String>;
@@ -10,7 +13,7 @@ pub trait ReadImageToCache<A> {
     fn new(args: A) -> RvResult<Self>
     where
         Self: Sized;
-    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()>;
+    fn make_uploader(&self) -> ImageUploader;
 }
 
 pub trait Cache<A> {
@@ -36,5 +39,5 @@ pub trait Cache<A> {
     fn size_in_mb(&mut self) -> f64;
     fn clear(&mut self) -> RvResult<()>;
     fn toggle_clear_on_close(&mut self);
-    fn upload(&self, src_files: &[PathBuf], target_folder: &str) -> RvResult<()>;
+    fn make_uploader(&self) -> ImageUploader;
 }

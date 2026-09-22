@@ -7,4 +7,4 @@ mod ssh_reader;
 #[cfg(feature = "azure_blob")]
 mod azure_blob_reader;
 
-pub use self::{core::LoadImageForGui, from_cfg::ReaderFromCfg};
+pub use self::{core::LoadImageForGui, core::SUPPORTED_EXTENSIONS, from_cfg::ReaderFromCfg};
