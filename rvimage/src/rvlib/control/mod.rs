@@ -33,7 +33,7 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use std::{fs, mem};
@@ -385,7 +385,6 @@ pub struct PrjData {
 struct Upload {
     progress: f32,
     progress_rx: Receiver<f32>,
-    terminate_tx: Sender<bool>,
 }
 
 #[derive(Default)]
@@ -428,12 +427,9 @@ impl Control {
             None
         }
     }
-    pub fn upload_terminate(&mut self) -> RvResult<()> {
-        if let Some(upload_progress) = &mut self.upload_progress {
-            upload_progress.terminate_tx.send(true).map_err(to_rv)?;
-        }
+    pub fn upload_terminate(&mut self) {
+        tracing::info!("upload cancelled");
         self.upload_progress = None;
-        Ok(())
     }
     pub fn upload(
         &mut self,
@@ -448,16 +444,11 @@ impl Control {
             let src_files = src_files.to_vec();
             let abs_target_folder = abs_target_folder.to_string();
             let (progress_tx, progress_rx) = mpsc::channel();
-            let (terminate_tx, terminate_rx) = mpsc::channel();
             let upload_func = move || {
                 tracing::info!("starting upload...");
                 let mut progress;
                 let n_files = src_files.len();
                 for (i, sf) in src_files.iter().enumerate() {
-                    if terminate_rx.try_recv() == Ok(true) {
-                        tracing::info!("upload cancelled");
-                        return Ok(());
-                    }
                     uploader(sf, &abs_target_folder)?;
                     progress = (i + 1) as f32 / n_files as f32;
                     if i % 100 == 0 {
@@ -472,7 +463,6 @@ impl Control {
             self.upload_progress = Some(Upload {
                 progress: 0.0,
                 progress_rx,
-                terminate_tx,
             });
             Ok(())
         } else {

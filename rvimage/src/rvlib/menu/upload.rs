@@ -22,7 +22,6 @@ pub fn upload(
     ctrl: &mut Control,
 ) -> RvResult<()> {
     let mut result_upload = Ok(());
-    let mut result_terminate = Ok(());
     egui::modal::Modal::new(egui::Id::new("upload+create+folder")).show(ui.ctx(), |ui| {
         egui::Resize::default()
             .default_height(120.0)
@@ -40,7 +39,7 @@ pub fn upload(
                         ),
                     );
                     if ui.button("Cancel upload").clicked() {
-                        result_terminate = ctrl.upload_terminate();
+                        ctrl.upload_terminate();
                     }
                 } else {
                     if let Some(ps) = ctrl.paths_navigator.paths_selector()
@@ -123,6 +122,5 @@ pub fn upload(
                 }
             });
     });
-    result_terminate?;
     result_upload
 }
