@@ -32,8 +32,8 @@ pub fn upload(
                     ui.add(
                         egui::ProgressBar::new(upload_progress).text(
                             RichText::new(format!(
-                                "uploading images {:2}%",
-                                (upload_progress * 100.0).floor() as u8
+                                "uploading images {:.2}%",
+                                (upload_progress * 100.0)
                             ))
                             .monospace(),
                         ),
@@ -97,24 +97,23 @@ pub fn upload(
                                 .filter(|p| {
                                     SUPPORTED_EXTENSIONS.iter().any(|ext| {
                                         match file_util::osstr_to_str(p.extension()) {
-                                            Ok(ext_) => ext_ == *ext,
+                                            Ok(ext_) => !ext.is_empty() && ext_ == &ext[1..],
                                             _ => false,
                                         }
                                     })
                                 })
                                 .collect::<Vec<_>>();
-                            result_upload = ctrl.upload(
-                                Some(&src_files),
-                                &upload_create_state.target_folder_buffer,
-                            );
+
+                            result_upload =
+                                ctrl.upload(&src_files, &upload_create_state.target_folder_buffer);
                         }
                     }
                     if ui.button("Upload a few files").clicked() {
                         let src_files = rfd::FileDialog::new().pick_files();
-                        result_upload = ctrl.upload(
-                            src_files.as_deref(),
-                            &upload_create_state.target_folder_buffer,
-                        );
+                        if let Some(src_files) = src_files {
+                            result_upload =
+                                ctrl.upload(&src_files, &upload_create_state.target_folder_buffer);
+                        }
                     }
                     if ui.button("Close").clicked() {
                         upload_create_state.show_new_modal = false;

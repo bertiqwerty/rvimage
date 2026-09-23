@@ -232,7 +232,7 @@ fn key_released(events: &Events, mut world: World, mut history: History) -> (Wor
                 && let Some((mut selected_elts, selected_cat_idxs)) =
                     trace_ok_err(annos.pop_selected())
                 && let Some(cat_idx) = selected_cat_idxs.first()
-                && let Some(first) = selected_elts.iter_mut().next()
+                && let Some(first) = selected_elts.first_mut()
             {
                 let mut merged = mem::take(first);
                 for elt in selected_elts.iter().skip(1) {

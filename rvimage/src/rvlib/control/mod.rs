@@ -385,6 +385,7 @@ pub struct PrjData {
 struct Upload {
     progress: f32,
     progress_rx: Receiver<f32>,
+    job_id: u128,
 }
 
 #[derive(Default)]
@@ -417,6 +418,9 @@ impl Control {
             self.upload_progress = None;
         }
         if let Some(up) = self.upload_progress.as_mut() {
+            if let Some(r) = self.tp_upload.result(up.job_id) {
+                trace_ok_err(r);
+            }
             if let Ok(val) = up.progress_rx.try_recv() {
                 up.progress = val;
                 Some(val)
@@ -431,38 +435,42 @@ impl Control {
         tracing::info!("upload cancelled");
         self.upload_progress = None;
     }
-    pub fn upload(
-        &mut self,
-        src_files: Option<&[PathBuf]>,
-        abs_target_folder: &str,
-    ) -> RvResult<()> {
-        if self.upload_progress.is_none()
-            && let (Some(src_files), Some(r)) = (src_files, self.reader.as_ref())
+    pub fn upload(&mut self, src_files: &[PathBuf], abs_target_folder: &str) -> RvResult<()> {
+        if src_files.is_empty() {
+            Err(rverr!("No files to upload given."))
+        } else if self.upload_progress.is_none()
+            && let Some(r) = self.reader.as_ref()
         {
-            tracing::info!("Trigerring upload...");
+            tracing::info!("trigerring upload to '{abs_target_folder}'...");
+
             let uploader = r.make_uploader();
             let src_files = src_files.to_vec();
             let abs_target_folder = abs_target_folder.to_string();
             let (progress_tx, progress_rx) = mpsc::channel();
             let upload_func = move || {
-                tracing::info!("starting upload...");
+                tracing::info!("starting upload to '{abs_target_folder}'...");
                 let mut progress;
                 let n_files = src_files.len();
                 for (i, sf) in src_files.iter().enumerate() {
-                    uploader(sf, &abs_target_folder)?;
+                    let upload_res = uploader(sf, &abs_target_folder);
+                    if let Err(upload_res) = &upload_res {
+                        tracing::error!("upload error {upload_res:?}");
+                    }
+                    upload_res?;
                     progress = (i + 1) as f32 / n_files as f32;
-                    if i % 100 == 0 {
+                    if (i + 1) % 100 == 0 {
                         tracing::info!("uploaded {} of {n_files} files...", i + 1);
                     }
                     progress_tx.send(progress).map_err(to_rv)?;
                 }
-                tracing::info!("upload  of {n_files} images done");
+                tracing::info!("upload  of {n_files} to {abs_target_folder} images done");
                 Ok(())
             };
-            self.tp_upload.apply(Box::new(upload_func))?;
+            let job_id = self.tp_upload.apply(Box::new(upload_func))?;
             self.upload_progress = Some(Upload {
                 progress: 0.0,
                 progress_rx,
+                job_id,
             });
             Ok(())
         } else {
