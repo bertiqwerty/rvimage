@@ -77,7 +77,7 @@ pub fn wand_many_menu(
         .iter()
         .last()
         .and_then(|msg| msg.success_assessment);
-    egui::Window::new("Wand Settings")
+    egui::Window::new("Wand Prediction")
         .open(show_wandmany)
         .show(ui.ctx(), |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {

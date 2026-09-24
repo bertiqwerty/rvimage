@@ -12,7 +12,7 @@ use crate::{
         scroll_area::ShowFileOptions,
         ui_util::{button_confirmed, text_edit_singleline},
         upload::{UploadCreateState, upload},
-        wand_many::{self, WandManyMenuResult, wand_many_menu},
+        wand_many::{WandManyMenuResult, wand_many_menu},
     },
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
@@ -422,23 +422,7 @@ impl Menu {
                 }
 
                 ui.menu_button("Wand", |ui| {
-                    let to_submit = wand_many::predict_button(
-                        ui,
-                        &ctrl.data.wand_many,
-                        ctrl.paths_navigator.paths_selector(),
-                    );
-                    if let Some(WandManyMenuResult::Submit((files, folders_to_exclude))) = to_submit
-                    {
-                        ctrl.submit_files_to_wand(
-                            tools_data_map,
-                            &files,
-                            ctrl.file_selected_idx,
-                            &folders_to_exclude,
-                        );
-                    } else if let Some(WandManyMenuResult::Cancel) = to_submit {
-                        ctrl.cancel_wandmany();
-                    }
-                    if ui.button("Settings").clicked() {
+                    if ui.button("Prediction").clicked() {
                         self.show_wandmany = true;
                     }
                     ui.separator();
