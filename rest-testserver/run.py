@@ -7,18 +7,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
 from pydantic import BaseModel, TypeAdapter, model_validator
-
 from rvimage.collection_types import (
     BboxAnnos,
     BrushAnnos,
     InputAnnotationData,
-    OutputAnnotationData,
     InputAnnotationManyData,
+    OutputAnnotationData,
     OutputAnnotationManyData,
+    ServerResponse,
+    ShapeI,
     WandManyMessage,
     flatten_params,
-    ShapeI,
-    ServerResponse,
 )
 from rvimage.converters import decode_bytes_into_rgbarray
 from rvimage.domain import BbF
@@ -104,9 +103,14 @@ async def predict_many(
     communication: Annotated[str, Form(...)],
     parameters: Annotated[str, Form(...)],
     prj_name: str,
+    image: Annotated[UploadFile | None, File(...)] = None,
     selected_file_idx: int | None = None,
 ) -> OutputAnnotationManyData:
     annos = InputAnnotationManyData.model_validate_json(input_annotations)
+    if image is not None:
+        image_bytes = await image.read()
+        im = decode_bytes_into_rgbarray(image_bytes)
+        print(f"image shape {im.shape}")
     attributes = TypeAdapter(Attributes).validate_python(annos.attributes)
     print(attributes)
     file_list = json.loads(files)
@@ -126,6 +130,8 @@ async def predict_many(
         output_attributes.append((f, a_shape_tuple))
 
     print("------------")
+    assert annos.brush is not None
+    assert annos.bbox is not None
     print(annos.brush.labelinfo)
 
     return OutputAnnotationManyData(

@@ -1,5 +1,7 @@
 mod data;
 pub use data::{WandManyData, WandManyMessage};
+use image::{DynamicImage, ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
+use std::io::Cursor;
 use std::path::Path;
 
 use reqwest::blocking::multipart;
@@ -39,7 +41,7 @@ impl<'a> WandManyAnnotationsInput<'a> {
         tools_data_map: &'a ToolsDataMap,
         files: &'a [String],
         folders_to_exclude: &'a [String],
-        selected_file_idx: Option<usize>,
+        mut selected_file_idx: Option<usize>,
     ) -> (Self, Vec<&'a String>, Option<usize>) {
         let mut sfidx_reduction_count = 0;
         let files_wo_excluded_folders = files
@@ -48,8 +50,10 @@ impl<'a> WandManyAnnotationsInput<'a> {
             .filter(|(idx, f)| {
                 !folders_to_exclude.iter().any(|excluded| {
                     let is_in_excluded = Path::new(f).ancestors().any(|a| a.ends_with(excluded));
-                    if is_in_excluded && Some(*idx) <= selected_file_idx {
+                    if is_in_excluded && Some(*idx) < selected_file_idx {
                         sfidx_reduction_count += 1;
+                    } else if is_in_excluded && Some(*idx) == selected_file_idx {
+                        selected_file_idx = None;
                     }
                     is_in_excluded
                 })
@@ -172,6 +176,12 @@ impl WandManyOutput {
     }
 }
 
+pub struct ImageDataWand<'a> {
+    pub image: Option<DynamicImage>,
+    pub files: &'a [&'a String],
+    pub selected_file_idx: Option<usize>,
+}
+
 pub trait WandMany {
     /// Predictions for the whole project
     ///
@@ -185,8 +195,7 @@ pub trait WandMany {
         &self,
         prj_name: &'a str,
         annotations_input: WandManyAnnotationsInput<'a>,
-        files: &[&String],
-        selected_file_idx: Option<usize>,
+        data: ImageDataWand<'a>,
         communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
     ) -> RvResult<WandManyOutput>;
@@ -215,21 +224,48 @@ impl WandMany for RestWandMany {
         &self,
         prj_name: &'a str,
         annos_input: WandManyAnnotationsInput<'a>,
-        files: &[&String],
-        selected_file_idx: Option<usize>,
+        data: ImageDataWand<'a>,
         communication: &[WandManyMessage],
         parameters: Option<&ParamMap>,
     ) -> RvResult<WandManyOutput> {
         let annos_json_str = serde_json::to_string(&annos_input).map_err(to_rv)?;
         let param_json_str = serialize_or_default(parameters)?;
-        let files_json_str = serde_json::to_string(files).map_err(to_rv)?;
+        let files_json_str = serde_json::to_string(&data.files).map_err(to_rv)?;
         let communication_json_str = serde_json::to_string(communication).map_err(to_rv)?;
         let query_params = RestWandQueryParams {
             prj_name: prj_name.to_string(),
-            selected_file_idx,
+            selected_file_idx: data.selected_file_idx,
         };
-        let form = multipart::Form::new()
-            .part("input_annotations", multipart::Part::text(annos_json_str))
+        let image_bytes = if let Some(im) = data.image {
+            let rgb_image = im.to_rgb8();
+            let (width, height) = rgb_image.dimensions();
+            let mut image_bytes = Vec::new();
+            let cursor = Cursor::new(&mut image_bytes);
+
+            let encoder = PngEncoder::new(cursor);
+            encoder
+                .write_image(&rgb_image, width, height, ExtendedColorType::Rgb8)
+                .map_err(to_rv)?;
+            Some(image_bytes)
+        } else {
+            None
+        };
+        let form =
+            multipart::Form::new().part("input_annotations", multipart::Part::text(annos_json_str));
+        let form = if let Some(image_bytes) = image_bytes {
+            let filename = data
+                .selected_file_idx
+                .and_then(|idx| data.files.get(idx))
+                .map_or_else(|| "tmpfile.png".to_string(), |f| f.to_string());
+            form.part(
+                "image",
+                multipart::Part::bytes(image_bytes).file_name(filename),
+            )
+        } else {
+            form
+        };
+
+        let form = form
             .part("files", multipart::Part::text(files_json_str))
             .part(
                 "communication",
@@ -288,9 +324,20 @@ fn test_testserver() {
     param_map.insert("c".to_string(), ParamVal::from(true));
     param_map.insert("d".to_string(), ParamVal::from("thestr".to_string()));
     let output = w
-        .predict("dummy", annos.clone(), &[], None, &[], Some(&param_map))
+        .predict(
+            "dummy",
+            annos.clone(),
+            ImageDataWand {
+                image: None,
+                files: &[],
+                selected_file_idx: None,
+            },
+            &[],
+            Some(&param_map),
+        )
         .unwrap();
 
+    let annos2 = annos.clone();
     let mut tdm = ToolsDataMap::new();
     output.clone().resolve_into_tdm(&mut tdm).unwrap();
     assert_eq!(
@@ -318,4 +365,16 @@ fn test_testserver() {
         tdm[BRUSH_NAME].specifics.brush().unwrap().label_info,
         labelinfo_brush
     );
+    w.predict(
+        "dummy",
+        annos2,
+        ImageDataWand {
+            image: Some(DynamicImage::new_rgb8(10, 10)),
+            files: &[&"f1.png".to_string()],
+            selected_file_idx: Some(0),
+        },
+        &[],
+        Some(&param_map),
+    )
+    .unwrap();
 }

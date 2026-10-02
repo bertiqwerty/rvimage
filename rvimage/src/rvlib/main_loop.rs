@@ -166,7 +166,7 @@ impl MainEventLoop {
                 let project_loaded_in_curr_iter = self.menu.ui(
                     ui,
                     &mut self.ctrl,
-                    &mut self.world.data.tools_data_map,
+                    &mut self.world.data,
                     find_active_tool(&self.tools),
                 );
                 let new_annos = self

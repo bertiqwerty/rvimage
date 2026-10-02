@@ -11,9 +11,9 @@ use crate::tools_data::{ToolSpecifics, ToolsDataMap, coco_io::read_coco};
 use crate::types::{ImageMeta, ImageMetaPair, ThumbIms};
 use crate::util::version_label;
 use crate::wand_many::{
-    RestWandMany, WandMany, WandManyAnnotationsInput, WandManyData, WandManyOutput,
+    ImageDataWand, RestWandMany, WandMany, WandManyAnnotationsInput, WandManyData, WandManyOutput,
 };
-use crate::world::World;
+use crate::world::{DataRaw, World};
 use crate::{
     cfg::Cfg,
     image_reader::ReaderFromCfg,
@@ -874,7 +874,7 @@ impl Control {
 
     pub fn submit_files_to_wand(
         &mut self,
-        tools_data_map: &ToolsDataMap,
+        data_raw: &DataRaw,
         files: &[String],
         selected_file_idx: Option<usize>,
         folders_to_exclude: &[String],
@@ -882,7 +882,7 @@ impl Control {
         if self.is_wandmany_running() {
             tracing::warn!("cannot submit files to wand, already running");
         } else {
-            let tdm = tools_data_map.clone();
+            let tdm = data_raw.tools_data_map.clone();
             let (tx, rx) = mpsc::channel();
             self.wand_many_rx = Some(rx);
 
@@ -905,6 +905,12 @@ impl Control {
             };
             let msgs = self.data.wand_many.messages.clone();
             let param_map = self.data.wand_many.param_map.clone();
+            let im_background =
+                if selected_file_idx.is_some() && self.data.wand_many.send_selected_image {
+                    Some(data_raw.im_background().clone())
+                } else {
+                    None
+                };
             thread::spawn(move || {
                 let (input, files, selected_file_idx) = WandManyAnnotationsInput::from_tdm(
                     &tdm,
@@ -918,8 +924,11 @@ impl Control {
                 let output = trace_ok_err(wand_many.predict(
                     &prj_name,
                     input,
-                    &files,
-                    selected_file_idx,
+                    ImageDataWand {
+                        image: selected_file_idx.and(im_background),
+                        files: &files,
+                        selected_file_idx,
+                    },
                     &msgs,
                     Some(&param_map),
                 ));

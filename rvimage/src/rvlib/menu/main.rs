@@ -17,6 +17,7 @@ use crate::{
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
     util::version_label,
+    world::DataRaw,
 };
 use core::f32;
 use egui::{Popup, Response, RichText, Ui};
@@ -256,7 +257,7 @@ impl Menu {
         &mut self,
         ui: &mut egui::Ui,
         ctrl: &mut Control,
-        tools_data_map: &mut ToolsDataMap,
+        data_raw: &mut DataRaw,
         active_tool_name: Option<&str>,
     ) -> bool {
         let mut project_loaded = false;
@@ -276,7 +277,7 @@ impl Menu {
                         )
                         .secondary_clicked()
                     {
-                        *tools_data_map = ctrl.new_prj();
+                        data_raw.tools_data_map = ctrl.new_prj();
                         ui.close();
                     }
                     if ui.button("Load").clicked() {
@@ -286,7 +287,7 @@ impl Menu {
                         if let Some(prj_path) = prj_path {
                             handle_error!(
                                 |tdm| {
-                                    *tools_data_map = tdm;
+                                    data_raw.tools_data_map = tdm;
                                     project_loaded = true;
                                 },
                                 ctrl.load(prj_path),
@@ -302,7 +303,10 @@ impl Menu {
                         );
 
                         if let Some(prj_path) = prj_path {
-                            handle_error!(ctrl.save(prj_path, tools_data_map, true), self);
+                            handle_error!(
+                                ctrl.save(prj_path, &data_raw.tools_data_map, true),
+                                self
+                            );
                         }
                         ui.close();
                     }
@@ -318,7 +322,7 @@ impl Menu {
                                 |()| {
                                     project_loaded = true;
                                 },
-                                ctrl.import_annos(&prj_path, tools_data_map),
+                                ctrl.import_annos(&prj_path, &mut data_raw.tools_data_map),
                                 self
                             );
                         }
@@ -346,7 +350,7 @@ impl Menu {
                                 |()| {
                                     project_loaded = true;
                                 },
-                                ctrl.import_both(&prj_path, tools_data_map),
+                                ctrl.import_both(&prj_path, &mut data_raw.tools_data_map),
                                 self
                             );
                         }
@@ -372,7 +376,7 @@ impl Menu {
                                     },
                                     ctrl.import_from_coco(
                                         &coco_path,
-                                        tools_data_map,
+                                        &mut data_raw.tools_data_map,
                                         if self.import_coco_from_ssh {
                                             ExportPathConnection::Ssh
                                         } else {
@@ -398,7 +402,7 @@ impl Menu {
 
                 let autosave_gui = AutosaveMenu::new(
                     ctrl,
-                    tools_data_map,
+                    &mut data_raw.tools_data_map,
                     &mut project_loaded,
                     &mut self.are_tools_active,
                     &mut self.annotations_menu_params,
@@ -446,7 +450,7 @@ impl Menu {
                     );
                     if let WandManyMenuResult::Submit((files, folders_to_exclude)) = result {
                         ctrl.submit_files_to_wand(
-                            tools_data_map,
+                            data_raw,
                             &files,
                             ctrl.file_selected_idx,
                             &folders_to_exclude,
@@ -608,7 +612,7 @@ impl Menu {
                 handle_error!(
                     ctrl.paths_navigator.filter(
                         &ctrl.data.filter_buffer,
-                        tools_data_map,
+                        &data_raw.tools_data_map,
                         active_tool_name
                     ),
                     self
@@ -654,7 +658,13 @@ impl Menu {
             ui.separator();
             let mut sort_params = ctrl.cfg.prj.sort_params;
             handle_error!(
-                labels_and_sorting(ui, &mut sort_params, ctrl, tools_data_map, &mut self.stats,),
+                labels_and_sorting(
+                    ui,
+                    &mut sort_params,
+                    ctrl,
+                    &mut data_raw.tools_data_map,
+                    &mut self.stats,
+                ),
                 self
             );
             ctrl.cfg.prj.sort_params = sort_params;

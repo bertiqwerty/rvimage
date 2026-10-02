@@ -255,6 +255,7 @@ pub fn wand_many_menu(
                     }
                 });
                 ui.separator();
+                ui.checkbox(&mut data.send_selected_image, "Send selected image");
                 if let Some(to_submit_) = predict_button(ui, data, paths_selector) {
                     to_submit = to_submit_;
                 }

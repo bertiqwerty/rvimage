@@ -31,4 +31,6 @@ pub struct WandManyData {
     pub new_param_val_buffer: ParamVal,
     #[serde(skip)]
     pub is_wandmany_running: bool,
+    #[serde(default)]
+    pub send_selected_image: bool,
 }
