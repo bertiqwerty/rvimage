@@ -4,6 +4,7 @@ use crate::file_util::{
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
+use crate::rest_data::run_headers_cmd;
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
@@ -888,6 +889,10 @@ impl Control {
 
             let url = self.cfg.prj.wand_many.url.clone();
             let headers = self.cfg.usr.wand_many_headers.clone();
+            let headers_cmd = Some(self.cfg.prj.wand_many.headers_cmd.clone())
+                .filter(|cmd| !cmd.trim().is_empty());
+            let install_uv = self.cfg.prj.wand_many.install_uv;
+            let prj_path = self.cfg.current_prj_path().to_path_buf();
             let timeout = self.cfg.prj.wand_many.timeout_s;
             let files = files.iter().map(|f| (*f).clone()).collect::<Vec<_>>();
             let folders_to_exclude = folders_to_exclude
@@ -919,19 +924,33 @@ impl Control {
                     selected_file_idx,
                 );
 
-                let wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
-                tracing::info!("submitting files to wand...");
-                let output = trace_ok_err(wand_many.predict(
-                    &prj_name,
-                    input,
-                    ImageDataWand {
-                        image: selected_file_idx.and(im_background),
-                        files: &files,
-                        selected_file_idx,
-                    },
-                    &msgs,
-                    Some(&param_map),
-                ));
+                let mut wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
+                let output = match headers_cmd
+                    .map(|cmd| run_headers_cmd(&cmd, &prj_path, install_uv))
+                    .transpose()
+                {
+                    Ok(cmd_headers) => {
+                        if let Some(cmd_headers) = cmd_headers {
+                            wand_many.add_headers(&cmd_headers);
+                        }
+                        tracing::info!("submitting files to wand...");
+                        trace_ok_err(wand_many.predict(
+                            &prj_name,
+                            input,
+                            ImageDataWand {
+                                image: selected_file_idx.and(im_background),
+                                files: &files,
+                                selected_file_idx,
+                            },
+                            &msgs,
+                            Some(&param_map),
+                        ))
+                    }
+                    Err(e) => {
+                        tracing::error!("could not get headers from command: {e:?}");
+                        None
+                    }
+                };
                 if let Some(output) = output {
                     trace_ok_err(tx.send(output));
                 } else {

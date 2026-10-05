@@ -7,58 +7,7 @@ use std::process::{Child, Command};
 use crate::cfg::CmdServerSrc;
 use crate::file_util;
 use crate::result::trace_ok_err;
-
-fn install_uv() -> RvResult<()> {
-    if cfg!(target_os = "windows") {
-        // Windows: try `powershell` and `pwsh`.
-        let args = [
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            "iwr -useb https://astral.sh/uv/install.ps1 | iex",
-        ];
-        let mut errors = Vec::new();
-        for exe in &["powershell", "pwsh"] {
-            match Command::new(exe).args(args).output() {
-                Ok(out) if out.status.success() => {
-                    tracing::info!("Installed uv using {}.", exe);
-                    return Ok(());
-                }
-                Ok(out) => {
-                    let err_msg = String::from_utf8_lossy(&out.stderr);
-                    errors.push(format!("{} failed: {}", exe, err_msg.trim()));
-                    tracing::warn!(
-                        "{} install exited with status {:?}: {}",
-                        exe,
-                        out.status.code(),
-                        err_msg
-                    );
-                }
-                Err(e) => {
-                    errors.push(format!("failed to spawn {}: {}", exe, e));
-                    tracing::warn!("failed to spawn {}: {}", exe, e);
-                }
-            }
-        }
-        return Err(to_rv(format!(
-            "Failed to install uv on Windows: {}",
-            errors.join("; ")
-        )));
-    } else {
-        // macOS and Linux
-        let status = Command::new("sh")
-            .args(["-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"])
-            .status()
-            .map_err(to_rv)?;
-        status
-            .success()
-            .then_some(())
-            .ok_or_else(|| to_rv("Failed to install uv on macOS/Linux".to_string()))?;
-    }
-    Ok(())
-}
+use crate::wand_util::uv;
 
 pub trait WandServer: Debug + Send + Sync {
     fn cleanup_server(&mut self) -> RvResult<()>;
@@ -111,7 +60,7 @@ impl WandServer for CmdServer {
     fn start_server(&mut self, prj_path: &Path) -> RvResult<()> {
         if self.install_uv {
             tracing::info!("Installing uv...");
-            install_uv()?;
+            uv::install()?;
         }
 
         let local_repo_path =

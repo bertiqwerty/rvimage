@@ -243,6 +243,11 @@ pub fn wand_many_menu(
                 ui.separator();
                 egui::CollapsingHeader::new("Server settings").show(ui, |ui| {
                     text_edit_singleline(ui, &mut cfg.url, are_tools_active).on_hover_text("url");
+                    text_edit_singleline(ui, &mut cfg.headers_cmd, are_tools_active).on_hover_text(
+                        "command run on submit, e.g., 'uv run token.py'; paths are relative to the project file; stdout is sent as header(s)",
+                    );
+                    ui.checkbox(&mut cfg.install_uv, "install uv if missing")
+                        .on_hover_text("only applies if the headers command starts with 'uv'");
                     let timeout_label = "timeout (s)";
                     if buffers.timeout.is_empty() {
                         buffers.timeout = cfg.timeout_s.to_string();

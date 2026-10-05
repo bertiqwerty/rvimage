@@ -369,6 +369,12 @@ pub struct WandManyCfg {
     #[serde(default = "get_wandmany_default_timeout")]
     pub timeout_s: usize,
     pub prj_name: String,
+    /// Run on each submit; stdout is parsed like the user's `wand_many_headers`.
+    #[serde(default)]
+    pub headers_cmd: String,
+    /// Install uv if the headers command starts with `uv` and uv is missing.
+    #[serde(default)]
+    pub install_uv: bool,
 }
 
 impl Default for WandManyCfg {
@@ -377,6 +383,8 @@ impl Default for WandManyCfg {
             url: "".into(),
             timeout_s: get_wandmany_default_timeout(),
             prj_name: "".to_string(),
+            headers_cmd: "".to_string(),
+            install_uv: false,
         }
     }
 }

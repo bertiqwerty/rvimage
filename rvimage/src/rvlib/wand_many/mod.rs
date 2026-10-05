@@ -217,6 +217,9 @@ impl RestWandMany {
             data: RestData::new(url, authorization, timeout_s * 1000, "predict_many"),
         }
     }
+    pub fn add_headers(&mut self, s: &str) {
+        self.data.add_headers(s);
+    }
 }
 
 impl WandMany for RestWandMany {
