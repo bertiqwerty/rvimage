@@ -1,9 +1,17 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "click",
+#     "gitpython",
+# ]
+# ///
 import json
-from pathlib import Path
-import tomllib
 import urllib.request
+from pathlib import Path
+
 import click
 import git
+import tomllib
 
 
 @click.command()
