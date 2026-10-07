@@ -19,7 +19,6 @@ use crate::{
     util::version_label,
     world::DataRaw,
 };
-use core::f32;
 use egui::{Popup, Response, RichText, Ui};
 use rvimage_domain::{RvResult, rverr};
 use std::{

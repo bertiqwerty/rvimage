@@ -1,14 +1,14 @@
 use rvimage_domain::{RvResult, to_rv};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
-use std::process::{Child, Command};
+use std::process::Child;
 
 use crate::cfg::CmdServerSrc;
+use crate::cmd_runner;
 use crate::file_util;
 use crate::result::trace_ok_err;
-use crate::wand_util::uv;
-
 pub trait WandServer: Debug + Send + Sync {
     fn cleanup_server(&mut self) -> RvResult<()>;
     fn start_server(&mut self, prj_path: &Path) -> RvResult<()>;
@@ -58,11 +58,6 @@ impl CmdServer {
 
 impl WandServer for CmdServer {
     fn start_server(&mut self, prj_path: &Path) -> RvResult<()> {
-        if self.install_uv {
-            tracing::info!("Installing uv...");
-            uv::install()?;
-        }
-
         let local_repo_path =
             Path::new(&self.local_base_folder).join(self.src.relative_working_dir());
 
@@ -97,20 +92,22 @@ impl WandServer for CmdServer {
                 fs::copy(src_path, dest_path).map_err(to_rv)?;
             }
         }
-        let churdir = format!(
+        let working_dir = format!(
             "{}/{}",
             self.local_base_folder,
             self.src.relative_working_dir()
         );
-        tracing::info!("Starting wand server from folder {churdir}...");
+        tracing::info!("Starting wand server from folder {working_dir}...");
+        let env_vars = HashMap::from([("PYTHONPATH", ".")]);
 
-        let child = Command::new(&self.setup_cmd)
-            .args(&self.setup_args)
-            .env("PYTHONPATH", ".")
-            .current_dir(churdir)
-            .spawn()
-            .map_err(to_rv)?;
-        self.child = Some(child);
+        self.child = Some(cmd_runner::trigger_cmd(
+            &self.setup_cmd,
+            &self.setup_args,
+            prj_path,
+            self.install_uv,
+            Some(Path::new(&working_dir)),
+            Some(&env_vars),
+        )?);
         tracing::info!("Wand server up and running.");
         Ok(())
     }

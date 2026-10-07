@@ -1,10 +1,10 @@
 use crate::cfg::{Connection, ExportPath, ExportPathConnection, PyHttpReaderCfg, get_log_folder};
+use crate::cmd_runner::{NO_ENV, run_cmd};
 use crate::file_util::{
     self, DEFAULT_HOMEDIR, DEFAULT_PRJ_NAME, DEFAULT_PRJ_PATH, PathPair, SavedCfg, osstr_to_str,
 };
 use crate::history::{History, Record};
 use crate::meta_data::{ConnectionData, MetaData, MetaDataFlags};
-use crate::rest_data::run_headers_cmd;
 use crate::result::{trace_ok_err, trace_ok_warn};
 use crate::sort_params::SortParams;
 use crate::tools::{ATTRIBUTES_NAME, BBOX_NAME, BRUSH_NAME, rotate90};
@@ -926,7 +926,7 @@ impl Control {
 
                 let mut wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
                 let output = match headers_cmd
-                    .map(|cmd| run_headers_cmd(&cmd, &prj_path, install_uv))
+                    .map(|cmd| run_cmd(&cmd, &[], &prj_path, install_uv, None, NO_ENV))
                     .transpose()
                 {
                     Ok(cmd_headers) => {

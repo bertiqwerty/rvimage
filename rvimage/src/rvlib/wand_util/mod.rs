@@ -1,5 +1,4 @@
 mod server;
-pub mod uv;
 use rvimage_domain::{RvResult, to_rv};
 use serde::Serialize;
 pub use server::{CmdServer, WandServer};

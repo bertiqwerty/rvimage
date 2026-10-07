@@ -6,6 +6,7 @@
 mod autosave;
 mod cache;
 pub mod cfg;
+pub mod cmd_runner;
 pub mod control;
 mod drawme;
 mod egui_mappers;
