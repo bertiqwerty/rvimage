@@ -491,7 +491,7 @@ impl Menu {
         });
         // Show project settings import modal when a file was picked.
         if self.prj_import_path.is_some() {
-            egui::modal::Modal::new(egui::Id::new("prj-import-section")).show(ui.ctx(), |ui| {
+            egui::modal::Modal::new(egui::Id::unique("prj-import-section")).show(ui.ctx(), |ui| {
                 ui.label("Project Settings Import");
                 if let Some(p) = &self.prj_import_path {
                     ui.label(RichText::new(format!("{}", p.display())).monospace());

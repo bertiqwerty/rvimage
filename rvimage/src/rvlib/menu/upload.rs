@@ -22,7 +22,7 @@ pub fn upload(
     ctrl: &mut Control,
 ) -> RvResult<()> {
     let mut result_upload = Ok(());
-    egui::modal::Modal::new(egui::Id::new("upload+create+folder")).show(ui.ctx(), |ui| {
+    egui::modal::Modal::new(egui::Id::unique("upload+create+folder")).show(ui.ctx(), |ui| {
         egui::Resize::default()
             .default_height(120.0)
             .default_width(220.0)

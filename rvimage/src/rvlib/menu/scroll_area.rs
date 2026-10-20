@@ -113,5 +113,5 @@ pub fn scroll_area_file_selector(
                 add_content(ui, filtered_idx);
             }
         });
-    scroll.state.offset.y
+    scroll.state.unclamped_offset().y
 }

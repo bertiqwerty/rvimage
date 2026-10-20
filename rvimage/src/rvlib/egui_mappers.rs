@@ -130,6 +130,7 @@ pub fn map_mouse_events(
                     delta,
                     phase: _,
                     modifiers,
+                    source: _,
                 } if modifiers.ctrl => {
                     events.push(Event::Zoom(ZoomAmount::Delta(f64::from(delta.y))));
                 }
