@@ -2,7 +2,7 @@ mod core;
 mod plot;
 use chrono::{DateTime, Local};
 use core::{FilterRelation, ToolChoice, iter_files_of_instance_tool};
-use egui::{Popup, Response, RichText, Ui, Widget};
+use egui::{Response, RichText, Ui, Widget};
 use egui_plot::PlotPoint;
 use plot::{Selection, anno_plots};
 use rvimage_domain::{RvResult, rverr, to_rv};
@@ -293,6 +293,7 @@ pub struct AnnotationsParams {
     pub selected_brushclasses_for_plot: HashMap<String, bool>,
     pub attribute_plots: HashMap<String, Vec<PlotPoint>>,
     pub plot_window_open: bool,
+    pub window_open: bool,
     pub areabelow_threshold_buffer: String,
     pub areabelow_threshold: f64,
     pub area_restriction: bool,
@@ -891,25 +892,40 @@ impl Widget for AutosaveMenu<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         *self.project_loaded = false;
         let autosaves_btn_resp = ui.button("Annotations");
-        Popup::menu(&autosaves_btn_resp)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-            .show(|ui| {
-                let anno_menu_res = trace_ok_err(annotations_popup(
-                    ui,
-                    self.ctrl,
-                    self.tdm,
-                    self.are_tools_active,
-                    self.anno_params,
-                ));
-                let close = matches!(anno_menu_res.as_ref().map(|a| a.close), Some(Close::Yes));
-                if let Some(anno_menu_res) = anno_menu_res {
-                    *self.project_loaded = anno_menu_res.project_loaded;
-                    *self.new_file_idx = anno_menu_res.new_file_idx;
-                }
-                if close {
-                    ui.close();
-                }
+        if autosaves_btn_resp.clicked() {
+            self.anno_params.window_open = !self.anno_params.window_open;
+        }
+        // local copy, since the window content borrows anno_params mutably
+        let mut window_open = self.anno_params.window_open;
+        let mut close = false;
+        let window_resp = egui::Window::new("Annotations")
+            .open(&mut window_open)
+            .collapsible(true)
+            .resizable(true)
+            .movable(true)
+            .show(ui.ctx(), |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    let anno_menu_res = trace_ok_err(annotations_popup(
+                        ui,
+                        self.ctrl,
+                        self.tdm,
+                        self.are_tools_active,
+                        self.anno_params,
+                    ));
+                    if let Some(anno_menu_res) = anno_menu_res {
+                        close = matches!(anno_menu_res.close, Close::Yes);
+                        *self.project_loaded = anno_menu_res.project_loaded;
+                        *self.new_file_idx = anno_menu_res.new_file_idx;
+                    }
+                });
             });
+        // the window may float above the canvas, so clicks inside must not reach the tools
+        if let Some(wr) = window_resp
+            && wr.response.contains_pointer()
+        {
+            *self.are_tools_active = false;
+        }
+        self.anno_params.window_open = window_open && !close;
         autosaves_btn_resp
     }
 }
