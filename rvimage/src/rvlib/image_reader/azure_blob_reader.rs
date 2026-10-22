@@ -1,7 +1,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    time::Duration,
+    time::{Duration, Instant},
     vec,
 };
 
@@ -77,6 +77,7 @@ async fn blob_list(
         ..Default::default()
     };
     let mut stream = container_client.list_blobs(Some(options)).map_err(to_rv)?;
+    let mut time = Instant::now();
     while let Some(blob) = timeout(Duration::from_secs(page_timeout_s), stream.try_next())
         .await
         .map_err(|_| {
@@ -89,7 +90,11 @@ async fn blob_list(
         {
             res.push(name);
         }
-        tracing::info!("retrieved {} blobs ", res.len());
+        if time.elapsed().as_millis() >= 1000 {
+            let n = res.len();
+            tracing::info!("retrieved {n} {} ", if n == 1 { "blob" } else { "blobs" });
+            time = Instant::now();
+        }
     }
     Ok(res)
 }

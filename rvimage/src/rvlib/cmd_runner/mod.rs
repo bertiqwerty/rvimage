@@ -81,6 +81,7 @@ where
 }
 
 /// Spawns `cmd` followed by `extra_args` with inherited stdio and returns the running child.
+/// cmd can also contain args separated by whitespace.
 /// The program is resolved as in [`run_cmd`].
 pub fn trigger_cmd<K, V>(
     cmd: &str,
