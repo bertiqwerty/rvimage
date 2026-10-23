@@ -43,14 +43,15 @@ pub struct ToolChoice {
     pub attributes: bool,
 }
 impl ToolChoice {
-    pub fn ui(&mut self, ui: &mut Ui, skip_attributes: bool) {
+    /// The attributes checkbox is only shown if `attributes_hint` is given, which is its tooltip.
+    pub fn ui(&mut self, ui: &mut Ui, attributes_hint: Option<&str>) {
         ui.label("Select tool who's annotations you are interested in");
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.bbox, BBOX_NAME);
             ui.checkbox(&mut self.brush, BRUSH_NAME);
-            if !skip_attributes {
+            if let Some(hint) = attributes_hint {
                 ui.checkbox(&mut self.attributes, ATTRIBUTES_NAME)
-                    .on_hover_text("only for propagation");
+                    .on_hover_text(hint);
             }
         });
     }

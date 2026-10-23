@@ -792,6 +792,7 @@ fn anno_stats_cmd(
     ui: &mut Ui,
     stats_cmd: StatsCmd,
     tdm: &ToolsDataMap,
+    tool_choice: ToolChoice,
     filepaths: Option<&[(usize, &PathPair)]>,
     stats_compute_results: &mut Option<StatsTable>,
 ) -> RvResult<()> {
@@ -823,7 +824,22 @@ fn anno_stats_cmd(
         } else if rx.is_some() {
             ui.spinner();
         } else {
-            clicked = ui.button("Compute stats with command").clicked();
+            let disabled_reason = if cfg.cmd.trim().is_empty() {
+                Some("enter a command first")
+            } else if filepaths.is_none() {
+                Some("open a folder first")
+            } else {
+                None
+            };
+            let resp = ui.add_enabled(
+                disabled_reason.is_none(),
+                egui::Button::new("Compute stats with command"),
+            );
+            let resp = match disabled_reason {
+                Some(reason) => resp.on_disabled_hover_text(reason),
+                None => resp,
+            };
+            clicked = resp.clicked();
         }
     });
     if clicked
@@ -834,7 +850,16 @@ fn anno_stats_cmd(
             .iter()
             .map(|(_, pp)| (*pp).clone())
             .collect::<Vec<_>>();
-        let (input, _, _) = WandManyAnnotationsInput::from_tdm(tdm, &files, &[], None);
+        let (mut input, _, _) = WandManyAnnotationsInput::from_tdm(tdm, &files, &[], None);
+        if !tool_choice.bbox {
+            input.bbox = None;
+        }
+        if !tool_choice.brush {
+            input.brush = None;
+        }
+        if !tool_choice.attributes {
+            input.attributes = None;
+        }
         let annotations = serde_json::to_value(&input).map_err(to_rv)?;
         let mut images = None;
         let mut not_yet_cached = vec![];
@@ -893,8 +918,8 @@ fn anno_stats_cmd(
     match received {
         Some(Ok(res)) => {
             *rx = None;
-            if let Some(records) = trace_ok_err(res) {
-                *stats_compute_results = Some(records);
+            if let Some(table) = trace_ok_err(res) {
+                *stats_compute_results = Some(table);
             }
         }
         Some(Err(TryRecvError::Disconnected)) => {
@@ -915,6 +940,10 @@ fn anno_stats(
     stats_cmd: StatsCmd,
 ) -> RvResult<()> {
     let filepaths = paths_selector.map(|ps| ps.filtered_idx_file_paths_pairs());
+    if !tool_choice.is_some(false) {
+        *stats_compute_results = None;
+        return Ok(());
+    }
     let skip_attributes = true;
     if tool_choice.is_some(skip_attributes)
         && ui.button("(Re-)compute stats of filtered files").clicked()
@@ -927,6 +956,7 @@ fn anno_stats(
         ui,
         stats_cmd,
         tdm,
+        tool_choice,
         filepaths.as_deref(),
         stats_compute_results,
     )?;
@@ -1039,8 +1069,9 @@ fn annotations_popup(
     });
     ui.separator();
     egui::CollapsingHeader::new("Delete or Propagate Annotations").show(ui, |ui| {
-        let skip_attrs = false;
-        anno_params.tool_choice_delprop.ui(ui, skip_attrs);
+        anno_params
+            .tool_choice_delprop
+            .ui(ui, Some("only for propagation"));
         let r = annotations(
             ui,
             inout_tdm,
@@ -1053,8 +1084,9 @@ fn annotations_popup(
     });
     ui.separator();
     egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
-        let skip_attrs = true;
-        anno_params.tool_choice_stats.ui(ui, skip_attrs);
+        anno_params
+            .tool_choice_stats
+            .ui(ui, Some("only passed to the stats command"));
         let prj_path = ctrl.cfg.current_prj_path().to_path_buf();
         let r = anno_stats(
             ui,
@@ -1075,8 +1107,9 @@ fn annotations_popup(
     });
     ui.separator();
     egui::CollapsingHeader::new("Plot images vs. annotations").show(ui, |ui| {
-        let skip_attrs = false;
-        anno_params.tool_choice_plot.ui(ui, skip_attrs);
+        anno_params
+            .tool_choice_plot
+            .ui(ui, Some("only for propagation"));
         new_file_idx = anno_plots(
             ui,
             inout_tdm,
