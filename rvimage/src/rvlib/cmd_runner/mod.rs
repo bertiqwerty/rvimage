@@ -26,8 +26,9 @@ where
 {
     let mut parts = cmd.split_whitespace();
     let program = parts.next().ok_or_else(|| rverr!("command is empty"))?;
-    let working_dir =
-        working_dir.or_else(|| prj_path.parent().filter(|p| !p.as_os_str().is_empty()));
+    let working_dir = working_dir
+        .or_else(|| prj_path.parent().filter(|p| !p.as_os_str().is_empty()))
+        .filter(|wd| wd.is_dir());
     let local_program = working_dir
         .map(|wd| wd.join(program))
         .filter(|p| p.is_file());
@@ -133,4 +134,14 @@ fn test_run_cmd_with_stdin() {
     let stdin = Some(payload.clone().into_bytes());
     let out = run_cmd("sort", &[], &prj_path, false, None, NO_ENV, stdin).unwrap();
     assert_eq!(out.replace("\r\n", "\n"), payload.trim());
+}
+
+#[test]
+fn test_run_cmd_unsaved_prj() {
+    let prj_path = std::env::temp_dir()
+        .join("rvimage_test_nonexistent_prj_folder")
+        .join("prj.rvi");
+    let stdin = Some(b"line\n".to_vec());
+    let out = run_cmd("sort", &[], &prj_path, false, None, NO_ENV, stdin).unwrap();
+    assert_eq!(out, "line");
 }
