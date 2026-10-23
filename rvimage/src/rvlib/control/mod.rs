@@ -802,10 +802,10 @@ impl Control {
     pub fn cache_all_filtered(&mut self) -> RvResult<Option<f32>> {
         if let (Some(ps), Some(r)) = (self.paths_navigator.paths_selector(), self.reader.as_mut()) {
             let mut n_cached = 0;
-            for filtered_idx in 0..ps.len_filtered() {
-                let ffp = ps.filtered_abs_file_paths();
-                let res = r.cache_image(filtered_idx, &ffp)?;
-                n_cached += if res { 1 } else { 0 };
+            for path in ps.filtered_abs_file_paths() {
+                if r.cache_image(path)?.is_some() {
+                    n_cached += 1;
+                }
             }
             let amount = n_cached as f32 / ps.len_filtered() as f32;
             Ok(Some(amount))
@@ -876,7 +876,7 @@ impl Control {
     pub fn submit_files_to_wand(
         &mut self,
         data_raw: &DataRaw,
-        files: &[String],
+        files: &[PathPair],
         selected_file_idx: Option<usize>,
         folders_to_exclude: &[String],
     ) {
@@ -893,8 +893,9 @@ impl Control {
                 .filter(|cmd| !cmd.trim().is_empty());
             let install_uv = self.cfg.prj.wand_many.install_uv;
             let prj_path = self.cfg.current_prj_path().to_path_buf();
+            let base_folder = self.cfg.prj.connection.base_folder(&prj_path);
             let timeout = self.cfg.prj.wand_many.timeout_s;
-            let files = files.iter().map(|f| (*f).clone()).collect::<Vec<_>>();
+            let files = files.to_vec();
             let folders_to_exclude = folders_to_exclude
                 .iter()
                 .map(|f| (*f).clone())
@@ -926,7 +927,7 @@ impl Control {
 
                 let mut wand_many = RestWandMany::new(url, headers.as_deref(), timeout);
                 let output = match headers_cmd
-                    .map(|cmd| run_cmd(&cmd, &[], &prj_path, install_uv, None, NO_ENV))
+                    .map(|cmd| run_cmd(&cmd, &[], &prj_path, install_uv, None, NO_ENV, None))
                     .transpose()
                 {
                     Ok(cmd_headers) => {
@@ -941,6 +942,7 @@ impl Control {
                                 image: selected_file_idx.and(im_background),
                                 files: &files,
                                 selected_file_idx,
+                                base_folder: base_folder.as_deref(),
                             },
                             &msgs,
                             Some(&param_map),
@@ -968,7 +970,8 @@ impl Control {
             match rx.try_recv() {
                 Ok(output) => {
                     tracing::info!("received output from wand, applying to files...");
-                    let server_response = output.resolve_into_tdm(tools_data_map)?;
+                    let server_response =
+                        output.resolve_into_tdm(tools_data_map, self.cfg.current_prj_path())?;
                     tracing::info!("... applying done!");
                     self.wand_many_rx = None;
                     if let Some(al) = server_response
@@ -1042,10 +1045,11 @@ impl Control {
         tracing::info!("new opened folder {new_folder}");
         self.thumbnail_cache.clear();
         self.make_reader(self.cfg.clone())?;
-        let current_prj_path = match self.cfg.prj.connection {
-            Connection::Local => Some(self.cfg.current_prj_path()),
-            _ => None,
-        };
+        let current_prj_path = self
+            .cfg
+            .prj
+            .connection
+            .prj_path(self.cfg.current_prj_path());
         self.data.opened_folder = Some(PathPair::from_relative_path(new_folder, current_prj_path));
         Ok(())
     }

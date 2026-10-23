@@ -22,7 +22,8 @@ pub trait LoadImageForGui {
     /// read image with index file_selected_idx  
     fn read_image(&mut self, file_selected_idx: usize, abs_file_paths: &[&str])
     -> AsyncResultImage;
-    fn cache_image(&mut self, file_selected_idx: usize, abs_file_paths: &[&str]) -> RvResult<bool>;
+    /// Triggers caching if needed, returns the path to read the file from once it is cached.
+    fn cache_image(&mut self, abs_file_path: &str) -> RvResult<Option<String>>;
     #[allow(dead_code)]
     fn read_cached_image(
         &mut self,
@@ -71,9 +72,8 @@ where
     fn toggle_clear_cache_on_close(&mut self) {
         self.cache.toggle_clear_on_close();
     }
-    fn cache_image(&mut self, file_selected_idx: usize, abs_file_paths: &[&str]) -> RvResult<bool> {
-        self.cache
-            .load_into_cache(file_selected_idx, abs_file_paths)
+    fn cache_image(&mut self, abs_file_path: &str) -> RvResult<Option<String>> {
+        self.cache.load_into_cache(abs_file_path)
     }
     fn read_image(
         &mut self,

@@ -166,13 +166,13 @@ fn test_headers_cmd() {
         1,
         "ep",
     );
-    let cmd_out = run_cmd(cmd, &[], &prj_path, false, None, NO_ENV);
+    let cmd_out = run_cmd(cmd, &[], &prj_path, false, None, NO_ENV, None);
     std::fs::remove_dir_all(&prj_folder).unwrap();
     rd.add_headers(&cmd_out.unwrap());
     assert_eq!(rd.headers.len(), 2);
     assert_eq!(rd.headers.get(AUTHORIZATION).unwrap(), "Bearer fromscript");
     assert_eq!(rd.headers.get("x-api-key").unwrap(), "xyz");
-    assert!(run_cmd("  ", &[], &prj_path, false, None, NO_ENV).is_err());
+    assert!(run_cmd("  ", &[], &prj_path, false, None, NO_ENV, None).is_err());
     assert!(
         run_cmd(
             "rvimage-nonexistent-prg",
@@ -180,7 +180,8 @@ fn test_headers_cmd() {
             &prj_path,
             false,
             None,
-            NO_ENV
+            NO_ENV,
+            None
         )
         .is_err()
     );

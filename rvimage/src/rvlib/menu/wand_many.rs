@@ -3,6 +3,7 @@ use std::mem;
 
 use crate::{
     cfg::WandManyCfg,
+    file_util::PathPair,
     menu::{
         main::WandManyMenuBuffers,
         params_menu::{
@@ -38,12 +39,12 @@ pub fn predict_button(
 pub fn predict(
     paths_selector: Option<&PathsSelector>,
     data: &WandManyData,
-) -> Option<(Vec<String>, Vec<String>)> {
+) -> Option<(Vec<PathPair>, Vec<String>)> {
     let files = paths_selector.map(|ps| {
-        ps.filtered_abs_file_paths()
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<String>>()
+        ps.filtered_file_paths()
+            .into_iter()
+            .cloned()
+            .collect::<Vec<_>>()
     });
     if let Some(files) = files {
         let subfolders_to_exclude = data.subfolders_to_exclude.clone();
@@ -56,7 +57,7 @@ pub fn predict(
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum WandManyMenuResult {
-    Submit((Vec<String>, Vec<String>)),
+    Submit((Vec<PathPair>, Vec<String>)),
     #[default]
     Nothing,
     Cancel,

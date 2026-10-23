@@ -226,39 +226,22 @@ where
     fn make_uploader(&self) -> ImageUploader {
         self.reader.make_uploader()
     }
-
-    /// Just loads a single file into the cache. Return true if the
-    /// file is in the cache.
-    fn load_into_cache(&mut self, selected_file_idx: usize, files: &[&str]) -> RvResult<bool> {
-        let filepath = files.get(selected_file_idx);
-        if let Some(fp) = filepath {
-            let tr = self.cached_paths.get(*fp);
-            match tr {
-                Some(ThreadResult::Ok(_)) => Ok(true),
-                Some(ThreadResult::Running(job_id)) => {
-                    let selected_file = &files.get(selected_file_idx);
-                    if let Some(selected_file) = selected_file {
-                        let checked = self.check_running_thread(*job_id, selected_file)?;
-                        Ok(checked.is_some())
-                    } else {
-                        Err(rverr!(
-                            "selected file idx {selected_file_idx} is out of bounds"
-                        ))
-                    }
-                }
-                None => {
-                    let cache = detail::preload(
-                        std::iter::once((0, *fp)),
-                        &mut self.tpq,
-                        &self.reader,
-                        &self.cachedir,
-                    )?;
-                    self.update_cache(cache);
-                    Ok(false)
-                }
+    fn load_into_cache(&mut self, file: &str) -> RvResult<Option<String>> {
+        match self.cached_paths.get(file) {
+            Some(ThreadResult::Ok(path_info_pair)) => Ok(Some(path_info_pair.path.clone())),
+            Some(ThreadResult::Running(job_id)) => Ok(self
+                .check_running_thread(*job_id, file)?
+                .map(|path_info_pair| path_info_pair.path)),
+            None => {
+                let cache = detail::preload(
+                    std::iter::once((0, file)),
+                    &mut self.tpq,
+                    &self.reader,
+                    &self.cachedir,
+                )?;
+                self.update_cache(cache);
+                Ok(None)
             }
-        } else {
-            Ok(false)
         }
     }
     fn load_from_cache(&mut self, selected_file_idx: usize, files: &[&str]) -> AsyncResultImage {
@@ -499,4 +482,61 @@ fn test_file_cache() {
             .exists()
         );
     }
+}
+
+#[test]
+fn test_load_into_cache() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static N_READS: AtomicUsize = AtomicUsize::new(0);
+    #[derive(Clone)]
+    struct CountingRead;
+    impl ReadImageToCache<()> for CountingRead {
+        fn new(_: ()) -> RvResult<Self> {
+            Ok(Self {})
+        }
+        fn ls(&self, _folder_path: &str) -> RvResult<Vec<String>> {
+            Ok(vec![])
+        }
+        fn read(&self, _: &str) -> RvResult<DynamicImage> {
+            N_READS.fetch_add(1, Ordering::SeqCst);
+            Ok(DynamicImage::ImageRgb8(
+                ImageBuffer::<Rgb<u8>, Vec<u8>>::new(5, 5),
+            ))
+        }
+        fn file_info(&self, _: &str) -> RvResult<String> {
+            Ok("".to_string())
+        }
+        fn make_uploader(&self) -> ImageUploader {
+            Box::new(|_: &Path, _: &str| Err(rverr!("no upload")))
+        }
+    }
+    let cachedir = DEFAULT_TMPDIR.join("rvimage_test_load_into_cache");
+    defer_folder_removal!(&cachedir);
+    let mut cache = FileCache::<CountingRead, ()>::new(FileCacheArgs {
+        cfg_args: FileCacheCfgArgs {
+            n_prev_images: 0,
+            n_next_images: 0,
+            n_threads: 1,
+            clear_on_close: true,
+            cachedir: path_to_str(&cachedir).unwrap().to_string(),
+        },
+        reader_args: (),
+    })
+    .unwrap();
+    let file = "remote/folder/im.png";
+    let poll = |cache: &mut FileCache<CountingRead, ()>| {
+        for _ in 0..200 {
+            let cached = cache.load_into_cache(file);
+            if !matches!(cached, Ok(None)) {
+                return cached;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        Ok(None)
+    };
+    assert_eq!(cache.load_into_cache(file).unwrap(), None);
+    let cached = poll(&mut cache).unwrap().unwrap();
+    assert!(Path::new(&cached).exists());
+    assert_eq!(cache.load_into_cache(file).unwrap(), Some(cached));
+    assert_eq!(N_READS.load(Ordering::SeqCst), 1);
 }

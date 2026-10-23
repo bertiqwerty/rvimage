@@ -148,8 +148,8 @@ impl LoadImageForGui for ReaderFromCfg {
     fn toggle_clear_cache_on_close(&mut self) {
         self.reader.toggle_clear_cache_on_close();
     }
-    fn cache_image(&mut self, file_selected_idx: usize, abs_file_paths: &[&str]) -> RvResult<bool> {
-        self.reader.cache_image(file_selected_idx, abs_file_paths)
+    fn cache_image(&mut self, abs_file_path: &str) -> RvResult<Option<String>> {
+        self.reader.cache_image(abs_file_path)
     }
     fn read_image(
         &mut self,

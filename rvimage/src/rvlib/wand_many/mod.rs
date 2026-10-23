@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     InstanceAnnotate, ToolsDataMap,
+    file_util::{self, PathPair},
     parameters::{ParamMap, ParamMapUntagged},
     rest_data::RestData,
     result::trace_ok_err,
@@ -37,19 +38,23 @@ pub struct WandManyAnnotationsInput<'a> {
 }
 
 impl<'a> WandManyAnnotationsInput<'a> {
+    /// Annotations and returned files are keyed like the annotation maps, i.e., relative to the
+    /// project folder for local files inside it.
     pub fn from_tdm(
         tools_data_map: &'a ToolsDataMap,
-        files: &'a [String],
+        files: &'a [PathPair],
         folders_to_exclude: &'a [String],
         mut selected_file_idx: Option<usize>,
-    ) -> (Self, Vec<&'a String>, Option<usize>) {
+    ) -> (Self, Vec<&'a str>, Option<usize>) {
         let mut sfidx_reduction_count = 0;
         let files_wo_excluded_folders = files
             .iter()
             .enumerate()
             .filter(|(idx, f)| {
                 !folders_to_exclude.iter().any(|excluded| {
-                    let is_in_excluded = Path::new(f).ancestors().any(|a| a.ends_with(excluded));
+                    let is_in_excluded = Path::new(f.path_absolute())
+                        .ancestors()
+                        .any(|a| a.ends_with(excluded));
                     if is_in_excluded && Some(*idx) < selected_file_idx {
                         sfidx_reduction_count += 1;
                     } else if is_in_excluded && Some(*idx) == selected_file_idx {
@@ -75,7 +80,10 @@ impl<'a> WandManyAnnotationsInput<'a> {
                         (
                             files_wo_excluded_folders
                                 .iter()
-                                .flat_map(|f| am.get(f).map(|(annos, _)| (f.as_str(), annos)))
+                                .flat_map(|f| {
+                                    am.get(f.path_relative())
+                                        .map(|(annos, _)| (f.path_relative(), annos))
+                                })
                                 .collect::<Vec<(&str, &InstanceAnnotations<$T>)>>(),
                             li,
                         )
@@ -90,9 +98,13 @@ impl<'a> WandManyAnnotationsInput<'a> {
         let attributes = tools_data_map.get_specifics(ATTRIBUTES_NAME).and_then(|s| {
             s.attributes()
                 .map(|at| {
-                    at.annotations_map
+                    files_wo_excluded_folders
                         .iter()
-                        .map(|(k, (params, _))| (k.as_str(), params))
+                        .flat_map(|f| {
+                            at.annotations_map
+                                .get(f.path_relative())
+                                .map(|(params, _)| (f.path_relative(), params))
+                        })
                         .collect::<Attributes>()
                 })
                 .ok()
@@ -103,7 +115,10 @@ impl<'a> WandManyAnnotationsInput<'a> {
                 brush,
                 attributes,
             },
-            files_wo_excluded_folders,
+            files_wo_excluded_folders
+                .iter()
+                .map(|f| f.path_relative())
+                .collect(),
             selected_file_idx,
         )
     }
@@ -128,10 +143,13 @@ pub struct WandManyOutput {
     pub server_response: Option<ServerResponse>,
 }
 impl WandManyOutput {
+    /// Server may return relative keys or absolute paths, the latter are mapped to keys relative to `prj_path`.
     pub fn resolve_into_tdm(
         self,
         tools_data_map: &mut ToolsDataMap,
+        prj_path: &Path,
     ) -> RvResult<Option<ServerResponse>> {
+        let to_key = |filename| file_util::tf_to_annomap_key(filename, Some(prj_path));
         if let Some(info) = self.new_bbox_labels
             && let Some(s) = tools_data_map.get_specifics_mut(BBOX_NAME)
             && let Some(bbox_data) = trace_ok_err(s.bbox_mut())
@@ -144,7 +162,7 @@ impl WandManyOutput {
         {
             for (filename, annos) in wand_out_bbox {
                 tracing::info!("replacing bbox annotations for {filename} with wand output");
-                bbox_data.annotations_map.insert(filename, annos);
+                bbox_data.annotations_map.insert(to_key(filename), annos);
             }
         }
         if let Some(info) = self.new_brush_labels
@@ -159,7 +177,7 @@ impl WandManyOutput {
         {
             for (filename, annos) in wand_out_brush {
                 tracing::info!("replacing brush annotations for {filename} with wand output");
-                brush_data.annotations_map.insert(filename, annos);
+                brush_data.annotations_map.insert(to_key(filename), annos);
             }
         }
         if let Some(wand_out_attributes) = self.attributes
@@ -167,9 +185,10 @@ impl WandManyOutput {
             && let Some(attributes_data) = trace_ok_err(s.attributes_mut())
         {
             for (filename, (attributes_of_file, shape)) in wand_out_attributes {
-                attributes_data
-                    .annotations_map
-                    .insert(filename, (ParamMap::from(attributes_of_file), shape));
+                attributes_data.annotations_map.insert(
+                    to_key(filename),
+                    (ParamMap::from(attributes_of_file), shape),
+                );
             }
         }
         Ok(self.server_response)
@@ -178,8 +197,10 @@ impl WandManyOutput {
 
 pub struct ImageDataWand<'a> {
     pub image: Option<DynamicImage>,
-    pub files: &'a [&'a String],
+    pub files: &'a [&'a str],
     pub selected_file_idx: Option<usize>,
+    /// Joining it with a file yields the absolute path, `None` for remote connections.
+    pub base_folder: Option<&'a str>,
 }
 
 pub trait WandMany {
@@ -275,6 +296,14 @@ impl WandMany for RestWandMany {
                 multipart::Part::text(communication_json_str),
             )
             .part("parameters", multipart::Part::text(param_json_str));
+        let form = if let Some(base_folder) = data.base_folder {
+            form.part(
+                "base_folder",
+                multipart::Part::text(base_folder.to_string()),
+            )
+        } else {
+            form
+        };
         self.data.send(form, Some(&query_params))
     }
 }
@@ -287,6 +316,51 @@ use crate::{
 };
 #[cfg(test)]
 use rvimage_domain::{BbF, BbI};
+
+#[test]
+fn test_from_tdm_keys() {
+    let tf = crate::test_helpers::get_test_folder();
+    // the flower project is used by a parallel test that copies it to the same tmp file
+    let prj_path = tf.join("import-test-src-treelabel.json");
+    let mut tdm = crate::test_helpers::prj_load(file_util::path_to_str(&prj_path).unwrap());
+    let rel_key = "imgs/tree.jpg";
+    let am = &mut tdm
+        .get_mut(BBOX_NAME)
+        .unwrap()
+        .specifics
+        .bbox_mut()
+        .unwrap()
+        .annotations_map;
+    let annos = am.get("/Users/b/Desktop/tmp/tree.jpg").unwrap().clone();
+    am.insert(rel_key.to_string(), annos.clone());
+    let abs = file_util::path_to_str(&tf.join(rel_key))
+        .unwrap()
+        .replace('\\', "/");
+    let files = [PathPair::new(abs.clone(), &prj_path)];
+    assert_eq!(files[0].path_relative(), rel_key);
+
+    let (input, files_out, _) = WandManyAnnotationsInput::from_tdm(&tdm, &files, &[], None);
+    assert_eq!(files_out, vec![rel_key]);
+    let bbox_keys = input
+        .bbox
+        .map(|b| b.annos.iter().map(|(k, _)| *k).collect::<Vec<_>>());
+    assert_eq!(bbox_keys, Some(vec![rel_key]));
+    assert!(
+        input
+            .attributes
+            .is_none_or(|a| a.iter().all(|(k, _)| *k == rel_key))
+    );
+
+    // servers may answer with absolute paths
+    let output = WandManyOutput {
+        bbox: Some(vec![(abs.clone(), annos)]),
+        ..Default::default()
+    };
+    output.resolve_into_tdm(&mut tdm, &prj_path).unwrap();
+    let am = &tdm[BBOX_NAME].specifics.bbox().unwrap().annotations_map;
+    assert!(am.contains_key(rel_key));
+    assert!(!am.contains_key(&abs));
+}
 
 #[test]
 fn test_testserver() {
@@ -334,6 +408,7 @@ fn test_testserver() {
                 image: None,
                 files: &[],
                 selected_file_idx: None,
+                base_folder: None,
             },
             &[],
             Some(&param_map),
@@ -342,7 +417,10 @@ fn test_testserver() {
 
     let annos2 = annos.clone();
     let mut tdm = ToolsDataMap::new();
-    output.clone().resolve_into_tdm(&mut tdm).unwrap();
+    output
+        .clone()
+        .resolve_into_tdm(&mut tdm, Path::new(""))
+        .unwrap();
     assert_eq!(
         annos.bbox.as_ref().unwrap().labelinfo,
         &output.new_bbox_labels.unwrap()
@@ -373,8 +451,9 @@ fn test_testserver() {
         annos2,
         ImageDataWand {
             image: Some(DynamicImage::new_rgb8(10, 10)),
-            files: &[&"f1.png".to_string()],
+            files: &["f1.png"],
             selected_file_idx: Some(0),
+            base_folder: Some("/some/prj/folder"),
         },
         &[],
         Some(&param_map),

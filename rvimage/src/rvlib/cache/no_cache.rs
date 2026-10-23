@@ -30,12 +30,9 @@ impl<RTC: ReadImageToCache<RA>, RA> Cache<RA> for NoCache<RTC, RA> {
             })
         })
     }
-    fn load_into_cache(
-        &mut self,
-        _selected_file_idx: usize,
-        _abs_file_paths: &[&str],
-    ) -> RvResult<bool> {
-        Ok(true)
+    /// Without cache, files are read from their original location.
+    fn load_into_cache(&mut self, abs_file_path: &str) -> RvResult<Option<String>> {
+        Ok(Some(abs_file_path.to_string()))
     }
     fn load_from_cache(
         &mut self,

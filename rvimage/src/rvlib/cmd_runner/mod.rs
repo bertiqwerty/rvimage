@@ -1,7 +1,9 @@
 use std::{
     collections::HashMap,
+    io::{ErrorKind, Write},
     path::{Path, PathBuf},
-    process::{Child, Command},
+    process::{Child, Command, Stdio},
+    thread,
 };
 
 use rvimage_domain::{RvResult, rverr, to_rv};
@@ -50,7 +52,7 @@ where
 
 /// Runs the whitespace-separated `cmd` followed by `extra_args` until it exits and returns its trimmed stdout.
 /// The program is resolved relative to `working_dir`, which defaults to the project folder.
-/// With `install_uv`, a program `uv` is installed if missing.
+/// With `install_uv`, a program `uv` is installed if missing. If given, `stdin` is piped into the process.
 pub fn run_cmd<K, V>(
     cmd: &str,
     extra_args: &[String],
@@ -58,15 +60,37 @@ pub fn run_cmd<K, V>(
     install_uv: bool,
     working_dir: Option<&Path>,
     env_vars: Option<&HashMap<K, V>>,
+    stdin: Option<Vec<u8>>,
 ) -> RvResult<String>
 where
     K: AsRef<str>,
     V: AsRef<str>,
 {
     tracing::info!("running command '{}'...", cmd);
-    let output = build_cmd(cmd, extra_args, prj_path, install_uv, working_dir, env_vars)?
-        .output()
-        .map_err(to_rv)?;
+    let mut command = build_cmd(cmd, extra_args, prj_path, install_uv, working_dir, env_vars)?;
+    let output = if let Some(stdin) = stdin {
+        let mut child = command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(to_rv)?;
+        let mut child_stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| rverr!("could not open stdin of '{cmd}'"))?;
+        // separate thread, otherwise a child blocked on a full stdout pipe would deadlock us
+        let writer = thread::spawn(move || child_stdin.write_all(&stdin));
+        let output = child.wait_with_output().map_err(to_rv)?;
+        if let Ok(Err(e)) = writer.join()
+            && e.kind() != ErrorKind::BrokenPipe
+        {
+            tracing::warn!("could not write stdin of '{cmd}': {e}");
+        }
+        output
+    } else {
+        command.output().map_err(to_rv)?
+    };
     if !output.status.success() {
         return Err(rverr!(
             "command '{}' failed with {}: {}",
@@ -99,4 +123,14 @@ where
     build_cmd(cmd, extra_args, prj_path, install_uv, working_dir, env_vars)?
         .spawn()
         .map_err(to_rv)
+}
+
+#[test]
+fn test_run_cmd_with_stdin() {
+    let prj_path = std::env::temp_dir().join("prj.rvi");
+    // larger than typical pipe buffers to catch deadlocks
+    let payload = "line\n".repeat(1 << 18);
+    let stdin = Some(payload.clone().into_bytes());
+    let out = run_cmd("sort", &[], &prj_path, false, None, NO_ENV, stdin).unwrap();
+    assert_eq!(out.replace("\r\n", "\n"), payload.trim());
 }

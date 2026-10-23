@@ -17,11 +17,8 @@ pub trait ReadImageToCache<A> {
 }
 
 pub trait Cache<A> {
-    fn load_into_cache(
-        &mut self,
-        selected_file_idx: usize,
-        abs_file_paths: &[&str],
-    ) -> RvResult<bool>;
+    /// Triggers downloading the file into the cache if needed, returns its cached path once it is there.
+    fn load_into_cache(&mut self, abs_file_path: &str) -> RvResult<Option<String>>;
     fn load_from_cache(
         &mut self,
         selected_file_idx: usize,

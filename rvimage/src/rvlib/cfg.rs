@@ -92,6 +92,7 @@ impl CfgLegacy {
             sort_params: SortParams::default(),
             wand_server: WandServerCfg::default(),
             wand_many: WandManyCfg::default(),
+            anno_stats_cmd: AnnoStatsCmdCfg::default(),
         };
         Cfg { usr, prj }
     }
@@ -185,6 +186,24 @@ pub enum Connection {
     AzureBlob,
     #[default]
     Local,
+}
+impl Connection {
+    /// Returns `prj_path` if file paths of this connection are stored relative to the project folder.
+    pub fn prj_path<'a>(&self, prj_path: &'a Path) -> Option<&'a Path> {
+        match self {
+            Connection::Local => Some(prj_path),
+            Connection::Ssh | Connection::PyHttp => None,
+            #[cfg(feature = "azure_blob")]
+            Connection::AzureBlob => None,
+        }
+    }
+    /// Folder that file paths relative to the project need to be joined with, if this connection has such paths.
+    pub fn base_folder(&self, prj_path: &Path) -> Option<String> {
+        self.prj_path(prj_path)
+            .and_then(|p| p.parent())
+            .and_then(|p| p.to_str())
+            .map(|p| p.replace('\\', "/"))
+    }
 }
 #[derive(Deserialize, Serialize, Debug, Eq, PartialEq, Clone, Default)]
 pub enum Cache {
@@ -389,6 +408,16 @@ impl Default for WandManyCfg {
     }
 }
 
+/// Command that receives annotations via stdin and prints annotation statistics records as json to stdout.
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct AnnoStatsCmdCfg {
+    #[serde(default)]
+    pub cmd: String,
+    /// Provide the paths of the annotated images' copies in the file cache, original paths without cache.
+    #[serde(default)]
+    pub include_images: bool,
+}
+
 #[cfg(feature = "azure_blob")]
 #[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct AzureBlobCfg {
@@ -537,6 +566,8 @@ pub struct CfgPrj {
     pub wand_server: WandServerCfg,
     #[serde(default)]
     pub wand_many: WandManyCfg,
+    #[serde(default)]
+    pub anno_stats_cmd: AnnoStatsCmdCfg,
 }
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Cfg {

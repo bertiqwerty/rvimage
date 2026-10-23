@@ -105,6 +105,7 @@ async def predict_many(
     prj_name: str,
     image: Annotated[UploadFile | None, File(...)] = None,
     selected_file_idx: int | None = None,
+    base_folder: Annotated[str | None, Form()] = None,
 ) -> OutputAnnotationManyData:
     annos = InputAnnotationManyData.model_validate_json(input_annotations)
     if image is not None:
@@ -121,6 +122,7 @@ async def predict_many(
     print(f"project name: {prj_name}")
     print(f"selected file index: {selected_file_idx}")
     print(f"files: {file_list}")
+    print(f"base folder: {base_folder}")
     print(f"communication: {comms}")
     print(f"parameters: {params}")
 

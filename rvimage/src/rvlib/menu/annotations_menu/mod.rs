@@ -6,19 +6,24 @@ use egui::{Response, RichText, Ui, Widget};
 use egui_plot::PlotPoint;
 use plot::{Selection, anno_plots};
 use rvimage_domain::{RvResult, rverr, to_rv};
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
     f64, fs, iter, mem,
-    path::Path,
+    path::{Path, PathBuf},
+    sync::mpsc::{self, Receiver, TryRecvError},
+    thread,
 };
 
 use crate::{
     InstanceAnnotate,
     autosave::{AUTOSAVE_KEEP_N_DAYS, list_files, make_timespan},
+    cfg::AnnoStatsCmdCfg,
+    cmd_runner::{NO_ENV, run_cmd},
     control::{Control, paths_navigator::PathsNavigator},
     file_util::{self, PathPair},
     get_annos_from_tdm, get_labelinfo_from_tdm,
+    image_reader::{LoadImageForGui, ReaderFromCfg},
     menu::ui_util::button_confirmed,
     parameters::ParamVal,
     paths_selector::PathsSelector,
@@ -28,11 +33,12 @@ use crate::{
         AccessInstanceData, AnnotationsMap, AttributesToolData, LabelInfo, ToolSpecifics,
         ToolsDataMap,
     },
+    wand_many::WandManyAnnotationsInput,
 };
 
 use super::{
     main::TextBuffers,
-    ui_util::{self, slider},
+    ui_util::{self, slider, text_edit_singleline},
 };
 
 pub fn delete_annotations<T>(
@@ -287,7 +293,9 @@ pub struct AnnotationsParams {
     pub parents_depth: u8,
     pub text_buffers: TextBuffers,
     pub filter_relation_deletion: FilterRelation,
-    pub stats_result: Option<Vec<AnnoStatsRecord>>,
+    pub stats_result: Option<StatsTable>,
+    pub stats_cmd_rx: Option<Receiver<RvResult<StatsTable>>>,
+    pub stats_cmd_pending: Option<PendingStatsCmd>,
     pub selected_attributes_for_plot: HashMap<String, bool>,
     pub selected_bboxclasses_for_plot: HashMap<String, bool>,
     pub selected_brushclasses_for_plot: HashMap<String, bool>,
@@ -573,6 +581,58 @@ impl AnnoStatsRecord {
     }
 }
 
+/// Table shown in the stats grid, mirrors `StatsTable` of rvimage-py.
+#[derive(Default, Clone, Debug, Deserialize)]
+pub struct StatsTable {
+    columns: Vec<String>,
+    data: Vec<Vec<serde_json::Value>>,
+    /// Tooltips of the column headers.
+    #[serde(default)]
+    column_hints: Vec<Option<String>>,
+}
+impl StatsTable {
+    fn from_records(records: &[AnnoStatsRecord]) -> Self {
+        Self {
+            columns: ["tool", "category", "count", "mean count", "# files"]
+                .map(String::from)
+                .to_vec(),
+            data: records
+                .iter()
+                .map(|r| {
+                    vec![
+                        r.tool_name.into(),
+                        r.cat_name.clone().into(),
+                        r.count.into(),
+                        r.count_per_file.into(),
+                        r.n_files_filtered_thistool_anycat.into(),
+                    ]
+                })
+                .collect(),
+            column_hints: vec![
+                None,
+                None,
+                None,
+                None,
+                Some(
+                    "number of files in the filtered filelist that contain or contained any annotations of the respective tool"
+                        .to_string(),
+                ),
+            ],
+        }
+    }
+}
+
+fn cell_text(cell: &serde_json::Value) -> String {
+    match cell {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) if n.is_f64() => n
+            .as_f64()
+            .map_or_else(|| n.to_string(), |v| format!("{v:0.3}")),
+        serde_json::Value::Null => String::new(),
+        _ => cell.to_string(),
+    }
+}
+
 fn count_annos(
     count_map: &mut HashMap<(&'static str, usize), usize>,
     tool_name: &'static str,
@@ -666,55 +726,230 @@ fn collect_stats(
     Ok(bbox_records)
 }
 
+/// Stats command waiting for its images to be cached.
+pub struct PendingStatsCmd {
+    cmd: String,
+    prj_path: PathBuf,
+    annotations: serde_json::Value,
+    /// annotation key to local cached path
+    images: Option<HashMap<String, String>>,
+    not_yet_cached: Vec<PathPair>,
+}
+
+/// Returns true if all images are cached.
+fn poll_cache(pending: &mut PendingStatsCmd, reader: &mut ReaderFromCfg) -> RvResult<bool> {
+    let mut not_yet_cached = vec![];
+    for pp in mem::take(&mut pending.not_yet_cached) {
+        match reader.cache_image(pp.path_absolute())? {
+            Some(cached_path) => {
+                if let Some(images) = &mut pending.images {
+                    images.insert(pp.path_relative().to_string(), cached_path);
+                }
+            }
+            None => not_yet_cached.push(pp),
+        }
+    }
+    pending.not_yet_cached = not_yet_cached;
+    Ok(pending.not_yet_cached.is_empty())
+}
+
+fn stats_from_cmd(
+    cmd: &str,
+    prj_path: &Path,
+    annotations: serde_json::Value,
+    images: Option<HashMap<String, String>>,
+) -> RvResult<StatsTable> {
+    let stdin = serde_json::to_vec(&serde_json::json!({
+        "annotations": annotations,
+        "images": images,
+    }))
+    .map_err(to_rv)?;
+    let stdout = run_cmd(cmd, &[], prj_path, false, None, NO_ENV, Some(stdin))?;
+    let table: StatsTable = serde_json::from_str(&stdout).map_err(to_rv)?;
+    if let Some(row) = table
+        .data
+        .iter()
+        .find(|row| row.len() != table.columns.len())
+    {
+        return Err(rverr!(
+            "row {row:?} does not have {} columns",
+            table.columns.len()
+        ));
+    }
+    Ok(table)
+}
+
+struct StatsCmd<'a> {
+    cfg: &'a mut AnnoStatsCmdCfg,
+    prj_path: &'a Path,
+    reader: Option<&'a mut ReaderFromCfg>,
+    pending: &'a mut Option<PendingStatsCmd>,
+    rx: &'a mut Option<Receiver<RvResult<StatsTable>>>,
+    are_tools_active: &'a mut bool,
+}
+
+fn anno_stats_cmd(
+    ui: &mut Ui,
+    stats_cmd: StatsCmd,
+    tdm: &ToolsDataMap,
+    filepaths: Option<&[(usize, &PathPair)]>,
+    stats_compute_results: &mut Option<StatsTable>,
+) -> RvResult<()> {
+    let StatsCmd {
+        cfg,
+        prj_path,
+        reader,
+        pending,
+        rx,
+        are_tools_active,
+    } = stats_cmd;
+    let mut clicked = false;
+    ui.horizontal(|ui| {
+        text_edit_singleline(ui, &mut cfg.cmd, are_tools_active).on_hover_text(
+            "command, e.g., 'uv run stats.py', relative to the project folder; receives \
+             {\"annotations\": ..., \"images\": {annotation key: local cached path} or null} \
+             as json via stdin and prints a table {\"columns\": [...], \"data\": [[...], ...]} \
+             as json to stdout, e.g., via pandas' to_json(orient='split', index=False); an \
+             optional \"column_hints\": [tooltip or null, ...] adds tooltips to the column headers",
+        );
+        ui.checkbox(&mut cfg.include_images, "include images")
+            .on_hover_text(
+                "provide paths of annotated images in the file cache; missing images are loaded \
+             into the cache first",
+            );
+        if let Some(p) = pending.as_ref() {
+            ui.spinner();
+            ui.label(format!("{} images to cache", p.not_yet_cached.len()));
+        } else if rx.is_some() {
+            ui.spinner();
+        } else {
+            clicked = ui.button("Compute stats with command").clicked();
+        }
+    });
+    if clicked
+        && !cfg.cmd.trim().is_empty()
+        && let Some(filepaths) = filepaths
+    {
+        let files = filepaths
+            .iter()
+            .map(|(_, pp)| (*pp).clone())
+            .collect::<Vec<_>>();
+        let (input, _, _) = WandManyAnnotationsInput::from_tdm(tdm, &files, &[], None);
+        let annotations = serde_json::to_value(&input).map_err(to_rv)?;
+        let mut images = None;
+        let mut not_yet_cached = vec![];
+        if cfg.include_images {
+            let annotated = input
+                .bbox
+                .iter()
+                .flat_map(|b| b.annos.iter().map(|(k, _)| *k))
+                .chain(
+                    input
+                        .brush
+                        .iter()
+                        .flat_map(|b| b.annos.iter().map(|(k, _)| *k)),
+                )
+                .collect::<HashSet<_>>();
+            let annotated_files = filepaths
+                .iter()
+                .filter(|(_, pp)| annotated.contains(pp.path_relative()));
+            images = Some(HashMap::new());
+            not_yet_cached = annotated_files.map(|(_, pp)| (*pp).clone()).collect();
+        }
+        *pending = Some(PendingStatsCmd {
+            cmd: cfg.cmd.clone(),
+            prj_path: prj_path.to_path_buf(),
+            annotations,
+            images,
+            not_yet_cached,
+        });
+    }
+    if let Some(p) = pending.as_mut() {
+        let all_cached = match (p.not_yet_cached.is_empty(), reader) {
+            (true, _) => Ok(true),
+            (false, Some(reader)) => poll_cache(p, reader),
+            (false, None) => Err(rverr!("no image reader to load images into the cache")),
+        };
+        if all_cached.is_err() {
+            *pending = None;
+        }
+        if all_cached?
+            && let Some(PendingStatsCmd {
+                cmd,
+                prj_path,
+                annotations,
+                images,
+                ..
+            }) = pending.take()
+        {
+            let (tx, rx_new) = mpsc::channel();
+            *rx = Some(rx_new);
+            thread::spawn(move || {
+                trace_ok_err(tx.send(stats_from_cmd(&cmd, &prj_path, annotations, images)));
+            });
+        }
+    }
+    let received = rx.as_ref().map(|rx| rx.try_recv());
+    match received {
+        Some(Ok(res)) => {
+            *rx = None;
+            if let Some(records) = trace_ok_err(res) {
+                *stats_compute_results = Some(records);
+            }
+        }
+        Some(Err(TryRecvError::Disconnected)) => {
+            *rx = None;
+            tracing::error!("stats command thread terminated without result");
+        }
+        Some(Err(TryRecvError::Empty)) | None => {}
+    }
+    Ok(())
+}
+
 fn anno_stats(
     ui: &mut Ui,
     tdm: &ToolsDataMap,
-    stats_compute_results: &mut Option<Vec<AnnoStatsRecord>>,
+    stats_compute_results: &mut Option<StatsTable>,
     tool_choice: ToolChoice,
     paths_selector: Option<&PathsSelector>,
+    stats_cmd: StatsCmd,
 ) -> RvResult<()> {
     let filepaths = paths_selector.map(|ps| ps.filtered_idx_file_paths_pairs());
     let skip_attributes = true;
-    if !tool_choice.is_some(skip_attributes) {
-        *stats_compute_results = None;
-    } else {
-        if ui.button("(Re-)compute stats of filtered files").clicked()
-            && let Some(filepaths) = filepaths
-        {
-            *stats_compute_results = Some(collect_stats(tdm, &filepaths, tool_choice)?);
-        }
-        if let Some(stats_compute_results) = stats_compute_results {
-            if !stats_compute_results.is_empty() {
-                egui::Grid::new("anno-stats-records-")
-                    .num_columns(4)
-                    .show(ui, |ui| {
-                        ui.label(RichText::new("tool").strong());
-                        ui.label(RichText::new("category").strong());
-                        ui.label(RichText::new("count").strong());
-                        ui.label(RichText::new("mean count").strong());
-                        ui.label(RichText::new("# files").strong()).on_hover_text(
-                            "number of files in the filtered filelist that contain or contained any annotations of the respective tool",
-                        );
-                        for record in stats_compute_results.iter() {
-                            ui.end_row();
-                            ui.label(RichText::new(record.tool_name).monospace());
-                            ui.label(RichText::new(&record.cat_name).monospace());
-                            ui.label(RichText::new(format!("{}", record.count)).monospace());
-                            ui.label(
-                                RichText::new(format!("{:0.3}", record.count_per_file)).monospace(),
-                            );
-                            ui.label(
-                                RichText::new(format!(
-                                    "{}",
-                                    record.n_files_filtered_thistool_anycat
-                                ))
-                                .monospace(),
-                            );
+    if tool_choice.is_some(skip_attributes)
+        && ui.button("(Re-)compute stats of filtered files").clicked()
+        && let Some(filepaths) = &filepaths
+    {
+        let records = collect_stats(tdm, filepaths, tool_choice)?;
+        *stats_compute_results = Some(StatsTable::from_records(&records));
+    }
+    anno_stats_cmd(
+        ui,
+        stats_cmd,
+        tdm,
+        filepaths.as_deref(),
+        stats_compute_results,
+    )?;
+    if let Some(table) = stats_compute_results {
+        if !table.data.is_empty() {
+            egui::Grid::new("anno-stats-records-")
+                .num_columns(table.columns.len())
+                .show(ui, |ui| {
+                    for (i, column) in table.columns.iter().enumerate() {
+                        let resp = ui.label(RichText::new(column).strong());
+                        if let Some(Some(hint)) = table.column_hints.get(i) {
+                            resp.on_hover_text(hint);
                         }
-                    });
-            } else {
-                ui.label("no annotations found");
-            }
+                    }
+                    for row in &table.data {
+                        ui.end_row();
+                        for cell in row {
+                            ui.label(RichText::new(cell_text(cell)).monospace());
+                        }
+                    }
+                });
+        } else {
+            ui.label("no annotations found");
         }
     }
     Ok(())
@@ -820,12 +1055,21 @@ fn annotations_popup(
     egui::CollapsingHeader::new("Annotation Statistics").show(ui, |ui| {
         let skip_attrs = true;
         anno_params.tool_choice_stats.ui(ui, skip_attrs);
+        let prj_path = ctrl.cfg.current_prj_path().to_path_buf();
         let r = anno_stats(
             ui,
             inout_tdm,
             &mut anno_params.stats_result,
             anno_params.tool_choice_stats,
             ctrl.paths_navigator.paths_selector(),
+            StatsCmd {
+                cfg: &mut ctrl.cfg.prj.anno_stats_cmd,
+                prj_path: &prj_path,
+                reader: ctrl.reader.as_mut(),
+                pending: &mut anno_params.stats_cmd_pending,
+                rx: &mut anno_params.stats_cmd_rx,
+                are_tools_active,
+            },
         );
         update_rvresult(r);
     });
@@ -979,4 +1223,82 @@ fn test_counts() {
     .unwrap();
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].count, 1);
+}
+
+#[test]
+fn test_stats_from_cmd() {
+    let prj_folder = std::env::temp_dir().join("rvimage_test_stats_cmd");
+    fs::create_dir_all(&prj_folder).unwrap();
+    let prj_path = prj_folder.join("prj.rvi");
+    let json = r#"{"columns": ["tool", "mean intensity"], "data": [["Bbox", 1.5], ["Brush", 2]], "column_hints": [null, "mean over annotated pixels"]}"#;
+    fs::write(prj_folder.join("stats.json"), json).unwrap();
+    let cmd = if cfg!(windows) {
+        "cmd /C type stats.json"
+    } else {
+        "cat stats.json"
+    };
+    let table = stats_from_cmd(cmd, &prj_path, serde_json::Value::Null, None);
+    fs::write(
+        prj_folder.join("stats.json"),
+        r#"{"columns": ["a"], "data": [[1, 2]]}"#,
+    )
+    .unwrap();
+    let invalid = stats_from_cmd(cmd, &prj_path, serde_json::Value::Null, None);
+    fs::remove_dir_all(&prj_folder).unwrap();
+    let table = table.unwrap();
+    assert_eq!(table.columns, vec!["tool", "mean intensity"]);
+    assert_eq!(
+        table.column_hints,
+        vec![None, Some("mean over annotated pixels".to_string())]
+    );
+    let cells = table
+        .data
+        .iter()
+        .map(|row| row.iter().map(cell_text).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    assert_eq!(cells, vec![vec!["Bbox", "1.500"], vec!["Brush", "2"]]);
+    assert!(invalid.is_err());
+}
+
+#[test]
+fn test_stats_cmd_script() {
+    let tf = test_helpers::get_test_folder();
+    let tdm = crate::control::make_data(Path::new("im.png"));
+    let files = [PathPair::new("im.png".to_string(), Path::new(""))];
+    let (input, _, _) = WandManyAnnotationsInput::from_tdm(&tdm, &files, &[], None);
+    let n_annos = input.bbox.as_ref().unwrap().annos[0].1.len();
+    let annotations = serde_json::to_value(&input).unwrap();
+    let image = tf.parent().unwrap().join("rvimage-logo.png");
+    let image_bytes = fs::metadata(&image).unwrap().len();
+    let images = HashMap::from([(
+        "im.png".to_string(),
+        file_util::path_to_str(&image).unwrap().to_string(),
+    )]);
+
+    // the project path determines the working directory of the command
+    let prj_path = tf.join("prj.rvi");
+    let table = stats_from_cmd(
+        "uv run --no-project scripts/anno_stats.py",
+        &prj_path,
+        annotations,
+        Some(images),
+    )
+    .unwrap();
+    assert_eq!(
+        table.columns,
+        vec!["file", "tool", "# annotations", "image bytes"]
+    );
+    assert_eq!(
+        table.data,
+        vec![vec![
+            serde_json::json!("im.png"),
+            serde_json::json!("bbox"),
+            serde_json::json!(n_annos),
+            serde_json::json!(image_bytes),
+        ]]
+    );
+    assert_eq!(
+        table.column_hints[3].as_deref(),
+        Some("size of the image file")
+    );
 }

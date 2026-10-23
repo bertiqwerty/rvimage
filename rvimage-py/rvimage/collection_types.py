@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterable, Sequence
-from typing import Protocol, Self, TypeVar
+from typing import TYPE_CHECKING, Protocol, Self, TypeVar
 
 import numpy as np
 from pydantic import (
     BaseModel,
+    field_validator,
     model_serializer,
     model_validator,
-    field_validator,
 )
 
 from rvimage.converters import (
@@ -19,6 +20,9 @@ from rvimage.converters import (
     rle_to_mask,
 )
 from rvimage.domain import BbF, BbI, Poly, find_ccs
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 B = TypeVar("B", BbI, BbF)
 T = TypeVar("T")
@@ -377,6 +381,46 @@ class WandManyMessage(BaseModel):
     comment: str
     response: str | None = None
     success_assessment: int | None = None
+
+
+class StatsCmdInput(BaseModel):
+    """Read by an annotation statistics command from stdin."""
+
+    annotations: InputAnnotationManyData
+    # annotation key to path of the image in RV Image's file cache
+    images: dict[str, str] | None
+
+
+StatsCell = str | int | float | bool | None
+
+
+class StatsTable(BaseModel):
+    """Written by an annotation statistics command to stdout, shown as table in RV Image."""
+
+    columns: list[str]
+    data: list[list[StatsCell]]
+    # tooltips of the column headers
+    column_hints: list[str | None] = []
+
+    @model_validator(mode="after")
+    def check_row_lengths(self) -> Self:
+        for row in self.data:
+            if len(row) != len(self.columns):
+                raise ValueError(f"row {row} does not have {len(self.columns)} columns")
+        return self
+
+    @classmethod
+    def from_dataframe(
+        cls, df: pd.DataFrame, column_hints: list[str | None] | None = None
+    ) -> StatsTable:
+        """The index of `df` is dropped and missing values become None."""
+        # to_json converts numpy scalars to native types and NaN to null
+        split = json.loads(df.to_json(orient="split", index=False))
+        return cls(
+            columns=split["columns"],
+            data=split["data"],
+            column_hints=column_hints or [],
+        )
 
 
 def flatten_params(values: dict) -> dict:

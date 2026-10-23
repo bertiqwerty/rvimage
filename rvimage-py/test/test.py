@@ -6,7 +6,7 @@ import numpy as np
 from pydantic import ValidationError
 import pytest
 
-from rvimage.collection_types import BboxAnnos, BrushAnnos, Canvas
+from rvimage.collection_types import BboxAnnos, BrushAnnos, Canvas, StatsTable
 from rvimage.converters import (
     decode_bytes_into_rgbarray,
     extract_polys_from_mask,
@@ -171,6 +171,26 @@ def test_len_validator():
         BrushAnnos(elts=[], cat_idxs=[1], selected_mask=[])
     BrushAnnos(elts=[], cat_idxs=[], selected_mask=[])
     BrushAnnos(elts=[canvas], cat_idxs=[1], selected_mask=[True])
+
+
+def test_stats_table():
+    table = StatsTable(columns=["a", "b"], data=[["x", 1.5], [None, True]])
+    assert table.column_hints == []
+    assert StatsTable.model_validate_json(table.model_dump_json()) == table
+    with pytest.raises(ValidationError):
+        StatsTable(columns=["a"], data=[[1, 2]])
+
+
+def test_stats_table_from_dataframe():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame(
+        {"tool": ["bbox", "brush"], "count": [3, 4], "mean": [1.5, np.nan]},
+        index=[10, 20],
+    )
+    table = StatsTable.from_dataframe(df, column_hints=[None, None, "mean intensity"])
+    assert table.columns == ["tool", "count", "mean"]
+    assert table.data == [["bbox", 3, 1.5], ["brush", 4, None]]
+    assert table.column_hints == [None, None, "mean intensity"]
 
 
 def test_decode_image():
