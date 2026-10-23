@@ -9,6 +9,7 @@
 
 import os
 import sys
+from pathlib import Path
 
 from rvimage.collection_types import StatsCmdInput, StatsTable
 
@@ -26,7 +27,7 @@ def main():
         for file, annos in tool_annos.annos:
             image = images.get(file)
             image_bytes = os.path.getsize(image) if image is not None else None
-            rows.append([file, tool, len(annos.elts), image_bytes])
+            rows.append([Path(file).stem, tool, len(annos.elts), image_bytes])
     table = StatsTable(
         columns=["file", "tool", "# annotations", "image bytes"],
         data=rows,

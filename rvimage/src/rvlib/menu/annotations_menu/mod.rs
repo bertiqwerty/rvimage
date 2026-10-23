@@ -805,14 +805,9 @@ fn anno_stats_cmd(
         are_tools_active,
     } = stats_cmd;
     let mut clicked = false;
+    text_edit_singleline(ui, &mut cfg.cmd, are_tools_active)
+        .on_hover_text("command, e.g., 'uv run stats.py'");
     ui.horizontal(|ui| {
-        text_edit_singleline(ui, &mut cfg.cmd, are_tools_active).on_hover_text(
-            "command, e.g., 'uv run stats.py', relative to the project folder; receives \
-             {\"annotations\": ..., \"images\": {annotation key: local cached path} or null} \
-             as json via stdin and prints a table {\"columns\": [...], \"data\": [[...], ...]} \
-             as json to stdout, e.g., via pandas' to_json(orient='split', index=False); an \
-             optional \"column_hints\": [tooltip or null, ...] adds tooltips to the column headers",
-        );
         ui.checkbox(&mut cfg.include_images, "include images")
             .on_hover_text(
                 "provide paths of annotated images in the file cache; missing images are loaded \
@@ -946,7 +941,7 @@ fn anno_stats(
     }
     let skip_attributes = true;
     if tool_choice.is_some(skip_attributes)
-        && ui.button("(Re-)compute stats of filtered files").clicked()
+        && ui.button("(Re-)compute counts of filtered files").clicked()
         && let Some(filepaths) = &filepaths
     {
         let records = collect_stats(tdm, filepaths, tool_choice)?;
