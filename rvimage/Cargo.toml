@@ -98,6 +98,6 @@ gix = { version = "0.90.0", default-features = false, features = [
     "blocking-http-transport-reqwest-rust-tls",
     "credentials",
     "worktree-mutation",
-    "max-performance-safe",
+    "max-performance",
     "sha1",
 ] }
