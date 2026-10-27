@@ -24,9 +24,20 @@ pub fn predict_button(
     paths_selector: Option<&PathsSelector>,
 ) -> Option<WandManyMenuResult> {
     let mut to_submit = None;
-    if data.is_wandmany_running && ui.button("Cancel running prediction").clicked() {
+
+    let btn_rsp = if data.is_wandmany_running {
+        ui.horizontal(|ui| {
+            let btn_rsp = ui.button("Cancel running prediction");
+            ui.spinner();
+            btn_rsp
+        })
+        .inner
+    } else {
+        ui.button("Predict")
+    };
+    if data.is_wandmany_running && btn_rsp.clicked() {
         to_submit = Some(WandManyMenuResult::Cancel);
-    } else if !data.is_wandmany_running && ui.button("Predict").clicked() {
+    } else if !data.is_wandmany_running && btn_rsp.clicked() {
         to_submit = Some(
             predict(paths_selector, data)
                 .map(WandManyMenuResult::Submit)
