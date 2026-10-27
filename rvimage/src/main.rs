@@ -966,6 +966,79 @@ use {
 };
 
 #[test]
+fn test_ctrl_s_without_image() {
+    use eframe::App;
+    use rvlib::KeyCode;
+
+    let mut cfg = Cfg::with_unique_folders();
+    let home_folder = PathBuf::from(cfg.home_folder());
+    defer_folder_removal!(&home_folder);
+    let prj_path = home_folder.join("without-image.rvi");
+    cfg.set_current_prj_path(prj_path.clone());
+    cfg.usr.n_autosaves = None;
+    cfg.usr.wand_many_headers = Some("Bearer regression-token".into());
+    let mut ctrl = Control::default();
+    ctrl.cfg = cfg;
+    let mut app = RvImageApp {
+        event_loop: MainEventLoop::from_control(ctrl),
+        texture: None,
+        thumb_textures_prev: Vec::new(),
+        thumb_texture_im: None,
+        thumb_textures_next: Vec::new(),
+        perm_annos: Vec::new(),
+        tmp_anno: None,
+        zoom_box: None,
+        im_orig: Default::default(),
+        meta_orig: Default::default(),
+        im_view: Default::default(),
+        thumb_ims: Default::default(),
+        events: Events::default(),
+        last_sensed_btncodes: Default::default(),
+        t_last_iterations: [0.0; N_LAST_ITERATIONS],
+        egui_perm_bbox_shapes: Vec::new(),
+        egui_perm_brush_shapes: Vec::new(),
+        egui_tmp_shapes: [None, None],
+        image_rect: None,
+        prev_image_rect_size: None,
+        request_file_label_to_load: None,
+    };
+    let ctx = Context::default();
+    ctx.options_mut(|options| {
+        options.max_passes = std::num::NonZeroUsize::new(1).unwrap();
+    });
+    let mut frame = eframe::Frame::_new_kittest();
+    let _ = ctx.run_ui(egui::RawInput::default(), |ui| app.ui(ui, &mut frame));
+    assert!(app.image_rect.is_none());
+    assert!(!prj_path.exists());
+
+    let _ = ctx.run_ui(
+        egui::RawInput {
+            events: vec![egui::Event::Key {
+                key: egui::Key::S,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::CTRL,
+            }],
+            ..Default::default()
+        },
+        |ui| app.ui(ui, &mut frame),
+    );
+    assert!(app.events.held_ctrl());
+    assert!(app.events.pressed(KeyCode::S));
+
+    let _ = ctx.run_ui(egui::RawInput::default(), |ui| app.ui(ui, &mut frame));
+    app.event_loop.wait_for_save();
+    assert!(prj_path.exists());
+    let saved = Cfg::read(&home_folder).unwrap();
+    assert_eq!(
+        saved.usr.wand_many_headers.as_deref(),
+        Some("Bearer regression-token")
+    );
+    assert!(!app.events.pressed(KeyCode::S));
+}
+
+#[test]
 fn test_coco() {
     let in_prj_path = PathBuf::from("resources/test_data/rvprj_v4-0.json");
     let test_file = in_prj_path.parent().unwrap().join("tmp-test.rvi");

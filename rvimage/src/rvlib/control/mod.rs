@@ -590,7 +590,7 @@ impl Control {
         Ok(loaded.tdm)
     }
 
-    fn wait_for_save(&mut self) {
+    pub(crate) fn wait_for_save(&mut self) {
         if self.save_handle.is_some() {
             mem::take(&mut self.save_handle).map(|h| trace_ok_err(h.join().map_err(to_rv)));
         }

@@ -118,8 +118,18 @@ impl Default for MainEventLoop {
 
 impl MainEventLoop {
     pub fn new(prj_file_path: Option<PathBuf>) -> Self {
-        let ctrl = Control::new();
+        let mut event_loop = Self::from_control(Control::new());
+        event_loop.rx_from_http =
+            if let Ok((_, rx)) = httpserver::launch(event_loop.http_addr.clone()) {
+                Some(rx)
+            } else {
+                None
+            };
+        trace_ok_err(event_loop.load_prj_during_startup(prj_file_path));
+        event_loop
+    }
 
+    pub fn from_control(ctrl: Control) -> Self {
         let mut world = World::empty();
         let mut tools = make_tool_vec();
         for t in &mut tools {
@@ -128,13 +138,7 @@ impl MainEventLoop {
             }
         }
         let http_addr = ctrl.http_address();
-        // http server state
-        let rx_from_http = if let Ok((_, rx)) = httpserver::launch(http_addr.clone()) {
-            Some(rx)
-        } else {
-            None
-        };
-        let mut self_ = Self {
+        Self {
             world,
             ctrl,
             tools,
@@ -143,13 +147,14 @@ impl MainEventLoop {
             menu: Menu::default(),
             history: History::default(),
             recently_clicked_tool_idx: None,
-            rx_from_http,
+            rx_from_http: None,
             autosave_timer: Instant::now(),
             next_image_held_timer: Instant::now(),
-        };
+        }
+    }
 
-        trace_ok_err(self_.load_prj_during_startup(prj_file_path));
-        self_
+    pub fn wait_for_save(&mut self) {
+        self.ctrl.wait_for_save();
     }
     pub fn one_iteration(
         &mut self,
