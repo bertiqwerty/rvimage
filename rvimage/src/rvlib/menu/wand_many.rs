@@ -63,14 +63,21 @@ pub enum WandManyMenuResult {
     Cancel,
 }
 
-pub fn wand_many_menu(
+// use a struct to enforce named arguments for the identical-type-args
+// to be passed to `wand_many_menu`
+pub struct WandManySwitches<'a> {
+    pub are_tools_active: &'a mut bool,
+    pub show_wandmany: &'a mut bool,
+}
+
+pub fn wand_many_menu<'a>(
     ui: &mut Ui,
     data: &mut WandManyData,
     cfg: &mut WandManyCfg,
-    are_tools_active: &mut bool,
+    switches: WandManySwitches<'a>,
     buffers: &mut WandManyMenuBuffers,
-    show_wandmany: &mut bool,
     paths_selector: Option<&PathsSelector>,
+    wand_many_headers: &mut Option<String>,
 ) -> WandManyMenuResult {
     let mut to_submit = WandManyMenuResult::Nothing;
     let mut assess_tmp = data
@@ -79,7 +86,7 @@ pub fn wand_many_menu(
         .last()
         .and_then(|msg| msg.success_assessment);
     egui::Window::new("Wand Prediction")
-        .open(show_wandmany)
+        .open(switches.show_wandmany)
         .show(ui.ctx(), |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.heading("Apply wand to annotate filtered files");
@@ -94,7 +101,7 @@ pub fn wand_many_menu(
                         new_param_name,
                         new_param_val,
                         data.param_map.keys(),
-                        are_tools_active,
+                        switches.are_tools_active,
                     );
                     if add_param {
                         tracing::info!("Adding parameter {new_param_name}");
@@ -109,9 +116,11 @@ pub fn wand_many_menu(
                         data.new_param_name_buffer = new_param_name;
                         data.new_param_val_buffer = new_param_val;
                     }
-                    if let Some(pmap) =
-                        parammap_from_strtypes(ui, &mut data.strtypes_buffer, are_tools_active)
-                    {
+                    if let Some(pmap) = parammap_from_strtypes(
+                        ui,
+                        &mut data.strtypes_buffer,
+                        switches.are_tools_active,
+                    ) {
                         tracing::info!("new parameter map {pmap:?}");
                         data.param_value_buffers = vec!["".into(); pmap.len()];
                         data.param_map = pmap;
@@ -121,7 +130,7 @@ pub fn wand_many_menu(
                     let res = existing_params_menu(
                         ui,
                         params,
-                        are_tools_active,
+                        switches.are_tools_active,
                         no_more_cols,
                         value_buffers,
                     );
@@ -180,7 +189,7 @@ pub fn wand_many_menu(
                                             if let Some(assess) = assess_tmp.as_mut() {
                                                 slider(
                                                     ui,
-                                                    are_tools_active,
+                                                    switches.are_tools_active,
                                                     assess,
                                                     0..=100,
                                                     "assess result",
@@ -199,7 +208,7 @@ pub fn wand_many_menu(
                         assess_last.success_assessment = assess_tmp;
                     }
 
-                    text_edit_multiline(ui, &mut buffers.comment, are_tools_active);
+                    text_edit_multiline(ui, &mut buffers.comment, switches.are_tools_active);
 
                     ui.horizontal(|ui| {
                         if ui.button("Add comment").clicked() && !buffers.comment.trim().is_empty()
@@ -215,7 +224,7 @@ pub fn wand_many_menu(
                 });
                 ui.separator();
                 egui::CollapsingHeader::new("Folders to exclude").show(ui, |ui| {
-                    text_edit_singleline(ui, &mut buffers.exclfolder, are_tools_active);
+                    text_edit_singleline(ui, &mut buffers.exclfolder, switches.are_tools_active);
                     if ui.button("Add folder to exclude").clicked()
                         && !buffers.exclfolder.trim().is_empty()
                     {
@@ -243,19 +252,37 @@ pub fn wand_many_menu(
                 });
                 ui.separator();
                 egui::CollapsingHeader::new("Server settings").show(ui, |ui| {
-                    text_edit_singleline(ui, &mut cfg.url, are_tools_active).on_hover_text("url");
-                    text_edit_singleline(ui, &mut cfg.headers_cmd, are_tools_active).on_hover_text(
-                        "command run on submit, e.g., 'uv run token.py'; paths are relative to the project file; stdout is sent as header(s)",
-                    );
+                    text_edit_singleline(ui, &mut cfg.url, switches.are_tools_active)
+                        .on_hover_text("url");
+
+                    let mut tmp_header = wand_many_headers
+                        .as_mut()
+                        .map(mem::take)
+                        .unwrap_or_default();
+                    let msg = "headers, either authorization string or json";
+                    text_edit_singleline(ui, &mut tmp_header, switches.are_tools_active)
+                        .on_hover_text(msg);
+                    if !tmp_header.is_empty() {
+                        *wand_many_headers = Some(tmp_header);
+                    }
+
+                    let msg =
+                        "header command on submit, e.g., 'uv run token.py', relative to prj-file";
+                    text_edit_singleline(ui, &mut cfg.headers_cmd, switches.are_tools_active)
+                        .on_hover_text(msg);
+
                     ui.checkbox(&mut cfg.install_uv, "install uv if missing")
                         .on_hover_text("only applies if the headers command starts with 'uv'");
                     let timeout_label = "timeout (s)";
                     if buffers.timeout.is_empty() {
                         buffers.timeout = cfg.timeout_s.to_string();
                     }
-                    if let (has_changed, Some(timeout)) =
-                        process_number(ui, are_tools_active, timeout_label, &mut buffers.timeout)
-                        && has_changed
+                    if let (has_changed, Some(timeout)) = process_number(
+                        ui,
+                        switches.are_tools_active,
+                        timeout_label,
+                        &mut buffers.timeout,
+                    ) && has_changed
                     {
                         cfg.timeout_s = timeout;
                     }

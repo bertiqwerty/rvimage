@@ -33,4 +33,8 @@ pub struct WandManyData {
     pub is_wandmany_running: bool,
     #[serde(default)]
     pub send_selected_image: bool,
+
+    // will be persisted in the user cfg
+    #[serde(skip)]
+    pub wandmany_headers: Option<String>,
 }

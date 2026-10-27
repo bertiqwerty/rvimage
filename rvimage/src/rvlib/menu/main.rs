@@ -12,7 +12,7 @@ use crate::{
         scroll_area::ShowFileOptions,
         ui_util::{button_confirmed, text_edit_singleline},
         upload::{UploadCreateState, upload},
-        wand_many::{WandManyMenuResult, wand_many_menu},
+        wand_many::{WandManyMenuResult, WandManySwitches, wand_many_menu},
     },
     tools::ToolState,
     tools_data::{ToolSpecifics, ToolsDataMap},
@@ -442,10 +442,13 @@ impl Menu {
                         ui,
                         &mut ctrl.data.wand_many,
                         &mut ctrl.cfg.prj.wand_many,
-                        &mut self.are_tools_active,
+                        WandManySwitches {
+                            are_tools_active: &mut self.are_tools_active,
+                            show_wandmany: &mut self.show_wandmany,
+                        },
                         &mut self.text_buffers.wand_many_buffers,
-                        &mut self.show_wandmany,
                         ctrl.paths_navigator.paths_selector(),
+                        &mut ctrl.cfg.usr.wand_many_headers,
                     );
                     if let WandManyMenuResult::Submit((files, folders_to_exclude)) = result {
                         ctrl.submit_files_to_wand(

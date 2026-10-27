@@ -710,6 +710,25 @@ fn test_default_cfg_paths() {
 }
 
 #[test]
+fn test_wand_many_headers_persist() {
+    let home_folder =
+        std::env::temp_dir().join(format!("rvimage-headers-{}", uuid::Uuid::new_v4()));
+    let mut cfg = Cfg::default();
+    cfg.usr.home_folder = Some(home_folder.to_str().unwrap().to_string());
+    for headers in [
+        Some("Bearer test-token".to_string()),
+        Some(r#"{"Authorization":"Bearer test-token","X-Api-Key":"test-key"}"#.to_string()),
+        None,
+    ] {
+        cfg.usr.wand_many_headers = headers.clone();
+        cfg.write().unwrap();
+        let saved = Cfg::read(&home_folder).unwrap();
+        assert_eq!(saved.usr.wand_many_headers, headers);
+    }
+    fs::remove_dir_all(home_folder).unwrap();
+}
+
+#[test]
 fn test_read_cfg_legacy() {
     let test_folder = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test_data");
     let cfg_toml_path_usr = test_folder.join("rv_cfg_usr_doesntexist.toml");

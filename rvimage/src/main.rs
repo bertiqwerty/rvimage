@@ -16,11 +16,11 @@ use egui::{
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
-use rvimage_domain::{BbF, Canvas, PtF, RvResult, ShapeF, TPtF, TPtI, to_rv};
+use rvimage_domain::{BbF, Canvas, Point, PtF, RvResult, ShapeF, TPtF, TPtI, to_rv};
 use rvlib::{
-    Annotation, BboxAnnotation, BrushAnnotation, GeoFig, ImageMeta, InstanceAnnotate,
-    InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, ThumbViews, UpdateImage,
-    UpdatePermAnnos, UpdateThumbImages, UpdateTmpAnno, UpdateZoomBox, ViewMetaPair,
+    Annotation, BboxAnnotation, BrushAnnotation, Event, Events, GeoFig, ImageMeta,
+    InstanceAnnotate, InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, ThumbViews,
+    UpdateImage, UpdatePermAnnos, UpdateThumbImages, UpdateTmpAnno, UpdateZoomBox, ViewMetaPair,
     cfg::{Cfg, ExportPath, ExportPathConnection},
     control::Control,
     file_util::{DEFAULT_HOMEDIR, osstr_to_str},
@@ -557,7 +557,12 @@ impl RvImageApp {
                 .collect::<Vec<_>>(),
         ));
     }
-    fn collect_events(&mut self, ui: &mut Ui, image_response: &Response) -> rvlib::Events {
+
+    fn collect_mouse_events(
+        &mut self,
+        ui: &mut Ui,
+        image_response: &Response,
+    ) -> (Vec<Event>, Option<Point<f64>>, Option<Point<f64>>) {
         let rect_size = image_response.rect.size();
         let offset_x = image_response.rect.min.x;
         let offset_y = image_response.rect.min.y;
@@ -582,15 +587,10 @@ impl RvImageApp {
                 &self.zoom_box,
             )
         });
-        let key_events = rvlib::map_key_events(ui);
         let mouse_events =
             rvlib::map_mouse_events(ui, &mut self.last_sensed_btncodes, image_response);
 
-        rvlib::Events::default()
-            .events(key_events)
-            .events(mouse_events)
-            .mousepos_orig(mouse_pos)
-            .mousepos_view(mouse_pos_on_view)
+        (mouse_events, mouse_pos, mouse_pos_on_view)
     }
 
     fn add_image(&mut self, fraction_h: f32, ui: &mut Ui) -> Option<Response> {
@@ -683,6 +683,7 @@ impl eframe::App for RvImageApp {
                     } else {
                         format!("{}", it_per_s.round())
                     };
+                    self.events = Events::default().events(rvlib::map_key_events(ui));
                     if let Some(info) = update_view.image_info {
                         ui.add(
                             egui::Label::new(egui::RichText::new(info.filename).monospace())
@@ -768,7 +769,12 @@ impl eframe::App for RvImageApp {
 
                                 self.image_rect = Some(image_surrounding_rect);
                             }
-                            self.events = self.collect_events(ui, &ir);
+                            let (mouse_events, mouse_pos, mouse_pos_on_view) =
+                                self.collect_mouse_events(ui, &ir);
+                            self.events = mem::take(&mut self.events)
+                                .events(mouse_events)
+                                .mousepos_orig(mouse_pos)
+                                .mousepos_view(mouse_pos_on_view);
                             if let UpdatePermAnnos::Yes(perm_annos) = update_view.perm_annos {
                                 time_scope!("update_perm_annos_new");
                                 self.perm_annos = perm_annos;
