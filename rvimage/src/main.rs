@@ -1007,11 +1007,12 @@ fn test_ctrl_s_without_image() {
         options.max_passes = std::num::NonZeroUsize::new(1).unwrap();
     });
     let mut frame = eframe::Frame::_new_kittest();
-    let _ = ctx.run_ui(egui::RawInput::default(), |ui| app.ui(ui, &mut frame));
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.ui(ui, &mut frame));
+    output.textures_delta.clear();
     assert!(app.image_rect.is_none());
     assert!(!prj_path.exists());
 
-    let _ = ctx.run_ui(
+    let mut output = ctx.run_ui(
         egui::RawInput {
             events: vec![egui::Event::Key {
                 key: egui::Key::S,
@@ -1024,10 +1025,12 @@ fn test_ctrl_s_without_image() {
         },
         |ui| app.ui(ui, &mut frame),
     );
+    output.textures_delta.clear();
     assert!(app.events.held_ctrl());
     assert!(app.events.pressed(KeyCode::S));
 
-    let _ = ctx.run_ui(egui::RawInput::default(), |ui| app.ui(ui, &mut frame));
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.ui(ui, &mut frame));
+    output.textures_delta.clear();
     app.event_loop.wait_for_save();
     assert!(prj_path.exists());
     let saved = Cfg::read(&home_folder).unwrap();
