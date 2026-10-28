@@ -226,6 +226,10 @@ pub fn button_confirmed<'a>(
         "auto_inline_modal, {:?}, {:?}",
         modal_title, modal_txt
     ));
+    let last_pass_modalshown_id = ui.make_persistent_id(format!(
+        "auto_inline_modal_time_opened, {:?}, {:?}",
+        modal_title, modal_txt
+    ));
 
     let button_clicked = ui.button(button_txt).clicked();
 
@@ -233,13 +237,26 @@ pub fn button_confirmed<'a>(
     let mut confirmed = false;
 
     if button_clicked {
-        ctx.data_mut(|data| data.insert_temp(modal_id, true));
+        ctx.data_mut(|data| {
+            data.insert_temp(modal_id, true);
+            data.remove_temp::<u64>(last_pass_modalshown_id);
+        });
     }
 
-    let is_open: bool = ctx.data(|data| data.get_temp(modal_id).unwrap_or(false));
+    let last_pass_modal_shown: Option<u64> =
+        ctx.data(|data| data.get_temp(last_pass_modalshown_id));
+    let cur_pass = ui.ctx().cumulative_pass_nr();
+    let is_open = if let Some(last_pass_modal_shown) = last_pass_modal_shown
+        && last_pass_modal_shown + 1 < cur_pass
+    {
+        false
+    } else {
+        ctx.data(|data| data.get_temp(modal_id).unwrap_or(false))
+    };
 
     if is_open {
         egui::Modal::new(modal_id).show(ctx, |ui| {
+            ctx.data_mut(|data| data.insert_temp(last_pass_modalshown_id, cur_pass));
             ui.heading(modal_title);
             ui.label(modal_txt);
 
@@ -247,10 +264,17 @@ pub fn button_confirmed<'a>(
             ui.horizontal(|ui| {
                 if ui.button("Okay").clicked() {
                     confirmed = true;
-                    ui.ctx().data_mut(|data| data.insert_temp(modal_id, false));
+
+                    ctx.data_mut(|data| {
+                        data.insert_temp(modal_id, false);
+                        data.remove_temp::<u64>(last_pass_modalshown_id);
+                    });
                 }
                 if ui.button("Cancel").clicked() {
-                    ui.ctx().data_mut(|data| data.insert_temp(modal_id, false));
+                    ctx.data_mut(|data| {
+                        data.insert_temp(modal_id, false);
+                        data.remove_temp::<u64>(last_pass_modalshown_id);
+                    });
                 }
             });
         });

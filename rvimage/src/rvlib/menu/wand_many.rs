@@ -11,7 +11,8 @@ use crate::{
             parammap_from_strtypes,
         },
         ui_util::{
-            process_number, removable_rows, slider, text_edit_multiline, text_edit_singleline,
+            button_confirmed, process_number, removable_rows, slider, text_edit_multiline,
+            text_edit_singleline,
         },
     },
     paths_selector::PathsSelector,
@@ -23,28 +24,27 @@ pub fn predict_button(
     data: &WandManyData,
     paths_selector: Option<&PathsSelector>,
 ) -> Option<WandManyMenuResult> {
-    let mut to_submit = None;
-
-    let btn_rsp = if data.is_wandmany_running {
+    if data.is_wandmany_running {
         ui.horizontal(|ui| {
-            let btn_rsp = ui.button("Cancel running prediction");
+            let clicked = button_confirmed(
+                ui,
+                "Cancel Prediction",
+                "Cancel Prediction",
+                "Cancel running prediction",
+            );
             ui.spinner();
-            btn_rsp
+            clicked.then_some(WandManyMenuResult::Cancel)
         })
         .inner
-    } else {
-        ui.button("Predict")
-    };
-    if data.is_wandmany_running && btn_rsp.clicked() {
-        to_submit = Some(WandManyMenuResult::Cancel);
-    } else if !data.is_wandmany_running && btn_rsp.clicked() {
-        to_submit = Some(
+    } else if ui.button("Predict").clicked() {
+        Some(
             predict(paths_selector, data)
                 .map(WandManyMenuResult::Submit)
                 .unwrap_or(WandManyMenuResult::Nothing),
-        );
+        )
+    } else {
+        None
     }
-    to_submit
 }
 
 pub fn predict(
