@@ -234,7 +234,6 @@ pub fn button_confirmed<'a>(
     let button_clicked = ui.button(button_txt).clicked();
 
     let ctx = ui.ctx();
-    let mut confirmed = false;
 
     if button_clicked {
         ctx.data_mut(|data| {
@@ -254,6 +253,7 @@ pub fn button_confirmed<'a>(
         ctx.data(|data| data.get_temp(modal_id).unwrap_or(false))
     };
 
+    let mut confirmed = false;
     if is_open {
         egui::Modal::new(modal_id).show(ctx, |ui| {
             ctx.data_mut(|data| data.insert_temp(last_pass_modalshown_id, cur_pass));
@@ -279,7 +279,6 @@ pub fn button_confirmed<'a>(
             });
         });
     }
-
     confirmed
 }
 
