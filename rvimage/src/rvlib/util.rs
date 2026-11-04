@@ -1,7 +1,6 @@
-use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
+use std::{cmp::Ordering, sync::LazyLock};
 
 pub fn wrap_if<T>(x: T, cond: bool) -> Option<T> {
     if cond { Some(x) } else { None }
@@ -21,9 +20,7 @@ pub fn true_indices<'a>(mask: &'a [bool]) -> impl Iterator<Item = usize> + Clone
 }
 
 pub fn natural_cmp(s1: &str, s2: &str) -> Ordering {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r"(\d+)").unwrap();
-    }
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)").unwrap());
     let mut idx = 0;
     while idx < s1.len().min(s2.len()) {
         let c1 = s1.chars().nth(idx).unwrap();

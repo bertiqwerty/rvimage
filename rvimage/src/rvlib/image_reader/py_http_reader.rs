@@ -1,11 +1,10 @@
-use std::{path::Path, time::Duration};
+use std::{path::Path, sync::LazyLock, time::Duration};
 
 use crate::{
     cache::{ImageUploader, ReadImageToCache},
     file_util,
     types::ResultImage,
 };
-use lazy_static::lazy_static;
 use regex::Regex;
 use rvimage_domain::{RvResult, rverr, to_rv};
 
@@ -24,12 +23,9 @@ impl ReadImageToCache<()> for ReadImageFromPyHttp {
     }
 
     fn ls(&self, address: &str) -> RvResult<Vec<String>> {
-        lazy_static! {
-            static ref LI_REGEX: Regex = Regex::new(r"<li>.*</li>").unwrap();
-        }
-        lazy_static! {
-            static ref HREF_REGEX: Regex = Regex::new("href\\s*=\\s*\".*\"").unwrap();
-        }
+        static LI_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<li>.*</li>").unwrap());
+        static HREF_REGEX: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new("href\\s*=\\s*\".*\"").unwrap());
         let address = file_util::url_encode(address);
         let c = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(120))

@@ -94,26 +94,33 @@ macro_rules! tools_data_accessors {
 #[macro_export]
 macro_rules! tools_data_accessors_objects {
     ($actor_name:expr, $missing_data_msg:expr, $data_module:ident, $data_type:ident, $data_func:ident, $data_func_mut:ident) => {
-        pub(super) fn get_options(world: &World) -> Option<&$crate::tools_data::$data_module::Options> {
+        pub(super) fn get_options(
+            world: &World,
+        ) -> Option<&$crate::tools_data::$data_module::Options> {
             get_specific(world).map(|d| &d.options)
         }
-        pub fn get_options_mut(world: &mut World) -> Option<&mut $crate::tools_data::$data_module::Options> {
+        pub fn get_options_mut(
+            world: &mut World,
+        ) -> Option<&mut $crate::tools_data::$data_module::Options> {
             get_specific_mut(world).map(|d| &mut d.options)
         }
         pub(super) fn get_track_changes_str(world: &World) -> Option<&'static str> {
-            lazy_static::lazy_static! {
-                static ref TRACK_CHANGE_STR: String = $crate::tools::core::make_track_changes_str($actor_name);
-            };
-            let track_changes =
-                get_options(world).map(|o| o.core.track_changes) == Some(true);
+            static TRACK_CHANGE_STR: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+                $crate::tools::core::make_track_changes_str($actor_name)
+            });
+            let track_changes = get_options(world).map(|o| o.core.track_changes) == Some(true);
             $crate::util::wrap_if(&TRACK_CHANGE_STR, track_changes)
         }
 
         pub fn get_label_info(world: &World) -> Option<&LabelInfo> {
             get_specific(world).map(|d| &d.label_info)
         }
-        pub(super) fn get_instance_label_display(world: &World) -> $crate::tools_data::InstanceLabelDisplay {
-            get_options(world).map(|d| d.core.instance_label_display).unwrap_or_default()
+        pub(super) fn get_instance_label_display(
+            world: &World,
+        ) -> $crate::tools_data::InstanceLabelDisplay {
+            get_options(world)
+                .map(|d| d.core.instance_label_display)
+                .unwrap_or_default()
         }
 
         /// when you access annotations, you often also need this metadata
@@ -134,10 +141,14 @@ macro_rules! tools_data_accessors_objects {
             fn get_label_info_mut(world: &mut World) -> Option<&mut LabelInfo> {
                 get_specific_mut(world).map(|d| &mut d.label_info)
             }
-            fn get_predictive_labeling_data(world: &World) -> Option<&$crate::tools_data::predictive_labeling::PredictiveLabelingData> {
+            fn get_predictive_labeling_data(
+                world: &World,
+            ) -> Option<&$crate::tools_data::predictive_labeling::PredictiveLabelingData> {
                 get_specific(world).map(|d| &d.predictive_labeling_data)
             }
-            fn get_predictive_labeling_data_mut(world: &mut World) -> Option<&mut $crate::tools_data::predictive_labeling::PredictiveLabelingData> {
+            fn get_predictive_labeling_data_mut(
+                world: &mut World,
+            ) -> Option<&mut $crate::tools_data::predictive_labeling::PredictiveLabelingData> {
                 get_specific_mut(world).map(|d| &mut d.predictive_labeling_data)
             }
         }

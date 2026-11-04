@@ -13,14 +13,11 @@ use crate::{
 use azure_core::http::{RequestContent, Url};
 use azure_storage_blob::{BlobContainerClient, models::BlobContainerClientListBlobsOptions};
 use futures::{TryFutureExt, TryStreamExt};
-use lazy_static::lazy_static;
 use rvimage_domain::{RvResult, rverr, to_rv};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use tokio::{runtime::Runtime, time::timeout};
 
-lazy_static! {
-    static ref RT: Runtime = Runtime::new().unwrap();
-}
+static RT: LazyLock<Runtime> = LazyLock::new(|| Runtime::new().unwrap());
 
 pub fn make_connection_string(
     cur_prj_path: &Path,

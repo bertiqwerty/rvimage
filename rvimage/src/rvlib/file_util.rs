@@ -2,7 +2,6 @@ use crate::{
     cfg::{CfgLegacy, CfgPrj},
     tools_data::ToolsDataMap,
 };
-use lazy_static::lazy_static;
 use reqwest::IntoUrl;
 use rvimage_domain::{RvResult, rverr, to_rv};
 use serde::{Deserialize, Serialize};
@@ -12,22 +11,18 @@ use std::{
     fs::{self, File},
     io::{self, Cursor, Read},
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 use tracing::{error, info};
 
-lazy_static! {
-    pub static ref DEFAULT_TMPDIR: PathBuf = std::env::temp_dir().join("rvimage");
-}
-lazy_static! {
-    pub static ref DEFAULT_HOMEDIR: PathBuf = match dirs::home_dir() {
-        Some(p) => p.join(".rvimage"),
-        _ => std::env::temp_dir().join("rvimage"),
-    };
-}
-lazy_static! {
-    pub static ref DEFAULT_PRJ_PATH: PathBuf =
-        DEFAULT_HOMEDIR.join(DEFAULT_PRJ_NAME).join("default.rvi");
-}
+pub static DEFAULT_TMPDIR: LazyLock<PathBuf> =
+    LazyLock::new(|| std::env::temp_dir().join("rvimage"));
+pub static DEFAULT_HOMEDIR: LazyLock<PathBuf> = LazyLock::new(|| match dirs::home_dir() {
+    Some(p) => p.join(".rvimage"),
+    _ => std::env::temp_dir().join("rvimage"),
+});
+pub static DEFAULT_PRJ_PATH: LazyLock<PathBuf> =
+    LazyLock::new(|| DEFAULT_HOMEDIR.join(DEFAULT_PRJ_NAME).join("default.rvi"));
 
 pub fn get_default_homedir() -> &'static str {
     DEFAULT_HOMEDIR

@@ -3,9 +3,9 @@ use regex::Regex;
 use std::{
     fs,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
-use lazy_static::lazy_static;
 use rvimage_domain::{RvResult, to_rv};
 
 use crate::{file_util::osstr_to_str, result::trace_ok_err};
@@ -16,10 +16,8 @@ pub const AUTOSAVE_KEEP_N_DAYS: i64 = 30;
 pub const AUTOSAVE_INTERVAL_S: u64 = 120;
 
 fn extract_date(filename: &str) -> Option<NaiveDate> {
-    lazy_static! {
-        static ref DATE_REGEX: Regex =
-            Regex::new(r"autosave_d[0-9]{6}_").expect("Failed to compile regex");
-    }
+    static DATE_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"autosave_d[0-9]{6}_").expect("Failed to compile regex"));
     if let Some(m) = DATE_REGEX.find(filename) {
         let m_str = m.as_str();
         let to_be_parsed = &m_str[10..m_str.len() - 1];
