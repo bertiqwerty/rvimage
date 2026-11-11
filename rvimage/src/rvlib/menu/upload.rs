@@ -86,7 +86,7 @@ pub fn upload(
                         &mut upload_create_state.target_folder_buffer,
                         are_tools_active,
                     );
-                    if ui.button("Upload folder's top level").clicked() {
+                    if ui.button("Upload a local folder's top level").clicked() {
                         let folder = rfd::FileDialog::new().pick_folder();
                         if let Some(folder) = folder
                             && let Ok(reader) = fs::read_dir(folder)
@@ -108,7 +108,7 @@ pub fn upload(
                                 ctrl.upload(&src_files, &upload_create_state.target_folder_buffer);
                         }
                     }
-                    if ui.button("Upload a few files").clicked() {
+                    if ui.button("Upload a few local files").clicked() {
                         let src_files = rfd::FileDialog::new().pick_files();
                         if let Some(src_files) = src_files {
                             result_upload =
