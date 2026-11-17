@@ -115,6 +115,8 @@ impl ReaderFromCfg {
                                     cfg.current_prj_path(),
                                     &azure_cfg_prj.connection_string_path,
                                     connection_string,
+                                    &azure_cfg_prj.connection_string_cmd,
+                                    azure_cfg_prj.install_uv,
                                 )?,
                                 container_name,
                                 blob_list_timeout_s,

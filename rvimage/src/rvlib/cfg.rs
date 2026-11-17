@@ -88,6 +88,8 @@ impl CfgLegacy {
                 container_name: ab.container_name,
                 prefix: ab.prefix,
                 blob_list_timeout_s: get_blob_list_timeout_s(),
+                connection_string_cmd: String::new(),
+                install_uv: false,
             }),
             sort_params: SortParams::default(),
             wand_server: WandServerCfg::default(),
@@ -247,6 +249,13 @@ pub struct AzureBlobCfgPrj {
     pub prefix: String,
     #[serde(default = "get_blob_list_timeout_s")]
     pub blob_list_timeout_s: u64,
+    /// Run when connecting; stdout is parsed like the content of the file at
+    /// `connection_string_path`. Used if the user's `connection_string` is empty.
+    #[serde(default)]
+    pub connection_string_cmd: String,
+    /// Install uv if the connection string command starts with `uv` and uv is missing.
+    #[serde(default)]
+    pub install_uv: bool,
 }
 
 #[cfg(feature = "azure_blob")]
@@ -257,6 +266,8 @@ impl Default for AzureBlobCfgPrj {
             container_name: "".to_string(),
             prefix: "".to_string(),
             blob_list_timeout_s: get_blob_list_timeout_s(),
+            connection_string_cmd: "".to_string(),
+            install_uv: false,
         }
     }
 }

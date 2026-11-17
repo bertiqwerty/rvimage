@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     cache::{ImageUploader, ReadImageToCache},
+    cmd_runner::{NO_ENV, run_cmd},
     image_reader::core::{SUPPORTED_EXTENSIONS, upload_via_bytes},
     types::ResultImage,
 };
@@ -19,12 +20,50 @@ use tokio::{runtime::Runtime, time::timeout};
 
 static RT: LazyLock<Runtime> = LazyLock::new(|| Runtime::new().unwrap());
 
+/// Either the whole trimmed content or the value of a line `CONNECTION_STRING = ...`
+/// or `AZURE_CONNECTION_STRING = ...`.
+fn parse_connection_string(content: &str) -> RvResult<String> {
+    let line_with_cs = content.lines().find(|line| {
+        let line = line.trim();
+        !line.starts_with('#') && (line.to_lowercase().contains("connection_string"))
+            || line.to_lowercase().contains("azure_connection_string")
+    });
+    if let Some(line_with_cs) = line_with_cs {
+        line_with_cs
+            .split_once('=')
+            .map(|(_, cs)| cs.trim().to_string())
+            .ok_or(rverr!(
+                "cannot parse connection string from line {:?}",
+                line_with_cs
+            ))
+    } else {
+        Ok(content.trim().to_string())
+    }
+}
+
+/// Precedence: fixed `connection_string`, output of `connection_string_cmd`,
+/// content of the file at `connection_string_path`.
 pub fn make_connection_string(
     cur_prj_path: &Path,
     connection_string_path: &str,
     connection_string: &str,
+    connection_string_cmd: &str,
+    install_uv: bool,
 ) -> RvResult<String> {
-    if connection_string.trim().is_empty() {
+    if !connection_string.trim().is_empty() {
+        Ok(connection_string.trim().to_string())
+    } else if !connection_string_cmd.trim().is_empty() {
+        let out = run_cmd(
+            connection_string_cmd,
+            &[],
+            cur_prj_path,
+            install_uv,
+            None,
+            NO_ENV,
+            None,
+        )?;
+        parse_connection_string(&out)
+    } else {
         let csp = PathBuf::from(connection_string_path);
         let csp = if csp.is_absolute() {
             csp
@@ -34,25 +73,7 @@ pub fn make_connection_string(
                 .expect("current project file cannot be in no parent directory")
                 .join(csp)
         };
-        let connection_string = fs::read_to_string(&csp).map_err(to_rv)?;
-        let line_with_cs = connection_string.lines().find(|line| {
-            let line = line.trim();
-            !line.starts_with('#') && (line.to_lowercase().contains("connection_string"))
-                || line.to_lowercase().contains("azure_connection_string")
-        });
-        Ok(if let Some(line_with_cs) = line_with_cs {
-            line_with_cs
-                .split_once('=')
-                .map(|(_, cs)| cs.trim().to_string())
-                .ok_or(rverr!(
-                    "cannot parse connection string from line {:?}",
-                    line_with_cs
-                ))?
-        } else {
-            connection_string
-        })
-    } else {
-        Ok(connection_string.to_string())
+        parse_connection_string(&fs::read_to_string(&csp).map_err(to_rv)?)
     }
 }
 
@@ -200,4 +221,42 @@ impl ReadImageToCache<AzureConnectionData> for ReadImageFromAzureBlob {
             },
         )
     }
+}
+
+#[test]
+fn test_make_connection_string() {
+    let prj_folder = std::env::temp_dir().join("rvimage_test_make_connection_string");
+    fs::create_dir_all(&prj_folder).unwrap();
+    let prj_path = prj_folder.join("prj.rvi");
+    fs::write(
+        prj_folder.join("cs.txt"),
+        "# x\nCONNECTION_STRING = fromfile",
+    )
+    .unwrap();
+    let (cmd, script, content) = if cfg!(windows) {
+        (
+            "cmd /C sas.bat",
+            "sas.bat",
+            "@echo AZURE_CONNECTION_STRING = fromcmd",
+        )
+    } else {
+        (
+            "sh sas.sh",
+            "sas.sh",
+            "echo AZURE_CONNECTION_STRING = fromcmd",
+        )
+    };
+    fs::write(prj_folder.join(script), content).unwrap();
+
+    let fixed = make_connection_string(&prj_path, "cs.txt", " fixed ", cmd, false);
+    let from_cmd = make_connection_string(&prj_path, "cs.txt", "", cmd, false);
+    let from_file = make_connection_string(&prj_path, "cs.txt", "", " ", false);
+    let failing_cmd =
+        make_connection_string(&prj_path, "cs.txt", "", "rvimage-nonexistent-prg", false);
+    fs::remove_dir_all(&prj_folder).unwrap();
+
+    assert_eq!(fixed.unwrap(), "fixed");
+    assert_eq!(from_cmd.unwrap(), "fromcmd");
+    assert_eq!(from_file.unwrap(), "fromfile");
+    assert!(failing_cmd.is_err());
 }

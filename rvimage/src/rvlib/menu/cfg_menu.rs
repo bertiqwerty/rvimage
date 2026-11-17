@@ -32,6 +32,21 @@ fn azure_cfg_menu(
                     "SAS URL or SAS connection string (BlobEndpoint=...;SharedAccessSignature=...)",
                 );
             ui.end_row();
+            ui.label("SAS URL or connection str cmd");
+            text_edit_singleline(
+                ui,
+                &mut azure_cfg_prj.connection_string_cmd,
+                are_tools_active,
+            )
+            .on_hover_text(
+                "command whose output is the SAS URL or connection str, e.g., 'uv run sas.py', \
+                 relative to prj-file",
+            );
+            ui.end_row();
+            ui.label("");
+            ui.checkbox(&mut azure_cfg_prj.install_uv, "Install uv if missing")
+                .on_hover_text("only applies if the command starts with 'uv'");
+            ui.end_row();
             ui.label("Connection str path");
             text_edit_singleline(
                 ui,

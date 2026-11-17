@@ -133,10 +133,16 @@ server_addresses = ['http://localhost:8000/']
 
 [prj.azure_blob]
 # With a SAS connection string or URL you can view the images inside a blob storage.
-# The connection_string_path should point to file that contains just the 
+# The connection string is taken from the first non-empty source of
+# 1. `usr.azure_blob.connection_string`, a fixed string,
+# 2. the stdout of `connection_string_cmd`, run relative to the project file,
+# 3. the file at `connection_string_path`.
+# The command output and the file can contain just the 
 # connection string or a line with 
 # `CONNECTION_STRING = ` or `AZURE_CONNECTION_STRING = `.
-connection_string_path = "connection_str.txt"
+connection_string_path = "connection_sas_str.txt"
+# connection_string_cmd = "uv run sas.py"
+# install_uv = false  # install uv if missing and the command starts with `uv`
 container_name = "images"
 # The prefix is also called folder in the Microsoft Azure Storage Explorer.
 # Currently, you cannot choose this interactively.

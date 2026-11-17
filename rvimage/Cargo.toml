@@ -5,7 +5,7 @@ name = "rvimage"
 license = "MIT OR Apache-2.0"
 description = "A remote image viewer with a labeling tool"
 readme = "../README.md"
-version = "0.9.6"
+version = "0.9.7"
 homepage = "https://github.com/bertiqwerty/rvimage"
 repository = "https://github.com/bertiqwerty/rvimage"
 keywords = ["image", "viewer", "label", "remote", "ssh"]
@@ -63,7 +63,7 @@ reqwest = { version = "0.13.5", features = [
     "multipart",
     "query",
 ] }
-rfd = "0.17.2"
+rfd = "0.18.0"
 rusttype = "0.9.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
