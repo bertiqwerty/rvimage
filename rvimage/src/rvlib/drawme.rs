@@ -88,6 +88,8 @@ pub struct UpdateView {
     pub tmp_annos: UpdateTmpAnno,
     pub zoom_box: UpdateZoomBox,
     pub image_info: Option<ImageInfo>,
+    // thickness of the brush whose footprint is shown as cursor on the image
+    pub brush_cursor_thickness: Option<TPtF>,
 
     // to enable memory re-use.
     pub tmp_anno_buffer: Option<Annotation>,
@@ -104,6 +106,7 @@ impl UpdateView {
             tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
             image_info: None,
+            brush_cursor_thickness: None,
             tmp_anno_buffer: None,
         }
     }
@@ -115,6 +118,7 @@ impl UpdateView {
             tmp_annos: UpdateTmpAnno::No,
             zoom_box: UpdateZoomBox::Yes(zoom_box),
             image_info: None,
+            brush_cursor_thickness: None,
             tmp_anno_buffer: None,
         }
     }

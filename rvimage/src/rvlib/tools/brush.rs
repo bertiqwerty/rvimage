@@ -657,6 +657,9 @@ impl Manipulate for Brush {
         world = check_recolorboxes::<DataAccessors>(world, BRUSH_NAME);
         world = check_selected_intensity_thickness(world);
         world = check_export(world);
+        if let Some(options) = get_options(&world) {
+            world.update_view.brush_cursor_thickness = Some(options.thickness);
+        }
         make_tool_transform!(
             self,
             world,

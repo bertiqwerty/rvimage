@@ -11,19 +11,64 @@ use crate::{OutOfBoundsMode, ShapeI, color_with_intensity, result::RvResult, rve
 
 use super::{BbF, BbI, BrushLine, Point, PtF, PtI, RenderTargetOrShape, TPtF, line::render_line};
 
+/// Radius of the filled circle that is stamped for each pixel of a brush stroke.
+/// A radius of 0 corresponds to a single pixel.
+#[must_use]
+pub fn brush_radius(thickness: TPtF) -> i32 {
+    (thickness * 0.5).max(0.0) as i32
+}
+
+/// The pixel a brush stroke is centered at, i.e., the pixel containing `p`.
+#[must_use]
+pub fn brush_center(p: PtF) -> Point<i32> {
+    Point {
+        x: p.x.floor() as i32,
+        y: p.y.floor() as i32,
+    }
+}
+
 fn line_to_mask(
     line: &BrushLine,
     orig_shape: Option<ShapeI>,
     buffer: Option<Vec<u8>>,
 ) -> RvResult<(Vec<u8>, BbI)> {
-    let bb = line.bb(orig_shape)?;
-    let color = Luma([1]);
+    let r = brush_radius(line.thickness);
+    let centers = line
+        .line
+        .points_iter()
+        .map(brush_center)
+        .collect::<Vec<_>>();
+    if centers.is_empty() {
+        return Err(rverr!("cannot rasterize brush line without points"));
+    }
+    let (x_min, y_min, x_max, y_max) = centers.iter().fold(
+        (i32::MAX, i32::MAX, i32::MIN, i32::MIN),
+        |(x_min, y_min, x_max, y_max), c| {
+            (
+                x_min.min(c.x),
+                y_min.min(c.y),
+                x_max.max(c.x),
+                y_max.max(c.y),
+            )
+        },
+    );
+    // inclusive pixel bounds of the brush stroke, clipped to the image
+    let (x_lo, y_lo) = ((x_min - r).max(0), (y_min - r).max(0));
+    let (mut x_hi, mut y_hi) = (x_max + r, y_max + r);
+    if let Some(shape) = orig_shape {
+        x_hi = x_hi.min(shape.w as i32 - 1);
+        y_hi = y_hi.min(shape.h as i32 - 1);
+    }
+    if x_lo > x_hi || y_lo > y_hi {
+        return Err(rverr!("brush line is outside of the image"));
+    }
     let bbi = BbI::from_arr(&[
-        bb.x as u32,
-        bb.y as u32,
-        bb.w.ceil() as u32,
-        bb.h.ceil() as u32,
+        x_lo as u32,
+        y_lo as u32,
+        (x_hi - x_lo + 1) as u32,
+        (y_hi - y_lo + 1) as u32,
     ]);
+    let color = Luma([1]);
     let is_none = buffer.is_none();
     let mut buffer = if let Some(mut buffer) =
         buffer.filter(|buffer| buffer.len() >= (bbi.w * bbi.h) as usize)
@@ -38,33 +83,16 @@ fn line_to_mask(
         );
         RenderTargetOrShape::Shape(bbi.shape()).make_buffer()
     };
-    let im = if line.line.points.len() == 1 {
-        let center = Point {
-            x: (line.line.points[0].x - bb.x) as i32,
-            y: (line.line.points[0].y - bb.y) as i32,
-        };
-
-        let thickness_half = line.thickness * 0.5;
-        if line.thickness <= 1.1 {
-            buffer.put_pixel(center.x as u32, center.y as u32, color);
-        } else {
-            let r = if thickness_half.floor() == thickness_half {
-                (thickness_half - 1.0) as i32
-            } else {
-                thickness_half as i32
-            };
-            draw_filled_circle_mut(&mut buffer, (center.x, center.y), r, color);
-        }
+    let local_centers = centers.iter().map(|c| PtF {
+        x: f64::from(c.x - x_lo),
+        y: f64::from(c.y - y_lo),
+    });
+    let im = if let [c] = centers.as_slice() {
+        draw_filled_circle_mut(&mut buffer, (c.x - x_lo, c.y - y_lo), r, color);
         buffer
     } else {
         render_line(
-            line.line
-                .points_iter()
-                .filter(|p| bb.contains(*p))
-                .map(|p| PtF {
-                    x: p.x - bb.x,
-                    y: p.y - bb.y,
-                }),
+            local_centers,
             1.0,
             line.thickness,
             RenderTargetOrShape::Image(buffer),
@@ -444,27 +472,9 @@ impl Canvas {
         );
         if let Some(mut im) = im {
             let color = Luma([color]);
-            let center = Point {
-                x: (center.x - TPtF::from(self.bb.x)) as i32,
-                y: (center.y - TPtF::from(self.bb.y)) as i32,
-            };
-
-            if thickness <= 1.1 {
-                if center.x >= 0
-                    && center.y >= 0
-                    && (center.x as u32) < self.bb.w
-                    && (center.y as u32) < self.bb.h
-                {
-                    im.put_pixel(center.x as u32, center.y as u32, color);
-                }
-            } else {
-                draw_filled_circle_mut(
-                    &mut im,
-                    (center.x, center.y),
-                    (thickness * 0.5) as i32,
-                    color,
-                );
-            }
+            let center = brush_center(center);
+            let center = (center.x - self.bb.x as i32, center.y - self.bb.y as i32);
+            draw_filled_circle_mut(&mut im, center, brush_radius(thickness), color);
             self.mask = im.into_vec();
             Ok(())
         } else {
@@ -776,6 +786,7 @@ fn test_line_to_mask() {
         }
     }
 
+    // the brush is centered at the pixel containing the point
     let bl = BrushLine {
         line: Line {
             points: vec![PtF { x: 4.7, y: 4.7 }],
@@ -792,7 +803,7 @@ fn test_line_to_mask() {
         intensity: 0.5,
         thickness: 3.0,
     };
-    test(&[0, 2, 6, 8], 5, BB::from_arr(&[3, 3, 3, 3]), &bl);
+    test(&[0, 2, 6, 8], 5, BB::from_arr(&[4, 4, 3, 3]), &bl);
     let bl = BrushLine {
         line: Line {
             points: vec![PtF { x: 5.0, y: 5.0 }],
@@ -800,7 +811,15 @@ fn test_line_to_mask() {
         intensity: 0.5,
         thickness: 3.0,
     };
-    test(&[0, 2, 6, 8], 5, BB::from_arr(&[3, 3, 3, 3]), &bl);
+    test(&[0, 2, 6, 8], 5, BB::from_arr(&[4, 4, 3, 3]), &bl);
+    let bl = BrushLine {
+        line: Line {
+            points: vec![PtF { x: 5.9, y: 5.1 }],
+        },
+        intensity: 0.5,
+        thickness: 1.0,
+    };
+    test(&[], 1, BB::from_arr(&[5, 5, 1, 1]), &bl);
     let center = PtF { x: 5.0, y: 5.0 };
     let bl = BrushLine {
         line: Line {
@@ -809,11 +828,64 @@ fn test_line_to_mask() {
         intensity: 0.5,
         thickness: 5.0,
     };
-    test(&[], 21, BB::from_arr(&[2, 2, 5, 5]), &bl);
+    test(&[], 21, BB::from_arr(&[3, 3, 5, 5]), &bl);
     let mut canvas = Canvas::new(&bl, ShapeI::new(30, 30), None).unwrap();
-    canvas.draw_circle(center, 5.0, 0).unwrap();
-    // maybe we didn't delete all but a significant portion due to rounding errors
-    assert!(canvas.mask.iter().sum::<u8>() < 21 / 2);
+    canvas.draw_circle(PtF { x: 5.8, y: 5.2 }, 5.0, 0).unwrap();
+    // erasing with the same thickness at the same pixel removes everything
+    assert_eq!(canvas.mask.iter().sum::<u8>(), 0);
+}
+
+#[test]
+fn test_brush_footprint_consistency() {
+    // clicks, drags and erasing must cover exactly the same pixels for the same
+    // thickness, independent of the sub-pixel mouse position
+    let shape = ShapeI::new(50, 50);
+    for thickness in [1.0, 2.0, 3.0, 4.0, 7.5, 10.0] {
+        let click = |p: PtF| {
+            Canvas::new(
+                &BrushLine {
+                    line: Line::from(p),
+                    intensity: 1.0,
+                    thickness,
+                },
+                shape,
+                None,
+            )
+            .unwrap()
+        };
+        let reference = click(PtF { x: 20.0, y: 20.0 });
+        assert_eq!(click(PtF { x: 20.99, y: 20.5 }), reference);
+
+        // the end of a stroke stamps the same footprint as a click
+        let drag = Canvas::new(
+            &BrushLine {
+                line: Line {
+                    points: vec![PtF { x: 10.3, y: 20.7 }, PtF { x: 20.6, y: 20.2 }],
+                },
+                intensity: 1.0,
+                thickness,
+            },
+            shape,
+            None,
+        )
+        .unwrap();
+        for y in reference.bb.y_range() {
+            for x in reference.bb.x_range() {
+                let p = PtI { x, y };
+                if access_mask_abs(&reference.mask, reference.bb, p) > 0 {
+                    assert!(access_mask_abs(&drag.mask, drag.bb, p) > 0);
+                }
+            }
+        }
+        assert_eq!(drag.bb.x + drag.bb.w, reference.bb.x + reference.bb.w);
+        assert_eq!(drag.bb.y, reference.bb.y);
+
+        let mut erased = reference.clone();
+        erased
+            .draw_circle(PtF { x: 20.1, y: 20.9 }, thickness, 0)
+            .unwrap();
+        assert_eq!(erased.mask.iter().sum::<u8>(), 0);
+    }
 }
 
 #[test]

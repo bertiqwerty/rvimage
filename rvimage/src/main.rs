@@ -8,15 +8,18 @@
 use clap::Parser;
 
 use egui::{
-    Color32, Context, CornerRadius, IconData, Pos2, Rect, Response, Sense, Shape, Stroke,
-    StrokeKind, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportBuilder, ViewportCommand,
-    Visuals,
+    Color32, Context, CornerRadius, CursorIcon, IconData, Pos2, Rect, Response, Sense, Shape,
+    Stroke, StrokeKind, Style, TextureHandle, TextureOptions, Ui, Vec2, ViewportBuilder,
+    ViewportCommand, Visuals,
     epaint::{CircleShape, PathShape, RectShape, TextShape},
     text::LayoutJob,
 };
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
-use rvimage_domain::{BbF, Canvas, Point, PtF, RvResult, ShapeF, TPtF, TPtI, to_rv};
+use rvimage_domain::{
+    BbF, BrushLine, Canvas, Line, Point, PtF, PtI, RvResult, ShapeF, TPtF, TPtI, access_mask_abs,
+    to_rv,
+};
 use rvlib::{
     Annotation, BboxAnnotation, BrushAnnotation, Event, Events, GeoFig, ImageMeta,
     InstanceAnnotate, InstanceLabelDisplay, MainEventLoop, MetaData, Rot90ToolData, ThumbViews,
@@ -558,6 +561,110 @@ impl RvImageApp {
         ));
     }
 
+    /// Outlines the pixels a brush with `thickness` would cover at the mouse position.
+    fn draw_brush_cursor(
+        &self,
+        ui: &Ui,
+        image_response: &Response,
+        mouse_pos: Option<PtF>,
+        thickness: TPtF,
+    ) {
+        if !image_response.hovered() {
+            return;
+        }
+        // ctrl and alt switch to selection mode. The modifiers are queried directly from egui,
+        // since rvlib's events contain them only in frames with key or mouse button events.
+        let is_selecting = ui.input(|i| i.modifiers.ctrl || i.modifiers.command || i.modifiers.alt);
+        if is_selecting {
+            return;
+        }
+        let Some(mp) = mouse_pos else {
+            return;
+        };
+        let line = BrushLine {
+            line: Line::from(mp),
+            intensity: 1.0,
+            thickness,
+        };
+        let shape_orig = self.shape_orig();
+        let Ok(canvas) = Canvas::new(&line, shape_orig, None) else {
+            return;
+        };
+        let rect = image_response.rect;
+        let shape_view = self.shape_view();
+        if shape_view.w == 0 || shape_view.h == 0 {
+            return;
+        }
+        // offset of the view in the original image, as used in `view::from_orig`
+        let (x_off, y_off) = self.zoom_box.map_or((0.0, 0.0), |zb| {
+            (
+                zb.x.round().min(f64::from(shape_orig.w)) as f32,
+                zb.y.round().min(f64::from(shape_orig.h)) as f32,
+            )
+        });
+        let scale_x = rect.width() / shape_view.w as f32;
+        let scale_y = rect.height() / shape_view.h as f32;
+        let to_egui = |x: u32, y: u32| {
+            Pos2::new(
+                rect.min.x + (x as f32 - x_off) * scale_x,
+                rect.min.y + (y as f32 - y_off) * scale_y,
+            )
+        };
+        let bb = canvas.bb;
+        let is_fg = |x: i64, y: i64| {
+            x >= i64::from(bb.x)
+                && y >= i64::from(bb.y)
+                && x < i64::from(bb.x + bb.w)
+                && y < i64::from(bb.y + bb.h)
+                && access_mask_abs(
+                    &canvas.mask,
+                    bb,
+                    PtI {
+                        x: x as u32,
+                        y: y as u32,
+                    },
+                ) > 0
+        };
+        let mut segments = vec![];
+        for y in bb.y_range() {
+            for x in bb.x_range() {
+                let (xi, yi) = (i64::from(x), i64::from(y));
+                if is_fg(xi, yi) {
+                    if !is_fg(xi, yi - 1) {
+                        segments.push([to_egui(x, y), to_egui(x + 1, y)]);
+                    }
+                    if !is_fg(xi, yi + 1) {
+                        segments.push([to_egui(x, y + 1), to_egui(x + 1, y + 1)]);
+                    }
+                    if !is_fg(xi - 1, yi) {
+                        segments.push([to_egui(x, y), to_egui(x, y + 1)]);
+                    }
+                    if !is_fg(xi + 1, yi) {
+                        segments.push([to_egui(x + 1, y), to_egui(x + 1, y + 1)]);
+                    }
+                }
+            }
+        }
+        let painter = ui.painter().with_clip_rect(rect);
+        for stroke in [
+            Stroke::new(3.0, Color32::BLACK),
+            Stroke::new(1.0, Color32::WHITE),
+        ] {
+            painter.extend(
+                segments
+                    .iter()
+                    .map(|segment| Shape::line_segment(*segment, stroke)),
+            );
+        }
+        // keep a visible pointer if the outline is too small to be seen
+        let cursor_icon = if bb.w as f32 * scale_x < 8.0 {
+            CursorIcon::Crosshair
+        } else {
+            CursorIcon::None
+        };
+        ui.ctx().set_cursor_icon(cursor_icon);
+    }
+
     fn collect_mouse_events(
         &mut self,
         ui: &mut Ui,
@@ -805,6 +912,9 @@ impl eframe::App for RvImageApp {
                             {
                                 time_scope!("draw_annos");
                                 self.draw_annos(ui, update_texture);
+                            }
+                            if let Some(thickness) = update_view.brush_cursor_thickness {
+                                self.draw_brush_cursor(ui, &ir, mouse_pos, thickness);
                             }
                         };
                     }
