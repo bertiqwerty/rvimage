@@ -13,7 +13,7 @@ use crate::view::{START_HEIGHT, START_WIDTH};
 use crate::{ImageMeta, InstanceAnnotate, UpdatePermAnnos, UpdateView, image_util};
 use image::DynamicImage;
 use rvimage_domain::{BbF, RvError, RvResult, ShapeF, ShapeI};
-use std::{fmt::Debug, mem};
+use std::{fmt::Debug, mem, sync::Arc};
 
 #[cfg(test)]
 use std::path::Path;
@@ -281,7 +281,10 @@ macro_rules! instance_annotations_accessor {
 
 #[derive(Clone, Default, PartialEq)]
 pub struct DataRaw {
-    im_background: ImageMetaPair,
+    // Shared, since the world is cloned frequently, e.g., for each history record. Mutations
+    // copy the image only if it is shared.
+    im_background: Arc<DynamicImage>,
+    im_background_meta: ImageMeta,
     thumb_ims: ThumbIms,
     ui_image_rect: Option<ShapeF>,
     pub meta_data: MetaData,
@@ -298,7 +301,8 @@ impl DataRaw {
         ui_image_rect: Option<ShapeF>,
     ) -> Self {
         DataRaw {
-            im_background,
+            im_background: Arc::new(im_background.im),
+            im_background_meta: im_background.meta,
             thumb_ims: extra_ims,
             ui_image_rect,
             meta_data,
@@ -308,10 +312,14 @@ impl DataRaw {
 
     #[must_use]
     pub fn im_background(&self) -> &DynamicImage {
-        &self.im_background.im
+        &self.im_background
     }
     pub fn im_background_mut(&mut self) -> &mut DynamicImage {
-        &mut self.im_background.im
+        Arc::make_mut(&mut self.im_background)
+    }
+    pub fn set_im_background(&mut self, image: ImageMetaPair) {
+        self.im_background = Arc::new(image.im);
+        self.im_background_meta = image.meta;
     }
 
     pub fn set_image_rect(&mut self, ui_image_rect: Option<ShapeF>) {
@@ -322,19 +330,20 @@ impl DataRaw {
     where
         FI: FnMut(DynamicImage) -> DynamicImage,
     {
-        self.im_background.im = f_i(mem::take(&mut self.im_background.im));
+        let im = Arc::unwrap_or_clone(mem::take(&mut self.im_background));
+        self.im_background = Arc::new(f_i(im));
     }
 
     #[must_use]
     pub fn shape(&self) -> ShapeI {
-        ShapeI::from_im(&self.im_background.im)
+        ShapeI::from_im(&*self.im_background)
     }
 
     #[must_use]
     pub fn bg_to_uncropped_view(&self) -> ViewMetaPair {
         ViewMetaPair {
-            im: image_util::orig_to_0_255(&self.im_background.im, &None),
-            meta: self.im_background.meta.clone(),
+            im: image_util::orig_to_0_255(&self.im_background, &None),
+            meta: self.im_background_meta.clone(),
         }
     }
     pub fn extra_im_to_extra_views(&self) -> ThumbViews {
@@ -577,7 +586,7 @@ impl World {
         if ShapeI::from_im(&image.im) != self.shape_orig() {
             self.zoom_box = None;
         }
-        self.data.im_background = image;
+        self.data.set_im_background(image);
     }
     pub fn set_extra_images(&mut self, images: ThumbIms) {
         self.data.thumb_ims = images;
@@ -609,4 +618,29 @@ fn test_rgba() {
     assert_eq!(rgba_at(64, &im_test), [23, 23, 23, 255]);
     im_test.put_pixel(7, 11, Rgb([23, 23, 23]));
     assert_eq!(rgba_at(11 * 64 + 7, &im_test), [23, 23, 23, 255]);
+}
+
+#[test]
+fn test_background_shared_on_clone() {
+    let world = World::empty();
+    let mut cloned = world.clone();
+    assert!(Arc::ptr_eq(
+        &world.data.im_background,
+        &cloned.data.im_background
+    ));
+    cloned.data.apply(|im| im.rotate90());
+    assert_eq!(cloned.shape_orig(), ShapeI::new(START_HEIGHT, START_WIDTH));
+    assert_eq!(world.shape_orig(), ShapeI::new(START_WIDTH, START_HEIGHT));
+    let mut cloned = world.clone();
+    if let DynamicImage::ImageRgb8(im) = cloned.data.im_background_mut() {
+        im.put_pixel(0, 0, Rgb([1, 2, 3]));
+    }
+    assert_eq!(
+        world.data.im_background().to_rgb8().get_pixel(0, 0),
+        &Rgb([0, 0, 0])
+    );
+    assert_eq!(
+        cloned.data.im_background().to_rgb8().get_pixel(0, 0),
+        &Rgb([1, 2, 3])
+    );
 }
