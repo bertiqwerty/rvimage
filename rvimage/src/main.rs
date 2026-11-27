@@ -17,8 +17,8 @@ use egui::{
 use image::{GenericImage, ImageBuffer, Rgb};
 use imageproc::distance_transform::Norm;
 use rvimage_domain::{
-    BbF, BrushLine, Canvas, Line, Point, PtF, PtI, RvResult, ShapeF, TPtF, TPtI, access_mask_abs,
-    to_rv,
+    BbF, BbI, BrushLine, Canvas, Line, Point, PtF, PtI, RvResult, ShapeF, TPtF, TPtI,
+    access_mask_abs, to_rv,
 };
 use rvlib::{
     Annotation, BboxAnnotation, BrushAnnotation, Event, Events, GeoFig, ImageMeta,
@@ -42,8 +42,8 @@ mod detail {
 
     use egui::{Color32, ColorImage, Context, Image, Pos2, TextureHandle, TextureOptions, Vec2};
     use image::{ImageBuffer, Rgb};
-    use rvimage_domain::{BbF, Canvas, PtF, PtI, TPtF, access_mask_abs};
-    use rvlib::{ShapeI, color_with_intensity, view};
+    use rvimage_domain::{BbF, BbI, Canvas, PtF, PtI, TPtF, access_mask_abs};
+    use rvlib::{color_with_intensity, view};
 
     pub(super) fn setup_custom_fonts(ctx: &egui::Context) {
         // Start with the default fonts (we will be adding to them rather than replacing them).
@@ -139,43 +139,54 @@ mod detail {
         let color_egui = rgb_2_clr(Some(color_rgb.0), alpha);
         (color_rgb, color_egui)
     }
+    /// Blends the canvas into the view that shows the region `crop` of the original image.
+    /// Each view pixel that displays at least one foreground pixel is blended exactly once.
     pub(super) fn canvas_to_view(
         canvas: &Canvas,
         im_view: &mut ImageBuffer<Rgb<u8>, Vec<u8>>,
-        zoom_box: &Option<BbF>,
-        shape_orig: ShapeI,
+        crop: BbI,
         fill_alpha: u8,
         color: Rgb<u8>,
     ) {
-        for y in canvas.bb.y_range() {
-            for x in canvas.bb.x_range() {
-                let p = PtI { x, y };
-                let is_fg = access_mask_abs(&canvas.mask, canvas.bb, p) > 0;
-                if is_fg {
-                    let p_view = view::pos_from_orig_pos(
-                        p.into(),
-                        shape_orig,
-                        ShapeI::from_im(im_view),
-                        zoom_box,
-                    );
-                    if let Some(p_view) = p_view {
-                        let (x_view, y_view) = (p_view.x.round() as u32, p_view.y.round() as u32);
-                        let current_clr = im_view.get_pixel_checked(x_view, y_view);
-                        if let Some(current_clr) = current_clr {
-                            let alpha = f32::from(fill_alpha) / 255.0;
-                            let mut clr = color.0;
-                            #[allow(clippy::indexing_slicing)]
-                            for i in 0..3 {
-                                clr[i] = (f32::from(clr[i]) * alpha
-                                    + f32::from(current_clr[i]) * (1.0 - alpha))
-                                    .round()
-                                    .clamp(0.0, 255.0)
-                                    as u8;
-                            }
-                            im_view.put_pixel(x_view, y_view, Rgb(clr));
-                        }
+        let (view_w, view_h) = (im_view.width(), im_view.height());
+        if crop.w == 0 || crop.h == 0 || view_w == 0 || view_h == 0 {
+            return;
+        }
+        let x_start = canvas.bb.x.max(crop.x);
+        let y_start = canvas.bb.y.max(crop.y);
+        let x_end = (canvas.bb.x + canvas.bb.w).min(crop.x + crop.w);
+        let y_end = (canvas.bb.y + canvas.bb.h).min(crop.y + crop.h);
+        if x_start >= x_end || y_start >= y_end {
+            return;
+        }
+        let to_view_x = |x| view::orig_px_to_view_px(x, crop.x, crop.w, view_w);
+        let to_view_y = |y| view::orig_px_to_view_px(y, crop.y, crop.h, view_h);
+        let (u_start, v_start) = (to_view_x(x_start), to_view_y(y_start));
+        let n_u = (to_view_x(x_end - 1) - u_start + 1) as usize;
+        let n_v = (to_view_y(y_end - 1) - v_start + 1) as usize;
+        let mut is_covered = vec![false; n_u * n_v];
+        for y in y_start..y_end {
+            let v = (to_view_y(y) - v_start) as usize;
+            for x in x_start..x_end {
+                if access_mask_abs(&canvas.mask, canvas.bb, PtI { x, y }) > 0 {
+                    let u = (to_view_x(x) - u_start) as usize;
+                    if let Some(covered) = is_covered.get_mut(v * n_u + u) {
+                        *covered = true;
                     }
                 }
+            }
+        }
+        let alpha = f32::from(fill_alpha) / 255.0;
+        for (idx, _) in is_covered.iter().enumerate().filter(|(_, c)| **c) {
+            let (u, v) = (u_start + (idx % n_u) as u32, v_start + (idx / n_u) as u32);
+            if let Some(current_clr) = im_view.get_pixel_checked(u, v) {
+                let mut clr = color.0;
+                for (c, current) in clr.iter_mut().zip(current_clr.0) {
+                    *c = (f32::from(*c) * alpha + f32::from(current) * (1.0 - alpha))
+                        .round()
+                        .clamp(0.0, 255.0) as u8;
+                }
+                im_view.put_pixel(u, v, Rgb(clr));
             }
         }
     }
@@ -234,6 +245,10 @@ struct RvImageApp {
     im_orig: ImageU8,
     meta_orig: ImageMeta,
     im_view: ImageU8,
+    // view without annotations, possibly downscaled to the screen resolution
+    im_view_clean: ImageU8,
+    // maximal size of the view image in physical pixels
+    view_max_shape: Option<rvlib::ShapeI>,
     thumb_ims: ThumbViews,
     events: rvlib::Events,
     last_sensed_btncodes: rvlib::LastSensedBtns,
@@ -260,8 +275,14 @@ impl RvImageApp {
     fn shape_orig(&self) -> rvlib::ShapeI {
         rvlib::ShapeI::from_im(&self.im_orig)
     }
+    /// Shape of the visible region of the original image. Coordinates on the view, e.g.,
+    /// the mouse position on the view, are measured in pixels of the original image and
+    /// do not depend on the actual, possibly downscaled, resolution of the view image.
     fn shape_view(&self) -> rvlib::ShapeI {
-        rvlib::ShapeI::from_im(&self.im_view)
+        self.crop_bb().shape()
+    }
+    fn crop_bb(&self) -> BbI {
+        view::crop_bb(self.shape_orig(), self.zoom_box)
     }
 
     fn orig_pos_2_egui_rect(&self, p: PtF, offset: Pos2, rect_size: Vec2) -> Pos2 {
@@ -276,12 +297,11 @@ impl RvImageApp {
     }
     fn update_brush_anno_tmp(&mut self, anno: &BrushAnnotation) {
         let (color_rgb, _) = detail::color_tf(anno.canvas.intensity, anno.color, anno.fill_alpha);
-        let shape_orig = self.shape_orig();
+        let crop = self.crop_bb();
         detail::canvas_to_view(
             &anno.canvas,
             &mut self.im_view,
-            &self.zoom_box,
-            shape_orig,
+            crop,
             anno.fill_alpha,
             color_rgb,
         );
@@ -506,21 +526,14 @@ impl RvImageApp {
         }
 
         // update texture with brush canvas
-        let shape_orig = self.shape_orig();
-        let mut im_view = view::from_orig(&self.im_orig, self.zoom_box);
+        let crop = self.crop_bb();
+        let mut im_view = self.im_view_clean.clone();
 
         self.egui_perm_brush_shapes = vec![];
         for (i, (canvas, (color, fill_alpha, instance_label_display, label))) in
             canvases.flatten().enumerate()
         {
-            detail::canvas_to_view(
-                &canvas,
-                &mut im_view,
-                &self.zoom_box,
-                shape_orig,
-                fill_alpha,
-                color,
-            );
+            detail::canvas_to_view(&canvas, &mut im_view, crop, fill_alpha, color);
             match instance_label_display {
                 Some(InstanceLabelDisplay::None) | None => (),
                 Some(InstanceLabelDisplay::CatLabel) => {
@@ -591,23 +604,16 @@ impl RvImageApp {
             return;
         };
         let rect = image_response.rect;
-        let shape_view = self.shape_view();
-        if shape_view.w == 0 || shape_view.h == 0 {
+        let crop = self.crop_bb();
+        if crop.w == 0 || crop.h == 0 {
             return;
         }
-        // offset of the view in the original image, as used in `view::from_orig`
-        let (x_off, y_off) = self.zoom_box.map_or((0.0, 0.0), |zb| {
-            (
-                zb.x.round().min(f64::from(shape_orig.w)) as f32,
-                zb.y.round().min(f64::from(shape_orig.h)) as f32,
-            )
-        });
-        let scale_x = rect.width() / shape_view.w as f32;
-        let scale_y = rect.height() / shape_view.h as f32;
+        let scale_x = rect.width() / crop.w as f32;
+        let scale_y = rect.height() / crop.h as f32;
         let to_egui = |x: u32, y: u32| {
             Pos2::new(
-                rect.min.x + (x as f32 - x_off) * scale_x,
-                rect.min.y + (y as f32 - y_off) * scale_y,
+                rect.min.x + (x as f32 - crop.x as f32) * scale_x,
+                rect.min.y + (y as f32 - crop.y as f32) * scale_y,
             )
         };
         let bb = canvas.bb;
@@ -713,11 +719,38 @@ impl RvImageApp {
         })
     }
     fn update_texture(&mut self, ctx: &Context) {
-        self.im_view = view::from_orig(&self.im_orig, self.zoom_box);
+        let crop = self.crop_bb();
+        let view_shape = view::fit_view_shape(crop.shape(), self.view_max_shape);
+        self.im_view_clean = view::from_orig_scaled(&self.im_orig, crop, view_shape);
+        self.im_view = self.im_view_clean.clone();
         self.texture = Some(detail::clrim_2_handle(
             detail::image_2_colorimage(&self.im_view),
             ctx,
         ));
+    }
+    /// Recomputes the view if its resolution does not fit the available screen space anymore.
+    /// Returns true if the view has been recomputed.
+    fn check_view_resolution(&mut self, ui: &Ui) -> bool {
+        let available = ui.available_size() * ui.ctx().pixels_per_point();
+        if !(available.x.is_finite() && available.y.is_finite())
+            || available.x < 1.0
+            || available.y < 1.0
+        {
+            return false;
+        }
+        self.view_max_shape = Some(rvlib::ShapeI::new(
+            available.x.ceil() as u32,
+            available.y.ceil() as u32,
+        ));
+        let desired = view::fit_view_shape(self.shape_view(), self.view_max_shape);
+        let current = rvlib::ShapeI::from_im(&self.im_view_clean);
+        if self.texture.is_some() && view::is_view_rebuild_needed(current, desired) {
+            time_scope!("update_texture_resolution");
+            self.update_texture(ui.ctx());
+            true
+        } else {
+            false
+        }
     }
     fn update_thumb_textures(&mut self, ctx: &Context) {
         let totxtr = |ims: &[ViewMetaPair]| {
@@ -765,6 +798,9 @@ impl eframe::App for RvImageApp {
             let mut zoom_box_update = false;
             egui::CentralPanel::default().show(ui, |ui| {
                 egui::ScrollArea::both().show(ui, |ui| {
+                    if self.check_view_resolution(ui) {
+                        zoom_box_update = true;
+                    }
                     if let UpdateZoomBox::Yes(zb) = update_view.zoom_box
                         && self.zoom_box != zb
                     {
@@ -873,6 +909,7 @@ impl eframe::App for RvImageApp {
                                 time_scope!("update_perm_annos_resize");
 
                                 self.update_perm_annos(&ir.rect, ui);
+                                update_texture = true;
 
                                 self.image_rect = Some(image_surrounding_rect);
                             }
@@ -1101,6 +1138,8 @@ fn test_ctrl_s_without_image() {
         im_orig: Default::default(),
         meta_orig: Default::default(),
         im_view: Default::default(),
+        im_view_clean: Default::default(),
+        view_max_shape: None,
         thumb_ims: Default::default(),
         events: Events::default(),
         last_sensed_btncodes: Default::default(),
@@ -1182,4 +1221,38 @@ fn test_coco() {
     for ep in export_path {
         read_coco(&meta_data, &ep, rot90.as_ref()).unwrap();
     }
+}
+
+#[test]
+fn test_canvas_to_view() {
+    // a vertical line of width 1 in a 20x20 image
+    let canvas = Canvas {
+        mask: vec![1; 20],
+        bb: BbI::from_arr(&[7, 0, 1, 20]),
+        intensity: 1.0,
+    };
+    let crop = BbI::from_arr(&[0, 0, 20, 20]);
+    let white = Rgb([255, 255, 255]);
+
+    // full resolution
+    let mut im_view = ImageU8::new(20, 20);
+    detail::canvas_to_view(&canvas, &mut im_view, crop, 128, white);
+    assert_eq!(im_view.get_pixel(7, 3), &Rgb([128, 128, 128]));
+    assert_eq!(im_view.get_pixel(6, 3), &Rgb([0, 0, 0]));
+
+    // downscaled by 4, each covered view pixel is blended once and the thin line stays visible
+    let mut im_view = ImageU8::new(5, 5);
+    detail::canvas_to_view(&canvas, &mut im_view, crop, 128, white);
+    for v in 0..5 {
+        assert_eq!(im_view.get_pixel(1, v), &Rgb([128, 128, 128]));
+        assert_eq!(im_view.get_pixel(2, v), &Rgb([0, 0, 0]));
+    }
+
+    // zoomed, only the visible part is drawn at the shifted position
+    let crop = BbI::from_arr(&[5, 10, 10, 10]);
+    let mut im_view = ImageU8::new(10, 10);
+    detail::canvas_to_view(&canvas, &mut im_view, crop, 255, white);
+    assert_eq!(im_view.get_pixel(2, 0), &white);
+    assert_eq!(im_view.get_pixel(2, 9), &white);
+    assert_eq!(im_view.get_pixel(3, 5), &Rgb([0, 0, 0]));
 }
